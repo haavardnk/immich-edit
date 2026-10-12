@@ -11,8 +11,11 @@
   import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
   import { supportsFilter } from '$lib/browse/browseRoutes';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
-  import type { FilterKey } from '$lib/browse/filterChips';
-  import { browseControls, FILTER_DEFAULTS } from '$lib/stores/browseControls.svelte';
+  import {
+    browseControls,
+    FILTER_DEFAULTS,
+    type FilterKey
+  } from '$lib/stores/browseControls.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
   import { matchKeybind } from '$lib/shortcuts/match';

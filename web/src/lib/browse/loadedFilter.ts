@@ -1,7 +1,29 @@
-import { browseControls } from '$lib/stores/browseControls.svelte';
+import { browseControls, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import { labelOf } from '$lib/stores/labels';
 import type { AssetSummary } from '$lib/types/album';
 import type { BrowseFilter } from '$lib/types/search';
+import { EXIF_FILTERS } from './exifFilters';
+import { ratingHides } from './rating';
+import { isRejected } from './reject';
 import { sortAssets, timeOf, type SortKey } from './sortAssets';
+
+export const LOADED_FILTERS: (keyof BrowseFilters)[] = [
+  'favoriteOnly',
+  'rating',
+  'filename',
+  'minSize',
+  'maxSize',
+  'takenAfter',
+  'takenBefore',
+  'rejected',
+  'label',
+  'make',
+  'model',
+  'lensModel',
+  'country',
+  'state',
+  'city'
+];
 
 const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -19,6 +41,19 @@ export function keepsLoaded(filter: BrowseFilter, asset: AssetSummary): boolean 
   const before = filter.takenBefore ? Date.parse(filter.takenBefore) : undefined;
   if (!within(timeOf(asset.fileCreatedAt), after, before)) return false;
   return within(asset.exifInfo?.fileSizeInByte, filter.minSize, filter.maxSize);
+}
+
+export function hides(filters: BrowseFilters, asset: AssetSummary): boolean {
+  if (ratingHides(filters.rating, asset.exifInfo?.rating)) return true;
+  if (filters.rejected !== 'any' && isRejected(asset) !== (filters.rejected === 'only'))
+    return true;
+  const exif = asset.exifInfo;
+  if (
+    EXIF_FILTERS.some((key) => filters[key].length > 0 && !filters[key].includes(exif?.[key] ?? ''))
+  )
+    return true;
+  if (filters.label === 'any') return false;
+  return labelOf(asset) !== (filters.label === 'none' ? null : filters.label);
 }
 
 export function arrangeLoaded(assets: AssetSummary[], key: SortKey): AssetSummary[] {

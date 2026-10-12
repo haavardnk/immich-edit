@@ -2,12 +2,12 @@
   import TextInput from '$lib/components/TextInput.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
 
-  let filenameLocal = $state(browseControls.filename);
+  let filenameLocal = $state(browseControls.filters.filename);
   let filenameTimer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
-    if (browseControls.filename !== filenameLocal && filenameTimer === null) {
-      filenameLocal = browseControls.filename;
+    if (browseControls.filters.filename !== filenameLocal && filenameTimer === null) {
+      filenameLocal = browseControls.filters.filename;
     }
   });
 
@@ -15,7 +15,7 @@
     filenameLocal = (e.target as HTMLInputElement).value;
     if (filenameTimer) clearTimeout(filenameTimer);
     filenameTimer = setTimeout(() => {
-      browseControls.filename = filenameLocal;
+      browseControls.filters.filename = filenameLocal;
       filenameTimer = null;
     }, 350);
   }

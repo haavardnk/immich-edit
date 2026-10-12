@@ -3,49 +3,28 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct BrowseFilter {
-    #[serde(default)]
     pub scope: Option<Scope>,
-    #[serde(default)]
     pub favorite: bool,
-    #[serde(default)]
     pub not_in_album: bool,
-    #[serde(default)]
     pub untagged: bool,
-    #[serde(default)]
     pub no_people: bool,
-    #[serde(default)]
     pub visibility: Option<Visibility>,
-    #[serde(default)]
     pub images_only: bool,
-    #[serde(default)]
     pub rating: Option<RatingMatch>,
-    #[serde(default)]
     pub filename: Option<String>,
-    #[serde(default)]
     pub taken_after: Option<DateTime<Utc>>,
-    #[serde(default)]
     pub taken_before: Option<DateTime<Utc>>,
-    #[serde(default)]
     pub rejected: Option<Rejected>,
-    #[serde(default)]
     pub label: Option<Label>,
-    #[serde(default)]
     pub make: ExifMatch,
-    #[serde(default)]
     pub model: ExifMatch,
-    #[serde(default)]
     pub lens_model: ExifMatch,
-    #[serde(default)]
     pub country: ExifMatch,
-    #[serde(default)]
     pub state: ExifMatch,
-    #[serde(default)]
     pub city: ExifMatch,
-    #[serde(default)]
     pub min_size: Option<u64>,
-    #[serde(default)]
     pub max_size: Option<u64>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,

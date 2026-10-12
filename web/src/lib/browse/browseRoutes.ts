@@ -1,6 +1,7 @@
 import { loadEditedAssets, loadFolderAssets, runSearch } from './sources';
 import { resolveSearchMode } from './searchMode';
 import { fieldKey, timeOf, type SortKey } from './sortAssets';
+import { LOADED_FILTERS } from './loadedFilter';
 import {
   browseControls,
   type BrowseFilters,
@@ -108,24 +109,22 @@ const SCOPE_EXCLUSIONS: Partial<Record<keyof BrowseFilters, string>> = {
 };
 
 const STRUCTURED_ONLY: (keyof BrowseFilters)[] = ['noPeople', 'minSize', 'maxSize'];
-const NOT_LOADED: (keyof BrowseFilters)[] = ['visibility', 'notInAlbum', 'untagged', 'noPeople'];
 
-export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
-  const route = matchBrowseRoute(url);
-  if (route && !('feed' in route)) return !NOT_LOADED.includes(key);
-  const excluded = SCOPE_EXCLUSIONS[key];
-  const structuredOnly = STRUCTURED_ONLY.includes(key);
-  if (!excluded && !structuredOnly) return true;
-  if (structuredOnly && !immichCapabilities.structuredSearch) return false;
-  if (!route) return url.pathname === '/search';
-  if (structuredOnly && route.feed.flatOnly?.()) return false;
-  if (!excluded) return true;
-  const scope = route.feed.baseFilter().scope;
-  return !scope || !(excluded in scope);
-}
-
-export function supportsRatingRanges(url: URL): boolean {
+export function structuredRoute(url: URL): boolean {
   if (!immichCapabilities.structuredSearch) return false;
   const route = matchBrowseRoute(url);
   return !route || !('feed' in route) || !route.feed.flatOnly?.();
+}
+
+export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
+  const route = matchBrowseRoute(url);
+  if (route && !('feed' in route)) return LOADED_FILTERS.includes(key);
+  const excluded = SCOPE_EXCLUSIONS[key];
+  const structuredOnly = STRUCTURED_ONLY.includes(key);
+  if (!excluded && !structuredOnly) return true;
+  if (structuredOnly && !structuredRoute(url)) return false;
+  if (!route) return url.pathname === '/search';
+  if (!excluded) return true;
+  const scope = route.feed.baseFilter().scope;
+  return !scope || !(excluded in scope);
 }

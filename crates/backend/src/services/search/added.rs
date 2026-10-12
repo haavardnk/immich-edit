@@ -77,7 +77,7 @@ struct Timeline<'a> {
 
 pub async fn page(searcher: &Searcher, query: &PageQuery) -> Result<SearchPage, AppError> {
     let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
-    if searcher.tags(&query.filter).await?.is_none() {
+    if searcher.ids(&query.filter).await?.is_none() {
         return Ok(SearchPage::empty());
     }
     let timeline = Timeline::load(searcher, &query.filter, query.sort.direction).await?;

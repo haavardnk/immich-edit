@@ -1,15 +1,10 @@
 <script lang="ts">
   import SortMenu from '$lib/components/browse/SortMenu.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { browseControls, type FilterKey } from '$lib/stores/browseControls.svelte';
   import { LABEL_TEXT } from '$lib/stores/labels';
   import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
   import { hint } from '$lib/shortcuts/labels';
-  import {
-    activeFilterChips,
-    photoCountLabel,
-    withoutFilter,
-    type FilterKey
-  } from '$lib/browse/filterChips';
+  import { activeFilterChips, photoCountLabel, withoutFilter } from '$lib/browse/filterChips';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { tick } from 'svelte';
   import {

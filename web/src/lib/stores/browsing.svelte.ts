@@ -1,3 +1,4 @@
+import { hides } from '$lib/browse/loadedFilter';
 import { browseControls } from '$lib/stores/browseControls.svelte';
 import type { AssetSummary } from '$lib/types/album';
 
@@ -97,7 +98,7 @@ class BrowsingStore {
   }
 
   private shows(asset: AssetSummary): boolean {
-    return !browseControls.hides(asset);
+    return !hides(browseControls.filters, asset);
   }
 }
 

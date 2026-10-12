@@ -8,6 +8,7 @@
   import { selection } from '$lib/stores/selection.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { hides } from '$lib/browse/loadedFilter';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { compare } from '$lib/stores/compare.svelte';
   import { multiMembers, type MultiMode } from '$lib/browse/compareEntry';
@@ -62,7 +63,7 @@
   let selectingAll = $state(false);
   let bulkBar: BulkActionBar | undefined = $state();
 
-  const items = $derived(assets.filter((a) => !browseControls.hides(a)));
+  const items = $derived(assets.filter((a) => !hides(browseControls.filters, a)));
 
   const layout = $derived.by(() => {
     const inner = Math.max(0, gridWidth - PAD * 2);

@@ -1,12 +1,10 @@
 import type { BrowseFilter, SearchSort, SortDir, SortField, Visibility } from '$lib/types/search';
-import type { AssetSummary } from '$lib/types/album';
-import { labelOf, type LabelColor } from '$lib/stores/labels';
-import { isRejected } from '$lib/browse/reject';
+import type { LabelColor } from '$lib/stores/labels';
 import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
 import { readStored, writeStored } from '$lib/utils/storage';
-import { isRange, ratingHides, ratingMatch, type RatingFilter } from '$lib/browse/rating';
-import { EXIF_FILTERS, UNKNOWN_EXIF, type ExifFilterKey } from '$lib/browse/exifFilters';
-import { toBytes } from '$lib/browse/fileSize';
+import type { RatingFilter } from '$lib/browse/rating';
+import type { ExifFilterKey } from '$lib/browse/exifFilters';
+import { serverFilter } from '$lib/browse/serverFilter';
 
 export type { SortDir, SortField, Visibility };
 export type LabelFilter = 'any' | 'none' | LabelColor;
@@ -35,6 +33,8 @@ export interface BrowseFilters {
   state: string[];
   city: string[];
 }
+
+export type FilterKey = keyof BrowseFilters;
 
 const SORT_KEY = 'immich-edit:browseSort';
 
@@ -79,26 +79,12 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   city: []
 };
 
+export function isDefaultFilter(filters: BrowseFilters, key: keyof BrowseFilters): boolean {
+  return JSON.stringify(filters[key]) === JSON.stringify(FILTER_DEFAULTS[key]);
+}
+
 export class BrowseControlsStore {
-  favoriteOnly = $state(false);
-  notInAlbum = $state(false);
-  untagged = $state(false);
-  noPeople = $state(false);
-  rating = $state<RatingFilter>('any');
-  filename = $state('');
-  minSize = $state<number | null>(null);
-  maxSize = $state<number | null>(null);
-  visibility = $state<Visibility>('timeline');
-  takenAfter = $state('');
-  takenBefore = $state('');
-  rejected = $state<RejectedFilter>('any');
-  label = $state<LabelFilter>('any');
-  make = $state<string[]>([]);
-  model = $state<string[]>([]);
-  lensModel = $state<string[]>([]);
-  country = $state<string[]>([]);
-  state = $state<string[]>([]);
-  city = $state<string[]>([]);
+  filters = $state<BrowseFilters>({ ...FILTER_DEFAULTS });
   private sortByFamily = $state<Record<SortFamily, SearchSort>>({ ...SORT_DEFAULTS });
   private family = $state<SortFamily>('timeline');
 
@@ -156,21 +142,9 @@ export class BrowseControlsStore {
   }
 
   get isFiltered(): boolean {
-    const filters = this.filters;
-    return (Object.keys(FILTER_DEFAULTS) as (keyof BrowseFilters)[]).some((key) => {
-      const value = filters[key];
-      return Array.isArray(value) ? value.length > 0 : value !== FILTER_DEFAULTS[key];
-    });
-  }
-
-  hides(asset: AssetSummary): boolean {
-    if (ratingHides(this.rating, asset.exifInfo?.rating)) return true;
-    if (this.rejected !== 'any' && isRejected(asset) !== (this.rejected === 'only')) return true;
-    const exif = asset.exifInfo;
-    if (EXIF_FILTERS.some((key) => this[key].length > 0 && !this[key].includes(exif?.[key] ?? '')))
-      return true;
-    if (this.label === 'any') return false;
-    return labelOf(asset) !== (this.label === 'none' ? null : this.label);
+    return (Object.keys(FILTER_DEFAULTS) as (keyof BrowseFilters)[]).some(
+      (key) => !isDefaultFilter(this.filters, key)
+    );
   }
 
   private corrected = false;
@@ -186,10 +160,10 @@ export class BrowseControlsStore {
   }
 
   prune(key: ExifFilterKey, available: string[]): void {
-    const kept = this[key].filter((value) => available.includes(value));
-    if (kept.length === this[key].length) return;
+    const kept = this.filters[key].filter((value) => available.includes(value));
+    if (kept.length === this.filters[key].length) return;
     this.corrected = true;
-    this[key] = kept;
+    this.filters[key] = kept;
   }
 
   takeCorrected(): boolean {
@@ -198,50 +172,8 @@ export class BrowseControlsStore {
     return corrected;
   }
 
-  get filters(): BrowseFilters {
-    return {
-      favoriteOnly: this.favoriteOnly,
-      notInAlbum: this.notInAlbum,
-      untagged: this.untagged,
-      noPeople: this.noPeople,
-      rating: this.rating,
-      filename: this.filename,
-      minSize: this.minSize,
-      maxSize: this.maxSize,
-      visibility: this.visibility,
-      takenAfter: this.takenAfter,
-      takenBefore: this.takenBefore,
-      rejected: this.rejected,
-      label: this.label,
-      make: this.make,
-      model: this.model,
-      lensModel: this.lensModel,
-      country: this.country,
-      state: this.state,
-      city: this.city
-    };
-  }
-
   applyFilters(filters: BrowseFilters): void {
-    this.favoriteOnly = filters.favoriteOnly;
-    this.notInAlbum = filters.notInAlbum;
-    this.untagged = filters.untagged;
-    this.noPeople = filters.noPeople;
-    this.rating = filters.rating;
-    this.filename = filters.filename;
-    this.minSize = filters.minSize;
-    this.maxSize = filters.maxSize;
-    this.visibility = filters.visibility;
-    this.takenAfter = filters.takenAfter;
-    this.takenBefore = filters.takenBefore;
-    this.rejected = filters.rejected;
-    this.label = filters.label;
-    this.make = filters.make;
-    this.model = filters.model;
-    this.lensModel = filters.lensModel;
-    this.country = filters.country;
-    this.state = filters.state;
-    this.city = filters.city;
+    this.filters = { ...filters };
   }
 
   private resetFilters(): void {
@@ -249,54 +181,7 @@ export class BrowseControlsStore {
   }
 
   filter(base: BrowseFilter, flatOnly = false): BrowseFilter {
-    const filter: BrowseFilter = { ...base, visibility: this.visibility, imagesOnly: true };
-    const rating = ratingMatch(this.serverRating(flatOnly));
-    if (this.favoriteOnly) filter.favorite = true;
-    if (this.notInAlbum) filter.notInAlbum = true;
-    if (this.untagged) filter.untagged = true;
-    if (this.noPeople) filter.noPeople = true;
-    if (rating) filter.rating = rating;
-    if (this.filename) filter.filename = this.filename;
-    if (this.minSize !== null) filter.minSize = toBytes(this.minSize);
-    if (this.maxSize !== null) filter.maxSize = toBytes(this.maxSize);
-    if (this.takenAfter) filter.takenAfter = new Date(this.takenAfter).toISOString();
-    if (this.takenBefore) {
-      filter.takenBefore = new Date(this.takenBefore + 'T23:59:59').toISOString();
-    }
-    const rejected = this.serverRejected(flatOnly);
-    const label = this.serverLabel(flatOnly);
-    if (rejected !== 'any') filter.rejected = rejected;
-    if (label !== 'any') filter.label = label;
-    for (const key of EXIF_FILTERS) {
-      const values = this.serverValues(key, flatOnly);
-      if (values.length > 0)
-        filter[key] = values.map((value) => (value === UNKNOWN_EXIF ? null : value));
-    }
-    return filter;
-  }
-
-  private structured(flatOnly: boolean): boolean {
-    return immichCapabilities.structuredSearch && !flatOnly;
-  }
-
-  private serverValues(key: ExifFilterKey, flatOnly: boolean): string[] {
-    if (this[key].length > 1 && !this.structured(flatOnly)) return [];
-    return this[key];
-  }
-
-  private serverRating(flatOnly: boolean): RatingFilter {
-    if (isRange(this.rating) && !this.structured(flatOnly)) return 'any';
-    return this.rating;
-  }
-
-  private serverLabel(flatOnly: boolean): LabelFilter {
-    if (this.label === 'none' && !this.structured(flatOnly)) return 'any';
-    return this.label;
-  }
-
-  private serverRejected(flatOnly: boolean): RejectedFilter {
-    if (this.rejected === 'hide' && !this.structured(flatOnly)) return 'any';
-    return this.rejected;
+    return serverFilter(this.filters, base, immichCapabilities.structuredSearch && !flatOnly);
   }
 
   get sort(): SearchSort {
@@ -304,24 +189,7 @@ export class BrowseControlsStore {
   }
 
   serverFilterKey(flatOnly = false): string {
-    return [
-      this.sortField,
-      this.sortDir,
-      this.favoriteOnly,
-      this.notInAlbum,
-      this.untagged,
-      this.noPeople,
-      this.serverRating(flatOnly),
-      this.filename,
-      this.minSize,
-      this.maxSize,
-      this.visibility,
-      this.takenAfter,
-      this.takenBefore,
-      this.serverRejected(flatOnly),
-      this.serverLabel(flatOnly),
-      JSON.stringify(EXIF_FILTERS.map((key) => this.serverValues(key, flatOnly)))
-    ].join('|');
+    return [this.sortField, this.sortDir, JSON.stringify(this.filter({}, flatOnly))].join('|');
   }
 }
 

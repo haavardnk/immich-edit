@@ -4,7 +4,7 @@
     segmentedRadioItemClass
   } from '$lib/components/editor/controls/segmentedControl';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { supportsRatingRanges } from '$lib/browse/browseRoutes';
+  import { structuredRoute } from '$lib/browse/browseRoutes';
   import { page } from '$app/state';
   import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '$lib/browse/rating';
   import { Icon, Tooltip } from '@immich/ui';
@@ -23,21 +23,21 @@
   let hover = $state(0);
   let opChoice = $state<RatingOp>('gte');
 
-  const ranges = $derived(supportsRatingRanges(page.url));
-  const stars = $derived(ratingStars(browseControls.rating));
-  const op = $derived(ranges ? (ratingOp(browseControls.rating) ?? opChoice) : 'eq');
+  const ranges = $derived(structuredRoute(page.url));
+  const stars = $derived(ratingStars(browseControls.filters.rating));
+  const op = $derived(ranges ? (ratingOp(browseControls.filters.rating) ?? opChoice) : 'eq');
   const lit = $derived(hover || stars);
 
   const starName = (n: number): string => `${n} star${n > 1 ? 's' : ''}`;
 
   function pickStar(value: string): void {
     const n = STARS.find((star) => String(star) === value);
-    if (n) browseControls.rating = starRating(n, op);
+    if (n) browseControls.filters.rating = starRating(n, op);
   }
 
   function cycleOp(): void {
     opChoice = OPS[op].next;
-    if (stars !== 0) browseControls.rating = starRating(stars, opChoice);
+    if (stars !== 0) browseControls.filters.rating = starRating(stars, opChoice);
   }
 </script>
 
@@ -46,8 +46,8 @@
   <div class={segmentedControlClass}>
     <RadioGroup.Root
       bind:value={
-        () => (stars === 0 ? String(browseControls.rating) : ''),
-        (v) => (browseControls.rating = v === 'unrated' ? 'unrated' : 'any')
+        () => (stars === 0 ? String(browseControls.filters.rating) : ''),
+        (v) => (browseControls.filters.rating = v === 'unrated' ? 'unrated' : 'any')
       }
       orientation="horizontal"
       aria-label="Rating presets"

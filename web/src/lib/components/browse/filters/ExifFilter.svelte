@@ -19,13 +19,13 @@
   let request = 0;
 
   const label = $derived(EXIF_LABELS[key]);
-  const selected = $derived(browseControls[key]);
+  const selected = $derived(browseControls.filters[key]);
   const options = $derived([
     ...suggestions,
     ...selected.filter((value) => !suggestions.includes(value))
   ]);
   const multiple = $derived(immichCapabilities.structuredSearch);
-  const query = $derived(suggestionQuery(key, browseControls));
+  const query = $derived(suggestionQuery(key, browseControls.filters));
 
   $effect(() => {
     const id = ++request;
@@ -47,9 +47,9 @@
       color="neutral"
       {options}
       bind:selected={
-        () => browseControls[key],
+        () => browseControls.filters[key],
         (values) => {
-          browseControls[key] = exclusiveUnknown(values);
+          browseControls.filters[key] = exclusiveUnknown(values);
         }
       }
       getId={(value) => value}

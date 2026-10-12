@@ -1,8 +1,8 @@
 <script lang="ts">
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import type { FilterKey } from '$lib/browse/filterChips';
   import {
     browseControls,
+    type FilterKey,
     type RejectedFilter,
     type Visibility
   } from '$lib/stores/browseControls.svelte';
@@ -38,8 +38,8 @@
       size="tiny"
       class="editor-compact-select editor-compact-field"
       options={visibilityOptions}
-      value={browseControls.visibility}
-      onChange={(v) => (browseControls.visibility = v)}
+      value={browseControls.filters.visibility}
+      onChange={(v) => (browseControls.filters.visibility = v)}
     />
   </Field>
 {/if}
@@ -49,8 +49,8 @@
     size="tiny"
     class="editor-compact-select editor-compact-field"
     options={rejectedOptions}
-    value={browseControls.rejected}
-    onChange={(v) => (browseControls.rejected = v)}
+    value={browseControls.filters.rejected}
+    onChange={(v) => (browseControls.filters.rejected = v)}
   />
 </Field>
 
@@ -58,16 +58,16 @@
   {#if !favoriteLocked}
     <CheckboxRow
       label="Favorites only"
-      checked={browseControls.favoriteOnly}
-      onChange={(checked) => (browseControls.favoriteOnly = checked)}
+      checked={browseControls.filters.favoriteOnly}
+      onChange={(checked) => (browseControls.filters.favoriteOnly = checked)}
     />
   {/if}
 
   {#each exclusions.filter(({ key }) => supports(key)) as { key, label } (key)}
     <CheckboxRow
       {label}
-      checked={browseControls[key]}
-      onChange={(checked) => (browseControls[key] = checked)}
+      checked={browseControls.filters[key]}
+      onChange={(checked) => (browseControls.filters[key] = checked)}
     />
   {/each}
 </div>

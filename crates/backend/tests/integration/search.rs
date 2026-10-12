@@ -280,6 +280,10 @@ async fn managed_tag_filters_follow_the_server_shape() {
 async fn searches_that_cannot_match_are_empty_without_reaching_immich() {
     for (minor, filter) in [
         (2, json!({ "rejected": "only" })),
+        (
+            1,
+            json!({ "scope": { "album": album_id() }, "notInAlbum": true }),
+        ),
         (1, json!({ "scope": { "tag": tag_id() }, "untagged": true })),
     ] {
         let server = MockServer::start().await;

@@ -1,6 +1,10 @@
-import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import {
+  FILTER_DEFAULTS,
+  isDefaultFilter,
+  type BrowseFilters,
+  type FilterKey
+} from '$lib/stores/browseControls.svelte';
 import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
-import type { FilterKey } from '$lib/browse/filterChips';
 
 export type FilterSectionId = 'library' | 'rating' | 'date' | 'camera' | 'place' | 'file';
 
@@ -28,10 +32,7 @@ export function isFilterSectionId(value: unknown): value is FilterSectionId {
 }
 
 export function sectionModified(filters: BrowseFilters, section: FilterSection): boolean {
-  return section.keys.some((key) => {
-    const value = filters[key];
-    return Array.isArray(value) ? value.length > 0 : value !== FILTER_DEFAULTS[key];
-  });
+  return section.keys.some((key) => !isDefaultFilter(filters, key));
 }
 
 export function withoutSection(filters: BrowseFilters, section: FilterSection): BrowseFilters {

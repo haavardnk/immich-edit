@@ -81,7 +81,7 @@ beforeEach(() => {
   rateAsset.mockResolvedValue(true);
   selection.clear();
   browseView.setActive(null);
-  browseControls.rejected = 'any';
+  browseControls.filters.rejected = 'any';
   scroller = document.createElement('div');
   scroller.style.overflowY = 'auto';
   target = document.createElement('div');

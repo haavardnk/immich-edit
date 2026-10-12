@@ -1,9 +1,11 @@
-import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import {
+  FILTER_DEFAULTS,
+  type BrowseFilters,
+  type FilterKey
+} from '$lib/stores/browseControls.svelte';
 import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
 import { ratingOp, ratingStars } from '$lib/browse/rating';
 import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '$lib/browse/exifFilters';
-
-export type FilterKey = keyof BrowseFilters;
 
 export interface FilterChip {
   key: FilterKey;

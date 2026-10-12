@@ -7,8 +7,11 @@
 <Field label="Taken after" size="tiny" class="editor-compact-input-field">
   <DatePicker
     bind:value={
-      () => (browseControls.takenAfter ? DateTime.fromISO(browseControls.takenAfter) : undefined),
-      (date) => (browseControls.takenAfter = date?.toISODate() ?? '')
+      () =>
+        browseControls.filters.takenAfter
+          ? DateTime.fromISO(browseControls.filters.takenAfter)
+          : undefined,
+      (date) => (browseControls.filters.takenAfter = date?.toISODate() ?? '')
     }
   />
 </Field>
@@ -16,8 +19,11 @@
 <Field label="Taken before" size="tiny" class="editor-compact-input-field">
   <DatePicker
     bind:value={
-      () => (browseControls.takenBefore ? DateTime.fromISO(browseControls.takenBefore) : undefined),
-      (date) => (browseControls.takenBefore = date?.toISODate() ?? '')
+      () =>
+        browseControls.filters.takenBefore
+          ? DateTime.fromISO(browseControls.filters.takenBefore)
+          : undefined,
+      (date) => (browseControls.filters.takenBefore = date?.toISODate() ?? '')
     }
   />
 </Field>

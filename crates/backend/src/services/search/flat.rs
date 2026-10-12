@@ -3,27 +3,28 @@ use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, Scope};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch};
+use crate::services::search::ids::Ids;
 use crate::services::search::query::{PageQuery, SmartQuery};
-use crate::services::search::tags::TagSet;
 
 pub fn timestamp(at: DateTime<Utc>) -> Value {
     at.to_rfc3339_opts(SecondsFormat::Millis, true).into()
 }
 
-pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>, AppError> {
+pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Result<Map<String, Value>, AppError> {
     let mut body = Map::new();
-    match filter.scope {
-        Some(Scope::Album(id)) => body.insert("albumIds".into(), json!([id])),
-        Some(Scope::Person(id)) => body.insert("personIds".into(), json!([id])),
-        Some(Scope::Tag(_)) | None => None,
-    };
-    if filter.not_in_album {
-        if body.contains_key("albumIds") {
-            return Err(AppError::BadRequest(
-                "an album cannot hold photos that are in no album".into(),
-            ));
+    for (field, set) in ids.fields() {
+        if !set.none.is_empty() || set.any.len() > 1 {
+            return Err(AppError::BadRequest(format!(
+                "this search can only match photos with all of the {field}"
+            )));
         }
+        let required: Vec<Uuid> = set.all.iter().chain(&set.any).copied().collect();
+        if !required.is_empty() {
+            body.insert(field.into(), json!(required));
+        }
+    }
+    if filter.not_in_album {
         body.insert("isNotInAlbum".into(), true.into());
     }
     if filter.untagged {
@@ -38,14 +39,6 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
         return Err(AppError::BadRequest(
             "this search cannot filter by file size".into(),
         ));
-    }
-    if !tags.none.is_empty() {
-        return Err(AppError::BadRequest(
-            "this search cannot exclude tagged photos".into(),
-        ));
-    }
-    if !tags.all.is_empty() {
-        body.insert("tagIds".into(), json!(tags.all));
     }
     if filter.favorite {
         body.insert("isFavorite".into(), true.into());
@@ -98,8 +91,8 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Result<Map<String, Value>
     Ok(body)
 }
 
-pub fn page(query: &PageQuery, tags: &TagSet, page: u32) -> Result<Value, AppError> {
-    let mut body = filter(&query.filter, tags)?;
+pub fn page(query: &PageQuery, ids: &Ids, page: u32) -> Result<Value, AppError> {
+    let mut body = filter(&query.filter, ids)?;
     body.insert("order".into(), json!(query.sort.direction));
     body.insert("size".into(), query.size.into());
     body.insert("page".into(), page.into());
@@ -109,8 +102,8 @@ pub fn page(query: &PageQuery, tags: &TagSet, page: u32) -> Result<Value, AppErr
     Ok(Value::Object(body))
 }
 
-pub fn smart(query: &SmartQuery, tags: &TagSet, page: u32) -> Result<Value, AppError> {
-    let mut body = filter(&query.filter, tags)?;
+pub fn smart(query: &SmartQuery, ids: &Ids, page: u32) -> Result<Value, AppError> {
+    let mut body = filter(&query.filter, ids)?;
     body.insert("query".into(), query.text.clone().into());
     body.insert("size".into(), query.size.into());
     body.insert("page".into(), page.into());
@@ -120,16 +113,16 @@ pub fn smart(query: &SmartQuery, tags: &TagSet, page: u32) -> Result<Value, AppE
     Ok(Value::Object(body))
 }
 
-pub fn find(filter_by: &BrowseFilter, tags: &TagSet, id: Uuid) -> Result<Value, AppError> {
-    let mut body = filter(filter_by, tags)?;
+pub fn find(filter_by: &BrowseFilter, ids: &Ids, id: Uuid) -> Result<Value, AppError> {
+    let mut body = filter(filter_by, ids)?;
     body.insert("id".into(), id.to_string().into());
     body.insert("size".into(), 1.into());
     body.insert("withExif".into(), true.into());
     Ok(Value::Object(body))
 }
 
-pub fn count(filter_by: &BrowseFilter, tags: &TagSet) -> Result<Value, AppError> {
-    Ok(Value::Object(filter(filter_by, tags)?))
+pub fn count(filter_by: &BrowseFilter, ids: &Ids) -> Result<Value, AppError> {
+    Ok(Value::Object(filter(filter_by, ids)?))
 }
 
 #[cfg(test)]
@@ -138,40 +131,39 @@ mod tests {
 
     use super::*;
     use crate::services::search::filter::Visibility;
+    use crate::services::search::ids::IdSet;
     use crate::services::search::query::{Direction, Sort, SortField};
 
     #[test]
     fn a_browse_page_maps_to_flat_immich_fields() {
         let tag = Uuid::new_v4();
         let reject = Uuid::new_v4();
-        let tags = TagSet {
-            all: vec![tag, reject],
-            none: vec![],
+        let person = Uuid::new_v4();
+        let ids = Ids {
+            people: IdSet {
+                any: vec![person],
+                ..IdSet::default()
+            },
+            tags: IdSet {
+                all: vec![tag, reject],
+                ..IdSet::default()
+            },
+            ..Ids::default()
         };
         let query = PageQuery {
             filter: BrowseFilter {
-                scope: Some(Scope::Tag(tag)),
                 favorite: true,
                 not_in_album: true,
-                untagged: false,
-                no_people: false,
                 visibility: Some(Visibility::Archive),
                 images_only: true,
                 rating: Some(RatingMatch::Unrated),
                 filename: Some("DSC".into()),
                 taken_after: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
-                taken_before: None,
-                rejected: None,
-                label: None,
                 make: ExifMatch::In(vec!["SONY".into()]),
-                model: ExifMatch::Any,
                 lens_model: ExifMatch::In(vec!["FE 35mm F1.8".into()]),
                 country: ExifMatch::Unknown,
-                state: ExifMatch::Any,
                 city: ExifMatch::In(vec!["Bergen".into()]),
-                min_size: None,
-                max_size: None,
-                added_between: None,
+                ..BrowseFilter::default()
             },
             sort: Sort {
                 field: SortField::Taken,
@@ -183,6 +175,7 @@ mod tests {
         };
         let expected = json!({
             "isNotInAlbum": true,
+            "personIds": [person],
             "tagIds": [tag, reject],
             "isFavorite": true,
             "visibility": "archive",
@@ -199,8 +192,8 @@ mod tests {
             "page": 2,
             "withExif": true,
         });
-        if page(&query, &tags, 2).ok() != Some(expected) {
-            panic!("flat body was {:?}", page(&query, &tags, 2));
+        if page(&query, &ids, 2).ok() != Some(expected) {
+            panic!("flat body was {:?}", page(&query, &ids, 2));
         }
     }
 
@@ -210,7 +203,7 @@ mod tests {
             untagged: true,
             ..BrowseFilter::default()
         };
-        let body = count(&filter_by, &TagSet::default()).ok();
+        let body = count(&filter_by, &Ids::default()).ok();
         if body != Some(json!({ "tagIds": null })) {
             panic!("untagged flat body was {body:?}");
         }
@@ -218,47 +211,55 @@ mod tests {
 
     #[test]
     fn flat_servers_refuse_what_they_cannot_express() {
-        let minimum = BrowseFilter {
-            rating: Some(RatingMatch::Gte(3)),
-            ..BrowseFilter::default()
-        };
-        let maximum = BrowseFilter {
-            rating: Some(RatingMatch::Lte(2)),
-            ..BrowseFilter::default()
-        };
-        let excluded = TagSet {
-            all: vec![],
-            none: vec![Uuid::new_v4()],
-        };
-        let cameras = BrowseFilter {
-            model: ExifMatch::In(vec!["ILCE-7M3".into(), "X-T5".into()]),
-            ..BrowseFilter::default()
-        };
-        let unfiled_album = BrowseFilter {
-            scope: Some(Scope::Album(Uuid::new_v4())),
-            not_in_album: true,
-            ..BrowseFilter::default()
-        };
-        let no_people = BrowseFilter {
-            no_people: true,
-            ..BrowseFilter::default()
-        };
-        let sized = BrowseFilter {
-            max_size: Some(5_000_000),
-            ..BrowseFilter::default()
-        };
-        let cases = [
-            (unfiled_album, TagSet::default()),
-            (no_people, TagSet::default()),
-            (sized, TagSet::default()),
-            (minimum, TagSet::default()),
-            (maximum, TagSet::default()),
-            (BrowseFilter::default(), excluded),
-            (cameras, TagSet::default()),
+        let filters = [
+            BrowseFilter {
+                rating: Some(RatingMatch::Gte(3)),
+                ..BrowseFilter::default()
+            },
+            BrowseFilter {
+                rating: Some(RatingMatch::Lte(2)),
+                ..BrowseFilter::default()
+            },
+            BrowseFilter {
+                model: ExifMatch::In(vec!["ILCE-7M3".into(), "X-T5".into()]),
+                ..BrowseFilter::default()
+            },
+            BrowseFilter {
+                no_people: true,
+                ..BrowseFilter::default()
+            },
+            BrowseFilter {
+                max_size: Some(5_000_000),
+                ..BrowseFilter::default()
+            },
         ];
-        for (filter_by, tags) in cases {
-            if count(&filter_by, &tags).is_ok() {
-                panic!("flat search accepted {filter_by:?} {tags:?}");
+        let id_sets = [
+            Ids {
+                tags: IdSet {
+                    none: vec![Uuid::new_v4()],
+                    ..IdSet::default()
+                },
+                ..Ids::default()
+            },
+            Ids {
+                albums: IdSet {
+                    any: vec![Uuid::new_v4(), Uuid::new_v4()],
+                    ..IdSet::default()
+                },
+                ..Ids::default()
+            },
+        ];
+        let cases = filters
+            .into_iter()
+            .map(|filter_by| (filter_by, Ids::default()))
+            .chain(
+                id_sets
+                    .into_iter()
+                    .map(|ids| (BrowseFilter::default(), ids)),
+            );
+        for (filter_by, ids) in cases {
+            if count(&filter_by, &ids).is_ok() {
+                panic!("flat search accepted {filter_by:?} {ids:?}");
             }
         }
     }

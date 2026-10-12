@@ -1,19 +1,25 @@
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
-use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch, Scope};
+use crate::services::search::filter::{BrowseFilter, ExifMatch, RatingMatch};
 use crate::services::search::flat::timestamp;
+use crate::services::search::ids::Ids;
 use crate::services::search::query::{PageQuery, SortField};
-use crate::services::search::tags::TagSet;
 
-pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
+pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
     let mut body = Map::new();
     body.insert("trashedAt".into(), json!({ "eq": null }));
-    match filter.scope {
-        Some(Scope::Album(id)) => body.insert("albumIds".into(), json!({ "all": [id] })),
-        Some(Scope::Person(id)) => body.insert("personIds".into(), json!({ "all": [id] })),
-        Some(Scope::Tag(_)) | None => None,
-    };
+    for (field, set) in ids.fields() {
+        let matched: Map<String, Value> =
+            [("all", &set.all), ("any", &set.any), ("none", &set.none)]
+                .into_iter()
+                .filter(|(_, ids)| !ids.is_empty())
+                .map(|(key, ids)| (key.into(), json!(ids)))
+                .collect();
+        if !matched.is_empty() {
+            body.insert(field.into(), Value::Object(matched));
+        }
+    }
     if filter.not_in_album {
         body.insert("hasAlbums".into(), json!({ "eq": false }));
     }
@@ -22,16 +28,6 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     }
     if filter.no_people {
         body.insert("hasPeople".into(), json!({ "eq": false }));
-    }
-    let mut tag_ids = Map::new();
-    if !tags.all.is_empty() {
-        tag_ids.insert("all".into(), json!(tags.all));
-    }
-    if !tags.none.is_empty() {
-        tag_ids.insert("none".into(), json!(tags.none));
-    }
-    if !tag_ids.is_empty() {
-        body.insert("tagIds".into(), Value::Object(tag_ids));
     }
     if filter.favorite {
         body.insert("isFavorite".into(), json!({ "eq": true }));
@@ -57,26 +53,18 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
     {
         body.insert("originalFileName".into(), json!({ "like": name }));
     }
-    let mut taken = Map::new();
-    if let Some(after) = filter.taken_after {
-        taken.insert("gte".into(), timestamp(after));
-    }
-    if let Some(before) = filter.taken_before {
-        taken.insert("lte".into(), timestamp(before));
-    }
-    if !taken.is_empty() {
-        body.insert("takenAt".into(), Value::Object(taken));
-    }
-    let mut size = Map::new();
-    if let Some(min) = filter.min_size {
-        size.insert("gte".into(), min.into());
-    }
-    if let Some(max) = filter.max_size {
-        size.insert("lte".into(), max.into());
-    }
-    if !size.is_empty() {
-        body.insert("fileSizeInBytes".into(), Value::Object(size));
-    }
+    range(
+        &mut body,
+        "takenAt",
+        filter.taken_after.map(timestamp),
+        filter.taken_before.map(timestamp),
+    );
+    range(
+        &mut body,
+        "fileSizeInBytes",
+        filter.min_size.map(Value::from),
+        filter.max_size.map(Value::from),
+    );
     for (field, values) in filter.exif_values() {
         match values {
             ExifMatch::Any => {}
@@ -89,22 +77,34 @@ pub fn filter(filter: &BrowseFilter, tags: &TagSet) -> Map<String, Value> {
         }
     }
     if let Some((after, before)) = filter.added_between {
-        body.insert(
-            "createdAt".into(),
-            json!({ "gte": timestamp(after), "lte": timestamp(before) }),
+        range(
+            &mut body,
+            "createdAt",
+            Some(timestamp(after)),
+            Some(timestamp(before)),
         );
     }
     body
 }
 
-pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
+fn range(body: &mut Map<String, Value>, field: &str, gte: Option<Value>, lte: Option<Value>) {
+    let bounds: Map<String, Value> = [("gte", gte), ("lte", lte)]
+        .into_iter()
+        .filter_map(|(key, bound)| Some((key.into(), bound?)))
+        .collect();
+    if !bounds.is_empty() {
+        body.insert(field.into(), Value::Object(bounds));
+    }
+}
+
+pub fn page(query: &PageQuery, ids: &Ids, cursor: Option<&str>) -> Value {
     let field = match query.sort.field {
         SortField::Rating => "rating",
         SortField::Size => "fileSizeInBytes",
         SortField::Taken | SortField::Added => "fileCreatedAt",
     };
     let mut body = json!({
-        "filter": filter(&query.filter, tags),
+        "filter": filter(&query.filter, ids),
         "orderBy": { "field": field, "direction": query.sort.direction },
         "size": query.size,
     });
@@ -117,14 +117,14 @@ pub fn page(query: &PageQuery, tags: &TagSet, cursor: Option<&str>) -> Value {
     body
 }
 
-pub fn find(filter_by: &BrowseFilter, tags: &TagSet, id: Uuid) -> Value {
-    let mut conditions = filter(filter_by, tags);
+pub fn find(filter_by: &BrowseFilter, ids: &Ids, id: Uuid) -> Value {
+    let mut conditions = filter(filter_by, ids);
     conditions.insert("id".into(), json!({ "eq": id }));
     json!({ "filter": conditions, "size": 1, "withExif": true })
 }
 
-pub fn count(filter_by: &BrowseFilter, tags: &TagSet) -> Value {
-    json!({ "filter": filter(filter_by, tags) })
+pub fn count(filter_by: &BrowseFilter, ids: &Ids) -> Value {
+    json!({ "filter": filter(filter_by, ids) })
 }
 
 #[cfg(test)]
@@ -133,18 +133,31 @@ mod tests {
 
     use super::*;
     use crate::services::search::filter::Visibility;
+    use crate::services::search::ids::IdSet;
     use crate::services::search::query::{Direction, Sort, SortField};
 
     #[test]
     fn a_browse_page_maps_to_a_structured_immich_filter() {
         let album = Uuid::new_v4();
-        let tags = TagSet {
+        let people = IdSet {
+            any: vec![Uuid::new_v4(), Uuid::new_v4()],
+            ..IdSet::default()
+        };
+        let tags = IdSet {
             all: vec![Uuid::new_v4()],
             none: vec![Uuid::new_v4()],
+            ..IdSet::default()
+        };
+        let ids = Ids {
+            albums: IdSet {
+                all: vec![album],
+                ..IdSet::default()
+            },
+            people: people.clone(),
+            tags: tags.clone(),
         };
         let query = PageQuery {
             filter: BrowseFilter {
-                scope: Some(Scope::Album(album)),
                 favorite: true,
                 not_in_album: true,
                 untagged: true,
@@ -153,19 +166,12 @@ mod tests {
                 images_only: true,
                 rating: Some(RatingMatch::Eq(3)),
                 filename: Some(" DSC ".into()),
-                taken_after: None,
                 taken_before: Some(Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()),
-                rejected: None,
-                label: None,
                 make: ExifMatch::In(vec!["SONY".into(), "FUJIFILM".into()]),
-                model: ExifMatch::Any,
                 lens_model: ExifMatch::Unknown,
-                country: ExifMatch::Any,
                 state: ExifMatch::In(vec!["Vestland".into(), "Oslo".into()]),
-                city: ExifMatch::Any,
                 min_size: Some(1_000_000),
-                max_size: None,
-                added_between: None,
+                ..BrowseFilter::default()
             },
             sort: Sort {
                 field: SortField::Taken,
@@ -179,6 +185,7 @@ mod tests {
             "filter": {
                 "trashedAt": { "eq": null },
                 "albumIds": { "all": [album] },
+                "personIds": { "any": people.any },
                 "hasAlbums": { "eq": false },
                 "hasTags": { "eq": false },
                 "hasPeople": { "eq": false },
@@ -199,7 +206,7 @@ mod tests {
             "cursor": "next",
             "withExif": true,
         });
-        let body = page(&query, &tags, Some("next"));
+        let body = page(&query, &ids, Some("next"));
         if body != expected {
             panic!("structured body was {body}");
         }
@@ -217,7 +224,7 @@ mod tests {
             cursor: None,
             with_exif: false,
         };
-        let body = page(&query, &TagSet::default(), None);
+        let body = page(&query, &Ids::default(), None);
         if body["orderBy"] != json!({ "field": "rating", "direction": "desc" }) {
             panic!("rating sort body was {body}");
         }
@@ -239,7 +246,7 @@ mod tests {
             "size": 1,
             "withExif": true,
         });
-        let body = find(&filter_by, &TagSet::default(), id);
+        let body = find(&filter_by, &Ids::default(), id);
         if body != expected {
             panic!("find body was {body}");
         }

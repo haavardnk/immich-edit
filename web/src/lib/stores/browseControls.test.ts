@@ -6,6 +6,7 @@ import {
   type SortFamily
 } from './browseControls.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';
+import { hides } from '$lib/browse/loadedFilter';
 import { REJECT_TAG_VALUE } from '$lib/browse/reject';
 import type { AssetSummary } from '$lib/types/album';
 import type { ExifInfo } from '$lib/types/asset';
@@ -41,10 +42,10 @@ describe('browseControls rejected', () => {
   });
 
   it('shows rejected photos by default', () => {
-    expect(browseControls.rejected).toBe('any');
+    expect(browseControls.filters.rejected).toBe('any');
     expect(browseControls.isDefault).toBe(true);
     expect(browseControls.isFiltered).toBe(false);
-    expect(browseControls.hides(asset(true))).toBe(false);
+    expect(hides(browseControls.filters, asset(true))).toBe(false);
   });
 
   it.each([
@@ -55,18 +56,18 @@ describe('browseControls rejected', () => {
   ] as const)('sends %s on structured search %s as %s', (rejected, structured, sent) => {
     immichCapabilities.structuredSearch = structured;
     const keyBefore = browseControls.serverFilterKey();
-    browseControls.rejected = rejected;
+    browseControls.filters.rejected = rejected;
     expect(browseControls.isFiltered).toBe(true);
     expect(browseControls.filter({}).rejected).toBe(sent);
     expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
-    expect(browseControls.hides(asset(true))).toBe(rejected === 'hide');
-    expect(browseControls.hides(asset(false))).toBe(rejected === 'only');
+    expect(hides(browseControls.filters, asset(true))).toBe(rejected === 'hide');
+    expect(hides(browseControls.filters, asset(false))).toBe(rejected === 'only');
   });
 
   it('is cleared by reset', () => {
-    browseControls.rejected = 'only';
+    browseControls.filters.rejected = 'only';
     browseControls.reset();
-    expect(browseControls.rejected).toBe('any');
+    expect(browseControls.filters.rejected).toBe('any');
   });
 });
 
@@ -168,20 +169,20 @@ describe('browseControls sort families', () => {
     const controls = new BrowseControlsStore();
     controls.enter('collection', FILTER_DEFAULTS);
     controls.setSortDir('desc');
-    controls.favoriteOnly = true;
+    controls.filters.favoriteOnly = true;
     controls.enter('collection', { ...FILTER_DEFAULTS, rating: 3 });
-    expect(controls.favoriteOnly).toBe(false);
-    expect(controls.rating).toBe(3);
+    expect(controls.filters.favoriteOnly).toBe(false);
+    expect(controls.filters.rating).toBe(3);
     expect(controls.sortDir).toBe('desc');
   });
 
   it('flags a prune that drops values, once', () => {
     const controls = new BrowseControlsStore();
-    controls.make = ['SONY', 'Canon'];
+    controls.filters.make = ['SONY', 'Canon'];
     controls.prune('make', ['SONY', 'Canon', 'Nikon']);
     expect(controls.takeCorrected()).toBe(false);
     controls.prune('make', ['SONY']);
-    expect(controls.make).toEqual(['SONY']);
+    expect(controls.filters.make).toEqual(['SONY']);
     expect(controls.takeCorrected()).toBe(true);
     expect(controls.takeCorrected()).toBe(false);
   });
@@ -201,14 +202,14 @@ describe('browseControls filter', () => {
   });
 
   it('merges the active controls into the route scope', () => {
-    browseControls.favoriteOnly = true;
-    browseControls.notInAlbum = true;
-    browseControls.untagged = true;
-    browseControls.noPeople = true;
-    browseControls.rating = 'unrated';
-    browseControls.filename = 'DSC';
-    browseControls.visibility = 'archive';
-    browseControls.takenAfter = '2024-01-01';
+    browseControls.filters.favoriteOnly = true;
+    browseControls.filters.notInAlbum = true;
+    browseControls.filters.untagged = true;
+    browseControls.filters.noPeople = true;
+    browseControls.filters.rating = 'unrated';
+    browseControls.filters.filename = 'DSC';
+    browseControls.filters.visibility = 'archive';
+    browseControls.filters.takenAfter = '2024-01-01';
 
     expect(browseControls.filter({ scope: { tag: 't1' } })).toEqual({
       scope: { tag: 't1' },
@@ -223,7 +224,7 @@ describe('browseControls filter', () => {
       takenAfter: new Date('2024-01-01').toISOString()
     });
 
-    browseControls.rating = 3;
+    browseControls.filters.rating = 3;
     expect(browseControls.filter({}).rating).toEqual({ eq: 3 });
   });
 
@@ -236,9 +237,9 @@ describe('browseControls filter', () => {
     (structured, flatOnly, sent) => {
       immichCapabilities.structuredSearch = structured;
       const keyBefore = browseControls.serverFilterKey(flatOnly);
-      browseControls.rejected = 'hide';
-      browseControls.label = 'none';
-      browseControls.rating = '4+';
+      browseControls.filters.rejected = 'hide';
+      browseControls.filters.label = 'none';
+      browseControls.filters.rating = '4+';
       const { rejected, label, rating } = browseControls.filter({}, flatOnly);
       expect([rejected, label, rating]).toEqual(
         sent ? ['hide', 'none', { gte: 4 }] : [undefined, undefined, undefined]
@@ -256,13 +257,13 @@ describe('browseControls filter', () => {
     ['2-', 3, true],
     [2, 3, false]
   ] as const)('filter %s hides a photo rated %s: %s', (filter, rating, hidden) => {
-    browseControls.rating = filter;
-    expect(browseControls.hides(asset(false, rating))).toBe(hidden);
+    browseControls.filters.rating = filter;
+    expect(hides(browseControls.filters, asset(false, rating))).toBe(hidden);
   });
 
   it('sends a maximum rating on structured search', () => {
     immichCapabilities.structuredSearch = true;
-    browseControls.rating = '2-';
+    browseControls.filters.rating = '2-';
     expect(browseControls.filter({}).rating).toEqual({ lte: 2 });
   });
 
@@ -273,7 +274,7 @@ describe('browseControls filter', () => {
   ] as const)('sends label %s on structured search %s as %s', (label, structured, sent) => {
     immichCapabilities.structuredSearch = structured;
     const keyBefore = browseControls.serverFilterKey();
-    browseControls.label = label;
+    browseControls.filters.label = label;
     expect(browseControls.filter({}).label).toBe(sent);
     expect(browseControls.serverFilterKey() !== keyBefore).toBe(sent !== undefined);
   });
@@ -289,7 +290,7 @@ describe('browseControls filter', () => {
     (structured, flatOnly, makes, sent) => {
       immichCapabilities.structuredSearch = structured;
       const keyBefore = browseControls.serverFilterKey(flatOnly);
-      browseControls.make = makes;
+      browseControls.filters.make = makes;
       expect(browseControls.isFiltered).toBe(true);
       expect(browseControls.filter({}, flatOnly).make).toEqual(sent);
       expect(browseControls.serverFilterKey(flatOnly) !== keyBefore).toBe(sent !== undefined);
@@ -303,11 +304,11 @@ describe('browseControls filter', () => {
     [{ make: 'SONY', lensModel: 'FE 35mm F1.8', city: 'Tromsø' }, true],
     [null, true]
   ])('camera and place filters hide %j: %s', (exif, hidden) => {
-    browseControls.make = ['SONY', 'FUJIFILM'];
-    browseControls.lensModel = ['FE 35mm F1.8'];
-    browseControls.city = ['Bergen', 'Oslo'];
+    browseControls.filters.make = ['SONY', 'FUJIFILM'];
+    browseControls.filters.lensModel = ['FE 35mm F1.8'];
+    browseControls.filters.city = ['Bergen', 'Oslo'];
     const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
-    expect(browseControls.hides(photo)).toBe(hidden);
+    expect(hides(browseControls.filters, photo)).toBe(hidden);
   });
 
   it.each([
@@ -315,15 +316,15 @@ describe('browseControls filter', () => {
     [{ lensModel: null }, false],
     [null, false]
   ])('an unknown lens filter hides %j: %s', (exif, hidden) => {
-    browseControls.lensModel = [''];
+    browseControls.filters.lensModel = [''];
     const photo = { ...asset(false), exifInfo: exif as ExifInfo | null };
-    expect(browseControls.hides(photo)).toBe(hidden);
+    expect(hides(browseControls.filters, photo)).toBe(hidden);
   });
 
   it('sends the size range in bytes and refetches on change', () => {
     const keyBefore = browseControls.serverFilterKey();
-    browseControls.minSize = 2.5;
-    browseControls.maxSize = 100;
+    browseControls.filters.minSize = 2.5;
+    browseControls.filters.maxSize = 100;
     const { minSize, maxSize } = browseControls.filter({});
     expect({ minSize, maxSize }).toEqual({ minSize: 2_500_000, maxSize: 100_000_000 });
     expect(browseControls.serverFilterKey()).not.toBe(keyBefore);

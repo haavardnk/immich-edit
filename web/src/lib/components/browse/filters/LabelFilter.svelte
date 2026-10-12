@@ -13,7 +13,9 @@
 <div class="flex flex-col gap-1">
   <span class="editor-compact-label select-none">Label</span>
   <RadioGroup.Root
-    bind:value={() => browseControls.label, (v) => (browseControls.label = v as LabelFilter)}
+    bind:value={
+      () => browseControls.filters.label, (v) => (browseControls.filters.label = v as LabelFilter)
+    }
     orientation="horizontal"
     aria-label="Label"
     class={segmentedControlClass}

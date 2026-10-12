@@ -9,7 +9,7 @@
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
-    const value = browseControls[key];
+    const value = browseControls.filters[key];
     if (timer === null && megabytes(local) !== value) local = value === null ? '' : String(value);
   });
 
@@ -17,7 +17,7 @@
     local = (e.target as HTMLInputElement).value;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
-      browseControls[key] = megabytes(local);
+      browseControls.filters[key] = megabytes(local);
       timer = null;
     }, 350);
   }

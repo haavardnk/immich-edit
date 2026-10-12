@@ -67,9 +67,6 @@ export function searchShapeProblem(
   if (flat && (filter.rejected === 'hide' || filter.label === 'none' || range)) {
     return 'flat search cannot exclude tags or match a rating range';
   }
-  if (flat && filter.notInAlbum && (filter.scope as { album?: string } | undefined)?.album) {
-    return 'flat search cannot exclude albums inside an album';
-  }
   if (flat && filter.noPeople) {
     return 'flat search cannot find photos without people';
   }

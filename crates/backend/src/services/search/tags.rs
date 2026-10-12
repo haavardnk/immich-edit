@@ -1,7 +1,8 @@
 use uuid::Uuid;
 
 use crate::immich::dto::TagSummary;
-use crate::services::search::filter::{BrowseFilter, Label, Rejected, Scope};
+use crate::services::search::filter::{BrowseFilter, Label, Rejected};
+use crate::services::search::ids::IdSet;
 
 pub const REJECT_TAG: &str = "immich-edit/reject";
 
@@ -13,21 +14,12 @@ const LABEL_COLORS: [Label; 5] = [
     Label::Purple,
 ];
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct TagSet {
-    pub all: Vec<Uuid>,
-    pub none: Vec<Uuid>,
-}
-
 pub fn needs_library(filter: &BrowseFilter) -> bool {
     filter.rejected.is_some() || filter.label.is_some()
 }
 
-pub fn tag_set(filter: &BrowseFilter, library: &[TagSummary]) -> Option<TagSet> {
-    let mut set = TagSet::default();
-    if let Some(Scope::Tag(id)) = filter.scope {
-        set.all.push(id);
-    }
+pub fn managed(filter: &BrowseFilter, library: &[TagSummary]) -> Option<IdSet> {
+    let mut set = IdSet::default();
     let reject = find(library, REJECT_TAG);
     match (filter.rejected, reject) {
         (Some(Rejected::Only), Some(id)) => set.all.push(id),
@@ -44,9 +36,6 @@ pub fn tag_set(filter: &BrowseFilter, library: &[TagSummary]) -> Option<TagSet> 
         ),
         Some(label) => set.all.push(find(library, label_tag(label)?)?),
         None => {}
-    }
-    if filter.untagged && !set.all.is_empty() {
-        return None;
     }
     Some(set)
 }
@@ -88,21 +77,31 @@ mod tests {
 
     #[test]
     fn rejected_filters_resolve_the_reject_tag() {
-        let scope = Uuid::new_v4();
         let reject = tag("Immich-Edit/Reject");
         let library = vec![tag("immich-edit/label/red"), reject.clone()];
         let cases = [
-            (None, vec![scope], vec![]),
-            (Some(Rejected::Only), vec![scope, reject.id], vec![]),
-            (Some(Rejected::Hide), vec![scope], vec![reject.id]),
+            (None, IdSet::default()),
+            (
+                Some(Rejected::Only),
+                IdSet {
+                    all: vec![reject.id],
+                    ..IdSet::default()
+                },
+            ),
+            (
+                Some(Rejected::Hide),
+                IdSet {
+                    none: vec![reject.id],
+                    ..IdSet::default()
+                },
+            ),
         ];
-        for (rejected, all, none) in cases {
+        for (rejected, expected) in cases {
             let filter_by = BrowseFilter {
-                scope: Some(Scope::Tag(scope)),
                 rejected,
                 ..BrowseFilter::default()
             };
-            if tag_set(&filter_by, &library) != Some(TagSet { all, none }) {
+            if managed(&filter_by, &library) != Some(expected) {
                 panic!("wrong tag set for {rejected:?}");
             }
         }
@@ -116,16 +115,16 @@ mod tests {
         let cases = [
             (
                 Label::Blue,
-                Some(TagSet {
+                Some(IdSet {
                     all: vec![blue.id],
-                    none: vec![],
+                    ..IdSet::default()
                 }),
             ),
             (
                 Label::None,
-                Some(TagSet {
-                    all: vec![],
+                Some(IdSet {
                     none: vec![red.id, blue.id],
+                    ..IdSet::default()
                 }),
             ),
             (Label::Green, None),
@@ -135,7 +134,7 @@ mod tests {
                 label: Some(label),
                 ..BrowseFilter::default()
             };
-            if tag_set(&filter_by, &library) != expected {
+            if managed(&filter_by, &library) != expected {
                 panic!("wrong tag set for {label:?}");
             }
         }
@@ -151,7 +150,7 @@ mod tests {
             rejected: Some(Rejected::Hide),
             ..BrowseFilter::default()
         };
-        if tag_set(&only, &[]).is_some() || tag_set(&hide, &[]) != Some(TagSet::default()) {
+        if managed(&only, &[]).is_some() || managed(&hide, &[]) != Some(IdSet::default()) {
             panic!("a library without a reject tag resolved wrongly");
         }
     }

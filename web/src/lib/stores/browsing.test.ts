@@ -47,7 +47,7 @@ describe('browsing store', () => {
       exifInfo: { make } as ExifInfo
     });
     browseControls.reset();
-    browseControls.make = ['SONY'];
+    browseControls.filters.make = ['SONY'];
     browsing.set([shot('a', 'SONY'), shot('b', 'Canon'), shot('c', 'SONY'), shot('d', 'Canon')]);
     browsing.total = 10;
 

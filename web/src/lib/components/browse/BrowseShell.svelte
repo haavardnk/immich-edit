@@ -4,6 +4,7 @@
   import FilterPanel from '$lib/components/browse/filters/FilterPanel.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { hides } from '$lib/browse/loadedFilter';
   import type { AssetSummary } from '$lib/types/album';
   import { Button, LoadingSpinner } from '@immich/ui';
 
@@ -41,7 +42,9 @@
     onRetry?: () => void;
   } = $props();
 
-  const hiddenCount = $derived(assets.filter((asset) => browseControls.hides(asset)).length);
+  const hiddenCount = $derived(
+    assets.filter((asset) => hides(browseControls.filters, asset)).length
+  );
   const headerTotal = $derived(countLoaded ? assets.length - hiddenCount : totalCount);
 </script>
 

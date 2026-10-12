@@ -114,7 +114,7 @@ describe('BrowseFeed pagination', () => {
     feed.watchFilterChange();
     selection.selectLoaded(['a', 'b']);
 
-    browseControls.filename = 'portrait';
+    browseControls.filters.filename = 'portrait';
     feed.watchFilterChange();
 
     expect(selection.active).toBe(false);
