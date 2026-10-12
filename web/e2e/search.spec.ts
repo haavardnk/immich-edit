@@ -74,36 +74,36 @@ test('toggling to filename reruns as metadata search', async ({ page }) => {
   await expect.poll(() => filename(metadataBody)).toBe('red car');
 });
 
-test('smart search hides rejects and low ratings in the browser', async ({ page }) => {
-  const [kept, rejected, low] = numberedAssets(3, { exifInfo: { rating: 4 } });
-  if (!kept || !rejected || !low) throw new Error('missing assets');
-  let smartRequests = 0;
-  page.on('request', (req) => {
-    if (new URL(req.url()).pathname === '/api/search/smart') smartRequests += 1;
-  });
+test('smart search hides rejects in the browser and matches exact ratings', async ({ page }) => {
+  const [kept, rejected] = numberedAssets(2);
+  if (!kept || !rejected) throw new Error('missing assets');
+  const filters: Array<Record<string, unknown> | undefined> = [];
   await installMocks(page, {
     structuredSearch: true,
+    onSmart: (body) => void filters.push(body.filter as Record<string, unknown> | undefined),
     assets: [
       kept,
-      { ...rejected, tags: [{ id: 'r', name: 'reject', value: 'immich-edit/reject' }] },
-      { ...low, exifInfo: { rating: 2 } }
+      { ...rejected, tags: [{ id: 'r', name: 'reject', value: 'immich-edit/reject' }] }
     ]
   });
   const tile = (id: string) => page.locator(`a[href^="/assets/${id}?"]`);
 
-  await page.goto('/search?q=red%20car');
-  await expect(tile(low.id)).toBeVisible();
+  await page.goto('/search?q=red%20car&rating=4%2B');
+  await expect(tile(rejected.id)).toBeVisible();
+  await expect(page).not.toHaveURL(/rating/);
+  expect(filters[0]?.rating).toBeUndefined();
   const panel = await openFilters(page, 'Library', 'Rating & label');
   await expect(panel.getByRole('button', { name: 'File', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: /^Rating match/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Hide', exact: true }).click();
   const rating = panel.getByRole('radiogroup', { name: 'Rating', exact: true });
   await rating.getByRole('radio', { name: '3 stars' }).click();
 
+  await expect(page).toHaveURL(/rating=3(&|$)/);
+  await expect.poll(() => filters.at(-1)?.rating).toEqual({ eq: 3 });
   await expect(tile(rejected.id)).toBeHidden();
-  await expect(tile(low.id)).toBeHidden();
   await expect(tile(kept.id)).toBeVisible();
-  expect(smartRequests).toBe(1);
 });
 
 test('smart failure falls back to filename search', async ({ page }) => {

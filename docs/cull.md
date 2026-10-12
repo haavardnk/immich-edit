@@ -69,7 +69,7 @@ The count beside the title is the number of photos in the view, followed by how 
 ones **Label** and **Rejected** are hiding because you changed them after they loaded. Before Immich
 3.2, Immich cannot leave photos out by tag, so **Hide** rejects and **No label** filter the loaded
 photos instead and the count still includes the ones they hide. Description search works the same
-way on every Immich version, and also applies an at-least or at-most rating to the loaded photos.
+way on every Immich version, and matches only exact star counts.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
 beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.

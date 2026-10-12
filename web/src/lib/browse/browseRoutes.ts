@@ -123,3 +123,9 @@ export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
   const scope = route.feed.baseFilter().scope;
   return !scope || !(excluded in scope);
 }
+
+export function supportsRatingRanges(url: URL): boolean {
+  if (!immichCapabilities.structuredSearch) return false;
+  const route = matchBrowseRoute(url);
+  return !route || !('feed' in route) || !route.feed.flatOnly?.();
+}

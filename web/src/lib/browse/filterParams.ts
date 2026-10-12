@@ -11,7 +11,7 @@ import type { Visibility } from '$lib/types/search';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF, type ExifFilterKey } from './exifFilters';
 import { megabytes } from './fileSize';
-import { supportsFilter } from './browseRoutes';
+import { supportsFilter, supportsRatingRanges } from './browseRoutes';
 
 type ScalarKey = Exclude<keyof BrowseFilters, ExifFilterKey>;
 
@@ -70,7 +70,7 @@ function values(params: URLSearchParams, name: string): string[] {
 
 export function readFilterParams(url: URL): BrowseFilters {
   const params = url.searchParams;
-  const ratings: RatingFilter[] = immichCapabilities.structuredSearch
+  const ratings: RatingFilter[] = supportsRatingRanges(url)
     ? [...EXACT_RATINGS, ...RANGE_RATINGS]
     : EXACT_RATINGS;
   const filters: BrowseFilters = {

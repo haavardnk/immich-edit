@@ -137,6 +137,18 @@ describe('filter params', () => {
   );
 
   it.each([
+    ['/photos', '3+'],
+    ['/folders?path=%2Fa', '3+'],
+    ['/search?q=cat&mode=filename', '3+'],
+    ['/search?q=cat&mode=description', 'any']
+  ])('reads rating=3+ on %s with structured search as %s', (route, expected) => {
+    immichCapabilities.structuredSearch = true;
+    const url = new URL(`http://x.invalid${route}`);
+    url.searchParams.set('rating', '3+');
+    expect(readFilterParams(url).rating).toBe(expected);
+  });
+
+  it.each([
     ['/photos', 'archive'],
     ['/folders?path=%2Fa', 'timeline'],
     ['/edited', 'timeline']

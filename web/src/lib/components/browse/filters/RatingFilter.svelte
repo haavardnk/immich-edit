@@ -4,7 +4,8 @@
     segmentedRadioItemClass
   } from '$lib/components/editor/controls/segmentedControl';
   import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import { supportsRatingRanges } from '$lib/browse/browseRoutes';
+  import { page } from '$app/state';
   import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '$lib/browse/rating';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps, RadioGroup } from 'bits-ui';
@@ -22,10 +23,9 @@
   let hover = $state(0);
   let opChoice = $state<RatingOp>('gte');
 
+  const ranges = $derived(supportsRatingRanges(page.url));
   const stars = $derived(ratingStars(browseControls.rating));
-  const op = $derived(
-    immichCapabilities.structuredSearch ? (ratingOp(browseControls.rating) ?? opChoice) : 'eq'
-  );
+  const op = $derived(ranges ? (ratingOp(browseControls.rating) ?? opChoice) : 'eq');
   const lit = $derived(hover || stars);
 
   const starName = (n: number): string => `${n} star${n > 1 ? 's' : ''}`;
@@ -68,7 +68,7 @@
       </Tooltip>
     </RadioGroup.Root>
     <span class="my-1 w-px shrink-0 bg-gray-300 dark:bg-gray-600" aria-hidden="true"></span>
-    {#if immichCapabilities.structuredSearch}
+    {#if ranges}
       <Tooltip text="Match ratings {OPS[op].name} the selected stars">
         {#snippet child({ props })}
           <button
