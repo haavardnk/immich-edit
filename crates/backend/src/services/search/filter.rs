@@ -26,6 +26,8 @@ pub struct BrowseFilter {
     pub city: ExifMatch,
     pub min_size: Option<u64>,
     pub max_size: Option<u64>,
+    pub added_after: Option<DateTime<Utc>>,
+    pub added_before: Option<DateTime<Utc>>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }
@@ -40,6 +42,14 @@ impl BrowseFilter {
             ("state", &self.state),
             ("city", &self.city),
         ]
+    }
+
+    pub fn added_bounds(&self) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
+        let (low, high) = self.added_between.unzip();
+        (
+            [self.added_after, low].into_iter().flatten().max(),
+            [self.added_before, high].into_iter().flatten().min(),
+        )
     }
 }
 

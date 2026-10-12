@@ -15,6 +15,8 @@ export const LOADED_FILTERS: (keyof BrowseFilters)[] = [
   'maxSize',
   'takenAfter',
   'takenBefore',
+  'addedAfter',
+  'addedBefore',
   'rejected',
   'label',
   'make',
@@ -40,6 +42,9 @@ export function keepsLoaded(filter: BrowseFilter, asset: AssetSummary): boolean 
   const after = filter.takenAfter ? Date.parse(filter.takenAfter) : undefined;
   const before = filter.takenBefore ? Date.parse(filter.takenBefore) : undefined;
   if (!within(timeOf(asset.fileCreatedAt), after, before)) return false;
+  const addedAfter = filter.addedAfter ? Date.parse(filter.addedAfter) : undefined;
+  const addedBefore = filter.addedBefore ? Date.parse(filter.addedBefore) : undefined;
+  if (!within(timeOf(asset.createdAt), addedAfter, addedBefore)) return false;
   return within(asset.exifInfo?.fileSizeInByte, filter.minSize, filter.maxSize);
 }
 

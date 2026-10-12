@@ -21,7 +21,7 @@ export const FILTER_SECTIONS: FilterSection[] = [
     keys: ['visibility', 'rejected', 'favoriteOnly', 'notInAlbum', 'untagged', 'noPeople']
   },
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
-  { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore'] },
+  { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore', 'addedAfter', 'addedBefore'] },
   { id: 'camera', title: 'Camera', keys: CAMERA_FILTERS },
   { id: 'place', title: 'Place', keys: PLACE_FILTERS },
   { id: 'file', title: 'File', keys: ['filename', 'minSize', 'maxSize'] }

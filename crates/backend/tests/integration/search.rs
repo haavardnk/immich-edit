@@ -322,7 +322,7 @@ async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
             1,
             json!({
                 "visibility": "timeline",
-                "createdAfter": "2024-02-01T08:59:59.999Z",
+                "createdAfter": "2024-02-02T00:00:00.000Z",
                 "createdBefore": "2024-02-03T10:00:00.124Z",
             }),
         ),
@@ -331,7 +331,7 @@ async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
             json!({ "filter": {
                 "visibility": { "eq": "timeline" },
                 "createdAt": {
-                    "gte": "2024-02-01T08:59:59.999Z",
+                    "gte": "2024-02-02T00:00:00.000Z",
                     "lte": "2024-02-03T10:00:00.124Z",
                 },
             } }),
@@ -361,17 +361,17 @@ async fn added_sort_walks_the_timeline_and_hydrates_through_search() {
             })))
             .mount(&server)
             .await;
-        let found = search_response(&[older, partner, newer], None, None);
+        let found = search_response(&[partner, newer], None, None);
         mount_search(&server, "/api/search/metadata", hydrate, found, 5).await;
 
         let app = test_app(&server).await;
         let query = json!({
-            "filter": { "visibility": "timeline" },
+            "filter": { "visibility": "timeline", "addedAfter": "2024-02-02T00:00:00Z" },
             "sort": { "field": "added", "direction": "desc" },
             "size": 10,
         });
         let page = post(&app, "/api/search/metadata", query).await;
-        if ids(&page) != [newer.to_string(), older.to_string()] || !page["nextCursor"].is_null() {
+        if ids(&page) != [newer.to_string()] || !page["nextCursor"].is_null() {
             panic!("3.{minor} added page {page}");
         }
     }

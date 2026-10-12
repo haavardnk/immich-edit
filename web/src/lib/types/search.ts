@@ -22,6 +22,8 @@ export interface BrowseFilter {
   maxSize?: number;
   takenAfter?: string;
   takenBefore?: string;
+  addedAfter?: string;
+  addedBefore?: string;
   rejected?: 'hide' | 'only';
   label?: LabelColor | 'none';
   make?: (string | null)[];

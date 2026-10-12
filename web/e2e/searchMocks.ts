@@ -14,6 +14,8 @@ const SEARCH_FILTER_KEYS = new Set([
   'maxSize',
   'takenAfter',
   'takenBefore',
+  'addedAfter',
+  'addedBefore',
   'rejected',
   'label',
   'make',

@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Datelike, NaiveDateTime, TimeDelta, Utc};
+use chrono::{DateTime, Datelike, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Utc};
 use futures_util::future::try_join_all;
 use lru::LruCache;
 use tokio::sync::Mutex;
@@ -163,6 +163,22 @@ fn params(filter: &BrowseFilter, direction: Direction) -> Vec<(&'static str, Str
     params
 }
 
+fn overlaps(bucket: &str, after: Option<DateTime<Utc>>, before: Option<DateTime<Utc>>) -> bool {
+    let Some(start) = bucket
+        .get(..10)
+        .and_then(|day| NaiveDate::parse_from_str(day, "%Y-%m-%d").ok())
+    else {
+        return true;
+    };
+    let end = start + Months::new(1);
+    let margin = TimeDelta::days(1);
+    let starts_before_end =
+        before.is_none_or(|before| start.and_time(NaiveTime::MIN).and_utc() <= before + margin);
+    let ends_after_start =
+        after.is_none_or(|after| end.and_time(NaiveTime::MIN).and_utc() >= after - margin);
+    starts_before_end && ends_after_start
+}
+
 fn parse_at(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .map(|at| at.with_timezone(&Utc))
@@ -181,7 +197,9 @@ impl<'a> Timeline<'a> {
         direction: Direction,
     ) -> Result<Self, AppError> {
         let params = params(filter, direction);
+        let (after, before) = filter.added_bounds();
         let mut buckets = searcher.immich.timeline_buckets(&params).await?;
+        buckets.retain(|bucket| overlaps(&bucket.time_bucket, after, before));
         buckets.sort_by(|a, b| a.time_bucket.cmp(&b.time_bucket));
         if direction == Direction::Desc {
             buckets.reverse();
@@ -390,15 +408,21 @@ async fn hydrate(
     let (Some(low), Some(high)) = (times().min(), times().max()) else {
         return Ok(HashMap::new());
     };
+    let bounded = BrowseFilter {
+        added_between: Some((
+            low - TimeDelta::milliseconds(1),
+            high + TimeDelta::milliseconds(1),
+        )),
+        ..filter.clone()
+    };
+    if let (Some(after), Some(before)) = bounded.added_bounds()
+        && after > before
+    {
+        return Ok(HashMap::new());
+    }
     let wanted: HashSet<Uuid> = chunk.iter().map(|(_, entry)| entry.id).collect();
     let mut query = PageQuery {
-        filter: BrowseFilter {
-            added_between: Some((
-                low - TimeDelta::milliseconds(1),
-                high + TimeDelta::milliseconds(1),
-            )),
-            ..filter.clone()
-        },
+        filter: bounded,
         sort: Sort::default(),
         size: MAX_SIZE,
         cursor: None,
@@ -611,6 +635,56 @@ mod tests {
                     panic!("a sparse filter should hand back empty pages that keep a cursor");
                 }
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn an_added_range_walks_only_the_months_it_covers() {
+        let (server, searcher, assets) = searcher(|_| true).await;
+        let after = Utc.with_ymd_and_hms(2024, 2, 10, 0, 0, 0).unwrap();
+        let before = Utc.with_ymd_and_hms(2024, 3, 5, 0, 0, 0).unwrap();
+        let mut expected: Vec<(DateTime<Utc>, Uuid)> = assets
+            .iter()
+            .filter(|(at, _, _)| *at >= after && *at <= before)
+            .map(|(at, id, _)| (*at, *id))
+            .collect();
+        expected.sort();
+        let query = PageQuery {
+            filter: BrowseFilter {
+                added_after: Some(after),
+                added_before: Some(before),
+                ..BrowseFilter::default()
+            },
+            sort: Sort {
+                field: SortField::Added,
+                direction: Direction::Asc,
+            },
+            size: 1000,
+            cursor: None,
+            with_exif: false,
+        };
+        let page = searcher.page(&query).await.unwrap();
+        let ids: Vec<Uuid> = page.items.iter().map(|asset| asset.id.source()).collect();
+        let wanted: Vec<Uuid> = expected.iter().map(|(_, id)| *id).collect();
+        if ids != wanted {
+            panic!("added range gave {ids:?}, expected {wanted:?}");
+        }
+        let mut walked: Vec<String> = server
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|request| {
+                request
+                    .url
+                    .query_pairs()
+                    .find(|(name, _)| name == "timeBucket")
+                    .map(|(_, bucket)| bucket.into_owned())
+            })
+            .collect();
+        walked.dedup();
+        if walked != ["2024-02-01", "2024-03-01"] {
+            panic!("added range walked {walked:?}");
         }
     }
 

@@ -76,14 +76,13 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
             }
         }
     }
-    if let Some((after, before)) = filter.added_between {
-        range(
-            &mut body,
-            "createdAt",
-            Some(timestamp(after)),
-            Some(timestamp(before)),
-        );
-    }
+    let (added_after, added_before) = filter.added_bounds();
+    range(
+        &mut body,
+        "createdAt",
+        added_after.map(timestamp),
+        added_before.map(timestamp),
+    );
     body
 }
 
@@ -171,6 +170,7 @@ mod tests {
                 lens_model: ExifMatch::Unknown,
                 state: ExifMatch::In(vec!["Vestland".into(), "Oslo".into()]),
                 min_size: Some(1_000_000),
+                added_after: Some(Utc.with_ymd_and_hms(2025, 6, 1, 0, 0, 0).unwrap()),
                 ..BrowseFilter::default()
             },
             sort: Sort {
@@ -200,6 +200,7 @@ mod tests {
                 "lensModel": { "eq": null },
                 "state": { "in": ["Vestland", "Oslo"] },
                 "fileSizeInBytes": { "gte": 1_000_000 },
+                "createdAt": { "gte": "2025-06-01T00:00:00.000Z" },
             },
             "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
             "size": 500,

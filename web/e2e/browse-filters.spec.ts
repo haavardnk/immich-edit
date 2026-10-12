@@ -153,7 +153,7 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   await expect(panel).toHaveCount(0);
 });
 
-test('the taken-after calendar sets the date filter', async ({ page }) => {
+test('the date calendars set the taken and added filters', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
   await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
@@ -174,11 +174,33 @@ test('the taken-after calendar sets the date filter', async ({ page }) => {
   await expect(panel.getByRole('group', { name: 'Taken after' })).toBeVisible();
   await expect
     .poll(() => (bodies.at(-1)?.filter as { takenAfter?: string } | undefined)?.takenAfter)
-    .toBe(new Date(iso).toISOString());
+    .toBe(new Date(`${iso}T00:00:00`).toISOString());
+  await panel.getByRole('button', { name: 'Open calendar' }).nth(2).click();
+  await page.getByRole('button', { name: dayLabel, exact: true }).click();
+  await expect
+    .poll(() => (bodies.at(-1)?.filter as { addedAfter?: string } | undefined)?.addedAfter)
+    .toBe(new Date(`${iso}T00:00:00`).toISOString());
   await page.getByRole('button', { name: 'Close filter panel' }).click();
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
-    [`After ${iso}`]
+    [`After ${iso}`, `Added after ${iso}`]
   );
+});
+
+test('resetting filters clears a typed date', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  const panel = await openFilters(page, 'Date');
+  const added = panel.getByRole('group', { name: 'Added after' });
+  const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
+
+  await added.locator('[data-segment="month"]').click();
+  await page.keyboard.type('10012026');
+  await expect(chips).toHaveText(['Added after 2026-10-01']);
+  await expect(added.getByRole('button', { name: 'Open calendar' })).toBeFocused();
+
+  await page.getByRole('button', { name: 'Reset all filters' }).click();
+  await expect(chips).toHaveCount(0);
+  await expect(added.locator('[data-segment="month"]')).toHaveText('mm');
 });
 
 for (const structuredSearch of [false, true]) {

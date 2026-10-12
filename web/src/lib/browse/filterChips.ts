@@ -57,6 +57,10 @@ export function activeFilterChips(filters: BrowseFilters): FilterChip[] {
   if (filters.takenAfter) chips.push({ key: 'takenAfter', label: `After ${filters.takenAfter}` });
   if (filters.takenBefore)
     chips.push({ key: 'takenBefore', label: `Before ${filters.takenBefore}` });
+  if (filters.addedAfter)
+    chips.push({ key: 'addedAfter', label: `Added after ${filters.addedAfter}` });
+  if (filters.addedBefore)
+    chips.push({ key: 'addedBefore', label: `Added before ${filters.addedBefore}` });
   for (const key of EXIF_FILTERS) {
     if (filters[key].length > 0)
       chips.push({ key, label: `${EXIF_LABELS[key]}: ${exifSummary(filters[key])}` });

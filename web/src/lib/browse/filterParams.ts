@@ -29,6 +29,8 @@ const PARAMS: Record<keyof BrowseFilters, string> = {
   visibility: 'visibility',
   takenAfter: 'after',
   takenBefore: 'before',
+  addedAfter: 'addedafter',
+  addedBefore: 'addedbefore',
   rejected: 'rejected',
   label: 'label',
   make: 'make',
@@ -44,7 +46,9 @@ const TYPED_KEYS: (keyof BrowseFilters)[] = [
   'minSize',
   'maxSize',
   'takenAfter',
-  'takenBefore'
+  'takenBefore',
+  'addedAfter',
+  'addedBefore'
 ];
 
 function day(value: string | null): string {
@@ -77,6 +81,8 @@ export function readFilterParams(url: URL): BrowseFilters {
     visibility: VISIBILITIES.find((v) => v === get('visibility')) ?? FILTER_DEFAULTS.visibility,
     takenAfter: day(get('takenAfter')),
     takenBefore: day(get('takenBefore')),
+    addedAfter: day(get('addedAfter')),
+    addedBefore: day(get('addedBefore')),
     rejected: REJECTED_FILTERS.find((r) => r === get('rejected')) ?? FILTER_DEFAULTS.rejected,
     label: LABELS.find((l) => l === get('label')) ?? FILTER_DEFAULTS.label,
     make: values(params, 'make'),

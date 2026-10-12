@@ -84,8 +84,11 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Result<Map<String, Value>, Ap
             }
         }
     }
-    if let Some((after, before)) = filter.added_between {
+    let (added_after, added_before) = filter.added_bounds();
+    if let Some(after) = added_after {
         body.insert("createdAfter".into(), timestamp(after));
+    }
+    if let Some(before) = added_before {
         body.insert("createdBefore".into(), timestamp(before));
     }
     Ok(body)
@@ -163,6 +166,7 @@ mod tests {
                 lens_model: ExifMatch::In(vec!["FE 35mm F1.8".into()]),
                 country: ExifMatch::Unknown,
                 city: ExifMatch::In(vec!["Bergen".into()]),
+                added_before: Some(Utc.with_ymd_and_hms(2025, 6, 1, 0, 0, 0).unwrap()),
                 ..BrowseFilter::default()
             },
             sort: Sort {
@@ -187,6 +191,7 @@ mod tests {
             "lensModel": "FE 35mm F1.8",
             "country": null,
             "city": "Bergen",
+            "createdBefore": "2025-06-01T00:00:00.000Z",
             "order": "asc",
             "size": 500,
             "page": 2,

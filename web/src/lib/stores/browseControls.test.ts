@@ -221,11 +221,22 @@ describe('browseControls filter', () => {
       imagesOnly: true,
       rating: 'unrated',
       filename: 'DSC',
-      takenAfter: new Date('2024-01-01').toISOString()
+      takenAfter: new Date('2024-01-01T00:00:00').toISOString()
     });
 
     browseControls.filters.rating = 3;
     expect(browseControls.filter({}).rating).toEqual({ eq: 3 });
+  });
+
+  it('bounds taken and added dates by the same local day', () => {
+    browseControls.filters.takenAfter = '2024-03-10';
+    browseControls.filters.takenBefore = '2024-03-10';
+    browseControls.filters.addedAfter = '2024-03-10';
+    browseControls.filters.addedBefore = '2024-03-10';
+    const { takenAfter, takenBefore, addedAfter, addedBefore } = browseControls.filter({});
+    expect([takenAfter, takenBefore]).toEqual([addedAfter, addedBefore]);
+    expect(addedAfter).toBe(new Date(2024, 2, 10).toISOString());
+    expect(addedBefore).toBe(new Date(2024, 2, 10, 23, 59, 59, 999).toISOString());
   });
 
   it.each([

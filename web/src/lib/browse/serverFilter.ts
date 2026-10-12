@@ -4,6 +4,14 @@ import { isRange, ratingMatch } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF } from './exifFilters';
 import { toBytes } from './fileSize';
 
+function dayStart(date: string): string {
+  return new Date(`${date}T00:00:00`).toISOString();
+}
+
+function dayEnd(date: string): string {
+  return new Date(`${date}T23:59:59.999`).toISOString();
+}
+
 export function serverFilter(
   filters: BrowseFilters,
   base: BrowseFilter,
@@ -19,10 +27,10 @@ export function serverFilter(
   if (filters.filename) filter.filename = filters.filename;
   if (filters.minSize !== null) filter.minSize = toBytes(filters.minSize);
   if (filters.maxSize !== null) filter.maxSize = toBytes(filters.maxSize);
-  if (filters.takenAfter) filter.takenAfter = new Date(filters.takenAfter).toISOString();
-  if (filters.takenBefore) {
-    filter.takenBefore = new Date(filters.takenBefore + 'T23:59:59').toISOString();
-  }
+  if (filters.takenAfter) filter.takenAfter = dayStart(filters.takenAfter);
+  if (filters.takenBefore) filter.takenBefore = dayEnd(filters.takenBefore);
+  if (filters.addedAfter) filter.addedAfter = dayStart(filters.addedAfter);
+  if (filters.addedBefore) filter.addedBefore = dayEnd(filters.addedBefore);
   if (filters.rejected === 'only' || (filters.rejected === 'hide' && structured))
     filter.rejected = filters.rejected;
   if (filters.label !== 'any' && (filters.label !== 'none' || structured))

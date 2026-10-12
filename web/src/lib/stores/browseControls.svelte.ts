@@ -24,6 +24,8 @@ export interface BrowseFilters {
   visibility: Visibility;
   takenAfter: string;
   takenBefore: string;
+  addedAfter: string;
+  addedBefore: string;
   rejected: RejectedFilter;
   label: LabelFilter;
   make: string[];
@@ -69,6 +71,8 @@ export const FILTER_DEFAULTS: BrowseFilters = {
   visibility: 'timeline',
   takenAfter: '',
   takenBefore: '',
+  addedAfter: '',
+  addedBefore: '',
   rejected: 'any',
   label: 'any',
   make: [],
