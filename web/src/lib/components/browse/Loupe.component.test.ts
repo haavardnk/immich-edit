@@ -101,14 +101,21 @@ describe('Loupe', () => {
   it('describes the photo with the editor EXIF rows and closes the info panel', () => {
     const taken = '2024-05-06T07:08:09Z';
     browsing.patch('b', {
-      exifInfo: { dateTimeOriginal: taken, fileSizeInByte: 2 * 1024 * 1024 } as ExifInfo
+      localDateTime: '2024-05-06T09:08:09.000Z',
+      exifInfo: {
+        dateTimeOriginal: taken,
+        timeZone: 'UTC+2',
+        fileSizeInByte: 2 * 1024 * 1024
+      } as ExifInfo
     });
     if (!browseView.loupeInfoOpen) browseView.toggleLoupeInfo();
     render();
 
     const info = query('section[aria-label="Photo info"]');
     expect(info?.textContent).toContain('b.jpg');
-    expect(info?.textContent).toContain(new Date(taken).toLocaleString());
+    expect(info?.textContent).toContain(
+      new Date('2024-05-06T09:08:09Z').toLocaleString(undefined, { timeZone: 'UTC' })
+    );
     expect(info?.textContent).toContain('2.0 MB');
 
     query('button[aria-label="Close info"]')?.click();

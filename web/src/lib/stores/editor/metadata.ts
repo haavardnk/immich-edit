@@ -55,6 +55,7 @@ function blankExif(rating: number | null): ExifInfo {
     exifImageHeight: null,
     orientation: null,
     dateTimeOriginal: null,
+    timeZone: null,
     rating,
     fileSizeInByte: null
   };

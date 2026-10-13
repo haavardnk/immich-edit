@@ -70,7 +70,6 @@
   const copyBadge = $derived(
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
-  const exif = $derived(asset?.exifInfo ?? null);
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
   const cols = $derived(paneColumns(panes.length));
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
@@ -520,7 +519,7 @@
               onclick={() => browseView.toggleLoupeInfo()}
             />
           </div>
-          <ExifRows {exif} />
+          <ExifRows {asset} />
         </section>
       {/if}
 
