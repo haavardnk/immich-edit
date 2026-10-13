@@ -273,28 +273,36 @@ fn clipped_or_mixed_mosaic_samples_do_not_solve() {
 }
 
 #[test]
-fn auto_white_balance_neutralises_a_grey_world() {
-    let cast = [0.5, 0.4, 0.3];
-    let frame = make_frame_with(64, 64, |x, y| {
-        let scale = 0.4 + 0.6 * ((x + y) % 8) as f32 / 8.0;
-        [cast[0] * scale, cast[1] * scale, cast[2] * scale]
-    });
-    let wb = auto_white_balance(&frame, &Edits::default(), None).expect("grey world solves");
-    assert!(spread(neutralised(cast, wb)) < 0.03);
+fn auto_white_balance_neutralises_grey_amid_colour() {
+    let target = WhiteBalance::Relative {
+        temp: 15.0,
+        tint: 0.0,
+    };
+    let undo = inverse_3x3(SceneWhite::Display.user_matrix(&target)).expect("invertible");
+    let grey = mat3_vec(&undo, [0.4; 3]);
+    for highlight in [false, true] {
+        let frame = make_frame_with(64, 64, |x, y| match (x, y) {
+            _ if highlight && x < 16 && y < 16 => [2.0; 3],
+            _ if x < 32 => grey,
+            _ => [0.1, 0.4, 0.1],
+        });
+        let wb = auto_white_balance(&frame, &Edits::default(), None).expect("grey patch solves");
+        let temp = relative_temp(wb);
+        assert!((temp - 15.0).abs() <= 6.0, "highlight {highlight}: {wb:?}");
+    }
 }
 
 #[test]
-fn auto_white_balance_ignores_a_small_specular_highlight() {
-    let cast = [0.5, 0.4, 0.3];
-    let frame = make_frame_with(64, 64, |x, y| {
-        if x < 6 && y < 6 {
-            [40.0, 0.2, 0.2]
+fn auto_white_balance_keeps_a_scene_without_neutrals_as_shot() {
+    let frame = make_frame_with(64, 64, |x, _| {
+        if x < 32 {
+            [0.6, 0.3, 0.08]
         } else {
-            cast
+            [0.1, 0.4, 0.1]
         }
     });
-    let wb = auto_white_balance(&frame, &Edits::default(), None).expect("clipped world solves");
-    assert!(spread(neutralised(cast, wb)) < 0.03);
+    let wb = auto_white_balance(&frame, &Edits::default(), None).expect("colour scene solves");
+    assert!(wb.is_as_shot(), "{wb:?}");
 }
 
 #[test]

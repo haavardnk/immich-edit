@@ -2,19 +2,21 @@ use crate::color::{SceneWhite, Temperature};
 use crate::dcp::DcpProfile;
 use crate::edits::{Edits, WhiteBalance};
 use crate::frame::{FrameMeta, RawFrame};
-use crate::geom::{GeometryTransform, display_uv_to_mask_uv, mask_uv_to_display_uv};
+use crate::geom::{GeometryTransform, display_uv_to_mask_uv};
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::sensor_sample::{
-    SAMPLE_TARGET, camera_wb_coeffs, decimate_mosaic, demosaic_patch, display_rgb,
-    geometry_transform, sample_raw_bilinear, sensor_to_oriented_uv,
+    camera_wb_coeffs, demosaic_patch, display_rgb, geometry_transform, sample_raw_bilinear,
 };
 use serde::Serialize;
+
+mod auto;
+
+pub use auto::auto_white_balance;
 
 const SAMPLE_RADIUS: i32 = 2;
 const MIN_SIGNAL: f32 = 1e-4;
 const NEUTRAL_EPS: f64 = 1e-4;
 const SOLVER_STEPS: usize = 40;
-const GREY_WORLD_CLIP: f64 = 0.02;
 const CLIP_LEVEL: f32 = 0.95;
 const MAX_CHROMA_SPREAD: f64 = 0.2;
 const DISPLAY_SEARCH: f64 = 100.0;
@@ -106,68 +108,6 @@ fn chroma_spread(samples: &[[f32; 3]]) -> Option<f64> {
     Some(spread(0).max(spread(1)))
 }
 
-pub fn auto_white_balance(
-    frame: &RawFrame,
-    edits: &Edits,
-    profile: Option<&DcpProfile>,
-) -> Option<WhiteBalance> {
-    let decimated = decimate_mosaic(frame);
-    let frame = decimated.as_ref().unwrap_or(frame);
-    let (wb, m, white) = scene_color(frame, edits, profile);
-    let geom = oriented_geometry(frame, edits);
-    let total = frame.meta.width * frame.meta.height;
-    let step = (total / SAMPLE_TARGET).max(1);
-
-    let mut samples: Vec<[f32; 3]> = Vec::new();
-    let mut i = 0;
-    while i < total {
-        let px = (i % frame.meta.width) as f32;
-        let py = (i / frame.meta.width) as f32;
-        i += step;
-        if let Some(geom) = &geom {
-            let (u, v) = sensor_to_oriented_uv(
-                px + 0.5,
-                py + 0.5,
-                frame.meta.width,
-                frame.meta.height,
-                frame.meta.orientation,
-            );
-            let d = mask_uv_to_display_uv(geom, [u, v]);
-            if d[0] < 0.0 || d[0] > 1.0 || d[1] < 0.0 || d[1] > 1.0 {
-                continue;
-            }
-        }
-        let Some(raw) = sample_raw_bilinear(frame, px, py) else {
-            continue;
-        };
-        let rgb = display_rgb(raw, wb, m);
-        if rgb[0] + rgb[1] + rgb[2] > MIN_SIGNAL {
-            samples.push(rgb);
-        }
-    }
-    if samples.is_empty() {
-        return None;
-    }
-
-    let mut luma: Vec<f32> = samples.iter().map(|s| s[0] + s[1] + s[2]).collect();
-    luma.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let cut_index = ((luma.len() as f64 * (1.0 - GREY_WORLD_CLIP)) as usize).min(luma.len() - 1);
-    let cut = luma[cut_index];
-
-    let mut acc = [0.0f64; 3];
-    let mut count = 0u32;
-    for s in samples.iter().filter(|s| s[0] + s[1] + s[2] <= cut) {
-        acc[0] += s[0] as f64;
-        acc[1] += s[1] as f64;
-        acc[2] += s[2] as f64;
-        count += 1;
-    }
-    if count == 0 {
-        return None;
-    }
-    solve_neutral(&white, mean_rgb(acc, count))
-}
-
 fn mean_rgb(acc: [f64; 3], count: u32) -> [f32; 3] {
     let n = count as f64;
     [
@@ -181,20 +121,12 @@ fn solve_neutral(white: &SceneWhite, rgb: [f32; 3]) -> Option<WhiteBalance> {
     if rgb.iter().any(|c| !c.is_finite()) || rgb[1] <= MIN_SIGNAL {
         return None;
     }
-    let as_shot = white.as_shot();
-    let camera = matches!(white, SceneWhite::Camera(_));
-    let limit = if camera {
+    let limit = if matches!(white, SceneWhite::Camera(_)) {
         CAMERA_SEARCH
     } else {
         DISPLAY_SEARCH
     };
-    let candidate = |temp: f64, tint: f64| {
-        if camera {
-            WhiteBalance::from(as_shot.shifted(temp, tint))
-        } else {
-            WhiteBalance::Relative { temp, tint }
-        }
-    };
+    let candidate = |temp: f64, tint: f64| offset_white(white, temp, tint);
     let mut temp = 0.0f64;
     let mut tint = 0.0f64;
     for _ in 0..SOLVER_STEPS {
@@ -218,7 +150,18 @@ fn solve_neutral(white: &SceneWhite, rgb: [f32; 3]) -> Option<WhiteBalance> {
         temp = (temp - d_temp.clamp(-40.0, 40.0)).clamp(-limit, limit);
         tint = (tint - d_tint.clamp(-40.0, 40.0)).clamp(-limit, limit);
     }
-    Some(match candidate(temp, tint) {
+    Some(rounded(candidate(temp, tint)))
+}
+
+fn offset_white(white: &SceneWhite, temp: f64, tint: f64) -> WhiteBalance {
+    match white {
+        SceneWhite::Camera(_) => WhiteBalance::from(white.as_shot().shifted(temp, tint)),
+        SceneWhite::Display => WhiteBalance::Relative { temp, tint },
+    }
+}
+
+fn rounded(wb: WhiteBalance) -> WhiteBalance {
+    match wb {
         WhiteBalance::Absolute { kelvin, tint } => WhiteBalance::Absolute {
             kelvin: kelvin.round(),
             tint: tint.round(),
@@ -227,7 +170,7 @@ fn solve_neutral(white: &SceneWhite, rgb: [f32; 3]) -> Option<WhiteBalance> {
             temp: temp.round(),
             tint: tint.round(),
         },
-    })
+    }
 }
 
 fn residual(white: &SceneWhite, rgb: [f32; 3], wb: &WhiteBalance) -> Option<[f64; 2]> {
