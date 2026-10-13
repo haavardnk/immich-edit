@@ -182,8 +182,9 @@ impl EditsStore {
         asset_id: AssetKey,
         write: EditWrite<'_>,
     ) -> Result<EditRecord, EditsStoreError> {
-        let tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
-        self.write_put(tx, owner, asset_id, write).await
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let current = fetch_record(&mut *tx, owner, asset_id).await?;
+        self.write_put(tx, owner, asset_id, current, write).await
     }
 
     pub async fn put_if_match(
@@ -195,10 +196,10 @@ impl EditsStore {
     ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
-        if let Some(conflict) = conflict_with(current, expected, asset_id) {
+        if let Some(conflict) = conflict_with(current.clone(), expected, asset_id) {
             return Ok(WriteOutcome::Conflict(conflict));
         }
-        let saved = self.write_put(tx, owner, asset_id, write).await?;
+        let saved = self.write_put(tx, owner, asset_id, current, write).await?;
         Ok(WriteOutcome::Written(saved))
     }
 
@@ -207,6 +208,7 @@ impl EditsStore {
         mut tx: Transaction<'static, Sqlite>,
         owner: Uuid,
         asset_id: AssetKey,
+        current: Option<EditRecord>,
         write: EditWrite<'_>,
     ) -> Result<EditRecord, EditsStoreError> {
         let EditWrite {
@@ -215,10 +217,21 @@ impl EditsStore {
             immich_checksum,
             action,
         } = write;
-        let now = Utc::now().to_rfc3339();
         let edits = manifest.to_edits().clamped();
-        let edits_json = serde_json::to_string(&edits)?;
+        let hash = edits.stable_hash();
         let renderer_version = RENDERER_VERSION.to_string();
+        let unchanged = current.as_ref().is_some_and(|c| c.hash == hash);
+        if let Some(current) = current.filter(|c| {
+            c.hash == hash
+                && c.immich_updated_at == immich_updated_at
+                && c.immich_checksum == immich_checksum
+                && c.renderer_version == renderer_version
+                && i64::from(c.schema_version) == SCHEMA_VERSION
+        }) {
+            return Ok(current);
+        }
+        let now = Utc::now().to_rfc3339();
+        let edits_json = serde_json::to_string(&edits)?;
         sqlx::query(
             "INSERT INTO edits (user_id, asset_id, edits_json, schema_version, renderer_version, \
              immich_updated_at, immich_checksum, created_at, updated_at) \
@@ -242,10 +255,11 @@ impl EditsStore {
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
-        let hash = edits.stable_hash();
-        self.write_history(owner, asset_id, &hash, Some(&edits_json), false, action)
-            .await?;
-        self.refresh_raster_refs(owner, asset_id).await?;
+        if !unchanged {
+            self.write_history(owner, asset_id, &hash, Some(&edits_json), false, action)
+                .await?;
+            self.refresh_raster_refs(owner, asset_id).await?;
+        }
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
             asset_id,

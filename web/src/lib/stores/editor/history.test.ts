@@ -111,6 +111,17 @@ describe('editor history', () => {
     expect(editor.canUndo).toBe(true);
   });
 
+  it('does not add an undo step for a commit that changes nothing', async () => {
+    editor.edits.basic.exposure_ev = 1;
+    await editor.onCommit('Exposure');
+    editor.edits = { ...editor.edits, basic: { ...editor.edits.basic } };
+    await editor.onCommit('Auto');
+
+    editor.undo();
+    expect(editor.edits.basic.exposure_ev).toBe(0);
+    expect(editor.canUndo).toBe(false);
+  });
+
   it('drops the stack when the asset unloads', async () => {
     editor.edits.basic.exposure_ev = 1;
     await editor.onCommit('Exposure');

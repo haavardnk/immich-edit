@@ -2,6 +2,19 @@ import type { Edits } from '$lib/types/edits';
 
 const MAX_HISTORY = 50;
 
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => key in right && sameValue(left[key], right[key]))
+  );
+}
+
 export interface HistoryCtx {
   edits: Edits;
   onCommit(action?: string): Promise<void>;
@@ -30,6 +43,7 @@ export class EditHistory {
   }
 
   push(edits: Edits): void {
+    if (this.cursor >= 0 && sameValue(this.entries[this.cursor], edits)) return;
     const trimmed = this.entries.slice(0, this.cursor + 1);
     trimmed.push(edits);
     if (trimmed.length > MAX_HISTORY) trimmed.shift();
