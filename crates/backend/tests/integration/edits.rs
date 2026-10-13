@@ -272,6 +272,30 @@ async fn put_writes_history_revision() {
 }
 
 #[tokio::test]
+async fn unchanged_put_keeps_record_and_history() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_detail(&server).await;
+    let app = test_app(&server).await;
+
+    let first = put_edits(&app, id, exposure_manifest(0.5)).await;
+    let again = put_edits(&app, id, exposure_manifest(0.5)).await;
+    if again["updated_at"] != first["updated_at"] || again["hash"] != first["hash"] {
+        panic!("unchanged put rewrote the record: {first} -> {again}");
+    }
+
+    let entries = body_json(
+        app.oneshot(get(&format!("/api/assets/{id}/edits/history")))
+            .await
+            .unwrap(),
+    )
+    .await;
+    if entries.as_array().map(Vec::len) != Some(1) {
+        panic!("expected 1 history entry: {entries}");
+    }
+}
+
+#[tokio::test]
 async fn restore_returns_previous_edits() {
     let server = MockServer::start().await;
     let id = asset_id();
