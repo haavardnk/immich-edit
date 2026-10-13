@@ -1,3 +1,4 @@
+use super::highlights::{reconstruct_mosaic, reconstruct_rgb};
 use crate::PipelineError;
 use crate::frame::{FrameId, FrameMeta, RawFrame};
 use rawler::cfa::CFA;
@@ -138,13 +139,14 @@ pub(super) fn decode_raw_fast(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let (data, width, height) = scaled_mosaic(&raw_image);
+    let (mut data, width, height) = scaled_mosaic(&raw_image);
     let cfa_pattern = match raw_image.active_area {
         Some(area) => cfa.shift(area.p.x, area.p.y).name,
         None => cfa.name,
     };
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
+    reconstruct_mosaic(&mut data, width, height, &cfa_pattern, wb_coeffs);
 
     Ok(RawFrame {
         meta: FrameMeta {
@@ -242,18 +244,29 @@ pub(super) fn decode_raw_quality(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let develop = RawDevelop {
-        steps: vec![
-            ProcessingStep::Rescale,
-            ProcessingStep::Demosaic,
-            ProcessingStep::CropActiveArea,
-        ],
+    let mosaic_pattern = match &raw_image.photometric {
+        RawPhotometricInterpretation::Cfa(config) if raw_image.cpp == 1 && config.cfa.is_rgb() => {
+            Some(config.cfa.name.clone())
+        }
+        _ => None,
     };
-    let intermediate = develop
+    let mut steps = vec![ProcessingStep::Demosaic, ProcessingStep::CropActiveArea];
+    match &mosaic_pattern {
+        Some(pattern) => {
+            raw_image
+                .apply_scaling()
+                .map_err(|e| PipelineError::Decode(format!("scale: {e}")))?;
+            if let RawImageData::Float(data) = &mut raw_image.data {
+                reconstruct_mosaic(data, raw_image.width, raw_image.height, pattern, wb_coeffs);
+            }
+        }
+        None => steps.insert(0, ProcessingStep::Rescale),
+    }
+    let intermediate = RawDevelop { steps }
         .develop_intermediate(&raw_image)
         .map_err(|e| PipelineError::Decode(format!("develop: {e}")))?;
 
-    let (data, width, height) = match intermediate {
+    let (mut data, width, height) = match intermediate {
         Intermediate::ThreeColor(pixels) => {
             let w = pixels.width;
             let h = pixels.height;
@@ -281,6 +294,9 @@ pub(super) fn decode_raw_quality(
             (flat, w, h)
         }
     };
+    if raw_image.cpp == 3 {
+        reconstruct_rgb(&mut data, width, height, wb_coeffs);
+    }
 
     Ok(RawFrame {
         meta: FrameMeta {
@@ -318,13 +334,14 @@ fn decode_raw_xtrans(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let (data, width, height) = scaled_mosaic(&raw_image);
+    let (mut data, width, height) = scaled_mosaic(&raw_image);
     let cfa_pattern = match raw_image.active_area {
         Some(area) => cfa.shift(area.p.x, area.p.y).name,
         None => cfa.name,
     };
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
+    reconstruct_mosaic(&mut data, width, height, &cfa_pattern, wb_coeffs);
 
     Ok(RawFrame {
         meta: FrameMeta {

@@ -23,7 +23,7 @@ fn parse_cfa(cfa_pattern: &str) -> [u8; 4] {
     cfa
 }
 
-fn cfa_block(cfa_pattern: &str) -> (usize, Vec<usize>) {
+pub(crate) fn cfa_block(cfa_pattern: &str) -> (usize, Vec<usize>) {
     let to_channel = |b: u8| match b {
         b'R' => 0usize,
         b'B' => 2,

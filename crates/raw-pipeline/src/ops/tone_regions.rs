@@ -2,7 +2,7 @@ use super::{GpuOp, Op, OpContext, Stage};
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
 use crate::math::fast;
-use crate::math::{luma, rgb_tone, smoothstep};
+use crate::math::{rgb_tone, smoothstep};
 
 pub struct ToneRegionsOp;
 
@@ -12,8 +12,8 @@ pub const TONE_REGIONS_HL_MASK_LO: f32 = 0.3;
 pub const TONE_REGIONS_HL_MASK_HI: f32 = 0.95;
 pub const TONE_REGIONS_HL_MASK_TANH: f32 = 1.5;
 pub const TONE_REGIONS_HL_STRENGTH: f32 = 1.75;
-pub const TONE_REGIONS_HL_DESAT_LO: f32 = 0.0;
-pub const TONE_REGIONS_HL_DESAT_HI: f32 = 0.35;
+pub const TONE_REGIONS_HL_COMPRESS_LO: f32 = -2.474;
+pub const TONE_REGIONS_HL_COMPRESS_HI: f32 = 2.0;
 pub const TONE_REGIONS_SH_MASK_RANGE: f32 = 0.25;
 pub const TONE_REGIONS_SH_HALO_LO: f32 = 0.05;
 pub const TONE_REGIONS_SH_HALO_HI: f32 = 0.25;
@@ -41,25 +41,23 @@ pub(crate) fn whites_mult(luma: f32, wh: f32) -> f32 {
 }
 
 #[inline(always)]
-pub(crate) fn highlights_apply(x: f32, hl: f32) -> f32 {
-    if hl == 0.0 {
-        return x;
-    }
+pub(crate) fn highlights_gain(peak: f32, hl: f32) -> f32 {
+    let w = smoothstep(
+        TONE_REGIONS_HL_COMPRESS_LO,
+        TONE_REGIONS_HL_COMPRESS_HI,
+        fast::log2(peak.max(1e-6)),
+    );
+    fast::exp2(hl * TONE_REGIONS_HL_STRENGTH * w)
+}
+
+#[inline(always)]
+pub(crate) fn highlights_lift(x: f32, hl: f32) -> f32 {
     let mask = smoothstep(
         TONE_REGIONS_HL_MASK_LO,
         TONE_REGIONS_HL_MASK_HI,
         fast::tanh(x * TONE_REGIONS_HL_MASK_TANH),
     );
-    let new = if hl < 0.0 {
-        let gamma = 1.0 - hl * TONE_REGIONS_HL_STRENGTH;
-        let base = fast::pow(x.clamp(0.0, 1.0), gamma);
-        let excess = (x - 1.0).max(0.0);
-        let blend = (1.0 + hl).max(0.0);
-        base + excess * blend
-    } else {
-        x * fast::exp2(hl * TONE_REGIONS_HL_STRENGTH)
-    };
-    x * (1.0 - mask) + new * mask
+    x + x * (fast::exp2(hl * TONE_REGIONS_HL_STRENGTH) - 1.0) * mask
 }
 
 #[inline(always)]
@@ -91,18 +89,14 @@ fn blacks_scalar(x: f32, bk: f32) -> f32 {
 
 #[inline(always)]
 pub(crate) fn apply_tone_regions_rgb(r: f32, g: f32, b: f32, hl: f32, bk: f32) -> (f32, f32, f32) {
-    let clip = (r.max(g).max(b) - 1.0).max(0.0);
-    let (mut rr, mut gg, mut bb) = if hl == 0.0 {
-        (r, g, b)
+    let (rr, gg, bb) = if hl < 0.0 {
+        let gain = highlights_gain(r.max(g).max(b), hl);
+        (r * gain, g * gain, b * gain)
+    } else if hl > 0.0 {
+        rgb_tone(r, g, b, |x| highlights_lift(x, hl))
     } else {
-        rgb_tone(r, g, b, |x| highlights_apply(x, hl))
+        (r, g, b)
     };
-    let desat = smoothstep(TONE_REGIONS_HL_DESAT_LO, TONE_REGIONS_HL_DESAT_HI, clip)
-        * (-hl).clamp(0.0, 1.0);
-    let luma = luma(rr, gg, bb);
-    rr = rr + (luma - rr) * desat;
-    gg = gg + (luma - gg) * desat;
-    bb = bb + (luma - bb) * desat;
     if bk == 0.0 {
         return (rr, gg, bb);
     }
@@ -176,3 +170,6 @@ impl Op for ToneRegionsOp {
         dst[3] = edits.tone.whites as f32 / 100.0;
     }
 }
+
+#[cfg(test)]
+mod tests;

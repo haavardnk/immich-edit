@@ -1,4 +1,5 @@
 mod bitmap;
+mod highlights;
 mod raw;
 
 #[cfg(test)]
