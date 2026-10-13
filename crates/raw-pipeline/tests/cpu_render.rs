@@ -56,7 +56,10 @@ fn capture_sigma_is_estimated_for_mosaic_fixtures() {
 #[test]
 fn auto_adjust_reads_every_fixture() {
     each_fixture_frame(|name, frame| {
-        let e = raw_pipeline::auto::auto_adjust(frame, &Edits::default());
+        let e = match raw_pipeline::auto::auto_adjust(frame, &Edits::default(), None, &[]) {
+            Ok(e) => e,
+            Err(err) => panic!("{name}: auto failed: {err}"),
+        };
         if e == Edits::default() {
             panic!("{name}: auto produced no edits (cpp {})", frame.cpp);
         }
@@ -73,10 +76,12 @@ fn auto_tools_agree_on_fast_and_quality_frames() {
             continue;
         };
         let edits = Edits::default();
-        let fast_ev = raw_pipeline::auto::auto_adjust(&fast, &edits)
+        let fast_ev = raw_pipeline::auto::auto_adjust(&fast, &edits, None, &[])
+            .unwrap()
             .basic
             .exposure_ev;
-        let quality_ev = raw_pipeline::auto::auto_adjust(&quality, &edits)
+        let quality_ev = raw_pipeline::auto::auto_adjust(&quality, &edits, None, &[])
+            .unwrap()
             .basic
             .exposure_ev;
         let fast_wb = raw_pipeline::white_balance::auto_white_balance(&fast, &edits, None);

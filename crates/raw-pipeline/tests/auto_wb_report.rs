@@ -77,7 +77,9 @@ fn auto_wb_report() {
             println!("| {name} | decode failed | |");
             continue;
         };
-        let base = raw_pipeline::auto::auto_adjust(&frame, &Edits::default());
+        let mut base = raw_pipeline::auto::auto_adjust(&frame, &Edits::default(), None, &[])
+            .expect("auto adjust");
+        base.basic.white_balance = WhiteBalance::AS_SHOT;
         let shot = as_shot_white(&frame.meta, &base, None);
         let auto = auto_white_balance(&frame, &base, None);
         println!(

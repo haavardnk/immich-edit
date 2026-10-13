@@ -27,7 +27,7 @@ pub async fn list(ctx: AuthCtx, Path(id): Path<AssetKey>) -> Result<Json<Vec<Fac
     Ok(Json(faces.iter().filter_map(normalize).collect()))
 }
 
-fn normalize(face: &AssetFace) -> Option<FaceBox> {
+pub(crate) fn normalize(face: &AssetFace) -> Option<FaceBox> {
     if face.image_width == 0 || face.image_height == 0 {
         return None;
     }

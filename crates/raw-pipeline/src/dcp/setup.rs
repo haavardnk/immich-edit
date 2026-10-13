@@ -19,7 +19,7 @@ pub fn resolve(meta: &FrameMeta, edits: &Edits, profile: Option<&DcpProfile>) ->
         let weight = camera.weight_at(&edits.basic.white_balance);
         let resolved = crate::ops::resolve_dcp(profile, &edits.color.dcp, weight);
         return DcpSetup {
-            cam_to_srgb: crate::auto::scale_matrix(camera.cam_to_srgb(), resolved.baseline_gain),
+            cam_to_srgb: crate::math::scale_matrix(camera.cam_to_srgb(), resolved.baseline_gain),
             resolved: Some(Arc::new(resolved)),
             white: SceneWhite::Camera(camera),
         };

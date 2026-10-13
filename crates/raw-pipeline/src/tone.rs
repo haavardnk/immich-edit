@@ -3,7 +3,6 @@ pub mod shared;
 pub mod wgsl;
 
 use crate::frame::OutputColorSpace;
-use crate::math::luma;
 use shared::{
     OETF_LUT_SIZE, SRGB_OETF_GAMMA, SRGB_OETF_GAMMA_OFFSET, SRGB_OETF_GAMMA_SCALE,
     SRGB_OETF_LINEAR_CUTOFF, SRGB_OETF_LINEAR_SLOPE,
@@ -57,11 +56,6 @@ pub fn apply_rgb_cs(rgb: [f32; 3], cs: OutputColorSpace) -> [f32; 3] {
         srgb_oetf(mapped[1].clamp(0.0, 1.0)),
         srgb_oetf(mapped[2].clamp(0.0, 1.0)),
     ]
-}
-
-pub fn apply_display_luma(rgb: [f32; 3]) -> f32 {
-    let display = apply_rgb(rgb);
-    luma(display[0], display[1], display[2])
 }
 
 fn below_gamut(c: [f32; 3]) -> bool {

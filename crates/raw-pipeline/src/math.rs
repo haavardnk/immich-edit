@@ -8,6 +8,10 @@ pub fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
+pub fn scale_matrix(m: [[f32; 3]; 3], gain: f32) -> [[f32; 3]; 3] {
+    m.map(|row| row.map(|v| v * gain))
+}
+
 #[inline(always)]
 pub fn luma(r: f32, g: f32, b: f32) -> f32 {
     LUMA_R * r + LUMA_G * g + LUMA_B * b

@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
+use raw_pipeline::auto::Face;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::{Edits, WhiteBalance};
 use raw_pipeline::white_balance::{AsShotWhite, as_shot_white};
@@ -15,10 +16,11 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
+use crate::routes::faces::normalize as normalize_face;
 use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
 };
-use crate::services::render::RenderIdentity;
+use crate::services::render::{RenderError, RenderIdentity};
 use crate::services::white_balance::{self, SamplePoint};
 use crate::state::AppState;
 
@@ -219,14 +221,36 @@ pub async fn auto(
     body: axum::body::Bytes,
 ) -> Result<Json<Edits>, AppError> {
     let context = context_edits(&body)?;
-    let frame = state
-        .render
-        .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
-        .await?;
-    let edits =
-        tokio::task::spawn_blocking(move || raw_pipeline::auto::auto_adjust(&frame, &context))
-            .await
-            .map_err(|e| AppError::internal("auto adjust task", &e))?;
+    let (frame, faces) = tokio::join!(
+        state
+            .render
+            .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source()),
+        ctx.immich.asset_faces(id.source()),
+    );
+    let frame = frame?;
+    let faces: Vec<Face> = match faces {
+        Ok(faces) => faces
+            .iter()
+            .filter_map(normalize_face)
+            .map(|b| Face {
+                x: b.x,
+                y: b.y,
+                w: b.w,
+                h: b.h,
+            })
+            .collect(),
+        Err(err) => {
+            tracing::warn!(target: "upstream", error = %err, "auto adjust runs without faces");
+            Vec::new()
+        }
+    };
+    let profile = state.render.dcp_profile(&context, &frame).await?;
+    let edits = tokio::task::spawn_blocking(move || {
+        raw_pipeline::auto::auto_adjust(&frame, &context, profile, &faces)
+    })
+    .await
+    .map_err(|e| AppError::internal("auto adjust task", &e))?
+    .map_err(RenderError::Pipeline)?;
     Ok(Json(edits))
 }
 

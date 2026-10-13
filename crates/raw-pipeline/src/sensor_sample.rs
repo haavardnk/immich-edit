@@ -63,13 +63,6 @@ fn mosaic_block_rgb(
     }
     acc
 }
-pub(crate) fn display_color(frame: &RawFrame) -> ([f32; 3], [[f32; 3]; 3]) {
-    let wb = camera_wb_coeffs(frame.meta.wb_coeffs);
-    (
-        wb,
-        crate::dcp::setup::matrix_white(&frame.meta).cam_to_srgb(),
-    )
-}
 
 pub(crate) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32; 3] {
     let r = (raw[0] * wb[0]).max(0.0);
@@ -82,9 +75,6 @@ pub(crate) fn display_rgb(raw: [f32; 3], wb: [f32; 3], m: [[f32; 3]; 3]) -> [f32
     ]
 }
 
-pub(crate) fn develop_luma(r: f32, g: f32, b: f32) -> f32 {
-    crate::tone::apply_display_luma([r, g, b])
-}
 pub(crate) fn sample_raw_bilinear(frame: &RawFrame, x: f32, y: f32) -> Option<[f32; 3]> {
     let w = frame.meta.width as i32;
     let h = frame.meta.height as i32;

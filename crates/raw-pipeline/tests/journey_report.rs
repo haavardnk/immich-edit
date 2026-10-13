@@ -145,7 +145,7 @@ fn journey(renderer: &Renderer, bytes: &[u8]) {
     let (timings, total) = timed(|| renderer.source(&frame, &nr.sensor_stage(), &tile));
     row("zoom 1:1 source", total, &timings);
 
-    let (_, total) = timed(|| raw_pipeline::auto::auto_adjust(&frame, &edits));
+    let (_, total) = timed(|| raw_pipeline::auto::auto_adjust(&frame, &edits, None, &[]));
     row("auto", total, &[]);
     let (_, total) =
         timed(|| raw_pipeline::white_balance::auto_white_balance(&frame, &edits, None));

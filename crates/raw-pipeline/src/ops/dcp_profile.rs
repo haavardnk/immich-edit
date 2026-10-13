@@ -1,7 +1,7 @@
 use super::{GpuOp, Op, OpContext, ResolvedDcp, Stage};
-use crate::auto::scale_matrix;
 use crate::cpu::fused::CpuFusedOp;
 use crate::edits::Edits;
+use crate::math::scale_matrix;
 
 pub const DCP_PROFILE_OP_ID: &str = "dcp_hue_sat";
 

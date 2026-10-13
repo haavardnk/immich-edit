@@ -1,3 +1,4 @@
+#[cfg(feature = "native")]
 pub mod auto;
 pub mod cancel;
 pub mod capture_sigma;

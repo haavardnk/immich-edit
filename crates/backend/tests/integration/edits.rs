@@ -4,7 +4,8 @@ use axum::http::{HeaderValue, Request, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn exposure_manifest(ev: f64) -> Value {
     json!({ "schema_version": 2, "ops": { "exposure": { "ev": ev } } })
@@ -362,6 +363,53 @@ async fn auto_edits_rejects_malformed_body() {
         .unwrap();
     if resp.status() != StatusCode::BAD_REQUEST {
         panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn auto_edits_meter_faces_without_depending_on_them() {
+    for faces_status in [200, 500] {
+        let server = MockServer::start().await;
+        let id = asset_id();
+        mock_original(&server, id).await;
+        Mock::given(method("GET"))
+            .and(path("/api/faces"))
+            .respond_with(ResponseTemplate::new(faces_status).set_body_json(json!([{
+                "id": "11111111-0000-0000-0000-000000000001",
+                "imageWidth": 1000,
+                "imageHeight": 500,
+                "boundingBoxX1": 400,
+                "boundingBoxY1": 150,
+                "boundingBoxX2": 600,
+                "boundingBoxY2": 350
+            }])))
+            .mount(&server)
+            .await;
+        let app = seed_and_wrap(&server, test_state(&server).await).await;
+        let resp = app
+            .oneshot(json_request(
+                "POST",
+                &format!("/api/assets/{id}/edits/auto"),
+                json!({}),
+            ))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("faces {faces_status}: auto status {}", resp.status());
+        }
+        let edits = body_json(resp).await;
+        if !edits["basic"]["exposure_ev"].is_f64() {
+            panic!("faces {faces_status}: auto returned {edits}");
+        }
+        let asked = server
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .any(|r| r.url.path() == "/api/faces");
+        if !asked {
+            panic!("faces {faces_status}: auto never asked Immich for faces");
+        }
     }
 }
 
