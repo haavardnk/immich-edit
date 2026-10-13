@@ -120,7 +120,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `\`            | Hold to view the original                        | Editor              |
 | `Tab`          | Hide or show the side panels                     | Editor              |
 | `Shift+Tab`    | Hide or show every panel                         | Editor              |
-| `Ctrl+U`       | Auto adjust tone                                 | Editor              |
+| `Ctrl+U`       | Auto adjust                                      | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings                           | Editor              |
 | `Ctrl+Shift+C` | Copy edits                                       | Editor, Grid, Loupe |
 | `Ctrl+Shift+V` | Paste edits                                      | Editor, Grid, Loupe |

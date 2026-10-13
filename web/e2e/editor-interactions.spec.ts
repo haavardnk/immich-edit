@@ -373,22 +373,34 @@ test('the grey background preference survives a reload', async ({ page }) => {
   );
 });
 
-test('the auto adjust shortcut requests suggested edits', async ({ page }) => {
-  await installMocks(page);
+test('the auto adjust shortcut applies every suggested field', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  await installMocks(page, { onPreview: (req) => requests.push(req) });
   let auto = 0;
+  const basic = {
+    exposure_ev: 0.75,
+    contrast: 12,
+    dehaze: 9,
+    clarity: 7,
+    vibrance: 18,
+    saturation: 5,
+    white_balance: { mode: 'absolute', kelvin: 5200, tint: 4 }
+  };
+  const tone = { highlights: -40, shadows: 25, whites: -10, blacks: -15 };
   await page.route('**/api/assets/*/edits/auto', async (route) => {
     auto += 1;
     const body = JSON.parse(route.request().postData() ?? '{}');
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ...body, basic: { ...body.basic, exposure_ev: 0.75 } })
+      body: JSON.stringify({ ...body, basic: { ...body.basic, ...basic }, tone })
     });
   });
   await gotoAsset(page);
 
   await page.keyboard.press('ControlOrMeta+u');
   await expect(exposureSlider(page)).toHaveValue('0.75');
+  await expect.poll(() => requests.at(-1)?.edits).toMatchObject({ basic, tone });
   expect(auto).toBe(1);
 });
 

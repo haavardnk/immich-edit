@@ -483,7 +483,7 @@ export const KEYBINDS = [
     keys: ['Mod+u'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Auto adjust tone'
+    label: 'Auto adjust'
   },
   {
     id: 'resetEdits',

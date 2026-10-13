@@ -34,8 +34,11 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
 1. **Camera Profile** decides how the camera's colors are read. **Auto match** picks the profile for
    your camera and is the right start for most RAW files. **Flat** gives a low-contrast base for
    heavy grading.
-1. **Basic** does most of the work. **Auto**, at the top of **Develop** or `Ctrl+U`, sets tone as a
-   starting point. Then:
+1. **Basic** does most of the work. **Auto**, at the top of **Develop** or `Ctrl+U`, sets white
+   balance, every **Tone** slider, **Clarity**, **Dehaze**, **Vibrance** and **Saturation** as a
+   starting point. It meters the photo as rendered with your profile, crop and lens corrections,
+   weights detected faces, keeps night scenes dark, and holds exposure back rather than blow out
+   bright areas. Then:
    - **White Balance**: **Pick white balance** and click something that should be neutral gray, or
      use **Auto white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
      that could be neutral gray and stays near the camera's white when a scene has none, so warm
