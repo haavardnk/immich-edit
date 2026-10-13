@@ -35,7 +35,7 @@ test('history popover expands details and restores a prior entry', async ({ page
       id: 2,
       manifest_hash: 'hash-neutral',
       deleted: false,
-      edits: latestEdits,
+      manifest: editsToManifest(latestEdits),
       created_at: '2024-01-02T00:00:00Z',
       action: 'Latest'
     },
@@ -43,7 +43,7 @@ test('history popover expands details and restores a prior entry', async ({ page
       id: 1,
       manifest_hash: 'hash-prior',
       deleted: false,
-      edits: neutralEdits(),
+      manifest: editsToManifest(neutralEdits()),
       created_at: '2024-01-01T00:00:00Z',
       action: 'Initial'
     }
@@ -343,7 +343,7 @@ test('history restore waits for a save that is still in flight', async ({ page }
       id: 1,
       manifest_hash: 'hash-prior',
       deleted: false,
-      edits: neutralEdits(),
+      manifest: editsToManifest(neutralEdits()),
       created_at: '2024-01-01T00:00:00Z',
       action: 'Initial'
     }
