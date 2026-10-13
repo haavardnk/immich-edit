@@ -263,10 +263,10 @@ async fn put_writes_history_revision() {
     if arr.len() != 2 {
         panic!("expected 2 history entries, got {}", arr.len());
     }
-    if arr[0]["edits"]["basic"]["exposure_ev"] != 1.5 {
+    if arr[0]["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
         panic!("newest first: {entries}");
     }
-    if arr[1]["edits"]["basic"]["exposure_ev"] != 0.5 {
+    if arr[1]["manifest"]["ops"]["exposure"]["ev"] != 0.5 {
         panic!("oldest second: {entries}");
     }
 }

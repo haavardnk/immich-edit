@@ -1,7 +1,7 @@
 import { getJson, sendJson, url, ApiError, ConflictError } from './client';
-import { editsToManifest } from '$lib/edits/manifest';
+import { editsToManifest, manifestToEdits } from '$lib/edits/manifest';
 import type { AssetDetail } from '$lib/types/asset';
-import type { AsShotWhite, Edits, EditRecord, WhiteBalance } from '$lib/types/edits';
+import type { AsShotWhite, EditManifest, Edits, EditRecord, WhiteBalance } from '$lib/types/edits';
 
 export interface EditedAssetEntry {
   id: string;
@@ -113,8 +113,16 @@ export interface EditHistoryEntry {
   action: string | null;
 }
 
-export function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
-  return getJson(url`/api/assets/${assetId}/edits/history`);
+export interface EditHistoryItem extends Omit<EditHistoryEntry, 'edits'> {
+  manifest: EditManifest | null;
+}
+
+export async function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
+  const items = await getJson<EditHistoryItem[]>(url`/api/assets/${assetId}/edits/history`);
+  return items.map(({ manifest, ...item }) => ({
+    ...item,
+    edits: manifest ? manifestToEdits(manifest) : null
+  }));
 }
 
 export async function restoreEdits(assetId: string, entryId: number): Promise<EditRecord | null> {

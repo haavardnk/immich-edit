@@ -65,6 +65,29 @@ pub struct EditedAssetItem {
 }
 
 #[derive(Debug, Serialize)]
+pub struct HistoryItem {
+    pub id: i64,
+    pub manifest_hash: String,
+    pub deleted: bool,
+    pub manifest: Option<EditManifest>,
+    pub created_at: String,
+    pub action: Option<String>,
+}
+
+impl From<EditHistoryEntry> for HistoryItem {
+    fn from(entry: EditHistoryEntry) -> Self {
+        Self {
+            id: entry.id,
+            manifest_hash: entry.manifest_hash,
+            deleted: entry.deleted,
+            manifest: entry.edits.as_ref().map(EditManifest::from_edits),
+            created_at: entry.created_at,
+            action: entry.action,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct EditedAssetList {
     pub render_revision: String,
     pub items: Vec<EditedAssetItem>,
@@ -315,9 +338,9 @@ pub async fn history(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-) -> Result<Json<Vec<EditHistoryEntry>>, AppError> {
+) -> Result<Json<Vec<HistoryItem>>, AppError> {
     let entries = state.edits.list_history(ctx.owner, id).await?;
-    Ok(Json(entries))
+    Ok(Json(entries.into_iter().map(HistoryItem::from).collect()))
 }
 
 #[derive(Debug, Deserialize)]
