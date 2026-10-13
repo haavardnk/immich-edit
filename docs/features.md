@@ -66,7 +66,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Auto adjust | ✓ Yes | Sets white balance, tone, clarity, dehaze, vibrance, and saturation from the rendered photo, weighting detected faces |
 | Camera and custom white balance | ✓ Yes | Temperature in Kelvin and tint from the as-shot white, an eyedropper for neutral areas, and auto white balance |
 | Exposure and tone controls | ✓ Yes | Exposure, brightness, contrast, highlights, shadows, whites, and blacks |
-| RAW clipped-highlight reconstruction | ✓ Yes | Reconstructs clipped channels before tone work |
+| RAW clipped-highlight reconstruction | ✓ Yes | Rebuilds clipped photosites from the other colors before demosaic |
 | Sensor black- and white-point overrides | ✗ No | No RAW preprocessing controls |
 | RGB and luma curves | ✓ Yes | Composite and per-channel curves |
 | HSL and color grading | ✓ Yes | HSL mixer and color wheels |

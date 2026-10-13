@@ -80,6 +80,25 @@ mask layers too. Noise
 reduction, capture sharpening, and the dehaze atmosphere estimate therefore see the as-shot white
 balance, and a white balance change reuses all of them.
 
+### Highlight reconstruction
+
+RAW decode rebuilds clipped photosites before demosaic, so both renderers and every later stage see
+the same data. Each color's clip point is 98.7% of the level where its photosites pile up, which
+on some cameras sits above the white level in the file. Where one color in the 3×3 neighborhood is
+clipped, its value comes from the other two (the cube-root mean of their white-balanced levels,
+the "inpaint opposed" idea from darktable) plus a per-image color offset measured on unclipped
+photosites near the clipped areas. Where two or three colors are clipped, the pixel takes the
+color of the nearest bright unclipped surface: a smooth color field built from the photosites
+around each clipped area, scaled to the brightness of the colors still known. Small clipped areas
+take one color throughout. Where all three colors are clipped, or the clipped values are well above
+what that color allows, the result blends smoothly toward white, as blown areas look in other RAW
+editors. The estimate never lowers a photosite and can exceed white. Linear DNGs get the same
+treatment per pixel after decode.
+
+**Highlights** below 0 then applies one gain to all three channels, driven by the brightest channel
+on a log scale. The gain is 1 at mid gray and below and reaches the full slider strength four stops
+above, so bright areas come down without flattening or changing color.
+
 ## GPU flow
 
 `GpuRenderer::render_with_cancel` selects a fast path or the presence/detail path. Current order:

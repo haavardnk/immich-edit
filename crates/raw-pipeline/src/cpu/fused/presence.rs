@@ -2,47 +2,12 @@ use std::sync::Arc;
 
 use crate::math::fast;
 use crate::math::{luma, smoothstep};
-use crate::tone::shared::{HL_RECONSTRUCT_BIAS, HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE};
 
 #[inline(always)]
-pub fn apply_white_balance(
-    coeffs: &[f32; 3],
-    reconstruct: bool,
-    r: &mut f32,
-    g: &mut f32,
-    b: &mut f32,
-) {
-    let pr = *r;
-    let pg = *g;
-    let pb = *b;
-    let mut wr = pr * coeffs[0];
-    let mut wg = pg * coeffs[1];
-    let mut wb = pb * coeffs[2];
-    if reconstruct {
-        let cr = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pr);
-        let cg = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pg);
-        let cb = smoothstep(HL_RECONSTRUCT_KNEE, RAW_SENSOR_WHITE, pb);
-        if cr.max(cg).max(cb) > 0.0 {
-            let ur = 1.0 - cr;
-            let ug = 1.0 - cg;
-            let ub = 1.0 - cb;
-            let wmax = wr.max(wg).max(wb);
-            let target = (ur * wr + ug * wg + ub * wb + HL_RECONSTRUCT_BIAS * wmax)
-                / (ur + ug + ub + HL_RECONSTRUCT_BIAS);
-            if wr < target {
-                wr += (target - wr) * cr;
-            }
-            if wg < target {
-                wg += (target - wg) * cg;
-            }
-            if wb < target {
-                wb += (target - wb) * cb;
-            }
-        }
-    }
-    *r = wr;
-    *g = wg;
-    *b = wb;
+pub fn apply_white_balance(coeffs: &[f32; 3], r: &mut f32, g: &mut f32, b: &mut f32) {
+    *r *= coeffs[0];
+    *g *= coeffs[1];
+    *b *= coeffs[2];
 }
 
 #[derive(Clone, Copy)]
