@@ -1,10 +1,9 @@
 <script lang="ts">
-  import type { ExifInfo } from '$lib/types/asset';
-  import { exifDetailRows } from '$lib/utils/exif';
+  import { exifDetailRows, type Dated } from '$lib/utils/exif';
 
-  let { exif }: { exif: ExifInfo | null } = $props();
+  let { asset }: { asset: Dated | null } = $props();
 
-  const rows = $derived(exifDetailRows(exif));
+  const rows = $derived(exifDetailRows(asset));
 </script>
 
 <div class="flex flex-col gap-1 text-[11px] min-w-56">

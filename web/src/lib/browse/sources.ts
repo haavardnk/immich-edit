@@ -61,6 +61,7 @@ export async function loadFolderAssets(path: string): Promise<AssetSummary[]> {
     id: a.id,
     originalFileName: a.originalFileName,
     type: a.type,
+    localDateTime: a.localDateTime,
     fileCreatedAt: a.fileCreatedAt,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,

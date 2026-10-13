@@ -30,6 +30,6 @@
         {...props}
       />
     {/snippet}
-    <ExifRows exif={editor.asset?.exifInfo ?? null} />
+    <ExifRows asset={editor.asset} />
   </Popover>
 {/if}

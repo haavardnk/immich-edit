@@ -35,6 +35,7 @@ function exifTaken(dateTimeOriginal: string): ExifInfo {
     exifImageHeight: null,
     orientation: null,
     dateTimeOriginal,
+    timeZone: null,
     rating: null,
     fileSizeInByte: null
   };

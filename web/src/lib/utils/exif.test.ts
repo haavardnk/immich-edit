@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
 import {
   fmtAperture,
   fmtFocal,
@@ -8,6 +8,7 @@ import {
   fmtDate,
   fmtDay,
   fmtCamera,
+  captureTime,
   exifDetailRows
 } from './exif';
 import type { ExifInfo } from '$lib/types/asset';
@@ -66,26 +67,43 @@ describe('fmtSize', () => {
   });
 });
 
-describe('fmtDate', () => {
-  it('returns a non-empty string for a valid date', () => {
-    const out = fmtDate('2024-01-02T03:04:05Z');
-    expect(out).not.toBeNull();
-    expect((out as string).length).toBeGreaterThan(0);
+describe('captureTime', () => {
+  beforeAll(() => {
+    vi.stubEnv('TZ', 'Europe/Oslo');
+  });
+  afterAll(() => {
+    vi.unstubAllEnvs();
   });
 
-  it('returns the input for an invalid date', () => {
-    expect(fmtDate('garbage')).toBe('garbage');
-    expect(fmtDate(null)).toBeNull();
-  });
-});
+  const wall = (iso: string): string =>
+    new Date(iso).toLocaleString(undefined, { timeZone: 'UTC' });
+  const exifAt = (dateTimeOriginal: string, timeZone: string | null): ExifInfo =>
+    ({ dateTimeOriginal, timeZone }) as ExifInfo;
 
-describe('fmtDay', () => {
-  it('formats the calendar day and drops unreadable dates', () => {
-    expect(fmtDay('2024-01-02T03:04:05Z')).toBe(
-      new Date('2024-01-02T03:04:05Z').toLocaleDateString()
+  it.each([
+    ['2017-02-21T12:56:14+00:00', null, '2017-02-21T12:56:14Z'],
+    ['2026-10-10T15:21:43.83+00:00', 'UTC+1', '2026-10-10T16:21:43Z'],
+    ['2026-10-10T12:59:34.29+00:00', 'UTC+2', '2026-10-10T14:59:34Z'],
+    ['2026-10-10T12:59:34+00:00', 'Europe/Oslo', '2026-10-10T14:59:34Z'],
+    ['2026-01-05T20:00:00+00:00', 'UTC-3:30', '2026-01-05T16:30:00Z'],
+    ['2026-01-05T20:00:00+00:00', 'Mars/Olympus', '2026-01-05T20:00:00Z']
+  ])('shows %s in zone %s as the camera wall clock', (original, zone, shown) => {
+    const exifInfo = exifAt(original, zone);
+    const localDateTime = shown.replace('Z', '.000Z');
+    expect(fmtDate(captureTime({ exifInfo, localDateTime }))).toBe(wall(shown));
+    expect(fmtDate(captureTime({ exifInfo, localDateTime: null }))).toBe(wall(shown));
+    expect(fmtDay(captureTime({ exifInfo }))).toBe(
+      new Date(shown).toLocaleDateString(undefined, { timeZone: 'UTC' })
     );
-    expect(fmtDay('garbage')).toBeNull();
-    expect(fmtDay(null)).toBeNull();
+  });
+
+  it('falls back to the file time in the viewer zone and drops unreadable dates', () => {
+    const created = '2024-01-02T03:04:05Z';
+    expect(fmtDate(captureTime({ exifInfo: null, fileCreatedAt: created }))).toBe(
+      new Date(created).toLocaleString()
+    );
+    expect(captureTime({ exifInfo: exifAt('garbage', null), localDateTime: 'garbage' })).toBeNull();
+    expect(fmtDate(null)).toBeNull();
   });
 });
 
@@ -118,10 +136,11 @@ describe('exifDetailRows', () => {
       exifImageHeight: 3000,
       orientation: null,
       dateTimeOriginal: null,
+      timeZone: null,
       rating: null,
       fileSizeInByte: null
     };
-    const rows = exifDetailRows(exif);
+    const rows = exifDetailRows({ exifInfo: exif });
     const keys = rows.map((r) => r.key);
     expect(keys).toContain('Camera');
     expect(keys).toContain('Aperture');

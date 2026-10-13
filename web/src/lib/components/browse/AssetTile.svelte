@@ -11,7 +11,7 @@
   import { isRejected } from '$lib/browse/reject';
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/stores/labels';
   import { editorHref } from '$lib/editor/navigation';
-  import { fmtDay } from '$lib/utils/exif';
+  import { captureTime, fmtDay } from '$lib/utils/exif';
   import type { TileInfo } from '$lib/stores/browseView.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import {
@@ -71,9 +71,7 @@
   const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
   const markClass = $derived(info === 'none' ? hoverOnly : '');
   const nameClass = $derived(info === 'full' ? '' : hoverOnly);
-  const taken = $derived(
-    info === 'full' ? fmtDay(asset.exifInfo?.dateTimeOriginal ?? asset.fileCreatedAt) : null
-  );
+  const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
 
   function onClick(e: MouseEvent): void {
     if (e.shiftKey) {
