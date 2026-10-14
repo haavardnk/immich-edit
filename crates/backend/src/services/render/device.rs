@@ -123,14 +123,21 @@ impl RenderDevice {
             if g.is_lost() {
                 self.handle_device_lost();
             } else {
-                match on_gpu(&g) {
-                    Ok(r) => return Ok(r),
-                    Err(PipelineError::Cancelled) => return Err(PipelineError::Cancelled),
-                    Err(PipelineError::DeviceLost) => {
+                let gpu_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| on_gpu(&g)));
+                match gpu_res {
+                    Ok(Ok(r)) => return Ok(r),
+                    Ok(Err(PipelineError::Cancelled)) => return Err(PipelineError::Cancelled),
+                    Ok(Err(PipelineError::DeviceLost)) => {
                         self.handle_device_lost();
                     }
-                    Err(e) => {
+                    Ok(Err(e)) => {
                         tracing::warn!(error = %e, "gpu render failed; falling back to cpu");
+                    }
+                    Err(_) => {
+                        tracing::error!(
+                            "gpu render panicked; dropping device and falling back to cpu"
+                        );
+                        self.handle_device_lost();
                     }
                 }
             }

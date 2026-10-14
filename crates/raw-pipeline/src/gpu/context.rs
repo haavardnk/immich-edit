@@ -57,7 +57,7 @@ impl GpuContext {
         let mut limits = Limits::default();
         limits.max_texture_dimension_2d = limits
             .max_texture_dimension_2d
-            .max(8192)
+            .max(16384)
             .min(adapter_limits.max_texture_dimension_2d);
         limits.max_storage_buffer_binding_size = limits
             .max_storage_buffer_binding_size
