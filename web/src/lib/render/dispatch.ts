@@ -1,7 +1,11 @@
-import type { Call } from './protocol';
+import { runBenchmark } from './benchmark';
+import type { Call, GpuLimits, Started } from './protocol';
 
 export interface Renderer {
   adapter(): string;
+  limits(): GpuLimits;
+  set_synthetic_source(edge: number): void;
+  drop_source(): void;
   set_source(bytes: Uint8Array): unknown;
   set_tile(bytes: Uint8Array): unknown;
   drop_tile(): void;
@@ -37,7 +41,10 @@ export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
   const run = async (call: Call): Promise<unknown> => {
     if (call.op === 'init') {
       wasm = await load();
-      return wasm.renderer.adapter();
+      return {
+        adapter: wasm.renderer.adapter(),
+        limits: wasm.renderer.limits()
+      } satisfies Started;
     }
     const { renderer, inputs } = loaded();
     switch (call.op) {
@@ -61,6 +68,8 @@ export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
         return renderer.set_dcp(call.bytes ? new Uint8Array(call.bytes) : undefined);
       case 'render':
         return renderer.render(JSON.stringify(call.edits), JSON.stringify(call.view));
+      case 'benchmark':
+        return runBenchmark(renderer, call.edge);
     }
   };
 

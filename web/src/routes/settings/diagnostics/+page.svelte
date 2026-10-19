@@ -9,7 +9,7 @@
   } from '$lib/api/diagnostics';
   import Notice from '$lib/components/Notice.svelte';
   import RenderStages from '$lib/components/settings/RenderStages.svelte';
-  import { codecLabel, formatBytes, formatUs } from '$lib/diagnostics/format';
+  import { codecLabel, formatBytes, formatUs, perMegapixel } from '$lib/diagnostics/format';
   import { buildSupportBundle } from '$lib/diagnostics/supportBundle';
   import { renderer } from '$lib/stores/renderer.svelte';
   import { errorMessage } from '$lib/utils/errors';
@@ -158,14 +158,30 @@
   <section class="space-y-2 pt-5">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Browser renderer</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
+      <dt class="text-dark/65">Setting</dt>
+      <dd class="font-mono">{renderer.choice}</dd>
       <dt class="text-dark/65">Previews</dt>
       <dd class="font-mono">{renderer.state}</dd>
-      {#if renderer.state === 'server' && renderer.reason}
+      {#if renderer.reason}
         <dt class="text-dark/65">Reason</dt>
         <dd>{renderer.reason}</dd>
       {/if}
+      <dt class="text-dark/65">Browser speed</dt>
+      <dd class="font-mono">
+        {renderer.browserMs === null ? '—' : perMegapixel(renderer.browserMs)}
+      </dd>
+      <dt class="text-dark/65">Server speed</dt>
+      <dd class="font-mono">
+        {renderer.serverMs === null ? '—' : perMegapixel(renderer.serverMs)}
+      </dd>
       <dt class="text-dark/65">GPU adapter</dt>
       <dd class="font-mono">{renderer.adapter || '—'}</dd>
+      <dt class="text-dark/65">GPU limits</dt>
+      <dd class="font-mono">
+        {renderer.limits
+          ? `${renderer.limits.max_texture_dimension_2d} px textures, ${formatBytes(renderer.limits.max_buffer_size)} buffers`
+          : '—'}
+      </dd>
       <dt class="text-dark/65">Wasm load</dt>
       <dd class="font-mono">
         {renderer.initMs === null ? '—' : formatUs(Math.round(renderer.initMs * 1000))}

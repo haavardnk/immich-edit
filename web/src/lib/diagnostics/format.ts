@@ -20,3 +20,7 @@ export function hitRate(hits: number, misses: number): string {
   if (total === 0) return '—';
   return `${Math.round((hits / total) * 100)}%`;
 }
+
+export function perMegapixel(ms: number): string {
+  return `${ms.toFixed(1)} ms/MP`;
+}

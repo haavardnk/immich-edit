@@ -168,21 +168,28 @@ hardware, and it is faster than the built-in CPU renderer at preview sizes; see
 
 ## Previews do not render in the browser
 
-**Browser renderer** in Diagnostics shows whether this browser draws previews, its GPU adapter, how
-long the renderer took to load, and the last render time. When **Previews** reads `server`,
-**Reason** says why:
+**Browser renderer** in Diagnostics shows the **Preview rendering** setting, whether this browser
+draws previews, the measured **Browser speed** and **Server speed** in milliseconds per megapixel,
+the GPU adapter and its limits, how long the renderer took to load, and the last render time.
+**Reason** explains the decision:
 
-- `browsers only offer WebGPU over HTTPS or on localhost`: the page is served over plain HTTP from
-  another machine. See
+- `WebGPU needs HTTPS or localhost`: the page is served over plain HTTP from another machine. See
   [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
-- `this browser has no WebGPU`: the browser lacks WebGPU, or has it turned off.
-- `Server rendering is selected`: **Settings** > **Preview rendering** is set to **Server** in this
-  browser.
-- Any other message: the renderer could not start, or it stopped, with the error it reported. The
-  editor uses server previews for the rest of the session.
+- `no WebGPU`: the browser lacks WebGPU, or has it turned off.
+- `server selected` or `browser selected`: **Settings** > **Preview rendering** is set to
+  **Server** or **Browser** in this browser.
+- `measuring speed`: **Fastest** has not timed both renderers yet. Previews come from the server
+  until it has; **Previews** reads `measuring`.
+- `browser faster, 8.0 vs 30.0 ms/MP`: the browser's time per megapixel, then the server's.
+- `browser not clearly faster, …`: the browser took more than 80% of the server's time per
+  megapixel. Pick **Browser** to use it anyway.
+- `GPU textures max …` or `GPU buffers max …`: the browser's GPU cannot hold a preview as large as
+  the window needs.
+- `browser failed: …`, or any other message: the renderer could not start, or it stopped, with the
+  error it reported. The editor uses server previews for the rest of the session.
 
-Choosing **Browser when available** again retries after a failure. Set it to **Server** to rule the
-browser out when a preview looks wrong.
+Switching **Preview rendering** to another setting and back retries after a failure. Set it to
+**Server** to rule the browser out when a preview looks wrong.
 
 ## Previews are slow or time out
 

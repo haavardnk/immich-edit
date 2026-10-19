@@ -1,4 +1,5 @@
 import { toasts } from '$lib/stores/toasts.svelte';
+import { parseServerTiming, type ServerTiming } from './serverTiming';
 
 export class ApiError extends Error {
   status: number;
@@ -159,7 +160,7 @@ export async function postForBlob(
   path: string,
   body: unknown,
   signal?: AbortSignal
-): Promise<{ blob: Blob; metaId: string | null }> {
+): Promise<{ blob: Blob; metaId: string | null; timing: ServerTiming | null }> {
   const resp = await request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -167,6 +168,8 @@ export async function postForBlob(
     signal
   });
   const metaId = resp.headers.get('x-preview-meta-id');
+  const started = performance.now();
   const blob = await resp.blob();
-  return { blob, metaId };
+  const timing = parseServerTiming(resp.headers.get('server-timing'), performance.now() - started);
+  return { blob, metaId, timing };
 }

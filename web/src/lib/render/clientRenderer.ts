@@ -4,33 +4,54 @@ import { fetchRaster } from '$lib/api/rasters';
 import { fetchDcpBytes, fetchLutCube, fetchSource } from '$lib/api/source';
 import type { Edits } from '$lib/types/edits';
 import { RenderHost } from './host';
-import type { RenderInputs, RenderView, RenderedFrame, SourceInfo } from './protocol';
+import type {
+  GpuLimits,
+  RenderInputs,
+  RenderView,
+  RenderedFrame,
+  SourceInfo,
+  TickSample
+} from './protocol';
 
 export class ClientRenderer {
   private readonly host: RenderHost;
   readonly initMs: number;
+  readonly benchmark: TickSample | null;
   private dcpId: string | null | undefined = undefined;
   private lutId: string | null = null;
   private readonly rasters = new Set<string>();
 
-  private constructor(host: RenderHost, initMs: number) {
+  private constructor(host: RenderHost, initMs: number, benchmark: TickSample | null) {
     this.host = host;
     this.initMs = initMs;
+    this.benchmark = benchmark;
   }
 
-  static async start(): Promise<ClientRenderer> {
-    if (!isSecureContext) throw new Error('browsers only offer WebGPU over HTTPS or on localhost');
-    if (!('gpu' in navigator) || !navigator.gpu) throw new Error('this browser has no WebGPU');
+  static async start(benchmarkEdge: number | null): Promise<ClientRenderer> {
+    if (!isSecureContext) throw new Error('WebGPU needs HTTPS or localhost');
+    if (!('gpu' in navigator) || !navigator.gpu) throw new Error('no WebGPU');
     const started = performance.now();
     const host = await RenderHost.start().catch((err: unknown) => {
       reportClientError('gpu', err, 'warn');
       throw err;
     });
-    return new ClientRenderer(host, performance.now() - started);
+    const initMs = performance.now() - started;
+    if (benchmarkEdge === null) return new ClientRenderer(host, initMs, null);
+    try {
+      return new ClientRenderer(host, initMs, await host.benchmark(benchmarkEdge));
+    } catch (err) {
+      host.dispose();
+      reportClientError('gpu', err, 'warn');
+      throw err;
+    }
   }
 
   get adapter(): string {
     return this.host.adapter;
+  }
+
+  get limits(): GpuLimits {
+    return this.host.limits;
   }
 
   inputs(edits: Edits, maxEdge: number): Promise<RenderInputs> {

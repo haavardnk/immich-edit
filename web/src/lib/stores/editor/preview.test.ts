@@ -61,18 +61,25 @@ vi.mock('$lib/utils/objectUrl', () => ({ makeObjectUrl: () => 'blob:render', rev
 
 const browser = vi.hoisted(() => ({
   current: null as ClientRenderer | null,
-  fail: vi.fn()
+  waitFor: null as Promise<unknown> | null,
+  fail: vi.fn(),
+  bind: vi.fn()
 }));
 
 vi.mock('$lib/stores/renderer.svelte', () => ({
   renderer: {
-    undecided: false,
     get current() {
       return browser.current;
     },
-    start: async () => browser.current,
+    measuresServer: false,
+    bind: (need: unknown) => {
+      browser.bind(need);
+      if (browser.waitFor) return { kind: 'wait', ready: browser.waitFor };
+      return browser.current ? { kind: 'browser', client: browser.current } : { kind: 'server' };
+    },
     fail: browser.fail,
-    recordRender: () => {}
+    recordRender: () => {},
+    recordServer: () => {}
   }
 }));
 
@@ -442,6 +449,8 @@ describe('preview lanes with the browser renderer', () => {
     vi.stubGlobal('Image', DecodedImage);
     renders.length = 0;
     browser.fail.mockClear();
+    browser.bind.mockClear();
+    browser.waitFor = null;
     ctx = context();
     engine = new PreviewEngine(ctx);
     engine.onViewChange(SNAP);
@@ -486,6 +495,54 @@ describe('preview lanes with the browser renderer', () => {
 
     expect(browser.fail).toHaveBeenCalledOnce();
     expect(lanes()).toEqual([`base@${SETTLED_EDGE}`]);
+  });
+
+  it('binds the renderer once per asset and switches only on the next load', async () => {
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(lanes()).toEqual([`base@${SETTLED_EDGE}`]);
+    expect(browser.bind).toHaveBeenCalledWith({ benchmarkEdge: SETTLED_EDGE, maxEdge: 2560 });
+
+    const fake = fakeClient(async () => browserFrame());
+    browser.current = fake.client;
+    renders.splice(0).forEach((render) => render.land());
+    ctx.edits = { ...ctx.edits, basic: { ...ctx.edits.basic, exposure_ev: 1 } };
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(lanes()).toEqual([`base@${SETTLED_EDGE}`]);
+    expect(fake.views).toEqual([]);
+    expect(browser.bind).toHaveBeenCalledOnce();
+
+    renders.splice(0).forEach((render) => render.land());
+    vi.stubGlobal('innerWidth', 1800);
+    vi.stubGlobal('innerHeight', 1000);
+    vi.stubGlobal('devicePixelRatio', 2);
+    engine.reset();
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(browser.bind).toHaveBeenLastCalledWith({ benchmarkEdge: 1600, maxEdge: 3600 });
+    expect(fake.views.length).toBe(1);
+    expect(renders).toEqual([]);
+  });
+
+  it('holds the first base render while a remembered browser choice starts', async () => {
+    let ready = (): void => {};
+    browser.waitFor = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const fake = fakeClient(async () => browserFrame());
+
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(renders).toEqual([]);
+    expect(fake.views).toEqual([]);
+
+    browser.waitFor = null;
+    browser.current = fake.client;
+    ready();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fake.views.length).toBe(1);
+    expect(renders).toEqual([]);
   });
 
   it('renders 1:1 tiles locally and fetches one tile per pan', async () => {

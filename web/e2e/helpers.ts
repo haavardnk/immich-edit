@@ -203,7 +203,7 @@ export interface InstallOpts {
   sourceSize?: { w: number; h: number };
   previewMeta?: Record<string, unknown>;
   faces?: Array<Record<string, number>>;
-  renderer?: 'auto' | 'server';
+  renderer?: 'auto' | 'browser' | 'server';
   tags?: MockTag[];
   people?: MockPerson[];
   albums?: MockAlbum[];
@@ -214,9 +214,11 @@ export interface InstallOpts {
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
-  if ((opts.renderer ?? 'server') === 'server') {
-    await page.addInitScript(() =>
-      localStorage.setItem('immich-edit:renderer', JSON.stringify({ choice: 'server' }))
+  const choice = opts.renderer ?? 'server';
+  if (choice !== 'auto') {
+    await page.addInitScript(
+      (stored) => localStorage.setItem('immich-edit:renderer', stored),
+      JSON.stringify({ choice })
     );
   }
   const assets = opts.assets ?? [ASSET_SUMMARY];

@@ -24,6 +24,21 @@ export interface SourceInfo {
   model: string;
 }
 
+export interface GpuLimits {
+  max_texture_dimension_2d: number;
+  max_buffer_size: number;
+}
+
+export interface Started {
+  adapter: string;
+  limits: GpuLimits;
+}
+
+export interface TickSample {
+  ms: number;
+  pixels: number;
+}
+
 export interface RenderInputs {
   sensor_key: string;
   rasters: string[];
@@ -66,7 +81,8 @@ export type Call =
   | { op: 'setLut'; id: string; bytes: ArrayBuffer }
   | { op: 'dropLut'; id: string }
   | { op: 'setDcp'; bytes: ArrayBuffer | null }
-  | { op: 'render'; edits: Edits; view: RenderView };
+  | { op: 'render'; edits: Edits; view: RenderView }
+  | { op: 'benchmark'; edge: number };
 
 export interface Request {
   id: number;

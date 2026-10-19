@@ -27,7 +27,17 @@ import type { GeometrySession } from './geometry.svelte';
 import { ClientPreview } from './clientPreview';
 import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';
 import { OriginalPreview } from './originalPreview.svelte';
-import { baseEdge, dragEdge, fitEdge, LIVE_EDGE, MAX_EDGE, type ViewSnapshot } from './previewEdge';
+import {
+  baseEdge,
+  dragEdge,
+  fitEdge,
+  largestEdge,
+  windowEdge,
+  LIVE_EDGE,
+  MAX_EDGE,
+  type ViewSnapshot
+} from './previewEdge';
+import { measureServerTick } from './serverTick';
 import { ViewTiles } from './viewTiles.svelte';
 
 const VIEW_DEBOUNCE_MS = 150;
@@ -114,7 +124,7 @@ export class PreviewEngine {
     async (args, signal) => {
       if (!this.ctx.assetId) throw new Error('no asset');
       this.ctx.pending = true;
-      const { blob, metaId } = await livePreview(
+      const { blob, metaId, timing } = await livePreview(
         this.ctx.assetId,
         args.edits,
         args.maxEdge,
@@ -125,6 +135,11 @@ export class PreviewEngine {
         undefined,
         scopes.wants
       );
+      if (timing && renderer.measuresServer && previewModeIsNone(args.previewMode)) {
+        void measureServerTick(blob, timing).then((sample) => {
+          if (sample) renderer.recordServer(sample);
+        });
+      }
       return { url: makeObjectUrl(blob), metaId };
     },
     (args, result) => {
@@ -313,14 +328,21 @@ export class PreviewEngine {
   private submitBase(args: BaseArgs): void {
     this.previewing = !previewModeIsNone(args.previewMode);
     this.lastBase = args;
-    if (!this.client.serverBound && renderer.undecided) {
-      this.deferred = args;
-      void renderer.start().then(() => {
-        const next = this.deferred;
-        this.deferred = null;
-        if (next) this.submitBase(next);
+    if (this.client.unbound) {
+      const binding = renderer.bind({
+        benchmarkEdge: fitEdge(this.viewSnap),
+        maxEdge: Math.max(largestEdge(this.viewSnap), windowEdge())
       });
-      return;
+      if (binding.kind === 'wait') {
+        this.deferred = args;
+        void binding.ready.then(() => {
+          const next = this.deferred;
+          this.deferred = null;
+          if (next) this.submitBase(next);
+        });
+        return;
+      }
+      this.client.bind(binding.kind === 'browser' ? binding.client : null);
     }
     if (!this.client.submitBase(args)) this.flight.submit(args);
   }
@@ -348,7 +370,7 @@ export class PreviewEngine {
       return;
     }
     if (this.viewBlocked()) return;
-    if (this.flight.busy || this.client.busy) {
+    if (this.flight.busy || this.client.busy || this.deferred) {
       this.viewAfterBase = true;
       return;
     }

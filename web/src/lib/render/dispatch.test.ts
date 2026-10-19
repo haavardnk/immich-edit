@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDispatcher, type Renderer, type Wasm } from './dispatch';
 
-const bitmap = {} as ImageBitmap;
+const bitmap = { close: () => {} } as unknown as ImageBitmap;
 
 function fakeRenderer(): Renderer & { calls: string[] } {
   const calls: string[] = [];
   return {
     calls,
     adapter: () => 'fake adapter',
+    limits: () => ({ max_texture_dimension_2d: 8192, max_buffer_size: 1 << 30 }),
+    set_synthetic_source: (edge) => void calls.push(`synthetic:${edge}`),
+    drop_source: () => void calls.push('drop-source'),
     set_source: (bytes) => {
       calls.push(`source:${bytes.length}`);
       return { width: 4, height: 2 };
@@ -47,7 +50,13 @@ describe('render dispatcher', () => {
     const load = vi.fn(async () => wasmOf(renderer));
     const dispatch = createDispatcher(load);
 
-    expect(await dispatch({ op: 'init' })).toEqual({ value: 'fake adapter', transfer: [] });
+    expect(await dispatch({ op: 'init' })).toEqual({
+      value: {
+        adapter: 'fake adapter',
+        limits: { max_texture_dimension_2d: 8192, max_buffer_size: 1 << 30 }
+      },
+      transfer: []
+    });
     expect(load).toHaveBeenCalledOnce();
     expect((await dispatch({ op: 'setSource', bytes: new ArrayBuffer(6) })).value).toEqual({
       width: 4,
@@ -61,8 +70,10 @@ describe('render dispatcher', () => {
     await dispatch({ op: 'dropLut', id: 'l' });
     await dispatch({ op: 'setDcp', bytes: new ArrayBuffer(5) });
     await dispatch({ op: 'setDcp', bytes: null });
+    const bench = await dispatch({ op: 'benchmark', edge: 1600 });
 
-    expect(renderer.calls).toEqual([
+    expect(bench).toEqual({ value: { ms: expect.any(Number), pixels: 8 }, transfer: [] });
+    expect(renderer.calls.filter((c) => !c.startsWith('render-'))).toEqual([
       'source:6',
       'raster:r:2x1:2',
       'tile:4',
@@ -71,7 +82,9 @@ describe('render dispatcher', () => {
       'lut:l:3',
       'drop-lut:l',
       'dcp:5',
-      'dcp:none'
+      'dcp:none',
+      'synthetic:1600',
+      'drop-source'
     ]);
   });
 

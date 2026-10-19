@@ -5575,6 +5575,7 @@ dependencies = [
 name = "web-render"
 version = "0.0.0"
 dependencies = [
+ "half",
  "js-sys",
  "raw-pipeline",
  "serde",

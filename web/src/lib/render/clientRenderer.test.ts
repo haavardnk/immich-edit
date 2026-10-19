@@ -7,11 +7,11 @@ afterEach(() => {
 
 describe('ClientRenderer.start', () => {
   it.each([
-    ['plain HTTP', false, { gpu: {} }, 'browsers only offer WebGPU over HTTPS or on localhost'],
-    ['no WebGPU', true, {}, 'this browser has no WebGPU']
+    ['plain HTTP', false, { gpu: {} }, 'WebGPU needs HTTPS or localhost'],
+    ['no WebGPU', true, {}, 'no WebGPU']
   ])('names the cause on %s', async (_case, secure, nav, message) => {
     vi.stubGlobal('isSecureContext', secure);
     vi.stubGlobal('navigator', nav);
-    await expect(ClientRenderer.start()).rejects.toThrow(message);
+    await expect(ClientRenderer.start(1600)).rejects.toThrow(message);
   });
 });

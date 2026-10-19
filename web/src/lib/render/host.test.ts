@@ -33,15 +33,20 @@ class FakePort implements Port {
 
 async function started(port: FakePort): Promise<RenderHost> {
   const pending = RenderHost.start(() => port);
-  port.reply({ id: 0, ok: true, value: 'gpu' });
+  port.reply({
+    id: 0,
+    ok: true,
+    value: { adapter: 'gpu', limits: { max_texture_dimension_2d: 8192, max_buffer_size: 4096 } }
+  });
   return pending;
 }
 
 describe('render host', () => {
-  it('starts the worker and keeps the adapter label', async () => {
+  it('starts the worker and keeps the adapter label and limits', async () => {
     const port = new FakePort();
     const host = await started(port);
     expect(host.adapter).toBe('gpu');
+    expect(host.limits).toEqual({ max_texture_dimension_2d: 8192, max_buffer_size: 4096 });
     expect(port.sent.map((s) => s.message.call.op)).toEqual(['init']);
   });
 

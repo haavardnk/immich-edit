@@ -25,10 +25,10 @@ export class ClientPreview {
   private readonly ctx: PreviewCtx;
   private readonly hooks: ClientPreviewHooks;
   private client: ClientRenderer | null = null;
+  private bound: ClientRenderer | null | undefined = undefined;
   private base: ClientLane | null = null;
   private tile: ClientLane | null = null;
   private tileRequest: RenderRequest | null = null;
-  private serverOnly = false;
 
   constructor(ctx: PreviewCtx, hooks: ClientPreviewHooks) {
     this.ctx = ctx;
@@ -39,8 +39,12 @@ export class ClientPreview {
     return !!this.base?.busy;
   }
 
-  get serverBound(): boolean {
-    return this.serverOnly;
+  get unbound(): boolean {
+    return this.bound === undefined;
+  }
+
+  bind(client: ClientRenderer | null): void {
+    this.bound = client;
   }
 
   submitBase(args: BaseArgs): boolean {
@@ -79,13 +83,13 @@ export class ClientPreview {
   reset(): void {
     this.base?.reset();
     this.tile?.reset();
-    this.serverOnly = false;
+    this.bound = undefined;
     this.cancelTile();
     this.dropBase();
   }
 
   private lanes(): { base: ClientLane; tile: ClientLane } | null {
-    const client = this.serverOnly ? null : renderer.current;
+    const client = this.bound && this.bound === renderer.current ? this.bound : null;
     if (client !== this.client) {
       this.base?.reset();
       this.tile?.reset();
@@ -154,7 +158,7 @@ export class ClientPreview {
     if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
     this.ctx.previewUrl = null;
     this.ctx.pending = false;
-    renderer.recordRender(ms);
+    renderer.recordRender({ ms, pixels: frame.width * frame.height });
     if (job.purpose === 'color-picker' && this.ctx.colorPicker) {
       this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
     }
@@ -184,7 +188,7 @@ export class ClientPreview {
   private onError(err: unknown): void {
     if (err instanceof ApiError && err.code === 'superseded') return;
     if (!(err instanceof ApiError || err instanceof NetworkError)) renderer.fail(err);
-    this.serverOnly = true;
+    this.bound = null;
     this.lanes();
     this.cancelTile();
     this.ctx.pending = false;

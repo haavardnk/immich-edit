@@ -106,14 +106,14 @@ describe('buildSupportBundle', () => {
   });
 
   it('folds into a details block with the Immich and browser renderer', () => {
-    const fallback = { state: 'server', reason: 'WebGPU is unavailable', adapter: null };
+    const fallback = { state: 'server', reason: 'no WebGPU', adapter: null };
     const lines = buildSupportBundle(health, null, fallback, 'ua').split('\n');
     expect(lines[0]).toBe('<details><summary>immich-edit 0.6.0 support bundle</summary>');
     expect(lines.at(-1)).toBe('</details>');
     expect(lines).toEqual(
       expect.arrayContaining([
         '- Immich version: 3.2.2',
-        '- Browser previews: server (WebGPU is unavailable)',
+        '- Preview renderer: server (no WebGPU)',
         '- Browser GPU adapter: none'
       ])
     );

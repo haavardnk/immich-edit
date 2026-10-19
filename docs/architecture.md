@@ -105,7 +105,8 @@ files with immutable cache headers; mask rasters come from `GET /api/rasters/{id
 The viewer measures its visible frame, device-pixel ratio, and source limit. It requests the exact
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.
 
-When the browser has WebGPU and the preview renderer setting is **Browser when available**, the
+When the browser has WebGPU and the preview renderer setting picks it (**Browser**, or **Fastest**
+when the browser measured clearly quicker; see [rendering](rendering.md#the-browser)), the
 base preview renders in a worker (`web/src/lib/render`). The worker asks the wasm renderer for the
 sensor-stage key and the rasters and LUT an edit needs; a changed key fetches a new source while
 the last one keeps rendering, so only sensor-stage edits (noise reduction, capture sharpening,
@@ -115,6 +116,8 @@ The browser base renders at the fit size. Zoomed past it, the viewer asks for a 
 the visible region and renders that tile locally too, so a slider at 1:1 posts nothing and a pan
 posts one tile request. Split view's original still comes from the server. A worker or GPU failure
 switches the session to server previews; a failed source request switches that asset.
+Each `/preview` response carries a `Server-Timing` header with `render` and `encode` durations,
+which **Fastest** adds to the download and decode time it measures to time the server.
 
 ## Render services and caches
 
