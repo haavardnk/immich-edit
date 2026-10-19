@@ -46,6 +46,10 @@ async fn live_preview_renders_jpeg_and_returns_meta_id() {
     let Some(meta_id) = header_str(&resp, "x-preview-meta-id") else {
         panic!("missing meta header");
     };
+    let timing = header_str(&resp, "server-timing").unwrap_or_default();
+    if !timing.starts_with("render;dur=") || !timing.contains(", encode;dur=") {
+        panic!("server-timing: {timing}");
+    }
     let bytes = body_bytes(resp).await;
     if &bytes[..2] != b"\xff\xd8" {
         panic!("not jpeg");

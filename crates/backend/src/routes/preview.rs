@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -5,6 +7,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::{CropRect, Edits};
 use raw_pipeline::frame::{OutputColorSpace, PreviewMode};
+use raw_pipeline::timing::StageTiming;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -14,11 +17,12 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::preview_scopes::ScopeKind;
-use crate::services::render::{RenderError, RenderIdentity};
+use crate::services::render::{RenderError, RenderIdentity, TimedRender};
 use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
+const SERVER_TIMING_HEADER: &str = "server-timing";
 const MASK_PREVIEW_MAX_EDGE: u32 = 1400;
 const PERSISTED_JPEG_QUALITY: u8 = 95;
 const LIVE_JPEG_QUALITY: u8 = 90;
@@ -227,7 +231,7 @@ async fn render_to_response(
         scopes: scopes && stores_meta,
         ..Default::default()
     };
-    let work = render.render(
+    let work = render.render_timed(
         identity,
         ctx.immich.clone(),
         asset_id.source(),
@@ -238,7 +242,10 @@ async fn render_to_response(
     let guard = CancelOnDrop::new(token);
     let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
     guard.disarm();
-    let rendered = match result {
+    let TimedRender {
+        image: rendered,
+        wall,
+    } = match result {
         Some(Ok(r)) => r,
         Some(Err(e)) => return Err(e.into()),
         None => {
@@ -250,6 +257,10 @@ async fn render_to_response(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
+    resp.headers_mut().insert(
+        HeaderName::from_static(SERVER_TIMING_HEADER),
+        headers::header_value(&server_timing(wall, &rendered.timings))?,
+    );
     if let Some(histogram) = rendered.histogram {
         let meta_id = Uuid::new_v4();
         let has_scopes = scope_grids.is_some();
@@ -276,6 +287,21 @@ async fn render_to_response(
         );
     }
     Ok(resp.into_response())
+}
+
+fn server_timing(wall: Duration, stages: &[StageTiming]) -> String {
+    let encode = stages
+        .iter()
+        .filter(|s| s.stage == raw_pipeline::timing::ENCODE)
+        .map(|s| s.wall)
+        .sum::<Duration>()
+        .min(wall);
+    let ms = |d: Duration| d.as_secs_f64() * 1000.0;
+    format!(
+        "render;dur={:.1}, encode;dur={:.1}",
+        ms(wall - encode),
+        ms(encode)
+    )
 }
 
 pub(super) fn clamp_max(default: u32, requested: Option<u32>) -> Result<u32, AppError> {
@@ -310,6 +336,30 @@ pub(crate) fn parse_roi(roi: Option<[f32; 4]>) -> Result<Option<CropRect>, AppEr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn server_timing_splits_encode_from_render() {
+        let stages = [
+            StageTiming {
+                stage: raw_pipeline::timing::DISPLAY,
+                wall: Duration::from_millis(9),
+                gpu: None,
+            },
+            StageTiming {
+                stage: raw_pipeline::timing::ENCODE,
+                wall: Duration::from_millis(4),
+                gpu: None,
+            },
+        ];
+        let value = server_timing(Duration::from_millis(20), &stages);
+        if value != "render;dur=16.0, encode;dur=4.0" {
+            panic!("server timing: {value}");
+        }
+        let value = server_timing(Duration::from_millis(2), &stages);
+        if value != "render;dur=0.0, encode;dur=2.0" {
+            panic!("clamped server timing: {value}");
+        }
+    }
 
     #[test]
     fn parse_roi_accepts_inside_unit_square() {

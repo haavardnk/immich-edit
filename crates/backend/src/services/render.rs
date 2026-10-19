@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use raw_pipeline::CancelToken;
@@ -212,9 +212,23 @@ impl RenderService {
         immich: ImmichClient,
         source: Uuid,
         edits: Edits,
-        mut options: RenderOptions,
+        options: RenderOptions,
         cancel: Option<CancelToken>,
     ) -> Result<RenderedImage, RenderError> {
+        self.render_timed(identity, immich, source, edits, options, cancel)
+            .await
+            .map(|timed| timed.image)
+    }
+
+    pub async fn render_timed(
+        &self,
+        identity: RenderIdentity,
+        immich: ImmichClient,
+        source: Uuid,
+        edits: Edits,
+        mut options: RenderOptions,
+        cancel: Option<CancelToken>,
+    ) -> Result<TimedRender, RenderError> {
         let frame = if options.quality {
             self.quality_frame(identity, &immich, source).await?
         } else {
@@ -241,12 +255,16 @@ impl RenderService {
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
+        let wall = start.elapsed();
         self.telemetry.record(
             RendererKind::from_label(&result.renderer),
-            start.elapsed(),
+            wall,
             &result.timings,
         );
-        Ok(result)
+        Ok(TimedRender {
+            image: result,
+            wall,
+        })
     }
 
     pub async fn source(
@@ -295,6 +313,11 @@ impl RenderService {
         );
         Ok(EncodedSource { bytes, dcp_id })
     }
+}
+
+pub struct TimedRender {
+    pub image: RenderedImage,
+    pub wall: Duration,
 }
 
 pub struct SourceRequest {
