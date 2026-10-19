@@ -30,9 +30,9 @@ jobs:
         uses: actions-rust-lang/audit@v1
         with:
           ignore: RUSTSEC-2026-0194,RUSTSEC-2026-0195,RUSTSEC-2024-0436
-          createIssues: ${{ github.event_name == 'schedule' }}
+          createIssues: ${{ github.event_name != 'push' }}
       - name: Label audit issues
-        if: github.event_name == 'schedule'
+        if: github.event_name != 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
