@@ -191,6 +191,14 @@ test('a popover closes on escape and on an outside click, returning focus', asyn
 
   await page.getByRole('button', { name: /^Before \/ after split/ }).click();
   await expect(zoomIn).toBeHidden();
+
+  await zoom.click();
+  await expect(zoomIn).toBeVisible();
+  const split = page.getByRole('button', { name: /^Before \/ after split/ });
+  await split.hover();
+  await expect(page.locator('.tooltip-content', { hasText: 'Before / after split' })).toBeVisible();
+  await split.click();
+  await expect(zoomIn).toBeHidden();
 });
 
 test('the copy dialog is a named modal that cancels back to the editor', async ({ page }) => {
