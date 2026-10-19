@@ -2,6 +2,7 @@ import { getJson, postForBlob, request, url } from './client';
 import type { Edits } from '$lib/types/edits';
 import type { PreviewMeta, ScopeGrid, ScopeKind } from '$lib/types/preview';
 import type { ColorSpaceOpt } from './export';
+import type { ServerTiming } from './serverTiming';
 
 export type PreviewMode =
   | 'none'
@@ -42,7 +43,7 @@ export async function livePreview(
   lane: RenderLane = 'base',
   roi?: Roi,
   scopes = false
-): Promise<{ blob: Blob; metaId: string | null }> {
+): Promise<{ blob: Blob; metaId: string | null; timing: ServerTiming | null }> {
   return postForBlob(
     url`/api/assets/${assetId}/preview`,
     {

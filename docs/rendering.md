@@ -64,16 +64,27 @@ so it uses server previews. Everything still works; slider moves just wait on th
 section lists ways around it.
 
 The browser renderer uses the GPU of the computer you edit from, not the server's. It loads when
-the editor opens. Each browser keeps its own choice under
+the editor opens a photo. Each browser keeps its own choice under
 **Settings** > **Preview rendering**:
 
-- **Browser when available** draws previews locally and falls back to the server when it cannot.
-- **Server** always asks the server.
+- **Fastest**, the default, times both renderers and uses whichever is clearly quicker.
+- **Browser** always draws previews locally, even when the server is faster.
+- **Server** always asks the server and never loads the browser renderer.
+
+**Fastest** compares time per megapixel. The browser renderer times a short benchmark when it
+loads and then every preview it draws. Server previews are timed from the moment the server starts
+rendering until the browser has decoded the image, so queueing behind other requests does not
+count. The browser wins only when it takes at most 80% of the server's time; a closer race goes to
+the server, which needs no source download. It also stays on the server when the browser's GPU
+cannot hold a preview as large as the window needs. The choice is made when a photo opens and holds
+until the next one, so the renderer never switches mid-edit. Each browser remembers its
+measurements: the first photo after a reload uses the last answer, and previews come from the
+server only until both speeds are known.
 
 When the browser renderer fails, the editor switches to server previews for the rest of the
-session. Choosing **Browser when available** again retries. **Settings** > **Diagnostics** shows
-the browser renderer's state, its GPU adapter and the reason for any fallback; see
-[troubleshooting](troubleshooting.md#previews-do-not-render-in-the-browser).
+session. Switching to another setting and back retries. **Settings** > **Diagnostics** shows the
+setting, the decision and its reason, both measured speeds, and the browser's GPU adapter and
+limits; see [troubleshooting](troubleshooting.md#previews-do-not-render-in-the-browser).
 
 Exports never use the browser. The server renders them from the original at full resolution.
 
@@ -117,5 +128,5 @@ Then open `http://localhost:3000` on that computer.
   }
   ```
 
-**Settings** > **Diagnostics** shows `browsers only offer WebGPU over HTTPS or on localhost` as the
-browser renderer's reason while none of these is in place.
+**Settings** > **Diagnostics** shows `WebGPU needs HTTPS or localhost` as the browser renderer's
+reason while none of these is in place.

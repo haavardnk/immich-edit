@@ -1,12 +1,15 @@
 import type { Edits } from '$lib/types/edits';
 import type {
   Call,
+  GpuLimits,
   RenderInputs,
   RenderView,
   RenderedFrame,
   Reply,
   Request,
-  SourceInfo
+  SourceInfo,
+  Started,
+  TickSample
 } from './protocol';
 
 export interface PortEvents {
@@ -34,7 +37,10 @@ export class RenderHost {
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
   private nextId = 0;
-  private label = '';
+  private started: Started = {
+    adapter: '',
+    limits: { max_texture_dimension_2d: 0, max_buffer_size: 0 }
+  };
 
   private constructor(port: Port) {
     this.port = port;
@@ -45,13 +51,17 @@ export class RenderHost {
   }
 
   get adapter(): string {
-    return this.label;
+    return this.started.adapter;
+  }
+
+  get limits(): GpuLimits {
+    return this.started.limits;
   }
 
   static async start(spawn: () => Port = spawnWorker): Promise<RenderHost> {
     const host = new RenderHost(spawn());
     try {
-      host.label = await host.call<string>({ op: 'init' });
+      host.started = await host.call<Started>({ op: 'init' });
       return host;
     } catch (err) {
       host.dispose();
@@ -97,6 +107,10 @@ export class RenderHost {
 
   render(edits: Edits, view: RenderView): Promise<RenderedFrame> {
     return this.call({ op: 'render', edits, view });
+  }
+
+  benchmark(edge: number): Promise<TickSample> {
+    return this.call({ op: 'benchmark', edge });
   }
 
   dispose(): void {

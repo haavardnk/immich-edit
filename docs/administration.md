@@ -96,7 +96,7 @@ All users can browse and apply them. The files live under `DATA_DIR/luts`, `DATA
 | Section | What it shows |
 | --- | --- |
 | **Server** | Version, **Renderer mode**, **Renderer active**, **GPU adapter**, **GPU type** on a software rasterizer, Immich connection state and version, and database state |
-| **Browser renderer** | Whether this browser draws **Previews**, the **Reason** when it does not, its **GPU adapter**, and **Wasm load** and **Last render** times |
+| **Browser renderer** | The **Setting**, whether this browser draws **Previews** and the **Reason**, the measured **Browser speed** and **Server speed**, its **GPU adapter** and **GPU limits**, and **Wasm load** and **Last render** times |
 | **Host** | OS, CPU model, cores available to the process, and memory with any container limit |
 | **HEIF codecs** | HEIC and AVIF decode and export support |
 | **Render latency** | Typical and slow CPU and GPU render times |

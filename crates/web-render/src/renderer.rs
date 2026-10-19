@@ -88,6 +88,23 @@ impl WebRenderer {
         self.inner.gpu.adapter_label()
     }
 
+    pub fn limits(&self) -> JsValue {
+        js::limits(&self.inner.gpu.context().device.limits())
+    }
+
+    pub fn set_synthetic_source(&self, edge: u32) -> Result<(), JsError> {
+        let source = self
+            .inner
+            .gpu
+            .upload_source(&crate::bench::synthetic_source(edge))?;
+        self.inner.inputs.borrow_mut().source = Some(source);
+        Ok(())
+    }
+
+    pub fn drop_source(&self) {
+        self.inner.inputs.borrow_mut().source = None;
+    }
+
     pub fn set_source(&self, bytes: &[u8]) -> Result<JsValue, JsError> {
         let image = raw_pipeline::source::decode(bytes)?;
         let source = self.inner.gpu.upload_source(&image)?;

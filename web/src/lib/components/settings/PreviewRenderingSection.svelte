@@ -5,20 +5,15 @@
     segmentedRadioItemClass
   } from '$lib/components/editor/controls/segmentedControl';
   import { renderer, type RendererChoice } from '$lib/stores/renderer.svelte';
+  import { rendererStatus } from '$lib/stores/rendererStatus';
 
   const OPTIONS: { value: RendererChoice; label: string }[] = [
-    { value: 'auto', label: 'Browser when available' },
+    { value: 'auto', label: 'Fastest' },
+    { value: 'browser', label: 'Browser' },
     { value: 'server', label: 'Server' }
   ];
 
-  const status = $derived.by(() => {
-    if (renderer.choice === 'server') return 'Previews render on the server.';
-    if (renderer.state === 'browser') {
-      return `Previews render in this browser on ${renderer.adapter || 'the GPU'}.`;
-    }
-    if (renderer.state === 'server') return `Previews render on the server: ${renderer.reason}`;
-    return 'The browser renderer starts with the editor.';
-  });
+  const status = $derived(rendererStatus(renderer));
 </script>
 
 <section class="space-y-2 py-2">
@@ -30,7 +25,7 @@
     }}
     orientation="horizontal"
     aria-label="Preview renderer"
-    class="{segmentedControlClass} grid w-fit grid-cols-2"
+    class="{segmentedControlClass} grid w-fit grid-cols-3"
   >
     {#each OPTIONS as option (option.value)}
       <RadioGroup.Item value={option.value} class="{segmentedRadioItemClass} px-3">
@@ -39,7 +34,7 @@
     {/each}
   </RadioGroup.Root>
   <p class="text-xs text-dark/65">{status}</p>
-  {#if renderer.choice === 'auto' && !isSecureContext}
+  {#if renderer.choice !== 'server' && !isSecureContext}
     <a
       class="text-xs text-primary hover:underline"
       href="https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network"

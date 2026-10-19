@@ -22,3 +22,13 @@ export function dragEdge(snap: ViewSnapshot | null): number {
   const long = Math.round(Math.max(snap?.viewW ?? 0, snap?.viewH ?? 0));
   return long > 0 ? Math.min(LIVE_EDGE, long) : LIVE_EDGE;
 }
+
+export function largestEdge(snap: ViewSnapshot | null): number {
+  const view = Math.round(Math.max(snap?.viewW ?? 0, snap?.viewH ?? 0) * (snap?.dpr ?? 1));
+  return Math.max(fitEdge(snap), view);
+}
+
+export function windowEdge(): number {
+  const long = Math.max(globalThis.innerWidth || 0, globalThis.innerHeight || 0);
+  return Math.round(long * (globalThis.devicePixelRatio || 1));
+}

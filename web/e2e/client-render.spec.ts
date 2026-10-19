@@ -23,8 +23,8 @@ function renderPosts(page: Page): string[] {
   return posts;
 }
 
-async function serveFixture(page: Page): Promise<void> {
-  await installMocks(page, { renderer: 'auto' });
+async function serveFixture(page: Page, renderer: 'auto' | 'browser' = 'browser'): Promise<void> {
+  await installMocks(page, { renderer });
   await page.route(/\/api\/assets\/[^/]+\/source$/, (route) =>
     route.fulfill({
       path: path.join(fixtures, 'source.iesr'),
@@ -115,12 +115,33 @@ for (const [when, breakRenderer] of fallbacks) {
   test(`previews fall back to the server ${when}`, async ({ page }) => {
     const posts = renderPosts(page);
     await breakRenderer(page);
-    await installMocks(page, { renderer: 'auto' });
+    await installMocks(page, { renderer: 'browser' });
     await gotoAsset(page);
 
     await expect.poll(() => posts).toContain('preview');
     expect(posts).not.toContain('source');
     await expect(page.locator('img[data-testid="preview-image"]')).toBeVisible();
     await expect(page.locator('canvas[data-testid="preview-image"]')).toHaveCount(0);
+  });
+}
+
+const verdicts: [string, { browserMs: number; serverMs: number }, string, string][] = [
+  ['the browser when it measured faster', { browserMs: 1, serverMs: 1000 }, 'source', 'preview'],
+  ['the server when it measured faster', { browserMs: 1000, serverMs: 1 }, 'preview', 'source']
+];
+
+for (const [picks, estimates, post, skipped] of verdicts) {
+  test(`the fastest renderer setting picks ${picks}`, async ({ page }) => {
+    const posts = renderPosts(page);
+    await page.addInitScript(
+      (stored) => localStorage.setItem('immich-edit:renderer', stored),
+      JSON.stringify({ choice: 'auto', ...estimates })
+    );
+    await serveFixture(page, 'auto');
+    await gotoAsset(page);
+
+    await expect.poll(() => posts, FRAME).toContain(post);
+    await page.waitForTimeout(500);
+    expect(posts).not.toContain(skipped);
   });
 }

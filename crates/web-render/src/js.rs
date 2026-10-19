@@ -19,6 +19,16 @@ pub fn source(header: &SourceHeader) -> JsValue {
     ])
 }
 
+pub fn limits(limits: &wgpu::Limits) -> JsValue {
+    object(&[
+        (
+            "max_texture_dimension_2d",
+            limits.max_texture_dimension_2d.into(),
+        ),
+        ("max_buffer_size", (limits.max_buffer_size as f64).into()),
+    ])
+}
+
 pub fn inputs(inputs: &EditInputs) -> JsValue {
     object(&[
         ("sensor_key", inputs.sensor_key.as_str().into()),

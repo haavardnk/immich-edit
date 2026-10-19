@@ -102,7 +102,7 @@ export function buildSupportBundle(
   lines.push(`- Immich version: ${h.immich_version ?? 'unknown'}`);
   lines.push(`- DB ready: ${h.db_ready} (migration ${h.db_migration_version ?? '—'})`);
   lines.push(`- Cache dir: ${h.config.cache_dir}`);
-  lines.push(`- Browser previews: ${browser.state}${browser.reason ? ` (${browser.reason})` : ''}`);
+  lines.push(`- Preview renderer: ${browser.state}${browser.reason ? ` (${browser.reason})` : ''}`);
   lines.push(`- Browser GPU adapter: ${browser.adapter || 'none'}`);
   lines.push(`- User agent: ${userAgent}`);
   lines.push('');

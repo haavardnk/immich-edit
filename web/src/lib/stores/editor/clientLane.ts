@@ -108,16 +108,16 @@ export class ClientLane {
       this.pending = null;
       this.last = job;
       const frames = this.frames;
-      const started = performance.now();
       try {
-        const frame = await this.render(job);
-        if (!frame) continue;
+        const timed = await this.render(job);
+        if (!timed) continue;
+        const { frame, ms } = timed;
         if (frames !== this.frames || !this.source) {
           frame.bitmap.close();
           continue;
         }
         drawn = true;
-        this.hooks.onFrame(job, frame, this.source, performance.now() - started);
+        this.hooks.onFrame(job, frame, this.source, ms);
       } catch (err) {
         if (frames === this.frames) this.hooks.onError(err);
       }
@@ -126,7 +126,7 @@ export class ClientLane {
     if (drawn) this.hooks.onIdle();
   }
 
-  private async render(job: ClientJob): Promise<RenderedFrame | null> {
+  private async render(job: ClientJob): Promise<{ frame: RenderedFrame; ms: number } | null> {
     const assetId = this.hooks.assetId();
     if (!assetId) return null;
     const inputs = await this.renderer.inputs(job.edits, job.view.max_edge);
@@ -134,7 +134,9 @@ export class ClientLane {
     if (key !== this.sourceKey) this.want({ key, assetId, job });
     if (!this.drawable(key)) return null;
     await this.renderer.prepare(inputs);
-    return this.renderer.render(job.edits, this.slot.view(job.view));
+    const started = performance.now();
+    const frame = await this.renderer.render(job.edits, this.slot.view(job.view));
+    return { frame, ms: performance.now() - started };
   }
 
   private drawable(key: string): boolean {
