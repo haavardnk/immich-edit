@@ -12,11 +12,9 @@ pub fn encode_jxl8(
     cs: OutputColorSpace,
     exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
-    let mut encoder = encoder(cs, exif)?;
-    let result: jpegxl_rs::encode::EncoderResult<u8> = encoder
-        .encode::<u8, u8>(img.rgb, img.width, img.height)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    Ok(result.data)
+    encoder(cs, exif)?
+        .encode::<u8>(img.rgb, img.width, img.height)
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))
 }
 
 pub fn encode_jxl16(
@@ -26,11 +24,9 @@ pub fn encode_jxl16(
     cs: OutputColorSpace,
     exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
-    let mut encoder = encoder(cs, exif)?;
-    let result: jpegxl_rs::encode::EncoderResult<u16> = encoder
-        .encode::<u16, u16>(rgb16, width, height)
-        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
-    Ok(result.data)
+    encoder(cs, exif)?
+        .encode::<u16>(rgb16, width, height)
+        .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))
 }
 
 fn encoder(
@@ -43,9 +39,7 @@ fn encoder(
         .map_err(|e| PipelineError::Encode(format!("jxl: {e}")))?;
     if let Some(exif) = exif {
         let data = [EXIF_TIFF_OFFSET.as_slice(), &exif.tiff].concat();
-        encoder
-            .add_metadata(&Metadata::Exif(&data), false)
-            .map_err(|e| PipelineError::Encode(format!("jxl exif: {e}")))?;
+        encoder.add_metadata(&Metadata::Exif(&data), false);
     }
     Ok(encoder)
 }

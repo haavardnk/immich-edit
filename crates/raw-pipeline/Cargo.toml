@@ -39,9 +39,9 @@ hex = "0.4"
 wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "wgsl"] }
 bytemuck = { version = "1", features = ["derive"] }
 parking_lot = "0.12"
-lru = "0.18"
+lru = "0.19"
 half = "2.7.1"
-fast_image_resize = "6.0.0"
+fast_image_resize = "6.1.0"
 rayon = { workspace = true }
 multiversion = "0.9"
 web-time = "1"
@@ -55,8 +55,8 @@ png = { version = "0.18", optional = true }
 tiff = { version = "0.11", optional = true }
 webp = { version = "0.3", optional = true }
 flate2 = { version = "1", optional = true }
-brotli-decompressor = { version = "5", optional = true }
-jpegxl-rs = { version = "0.15", features = ["vendored"], optional = true }
+brotli-decompressor = { version = "6", optional = true }
+jpegxl-rs = { version = "0.16", features = ["vendored"], optional = true }
 jpegxl-sys = { version = "0.13", optional = true }
 image = { version = "0.25", default-features = false, features = ["gif", "bmp"], optional = true }
 libheif-rs = { version = "3.0", default-features = false, features = ["v1_19"], optional = true }

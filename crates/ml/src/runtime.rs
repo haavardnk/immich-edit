@@ -1,5 +1,7 @@
 use std::path::Path;
+use std::sync::LazyLock;
 
+use ort::environment::Environment;
 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
 use ort::session::Session;
 use ort::session::builder::SessionBuilder;
@@ -101,8 +103,14 @@ impl SegmentRuntime {
     }
 }
 
+static ENVIRONMENT: LazyLock<Result<Environment, String>> =
+    LazyLock::new(|| ort::init().build().map_err(|e| e.to_string()));
+
 fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, SegmentError> {
-    let mut builder = Session::builder()
+    let environment = ENVIRONMENT
+        .as_ref()
+        .map_err(|e| SegmentError::Ort(e.clone()))?;
+    let mut builder = Session::builder(environment)
         .map_err(ort_err)?
         .with_memory_pattern(config.memory_pattern)
         .map_err(ort_err)?;
