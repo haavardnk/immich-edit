@@ -161,7 +161,7 @@ test('mask shortcuts are shown where the actions live', async ({ page }) => {
   await expect(page.getByText('Remove a polygon corner', { exact: true })).toBeVisible();
 });
 
-test('one depth slider rebakes the near and far limits', async ({ page }) => {
+async function mockDepthMask(page: Page): Promise<void> {
   const edits = neutralEdits();
   edits.masks = [
     {
@@ -192,19 +192,27 @@ test('one depth slider rebakes the near and far limits', async ({ page }) => {
       edits: {}
     }
   ];
-  const ranges: RangeMeta[] = [];
   await installMocks(page, {
     editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits) }
   });
-  await page.route('**/api/masks/rebake', (route) => {
-    ranges.push((route.request().postDataJSON() as { range: RangeMeta }).range);
-    return route.fulfill(json({ raster_id: `baked-${ranges.length}`, width: 60, height: 40 }));
-  });
+}
+
+async function selectDepthMask(page: Page): Promise<void> {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'Scene', exact: true }).click();
   await page.getByRole('button', { name: /^Refine/ }).click();
   await page.getByRole('button', { name: 'Depth', exact: true }).click();
+}
+
+test('one depth slider rebakes the near and far limits', async ({ page }) => {
+  const ranges: RangeMeta[] = [];
+  await mockDepthMask(page);
+  await page.route('**/api/masks/rebake', (route) => {
+    ranges.push((route.request().postDataJSON() as { range: RangeMeta }).range);
+    return route.fulfill(json({ raster_id: `baked-${ranges.length}`, width: 60, height: 40 }));
+  });
+  await selectDepthMask(page);
 
   const far = page.getByRole('slider', { name: 'Far limit' });
   await expect(far).toHaveAttribute('aria-valuetext', '100% of the photo is nearer');
@@ -219,6 +227,33 @@ test('one depth slider rebakes the near and far limits', async ({ page }) => {
     expect(ranges.at(-1)?.min ?? 0).toBeGreaterThan(0);
   }).toPass();
   expect(ranges.at(-1)?.max ?? 1).toBeLessThan(1);
+});
+
+test('the depth slider tints its window before the rebake lands', async ({ page }) => {
+  let release = (): void => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await mockDepthMask(page);
+  await page.route('**/api/rasters/prob', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/octet-stream',
+      headers: { 'x-raster-width': '60', 'x-raster-height': '40' },
+      body: Buffer.from(Array.from({ length: 60 * 40 }, (_, i) => i % 256))
+    })
+  );
+  await page.route('**/api/masks/rebake', async (route) => {
+    await held;
+    await route.fulfill(json({ raster_id: 'baked-1', width: 60, height: 40 }));
+  });
+  await selectDepthMask(page);
+  await expect.poll(() => paintedAlpha(page, 'brush-canvas')).toBe(0);
+
+  await page.getByRole('slider', { name: 'Far limit' }).press('ArrowLeft');
+  await expect.poll(() => paintedAlpha(page, 'brush-canvas')).toBeGreaterThan(0);
+  await expect(page.getByTestId('mask-weight')).toHaveCount(0);
+
+  release();
+  await expect.poll(() => paintedAlpha(page, 'brush-canvas')).toBe(0);
 });
 
 test('the mask row toggles a weight overlay that hides while adjusting', async ({ page }) => {

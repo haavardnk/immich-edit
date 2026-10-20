@@ -33,6 +33,7 @@ import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
 import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
+import { DepthPreview, type DepthTarget } from '$lib/stores/editor/depthPreview';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
 import { SaveQueue } from '$lib/stores/editor/save.svelte';
@@ -171,6 +172,7 @@ class EditorStore {
   private saves = new SaveQueue(this);
   private previews = new PreviewEngine(this);
   private viewport = new ViewportNav(this, () => this.previews.snapshot);
+  private depthPreview = new DepthPreview(this);
 
   initialised = $state(false);
 
@@ -256,6 +258,7 @@ class EditorStore {
   unload(): void {
     this.previews.reset();
     this.viewport.reset();
+    this.depthPreview.reset();
     geometry.cancelSession(this);
     this.asset = null;
     this.meta = null;
@@ -578,6 +581,10 @@ class EditorStore {
     range?: MaskRange
   ): Promise<void> =>
     maskGen.rebakeGeneratedComponent(this, layerId, componentId, grow, feather, range);
+
+  previewDepthRange = (target: DepthTarget): void => this.depthPreview.show(target);
+
+  endDepthPreview = (): void => this.depthPreview.end();
 
   clickRefineComponent = (
     layerId: string,
