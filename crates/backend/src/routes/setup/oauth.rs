@@ -47,7 +47,10 @@ pub async fn providers(
 ) -> Result<Response, AppError> {
     require_unconfigured(&state).await?;
     let base = validate_candidate_url(&query.immich_url)?;
-    let p = state.providers.get(&base).await;
+    let p = state
+        .providers
+        .get(&base, state.config.cf_access.as_ref())
+        .await;
     Ok((
         StatusCode::OK,
         Json(json!({
@@ -76,7 +79,7 @@ pub async fn start(
         None,
         Some(base.as_str().to_string()),
     );
-    oauth::begin_flow(&base, &flow, &state.crypto, client.secure).await
+    oauth::begin_flow(&state, &base, &flow, client.secure).await
 }
 
 pub async fn complete(
@@ -115,7 +118,7 @@ async fn exchange(
         .as_deref()
         .ok_or_else(|| AppError::BadRequest("oauth flow expired; start again".into()))?;
     let base = Url::parse(raw_base).map_err(|e| AppError::internal("oauth immich url", &e))?;
-    let login = oauth::exchange_code(&base, &flow, &callback_url).await?;
+    let login = oauth::exchange_code(state, &base, &flow, &callback_url).await?;
     let user = oauth::login_user(&login);
     if !user.is_admin {
         return Err(AppError::AdminRequired);

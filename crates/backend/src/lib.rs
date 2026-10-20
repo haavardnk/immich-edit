@@ -27,6 +27,7 @@ pub async fn run() -> anyhow::Result<()> {
     let queue = state.queue.clone();
     let instance = state.instance.clone();
     let ping_timeout = state.config.original_timeout_secs;
+    let ping_cf_access = state.config.cf_access.clone();
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let runner = services::job_runner::JobRunner::new(
@@ -82,6 +83,7 @@ pub async fn run() -> anyhow::Result<()> {
             base,
             immich::client::ImmichAuth::ApiKey(String::new()),
             Duration::from_secs(ping_timeout),
+            ping_cf_access.as_ref(),
         ) else {
             return;
         };

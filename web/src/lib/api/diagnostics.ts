@@ -31,6 +31,7 @@ export interface RedactedConfig {
   ml_max_edge: number;
   ml_max_concurrency: number;
   ml_idle_secs: number;
+  cf_access: boolean;
 }
 
 export interface HostInfo {

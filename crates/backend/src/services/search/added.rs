@@ -572,6 +572,7 @@ mod tests {
             Url::parse(&server.uri()).unwrap(),
             ImmichAuth::ApiKey("key".into()),
             Duration::from_secs(5),
+            None,
         )
         .unwrap();
         (server, Searcher::new(immich, SearchShape::Flat), assets)

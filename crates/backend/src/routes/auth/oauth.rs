@@ -9,12 +9,12 @@ use serde_json::json;
 use std::time::Duration;
 use url::Url;
 
+use crate::config::CfAccess;
 use crate::error::AppError;
 use crate::immich::ImmichError;
 use crate::immich::client::{ImmichAuth, ImmichClient, ImmichLogin, ImmichUser};
 use crate::immich::url::resolve_immich_base;
 use crate::services::auth_store::AuthKind;
-use crate::services::crypto::InstanceCrypto;
 use crate::services::login_limiter::LoginKey;
 use crate::services::login_session::{ClientMeta, session_cookie, start_session, user_json};
 use crate::services::oauth_flow::{self, FlowPurpose, OAuthFlow};
@@ -36,11 +36,12 @@ pub struct CallbackBody {
     pub url: String,
 }
 
-pub fn public_client(base: &Url) -> Result<ImmichClient, AppError> {
+pub fn public_client(base: &Url, cf_access: Option<&CfAccess>) -> Result<ImmichClient, AppError> {
     ImmichClient::with_auth(
         base.clone(),
         ImmichAuth::ApiKey(String::new()),
         EXCHANGE_TIMEOUT,
+        cf_access,
     )
     .map_err(AppError::from)
 }
@@ -92,15 +93,15 @@ pub fn safe_next(next: Option<String>) -> Option<String> {
 }
 
 pub async fn begin_flow(
+    state: &AppState,
     base: &Url,
     flow: &OAuthFlow,
-    crypto: &InstanceCrypto,
     secure: bool,
 ) -> Result<Response, AppError> {
-    let url = public_client(base)?
+    let url = public_client(base, state.config.cf_access.as_ref())?
         .oauth_authorize(&flow.redirect_uri, &flow.state, &flow.challenge())
         .await?;
-    let sealed = flow.seal(crypto)?;
+    let sealed = flow.seal(&state.crypto)?;
     let jar = CookieJar::new().add(oauth_flow::set_cookie(&sealed, secure));
     Ok((StatusCode::OK, jar, Json(json!({ "url": url }))).into_response())
 }
@@ -143,11 +144,12 @@ pub fn validate_callback_url(raw: &str, flow: &OAuthFlow) -> Result<Url, AppErro
 }
 
 pub async fn exchange_code(
+    state: &AppState,
     base: &Url,
     flow: &OAuthFlow,
     callback_url: &Url,
 ) -> Result<ImmichLogin, AppError> {
-    public_client(base)?
+    public_client(base, state.config.cf_access.as_ref())?
         .oauth_callback(callback_url.as_str(), &flow.state, &flow.verifier)
         .await
         .map_err(map_exchange_error)
@@ -173,7 +175,10 @@ pub fn login_user(login: &ImmichLogin) -> ImmichUser {
 
 pub async fn providers(State(state): State<AppState>) -> Result<Response, AppError> {
     let base = resolve_immich_base(&state.instance).await?;
-    let p = state.providers.get(&base).await;
+    let p = state
+        .providers
+        .get(&base, state.config.cf_access.as_ref())
+        .await;
     Ok((
         StatusCode::OK,
         Json(json!({
@@ -196,7 +201,7 @@ pub async fn start(
     let base = resolve_immich_base(&state.instance).await?;
     let redirect = validate_redirect_uri(&body.redirect_uri, &headers)?;
     let flow = OAuthFlow::begin(FlowPurpose::Login, &redirect, safe_next(body.next), None);
-    begin_flow(&base, &flow, &state.crypto, client.secure).await
+    begin_flow(&state, &base, &flow, client.secure).await
 }
 
 pub async fn callback(
@@ -230,7 +235,7 @@ async fn finish_callback(
     let flow = open_flow(state, headers, FlowPurpose::Login)?;
     let callback_url = validate_callback_url(&body.url, &flow)?;
     let base = resolve_immich_base(&state.instance).await?;
-    let login = exchange_code(&base, &flow, &callback_url).await?;
+    let login = exchange_code(state, &base, &flow, &callback_url).await?;
     let user = login_user(&login);
     let (stored, token) = start_session(
         state,

@@ -132,6 +132,7 @@ pub async fn job_immich(
         base,
         auth,
         std::time::Duration::from_secs(state.config.original_timeout_secs),
+        state.config.cf_access.as_ref(),
     )
     .map_err(JobItemError::from)
 }
