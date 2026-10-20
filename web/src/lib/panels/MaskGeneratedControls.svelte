@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DualRangeSlider from '$lib/components/editor/controls/DualRangeSlider.svelte';
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { editor } from '$lib/stores/editor.svelte';
@@ -41,6 +42,13 @@
     if (!meta) return;
     const range =
       meta.kind === 'depth' ? { min: depthMin, max: depthMax, softness: depthSoftness } : undefined;
+    const sameRange =
+      !range ||
+      (range.min === (meta.range?.min ?? 0) &&
+        range.max === (meta.range?.max ?? 1) &&
+        range.softness === (meta.range?.softness ?? 0.1));
+    const unchanged = sameRange && grow === (meta.grow ?? 0) && featherPx === (meta.feather ?? 0);
+    if (unchanged && !meta.painted) return;
     await editor.rebakeGeneratedComponent(layerId, component.id, grow, featherPx, range);
   }
 </script>
@@ -65,28 +73,26 @@
       />
     {/if}
     {#if meta.kind === 'depth'}
-      <SliderRow
-        label="Near"
-        value={depthMin}
-        min={0}
-        max={1}
-        step={0.01}
-        defaultValue={0}
-        onLive={(v: number) => (depthMin = Math.min(v, depthMax))}
-        onCommit={rebake}
-        format={(v: number) => v.toFixed(2)}
-      />
-      <SliderRow
-        label="Far"
-        value={depthMax}
-        min={0}
-        max={1}
-        step={0.01}
-        defaultValue={1}
-        onLive={(v: number) => (depthMax = Math.max(v, depthMin))}
-        onCommit={rebake}
-        format={(v: number) => v.toFixed(2)}
-      />
+      <div class="panel-row h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-white/3">
+        <span class="truncate text-[11px] font-medium text-dark/65 select-none">Near → Far</span>
+        <DualRangeSlider
+          value={[depthMin, depthMax]}
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={[0, 1]}
+          thumbLabels={['Near limit', 'Far limit']}
+          valueText={(v: number) => `${Math.round(v * 100)}% of the photo is nearer`}
+          onLive={([near, far]) => {
+            depthMin = near;
+            depthMax = far;
+          }}
+          onCommit={rebake}
+        />
+        <span class="px-1 text-right font-mono text-[10px] text-dark/65 tabular-nums">
+          {Math.round(depthMin * 100)}–{Math.round(depthMax * 100)}
+        </span>
+      </div>
       <SliderRow
         label="Softness"
         value={depthSoftness}
