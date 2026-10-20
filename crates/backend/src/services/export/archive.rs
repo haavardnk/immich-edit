@@ -213,7 +213,7 @@ mod tests {
         let mut zip = zip::ZipArchive::new(std::fs::File::open(&archive).unwrap()).unwrap();
         let entry = zip.by_index(0).unwrap();
         let expected = chrono::DateTime::<chrono::Local>::from(written);
-        assert_eq!(entry.name(), filename);
+        assert_eq!(entry.name().unwrap(), filename);
         assert_eq!(
             entry.last_modified().unwrap().to_string()[..16],
             expected.format("%Y-%m-%d %H:%M").to_string()
