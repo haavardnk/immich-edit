@@ -1,14 +1,10 @@
+use crate::depth::window_by_rank;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RangeWindow {
     pub min: f32,
     pub max: f32,
     pub softness: f32,
-}
-
-impl RangeWindow {
-    pub fn is_full(&self) -> bool {
-        self.min <= 0.0 && self.max >= 1.0
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -222,7 +218,7 @@ pub fn grow(mask: &[f32], w: usize, h: usize, pixels: f32) -> Vec<f32> {
 
 pub fn bake(prob: &[f32], guide: &[f32], w: usize, h: usize, params: BakeParams) -> Vec<u8> {
     let windowed = match params.range {
-        Some(window) => prob.iter().map(|v| range_weight(*v, window)).collect(),
+        Some(window) => window_by_rank(prob, window),
         None => prob.to_vec(),
     };
     let mut mask = if params.guided {
@@ -420,22 +416,41 @@ mod tests {
     }
 
     #[test]
-    fn bake_keeps_only_the_selected_depth_band() {
-        let w = 8;
-        let h = 1;
-        let prob: Vec<f32> = (0..w).map(|x| x as f32 / (w - 1) as f32).collect();
-        let guide = vec![0.0f32; w];
-        let params = BakeParams {
-            guided: false,
-            range: Some(RangeWindow {
-                min: 0.0,
-                max: 0.3,
-                softness: 0.0,
-            }),
-            ..Default::default()
-        };
-        let out = bake(&prob, &guide, w, h, params);
-        assert_eq!(out[0], 255);
-        assert_eq!(out[w - 1], 0);
+    fn bake_windows_depth_by_distance_rank() {
+        let nearness = [1.0, 1.0, 0.8, 0.6, 0.4, 0.0, 0.0, 0.0];
+        let guide = [0.0f32; 8];
+        let cases = [
+            ("full window keeps everything", 0.0, 1.0, [255; 8]),
+            (
+                "near window keeps the closest quarter",
+                0.0,
+                0.25,
+                [255, 255, 0, 0, 0, 0, 0, 0],
+            ),
+            (
+                "lowering far drops the background first",
+                0.0,
+                0.99,
+                [255, 255, 255, 255, 255, 0, 0, 0],
+            ),
+            (
+                "raising near drops the foreground first",
+                0.3,
+                1.0,
+                [0, 0, 255, 255, 255, 255, 255, 255],
+            ),
+        ];
+        for (name, min, max, want) in cases {
+            let params = BakeParams {
+                guided: false,
+                range: Some(RangeWindow {
+                    min,
+                    max,
+                    softness: 0.0,
+                }),
+                ..Default::default()
+            };
+            assert_eq!(bake(&nearness, &guide, 8, 1, params), want, "{name}");
+        }
     }
 }

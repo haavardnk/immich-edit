@@ -503,11 +503,54 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   .slider-range:focus-visible::-moz-range-thumb {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-slider-fill) 25%, transparent);
   }
+  .dual-range {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 14px;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+  }
+  .dual-range-track {
+    position: relative;
+    width: 100%;
+    height: 2px;
+    overflow: hidden;
+    background-color: var(--color-slider-track);
+  }
+  .dual-range-fill {
+    position: absolute;
+    height: 100%;
+    background-color: var(--color-slider-fill);
+  }
+  .dual-range-thumb {
+    display: block;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--color-image-light);
+    border: 2px solid var(--color-slider-fill);
+    box-shadow: 0 0 0 1px var(--color-slider-thumb-outline);
+    transition:
+      transform 0.15s,
+      box-shadow 0.15s;
+  }
+  .dual-range-thumb:hover {
+    transform: scale(1.14);
+    box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
+  }
+  .dual-range-thumb:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-slider-fill) 25%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .slider-range::-webkit-slider-thumb,
-  .slider-range::-moz-range-thumb {
+  .slider-range::-moz-range-thumb,
+  .dual-range-thumb {
     transition: none;
   }
 }

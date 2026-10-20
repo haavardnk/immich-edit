@@ -1,5 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
-import { gotoAsset, installMocks, makePng, type PreviewRequest } from './helpers';
+import {
+  gotoAsset,
+  installMocks,
+  json,
+  makePng,
+  NEUTRAL_RECORD,
+  type PreviewRequest
+} from './helpers';
+import { editsToManifest } from '../src/lib/edits/manifest';
+import { neutralEdits, type RangeMeta } from '../src/lib/types/edits';
 
 type SavedRadial = { center?: { x: number; y: number }; feather?: number };
 
@@ -150,6 +159,66 @@ test('mask shortcuts are shown where the actions live', async ({ page }) => {
   await page.keyboard.press('Shift+/');
   await expect(page.getByText('Add a polygon corner', { exact: true })).toBeVisible();
   await expect(page.getByText('Remove a polygon corner', { exact: true })).toBeVisible();
+});
+
+test('one depth slider rebakes the near and far limits', async ({ page }) => {
+  const edits = neutralEdits();
+  edits.masks = [
+    {
+      id: 'layer',
+      name: 'Scene',
+      enabled: true,
+      color: '#ff3b30',
+      amount: 1,
+      invert: false,
+      components: [
+        {
+          id: 'depth',
+          enabled: true,
+          mode: 'add',
+          invert: false,
+          kind: { kind: 'brush', raster_id: 'baked' },
+          source: 'generated',
+          generated: {
+            model_id: 'depth-anything',
+            kind: 'depth',
+            prob_raster_id: 'prob',
+            grow: 0,
+            feather: 0,
+            range: { min: 0, max: 1, softness: 0.1 }
+          }
+        }
+      ],
+      edits: {}
+    }
+  ];
+  const ranges: RangeMeta[] = [];
+  await installMocks(page, {
+    editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits) }
+  });
+  await page.route('**/api/masks/rebake', (route) => {
+    ranges.push((route.request().postDataJSON() as { range: RangeMeta }).range);
+    return route.fulfill(json({ raster_id: `baked-${ranges.length}`, width: 60, height: 40 }));
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'Scene', exact: true }).click();
+  await page.getByRole('button', { name: /^Refine/ }).click();
+  await page.getByRole('button', { name: 'Depth', exact: true }).click();
+
+  const far = page.getByRole('slider', { name: 'Far limit' });
+  await expect(far).toHaveAttribute('aria-valuetext', '100% of the photo is nearer');
+  await far.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => ranges.at(-1)?.max ?? 1).toBeLessThan(1);
+  expect(ranges.at(-1)?.min).toBe(0);
+
+  const near = page.getByRole('slider', { name: 'Near limit' });
+  await expect(async () => {
+    await near.press('ArrowRight');
+    expect(ranges.at(-1)?.min ?? 0).toBeGreaterThan(0);
+  }).toPass();
+  expect(ranges.at(-1)?.max ?? 1).toBeLessThan(1);
 });
 
 test('the mask row toggles a weight overlay that hides while adjusting', async ({ page }) => {

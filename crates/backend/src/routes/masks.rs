@@ -159,12 +159,11 @@ fn bake_params(grow: f32, feather: f32, range: Option<&RangeBody>) -> Result<Bak
             if !(0.0..=1.0).contains(&r.softness) {
                 return Err(AppError::BadRequest("softness must be within 0..1".into()));
             }
-            let window = RangeWindow {
+            Some(RangeWindow {
                 min: r.min,
                 max: r.max,
                 softness: r.softness,
-            };
-            if window.is_full() { None } else { Some(window) }
+            })
         }
         None => None,
     };
@@ -213,7 +212,16 @@ pub async fn generate(
     if kind == ModelKind::Semantic && req.class.is_none() {
         return Err(AppError::BadRequest("semantic masks need a class".into()));
     }
-    let params = bake_params(req.grow, req.feather, req.range.as_ref())?;
+    let full_depth = (kind == ModelKind::Depth).then_some(RangeBody {
+        min: 0.0,
+        max: 1.0,
+        softness: 0.0,
+    });
+    let params = bake_params(
+        req.grow,
+        req.feather,
+        req.range.as_ref().or(full_depth.as_ref()),
+    )?;
     if !state.segment.enabled() {
         return Err(AppError::BadRequest(
             "segmentation is disabled on this server".into(),
