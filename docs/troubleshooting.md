@@ -48,6 +48,14 @@ container and the selected account is an administrator.
 The URL points at a link-local, cloud metadata, unspecified, multicast, or credential-bearing
 address. Use the normal hostname, loopback address, or private network address.
 
+### `Immich redirected the request`
+
+Immich answered with a redirect, usually to an access proxy's login page such as Cloudflare
+Access. The server-side request cannot follow it. Create a service token and set
+`CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`, as described under
+[Cloudflare Access](configuration.md#cloudflare-access). Otherwise point the Immich URL at an
+address the proxy does not guard, such as the container name on a shared Docker network.
+
 ### A valid user cannot sign in
 
 `Access for this account is disabled.` means an administrator turned the account off under
@@ -103,6 +111,8 @@ Diagnostics distinguishes these states:
 - `timeout`: raise `ORIGINAL_TIMEOUT_SECS` for original downloads or `EXPORT_TIMEOUT_SECS` for
   uploads after checking Immich performance.
 - `upstream_5xx`: inspect Immich and its reverse-proxy logs.
+- `redirected`: an access proxy sits in front of Immich. See
+  [`Immich redirected the request`](#immich-redirected-the-request).
 
 Smart search can fail while the rest of Immich works because it also depends on Immich machine
 learning. immich-edit falls back to filename search in that case.

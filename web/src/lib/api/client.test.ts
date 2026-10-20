@@ -13,6 +13,7 @@ describe('isBackendDown', () => {
 
   it.each([
     [502, 'upstream_unavailable'],
+    [502, 'upstream_redirect'],
     [502, 'upstream_auth'],
     [504, 'upstream_timeout'],
     [500, 'internal']
@@ -54,6 +55,19 @@ describe('server error reporting', () => {
     const message = toasts.items.at(-1)?.message ?? '';
     expect(message).not.toContain('no such column');
     expect(message).toContain('abc-123');
+  });
+
+  it.each([
+    ['upstream_unavailable', 'Immich server unavailable'],
+    ['upstream_redirect', 'Cloudflare Access']
+  ])('explains %s', async (code, expected) => {
+    vi.stubGlobal('fetch', async () =>
+      Response.json({ code, message: 'upstream' }, { status: 502 })
+    );
+
+    await expect(request('/api/edits')).rejects.toBeInstanceOf(ApiError);
+
+    expect(toasts.items.at(-1)?.message).toContain(expected);
   });
 });
 

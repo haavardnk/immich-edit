@@ -558,6 +558,7 @@ async fn execute(client: &Client, request: reqwest::Request) -> ImmichResult<req
         401 | 403 => ImmichError::Unauthorized,
         404 => ImmichError::NotFound,
         408 => ImmichError::Timeout,
+        code @ 300..=399 => ImmichError::Redirect(code),
         code @ 400..=499 => ImmichError::Rejected {
             status: code,
             message: rejection_message(resp, code).await,
@@ -663,5 +664,33 @@ mod tests {
         )
         .unwrap();
         client.ping().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn redirects_are_reported_distinctly() {
+        let mock = MockServer::start().await;
+        for code in [302u16, 307] {
+            mock.reset().await;
+            Mock::given(method("GET"))
+                .and(path("/api/server/ping"))
+                .respond_with(
+                    ResponseTemplate::new(code)
+                        .insert_header("location", "https://team.cloudflareaccess.com/login"),
+                )
+                .mount(&mock)
+                .await;
+            let client = ImmichClient::with_auth(
+                Url::parse(&mock.uri()).unwrap(),
+                ImmichAuth::ApiKey("key".into()),
+                Duration::from_secs(5),
+                None,
+            )
+            .unwrap();
+            let err = client.ping().await.unwrap_err();
+            assert!(
+                matches!(err, ImmichError::Redirect(c) if c == code),
+                "{err:?}"
+            );
+        }
     }
 }

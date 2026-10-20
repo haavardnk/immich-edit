@@ -27,6 +27,8 @@ pub enum AppError {
     UpstreamAuth,
     #[error("upstream unavailable")]
     UpstreamUnavailable,
+    #[error("upstream redirected")]
+    UpstreamRedirect,
     #[error("upstream rejected: {0}")]
     UpstreamRejected(String),
     #[error("upstream timeout")]
@@ -81,6 +83,11 @@ impl AppError {
                 StatusCode::BAD_GATEWAY,
                 "upstream_unavailable",
                 "upstream unavailable".into(),
+            ),
+            Self::UpstreamRedirect => (
+                StatusCode::BAD_GATEWAY,
+                "upstream_redirect",
+                "Immich redirected the request; an access proxy such as Cloudflare Access may be in front of it".into(),
             ),
             Self::UpstreamRejected(m) => (
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -147,6 +154,7 @@ impl From<ImmichError> for AppError {
             ImmichError::NotFound => Self::NotFound,
             ImmichError::Timeout => Self::UpstreamTimeout,
             ImmichError::Rejected { message, .. } => Self::UpstreamRejected(message),
+            ImmichError::Redirect(_) => Self::UpstreamRedirect,
             ImmichError::Status(_) | ImmichError::Transport(_) => Self::UpstreamUnavailable,
             ImmichError::Decode(detail) => {
                 tracing::warn!(target: "upstream", detail = detail.as_str(), "immich response could not be decoded");
@@ -316,6 +324,19 @@ mod tests {
         ];
         for (err, expected) in cases {
             assert_eq!(status_of(err.into()), expected);
+        }
+    }
+
+    #[test]
+    fn immich_errors_map_to_codes() {
+        let cases = [
+            (ImmichError::Redirect(302), "upstream_redirect"),
+            (ImmichError::Status(502), "upstream_unavailable"),
+            (ImmichError::Unauthorized, "upstream_auth"),
+        ];
+        for (err, expected) in cases {
+            let app: AppError = err.into();
+            assert_eq!(app.parts().1, expected);
         }
     }
 
