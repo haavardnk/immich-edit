@@ -42,6 +42,8 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `REQUEST_TIMEOUT_SECS` | `60` | Timeout for ordinary API requests; must be nonzero. Export requests use `ORIGINAL_TIMEOUT_SECS` plus `EXPORT_TIMEOUT_SECS` instead |
 | `ORIGINAL_TIMEOUT_SECS` | `120` | Immich original-download timeout |
 | `EXPORT_TIMEOUT_SECS` | `300` | Immich export/upload timeout |
+| `CF_ACCESS_CLIENT_ID` | Empty | Cloudflare Access service token ID sent to Immich; see [Cloudflare Access](#cloudflare-access) |
+| `CF_ACCESS_CLIENT_SECRET` | Empty | Cloudflare Access service token secret; set together with `CF_ACCESS_CLIENT_ID` |
 
 ## Environment-only paths
 
@@ -111,6 +113,25 @@ cookie is marked `Secure`.
 Startup logs a warning when the server binds a specific public address and no trusted prefix is
 outside the private ranges, because that combination silently collapses every client to the proxy
 address.
+
+## Cloudflare Access
+
+When Immich sits behind Cloudflare Access (Zero Trust) and immich-edit cannot reach it on a private
+network, Access answers every server-side Immich call with a redirect to its login page. Setup then
+fails with `upstream status 302`.
+
+Create a service token under **Access** > **Service credentials** > **Service Tokens**. Then add a
+policy to the Immich application with the action **Service Auth** that includes that token. Give
+immich-edit the token:
+
+```
+CF_ACCESS_CLIENT_ID=<id>.access
+CF_ACCESS_CLIENT_SECRET=<secret>
+```
+
+Every request from immich-edit to Immich then carries the `CF-Access-Client-Id` and
+`CF-Access-Client-Secret` headers. Browser sign-in through Immich OAuth still goes through your
+normal Access login.
 
 ## Removed settings
 

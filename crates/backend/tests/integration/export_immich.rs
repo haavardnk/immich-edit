@@ -517,6 +517,7 @@ fn test_client(server: &MockServer) -> ImmichClient {
         server.uri().parse().unwrap(),
         ImmichAuth::ApiKey(TEST_API_KEY.into()),
         Duration::from_secs(5),
+        None,
     )
     .unwrap()
 }

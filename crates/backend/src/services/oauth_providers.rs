@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use url::Url;
 
+use crate::config::CfAccess;
 use crate::immich::client::{ImmichAuth, ImmichClient};
 
 const TTL: Duration = Duration::from_secs(60);
@@ -41,12 +42,12 @@ impl ProviderCache {
         Self::default()
     }
 
-    pub async fn get(&self, base: &Url) -> Providers {
+    pub async fn get(&self, base: &Url, cf_access: Option<&CfAccess>) -> Providers {
         let key = base.as_str().to_string();
         if let Some(hit) = self.cached(&key) {
             return hit;
         }
-        let fresh = fetch(base).await;
+        let fresh = fetch(base, cf_access).await;
         if !fresh.degraded
             && let Ok(mut guard) = self.inner.lock()
         {
@@ -66,11 +67,12 @@ impl ProviderCache {
     }
 }
 
-async fn fetch(base: &Url) -> Providers {
+async fn fetch(base: &Url, cf_access: Option<&CfAccess>) -> Providers {
     let Ok(client) = ImmichClient::with_auth(
         base.clone(),
         ImmichAuth::ApiKey(String::new()),
         FETCH_TIMEOUT,
+        cf_access,
     ) else {
         return Providers::unreachable();
     };

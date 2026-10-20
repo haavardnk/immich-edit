@@ -98,6 +98,7 @@ pub async fn build_auth_ctx(
         base,
         auth,
         Duration::from_secs(state.config.original_timeout_secs),
+        state.config.cf_access.as_ref(),
     )
     .map_err(|e| AppError::internal("build immich client", &e))?;
     Ok(Some(AuthCtx {
