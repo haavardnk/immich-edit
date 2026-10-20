@@ -11,6 +11,15 @@ describe('isBackendDown', () => {
     expect(isBackendDown(new ApiError(status, 'unknown', 'nope'))).toBe(false);
   });
 
+  it.each([
+    [502, 'upstream_unavailable'],
+    [502, 'upstream_auth'],
+    [504, 'upstream_timeout'],
+    [500, 'internal']
+  ])('treats status %i with code %s as up', (status, code) => {
+    expect(isBackendDown(new ApiError(status, code, 'from backend'))).toBe(false);
+  });
+
   it('treats a rejected fetch as down', () => {
     expect(isBackendDown(new NetworkError('failed to fetch'))).toBe(true);
   });
