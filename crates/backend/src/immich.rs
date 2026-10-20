@@ -17,6 +17,8 @@ pub enum ImmichError {
     Transport(String),
     #[error("upstream rejected ({status}): {message}")]
     Rejected { status: u16, message: String },
+    #[error("upstream redirected ({0})")]
+    Redirect(u16),
     #[error("upstream status {0}")]
     Status(u16),
     #[error("upstream decode error: {0}")]
@@ -32,6 +34,7 @@ impl ImmichError {
             Self::NotFound => "not found".into(),
             Self::Timeout => "timeout".into(),
             Self::Rejected { message, .. } => message.clone(),
+            Self::Redirect(code) => format!("redirected (HTTP {code})"),
             Self::Status(code) => format!("status {code}"),
             Self::Transport(_) => "transport error".into(),
             Self::Decode(_) => "decode error".into(),
@@ -72,6 +75,13 @@ impl ImmichConnectionStatus {
                 "unreachable",
                 "Immich is unreachable from immich-edit".into(),
                 None,
+            ),
+            ImmichError::Redirect(code) => (
+                "redirected",
+                format!(
+                    "Immich redirected with HTTP {code}; an access proxy may be in front of it"
+                ),
+                Some(code),
             ),
             ImmichError::Status(code @ (502 | 503)) => (
                 "upstream_5xx",
