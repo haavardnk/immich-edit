@@ -1,9 +1,12 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+mod cf_access;
 mod cidr;
 mod env;
 
+pub use cf_access::CfAccess;
+use cf_access::load_cf_access;
 pub use cidr::{Cidr, default_trusted_proxies};
 use env::{
     ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_or, pick, pick_mode,
@@ -47,6 +50,7 @@ pub struct Config {
     pub ml_max_edge: u32,
     pub ml_max_concurrency: usize,
     pub ml_idle_secs: u64,
+    pub cf_access: Option<CfAccess>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
@@ -85,6 +89,8 @@ struct FileConfig {
     ml_max_edge: Option<u32>,
     ml_max_concurrency: Option<usize>,
     ml_idle_secs: Option<u64>,
+    cf_access_client_id: Option<String>,
+    cf_access_client_secret: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -274,6 +280,11 @@ impl Config {
         }
         let ml_idle_secs = parse_or("ML_IDLE_SECS", file.ml_idle_secs, 60u64)?;
 
+        let cf_access = load_cf_access(
+            pick("CF_ACCESS_CLIENT_ID", file.cf_access_client_id),
+            pick("CF_ACCESS_CLIENT_SECRET", file.cf_access_client_secret),
+        )?;
+
         ensure_dir_writable(&data_dir)?;
 
         Ok(Self {
@@ -302,6 +313,7 @@ impl Config {
             ml_max_edge,
             ml_max_concurrency,
             ml_idle_secs,
+            cf_access,
         })
     }
 
@@ -346,6 +358,7 @@ impl Config {
             ml_max_edge: self.ml_max_edge,
             ml_max_concurrency: self.ml_max_concurrency,
             ml_idle_secs: self.ml_idle_secs,
+            cf_access: self.cf_access.is_some(),
         }
     }
 }
@@ -375,6 +388,7 @@ pub struct RedactedConfig {
     pub ml_max_edge: u32,
     pub ml_max_concurrency: usize,
     pub ml_idle_secs: u64,
+    pub cf_access: bool,
 }
 
 #[cfg(test)]
@@ -407,6 +421,8 @@ mod tests {
             "REQUEST_TIMEOUT_SECS",
             "ORIGINAL_TIMEOUT_SECS",
             "EXPORT_TIMEOUT_SECS",
+            "CF_ACCESS_CLIENT_ID",
+            "CF_ACCESS_CLIENT_SECRET",
         ] {
             unsafe { std::env::remove_var(k) };
         }
@@ -603,5 +619,40 @@ mod tests {
         if !matches!(err, ConfigError::InvalidValue { .. }) {
             panic!("expected invalid, got {err:?}");
         }
+    }
+
+    #[test]
+    fn cloudflare_access_needs_both_id_and_secret() {
+        let cases = [
+            (None, None, Ok(false)),
+            (Some("id.access"), Some("shh"), Ok(true)),
+            (Some("id.access"), None, Err("CF_ACCESS_CLIENT_SECRET")),
+            (None, Some("shh"), Err("CF_ACCESS_CLIENT_ID")),
+            (Some("id\naccess"), Some("shh"), Err("CF_ACCESS_CLIENT_ID")),
+            (
+                Some("id.access"),
+                Some("sh\u{7f}"),
+                Err("CF_ACCESS_CLIENT_SECRET"),
+            ),
+        ];
+        let _g = lock();
+        for (case, (id, secret, expected)) in cases.into_iter().enumerate() {
+            clear_env();
+            unsafe {
+                std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+                if let Some(id) = id {
+                    std::env::set_var("CF_ACCESS_CLIENT_ID", id);
+                }
+                if let Some(secret) = secret {
+                    std::env::set_var("CF_ACCESS_CLIENT_SECRET", secret);
+                }
+            }
+            match (Config::load(), expected) {
+                (Ok(cfg), Ok(present)) if cfg.cf_access.is_some() == present => {}
+                (Err(ConfigError::InvalidValue { key, .. }), Err(missing)) if key == missing => {}
+                (other, _) => panic!("case {case}: ok={}", other.is_ok()),
+            }
+        }
+        clear_env();
     }
 }

@@ -44,7 +44,9 @@ pub async fn login_password(
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }
     let base = resolve_immich_base(&state.instance).await?;
-    let (user, cred) = match validate_password(&base, &body.email, &body.password).await {
+    let cf_access = state.config.cf_access.as_ref();
+    let (user, cred) = match validate_password(&base, cf_access, &body.email, &body.password).await
+    {
         Ok(v) => v,
         Err(e) => {
             state.login_limiter.record_failure(&key);
@@ -66,7 +68,7 @@ pub async fn login_api_key(
         return Err(AppError::RateLimited(Some(d.as_secs())));
     }
     let base = resolve_immich_base(&state.instance).await?;
-    let user = match validate_api_key(&base, &body.api_key).await {
+    let user = match validate_api_key(&base, state.config.cf_access.as_ref(), &body.api_key).await {
         Ok(u) => u,
         Err(e) => {
             state.login_limiter.record_failure(&key);

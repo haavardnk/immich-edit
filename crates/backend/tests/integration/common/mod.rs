@@ -80,6 +80,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         ml_max_edge: 2048,
         ml_max_concurrency: 1,
         ml_idle_secs: 60,
+        cf_access: None,
     };
     let _ = server;
     let edits = EditsStore::migrated_memory().await.unwrap();

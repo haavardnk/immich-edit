@@ -13,6 +13,7 @@ use super::dto::{
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
+use crate::config::CfAccess;
 use crate::telemetry::ErrorChain;
 
 const API_KEY_HEADER: &str = "x-api-key";
@@ -54,9 +55,17 @@ pub struct ImmichClient {
 }
 
 impl ImmichClient {
-    pub fn with_auth(base: Url, auth: ImmichAuth, request_timeout: Duration) -> ImmichResult<Self> {
+    pub fn with_auth(
+        base: Url,
+        auth: ImmichAuth,
+        request_timeout: Duration,
+        cf_access: Option<&CfAccess>,
+    ) -> ImmichResult<Self> {
         let mut headers = HeaderMap::new();
         headers.insert("accept", HeaderValue::from_static("application/json"));
+        if let Some(cf_access) = cf_access {
+            cf_access.insert_into(&mut headers);
+        }
         let http = Client::builder()
             .default_headers(headers)
             .timeout(request_timeout)
@@ -623,5 +632,36 @@ fn map_send_err(err: reqwest::Error) -> ImmichError {
         ImmichError::Timeout
     } else {
         ImmichError::Transport(ErrorChain(&err.without_url()).to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wiremock::matchers::{header, header_exists, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn cloudflare_access_headers_reach_immich() {
+        let mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/server/ping"))
+            .and(header("cf-access-client-id", "id.access"))
+            .and(header("cf-access-client-secret", "shh"))
+            .and(header_exists(API_KEY_HEADER))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{\"res\":\"pong\"}"))
+            .expect(1)
+            .mount(&mock)
+            .await;
+        let cf_access = CfAccess::new("id.access", "shh").unwrap();
+        let client = ImmichClient::with_auth(
+            Url::parse(&mock.uri()).unwrap(),
+            ImmichAuth::ApiKey("key".into()),
+            Duration::from_secs(5),
+            Some(&cf_access),
+        )
+        .unwrap();
+        client.ping().await.unwrap();
     }
 }

@@ -48,6 +48,7 @@ pub async fn complete(
 
     let validated = validate_credentials(
         &base,
+        state.config.cf_access.as_ref(),
         body.email.as_deref(),
         body.password.as_deref(),
         body.api_key.as_deref(),
