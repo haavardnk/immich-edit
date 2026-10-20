@@ -33,7 +33,7 @@ const GATEWAY_STATUSES = new Set([0, 500, 502, 503, 504]);
 
 export function isBackendDown(err: unknown): boolean {
   if (err instanceof NetworkError) return true;
-  return err instanceof ApiError && GATEWAY_STATUSES.has(err.status);
+  return err instanceof ApiError && err.code === 'unknown' && GATEWAY_STATUSES.has(err.status);
 }
 
 function redirectToLogin(): void {
