@@ -6,6 +6,7 @@
   import type { MaskComponent } from '$lib/types/edits';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
+  import { onDestroy } from 'svelte';
 
   let { layerId, component }: { layerId: string; component: MaskComponent } = $props();
 
@@ -28,6 +29,8 @@
     depthSoftness = meta?.range?.softness ?? 0.1;
   });
 
+  onDestroy(editor.endDepthPreview);
+
   function label(kind: string): string {
     if (kind === 'subject') return 'Subject';
     if (kind === 'people') return 'People';
@@ -38,7 +41,25 @@
     return kind;
   }
 
+  function previewDepth(): void {
+    if (!meta || component.kind.kind !== 'brush') return;
+    editor.previewDepthRange({
+      componentId: component.id,
+      rasterId: component.kind.raster_id,
+      probRasterId: meta.prob_raster_id,
+      range: { min: depthMin, max: depthMax, softness: depthSoftness }
+    });
+  }
+
   async function rebake(): Promise<void> {
+    try {
+      await bake();
+    } finally {
+      editor.endDepthPreview();
+    }
+  }
+
+  async function bake(): Promise<void> {
     if (!meta) return;
     const range =
       meta.kind === 'depth' ? { min: depthMin, max: depthMax, softness: depthSoftness } : undefined;
@@ -86,6 +107,7 @@
           onLive={([near, far]) => {
             depthMin = near;
             depthMax = far;
+            previewDepth();
           }}
           onCommit={rebake}
         />
@@ -100,7 +122,10 @@
         max={1}
         step={0.01}
         defaultValue={0.1}
-        onLive={(v: number) => (depthSoftness = v)}
+        onLive={(v: number) => {
+          depthSoftness = v;
+          previewDepth();
+        }}
         onCommit={rebake}
         format={(v: number) => v.toFixed(2)}
       />
