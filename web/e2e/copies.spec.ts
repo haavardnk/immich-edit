@@ -7,6 +7,11 @@ async function createCopy(page: Page): Promise<void> {
   await page.waitForURL(new RegExp(`/assets/${ASSET_ID}_1(?:\\?.*)?$`));
 }
 
+async function openVersions(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await expect(page.getByRole('navigation', { name: 'Versions' })).toBeVisible();
+}
+
 test('create, rename and delete a virtual copy from the editor', async ({ page }) => {
   await installMocks(page);
 
@@ -16,14 +21,16 @@ test('create, rename and delete a virtual copy from the editor', async ({ page }
   await createCopy(page);
   await expect(page).toHaveURL(/\?from=%2Fphotos$/);
 
-  await page.getByRole('button', { name: 'Versions', exact: true }).click();
+  await openVersions(page);
   await expect(page.getByRole('link', { name: 'Copy 1' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Original' }).click();
   await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}\\?from=%2Fphotos$`));
+  await openVersions(page);
   await page.getByRole('link', { name: 'Copy 1' }).click();
   await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}_1\\?from=%2Fphotos$`));
 
+  await openVersions(page);
   await page.getByRole('button', { name: 'Rename copy' }).click();
   const name = page.getByRole('textbox', { name: 'Version name' });
   await expect(name).toBeFocused();
@@ -39,8 +46,10 @@ test('create, rename and delete a virtual copy from the editor', async ({ page }
   await expect(page.getByRole('link', { name: 'Mono' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete copy' }).click();
+  await page.getByRole('button', { name: 'Confirm delete copy' }).click();
   await page.waitForURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
   await expect(page).toHaveURL(/\?from=%2Fphotos$/);
+  await openVersions(page);
   await expect(page.getByRole('link', { name: 'Mono' })).toHaveCount(0);
 });
 

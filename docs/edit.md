@@ -18,7 +18,7 @@ The tool rail on the right switches between five tools:
 
 | Tool | Key | Use it for |
 | --- | --- | --- |
-| **Develop** | `Shift+D` | Color, tone, detail, lens and versions |
+| **Develop** | `Shift+D` | Color, tone, detail and lens |
 | **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
 | **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
 | **Geometry** | `Shift+R` | Crop, straighten, rotate and perspective |
@@ -82,8 +82,8 @@ act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy a
 1. **Effects** adds a vignette and grain. Grain is strongest in the midtones and, like film, leaves
    deep shadows and bright highlights clean.
 
-**Versions** sits in the same stack; see [try variations](#try-variations). Presets have their own
-strip under the photo; see [reuse edits](#reuse-edits).
+Presets have their own strip under the photo; see [reuse edits](#reuse-edits). Versions live in
+the toolbar; see [try variations](#try-variations).
 
 ### Sliders and panels
 
@@ -115,11 +115,13 @@ and white. The panel's dot resets all of them.
 | Control | What it does |
 | --- | --- |
 | **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
-| **Before / after split**, or `Y` | Splits the view; drag the divider to move it |
-| **Clipping overlay**, or `J` | Marks pure black and pure white areas |
+| **More editor actions** > **Before/After split**, or `Y` | Splits the view; drag the divider to move it |
+| **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
 | **More editor actions** > **Soft proof** | Previews the photo in a **Proof space**; **Show gamut warning** marks colors it cannot show |
+| **More editor actions** > **Info**, or `I` | Shows the camera, lens and exposure details |
+| **More editor actions** > **Fullscreen**, or `F` | Hides everything but the photo; `Esc` brings the chrome back |
 
 ## Undo and history
 
@@ -258,6 +260,8 @@ already in your library is skipped, so importing the same file twice adds nothin
 
 ## Try variations
 
-**Versions** lists the original and its virtual copies. **Create virtual copy**, or `Ctrl+'`,
-starts a new version with its own edits and history. Rename or delete a version from its row.
+The **More editor actions** menu (the three dots in the toolbar) lists the original and its
+virtual copies under **Versions**. **Create virtual copy**, or `Ctrl+'`, starts a new version with
+its own edits and history. Rename a version with the pencil on its row; delete it with the bin,
+then confirm.
 Culling and copies are covered in [browse and cull](cull.md#virtual-copies).

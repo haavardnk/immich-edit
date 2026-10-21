@@ -3,8 +3,9 @@
   import { compare, type CompareMode } from '$lib/stores/compare.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { Button, Icon, IconButton } from '@immich/ui';
+  import MenuItem from '$lib/components/MenuItem.svelte';
+  import { hint, keysFor } from '$lib/shortcuts/labels';
+  import { Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,
     mdiCompare,
@@ -78,7 +79,7 @@
       anchor="bottom"
       align="end"
       onOpenChange={(open) => (viewModeOpen = open)}
-      contentClass="w-44 p-2"
+      contentClass="w-48 py-1"
       tooltip={`View mode: ${compare.mode === 'single' ? 'Single' : compare.mode === 'compare' ? 'Compare' : 'Survey'}`}
     >
       {#snippet trigger(popoverProps)}
@@ -97,47 +98,29 @@
           aria-expanded={viewModeOpen}
         />
       {/snippet}
-      <div class="flex flex-col gap-1">
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={compare.mode === 'single' ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiImageOutline}
-          aria-pressed={compare.mode === 'single'}
-          onclick={() => selectViewMode('single')}>Single photo</Button
-        >
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={compare.mode === 'compare' ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiCompare}
-          aria-pressed={compare.mode === 'compare'}
-          onclick={() => selectViewMode('compare')}>{hint('Compare', 'enterCompare')}</Button
-        >
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={compare.mode === 'survey' ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiViewGridOutline}
-          aria-pressed={compare.mode === 'survey'}
-          onclick={() => selectViewMode('survey')}>{hint('Survey', 'enterSurvey')}</Button
-        >
+      <div class="flex flex-col">
+        <MenuItem
+          icon={mdiImageOutline}
+          label="Single photo"
+          pressed={compare.mode === 'single'}
+          onclick={() => selectViewMode('single')}
+        />
+        <MenuItem
+          icon={mdiCompare}
+          label="Compare"
+          keys={keysFor('enterCompare')}
+          pressed={compare.mode === 'compare'}
+          onclick={() => selectViewMode('compare')}
+        />
+        <MenuItem
+          icon={mdiViewGridOutline}
+          label="Survey"
+          keys={keysFor('enterSurvey')}
+          pressed={compare.mode === 'survey'}
+          onclick={() => selectViewMode('survey')}
+        />
       </div>
     </Popover>
-    <div class="mx-1 hidden h-5 w-px shrink-0 bg-hairline sm:block"></div>
-    <IconButton
-      size="small"
-      variant="ghost"
-      color={browseView.loupeInfoOpen ? 'primary' : 'secondary'}
-      icon={mdiInformationOutline}
-      title={hint('Info', 'toggleInfo')}
-      aria-label={hint('Info', 'toggleInfo')}
-      aria-pressed={browseView.loupeInfoOpen}
-      onclick={() => browseView.toggleLoupeInfo()}
-    />
     <IconButton
       size="small"
       variant="ghost"
@@ -147,30 +130,12 @@
       aria-label={hint('Edit', 'openEditor')}
       onclick={onOpenEditor}
     />
-    <IconButton
-      size="small"
-      variant="ghost"
-      color="secondary"
-      icon={mdiFullscreen}
-      title={hint('Fullscreen', 'fullscreen')}
-      aria-label={hint('Fullscreen', 'fullscreen')}
-      onclick={ui.toggleFullscreen}
-    />
-    <IconButton
-      size="small"
-      variant="ghost"
-      color="secondary"
-      icon={mdiKeyboardOutline}
-      title={hint('Keyboard shortcuts', 'help')}
-      aria-label={hint('Keyboard shortcuts', 'help')}
-      onclick={() => ui.toggleKeybindsHelp()}
-    />
     <Popover
       open={moreOpen}
       anchor="bottom"
       align="end"
       onOpenChange={(open) => (moreOpen = open)}
-      contentClass="w-56 p-2"
+      contentClass="w-64 py-1"
       tooltip="More loupe actions"
     >
       {#snippet trigger(popoverProps)}
@@ -184,43 +149,64 @@
           {...popoverProps}
         />
       {/snippet}
-      <div class="flex flex-col gap-1">
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={browseView.loupeAutoAdvance ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiSkipNextOutline}
-          aria-pressed={browseView.loupeAutoAdvance}
+      <div class="flex flex-col">
+        <MenuItem
+          icon={mdiInformationOutline}
+          label="Info"
+          keys={keysFor('toggleInfo')}
+          pressed={browseView.loupeInfoOpen}
           onclick={() => {
-            browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance);
             moreOpen = false;
-          }}>Auto-advance</Button
-        >
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={ui.clipWarn ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiTriangleOutline}
-          aria-pressed={ui.clipWarn}
+            browseView.toggleLoupeInfo();
+          }}
+        />
+        <MenuItem
+          icon={mdiFullscreen}
+          label="Fullscreen"
+          keys={keysFor('fullscreen')}
           onclick={() => {
+            moreOpen = false;
+            ui.toggleFullscreen();
+          }}
+        />
+        <MenuItem
+          icon={mdiTriangleOutline}
+          label="Clipping overlay"
+          keys={keysFor('clipWarn')}
+          pressed={ui.clipWarn}
+          onclick={() => {
+            moreOpen = false;
             ui.toggleClipWarn();
-            moreOpen = false;
-          }}>{hint('Clipping overlay', 'clipWarn')}</Button
-        >
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={ui.greyCanvas ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiCircleHalfFull}
-          aria-pressed={ui.greyCanvas}
+          }}
+        />
+        <MenuItem
+          icon={mdiCircleHalfFull}
+          label="Grey background"
+          pressed={ui.greyCanvas}
           onclick={() => {
-            ui.toggleGreyCanvas();
             moreOpen = false;
-          }}>Grey background</Button
-        >
+            ui.toggleGreyCanvas();
+          }}
+        />
+        <MenuItem
+          icon={mdiSkipNextOutline}
+          label="Auto-advance"
+          pressed={browseView.loupeAutoAdvance}
+          onclick={() => {
+            moreOpen = false;
+            browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance);
+          }}
+        />
+        <div class="my-1 border-t border-dark/10"></div>
+        <MenuItem
+          icon={mdiKeyboardOutline}
+          label="Keyboard shortcuts"
+          keys={keysFor('help')}
+          onclick={() => {
+            moreOpen = false;
+            ui.toggleKeybindsHelp();
+          }}
+        />
       </div>
     </Popover>
   </div>

@@ -9,8 +9,8 @@
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';
-  import { Button, IconButton } from '@immich/ui';
-  import { mdiFilmstrip, mdiFullscreen, mdiFullscreenExit, mdiPaletteSwatchOutline } from '@mdi/js';
+  import { Button } from '@immich/ui';
+  import { mdiFilmstrip, mdiPaletteSwatchOutline } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
   const owned = $derived(editor.asset ? ownsAsset(editor.asset) : false);
@@ -76,14 +76,5 @@
       disabled={!hasFilmstrip}
       onclick={ui.toggleEditorFilmstrip}>Filmstrip</Button
     >
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      icon={ui.fullscreen ? mdiFullscreenExit : mdiFullscreen}
-      title={hint('Fullscreen', 'fullscreen')}
-      aria-label={hint('Fullscreen', 'fullscreen')}
-      onclick={ui.toggleFullscreen}
-    />
   </div>
 </nav>

@@ -16,17 +16,19 @@
     children,
     appearance = 'menu',
     contentClass = '',
-    tooltip
+    tooltip,
+    customAnchor
   }: {
     open: boolean;
     anchor?: Anchor;
     align?: Align;
     onOpenChange: (open: boolean) => void;
-    trigger: Snippet<[Record<string, unknown>]>;
+    trigger?: Snippet<[Record<string, unknown>]>;
     children: Snippet;
     appearance?: Appearance;
     contentClass?: string;
     tooltip?: string;
+    customAnchor?: HTMLElement | null;
   } = $props();
 
   const appearanceClass = $derived(
@@ -37,19 +39,22 @@
 </script>
 
 <Bits.Root bind:open={() => open, onOpenChange}>
-  <Bits.Trigger>
-    {#snippet child({ props })}
-      <Tooltip text={tooltip}>
-        {#snippet child({ props: tooltipProps })}
-          {@render trigger(mergeProps(tooltipProps, props))}
-        {/snippet}
-      </Tooltip>
-    {/snippet}
-  </Bits.Trigger>
+  {#if trigger}
+    <Bits.Trigger>
+      {#snippet child({ props })}
+        <Tooltip text={tooltip}>
+          {#snippet child({ props: tooltipProps })}
+            {@render trigger(mergeProps(tooltipProps, props))}
+          {/snippet}
+        </Tooltip>
+      {/snippet}
+    </Bits.Trigger>
+  {/if}
   <Bits.Portal>
     <Bits.Content
       data-popover-content
       side={anchor}
+      {customAnchor}
       {align}
       sideOffset={4}
       collisionPadding={8}

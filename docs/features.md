@@ -29,7 +29,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
 | Face-aware zoom | ✓ Yes | Steps through the faces Immich detected, then the sharpest region when there are none; see [look at photos](cull.md#look-at-photos) |
 | Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen, and zooming out goes down to half of that with the photo centred |
-| Fullscreen viewing | ✓ Yes | `F` or the loupe's **Fullscreen** button hides the chrome in loupe, compare, survey, and editor views |
+| Fullscreen viewing | ✓ Yes | `F` or **Fullscreen** in the loupe or editor **More** menu hides the chrome in loupe, compare, survey, and editor views |
 | Survey view | ✓ Yes | Up to nine photos |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |

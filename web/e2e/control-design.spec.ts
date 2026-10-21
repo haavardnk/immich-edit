@@ -864,7 +864,7 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await page.getByRole('button', { name: 'Next', exact: true }).hover();
   await expect(page.getByText('Next (← / →)')).toBeVisible();
   await page.getByRole('button', { name: 'More loupe actions' }).click();
-  await expect(page.getByRole('button', { name: 'Clipping overlay (J)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Clipping overlay' })).toContainText('J');
 });
 
 test('browse filter panel controls share the dense inspector row', async ({ page }) => {

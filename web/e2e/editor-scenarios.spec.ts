@@ -95,14 +95,19 @@ test('export quality uses the shared range control', async ({ page }) => {
   await expect(page.getByText('82', { exact: true })).toBeVisible();
 });
 
-test('split view toggle reveals before/after slider', async ({ page }) => {
+test('split view toggles from the editor menu and reveals the slider', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  const splitButton = page.getByRole('button', { name: /^Before \/ after split/ });
-  await splitButton.click();
+  const more = page.getByRole('button', { name: 'More editor actions' });
+  const split = page.getByRole('button', { name: 'Before/After split', exact: true });
+  await more.click();
+  await expect(split).toHaveAttribute('aria-pressed', 'false');
+  await split.click();
 
   await expect(page.getByRole('slider', { name: 'Before/after split' })).toBeVisible();
+  await more.click();
+  await expect(split).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('editor and loupe keep independent filmstrip visibility', async ({ page }) => {
@@ -189,15 +194,15 @@ test('a popover closes on escape and on an outside click, returning focus', asyn
   await zoom.click();
   await expect(zoomIn).toBeVisible();
 
-  await page.getByRole('button', { name: /^Before \/ after split/ }).click();
+  await page.getByRole('button', { name: /^Hold for original/ }).click();
   await expect(zoomIn).toBeHidden();
 
   await zoom.click();
   await expect(zoomIn).toBeVisible();
-  const split = page.getByRole('button', { name: /^Before \/ after split/ });
-  await split.hover();
-  await expect(page.locator('.tooltip-content', { hasText: 'Before / after split' })).toBeVisible();
-  await split.click();
+  const original = page.getByRole('button', { name: /^Hold for original/ });
+  await original.hover();
+  await expect(page.locator('.tooltip-content', { hasText: 'Hold for original' })).toBeVisible();
+  await original.click();
   await expect(zoomIn).toBeHidden();
 });
 
@@ -547,16 +552,6 @@ test("another user's photo is read-only and says why", async ({ page }) => {
   await expect(page.getByRole('checkbox', { name: 'Mark as favorite' })).toBeEnabled();
   await stack.hover({ force: true });
   await expect(page.getByText('Only the owner can stack it.')).toBeVisible();
-});
-
-test('editor toggles report their pressed state', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const split = page.getByRole('button', { name: /^Before \/ after split/ });
-  await expect(split).toHaveAttribute('aria-pressed', 'false');
-  await split.click();
-  await expect(split).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a failed preview render offers a retry that recovers', async ({ page }) => {

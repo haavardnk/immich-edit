@@ -1,37 +1,40 @@
 <script lang="ts">
   import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import {
+    segmentedControlClass,
+    segmentedRadioItemClass
+  } from '$lib/components/editor/controls/segmentedControl';
   import { editor } from '$lib/stores/editor.svelte';
   import type { ColorSpaceOpt } from '$lib/api/export';
-  import { Field, Select, Text } from '@immich/ui';
+  import { RadioGroup } from 'bits-ui';
   import { MediaQuery } from 'svelte/reactivity';
   const wideGamut = new MediaQuery('color-gamut: p3');
-  const spaces = $derived([
-    { value: 'srgb', label: 'sRGB' },
-    { value: 'displayp3', label: 'Display P3', disabled: !wideGamut.current }
-  ]);
 </script>
 
-<div class="flex flex-col gap-2 border-t border-dark/10 pt-2">
-  <Text size="tiny" color="muted" fontWeight="medium">Soft proof</Text>
-  <div class="flex flex-col gap-2.5">
-    <Field label="Proof space" size="tiny">
-      <Select
-        size="tiny"
-        options={spaces}
-        value={editor.proofSpace}
-        onChange={(v) => editor.setProofSpace(v as ColorSpaceOpt)}
-      />
-      {#if !wideGamut.current}
-        <span class="text-[10px] leading-tight text-dark/65">
-          Display is not wide-gamut; P3 proof unavailable.
-        </span>
-      {/if}
-    </Field>
-    <CheckboxRow
-      label="Show gamut warning"
-      class="text-xs"
-      checked={editor.gamutWarn}
-      onChange={editor.toggleGamutWarn}
-    />
+<div class="flex flex-col gap-1.5 px-3 pb-2">
+  <span class="pt-1.5 text-[10px] tracking-wider text-dark/65 uppercase">Soft proof</span>
+  <div class="flex items-center justify-between gap-3 text-xs">
+    <span>Proof space</span>
+    <RadioGroup.Root
+      bind:value={() => editor.proofSpace, (v) => editor.setProofSpace(v as ColorSpaceOpt)}
+      orientation="horizontal"
+      aria-label="Proof space"
+      class="{segmentedControlClass} w-36"
+    >
+      <RadioGroup.Item value="srgb" class="{segmentedRadioItemClass} flex-1">sRGB</RadioGroup.Item>
+      <RadioGroup.Item
+        value="displayp3"
+        disabled={!wideGamut.current}
+        title={wideGamut.current ? undefined : 'Needs a wide-gamut display'}
+        class="{segmentedRadioItemClass} flex-1 data-disabled:opacity-40"
+        >Display P3</RadioGroup.Item
+      >
+    </RadioGroup.Root>
   </div>
+  <CheckboxRow
+    label="Show gamut warning"
+    class="text-xs"
+    checked={editor.gamutWarn}
+    onChange={editor.toggleGamutWarn}
+  />
 </div>
