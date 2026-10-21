@@ -58,10 +58,6 @@ function onEscape(e: KeyboardEvent): void {
   } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
     e.preventDefault();
     ui.perspectiveCorners = false;
-  } else if (ui.editorTab === 'geometry' && !ui.fullscreen) {
-    e.preventDefault();
-    if (editor.geometryDirty) editor.cancelGeometrySession();
-    ui.editorTab = 'develop';
   } else if (ui.editorTab === 'retouch' && editor.retouchSampling) {
     e.preventDefault();
     editor.toggleRetouchSampling();
@@ -167,10 +163,6 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'createVirtualCopy':
       void createVirtualCopy(id, { returnPath: page.url.searchParams.get('from') });
       return;
-    case 'geometryDone':
-      void editor.finishGeometrySession();
-      ui.openTab('develop');
-      return;
     case 'straighten':
       ui.toggleStraighten();
       return;
@@ -189,7 +181,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       if (!editor.autoBusy) void editor.onAutoAdjust();
       return;
     case 'resetEdits':
-      void editor.onReset();
+      void (ui.editorTab === 'geometry' ? editor.resetGeometry() : editor.onReset());
       return;
     case 'copyEdits':
       editor.copyEdits();

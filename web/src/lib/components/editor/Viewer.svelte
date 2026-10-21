@@ -188,7 +188,7 @@
   onwheel={editor.geometrySession ? undefined : onWheel}
   ondblclick={editor.geometrySession ? undefined : onDblClick}
 >
-  {#if editor.geometrySession && editor.geometrySession.pinnedReady}
+  {#if editor.geometrySession?.frameUrl}
     <CropOverlay />
   {:else if editor.previewUrl || editor.previewFrame}
     {#if editor.splitMode && editor.originalUrl}

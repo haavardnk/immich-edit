@@ -490,7 +490,7 @@ export const KEYBINDS = [
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Reset develop settings'
+    label: 'Reset develop settings, or geometry on the Geometry tab'
   },
   {
     id: 'copyEdits',
@@ -555,13 +555,6 @@ export const KEYBINDS = [
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + click the reset button`
   },
 
-  {
-    id: 'geometryDone',
-    keys: ['Enter'],
-    contexts: ['geometry'],
-    group: 'Geometry',
-    label: 'Apply the crop and transform and return to Develop'
-  },
   {
     id: 'straighten',
     keys: ['a'],

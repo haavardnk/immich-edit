@@ -228,6 +228,12 @@ export function refitCropAtAspect(
   return best;
 }
 
+export function quarterTurnCrop(crop: CropRect, clockwise: boolean): CropRect {
+  return clockwise
+    ? { x: 1 - crop.y - crop.h, y: crop.x, w: crop.h, h: crop.w }
+    : { x: crop.y, y: 1 - crop.x - crop.w, w: crop.h, h: crop.w };
+}
+
 export function constrainCropRect(
   candidate: CropRect,
   previous: CropRect | null,

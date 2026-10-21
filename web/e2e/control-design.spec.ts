@@ -633,6 +633,18 @@ test('panel header actions match develop action buttons', async ({ page }) => {
   expect(maskMetrics[0]).toEqual(metrics[5]);
   expect(maskMetrics[1]).toEqual(metrics[0]);
 
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  const geometryMetrics = await Promise.all(
+    [
+      page.getByRole('button', { name: 'Reset geometry', exact: true }),
+      page.getByRole('button', { name: 'Rotate left 90°' }),
+      page.getByRole('button', { name: 'Flip vertical' })
+    ].map(metricsOf)
+  );
+  expect(geometryMetrics[0]).toEqual(metrics[1]);
+  expect(geometryMetrics[1]).toEqual(metrics[2]);
+  expect(geometryMetrics[2]).toEqual(metrics[2]);
+  await page.getByRole('tab', { name: 'Masks' }).click();
   const createMask = page.getByRole('button', { name: 'Create a mask' });
   await expect
     .soft(page.getByText('Masks limit an adjustment to part of the photo.'))
@@ -826,15 +838,6 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
 
   expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
   expect((await metricsOf(orientation)).background).toBe(neutral);
-
-  const rotateLeft = page.getByRole('button', { name: 'Rotate left 90°' });
-  const rotateMetrics = await metricsOf(rotateLeft);
-  expect(rotateMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-  expect(rotateMetrics.background).toBe(await resolvedColor(page, '--color-ghost'));
-  await rotateLeft.hover();
-  await expect
-    .poll(async () => (await metricsOf(rotateLeft)).background)
-    .toBe(await resolvedBackground(page, 'bg-white/10'));
 });
 
 test('browse and loupe controls name their shortcuts', async ({ page }) => {

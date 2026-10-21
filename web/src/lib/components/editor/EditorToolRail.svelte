@@ -47,11 +47,6 @@
   }
 
   function toggleTool(tool: EditorTab): void {
-    if (tool === 'geometry' && ui.editorTab === 'geometry' && !ui.rightCollapsed) {
-      void editor.finishGeometrySession();
-      ui.openTab('develop');
-      return;
-    }
     if (ui.editorTab === tool && !ui.rightCollapsed) {
       ui.togglePanels();
       return;

@@ -1,11 +1,15 @@
 import {
   FULL_CROP,
+  neutralGeometry,
   type AspectLock,
   type CropRect,
   type Edits,
   type GeometryEdits
 } from '$lib/types/edits';
 import { livePreview } from '$lib/api/preview';
+import { keysFor } from '$lib/shortcuts/labels';
+import { toasts } from '$lib/stores/toasts.svelte';
+import { geometryIsIdentity } from '$lib/types/edits';
 import { errorMessage } from '$lib/utils/errors';
 import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
 import {
@@ -13,6 +17,7 @@ import {
   constrainCropRect,
   largestInscribedRect,
   MAX_STRAIGHTEN_DEG,
+  quarterTurnCrop,
   refitCropAtAspect
 } from '$lib/utils/geom';
 import {
@@ -27,9 +32,7 @@ import {
 import { LIVE_EDGE } from './previewEdge';
 
 export interface GeometrySession {
-  id: number;
-  pinnedUrl: string | null;
-  pinnedReady: boolean;
+  frameUrl: string | null;
   srcW: number;
   srcH: number;
   draftRotate: 0 | 90 | 180 | 270;
@@ -40,7 +43,6 @@ export interface GeometrySession {
   draftAspect: AspectLock;
   draftPerspective: PerspectiveEdits;
   userEditedCrop: boolean;
-  startGeometry: GeometryEdits;
 }
 
 export interface GeometryCtx {
@@ -53,8 +55,17 @@ export interface GeometryCtx {
   onCommit(action?: string): Promise<void>;
 }
 
-let nextSessionId = 0;
-let liveSessionId = 0;
+const WHEEL_COMMIT_MS = 300;
+const CROP_EPS = 1e-3;
+
+let frameKey: string | null = null;
+let frameAbort: AbortController | null = null;
+let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+
+function ready(ctx: GeometryCtx): GeometrySession | null {
+  const sess = ctx.geometrySession;
+  return sess && sess.srcW > 0 ? sess : null;
+}
 
 function perspInv(sess: GeometrySession): Mat3 {
   return perspectiveInverse(sess.draftPerspective);
@@ -63,6 +74,19 @@ function perspInv(sess: GeometrySession): Mat3 {
 function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
   const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
   return { sw: swapped ? sess.srcH : sess.srcW, sh: swapped ? sess.srcW : sess.srcH };
+}
+
+export function cropIsDefault(sess: GeometrySession): boolean {
+  if (sess.srcW <= 0) return !sess.userEditedCrop;
+  const { sw, sh } = sourceDims(sess);
+  const fit = largestInscribedRect(sw, sh, sess.draftAngle, sw / sh, perspInv(sess));
+  const crop = sess.draftCrop;
+  return (
+    Math.abs(crop.x - fit.x) < CROP_EPS &&
+    Math.abs(crop.y - fit.y) < CROP_EPS &&
+    Math.abs(crop.w - fit.w) < CROP_EPS &&
+    Math.abs(crop.h - fit.h) < CROP_EPS
+  );
 }
 
 function refitDraftCrop(sess: GeometrySession): void {
@@ -81,74 +105,91 @@ function refitDraftCrop(sess: GeometrySession): void {
   sess.draftCrop = constrainCropRect(sess.draftCrop, sess.draftCrop, sw, sh, angle, persp);
 }
 
-async function loadPinnedPreview(
+async function loadFrame(
   ctx: GeometryCtx,
-  baseEdits: Edits,
-  sessionId: number
+  sess: GeometrySession,
+  assetId: string,
+  edits: Edits,
+  controller: AbortController
 ): Promise<void> {
-  if (!ctx.assetId) return;
-  const canonical: Edits = {
-    ...baseEdits,
-    geometry: {
-      ...baseEdits.geometry,
-      rotate: 0,
-      flip_h: false,
-      flip_v: false,
-      rotate_angle: 0,
-      crop: null,
-      perspective: null
-    }
-  };
   let url: string | null = null;
   try {
-    const { blob } = await livePreview(ctx.assetId, canonical, LIVE_EDGE, 'none');
+    const { blob } = await livePreview(
+      assetId,
+      edits,
+      LIVE_EDGE,
+      'none',
+      undefined,
+      controller.signal,
+      'geometry'
+    );
     url = makeObjectUrl(blob);
     const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-      img.onerror = () => reject(new Error('pinned preview decode failed'));
+      img.onerror = () => reject(new Error('geometry frame decode failed'));
       img.src = url as string;
     });
-    const sess = ctx.geometrySession;
-    if (sess?.id !== sessionId || dims.w <= 0 || dims.h <= 0) {
+    if (controller.signal.aborted || ctx.geometrySession !== sess || dims.w <= 0 || dims.h <= 0) {
       revoke(url);
       return;
     }
-    if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-    sess.pinnedUrl = url;
+    if (sess.frameUrl) revoke(sess.frameUrl);
+    sess.frameUrl = url;
     sess.srcW = dims.w;
     sess.srcH = dims.h;
-    sess.pinnedReady = true;
   } catch (e) {
     if (url) revoke(url);
-    if (ctx.geometrySession?.id !== sessionId) return;
+    if (controller.signal.aborted || ctx.geometrySession !== sess) return;
+    frameKey = null;
     ctx.error = errorMessage(e);
   }
+}
+
+export function refreshFrame(ctx: GeometryCtx, edits: Edits): void {
+  const sess = ctx.geometrySession;
+  if (!sess || !ctx.assetId) return;
+  const frame: Edits = { ...edits, geometry: neutralGeometry() };
+  const key = `${ctx.assetId}:${JSON.stringify(frame)}`;
+  if (key === frameKey) return;
+  frameKey = key;
+  frameAbort?.abort();
+  const controller = new AbortController();
+  frameAbort = controller;
+  void loadFrame(ctx, sess, ctx.assetId, frame, controller);
+}
+
+function resetDrafts(sess: GeometrySession, geometry: GeometryEdits): void {
+  sess.draftRotate = geometry.rotate;
+  sess.draftFlipH = geometry.flip_h;
+  sess.draftFlipV = geometry.flip_v;
+  sess.draftAngle = geometry.rotate_angle;
+  sess.draftCrop = geometry.crop ?? FULL_CROP;
+  sess.draftAspect = geometry.aspect;
+  sess.draftPerspective = geometry.perspective ?? neutralPerspective();
+  sess.userEditedCrop = geometry.crop !== null;
 }
 
 export function startSession(ctx: GeometryCtx): void {
   if (!ctx.assetId || !ctx.initialised || ctx.geometrySession) return;
   ctx.clearView();
-  const baseEdits = $state.snapshot(ctx.edits) as Edits;
-  const sessionId = ++nextSessionId;
-  liveSessionId = sessionId;
-  ctx.geometrySession = {
-    id: sessionId,
-    pinnedUrl: null,
-    pinnedReady: false,
+  const edits = $state.snapshot(ctx.edits) as Edits;
+  const sess: GeometrySession = {
+    frameUrl: null,
     srcW: 0,
     srcH: 0,
-    draftRotate: baseEdits.geometry.rotate,
-    draftFlipH: baseEdits.geometry.flip_h,
-    draftFlipV: baseEdits.geometry.flip_v,
-    draftAngle: baseEdits.geometry.rotate_angle,
-    draftCrop: baseEdits.geometry.crop ?? FULL_CROP,
-    draftAspect: baseEdits.geometry.aspect,
-    draftPerspective: baseEdits.geometry.perspective ?? neutralPerspective(),
-    userEditedCrop: baseEdits.geometry.crop !== null,
-    startGeometry: baseEdits.geometry
+    draftRotate: 0,
+    draftFlipH: false,
+    draftFlipV: false,
+    draftAngle: 0,
+    draftCrop: FULL_CROP,
+    draftAspect: { kind: 'original' },
+    draftPerspective: neutralPerspective(),
+    userEditedCrop: false
   };
-  void loadPinnedPreview(ctx, baseEdits, sessionId);
+  resetDrafts(sess, edits.geometry);
+  ctx.geometrySession = sess;
+  refreshFrame(ctx, edits);
 }
 
 function draftGeometry(sess: GeometrySession, base: GeometryEdits): GeometryEdits {
@@ -172,45 +213,68 @@ function sameGeometry(a: GeometryEdits, b: GeometryEdits): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-export function sessionDirty(sess: GeometrySession): boolean {
-  return !sameGeometry(draftGeometry(sess, sess.startGeometry), sess.startGeometry);
+export function syncSession(ctx: GeometryCtx, geometry: GeometryEdits): void {
+  const sess = ctx.geometrySession;
+  if (!sess || sameGeometry(draftGeometry(sess, geometry), geometry)) return;
+  resetDrafts(sess, geometry);
 }
 
-export function cancelSession(ctx: GeometryCtx): void {
-  const sess = ctx.geometrySession;
+export async function commit(
+  ctx: GeometryCtx,
+  action: string,
+  sess = ctx.geometrySession
+): Promise<void> {
   if (!sess) return;
-  liveSessionId = 0;
-  if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-  ctx.geometrySession = null;
-}
-
-export async function finishSession(ctx: GeometryCtx): Promise<void> {
-  const sess = ctx.geometrySession;
-  if (!sess || sess.id !== liveSessionId) return;
-  liveSessionId = 0;
-  if (sess.pinnedUrl) revoke(sess.pinnedUrl);
-  ctx.geometrySession = null;
   const geometry = draftGeometry(sess, ctx.edits.geometry);
   if (sameGeometry(ctx.edits.geometry, geometry)) return;
   ctx.edits = { ...ctx.edits, geometry };
-  await ctx.onCommit('Geometry');
+  await ctx.onCommit(action);
+}
+
+export function scheduleCropCommit(ctx: GeometryCtx): void {
+  if (wheelTimer) clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => {
+    wheelTimer = null;
+    void commit(ctx, 'Crop');
+  }, WHEEL_COMMIT_MS);
+}
+
+export async function endSession(ctx: GeometryCtx): Promise<void> {
+  const sess = ctx.geometrySession;
+  if (!sess) return;
+  const pending = wheelTimer !== null;
+  if (wheelTimer) clearTimeout(wheelTimer);
+  wheelTimer = null;
+  frameAbort?.abort();
+  frameAbort = null;
+  frameKey = null;
+  if (sess.frameUrl) revoke(sess.frameUrl);
+  ctx.geometrySession = null;
+  if (pending) await commit(ctx, 'Crop', sess);
+}
+
+function turnedAspect(aspect: AspectLock): AspectLock {
+  return aspect.kind === 'ratio' ? { kind: 'ratio', num: aspect.den, den: aspect.num } : aspect;
 }
 
 export function rotateStep(ctx: GeometryCtx, delta: 90 | 270): void {
-  const sess = ctx.geometrySession;
+  const sess = ready(ctx);
   if (!sess) {
-    ctx.edits.geometry.rotate = ((ctx.edits.geometry.rotate + delta) % 360) as 0 | 90 | 180 | 270;
+    const g = ctx.edits.geometry;
+    const clockwise = (delta === 90) !== (g.flip_h !== g.flip_v);
+    g.rotate = ((g.rotate + delta) % 360) as 0 | 90 | 180 | 270;
+    if (g.crop) g.crop = quarterTurnCrop(g.crop, clockwise);
+    g.aspect = turnedAspect(g.aspect);
     void ctx.onCommit('Rotate');
     return;
   }
+  const clockwise = (delta === 90) !== (sess.draftFlipH !== sess.draftFlipV);
   sess.draftRotate = ((sess.draftRotate + delta) % 360) as 0 | 90 | 180 | 270;
+  sess.draftAspect = turnedAspect(sess.draftAspect);
   const { sw, sh } = sourceDims(sess);
-  const ratio = aspectRatioFor(sess.draftAspect, sw, sh);
-  sess.draftCrop =
-    ratio !== null
-      ? largestInscribedRect(sw, sh, sess.draftAngle, ratio, perspInv(sess))
-      : FULL_CROP;
-  sess.userEditedCrop = false;
+  const turned = quarterTurnCrop(sess.draftCrop, clockwise);
+  sess.draftCrop = constrainCropRect(turned, turned, sw, sh, sess.draftAngle, perspInv(sess));
+  void commit(ctx, 'Rotate');
 }
 
 export function flipStep(ctx: GeometryCtx, axis: 'h' | 'v'): void {
@@ -223,17 +287,18 @@ export function flipStep(ctx: GeometryCtx, axis: 'h' | 'v'): void {
   }
   if (axis === 'h') sess.draftFlipH = !sess.draftFlipH;
   else sess.draftFlipV = !sess.draftFlipV;
+  void commit(ctx, 'Flip');
 }
 
 export function updateDraftAngle(ctx: GeometryCtx, angle: number): void {
-  const sess = ctx.geometrySession;
+  const sess = ready(ctx);
   if (!sess) return;
   sess.draftAngle = Math.max(-MAX_STRAIGHTEN_DEG, Math.min(MAX_STRAIGHTEN_DEG, angle));
   refitDraftCrop(sess);
 }
 
 export function updateDraftPerspective(ctx: GeometryCtx, patch: Partial<PerspectiveEdits>): void {
-  const sess = ctx.geometrySession;
+  const sess = ready(ctx);
   if (!sess) return;
   sess.draftPerspective = limitPerspective(
     sess.draftPerspective,
@@ -243,26 +308,42 @@ export function updateDraftPerspective(ctx: GeometryCtx, patch: Partial<Perspect
 }
 
 export function updateDraftCrop(ctx: GeometryCtx, crop: CropRect): void {
-  const sess = ctx.geometrySession;
+  const sess = ready(ctx);
   if (!sess) return;
   const { sw, sh } = sourceDims(sess);
   sess.draftCrop = constrainCropRect(crop, sess.draftCrop, sw, sh, sess.draftAngle, perspInv(sess));
-  sess.userEditedCrop = true;
+  sess.userEditedCrop = !cropIsDefault(sess);
 }
 
-export function flipAspect(ctx: GeometryCtx): void {
+export async function reset(ctx: GeometryCtx): Promise<void> {
+  if (!ctx.assetId || geometryIsIdentity(ctx.edits.geometry)) return;
+  if (wheelTimer) clearTimeout(wheelTimer);
+  wheelTimer = null;
+  ctx.edits = { ...ctx.edits, geometry: neutralGeometry() };
+  if (ctx.geometrySession) resetDrafts(ctx.geometrySession, ctx.edits.geometry);
+  await ctx.onCommit('Reset Geometry');
+  toasts.push('success', `Reset geometry. Undo with ${keysFor('undo')}.`, 3000);
+}
+
+export async function flipAspect(ctx: GeometryCtx): Promise<void> {
   const aspect = ctx.geometrySession?.draftAspect;
   if (aspect?.kind !== 'ratio' || aspect.num === aspect.den) return;
-  updateDraftAspect(ctx, { kind: 'ratio', num: aspect.den, den: aspect.num });
+  await setAspect(ctx, { kind: 'ratio', num: aspect.den, den: aspect.num });
 }
 
-export function updateDraftAspect(ctx: GeometryCtx, aspect: AspectLock): void {
-  const sess = ctx.geometrySession;
+export async function setAspect(
+  ctx: GeometryCtx,
+  aspect: AspectLock,
+  action = 'Aspect ratio'
+): Promise<void> {
+  const sess = ready(ctx);
   if (!sess) return;
   const { sw, sh } = sourceDims(sess);
   sess.draftAspect = aspect;
   const ratio = aspectRatioFor(aspect, sw, sh);
-  if (ratio === null) return;
-  sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio, perspInv(sess));
-  sess.userEditedCrop = false;
+  if (ratio !== null) {
+    sess.draftCrop = largestInscribedRect(sw, sh, sess.draftAngle, ratio, perspInv(sess));
+    sess.userEditedCrop = false;
+  }
+  await commit(ctx, action);
 }

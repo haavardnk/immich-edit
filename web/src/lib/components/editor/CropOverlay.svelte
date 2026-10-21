@@ -144,6 +144,7 @@
     if (length < MIN_LINE_PX) return;
     editor.updateGeometryDraftAngle(sess.draftAngle + angleFromLine(drawn.from, drawn.to));
     ui.straightening = false;
+    void editor.commitGeometry('Straighten');
   }
 
   function startDrag(e: PointerEvent, kind: 'move' | CropHandle): void {
@@ -199,6 +200,7 @@
     editor.updateGeometryDraftCrop(
       scaleCropAboutCentre(sess.draftCrop, Math.exp(e.deltaY * 0.002))
     );
+    editor.scheduleCropCommit();
   }
 
   function onUp(e: PointerEvent): void {
@@ -206,11 +208,13 @@
       onLineUp(e);
       return;
     }
+    const dragged = dragKind !== null;
     dragKind = null;
     dragStartCrop = null;
     dragLockedRatio = null;
     panStartCrop = null;
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (dragged) void editor.commitGeometry('Crop');
   }
 
   let cornerDrag = $state<number | null>(null);
@@ -245,8 +249,10 @@
 
   function onCornerUp(e: PointerEvent): void {
     e.stopPropagation();
+    const dragged = cornerDrag !== null;
     cornerDrag = null;
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (dragged) void editor.commitGeometry('Perspective');
   }
 </script>
 
@@ -255,7 +261,7 @@
   use:observeSize={measure}
   class="absolute inset-0 flex items-center justify-center select-none"
 >
-  {#if sess && sess.pinnedReady && sess.pinnedUrl}
+  {#if sess && sess.frameUrl}
     <div
       bind:this={stage}
       class="relative"
@@ -264,7 +270,7 @@
       onwheel={onWheel}
     >
       <img
-        src={sess.pinnedUrl}
+        src={sess.frameUrl}
         alt=""
         draggable="false"
         class="absolute block"

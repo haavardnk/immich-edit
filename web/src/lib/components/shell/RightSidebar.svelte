@@ -11,6 +11,7 @@
   import { setDevelopPanel } from '$lib/panels/developPanels';
   import DevelopActions from '$lib/panels/DevelopActions.svelte';
   import DevelopPanels from '$lib/panels/DevelopPanels.svelte';
+  import GeometryActions from '$lib/panels/GeometryActions.svelte';
   import ScopesSection from '$lib/panels/scopes/ScopesSection.svelte';
   import TransformPanel from '$lib/panels/Transform.svelte';
   import ExportPanel from '$lib/panels/Export.svelte';
@@ -92,6 +93,10 @@
             />
           </div>
         {/if}
+      {:else if ui.editorTab === 'geometry'}
+        <div class="flex shrink-0 items-center gap-1.5 border-b border-hairline px-3 py-1.5">
+          <GeometryActions />
+        </div>
       {/if}
 
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
