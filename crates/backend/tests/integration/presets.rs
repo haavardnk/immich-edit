@@ -1,9 +1,19 @@
 use crate::common::*;
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::MockServer;
+
+fn jpeg_long_edge(jpeg: &[u8]) -> u16 {
+    let mut at = 2;
+    while jpeg[at + 1] != 0xc0 {
+        at += 2 + usize::from(u16::from_be_bytes([jpeg[at + 2], jpeg[at + 3]]));
+    }
+    let height = u16::from_be_bytes([jpeg[at + 5], jpeg[at + 6]]);
+    let width = u16::from_be_bytes([jpeg[at + 7], jpeg[at + 8]]);
+    height.max(width)
+}
 
 fn preset_body(name: &str, group: Option<&str>) -> Value {
     let mut body = json!({
@@ -164,5 +174,61 @@ async fn another_members_preset_id_is_not_found() {
         .unwrap();
     if resp.status() != StatusCode::NOT_FOUND {
         panic!("an unknown id must be 404, got {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn a_preset_thumb_is_capped_and_revalidates_until_the_preset_changes() {
+    let server = MockServer::start().await;
+    let asset = asset_id();
+    mock_original(&server, asset).await;
+    let app = test_app(&server).await;
+
+    let resp = app
+        .clone()
+        .oneshot(json_request(
+            "POST",
+            "/api/presets",
+            preset_body("Portrait", None),
+        ))
+        .await
+        .unwrap();
+    let id = body_json(resp).await["id"].as_str().unwrap().to_string();
+    let uri = format!("/api/assets/{asset}/presets/{id}/thumb?max=4096");
+    let revalidate = |etag: &str| {
+        let mut req = get(&uri);
+        req.headers_mut()
+            .insert("if-none-match", HeaderValue::from_str(etag).unwrap());
+        req
+    };
+
+    let resp = app.clone().oneshot(get(&uri)).await.unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("first status {}", resp.status());
+    }
+    let etag = header_str(&resp, "etag").expect("etag");
+    let cache_control = header_str(&resp, "cache-control").unwrap_or_default();
+    if !cache_control.contains("must-revalidate") {
+        panic!("cache-control: {cache_control}");
+    }
+    let long_edge = jpeg_long_edge(&body_bytes(resp).await);
+    if long_edge == 0 || long_edge > 256 {
+        panic!("the thumb must be capped at 256 px, got {long_edge}");
+    }
+
+    let resp = app.clone().oneshot(revalidate(&etag)).await.unwrap();
+    if resp.status() != StatusCode::NOT_MODIFIED {
+        panic!("expected 304, got {}", resp.status());
+    }
+
+    let mut changed = preset_body("Portrait", None);
+    changed["manifest"]["ops"]["exposure"]["ev"] = json!(-1.0);
+    app.clone()
+        .oneshot(json_request("PUT", &format!("/api/presets/{id}"), changed))
+        .await
+        .unwrap();
+    let resp = app.oneshot(revalidate(&etag)).await.unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("a changed preset must re-render, got {}", resp.status());
     }
 }

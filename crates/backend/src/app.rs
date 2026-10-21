@@ -216,6 +216,10 @@ pub fn router(state: AppState) -> Router {
             patch(routes::copies::rename).delete(routes::copies::delete),
         )
         .route("/assets/{id}/edited-thumb", get(routes::edited_thumb::get))
+        .route(
+            "/assets/{id}/presets/{preset_id}/thumb",
+            get(routes::presets::thumb),
+        )
         .route("/assets/{id}/faces", get(routes::faces::list))
         .route(
             "/assets/{id}/edits",
