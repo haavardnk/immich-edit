@@ -224,7 +224,7 @@ white version next to the color one. It takes no space in Immich until you expor
 with **Create virtual copy** or `Ctrl+'`. It shows up next to the original with a `Copy` badge.
 
 Ratings, favorites, tags and reject marks belong to the Immich photo, so every copy shares them.
-Edits, masks, history and exports belong to one copy. Delete a copy from its thumbnail, or from the
-[**Versions**](edit.md#try-variations) panel in the editor.
+Edits, masks, history and exports belong to one copy. Delete a copy from its thumbnail, or from
+[**Versions**](edit.md#try-variations) in the editor's **More editor actions** menu.
 
 The full key list is on [keyboard shortcuts](shortcuts.md).

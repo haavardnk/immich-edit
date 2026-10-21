@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { gotoAsset, installMocks, makePng, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
+import {
+  ASSET_SUMMARY,
+  gotoAsset,
+  installMocks,
+  makePng,
+  NEUTRAL_RECORD,
+  type PreviewRequest
+} from './helpers';
 
 function exposureSlider(page: import('@playwright/test').Page) {
   return page
@@ -193,7 +200,7 @@ test('pinned scopes stay above the scrolling panels across a reload', async ({ p
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
   await expect(scopesToggle).toHaveCount(0);
 
-  const list = page.getByRole('button', { name: 'Versions', exact: true });
+  const list = page.getByRole('button', { name: 'Effects', exact: true });
   await list.scrollIntoViewIfNeeded();
   await expect(pin).toBeInViewport();
   const scroller = page.locator('.scrollbar-hidden').filter({ has: list });
@@ -340,13 +347,16 @@ test('only sliders that drive a preview hint the alt drag', async ({ page }) => 
   await expect(exposureSlider(page)).not.toHaveAttribute('title');
 });
 
-test('the clipping overlay toggles from the toolbar at desktop width', async ({ page }) => {
+test('the clipping overlay toggles from the editor menu at desktop width', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
+  const more = page.getByRole('button', { name: 'More editor actions' });
   const clip = page.getByRole('button', { name: 'Clipping overlay' });
+  await more.click();
   await expect(clip).toHaveAttribute('aria-pressed', 'false');
   await clip.click();
+  await more.click();
   await expect(clip).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -404,7 +414,7 @@ test('the auto adjust shortcut applies every suggested field', async ({ page }) 
   expect(auto).toBe(1);
 });
 
-test('the soft proof popover survives opening its nested select', async ({ page }) => {
+test('the soft proof controls stay inside the editor menu', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
@@ -412,9 +422,9 @@ test('the soft proof popover survives opening its nested select', async ({ page 
   const warn = page.getByRole('checkbox', { name: 'Show gamut warning' });
   await expect(warn).toBeVisible();
 
-  await page.getByRole('button', { name: 'Proof space' }).click();
-  await expect(page.getByRole('option', { name: 'sRGB' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  const space = page.getByRole('radiogroup', { name: 'Proof space' });
+  await space.getByRole('radio', { name: 'sRGB' }).click();
+  await expect(space.getByRole('radio', { name: 'sRGB' })).toBeChecked();
 
   await expect(warn).toBeVisible();
   await warn.check();
@@ -534,6 +544,7 @@ test('the mask weight hides for a held original without a new render', async ({ 
   const rendered = weights();
 
   const toggled = previews.length;
+  await page.getByRole('button', { name: 'More editor actions' }).click();
   await page.getByRole('button', { name: 'Clipping overlay' }).click();
   await expect.poll(() => previews.length).toBeGreaterThan(toggled);
   expect(previews.at(-1)?.preview_mode).toBe('none');
@@ -566,6 +577,7 @@ test('color range eyedropper keeps the maskless preview through a clipping toggl
   await expect.poll(() => previews.length > 0 && maskCount(previews.at(-1)) === 0).toBe(true);
 
   const toggled = previews.length;
+  await page.getByRole('button', { name: 'More editor actions' }).click();
   await page.getByRole('button', { name: 'Clipping overlay' }).click();
   await expect.poll(() => previews.length).toBeGreaterThan(toggled);
   expect(previews.slice(toggled).map(maskCount)).toEqual(previews.slice(toggled).map(() => 0));
@@ -853,7 +865,7 @@ test('keyboard help modal toggles with the ? key', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toHaveCount(0);
 });
 
-test('keyboard help opens from the editor toolbar', async ({ page }) => {
+test('keyboard help opens from the editor menu', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
@@ -944,7 +956,8 @@ test('fullscreen leaves only the image and exit control', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: /^Fullscreen/ }).click();
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
 
   await expect(page.getByRole('application')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toHaveCount(0);
@@ -956,7 +969,21 @@ test('fullscreen leaves only the image and exit control', async ({ page }) => {
 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Fullscreen/ })).toBeVisible();
+});
+
+test('the editor menu opens photo info, which I closes', async ({ page }) => {
+  await installMocks(page, {
+    assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY', model: 'ILCE-7M3' } }]
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'More editor actions' }).click();
+  await page.getByRole('button', { name: 'Info', exact: true }).click();
+  const camera = page.getByText(/ILCE-7M3/);
+  await expect(camera).toBeVisible();
+
+  await page.keyboard.press('i');
+  await expect(camera).toBeHidden();
 });
 
 test('collapsed editor controls leave the canvas and retain their state', async ({ page }) => {

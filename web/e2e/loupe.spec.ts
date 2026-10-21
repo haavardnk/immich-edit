@@ -160,7 +160,8 @@ test('Shift+S hides the loupe filmstrip', async ({ page }) => {
 test('the loupe toolbar enters fullscreen', async ({ page }) => {
   await openLoupe(page);
 
-  await page.getByRole('button', { name: /^Fullscreen/ }).click();
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
 
   await expect(page.getByRole('button', { name: /^Exit fullscreen/ })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toHaveCount(0);

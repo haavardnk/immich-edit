@@ -3,33 +3,19 @@
   import ExifRows from '$lib/components/ExifRows.svelte';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { mdiInformationOutline } from '@mdi/js';
-  import { hint } from '$lib/shortcuts/labels';
-  import { IconButton } from '@immich/ui';
 
-  const hasExif = $derived((editor.asset?.exifInfo ?? null) != null);
+  let { anchor }: { anchor: HTMLElement | null } = $props();
 </script>
 
-{#if hasExif}
+{#if editor.asset?.exifInfo}
   <Popover
     open={ui.metaPopover === 'exif'}
     anchor="bottom"
     align="end"
+    customAnchor={anchor}
     onOpenChange={(v) => (v ? ui.openPopover('exif') : ui.closePopover())}
     contentClass="p-3"
-    tooltip={hint('Info', 'toggleInfo')}
   >
-    {#snippet trigger(props)}
-      <IconButton
-        size="small"
-        variant="ghost"
-        color={ui.metaPopover === 'exif' ? 'primary' : 'secondary'}
-        icon={mdiInformationOutline}
-        title=""
-        aria-label={hint('Info', 'toggleInfo')}
-        {...props}
-      />
-    {/snippet}
     <ExifRows asset={editor.asset} />
   </Popover>
 {/if}

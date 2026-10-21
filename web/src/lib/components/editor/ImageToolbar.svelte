@@ -4,26 +4,29 @@
   import { ui } from '$lib/stores/ui.svelte';
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
+  import VersionsList from './VersionsList.svelte';
   import Popover from '$lib/components/Popover.svelte';
-  import { hint } from '$lib/shortcuts/labels';
+  import MenuItem from '$lib/components/MenuItem.svelte';
+  import { hint, keysFor } from '$lib/shortcuts/labels';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
   import { backToGrid } from '$lib/browse/backToGrid';
-  import { createVirtualCopy } from '$lib/editor/copies';
-  import { Button, IconButton } from '@immich/ui';
+  import { IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,
     mdiUndo,
     mdiRedo,
     mdiEyeOutline,
     mdiCompare,
-    mdiContentDuplicate,
     mdiTriangleOutline,
     mdiDotsVertical,
     mdiKeyboardOutline,
-    mdiCircleHalfFull
+    mdiCircleHalfFull,
+    mdiFullscreen,
+    mdiInformationOutline
   } from '@mdi/js';
 
   let moreOpen = $state(false);
+  let moreAnchor = $state<HTMLElement | null>(null);
 
   const assetId = $derived(editor.assetId);
   const copyBadge = $derived(
@@ -121,132 +124,114 @@
           if (editor.showingOriginal) holdOriginal(false);
         }}
       />
-      <IconButton
-        size="small"
-        variant="ghost"
-        color={editor.splitMode ? 'primary' : 'secondary'}
-        icon={mdiCompare}
-        title={hint('Before / after split', 'beforeAfter')}
-        aria-label={hint('Before / after split', 'beforeAfter')}
-        aria-pressed={editor.splitMode}
-        disabled={!!editor.geometrySession}
-        onclick={editor.toggleSplit}
-      />
-      <IconButton
-        size="small"
-        variant="ghost"
-        color={ui.clipWarn ? 'primary' : 'secondary'}
-        icon={mdiTriangleOutline}
-        title={hint('Clipping overlay', 'clipWarn')}
-        aria-label={hint('Clipping overlay', 'clipWarn')}
-        aria-pressed={ui.clipWarn}
-        onclick={editor.toggleClipWarn}
-      />
     </div>
 
-    <div class="mx-1 h-5 w-px shrink-0 bg-hairline"></div>
-
     {#if editor.assetId}
-      <ExifSummary />
+      <ExifSummary anchor={moreAnchor} />
     {/if}
-    <IconButton
-      class="shrink-0"
-      size="small"
-      variant="ghost"
-      color="secondary"
-      icon={mdiKeyboardOutline}
-      title={hint('Keyboard shortcuts', 'help')}
-      aria-label={hint('Keyboard shortcuts', 'help')}
-      onclick={ui.toggleKeybindsHelp}
-    />
-    <Popover
-      open={moreOpen}
-      anchor="bottom"
-      align="end"
-      onOpenChange={(open) => (moreOpen = open)}
-      contentClass="w-60 p-2"
-      tooltip="More editor actions"
-    >
-      {#snippet trigger(props)}
-        <IconButton
-          size="small"
-          variant="ghost"
-          color={editor.isProofing || ui.clipWarn ? 'primary' : 'secondary'}
-          icon={mdiDotsVertical}
-          title=""
-          aria-label="More editor actions"
-          {...props}
-        />
-      {/snippet}
-      <div class="flex flex-col gap-1">
-        <Button
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="w-full justify-start"
-          leadingIcon={mdiContentDuplicate}
-          disabled={!assetId}
-          onclick={() => {
-            if (assetId)
-              void createVirtualCopy(assetId, {
-                returnPath: page.url.searchParams.get('from')
-              });
-            moreOpen = false;
-          }}>Create virtual copy</Button
-        >
-        <div class="contents xl:hidden">
-          <Button
-            size="tiny"
+    <div class="flex shrink-0" bind:this={moreAnchor}>
+      <Popover
+        open={moreOpen}
+        anchor="bottom"
+        align="end"
+        onOpenChange={(open) => (moreOpen = open)}
+        contentClass="w-64 py-1"
+        tooltip="More editor actions"
+      >
+        {#snippet trigger(props)}
+          <IconButton
+            size="small"
             variant="ghost"
-            color="secondary"
-            class="w-full justify-start"
-            leadingIcon={mdiEyeOutline}
-            onpointerdown={() => holdOriginal(true)}
-            onpointerup={() => holdOriginal(false)}
-            onpointerleave={() => {
-              if (editor.showingOriginal) holdOriginal(false);
-            }}>View original</Button
+            color={editor.isProofing || ui.clipWarn || editor.splitMode ? 'primary' : 'secondary'}
+            icon={mdiDotsVertical}
+            title=""
+            aria-label="More editor actions"
+            {...props}
+          />
+        {/snippet}
+        <div class="flex flex-col">
+          <VersionsList onnavigate={() => (moreOpen = false)} />
+          <div class="my-1 border-t border-dark/10"></div>
+          <span class="px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase"
+            >View</span
           >
-          <Button
-            size="tiny"
-            variant="ghost"
-            color={editor.splitMode ? 'primary' : 'secondary'}
-            class="w-full justify-start"
-            leadingIcon={mdiCompare}
-            aria-pressed={editor.splitMode}
+          <MenuItem
+            icon={mdiInformationOutline}
+            label="Info"
+            keys={keysFor('toggleInfo')}
+            pressed={ui.metaPopover === 'exif'}
+            disabled={!editor.asset?.exifInfo}
+            onclick={() => {
+              moreOpen = false;
+              ui.togglePopover('exif');
+            }}
+          />
+          <MenuItem
+            icon={mdiFullscreen}
+            label="Fullscreen"
+            keys={keysFor('fullscreen')}
+            onclick={() => {
+              moreOpen = false;
+              ui.toggleFullscreen();
+            }}
+          />
+          <div class="contents xl:hidden">
+            <MenuItem
+              icon={mdiEyeOutline}
+              label="View original"
+              keys={keysFor('holdOriginal')}
+              onpointerdown={() => holdOriginal(true)}
+              onpointerup={() => holdOriginal(false)}
+              onpointercancel={() => holdOriginal(false)}
+              onpointerleave={() => {
+                if (editor.showingOriginal) holdOriginal(false);
+              }}
+            />
+          </div>
+          <MenuItem
+            icon={mdiCompare}
+            label="Before/After split"
+            keys={keysFor('beforeAfter')}
+            pressed={editor.splitMode}
             disabled={!!editor.geometrySession}
             onclick={() => {
               editor.toggleSplit();
               moreOpen = false;
-            }}>Before/After split</Button
-          >
-          <Button
-            size="tiny"
-            variant="ghost"
-            color={ui.clipWarn ? 'primary' : 'secondary'}
-            class="w-full justify-start"
-            leadingIcon={mdiTriangleOutline}
-            aria-pressed={ui.clipWarn}
+            }}
+          />
+          <MenuItem
+            icon={mdiTriangleOutline}
+            label="Clipping overlay"
+            keys={keysFor('clipWarn')}
+            pressed={ui.clipWarn}
             onclick={() => {
               editor.toggleClipWarn();
               moreOpen = false;
-            }}>Clipping overlay</Button
-          >
+            }}
+          />
+          <MenuItem
+            icon={mdiCircleHalfFull}
+            label="Grey background"
+            pressed={ui.greyCanvas}
+            onclick={() => {
+              ui.toggleGreyCanvas();
+              moreOpen = false;
+            }}
+          />
+          <div class="my-1 border-t border-dark/10"></div>
+          <SoftProofControl />
+          <div class="my-1 border-t border-dark/10"></div>
+          <MenuItem
+            icon={mdiKeyboardOutline}
+            label="Keyboard shortcuts"
+            keys={keysFor('help')}
+            onclick={() => {
+              moreOpen = false;
+              ui.toggleKeybindsHelp();
+            }}
+          />
         </div>
-        <Button
-          size="tiny"
-          variant="ghost"
-          color={ui.greyCanvas ? 'primary' : 'secondary'}
-          class="w-full justify-start"
-          leadingIcon={mdiCircleHalfFull}
-          aria-pressed={ui.greyCanvas}
-          onclick={() => {
-            ui.toggleGreyCanvas();
-            moreOpen = false;
-          }}>Grey background</Button
-        >
-        <SoftProofControl />
-      </div>
-    </Popover>
+      </Popover>
+    </div>
   </div>
 </nav>
