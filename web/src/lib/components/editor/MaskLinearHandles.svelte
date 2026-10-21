@@ -6,7 +6,6 @@
   let {
     comp,
     kind,
-    color,
     rect,
     toPx,
     fromPx,
@@ -15,7 +14,6 @@
   }: {
     comp: MaskComponent;
     kind: Extract<MaskComponentKind, { kind: 'linear' }>;
-    color: string;
     rect: { x: number; y: number; w: number; h: number };
     toPx: (v: Vec2f) => { x: number; y: number };
     fromPx: (px: number, py: number) => Vec2f;
@@ -60,11 +58,15 @@
 <g style="pointer-events: auto;">
   <defs>
     <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={a.x} y1={a.y} x2={b.x} y2={b.y}>
-      <stop offset="0" stop-color={color} stop-opacity={emptyOp} />
+      <stop offset="0" stop-color="var(--color-mask-overlay)" stop-opacity={emptyOp} />
       {#each ramp as stop, i (i)}
-        <stop offset={stop.offset} stop-color={color} stop-opacity={stop.opacity} />
+        <stop
+          offset={stop.offset}
+          stop-color="var(--color-mask-overlay)"
+          stop-opacity={stop.opacity}
+        />
       {/each}
-      <stop offset="1" stop-color={color} stop-opacity={fillOp} />
+      <stop offset="1" stop-color="var(--color-mask-overlay)" stop-opacity={fillOp} />
     </linearGradient>
   </defs>
   <rect
@@ -80,7 +82,7 @@
     y1={a.y}
     x2={b.x}
     y2={b.y}
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     opacity="0.9"
     style="cursor: pointer;"
@@ -102,7 +104,7 @@
     cx={a.x}
     cy={a.y}
     r="8"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: move;"
@@ -115,7 +117,7 @@
     cx={b.x}
     cy={b.y}
     r="8"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: move;"
@@ -129,7 +131,7 @@
     cy={my}
     r="6"
     fill="var(--color-image-light)"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="2"
     style="cursor: move;"
     role="button"
@@ -142,7 +144,7 @@
     y1={lo.y - py * GUIDE_LEN}
     x2={lo.x + px * GUIDE_LEN}
     y2={lo.y + py * GUIDE_LEN}
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1"
     stroke-dasharray="4 4"
     opacity="0.7"
@@ -152,7 +154,7 @@
     y1={hi.y - py * GUIDE_LEN}
     x2={hi.x + px * GUIDE_LEN}
     y2={hi.y + py * GUIDE_LEN}
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1"
     stroke-dasharray="4 4"
     opacity="0.7"
@@ -161,9 +163,9 @@
     cx={hi.x}
     cy={hi.y}
     r="5"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     fill-opacity="0.3"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     style="cursor: move;"
     role="button"
@@ -175,9 +177,9 @@
     cx={lo.x}
     cy={lo.y}
     r="5"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     fill-opacity="0.3"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     style="cursor: move;"
     role="button"

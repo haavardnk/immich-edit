@@ -93,7 +93,6 @@ function maskLayer(): Edits['masks'][number] {
     id: 'layer',
     name: 'Range',
     enabled: true,
-    color: '#ff3b30',
     amount: 1,
     invert: false,
     components: [

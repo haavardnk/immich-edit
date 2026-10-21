@@ -183,7 +183,6 @@
           <MaskLinearHandles
             {comp}
             kind={comp.kind}
-            color={active.color}
             {rect}
             {toPx}
             {fromPx}
@@ -194,7 +193,6 @@
           <MaskRadialHandles
             {comp}
             kind={comp.kind}
-            color={active.color}
             {rect}
             {toPx}
             {aspect}
@@ -204,7 +202,6 @@
         {:else if comp.kind.kind === 'polygon'}
           <MaskPolygonHandles
             kind={comp.kind}
-            color={active.color}
             {toPx}
             {fromPx}
             onDrag={(e, kind) => startDrag(e, comp.id, kind)}

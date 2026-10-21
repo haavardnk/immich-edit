@@ -1,5 +1,4 @@
 import {
-  MASK_COLOR_TOKENS,
   MASKED_EDIT_KEYS,
   type ClickPointMeta,
   type Edits,
@@ -48,7 +47,6 @@ function parseMaskLayer(raw: unknown): MaskLayer | null {
     id: record.id,
     name: typeof record.name === 'string' ? record.name : '',
     enabled: record.enabled !== false,
-    color: typeof record.color === 'string' ? record.color : MASK_COLOR_TOKENS[0],
     amount: typeof record.amount === 'number' ? record.amount : 1,
     invert: record.invert === true,
     components,

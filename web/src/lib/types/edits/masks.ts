@@ -1,14 +1,3 @@
-export const MASK_COLOR_TOKENS = [
-  '#ff3b30',
-  '#ff9500',
-  '#ffcc00',
-  '#34c759',
-  '#5ac8fa',
-  '#007aff',
-  '#af52de',
-  '#ff2d55'
-] as const;
-
 export const N_MAX_MASK_LAYERS = 8;
 export const N_MAX_COMPONENTS_PER_LAYER = 8;
 export const N_MAX_TOTAL_COMPONENTS = 32;
@@ -107,7 +96,6 @@ export interface MaskLayer {
   id: string;
   name: string;
   enabled: boolean;
-  color: string;
   amount: number;
   invert: boolean;
   components: MaskComponent[];

@@ -21,7 +21,6 @@ function mask(id: string, name: string): MaskLayer {
     id,
     name,
     enabled: true,
-    color: '#ff0000',
     amount: 1,
     invert: false,
     components: [

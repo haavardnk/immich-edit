@@ -470,7 +470,6 @@ test('develop reset keeps masks, retouch and the crop', async ({ page }) => {
       id: 'layer',
       name: 'Sky',
       enabled: true,
-      color: '#ff3b30',
       amount: 1,
       invert: false,
       components: [

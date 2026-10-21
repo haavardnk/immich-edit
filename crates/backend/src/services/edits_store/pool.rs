@@ -148,4 +148,74 @@ mod tests {
             panic!("current-format row rewritten: {raw}");
         }
     }
+
+    async fn raw_json(s: &EditsStore, sql: &'static str, id: &str) -> serde_json::Value {
+        let raw: String = sqlx::query_scalar(sql)
+            .bind(id)
+            .fetch_one(&s.pool)
+            .await
+            .unwrap();
+        serde_json::from_str(&raw).unwrap()
+    }
+
+    #[tokio::test]
+    async fn mask_color_migration_strips_layer_colors() {
+        const COLORED: &str = r##"{"masks":[{"id":"l1","color":"#ff9500","amount":0.5},{"id":"l2","color":"#ff3b30","edits":{"exposure_ev":1.0}}]}"##;
+        const PRESET: &str = r##"{"schema_version":5,"ops":{"masks":{"layers":[{"id":"l1","color":"#ff9500","amount":0.5},"junk"]}}}"##;
+        let opts = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        let migrator = sqlx::migrate!("./migrations");
+        migrator.run_to(25, &pool).await.unwrap();
+        let s = EditsStore { pool };
+        let colored = seed(&s, COLORED).await.to_string();
+        let current = seed(&s, CURRENT).await.to_string();
+        let preset = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO presets (id, name, manifest_json, schema_version, created_at, \
+             updated_at, user_id) VALUES (?1, 'p', ?2, 5, 't', 't', ?3)",
+        )
+        .bind(&preset)
+        .bind(PRESET)
+        .bind(O.to_string())
+        .execute(&s.pool)
+        .await
+        .unwrap();
+        migrator.run(&s.pool).await.unwrap();
+
+        let layers = serde_json::json!([
+            {"id": "l1", "amount": 0.5},
+            {"id": "l2", "edits": {"exposure_ev": 1.0}}
+        ]);
+        let edits_sql = "SELECT edits_json FROM edits WHERE asset_id = ?1";
+        let history_sql = "SELECT edits_json FROM edits_history WHERE asset_id = ?1";
+        for sql in [edits_sql, history_sql] {
+            let json = raw_json(&s, sql, &colored).await;
+            if json["masks"] != layers {
+                panic!("colors kept: {json}");
+            }
+        }
+        let json = raw_json(
+            &s,
+            "SELECT manifest_json FROM presets WHERE id = ?1",
+            &preset,
+        )
+        .await;
+        if json["ops"]["masks"]["layers"]
+            != serde_json::json!([{"id": "l1", "amount": 0.5}, "junk"])
+        {
+            panic!("preset colors kept: {json}");
+        }
+        let raw: String = sqlx::query_scalar(edits_sql)
+            .bind(&current)
+            .fetch_one(&s.pool)
+            .await
+            .unwrap();
+        if raw != CURRENT {
+            panic!("colorless row rewritten: {raw}");
+        }
+    }
 }
