@@ -38,12 +38,12 @@ test('each thumbnail info mode shows more than the last', async ({ page }) => {
   await expect(row).toHaveCSS('opacity', '1');
   await expect(name).toHaveCSS('opacity', '0');
 
-  await page.keyboard.press('Shift+i');
+  await page.keyboard.press('i');
   await expect(page.getByRole('button', { name: 'Thumbnail info: name and date' })).toBeVisible();
   await expect(name).toHaveCSS('opacity', '1');
   await expect(name).toContainText(new Date('2024-01-01T00:00:00Z').toLocaleDateString());
 
-  await page.keyboard.press('Shift+i');
+  await page.keyboard.press('i');
   await expect(page.getByRole('button', { name: 'Thumbnail info: hover only' })).toBeVisible();
   await expect(heart).toHaveCSS('opacity', '0');
   await expect(row).toHaveCSS('opacity', '0');

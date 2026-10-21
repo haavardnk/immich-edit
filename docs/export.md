@@ -13,7 +13,7 @@ downloads to your computer or uploads to Immich as a new photo next to the origi
 
 ## Export one photo
 
-1. Open **Export** in the editor, or press `Ctrl+Shift+E`.
+1. Open **Export** in the editor, or press `Shift+E`.
 1. Choose **Download** or **To Immich**.
 1. Pick a **Format** and its options.
 1. Press the button at the bottom. It names the format, such as **Export JPEG** or

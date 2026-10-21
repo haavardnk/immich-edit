@@ -13,6 +13,10 @@ permalink: /shortcuts/
 Press `?` anywhere in immich-edit to open the same list as a searchable dialog. On macOS, press
 Command wherever a shortcut below says `Ctrl`.
 
+`Shift` with a letter opens a tool, panel or strip, a plain letter acts on the photo, and `Ctrl`
+runs a command. Symbol keys such as `[`, `{` and `\` work however your keyboard layout types
+them, including with `Option` or `AltGr`.
+
 Shortcuts do not run while focus is in a text field or another typing control.
 
 ## General
@@ -28,7 +32,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | --------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------ |
 | `0` / `1` / `2` / `3` / `4` / `5`                                     | Set, toggle or clear the rating                   | Grid, Loupe, Compare, Survey, Editor |
 | `Shift+0` / `Shift+1` / `Shift+2` / `Shift+3` / `Shift+4` / `Shift+5` | Set the rating and move to the next photo         | Grid, Loupe, Compare, Survey         |
-| `P` / `F`                                                             | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
+| `P`                                                                   | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
 | `X`                                                                   | Toggle reject                                     | Grid, Loupe, Compare, Survey, Editor |
 | `U`                                                                   | Clear favorite and reject                         | Grid, Loupe, Compare, Survey, Editor |
 | `6` / `7` / `8` / `9`                                                 | Set or clear the red, yellow, green or blue label | Grid, Loupe, Compare, Survey, Editor |
@@ -42,7 +46,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Home` / `End`                                                                                           | Select the first or last photo                                   | Grid         |
 | `PgUp` / `PgDn`                                                                                          | Jump a page                                                      | Grid         |
 | `-` / `_` / `=` / `+`                                                                                    | Thumbnail size                                                   | Grid         |
-| `Shift+I`                                                                                                | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
+| `I`                                                                                                      | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
 | `Shift+F`                                                                                                | Show or hide the filter panel                                    | Grid         |
 | `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
 | `Esc`                                                                                                    | Clear the selection                                              | Grid         |
@@ -61,7 +65,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Home` / `End`                                | First / last photo             | Loupe                          |
 | `Z` / `Space`                                 | Toggle zoom                    | Loupe, Compare, Survey, Editor |
 | `I`                                           | Toggle the info panel          | Loupe, Compare, Survey, Editor |
-| `T`                                           | Toggle the tags panel          | Loupe, Editor                  |
+| `Shift+T`                                     | Toggle the tags panel          | Loupe, Editor                  |
 | `J`                                           | Toggle the clipping indicators | Loupe, Compare, Survey, Editor |
 | `Esc`                                         | Close the loupe                | Loupe                          |
 
@@ -90,8 +94,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 | Keys      | Action                     | Available in                   |
 | --------- | -------------------------- | ------------------------------ |
-| `Shift+F` | Toggle fullscreen          | Loupe, Compare, Survey, Editor |
-| `Shift+T` | Hide or show the filmstrip | Loupe, Compare, Survey         |
+| `F`       | Toggle fullscreen          | Loupe, Compare, Survey, Editor |
+| `Shift+S` | Hide or show the filmstrip | Loupe, Compare, Survey, Editor |
 
 ## Loupe gestures
 
@@ -110,21 +114,21 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `←` / `→`      | Previous / next photo                            | Editor              |
 | `Ctrl+Z`       | Undo                                             | Editor              |
 | `Ctrl+Shift+Z` | Redo                                             | Editor              |
-| `D`            | Open Develop                                     | Editor              |
-| `R`            | Open Geometry                                    | Editor              |
-| `Q`            | Open Retouch                                     | Editor              |
-| `M`            | Open Masks                                       | Editor              |
+| `Shift+D`      | Open Develop                                     | Editor              |
+| `Shift+R`      | Open Geometry                                    | Editor              |
+| `Shift+Q`      | Open Retouch                                     | Editor              |
+| `Shift+M`      | Open Masks                                       | Editor              |
 | `Ctrl+'`       | Create a virtual copy                            | Grid, Loupe, Editor |
-| `Shift+P`      | Toggle the perspective corner handles            | Editor              |
 | `Y`            | Toggle the before / after split                  | Editor              |
-| `\`            | Hold to view the original                        | Editor              |
+| `\` / `<`      | Hold to view the original                        | Editor              |
 | `Tab`          | Hide or show the side panels                     | Editor              |
 | `Shift+Tab`    | Hide or show every panel                         | Editor              |
+| `W`            | Pick white balance from a neutral area           | Editor              |
 | `Ctrl+U`       | Auto adjust                                      | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings                           | Editor              |
-| `Ctrl+Shift+C` | Copy edits                                       | Editor, Grid, Loupe |
-| `Ctrl+Shift+V` | Paste edits                                      | Editor, Grid, Loupe |
-| `Ctrl+Shift+E` | Open Export                                      | Editor              |
+| `Ctrl+C`       | Copy edits                                       | Editor, Grid, Loupe |
+| `Ctrl+V`       | Paste edits                                      | Editor, Grid, Loupe |
+| `Shift+E`      | Open Export                                      | Editor              |
 | `Esc`          | Step out of the active tool, panel or fullscreen | Editor              |
 
 ## Sliders
@@ -141,10 +145,9 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | Keys                           | Action                                                            | Available in |
 | ------------------------------ | ----------------------------------------------------------------- | ------------ |
 | `Enter`                        | Apply the crop and transform and return to Develop                | Geometry     |
-| `Shift+A`                      | Draw a line along the horizon to level the photo                  | Geometry     |
+| `A`                            | Draw a line along the horizon to level the photo                  | Geometry     |
 | `Shift + drag inside the crop` | Draw a straighten line without arming the tool                    | Geometry     |
 | `O`                            | Cycle the crop guide: thirds, golden ratio, diagonals, grid, none | Geometry     |
-| `Shift+X`                      | Swap the crop between landscape and portrait                      | Geometry     |
 | `Alt + drag a crop handle`     | Resize the crop about its centre                                  | Geometry     |
 | `Shift + drag a crop handle`   | Keep the current shape of a free crop while resizing              | Geometry     |
 | `Ctrl + scroll over the crop`  | Scale the crop about its centre                                   | Geometry     |
@@ -156,8 +159,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | --------------------------------------------------------- | ------------------------------------------------------------- | -------------- |
 | `Backspace` / `Del`                                       | Delete the selected shape, or undo the last polygon corner    | Masks          |
 | `K`                                                       | Add a brush mask layer                                        | Editor         |
-| `Shift+M`                                                 | Add a radial mask layer                                       | Editor         |
-| `Shift+L`                                                 | Add a linear mask layer                                       | Editor         |
+| `R`                                                       | Add a radial mask layer                                       | Editor         |
+| `L`                                                       | Add a linear mask layer                                       | Editor         |
 | `↑` / `↓` / `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` | Nudge the selected shape one pixel, ten with Shift            | Masks          |
 | `Click the dot between two corners`                       | Add a polygon corner                                          | Masks          |
 | `Double-click the corner`                                 | Remove a polygon corner                                       | Masks          |

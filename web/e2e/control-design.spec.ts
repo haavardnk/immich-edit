@@ -442,7 +442,7 @@ test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
     route.fulfill(json([{ id: 'tag-1', value: 'Landscape' }]))
   );
   await gotoAsset(page);
-  await page.getByRole('button', { name: 'Tags (T)' }).click();
+  await page.getByRole('button', { name: 'Tags (Shift+T)' }).click();
 
   const search = page.getByPlaceholder('Search tags…');
   const input = containerOf(search);
@@ -847,7 +847,7 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Select', exact: true }).first().click();
   await page.getByRole('button', { name: /^Favorite \(/ }).hover();
-  await expect(page.getByText('Favorite (P / F)')).toBeVisible();
+  await expect(page.getByText('Favorite (P)')).toBeVisible();
   await page
     .getByLabel('Selection actions')
     .getByRole('radio', { name: '3 stars', exact: true })

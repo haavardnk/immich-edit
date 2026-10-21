@@ -18,14 +18,16 @@ The tool rail on the right switches between five tools:
 
 | Tool | Key | Use it for |
 | --- | --- | --- |
-| **Develop** | `D` | Color, tone, detail, lens, presets and versions |
-| **Masks** | `M` | Adjustments that apply to part of the photo |
-| **Retouch** | `Q` | Removing dust, spots and distractions |
-| **Geometry** | `R` | Crop, straighten, rotate and perspective |
-| **Export** | `Ctrl+Shift+E` | Downloading or uploading the result; see [export](export.md) |
+| **Develop** | `Shift+D` | Color, tone, detail, lens, presets and versions |
+| **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
+| **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
+| **Geometry** | `Shift+R` | Crop, straighten, rotate and perspective |
+| **Export** | `Shift+E` | Downloading or uploading the result; see [export](export.md) |
 
 `←` and `→` move to the previous or next photo, and `G` goes back to the grid. `Tab` hides the
-side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
+side panels, `Shift+Tab` hides every panel, `Shift+S` hides the filmstrip, and `F` goes full
+screen. Keys with `Shift` open a tool or panel, plain letters act on the photo, and `Ctrl` (`⌘` on
+a Mac) runs commands such as undo, copy and paste.
 
 ## Develop a photo
 
@@ -39,10 +41,10 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    starting point. It meters the photo as rendered with your profile, crop and lens corrections,
    weights detected faces, keeps night scenes dark, and holds exposure back rather than blow out
    bright areas. Then:
-   - **White Balance**: **Pick white balance** and click something that should be neutral gray, or
-     drag a box over a larger gray area to use its average. While you hover or drag, a card next
-     to the pointer shows the **Temperature** and **Tint** the pick would set. Or use **Auto
-     white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
+   - **White Balance**: **Pick white balance** (`W`) and click something that should be neutral
+     gray, or drag a box over a larger gray area to use its average. While you hover or drag, a
+     card next to the pointer shows the **Temperature** and **Tint** the pick would set. Or use
+     **Auto white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
      that could be neutral gray and stays near the camera's white when a scene has none, so warm
      interiors and colorful subjects keep their mood. On RAW files the sliders show
      the white in Kelvin, start at the camera's as-shot white, and reset to it; positive **Tint**
@@ -112,7 +114,7 @@ and white. The panel's dot resets all of them.
 
 | Control | What it does |
 | --- | --- |
-| **Hold for original**, or hold `\` | Shows the unedited photo while held |
+| **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
 | **Before / after split**, or `Y` | Splits the view; drag the divider to move it |
 | **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
@@ -140,14 +142,16 @@ set of adjustments.
 
 1. Press **New**, or **Create a mask** on a photo without masks.
 1. Pick a shape:
-   - **Linear gradient** and **Radial gradient** fade out from a line or an ellipse. Drag the
-     handles on the photo. A linear gradient fades at right angles to its line on any crop shape.
+   - **Linear gradient** and **Radial gradient** fade out from a line or an ellipse; `L` and `R`
+     add one. Drag the handles on the photo. A linear gradient fades at right angles to its line
+     on any crop shape.
      The small grip past the radial's side handle turns the ellipse, for a
      tilted face or horizon. Hold `Shift` while dragging to keep a radial round, snap a linear
      gradient to 45° steps, or move a polygon corner straight across or straight up and down.
    - **Brush** paints the area by hand. `[` and `]` change the size, `{` and `}` the hardness, and
-     **Erase** takes paint away. Over the photo, `Alt` and scroll resize the brush and `Alt+Shift`
-     and scroll change its hardness.
+     **Erase** takes paint away. On keyboards where these characters need `Alt`, `Option` or
+     `AltGr`, type them the usual way. Over the photo, `Alt` and scroll resize the brush and
+     `Alt+Shift` and scroll change its hardness.
    - **Polygon** follows straight edges. Click to place corners and click the first one, or press
      `Enter`, to close it. Its feather is the same width along every edge.
    - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
@@ -194,26 +198,26 @@ another tool.
 
 - **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1**,
   **3:2**, **5:4** or **7:5**; **Custom…** takes any whole-number width and height. The button beside
-  it, or `Shift+X`, swaps landscape and portrait, so **5:4** becomes **4:5**. The size the crop keeps,
+  it swaps landscape and portrait, so **5:4** becomes **4:5**. The size the crop keeps,
   in pixels of the original, shows beside **Crop**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
   shape of a free crop. `Ctrl` or `Cmd` with the mouse wheel scales the crop, and with a drag inside
   it moves the photo under the crop. **Crop guide**, or `O`, cycles the overlay between rule of
   thirds, golden ratio, diagonals, a grid and none, and remembers your choice.
-- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `Shift+A`,
+- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`,
   and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
   the same without the button. **Rotate left 90°** and **Rotate right 90°** turn the photo, and
   **Flip Horizontal** and **Flip Vertical** mirror it.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
-  afterwards. **Corner handles**, or `Shift+P`, lets you drag the four corners onto a shape that
+  afterwards. **Corner handles** lets you drag the four corners onto a shape that
   should be rectangular instead.
 - **Reset Transform** undoes everything in this tool.
 
 ## Reuse edits
 
-**Copy edits** (`Ctrl+Shift+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
+**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
 **Tone**, **Color**, **Detail**, **Lens Corrections**, **Effects**, **Geometry & crop**, **Masks**
 and **Retouch**. The last three start unchecked, because a crop or a mask rarely fits another
-photo. Then open another photo and press **Paste edits** (`Ctrl+Shift+V`). To paste onto many
+photo. Then open another photo and press **Paste edits** (`Ctrl+V`). To paste onto many
 photos at once, use [**Edit and export selected**](export.md#export-many-photos).
 
 A preset keeps a look for later. In **Presets**, press **Save current as preset**, give it a name

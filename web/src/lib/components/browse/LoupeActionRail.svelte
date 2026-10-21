@@ -183,7 +183,7 @@
       icon={mdiFilmstrip}
       title={hint(
         ui.loupeFilmstripCollapsed ? 'Show filmstrip' : 'Collapse filmstrip',
-        'loupeFilmstrip'
+        'filmstrip'
       )}
       aria-label={ui.loupeFilmstripCollapsed ? 'Show filmstrip' : 'Collapse filmstrip'}
       aria-pressed={!ui.loupeFilmstripCollapsed}

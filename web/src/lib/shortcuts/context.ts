@@ -4,14 +4,24 @@ import { compare } from '$lib/stores/compare.svelte';
 import { browseView } from '$lib/stores/browseView.svelte';
 import type { KeybindContext } from './table';
 
-export function activeContexts(): KeybindContext[] {
+export const CONTEXT_STACKS = {
+  masks: ['masks', 'editor', 'global'],
+  retouch: ['retouch', 'editor', 'global'],
+  geometry: ['geometry', 'editor', 'global'],
+  editor: ['editor', 'global'],
+  compare: ['compare', 'global'],
+  survey: ['survey', 'global'],
+  loupe: ['loupe', 'global'],
+  grid: ['grid', 'global']
+} as const satisfies Record<string, readonly KeybindContext[]>;
+
+export function activeContexts(): readonly KeybindContext[] {
   if (page.url.pathname.startsWith('/assets/')) {
-    if (ui.editorTab === 'masks') return ['masks', 'editor', 'global'];
-    if (ui.editorTab === 'retouch') return ['retouch', 'editor', 'global'];
-    if (ui.editorTab === 'geometry') return ['geometry', 'editor', 'global'];
-    return ['editor', 'global'];
+    const tab = ui.editorTab;
+    if (tab === 'masks' || tab === 'retouch' || tab === 'geometry') return CONTEXT_STACKS[tab];
+    return CONTEXT_STACKS.editor;
   }
-  if (compare.mode !== 'single') return [compare.mode, 'global'];
-  if (browseView.loupeId) return ['loupe', 'global'];
-  return ['grid', 'global'];
+  if (compare.mode !== 'single') return CONTEXT_STACKS[compare.mode];
+  if (browseView.loupeId) return CONTEXT_STACKS.loupe;
+  return CONTEXT_STACKS.grid;
 }

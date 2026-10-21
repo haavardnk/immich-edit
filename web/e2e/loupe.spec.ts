@@ -97,10 +97,10 @@ test('z toggles loupe zoom', async ({ page }) => {
   await expect(image).not.toHaveAttribute('style', /scale\(/);
 });
 
-test('shift+f toggles loupe fullscreen', async ({ page }) => {
+test('F toggles loupe fullscreen', async ({ page }) => {
   await openLoupe(page);
 
-  await page.keyboard.press('Shift+f');
+  await page.keyboard.press('f');
   await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Exit fullscreen/ })).toBeVisible();
@@ -148,11 +148,11 @@ test('a vertical wheel scrolls the loupe filmstrip', async ({ page }) => {
   await expect.poll(() => strip.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
 });
 
-test('shift+t hides the loupe filmstrip', async ({ page }) => {
+test('Shift+S hides the loupe filmstrip', async ({ page }) => {
   await openLoupe(page);
   await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();
 
-  await page.keyboard.press('Shift+t');
+  await page.keyboard.press('Shift+S');
 
   await expect(page.getByTestId('filmstrip-scroll')).toHaveCount(0);
 });

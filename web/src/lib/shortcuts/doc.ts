@@ -28,6 +28,10 @@ permalink: /shortcuts/
 Press \`?\` anywhere in immich-edit to open the same list as a searchable dialog. On macOS, press
 Command wherever a shortcut below says \`Ctrl\`.
 
+\`Shift\` with a letter opens a tool, panel or strip, a plain letter acts on the photo, and \`Ctrl\`
+runs a command. Symbol keys such as \`[\`, \`{\` and \`\\\` work however your keyboard layout types
+them, including with \`Option\` or \`AltGr\`.
+
 Shortcuts do not run while focus is in a text field or another typing control.
 `;
 

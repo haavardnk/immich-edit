@@ -118,7 +118,9 @@ test('editor and loupe keep independent filmstrip visibility', async ({ page }) 
   );
   await page.getByRole('button', { name: /^Edit/ }).click();
 
-  await page.getByRole('button', { name: 'Hide filmstrip' }).click();
+  await expect(page.getByRole('button', { name: 'Hide filmstrip' })).toBeVisible();
+  await page.keyboard.press('Shift+S');
+  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
   await page.getByRole('button', { name: /^Back/ }).click();
 
   await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(

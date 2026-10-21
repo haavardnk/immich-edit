@@ -8,13 +8,15 @@ import { createVirtualCopy } from '$lib/editor/copies';
 import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
 import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
 import { isKeybind, matchKeybind } from './match';
-import { isRadioGroupTarget, isTypingTarget, yieldsToControl } from './targets';
+import { hasTextSelection, isRadioGroupTarget, isTypingTarget, yieldsToControl } from './targets';
 import { activeContexts } from './context';
 import { editorHref } from '$lib/editor/navigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
 import { nudgeable } from '$lib/utils/maskDrag';
 import { panStep } from '$lib/utils/imageViewport';
 import { BRUSH_SIZE, HARDNESS, RETOUCH_SIZE, stepBrush } from '$lib/utils/brushSize';
+
+let heldOriginalCode: string | null = null;
 
 function selectedShapeNudges(): boolean {
   if (ui.editorTab !== 'masks' || !editor.activeMaskComponentId) return false;
@@ -92,6 +94,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
   const bind = matchKeybind(e, activeContexts());
   if (!bind || bind === 'maskDelete' || bind === 'maskClosePolygon' || bind === 'maskNudge') return;
   if ((bind === 'editorNav' || bind === 'zoomPan') && selectedShapeNudges()) return;
+  if ((bind === 'copyEdits' || bind === 'pasteEdits') && hasTextSelection()) return;
   e.preventDefault();
 
   switch (bind) {
@@ -128,6 +131,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       editor.toggleSplit();
       return;
     case 'holdOriginal':
+      heldOriginalCode = e.code;
       if (!editor.showingOriginal) {
         editor.showingOriginal = true;
         editor.onLive();
@@ -141,6 +145,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       return;
     case 'fullscreen':
       ui.toggleFullscreen();
+      return;
+    case 'filmstrip':
+      ui.toggleEditorFilmstrip();
       return;
     case 'openDevelop':
       ui.openTab('develop');
@@ -160,10 +167,6 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'createVirtualCopy':
       void createVirtualCopy(id, { returnPath: page.url.searchParams.get('from') });
       return;
-    case 'perspective':
-      if (ui.editorTab !== 'geometry') ui.openTab('geometry');
-      ui.togglePerspectiveCorners();
-      return;
     case 'geometryDone':
       void editor.finishGeometrySession();
       ui.openTab('develop');
@@ -174,8 +177,13 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'cropGrid':
       ui.cycleCropGrid();
       return;
-    case 'flipAspect':
-      editor.flipGeometryAspect();
+    case 'pickWhiteBalance':
+      if (editor.wbBusy) return;
+      if (ui.editorTab !== 'develop') {
+        ui.openTab('develop');
+        if (editor.wbPicking) return;
+      }
+      editor.toggleWbPicker();
       return;
     case 'autoAdjust':
       if (!editor.autoBusy) void editor.onAutoAdjust();
@@ -252,8 +260,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
 }
 
 export function editorKeyup(e: KeyboardEvent): void {
-  if (isKeybind(e, 'holdOriginal') && editor.showingOriginal) {
-    editor.showingOriginal = false;
-    editor.onLive();
-  }
+  if (!editor.showingOriginal) return;
+  if (e.code !== heldOriginalCode && !isKeybind(e, 'holdOriginal')) return;
+  heldOriginalCode = null;
+  editor.showingOriginal = false;
+  editor.onLive();
 }

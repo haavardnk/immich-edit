@@ -18,6 +18,9 @@ vi.mock('$app/state', () => ({
 }));
 
 const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
+const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.fn() }));
+
+vi.mock('$lib/browse/copyPaste', () => clipboard);
 
 vi.mock('$lib/browse/cull', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/browse/cull')>()),
@@ -79,6 +82,8 @@ function press(key: string, init: KeyboardEventInit = {}): void {
 beforeEach(() => {
   rateAsset.mockClear();
   rateAsset.mockResolvedValue(true);
+  clipboard.copyEditsFrom.mockClear();
+  clipboard.pasteEditsTo.mockClear();
   selection.clear();
   browseView.setActive(null);
   browseControls.filters.rejected = 'any';
@@ -93,6 +98,7 @@ afterEach(() => {
   if (component) void unmount(component);
   component = null;
   scroller.remove();
+  window.getSelection()?.removeAllRanges();
 });
 
 describe('AssetGrid', () => {
@@ -162,6 +168,19 @@ describe('AssetGrid', () => {
     render();
     click(selectButton(1));
     expect(browseView.activeId).toBe('b');
+  });
+
+  it.each([
+    ['c', 'copyEditsFrom'],
+    ['v', 'pasteEditsTo']
+  ] as const)('Mod+%s leaves selected text to the browser', (key, action) => {
+    render();
+    click(selectButton(0));
+    press(key, { ctrlKey: true });
+    expect(clipboard[action]).toHaveBeenCalledTimes(1);
+    window.getSelection()?.selectAllChildren(document.body);
+    press(key, { ctrlKey: true });
+    expect(clipboard[action]).toHaveBeenCalledTimes(1);
   });
 
   it.each([

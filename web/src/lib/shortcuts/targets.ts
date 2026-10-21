@@ -18,3 +18,8 @@ export function yieldsToControl(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
   return !!el?.matches(CONTROL) && !isPointerFocused(el);
 }
+
+export function hasTextSelection(): boolean {
+  const selection = window.getSelection();
+  return !!selection && !selection.isCollapsed;
+}

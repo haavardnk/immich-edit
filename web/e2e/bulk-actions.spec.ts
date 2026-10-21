@@ -218,7 +218,7 @@ test('grid shortcuts copy edits from one photo and paste them onto a selection',
   await expect(tile(source.originalFileName)).toBeVisible();
 
   await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ControlOrMeta+Shift+c');
+  await page.keyboard.press('ControlOrMeta+c');
   const dialog = page.getByRole('dialog', { name: 'Copy settings' });
   await dialog.getByRole('button', { name: 'Copy', exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -230,7 +230,7 @@ test('grid shortcuts copy edits from one photo and paste them onto a selection',
   await expect(page.getByText('2 selected')).toBeVisible();
 
   const job = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/api/jobs'));
-  await page.keyboard.press('ControlOrMeta+Shift+v');
+  await page.keyboard.press('ControlOrMeta+v');
   const body = (await job).postDataJSON() as { kind: string; asset_ids: string[] };
   expect(body.kind).toBe('paste_edits');
   expect(body.asset_ids.sort()).toEqual([second.id, third.id].sort());

@@ -142,9 +142,9 @@ test('develop panel state survives fullscreen and reload', async ({ page }) => {
   await curves.click();
   await expect(curves).toHaveAttribute('aria-expanded', 'true');
 
-  await page.keyboard.press('Shift+F');
+  await page.keyboard.press('f');
   await expect(page.getByRole('button', { name: 'Curves', exact: true })).toHaveCount(0);
-  await page.keyboard.press('Shift+F');
+  await page.keyboard.press('f');
   await expect(page.getByRole('button', { name: 'Curves', exact: true })).toHaveAttribute(
     'aria-expanded',
     'true'

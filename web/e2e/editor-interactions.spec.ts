@@ -543,6 +543,10 @@ test('the mask weight hides for a held original without a new render', async ({ 
   await expect(weight).toHaveCount(0);
   await page.keyboard.up('\\');
   await expect(weight).toBeVisible();
+  await page.keyboard.down('<');
+  await expect(weight).toHaveCount(0);
+  await page.keyboard.up('<');
+  await expect(weight).toBeVisible();
   expect(weights()).toBe(rendered);
 });
 
@@ -620,7 +624,12 @@ test('dragging a white balance box samples its area', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Pick white balance' }).click();
+  await page.keyboard.press('Shift+M');
+  await page.keyboard.press('w');
+  await expect(page.getByRole('button', { name: 'Pick white balance' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
   const surface = page.getByTestId('wb-picker-surface');
   const box = await surface.boundingBox();
   if (!box) throw new Error('white balance picker has no box');
@@ -876,7 +885,7 @@ test('keyboard help splits binds by the current context', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Elsewhere in the app' })).toBeVisible();
 
   await page.keyboard.press('Escape');
-  await page.keyboard.press('m');
+  await page.keyboard.press('Shift+M');
   await page.keyboard.press('Shift+/');
   await expect(page.getByRole('heading', { name: 'Available in the Masks panel' })).toBeVisible();
   for (const label of [
@@ -888,17 +897,17 @@ test('keyboard help splits binds by the current context', async ({ page }) => {
   }
 });
 
-test('D opens Develop, Q opens Retouch and M opens Masks', async ({ page }) => {
+test('Shift+D opens Develop, Shift+Q Retouch and Shift+M Masks', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.keyboard.press('q');
+  await page.keyboard.press('Shift+Q');
   await expect(page.getByRole('tab', { name: 'Retouch' })).toHaveAttribute('aria-selected', 'true');
 
-  await page.keyboard.press('m');
+  await page.keyboard.press('Shift+M');
   await expect(page.getByRole('tab', { name: 'Masks' })).toHaveAttribute('aria-selected', 'true');
 
-  await page.keyboard.press('d');
+  await page.keyboard.press('Shift+D');
   await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
 });
 
@@ -1068,7 +1077,7 @@ async function dragCropCorner(page: import('@playwright/test').Page): Promise<vo
 test('o cycles the crop guide and the choice survives a reload', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   const guide = page.getByTestId('crop-guide');
   await expect(guide).toHaveAttribute('data-mode', 'thirds');
   for (const mode of ['golden', 'diagonal', 'grid', 'off']) {
@@ -1080,7 +1089,7 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await expect(guide).toHaveAttribute('data-mode', 'golden');
 
   await page.reload();
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
   await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();
 });
@@ -1091,18 +1100,19 @@ async function cropRatio(page: import('@playwright/test').Page): Promise<number>
   return (w ?? 0) / (h ?? 1);
 }
 
-test('aspect presets, Shift+X and a custom ratio drive the output size', async ({ page }) => {
+test('aspect presets, the orientation button and a custom ratio drive the output size', async ({
+  page
+}) => {
   await installMocks(page, { previewBody: makePng(60, 40) });
   await gotoAsset(page);
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-output-size')).toHaveText('6000 × 4000 px');
 
   await page.getByRole('button', { name: 'Aspect Ratio' }).click();
   await page.getByRole('option', { name: '5:4', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(5 / 4, 2);
 
-  await page.locator('.cursor-move').click();
-  await page.keyboard.press('Shift+X');
+  await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
   await expect(page.getByRole('button', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
 
@@ -1127,12 +1137,12 @@ for (const how of ['tool', 'shift'] as const) {
   test(`a line drawn with the straighten ${how} levels the photo`, async ({ page }) => {
     await installMocks(page);
     await gotoAsset(page);
-    await page.keyboard.press('r');
+    await page.keyboard.press('Shift+R');
     await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
     const straighten = page.getByRole('button', { name: 'Straighten' });
     if (how === 'tool') {
-      await page.keyboard.press('Shift+A');
+      await page.keyboard.press('a');
       await expect(straighten).toHaveAttribute('aria-pressed', 'true');
     }
     const surface =
@@ -1155,7 +1165,7 @@ for (const how of ['tool', 'shift'] as const) {
   });
 }
 
-test('R opens Geometry and Escape drops the crop', async ({ page }) => {
+test('Shift+R opens Geometry and Escape drops the crop', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
@@ -1163,7 +1173,7 @@ test('R opens Geometry and Escape drops the crop', async ({ page }) => {
   await page.getByRole('tab', { name: 'Develop' }).click();
   await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
 
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
     'aria-selected',
     'true'
@@ -1180,7 +1190,7 @@ test('R opens Geometry and Escape drops the crop', async ({ page }) => {
 });
 
 for (const [open, apply] of [
-  ['r', 'Enter'],
+  ['Shift+R', 'Enter'],
   ['rail', 'Enter'],
   ['rail', 'rail']
 ] as const) {
@@ -1192,7 +1202,7 @@ for (const [open, apply] of [
     const geometryTab = page.getByRole('tab', { name: 'Geometry' });
 
     if (open === 'rail') await geometryTab.click();
-    else await page.keyboard.press('r');
+    else await page.keyboard.press('Shift+R');
     await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
     await dragCropCorner(page);
 
@@ -1217,7 +1227,7 @@ for (const [open, apply] of [
 test('Enter applies the crop after a mouse click on a panel button', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
   await dragCropCorner(page);
 
@@ -1236,14 +1246,14 @@ test('Enter applies the crop after a mouse click on a panel button', async ({ pa
     manifest: { ops: { transform?: { crop?: { w: number } } } };
   };
   expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   await expect(guide).toHaveAttribute('aria-label', after ?? '');
 });
 
 test('Enter still activates a button reached with Tab', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.keyboard.press('r');
+  await page.keyboard.press('Shift+R');
   const guide = page.getByRole('button', { name: /^Crop guide: / });
   await expect(guide).toBeVisible();
   const before = await guide.getAttribute('aria-label');

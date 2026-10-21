@@ -104,7 +104,7 @@
             variant="ghost"
             color={ui.perspectiveCorners ? 'primary' : 'secondary'}
             icon={mdiVectorSquare}
-            title={hint('Corner handles', 'perspective')}
+            title="Corner handles"
             aria-label="Corner handles"
             aria-pressed={ui.perspectiveCorners}
             onclick={ui.togglePerspectiveCorners}

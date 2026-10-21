@@ -6,7 +6,8 @@ describe('platform labels', () => {
   it.each<[KeybindId, string, string]>([
     ['undo', '⌘Z', 'Ctrl+Z'],
     ['redo', '⌘⇧Z', 'Ctrl+Shift+Z'],
-    ['fullscreen', '⇧F', 'Shift+F'],
+    ['openMasks', '⇧M', 'Shift+M'],
+    ['copyEdits', '⌘C', 'Ctrl+C'],
     ['editorEscape', 'Esc', 'Esc'],
     ['maskDelete', '⌫ / ⌦', 'Backspace / Del'],
     ['loupeNav', '← / →', '← / →'],

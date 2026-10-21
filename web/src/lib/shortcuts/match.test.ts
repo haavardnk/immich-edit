@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { isKeybind, matchKeybind } from './match';
 import type { KeybindContext, KeybindId } from './table';
 
-function key(init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {
+function key(init: Partial<KeyboardEvent> & { key: string; altGraph?: boolean }): KeyboardEvent {
   return {
     key: init.key,
     code: init.code ?? '',
     metaKey: init.metaKey ?? false,
     ctrlKey: init.ctrlKey ?? false,
     shiftKey: init.shiftKey ?? false,
-    altKey: init.altKey ?? false
-  } as KeyboardEvent;
+    altKey: init.altKey ?? false,
+    getModifierState: (name: string) => name === 'AltGraph' && init.altGraph === true
+  } as unknown as KeyboardEvent;
 }
 
 describe('chord matching', () => {
@@ -23,10 +24,12 @@ describe('chord matching', () => {
     ['redo', { key: 'z', metaKey: true }, false],
     ['undo', { key: 'z', metaKey: true, altKey: true }, false],
     ['favorite', { key: 'P', shiftKey: true }, false],
-    ['favorite', { key: 'P' }, true],
     ['favorite', { key: 'p' }, true],
-    ['fullscreen', { key: 'f', shiftKey: true }, true],
-    ['fullscreen', { key: 'f' }, false],
+    ['favorite', { key: 'f' }, false],
+    ['fullscreen', { key: 'f' }, true],
+    ['fullscreen', { key: 'F', shiftKey: true }, false],
+    ['copyEdits', { key: 'c', metaKey: true }, true],
+    ['copyEdits', { key: 'c', metaKey: true, shiftKey: true }, false],
     ['help', { key: '?', shiftKey: true }, true],
     ['help', { key: '/', shiftKey: true }, true],
     ['zoomToggle', { key: ' ' }, true],
@@ -57,10 +60,17 @@ describe('context resolution', () => {
     [{ key: 'Escape' }, ['masks', 'editor', 'global'], 'editorEscape'],
     [{ key: 'Escape' }, ['grid', 'global'], 'gridClearSelection'],
     [{ key: 'd' }, ['compare', 'global'], 'paneOpenEditor'],
-    [{ key: 'd' }, ['editor', 'global'], 'openDevelop'],
-    [{ key: 'f', shiftKey: true }, ['loupe', 'global'], 'fullscreen'],
-    [{ key: 'f', shiftKey: true }, ['compare', 'global'], 'fullscreen'],
-    [{ key: 'f', shiftKey: true }, ['survey', 'global'], 'fullscreen'],
+    [{ key: 'd' }, ['editor', 'global'], null],
+    [{ key: 'D', shiftKey: true }, ['editor', 'global'], 'openDevelop'],
+    [{ key: 'r' }, ['geometry', 'editor', 'global'], 'addRadialLayer'],
+    [{ key: 'w' }, ['masks', 'editor', 'global'], 'pickWhiteBalance'],
+    [{ key: 'S', shiftKey: true }, ['editor', 'global'], 'filmstrip'],
+    [{ key: 'i' }, ['grid', 'global'], 'gridTileInfo'],
+    [{ key: 'i' }, ['loupe', 'global'], 'toggleInfo'],
+    [{ key: 'f' }, ['loupe', 'global'], 'fullscreen'],
+    [{ key: 'f' }, ['compare', 'global'], 'fullscreen'],
+    [{ key: 'f' }, ['survey', 'global'], 'fullscreen'],
+    [{ key: 'F', shiftKey: true }, ['grid', 'global'], 'toggleFilters'],
     [{ key: 'c' }, ['retouch', 'editor', 'global'], 'retouchClone'],
     [{ key: 'Enter' }, ['geometry', 'editor', 'global'], 'geometryDone'],
     [{ key: 'Enter' }, ['editor', 'global'], null],
@@ -81,5 +91,30 @@ describe('code chords', () => {
     ['Shift+6', { key: '&', code: 'Digit6', shiftKey: true }, null]
   ])('%s', (_name, init, expected) => {
     expect(matchKeybind(key(init), ['grid'])).toBe(expected);
+  });
+});
+
+describe('layout symbols', () => {
+  it.each<[string, Partial<KeyboardEvent> & { key: string; altGraph?: boolean }, string, boolean]>([
+    ['Norwegian Mac [', { key: '[', altKey: true }, 'brushSize', true],
+    ['Norwegian Mac {', { key: '{', altKey: true, shiftKey: true }, 'brushHardness', true],
+    ['Norwegian Mac \\', { key: '\\', altKey: true, shiftKey: true }, 'holdOriginal', true],
+    [
+      'Windows AltGr [',
+      { key: '[', ctrlKey: true, altKey: true, altGraph: true },
+      'brushSize',
+      true
+    ],
+    ['ISO key beside Z', { key: '<' }, 'holdOriginal', true],
+    ['Ctrl+[ without AltGr', { key: '[', ctrlKey: true }, 'brushSize', false],
+    ['Cmd+[', { key: '[', metaKey: true, altKey: true }, 'brushSize', false],
+    [
+      'AltGr does not unlock a letter',
+      { key: 'z', ctrlKey: true, altKey: true, altGraph: true },
+      'undo',
+      false
+    ]
+  ])('%s', (_name, init, id, expected) => {
+    expect(isKeybind(key(init), id as KeybindId)).toBe(expected);
   });
 });

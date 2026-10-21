@@ -42,8 +42,8 @@
   import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
   import { hint } from '$lib/shortcuts/labels';
   import { matchKeybind } from '$lib/shortcuts/match';
-  import { isRadioGroupTarget, yieldsToControl } from '$lib/shortcuts/targets';
-  import type { KeybindContext } from '$lib/shortcuts/table';
+  import { hasTextSelection, isRadioGroupTarget, yieldsToControl } from '$lib/shortcuts/targets';
+  import { CONTEXT_STACKS } from '$lib/shortcuts/context';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
   import { IconButton } from '@immich/ui';
@@ -56,8 +56,8 @@
 
   const currentId = $derived(browseView.loupeId);
   const multi = $derived(compare.mode !== 'single');
-  const contexts = $derived<KeybindContext[]>(
-    compare.mode === 'single' ? ['loupe', 'global'] : [compare.mode, 'global']
+  const contexts = $derived(
+    compare.mode === 'single' ? CONTEXT_STACKS.loupe : CONTEXT_STACKS[compare.mode]
   );
   const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
   const focusedId = $derived(multi ? compare.focusedId : currentId);
@@ -386,17 +386,17 @@
         e.preventDefault();
         ui.toggleFullscreen();
         return;
-      case 'loupeFilmstrip':
+      case 'filmstrip':
         e.preventDefault();
         ui.toggleLoupeFilmstrip();
         return;
       case 'copyEdits':
-        if (!focusedId) return;
+        if (!focusedId || hasTextSelection()) return;
         e.preventDefault();
         void copyEditsFrom(focusedId);
         return;
       case 'pasteEdits':
-        if (!focusedId) return;
+        if (!focusedId || hasTextSelection()) return;
         e.preventDefault();
         void pasteEditsTo([focusedId]);
         return;

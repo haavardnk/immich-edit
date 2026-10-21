@@ -55,9 +55,7 @@
       icon={mdiFilmstrip}
       title={!hasFilmstrip
         ? 'No filmstrip available'
-        : ui.editorFilmstripCollapsed
-          ? 'Show filmstrip'
-          : 'Hide filmstrip'}
+        : hint(ui.editorFilmstripCollapsed ? 'Show filmstrip' : 'Hide filmstrip', 'filmstrip')}
       aria-label={!hasFilmstrip
         ? 'No filmstrip available'
         : ui.editorFilmstripCollapsed

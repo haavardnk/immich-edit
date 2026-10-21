@@ -89,7 +89,7 @@ ones **Label** and **Rejected** are hiding because you changed them after they l
 photos instead and the count still includes the ones they hide. Context search works the same
 way on every Immich version, and matches only exact star counts.
 The **S**, **M**, **L** and **XL** buttons set the thumbnail size. The **Thumbnail info** button
-beside them, or `Shift+I`, cycles what a thumbnail shows without hovering: nothing at all, the
+beside them, or `I`, cycles what a thumbnail shows without hovering: nothing at all, the
 favorite, reject, color label, rating and copy badges, or those plus the filename and capture date.
 Hovering a thumbnail shows five stars above its filename; click one to rate that photo, or the
 lit star again to clear it. With filename and date showing, the stars stay visible.
@@ -125,7 +125,7 @@ the selected photos; the arrow keys select one:
 | `1` to `5` | Set the rating; the same key again clears it |
 | `0` | Clear the rating |
 | `Shift` + `0` to `5` | Set the rating and move to the next photo, whatever **Auto-advance** says. In the grid, one selected photo hands its selection to the next one; with several selected, all get the rating and the selection stays |
-| `P` or `F` | Toggle favorite |
+| `P` | Toggle favorite |
 | `X` | Toggle reject |
 | `U` | Clear favorite and reject |
 | `6` to `9` | Set the red, yellow, green or blue label; the same key again clears it |
@@ -179,7 +179,7 @@ and `N` surveys it with the next five.
 The loupe's **View mode** button switches between **Single photo**, **Compare** and **Survey** as
 well. In compare and survey, the bar under the photos has buttons for the same pane actions:
 **Sync zoom and pan**, **Make select** in compare or **Keep only this photo** in survey,
-and **Drop this photo**. `Shift+T` hides or shows the filmstrip.
+and **Drop this photo**. `Shift+S` hides or shows the filmstrip, and `F` goes full screen.
 Right-click a filmstrip thumbnail for **Open in editor** and **Add to compare**, which adds or
 removes a pane in compare and survey.
 
@@ -211,10 +211,11 @@ With one photo selected, the bar shows its filename in place of the count and an
 editor** button. With two it offers **Compare selected**, and with three or more **Survey
 selected**. **Select all** next to the count loads and selects every photo in the view.
 
-`Ctrl+Shift+C` (`⌘⇧C` on a Mac) copies the edits of the selected photo in the grid, or of the photo
+`Ctrl+C` (`⌘C` on a Mac) copies the edits of the selected photo in the grid, or of the photo
 on screen in the loupe, and asks which settings to take, remembering your last choice.
-`Ctrl+Shift+V` pastes them onto every selected photo as a background job; in the loupe it pastes
-onto the photo on screen.
+`Ctrl+V` pastes them onto every selected photo as a background job; in the loupe it pastes
+onto the photo on screen. When you have selected text on the page, both keys copy and paste the
+text instead.
 
 ## Virtual copies
 
