@@ -4,8 +4,8 @@
   import { createApplyPresetJob, type ApplyPresetOptions } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
   import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
-  import PresetApplyOptions from '$lib/panels/preset/ApplyOptions.svelte';
-  import PresetPicker from '$lib/panels/preset/PresetPicker.svelte';
+  import PresetApplyOptions from '$lib/components/preset/ApplyOptions.svelte';
+  import PresetPicker from '$lib/components/preset/PresetPicker.svelte';
   import { Button } from '@immich/ui';
   import { mdiAutoFix } from '@mdi/js';
 

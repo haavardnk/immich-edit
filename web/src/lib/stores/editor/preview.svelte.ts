@@ -8,6 +8,7 @@ import {
   type ProofOptions
 } from '$lib/api/preview';
 import type { ColorSpaceOpt } from '$lib/api/export';
+import { presetEdits, type PresetPreview } from '$lib/edits/applyPreset';
 import { renderer } from '$lib/stores/renderer.svelte';
 import { scopes } from '$lib/stores/scopes.svelte';
 import { ui } from '$lib/stores/ui.svelte';
@@ -71,6 +72,7 @@ export interface PreviewCtx extends MaskWeightCtx {
   splitMode: boolean;
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
+  presetPreview: PresetPreview | null;
   geometrySession: GeometrySession | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
   proofSpace: ColorSpaceOpt;
@@ -322,6 +324,9 @@ export class PreviewEngine {
       return { edits: originalPreviewEdits(edits), maxEdge, previewMode: 'none' };
     }
     if (section) return { edits: neutraliseSection(edits, section), maxEdge, previewMode: 'none' };
+    if (this.ctx.presetPreview) {
+      return { edits: presetEdits(edits, this.ctx.presetPreview), maxEdge, previewMode: 'none' };
+    }
     return { edits, maxEdge, previewMode: 'none' };
   }
 
@@ -390,6 +395,7 @@ export class PreviewEngine {
       this.ctx.splitMode ||
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
+      !!this.ctx.presetPreview ||
       !!this.ctx.geometrySession ||
       this.previewing ||
       !!this.ctx.colorPicker

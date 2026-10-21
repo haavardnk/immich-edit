@@ -9,12 +9,13 @@
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';
-  import { IconButton } from '@immich/ui';
-  import { mdiFilmstrip, mdiFullscreen, mdiFullscreenExit } from '@mdi/js';
+  import { Button, IconButton } from '@immich/ui';
+  import { mdiFilmstrip, mdiFullscreen, mdiFullscreenExit, mdiPaletteSwatchOutline } from '@mdi/js';
 
   const hasAsset = $derived(editor.asset != null);
   const owned = $derived(editor.asset ? ownsAsset(editor.asset) : false);
   const hasFilmstrip = $derived(browsing.visible.length > 0);
+  const filmstripShown = $derived(!ui.editorFilmstripCollapsed && !ui.presetStrip);
 </script>
 
 <nav
@@ -48,23 +49,33 @@
       onZoom={ui.userZoom}
       onFit={ui.zoomFit}
     />
-    <IconButton
+    <Button
       size="tiny"
       variant="ghost"
-      color={hasFilmstrip && !ui.editorFilmstripCollapsed ? 'primary' : 'secondary'}
-      icon={mdiFilmstrip}
+      color={ui.presetStrip ? 'primary' : 'secondary'}
+      leadingIcon={mdiPaletteSwatchOutline}
+      title={hint(ui.presetStrip ? 'Hide presets' : 'Show presets', 'presetStrip')}
+      aria-label={ui.presetStrip ? 'Hide presets' : 'Show presets'}
+      aria-pressed={ui.presetStrip}
+      onclick={ui.togglePresetStrip}>Presets</Button
+    >
+    <Button
+      size="tiny"
+      variant="ghost"
+      color={hasFilmstrip && filmstripShown ? 'primary' : 'secondary'}
+      leadingIcon={mdiFilmstrip}
       title={!hasFilmstrip
         ? 'No filmstrip available'
-        : hint(ui.editorFilmstripCollapsed ? 'Show filmstrip' : 'Hide filmstrip', 'filmstrip')}
+        : hint(filmstripShown ? 'Hide filmstrip' : 'Show filmstrip', 'filmstrip')}
       aria-label={!hasFilmstrip
         ? 'No filmstrip available'
-        : ui.editorFilmstripCollapsed
-          ? 'Show filmstrip'
-          : 'Hide filmstrip'}
-      aria-pressed={!ui.editorFilmstripCollapsed}
+        : filmstripShown
+          ? 'Hide filmstrip'
+          : 'Show filmstrip'}
+      aria-pressed={filmstripShown}
       disabled={!hasFilmstrip}
-      onclick={ui.toggleEditorFilmstrip}
-    />
+      onclick={ui.toggleEditorFilmstrip}>Filmstrip</Button
+    >
     <IconButton
       size="tiny"
       variant="ghost"

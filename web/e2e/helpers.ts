@@ -555,7 +555,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (presetMatch && method === 'PUT') {
       const body = JSON.parse(route.request().postData() ?? '{}');
       opts.onPresetUpdate?.(presetMatch[1], body);
-      return route.fulfill(json({ ...(presets[0] ?? {}), ...body }));
+      const idx = presets.findIndex((preset) => preset.id === presetMatch[1]);
+      const updated = { ...(presets[idx] ?? {}), ...body };
+      if (idx >= 0) presets[idx] = updated;
+      return route.fulfill(json(updated));
     }
 
     const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);
@@ -705,9 +708,26 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const body = opts.thumbnailRender?.(thumbnailMatch[1]) ?? PNG_1X1;
       return route.fulfill({ status: 200, contentType: 'image/png', body });
     }
+    if (p.match(/^\/api\/assets\/[^/]+\/presets\/[^/]+\/thumb$/)) {
+      return route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1X1 });
+    }
 
     return route.fulfill(json({}));
   });
+}
+
+export async function openPresetStrip(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Show presets' }).click();
+  return page.getByRole('region', { name: 'Presets' });
+}
+
+export async function presetAction(page: Page, item: string): Promise<void> {
+  await page.getByRole('region', { name: 'Presets' }).getByRole('button', { name: item }).click();
+}
+
+export async function openPresetMenu(page: Page, preset: string): Promise<Locator> {
+  await presetAction(page, `Actions for ${preset}`);
+  return page.locator('[data-popover-content]');
 }
 
 export async function gotoAsset(page: Page): Promise<void> {

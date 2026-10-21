@@ -145,6 +145,9 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'filmstrip':
       ui.toggleEditorFilmstrip();
       return;
+    case 'presetStrip':
+      ui.togglePresetStrip();
+      return;
     case 'openDevelop':
       ui.openTab('develop');
       return;

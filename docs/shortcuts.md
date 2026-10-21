@@ -118,6 +118,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+R`      | Open Geometry                                           | Editor              |
 | `Shift+Q`      | Open Retouch                                            | Editor              |
 | `Shift+M`      | Open Masks                                              | Editor              |
+| `Shift+P`      | Show or hide the presets strip                          | Editor              |
 | `Ctrl+'`       | Create a virtual copy                                   | Grid, Loupe, Editor |
 | `Y`            | Toggle the before / after split                         | Editor              |
 | `\` / `<`      | Hold to view the original                               | Editor              |

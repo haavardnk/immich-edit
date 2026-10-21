@@ -62,12 +62,14 @@ class PresetsStore {
     }
   };
 
-  update = async (id: string, input: PresetInput): Promise<void> => {
+  update = async (id: string, input: PresetInput): Promise<Preset | null> => {
     try {
       const updated = await updatePreset(id, input);
       this.presets = this.presets.map((p) => (p.id === id ? updated : p));
+      return updated;
     } catch (e) {
       toasts.fail('Failed to update preset', e, 8000);
+      return null;
     }
   };
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { Button } from '@immich/ui';
   import { mdiUpload } from '@mdi/js';
 
@@ -7,13 +8,15 @@
     label,
     fullWidth = false,
     class: className = '',
-    onfile
+    onfile,
+    button
   }: {
     accept: string;
     label: string;
     fullWidth?: boolean;
     class?: string;
     onfile: (file: File) => Promise<void>;
+    button?: Snippet<[{ busy: boolean; open: () => void }]>;
   } = $props();
 
   let input = $state<HTMLInputElement | null>(null);
@@ -34,16 +37,20 @@
 </script>
 
 <input bind:this={input} type="file" {accept} class="hidden" onchange={(e) => void pick(e)} />
-<Button
-  type="button"
-  size="tiny"
-  variant="ghost"
-  color="secondary"
-  {fullWidth}
-  class="panel-action h-7 {className}"
-  leadingIcon={mdiUpload}
-  disabled={busy}
-  onclick={() => input?.click()}
->
-  {busy ? 'Importing…' : label}
-</Button>
+{#if button}
+  {@render button({ busy, open: () => input?.click() })}
+{:else}
+  <Button
+    type="button"
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    {fullWidth}
+    class="panel-action h-7 {className}"
+    leadingIcon={mdiUpload}
+    disabled={busy}
+    onclick={() => input?.click()}
+  >
+    {busy ? 'Importing…' : label}
+  </Button>
+{/if}

@@ -21,6 +21,7 @@ import {
   type Vec2f
 } from '$lib/types/edits';
 import { manifestToEdits } from '$lib/edits/manifest';
+import type { PresetPreview } from '$lib/edits/applyPreset';
 import type { ApplyPresetOptions } from '$lib/api/jobs';
 import { defaultLinear, maskCapacity } from '$lib/types/masks';
 import type { BrushBuffer } from '$lib/utils/brush';
@@ -95,6 +96,7 @@ class EditorStore {
   error = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
+  presetPreview = $state.raw<PresetPreview | null>(null);
   splitMode = $state(false);
   splitPos = $state(0.5);
   proofSpace = $state<ColorSpaceOpt>('srgb');
@@ -279,6 +281,7 @@ class EditorStore {
     this.history.reset();
     this.showingOriginal = false;
     this.bypassedSection = null;
+    this.presetPreview = null;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskRefineOpen = {};
@@ -368,8 +371,25 @@ class EditorStore {
 
   hasClipboard = $derived(clipboard.has);
 
-  applyPreset = (manifest: EditManifest, opts: ApplyPresetOptions, name?: string): Promise<void> =>
-    develop.applyPreset(this, manifest, opts, name);
+  applyPreset = (
+    manifest: EditManifest,
+    opts: ApplyPresetOptions,
+    name?: string
+  ): Promise<void> => {
+    this.presetPreview = null;
+    return develop.applyPreset(this, manifest, opts, name);
+  };
+
+  previewPreset = (preview: PresetPreview): void => {
+    this.presetPreview = preview;
+    this.previews.live();
+  };
+
+  endPresetPreview = (): void => {
+    if (!this.presetPreview) return;
+    this.presetPreview = null;
+    this.previews.live();
+  };
 
   onAutoAdjust = (): Promise<void> => develop.autoAdjust(this);
 

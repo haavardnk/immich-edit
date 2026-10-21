@@ -1,5 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, gotoAsset, json } from './helpers';
+import {
+  ASSET_SUMMARY,
+  installMocks,
+  gotoAsset,
+  json,
+  openPresetStrip,
+  type PreviewRequest
+} from './helpers';
 import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
 
@@ -16,7 +23,7 @@ function warmPreset(): Record<string, unknown> {
   };
 }
 
-async function openPresets(scope: Page | Locator): Promise<void> {
+async function openPresets(scope: Locator): Promise<void> {
   const section = scope.getByRole('button', { name: 'Presets', exact: true });
   if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
 }
@@ -26,21 +33,27 @@ async function pickWarm(page: Page): Promise<void> {
   await page.getByRole('option', { name: 'Warm', exact: true }).click();
 }
 
+function previewExposure(requests: PreviewRequest[]): unknown {
+  return (requests.at(-1)?.edits as { basic?: { exposure_ev?: number } } | undefined)?.basic
+    ?.exposure_ev;
+}
+
 test('the preset amount scales the look it applies', async ({ page }) => {
   const saves: Array<Record<string, unknown>> = [];
   await installMocks(page, { presets: [warmPreset()], onSave: (body) => saves.push(body) });
   await gotoAsset(page);
-  await openPresets(page);
-  const amount = page.getByRole('slider', { name: 'Preset amount' });
-  await expect(page.getByRole('combobox', { name: 'Select a preset…' })).toBeVisible();
-  await expect(amount).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^Apply/ })).toHaveCount(0);
-  await pickWarm(page);
+  const strip = await openPresetStrip(page);
+  const amount = strip.getByRole('slider', { name: 'Preset amount' });
 
   await expect(amount).toHaveValue('100');
+  const stripBox = await strip.boundingBox();
+  const valueBox = await strip.getByText('100%', { exact: true }).boundingBox();
+  expect((valueBox?.x ?? 0) + (valueBox?.width ?? 0)).toBeLessThanOrEqual(
+    (stripBox?.x ?? 0) + (stripBox?.width ?? 0)
+  );
   await amount.fill('50');
-  await expect(page.getByText('50%', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Apply Warm' }).click();
+  await expect(strip.getByText('50%', { exact: true })).toBeVisible();
+  await strip.getByRole('button', { name: 'Apply Warm' }).click();
 
   const exposure = page
     .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
@@ -50,6 +63,53 @@ test('the preset amount scales the look it applies', async ({ page }) => {
 
   await amount.dblclick();
   await expect(amount).toHaveValue('100');
+});
+
+test('hovering a preset previews it without applying', async ({ page }) => {
+  const requests: PreviewRequest[] = [];
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, {
+    presets: [warmPreset()],
+    onPreview: (req) => requests.push(req),
+    onSave: (body) => saves.push(body)
+  });
+  await gotoAsset(page);
+  const strip = await openPresetStrip(page);
+  const tile = strip.getByRole('button', { name: 'Apply Warm' });
+  await expect(tile).toBeEnabled();
+
+  await tile.hover();
+  await expect.poll(() => previewExposure(requests)).toBe(1);
+  await page.mouse.move(0, 0);
+  await expect.poll(() => previewExposure(requests)).toBe(0);
+  expect(saves).toEqual([]);
+});
+
+test('the presets strip swaps with the filmstrip', async ({ page }) => {
+  await installMocks(page, { presets: [warmPreset()] });
+  await gotoAsset(page);
+  const strip = page.getByRole('region', { name: 'Presets' });
+  await expect(strip).toHaveCount(0);
+
+  await page.keyboard.press('Shift+P');
+  await expect(strip).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hide presets' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+
+  await page.keyboard.press('Shift+P');
+  await expect(strip).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
+
+  await page.keyboard.press('Shift+P');
+  await expect(strip).toBeVisible();
+  await page.keyboard.press('Shift+S');
+  await expect(strip).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Show presets' })).toHaveAttribute(
+    'aria-pressed',
+    'false'
+  );
 });
 
 test('the bulk preset job carries the chosen amount', async ({ page }) => {

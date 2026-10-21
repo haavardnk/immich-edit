@@ -58,6 +58,30 @@ describe('editor layout persistence', () => {
   });
 
   it.each([
+    { strip: false, collapsed: false, toggles: ['presets'], end: [true, false] },
+    { strip: true, collapsed: false, toggles: ['presets'], end: [false, true] },
+    { strip: true, collapsed: false, toggles: ['filmstrip'], end: [false, false] },
+    { strip: false, collapsed: true, toggles: ['presets', 'presets'], end: [false, true] },
+    { strip: false, collapsed: true, toggles: ['presets', 'filmstrip'], end: [false, false] },
+    { strip: true, collapsed: true, toggles: ['chrome'], end: [false, true] }
+  ])(
+    'strip $strip, collapsed $collapsed ends at $end after $toggles',
+    async ({ strip, collapsed, toggles, end }) => {
+      vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} });
+      const { ui } = await import('./ui.svelte');
+      ui.presetStrip = strip;
+      ui.editorFilmstripCollapsed = collapsed;
+      const actions = {
+        presets: ui.togglePresetStrip,
+        filmstrip: ui.toggleEditorFilmstrip,
+        chrome: ui.toggleChrome
+      };
+      for (const t of toggles) actions[t as keyof typeof actions]();
+      expect([ui.presetStrip, ui.editorFilmstripCollapsed]).toEqual(end);
+    }
+  );
+
+  it.each([
     ['golden', 'diagonal'],
     ['off', 'thirds'],
     ['bogus', 'golden']

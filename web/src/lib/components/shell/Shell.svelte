@@ -7,6 +7,7 @@
   import SettingsSidebar from './SettingsSidebar.svelte';
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
+  import PresetStrip from '$lib/components/preset/PresetStrip.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
@@ -55,7 +56,11 @@
             {@render children()}
           </main>
           {#if editor.assetId && !ui.fullscreen}
-            <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
+            {#if ui.presetStrip}
+              <PresetStrip />
+            {:else}
+              <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
+            {/if}
           {/if}
         </div>
         {#if !ui.fullscreen}

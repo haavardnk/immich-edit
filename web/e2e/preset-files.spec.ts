@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { installMocks, gotoAsset } from './helpers';
+import { installMocks, gotoAsset, openPresetMenu, openPresetStrip, presetAction } from './helpers';
 import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
 
@@ -17,24 +17,23 @@ function warmPreset(): Record<string, unknown> {
   };
 }
 
-async function openPresets(page: Page): Promise<void> {
-  const section = page.getByRole('button', { name: 'Presets', exact: true });
-  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
-}
-
 async function chooseFile(page: Page, name: string, body: string): Promise<void> {
   const chooser = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: 'Import presets' }).click();
+  await presetAction(page, 'Import presets');
   await (await chooser).setFiles({ name, mimeType: 'application/json', buffer: Buffer.from(body) });
 }
 
 test('presets export to a versioned file', async ({ page }) => {
   await installMocks(page, { presets: [warmPreset()] });
   await gotoAsset(page);
-  await openPresets(page);
+  await openPresetStrip(page);
 
   const all = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export all' }).click();
+  await (
+    await openPresetMenu(page, 'Warm')
+  )
+    .getByRole('button', { name: 'Export all presets' })
+    .click();
   const allFile = await all;
   expect(allFile.suggestedFilename()).toBe('immich-edit-presets.json');
   const body = JSON.parse(await readFile(await allFile.path(), 'utf8'));
@@ -45,10 +44,12 @@ test('presets export to a versioned file', async ({ page }) => {
   });
   expect(body.presets[0]).not.toHaveProperty('id');
 
-  await page.getByRole('combobox', { name: 'Select a preset…' }).click();
-  await page.getByRole('option', { name: 'Warm', exact: true }).click();
   const one = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export preset' }).click();
+  await (
+    await openPresetMenu(page, 'Warm')
+  )
+    .getByRole('button', { name: 'Export', exact: true })
+    .click();
   expect((await one).suggestedFilename()).toBe('Warm.json');
 });
 
@@ -59,7 +60,7 @@ test('importing presets skips names already in the library', async ({ page }) =>
     onPresetCreate: (body) => created.push(body)
   });
   await gotoAsset(page);
-  await openPresets(page);
+  await openPresetStrip(page);
 
   const cool = { ...warmPreset(), name: 'Cool', group_name: null };
   const file = {
@@ -77,15 +78,14 @@ test('importing presets skips names already in the library', async ({ page }) =>
     page.getByText('Imported 1 preset, skipped 1 with a name already in use')
   ).toBeVisible();
   expect(created.map((body) => body.name)).toEqual(['Cool']);
-  await page.getByRole('combobox', { name: 'Select a preset…' }).click();
-  await expect(page.getByRole('option', { name: 'Cool', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply Cool' })).toBeVisible();
 });
 
 test('a file that is not a preset export is refused', async ({ page }) => {
   const created: Array<Record<string, unknown>> = [];
   await installMocks(page, { onPresetCreate: (body) => created.push(body) });
   await gotoAsset(page);
-  await openPresets(page);
+  await openPresetStrip(page);
 
   await chooseFile(page, 'other.json', '{"kind":"something-else"}');
 

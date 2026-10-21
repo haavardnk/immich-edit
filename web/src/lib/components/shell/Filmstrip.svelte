@@ -3,13 +3,13 @@
   import { untrack } from 'svelte';
   import { observeSize } from '$lib/actions/observeSize';
   import { browsing } from '$lib/stores/browsing.svelte';
-  import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
   import { assetThumbUrl } from '$lib/api/assets';
   import { createFilmstripLayout, visibleFilmstripRange } from '$lib/browse/filmstripLayout';
   import { isRejected } from '$lib/browse/reject';
   import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/stores/labels';
   import { editorHref } from '$lib/editor/navigation';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import BottomPanelResizeHandle from './BottomPanelResizeHandle.svelte';
   import ContextMenu from '$lib/components/ContextMenu.svelte';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
@@ -121,18 +121,7 @@
 {#if assets.length > 0}
   <div class="relative flex-none border-t border-white/12 bg-editor-chrome shadow-filmstrip">
     {#if resizable && !collapsed}
-      <ResizeHandle
-        label="Resize filmstrip"
-        orientation="vertical"
-        value={ui.filmstripHeight}
-        min={MIN_FILMSTRIP_HEIGHT}
-        max={MAX_FILMSTRIP_HEIGHT}
-        step={8}
-        shiftStep={16}
-        class="absolute inset-x-0 top-0 z-20 h-2 -translate-y-1/2 cursor-row-resize outline-none focus-visible:bg-primary/30"
-        onLive={ui.setFilmstripHeight}
-        onCommit={ui.persistEditorUi}
-      />
+      <BottomPanelResizeHandle label="Resize filmstrip" />
     {/if}
     {#if !collapsed}
       <div class="relative">

@@ -6,15 +6,30 @@
 
   let {
     options = $bindable(),
-    bordered = false
+    bordered = false,
+    inline = false
   }: {
     options: ApplyPresetOptions;
     bordered?: boolean;
+    inline?: boolean;
   } = $props();
 </script>
 
+{#snippet includes()}
+  <CheckboxRow
+    label="Geometry & crop"
+    checked={options.includeGeometry}
+    onChange={(v) => (options.includeGeometry = v)}
+  />
+  <CheckboxRow
+    label="Masks"
+    checked={options.includeMasks}
+    onChange={(v) => (options.includeMasks = v)}
+  />
+{/snippet}
+
 <div
-  class="flex flex-col gap-1 text-[11px] text-dark/65 {bordered
+  class="flex flex-col text-[11px] text-dark/65 {inline ? '' : 'gap-1'} {bordered
     ? 'border-t border-dark/10 pt-3'
     : ''}"
 >
@@ -38,15 +53,13 @@
       >{options.amount}%</span
     >
   </div>
-  <span class="uppercase tracking-wider text-[10px] text-dark/65">Apply includes</span>
-  <CheckboxRow
-    label="Geometry & crop"
-    checked={options.includeGeometry}
-    onChange={(v) => (options.includeGeometry = v)}
-  />
-  <CheckboxRow
-    label="Masks"
-    checked={options.includeMasks}
-    onChange={(v) => (options.includeMasks = v)}
-  />
+  {#if inline}
+    <div class="flex items-center gap-3">
+      <span class="editor-compact-label select-none">Include</span>
+      {@render includes()}
+    </div>
+  {:else}
+    <span class="uppercase tracking-wider text-[10px] text-dark/65">Apply includes</span>
+    {@render includes()}
+  {/if}
 </div>
