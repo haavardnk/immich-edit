@@ -1,6 +1,8 @@
 import { getJson, sendJson, url } from './client';
 import type { EditManifest } from '$lib/types/edits';
 
+const PRESET_THUMB_EDGE = 160;
+
 export interface Preset {
   id: string;
   name: string;
@@ -30,4 +32,8 @@ export function updatePreset(id: string, input: PresetInput): Promise<Preset> {
 
 export function deletePreset(id: string): Promise<void> {
   return sendJson('DELETE', url`/api/presets/${id}`, undefined);
+}
+
+export function presetThumbUrl(assetId: string, preset: Preset, editHash: string): string {
+  return url`/api/assets/${assetId}/presets/${preset.id}/thumb?max=${PRESET_THUMB_EDGE}&h=${editHash}&p=${preset.updated_at}`;
 }

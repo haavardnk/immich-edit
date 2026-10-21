@@ -9,7 +9,6 @@ import DcpPanel from './Dcp.svelte';
 import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import EffectsPanel from './Effects.svelte';
-import PresetsPanel from './Presets.svelte';
 import VersionsPanel from './Versions.svelte';
 
 export interface PanelDef {
@@ -23,7 +22,6 @@ export const SCOPES_PANEL = 'scopes';
 
 export const developPanels: PanelDef[] = [
   { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
-  { id: 'presets', title: 'Presets', component: PresetsPanel, defaultOpen: false },
   { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
   { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
   { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },

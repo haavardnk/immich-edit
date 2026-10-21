@@ -23,6 +23,7 @@
     side = 'bottom',
     autofocus = false,
     closeOnSelect = true,
+    commitOnClose = false,
     hideSelected = multiple,
     onSelectedChange,
     onCreate
@@ -45,6 +46,7 @@
     side?: 'top' | 'bottom';
     autofocus?: boolean;
     closeOnSelect?: boolean;
+    commitOnClose?: boolean;
     hideSelected?: boolean;
     onSelectedChange?: (selected: string[]) => void;
     onCreate?: (value: string) => void | Promise<void>;
@@ -104,6 +106,21 @@
     input = '';
     open = !closeOnSelect;
   }
+
+  function createOnEnter(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || !canCreate || suggestions.length > 0) return;
+    event.preventDefault();
+    void create();
+  }
+
+  function commitTyped(next: boolean): void {
+    if (next || !commitOnClose || !createValue) return;
+    const match = options.find(
+      (option) => getLabel(option).toLowerCase() === createValue.toLowerCase()
+    );
+    if (match) change([...selected, getId(match)]);
+    else void create();
+  }
 </script>
 
 {#snippet searchIcon()}
@@ -121,6 +138,7 @@
   bind:open
   inputValue={inputText}
   onValueChange={change}
+  onOpenChange={commitTyped}
 >
   <div class="relative contain-inline-size">
     <Combobox.Input
@@ -129,6 +147,7 @@
       onfocus={focusInput}
       onclick={focusInput}
       oninput={(event) => (input = event.currentTarget.value)}
+      onkeydown={createOnEnter}
     >
       {#snippet child({ props })}
         <TextInput

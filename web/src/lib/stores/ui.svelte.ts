@@ -93,6 +93,7 @@ class UiStore {
   inspectorWidth = $state(384);
   filmstripHeight = $state(64);
   editorFilmstripCollapsed = $state(false);
+  presetStrip = $state(false);
   loupeFilmstripCollapsed = $state(false);
   developOpenPanels = $state<string[] | null>(null);
   developModifiedOnly = $state(false);
@@ -220,9 +221,10 @@ class UiStore {
   };
 
   toggleChrome = (): void => {
-    const hidden = this.rightCollapsed && this.editorFilmstripCollapsed;
+    const hidden = this.rightCollapsed && this.editorFilmstripCollapsed && !this.presetStrip;
     this.rightCollapsed = !hidden;
     this.editorFilmstripCollapsed = !hidden;
+    this.presetStrip = false;
     this.persistEditorUi();
   };
 
@@ -232,7 +234,19 @@ class UiStore {
   };
 
   toggleEditorFilmstrip = (): void => {
-    this.editorFilmstripCollapsed = !this.editorFilmstripCollapsed;
+    if (this.presetStrip) {
+      this.presetStrip = false;
+      this.editorFilmstripCollapsed = false;
+    } else {
+      this.editorFilmstripCollapsed = !this.editorFilmstripCollapsed;
+    }
+    this.persistEditorUi();
+  };
+
+  togglePresetStrip = (): void => {
+    this.presetStrip = !this.presetStrip;
+    if (this.presetStrip) return;
+    this.editorFilmstripCollapsed = true;
     this.persistEditorUi();
   };
 

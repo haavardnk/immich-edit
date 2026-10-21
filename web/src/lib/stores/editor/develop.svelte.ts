@@ -1,8 +1,8 @@
 import type { ApplyPresetOptions } from '$lib/api/jobs';
 import { autoEdits } from '$lib/api/edits';
 import { applyCopySections } from '$lib/editor/copyPaste';
-import { LOOK_AMOUNT_FULL, withLookAmount } from '$lib/edits/lookAmount';
-import { manifestToEdits } from '$lib/edits/manifest';
+import { presetEdits } from '$lib/edits/applyPreset';
+import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
 import { keysFor } from '$lib/shortcuts/labels';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
@@ -57,18 +57,7 @@ export async function applyPreset(
   name?: string
 ): Promise<void> {
   if (!ctx.initialised) return;
-  const incoming = withLookAmount(manifestToEdits(manifest), opts.amount);
-  ctx.edits = {
-    basic: incoming.basic,
-    tone: incoming.tone,
-    color: incoming.color,
-    detail: incoming.detail,
-    effects: incoming.effects,
-    lens: incoming.lens,
-    geometry: opts.includeGeometry ? incoming.geometry : ctx.edits.geometry,
-    masks: opts.includeMasks ? incoming.masks : ctx.edits.masks,
-    retouch: ctx.edits.retouch
-  };
+  ctx.edits = presetEdits(ctx.edits, { manifest, opts });
   ctx.onLive();
   const action = name ? `Preset: ${name}` : 'Preset';
   await ctx.onCommit(opts.amount === LOOK_AMOUNT_FULL ? action : `${action} (${opts.amount}%)`);

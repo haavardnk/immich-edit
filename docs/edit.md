@@ -18,16 +18,16 @@ The tool rail on the right switches between five tools:
 
 | Tool | Key | Use it for |
 | --- | --- | --- |
-| **Develop** | `Shift+D` | Color, tone, detail, lens, presets and versions |
+| **Develop** | `Shift+D` | Color, tone, detail, lens and versions |
 | **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
 | **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
 | **Geometry** | `Shift+R` | Crop, straighten, rotate and perspective |
 | **Export** | `Shift+E` | Downloading or uploading the result; see [export](export.md) |
 
 `←` and `→` move to the previous or next photo, and `G` goes back to the grid. `Tab` hides the
-side panels, `Shift+Tab` hides every panel, `Shift+S` hides the filmstrip, and `F` goes full
-screen. Keys with `Shift` open a tool or panel, plain letters act on the photo, and `Ctrl` (`⌘` on
-a Mac) runs commands such as undo, copy and paste.
+side panels, `Shift+Tab` hides every panel, `Shift+S` hides the filmstrip, `Shift+P` swaps it for
+the presets strip, and `F` goes full screen. Keys with `Shift` open a tool or panel, plain letters
+act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy and paste.
 
 ## Develop a photo
 
@@ -82,8 +82,8 @@ a Mac) runs commands such as undo, copy and paste.
 1. **Effects** adds a vignette and grain. Grain is strongest in the midtones and, like film, leaves
    deep shadows and bright highlights clean.
 
-**Presets** and **Versions** sit in the same stack; see [reuse edits](#reuse-edits) and
-[try variations](#try-variations).
+**Versions** sits in the same stack; see [try variations](#try-variations). Presets have their own
+strip under the photo; see [reuse edits](#reuse-edits).
 
 ### Sliders and panels
 
@@ -225,9 +225,23 @@ photo. Then open another photo and press **Paste edits** (`Ctrl+V`). A short mes
 each copy and paste, or says when there is nothing to copy or paste. To paste onto many
 photos at once, use [**Edit and export selected**](export.md#export-many-photos).
 
-A preset keeps a look for later. In **Presets**, press **Save current as preset**, give it a name
-and an optional group, and **Save**. To apply one, pick it and press the **Apply** button under
-it. The **Geometry & crop** and **Masks** checkboxes decide whether those come along.
+A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press
+`Shift+P` or **Presets** in the bottom bar to show it, and again to close it along with the
+filmstrip. `Shift+S` or **Filmstrip** beside it switches straight to the filmstrip. The strip
+shares the filmstrip's height, so drag the top edge of either to resize both. Each tile shows the
+current photo with that preset applied. Point at a tile to preview the look on the photo, and click
+it to apply. When your presets have more than one group, the group list left of the tiles filters them.
+The **Geometry & crop** and **Masks** checkboxes beside the tiles decide whether those come along.
+
+The first tile, **New preset**, saves the current look: it asks for a name and an optional group.
+Pick an existing group from the list, or type a new name.
+It reads **No edits yet** and stays disabled until you change something. **Import** below it
+adds presets from a file.
+
+Point at a preset tile and click the **⋯** in its corner, or right-click the tile, for its menu.
+**Edit…** renames or regroups the preset, **Export** downloads it as a `.json` file and **Export all
+presets** downloads every preset as one file. **Delete** asks you to confirm before it removes the
+preset. On a touch screen the **⋯** stays visible.
 
 **Amount** sets how strongly the preset applies, from 0% to 200%. At 100% you get the preset as
 saved. Lower values move each slider part of the way from its default toward the preset, and
@@ -236,12 +250,11 @@ same way, starting from a straight line, and a LUT's own amount scales too. Blac
 toning and balance scale while the conversion itself stays on. Choices rather than amounts, such
 as the camera profile, the LUT file, sharpening and lens corrections, come from the preset as
 saved. At 0% the look returns to defaults. Geometry and masks are never
-scaled. Double-click the slider to go back to 100%.
+scaled. Double-click the slider to go back to 100%. The preview while pointing at a tile uses the
+same amount and checkboxes.
 
-**Export all** downloads every preset as one `.json` file, and the download button beside
-**Rename** exports only the selected one. **Import presets** reads such a file and adds its
-presets to your library. A preset whose name is already in your library is skipped, so
-importing the same file twice adds nothing.
+**Import** reads an exported file and adds its presets to your library. A preset whose name is
+already in your library is skipped, so importing the same file twice adds nothing.
 
 ## Try variations
 

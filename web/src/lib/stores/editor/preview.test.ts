@@ -9,6 +9,8 @@ import {
   type MaskLayer
 } from '$lib/types/edits';
 import { makeLayer, defaultLinear } from '$lib/types/masks';
+import { presetEdits, type PresetPreview } from '$lib/edits/applyPreset';
+import { editsToManifest } from '$lib/edits/manifest';
 import type { Roi } from '$lib/utils/viewGeometry';
 
 type Render = {
@@ -95,6 +97,13 @@ const SNAP: ViewSnapshot = {
 };
 const DRAG_EDGE = 1280;
 const SETTLED_EDGE = 2400;
+const PRESET_HOVER: PresetPreview = {
+  manifest: editsToManifest({
+    ...neutralEdits(),
+    basic: { ...neutralEdits().basic, contrast: 30 }
+  }),
+  opts: { includeGeometry: false, includeMasks: false, amount: 50 }
+};
 
 class DecodedImage {
   src = '';
@@ -123,6 +132,7 @@ function context(): PreviewCtx {
     splitMode: false,
     showingOriginal: false,
     bypassedSection: null,
+    presetPreview: null,
     geometrySession: null,
     maskWeight: null,
     maskStroke: 'idle',
@@ -264,6 +274,11 @@ describe('preview lanes during a slider drag', () => {
       'color picker',
       (c) => (c.colorPicker = { layerId: 'layer-1', componentId: 'c-1', ready: false }),
       (e) => ({ mode: 'none', edits: { ...e, masks: [] } })
+    ],
+    [
+      'preset hover',
+      (c) => (c.presetPreview = PRESET_HOVER),
+      (e) => ({ mode: 'none', edits: presetEdits(e, PRESET_HOVER) })
     ]
   ];
   const settles: Array<[string, (e: PreviewEngine) => void]> = [

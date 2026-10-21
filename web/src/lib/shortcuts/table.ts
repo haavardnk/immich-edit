@@ -436,6 +436,13 @@ export const KEYBINDS = [
     label: 'Open Masks'
   },
   {
+    id: 'presetStrip',
+    keys: ['Shift+p'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Show or hide the presets strip'
+  },
+  {
     id: 'createVirtualCopy',
     keys: ["Mod+'"],
     contexts: ['grid', 'loupe', 'editor'],

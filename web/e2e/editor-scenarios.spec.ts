@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   ASSET_ID,
   ASSET_SUMMARY,
@@ -6,15 +6,13 @@ import {
   installMocks,
   json,
   gotoAsset,
-  numberedAssets
+  numberedAssets,
+  openPresetMenu,
+  openPresetStrip,
+  presetAction
 } from './helpers';
 import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
-
-async function openPresets(page: Page): Promise<void> {
-  const section = page.getByRole('button', { name: 'Presets', exact: true });
-  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
-}
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -250,35 +248,40 @@ test('deleting a preset requires explicit confirmation', async ({ page }) => {
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Presets', exact: true }).click();
-  const preset = page.getByRole('combobox', { name: 'Select a preset…' });
-  await preset.click();
-  await page.getByRole('option', { name: 'Warm film', exact: true }).click();
-  await expect(preset).toHaveValue('Warm film');
+  await openPresetStrip(page);
+  const actions = page.getByRole('button', { name: 'Actions for Warm film' });
+  await openPresetMenu(page, 'Warm film');
+  await actions.click();
+  await page.mouse.move(0, 0);
+  await expect(actions).toHaveCSS('opacity', '0');
 
-  await page.getByRole('button', { name: 'Delete preset' }).click();
-  const confirm = page.getByRole('button', { name: 'Confirm delete preset' });
+  const menu = await openPresetMenu(page, 'Warm film');
+
+  await menu.getByRole('button', { name: 'Delete', exact: true }).click();
+  const confirm = menu.getByRole('button', { name: 'Confirm delete' });
   await expect(confirm).toBeVisible();
   expect(deleted).toEqual([]);
 
-  await page.getByRole('button', { name: 'Cancel delete' }).click();
+  await menu.getByRole('button', { name: 'Cancel' }).click();
   await expect(confirm).toHaveCount(0);
   expect(deleted).toEqual([]);
 
-  await page.getByRole('button', { name: 'Delete preset' }).click();
+  await menu.getByRole('button', { name: 'Delete', exact: true }).click();
   await confirm.click();
   await expect.poll(() => deleted).toEqual(['preset-1']);
+  await expect(page.getByRole('button', { name: 'Apply Warm film' })).toHaveCount(0);
 });
 
-test('preset rename commits with Enter and cancels with Escape', async ({ page }) => {
+test('editing a preset from its tile menu renames and regroups it', async ({ page }) => {
   const updates: Array<[string, Record<string, unknown>]> = [];
+  const manifest = { schema_version: 1, ops: {} };
   await installMocks(page, {
     presets: [
       {
         id: 'preset-1',
         name: 'Warm film',
         group_name: null,
-        manifest: { schema_version: 1, ops: {} },
+        manifest,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       }
@@ -287,23 +290,70 @@ test('preset rename commits with Enter and cancels with Escape', async ({ page }
   });
   await gotoAsset(page);
 
-  await page.getByRole('button', { name: 'Presets', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Select a preset…' }).click();
-  await page.getByRole('option', { name: 'Warm film', exact: true }).click();
-
-  await page.getByRole('button', { name: 'Rename preset' }).click();
-  const name = page.getByRole('textbox', { name: 'Preset name' });
-  await expect(name).toBeFocused();
+  const strip = await openPresetStrip(page);
+  await strip.getByRole('button', { name: 'Apply Warm film' }).click({ button: 'right' });
+  await page.locator('[data-popover-content]').getByRole('button', { name: 'Edit…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit preset' });
+  const name = dialog.getByRole('textbox', { name: 'Preset name' });
   await expect(name).toHaveValue('Warm film');
   await name.fill('Cool film');
-  await name.press('Enter');
-  await expect.poll(() => updates.map(([, body]) => body.name)).toEqual(['Cool film']);
+  const group = dialog.getByRole('combobox', { name: 'Preset group' });
+  await group.click();
+  await group.fill('Film');
+  await group.press('Enter');
+  await expect(group).toHaveValue('Film');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Rename preset' }).click();
-  await name.fill('Discarded');
-  await name.press('Escape');
-  await expect(name).toHaveCount(0);
-  expect(updates).toHaveLength(1);
+  await expect(dialog).toBeHidden();
+  expect(updates).toEqual([['preset-1', { name: 'Cool film', group_name: 'Film', manifest }]]);
+  await expect(strip.getByRole('button', { name: 'Apply Cool film' })).toHaveCount(1);
+});
+
+test('the preset strip shares the filmstrip height and filters by group', async ({ page }) => {
+  const preset = (id: string, name: string, group_name: string | null) => ({
+    id,
+    name,
+    group_name,
+    manifest: { schema_version: 1, ops: {} },
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  });
+  await installMocks(page, {
+    presets: [preset('1', 'Loose', null), preset('2', 'Warm film', 'Film')]
+  });
+  await gotoAsset(page);
+  const filmstrip = page.getByRole('slider', { name: 'Resize filmstrip' }).locator('..');
+  const height = async (panel: typeof filmstrip): Promise<number | undefined> =>
+    (await panel.boundingBox())?.height;
+  const filmHeight = await height(filmstrip);
+
+  const strip = await openPresetStrip(page);
+  expect(await height(strip)).toBe(filmHeight);
+  const resize = strip.getByRole('slider', { name: 'Resize presets' });
+  await resize.focus();
+  await resize.press('Home');
+  const shortHeight = await height(strip);
+  expect(shortHeight).toBeLessThan(filmHeight ?? 0);
+  await page.getByRole('button', { name: 'Show filmstrip' }).click();
+  expect(await height(filmstrip)).toBe(shortHeight);
+
+  await openPresetStrip(page);
+  await resize.focus();
+  await resize.press('End');
+  const tallHeight = await height(strip);
+  expect(tallHeight).toBeGreaterThan(filmHeight ?? 0);
+  await page.getByRole('button', { name: 'Show filmstrip' }).click();
+  expect(await height(filmstrip)).toBe(tallHeight);
+
+  await openPresetStrip(page);
+  const groups = strip.getByRole('navigation', { name: 'Preset groups' });
+  await expect(groups.getByRole('button')).toHaveText(['All', 'Film', 'Ungrouped']);
+  await groups.getByRole('button', { name: 'Film' }).click();
+  await expect(groups.getByRole('button', { name: 'Film' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(strip.getByRole('button', { name: /^Apply / })).toHaveText(['Warm film']);
 });
 
 test('a preset saved from one asset applies to another', async ({ page }) => {
@@ -327,24 +377,93 @@ test('a preset saved from one asset applies to another', async ({ page }) => {
       .getByRole('slider');
   await exposure().fill('1');
 
-  await openPresets(page);
-  await page.getByRole('button', { name: 'Save current as preset' }).click();
-  await page.getByRole('textbox', { name: 'Preset name' }).fill('Warm');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await openPresetStrip(page);
+  await presetAction(page, 'Save current as preset');
+  const dialog = page.getByRole('dialog', { name: 'Save preset' });
+  await expect(dialog.getByRole('textbox', { name: 'Preset name' })).toBeFocused();
+  await page.keyboard.type('Warm');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect.poll(() => created.map((body) => body.name)).toEqual(['Warm']);
+  await expect(dialog).toBeHidden();
   const manifest = created[0]?.manifest as { ops: Record<string, unknown> };
   expect(Object.keys(manifest.ops).length).toBeGreaterThan(0);
 
   await page.goto(`/assets/${second.id}`);
   await expect(exposure()).toHaveValue('0');
-  await openPresets(page);
-  await page.getByRole('combobox', { name: 'Select a preset…' }).click();
-  await page.getByRole('option', { name: 'Warm', exact: true }).click();
+  await openPresetStrip(page);
   await page.getByRole('button', { name: 'Apply Warm' }).click();
 
   await expect(exposure()).toHaveValue('1');
   await expect.poll(() => saves.some((body) => body.action === 'Preset: Warm')).toBe(true);
+});
+
+for (const { title, group, pick } of [
+  { title: 'an existing group', group: 'Film', pick: 'option' },
+  { title: 'a new group', group: 'Portrait', pick: 'enter' },
+  { title: 'a typed group without pressing Enter', group: 'Portrait', pick: 'none' }
+]) {
+  test(`saving a preset into ${title}`, async ({ page }) => {
+    const created: Array<Record<string, unknown>> = [];
+    await installMocks(page, {
+      presets: [
+        {
+          id: 'preset-film',
+          name: 'Kodak',
+          group_name: 'Film',
+          manifest: editsToManifest(neutralEdits()),
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z'
+        }
+      ],
+      onPresetCreate: (body) => created.push(body)
+    });
+    await gotoAsset(page);
+    await page.getByRole('slider', { name: 'Exposure' }).fill('1');
+
+    await openPresetStrip(page);
+    await presetAction(page, 'Save current as preset');
+    const dialog = page.getByRole('dialog', { name: 'Save preset' });
+    await dialog.getByRole('textbox', { name: 'Preset name' }).fill('Warm');
+    const groupInput = dialog.getByRole('combobox', { name: 'Preset group' });
+    await groupInput.click();
+    await groupInput.fill(group);
+    if (pick === 'option') await page.getByRole('option', { name: group }).click();
+    else if (pick === 'enter') await groupInput.press('Enter');
+    else await dialog.getByRole('textbox', { name: 'Preset name' }).click();
+    await expect(groupInput).toHaveValue(group);
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+
+    await expect.poll(() => created.map((body) => body.group_name)).toEqual([group]);
+  });
+}
+
+test('the preset strip explains a disabled save and keeps failed thumbnails visible', async ({
+  page
+}) => {
+  await installMocks(page, {
+    presets: [
+      {
+        id: 'preset-test',
+        name: 'test',
+        group_name: null,
+        manifest: editsToManifest(neutralEdits()),
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      }
+    ]
+  });
+  await page.route('**/api/assets/*/presets/*/thumb*', (route) => route.fulfill({ status: 500 }));
+  await gotoAsset(page);
+  await page.getByRole('button', { name: 'Reset develop settings' }).click();
+  const strip = await openPresetStrip(page);
+
+  const save = strip.getByRole('button', { name: 'Save current as preset' });
+  await expect(save).toBeDisabled();
+  await expect(save).toContainText('No edits yet');
+  const tile = strip.getByRole('button', { name: 'Apply test' });
+  await expect(tile).toContainText('T');
+  expect((await tile.boundingBox())?.height).toBeGreaterThan(60);
 });
 
 test('history restore waits for a save that is still in flight', async ({ page }) => {
