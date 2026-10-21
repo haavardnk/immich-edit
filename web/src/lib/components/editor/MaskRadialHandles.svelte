@@ -9,7 +9,6 @@
   let {
     comp,
     kind,
-    color,
     rect,
     toPx,
     aspect,
@@ -18,7 +17,6 @@
   }: {
     comp: MaskComponent;
     kind: Extract<MaskComponentKind, { kind: 'radial' }>;
-    color: string;
     rect: { x: number; y: number; w: number; h: number };
     toPx: (v: Vec2f) => { x: number; y: number };
     aspect: number;
@@ -60,9 +58,13 @@
       r={rMax}
       gradientTransform={`translate(${c.x} ${c.y}) rotate(${tilt}) scale(${rx / rMax} ${ry / rMax}) translate(${-c.x} ${-c.y})`}
     >
-      <stop offset="0" stop-color={color} stop-opacity={fillOp} />
+      <stop offset="0" stop-color="var(--color-mask-overlay)" stop-opacity={fillOp} />
       {#each ramp as stop, i (i)}
-        <stop offset={stop.offset} stop-color={color} stop-opacity={stop.opacity} />
+        <stop
+          offset={stop.offset}
+          stop-color="var(--color-mask-overlay)"
+          stop-opacity={stop.opacity}
+        />
       {/each}
     </radialGradient>
   </defs>
@@ -81,7 +83,7 @@
     {ry}
     transform={`rotate(${tilt} ${c.x} ${c.y})`}
     fill="none"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     opacity="0.9"
     style="cursor: pointer;"
@@ -106,7 +108,7 @@
     cy={c.y}
     r="6"
     fill="var(--color-image-light)"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="2"
     style="cursor: move;"
     role="button"
@@ -118,7 +120,7 @@
     cx={c.x + rxDx}
     cy={c.y + rxDy}
     r="6"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ew-resize;"
@@ -131,7 +133,7 @@
     cx={c.x - rxDx}
     cy={c.y - rxDy}
     r="6"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ew-resize;"
@@ -144,7 +146,7 @@
     cx={c.x + ryDx}
     cy={c.y + ryDy}
     r="6"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ns-resize;"
@@ -157,7 +159,7 @@
     cx={c.x - ryDx}
     cy={c.y - ryDy}
     r="6"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     stroke="var(--color-image-light)"
     stroke-width="2"
     style="cursor: ns-resize;"
@@ -174,7 +176,7 @@
       ry={ry * innerScale}
       transform={`rotate(${tilt} ${c.x} ${c.y})`}
       fill="none"
-      stroke={color}
+      stroke="var(--color-mask-overlay)"
       stroke-width="1"
       stroke-dasharray="4 4"
       opacity="0.7"
@@ -185,7 +187,7 @@
     y1={c.y + rxDy}
     x2={grip.x}
     y2={grip.y}
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1"
     opacity="0.7"
     style="pointer-events: none;"
@@ -195,7 +197,7 @@
     cy={grip.y}
     r="5"
     fill="var(--color-image-light)"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="2"
     style="cursor: grab;"
     role="button"
@@ -207,9 +209,9 @@
     cx={c.x + rxDx * featherHandleScale}
     cy={c.y + rxDy * featherHandleScale}
     r="5"
-    fill={color}
+    fill="var(--color-mask-overlay)"
     fill-opacity="0.3"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     style="cursor: move;"
     role="button"

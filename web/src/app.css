@@ -39,6 +39,7 @@
   --color-curve-luma: #f0d25a;
   --color-retouch-active: var(--color-primary);
   --color-retouch-source: #78dc8c;
+  --color-mask-overlay: #ff3b30;
   --color-temperature-cool: #4a90d9;
   --color-temperature-warm: #b8a44c;
   --color-tint-magenta: #b8508a;

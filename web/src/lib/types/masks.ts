@@ -2,7 +2,6 @@ import {
   N_MAX_COMPONENTS_PER_LAYER,
   N_MAX_MASK_LAYERS,
   N_MAX_TOTAL_COMPONENTS,
-  MASK_COLOR_TOKENS,
   type Edits,
   type GeneratedMeta,
   type MaskComponent,
@@ -46,10 +45,6 @@ export function generatedLabel(kind: string): string {
 
 function nextId(): string {
   return uuidv4();
-}
-
-export function defaultMaskColor(index: number): string {
-  return MASK_COLOR_TOKENS[index % MASK_COLOR_TOKENS.length] ?? MASK_COLOR_TOKENS[0];
 }
 
 export function defaultLinear(): MaskComponentKind {
@@ -111,16 +106,11 @@ export function makeComponent(
   };
 }
 
-export function makeLayer(
-  name: string,
-  index: number,
-  kind: MaskComponentKind = defaultLinear()
-): MaskLayer {
+export function makeLayer(name: string, kind: MaskComponentKind = defaultLinear()): MaskLayer {
   return {
     id: nextId(),
     name,
     enabled: true,
-    color: defaultMaskColor(index),
     amount: 1,
     invert: false,
     components: [makeComponent(kind)],
@@ -130,12 +120,11 @@ export function makeLayer(
 
 export function makeGeneratedLayer(
   name: string,
-  index: number,
   rasterId: string,
   generated: GeneratedMeta,
   invert = false
 ): MaskLayer {
-  const layer = makeLayer(name, index, defaultBrush(rasterId));
+  const layer = makeLayer(name, defaultBrush(rasterId));
   return {
     ...layer,
     components: layer.components.map((c): MaskComponent => ({
@@ -197,12 +186,11 @@ export function maskCapacity(edits: Edits, layerId: string | null): MaskCapacity
   };
 }
 
-export function cloneLayerWithNewIds(layer: MaskLayer, color: string, name: string): MaskLayer {
+export function cloneLayerWithNewIds(layer: MaskLayer, name: string): MaskLayer {
   return {
     id: nextId(),
     name,
     enabled: layer.enabled,
-    color,
     amount: layer.amount,
     invert: layer.invert,
     components: layer.components.map((c) => ({ ...c, id: nextId(), kind: cloneKind(c.kind) })),

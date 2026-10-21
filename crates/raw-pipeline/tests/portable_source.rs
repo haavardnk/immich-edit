@@ -17,7 +17,6 @@ fn layer() -> MaskLayer {
         id: "warm".into(),
         name: String::new(),
         enabled: true,
-        color: "#ff3b30".into(),
         amount: 1.0,
         invert: false,
         components: vec![MaskComponent {

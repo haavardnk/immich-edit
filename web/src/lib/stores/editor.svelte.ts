@@ -484,9 +484,6 @@ class EditorStore {
   renameMaskLayer = (id: string, name: string): Promise<void> =>
     maskLayers.renameMaskLayer(this, id, name);
 
-  setMaskLayerColor = (id: string, color: string): Promise<void> =>
-    maskLayers.setMaskLayerColor(this, id, color);
-
   setMaskLayerAmount = (id: string, amount: number): void =>
     maskLayers.setMaskLayerAmount(this, id, amount);
 

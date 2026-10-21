@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editor } from '$lib/stores/editor.svelte';
-  import { parseHexColor } from '$lib/utils/brush';
+  import { maskOverlayRgb } from '$lib/utils/brush';
   import { imageRect } from '$lib/utils/imageRect.svelte';
   import type { PreviewSurface } from '$lib/utils/previewSurface';
 
@@ -28,8 +28,8 @@
   });
 
   $effect(() => {
-    if (!show || !canvasEl || !frame || !layer) return;
-    void draw(canvasEl, frame.blob, parseHexColor(layer.color));
+    if (!show || !canvasEl || !frame) return;
+    void draw(canvasEl, frame.blob, maskOverlayRgb(canvasEl));
   });
 
   async function draw(

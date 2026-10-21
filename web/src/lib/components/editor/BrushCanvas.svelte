@@ -4,7 +4,7 @@
   import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
   import {
     bufferToImageData,
-    parseHexColor,
+    maskOverlayRgb,
     stampBuffer,
     type BrushBuffer
   } from '$lib/utils/brush';
@@ -83,9 +83,7 @@
     if (canvasEl.height !== h) canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
-    const color = active
-      ? parseHexColor(active.color)
-      : ([255, 60, 60] as [number, number, number]);
+    const color = maskOverlayRgb(canvasEl);
     const invert = activeComp?.invert === true;
     if (allIdentity) {
       const off = document.createElement('canvas');
@@ -145,19 +143,26 @@
     const rect = canvasEl.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
+    const color = maskOverlayRgb(canvasEl);
     if (lastPx !== null && lastPy !== null) {
       const radiusPx = editor.brushTool.size * 0.5 * Math.min(rect.width, rect.height);
       for (const [sx, sy] of steppedSegment(lastPx, lastPy, px, py, Math.max(1, radiusPx * 0.5))) {
-        stampAtPx(buf, rect, sx, sy);
+        stampAtPx(buf, rect, sx, sy, color);
       }
     } else {
-      stampAtPx(buf, rect, px, py);
+      stampAtPx(buf, rect, px, py, color);
     }
     lastPx = px;
     lastPy = py;
   }
 
-  function stampAtPx(buf: BrushBuffer, rect: DOMRect, px: number, py: number): void {
+  function stampAtPx(
+    buf: BrushBuffer,
+    rect: DOMRect,
+    px: number,
+    py: number,
+    [r, g, b]: [number, number, number]
+  ): void {
     if (!canvasEl || !active) return;
     const nx = px / Math.max(1, rect.width);
     const ny = py / Math.max(1, rect.height);
@@ -189,7 +194,6 @@
     );
     const clears = erase !== (activeComp?.invert === true);
     ctx.globalCompositeOperation = clears ? 'destination-out' : 'source-over';
-    const [r, g, b] = parseHexColor(active.color);
     grad.addColorStop(0, `rgba(${r},${g},${b},${editor.brushTool.flow * 0.6})`);
     grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
     ctx.fillStyle = grad;

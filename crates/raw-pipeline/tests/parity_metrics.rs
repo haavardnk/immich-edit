@@ -394,7 +394,6 @@ fn gpu_vs_cpu_parity_with_dcp_huesat_under_range_mask() {
         id: "L1".into(),
         name: String::new(),
         enabled: true,
-        color: "#ff3b30".into(),
         amount: 1.0,
         invert: false,
         components: vec![range],

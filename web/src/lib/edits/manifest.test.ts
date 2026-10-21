@@ -304,10 +304,13 @@ describe('manifest codec', () => {
       schema_version: version,
       ops: {
         white_balance: version < 5 ? { temp: 20, tint: 7 } : wb,
-        masks: { layers: [{ id: 'm', components: [], edits: { wb_temp: 3, wb_tint: 5 } }] }
+        masks: {
+          layers: [{ id: 'm', color: '#ff9500', components: [], edits: { wb_temp: 3, wb_tint: 5 } }]
+        }
       }
     });
     expect(edits.basic.white_balance).toEqual(wb);
+    expect(edits.masks[0]).not.toHaveProperty('color');
     expect(edits.masks[0]?.edits).toEqual({ wb_temp: 3, wb_tint: maskTint });
   });
 
@@ -318,7 +321,6 @@ describe('manifest codec', () => {
         id: 'layer',
         name: 'Range',
         enabled: true,
-        color: '#ff3b30',
         amount: 1,
         invert: false,
         components: [
@@ -357,7 +359,6 @@ describe('manifest codec', () => {
         id: 'layer',
         name: 'Shapes',
         enabled: true,
-        color: '#ff3b30',
         amount: 1,
         invert: false,
         components: [
@@ -401,7 +402,6 @@ describe('manifest codec', () => {
         id: 'layer',
         name: 'Radial',
         enabled: true,
-        color: '#ff3b30',
         amount: 1,
         invert: false,
         components: [
@@ -426,7 +426,6 @@ describe('manifest codec', () => {
         id: 'layer',
         name: 'Subject',
         enabled: true,
-        color: '#ff3b30',
         amount: 1,
         invert: false,
         components: [
@@ -459,7 +458,6 @@ describe('manifest codec', () => {
         id: 'layer',
         name: 'Click',
         enabled: true,
-        color: '#ff3b30',
         amount: 1,
         invert: false,
         components: [

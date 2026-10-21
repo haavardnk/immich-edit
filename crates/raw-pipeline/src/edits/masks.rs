@@ -190,9 +190,6 @@ pub struct MaskComponent {
 fn default_true() -> bool {
     true
 }
-fn default_color() -> String {
-    "#ff3b30".into()
-}
 fn default_amount() -> f32 {
     1.0
 }
@@ -204,8 +201,6 @@ pub struct MaskLayer {
     pub name: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
-    #[serde(default = "default_color")]
-    pub color: String,
     #[serde(default = "default_amount")]
     pub amount: f32,
     #[serde(default)]
@@ -377,7 +372,6 @@ pub(super) fn clamp_masks(layers: &[MaskLayer]) -> Vec<MaskLayer> {
             id: layer.id.clone(),
             name: layer.name.clone(),
             enabled: layer.enabled,
-            color: layer.color.clone(),
             amount: layer.amount.clamp(0.0, 1.0),
             invert: layer.invert,
             components,

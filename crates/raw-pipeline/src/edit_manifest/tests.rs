@@ -267,7 +267,6 @@ fn masks_roundtrip_sparse() {
         id: "l1".into(),
         name: "Sky".into(),
         enabled: true,
-        color: "#3399ff".into(),
         amount: 0.8,
         invert: false,
         components: vec![

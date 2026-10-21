@@ -168,7 +168,6 @@ async function mockDepthMask(page: Page): Promise<void> {
       id: 'layer',
       name: 'Scene',
       enabled: true,
-      color: '#ff3b30',
       amount: 1,
       invert: false,
       components: [

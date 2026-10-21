@@ -6,14 +6,12 @@
 
   let {
     kind,
-    color,
     toPx,
     fromPx,
     onDrag,
     onPoints
   }: {
     kind: Extract<MaskComponentKind, { kind: 'polygon' }>;
-    color: string;
     toPx: (v: Vec2f) => { x: number; y: number };
     fromPx: (px: number, py: number) => Vec2f;
     onDrag: (e: PointerEvent, kind: DragKind) => void;
@@ -67,9 +65,9 @@
 <g style="pointer-events: auto;">
   <polygon
     points={path}
-    fill={color}
+    fill="var(--color-mask-overlay)"
     fill-opacity="0.12"
-    stroke={color}
+    stroke="var(--color-mask-overlay)"
     stroke-width="1.5"
     style="cursor: move;"
     role="button"
@@ -85,7 +83,7 @@
       r="5"
       fill="var(--color-image-light)"
       fill-opacity="0.6"
-      stroke={color}
+      stroke="var(--color-mask-overlay)"
       stroke-width="1.5"
       style="cursor: copy;"
       role="button"
@@ -99,7 +97,7 @@
       cx={p.x}
       cy={p.y}
       r="7"
-      fill={color}
+      fill="var(--color-mask-overlay)"
       stroke="var(--color-image-light)"
       stroke-width="2"
       style="cursor: move;"

@@ -50,15 +50,6 @@
     ? 'border-primary/25 bg-primary/10'
     : 'border-transparent hover:border-hairline hover:bg-white/4'}"
 >
-  <Tooltip text="Overlay colour for this mask">
-    {#snippet child({ props })}
-      <div
-        {...mergeProps(props, { tabindex: -1 })}
-        class="h-3 w-1 shrink-0 rounded-full ring-1 ring-white/10"
-        style="background-color: {layer.color}"
-      ></div>
-    {/snippet}
-  </Tooltip>
   <IconButton
     size="tiny"
     variant="ghost"

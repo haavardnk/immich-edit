@@ -281,7 +281,7 @@ describe('preview lanes during a slider drag', () => {
     const edits: Edits = {
       ...neutralEdits(),
       basic: { ...neutralEdits().basic, exposure_ev: 1 },
-      masks: [makeLayer('Mask 1', 0, defaultLinear())]
+      masks: [makeLayer('Mask 1', defaultLinear())]
     };
     ctx.edits = edits;
     hold(ctx);
@@ -322,7 +322,7 @@ describe('mask weight lane', () => {
     vi.stubGlobal('Image', DecodedImage);
     renders.length = 0;
     ctx = context();
-    layer = makeLayer('Mask 1', 0, defaultLinear());
+    layer = makeLayer('Mask 1', defaultLinear());
     ctx.edits = { ...neutralEdits(), masks: [layer] };
     engine = new PreviewEngine(ctx);
     engine.onViewChange(SNAP);

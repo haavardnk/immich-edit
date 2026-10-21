@@ -45,7 +45,6 @@ fn edits() -> serde_json::Value {
             "id": "sky",
             "name": "",
             "enabled": true,
-            "color": "#3b82f6",
             "amount": 1.0,
             "invert": false,
             "components": [{

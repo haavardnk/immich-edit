@@ -84,3 +84,7 @@ export function parseHexColor(hex: string): [number, number, number] {
   if (Number.isNaN(n)) return [255, 60, 60];
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
+
+export function maskOverlayRgb(el: Element): [number, number, number] {
+  return parseHexColor(getComputedStyle(el).getPropertyValue('--color-mask-overlay').trim());
+}

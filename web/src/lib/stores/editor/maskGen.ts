@@ -200,7 +200,6 @@ export async function addGeneratedLayer(
     const res = await generateMask(assetId, kind, 0, 0, maskClass);
     const layer = makeGeneratedLayer(
       nextLayerName(ctx.edits.masks),
-      ctx.edits.masks.length,
       res.raster_id,
       {
         model_id: res.model_id,
@@ -316,19 +315,14 @@ export async function addClickLayer(
   ctx.maskError = null;
   try {
     const res = await clickMask(assetId, points, 0, 0, undefined, false, bbox);
-    const layer = makeGeneratedLayer(
-      nextLayerName(ctx.edits.masks),
-      ctx.edits.masks.length,
-      res.raster_id,
-      {
-        model_id: res.model_id,
-        kind: 'click',
-        prob_raster_id: res.prob_raster_id,
-        grow: 0,
-        feather: 0,
-        points
-      }
-    );
+    const layer = makeGeneratedLayer(nextLayerName(ctx.edits.masks), res.raster_id, {
+      model_id: res.model_id,
+      kind: 'click',
+      prob_raster_id: res.prob_raster_id,
+      grow: 0,
+      feather: 0,
+      points
+    });
     const compId = appendLayer(ctx, layer);
     if (compId) await ensureBrushBuffer(ctx, compId, res.raster_id);
     await ctx.onCommit('Masks');
@@ -494,11 +488,7 @@ export async function addBrushLayer(ctx: MaskGenCtx): Promise<string | null> {
   if (cap.layersFull || cap.totalFull) return null;
   const raster = await newRaster(ctx);
   if (!raster) return null;
-  const layer = makeLayer(
-    nextLayerName(ctx.edits.masks),
-    ctx.edits.masks.length,
-    defaultBrush(raster.id)
-  );
+  const layer = makeLayer(nextLayerName(ctx.edits.masks), defaultBrush(raster.id));
   const compId = appendLayer(ctx, layer);
   if (compId) ctx.brushBuffers = { ...ctx.brushBuffers, [compId]: raster.buf };
   await ctx.onCommit('Masks');

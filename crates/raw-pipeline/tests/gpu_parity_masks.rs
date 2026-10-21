@@ -20,7 +20,6 @@ fn layer(components: Vec<MaskComponent>, edits: MaskedEdits, invert: bool) -> Ma
         id: "L1".into(),
         name: String::new(),
         enabled: true,
-        color: "#ff3b30".into(),
         amount: 1.0,
         invert,
         components,

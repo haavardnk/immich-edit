@@ -3,7 +3,6 @@ import type { BrushTool } from '$lib/stores/ui.svelte';
 import {
   cloneLayerWithNewIds,
   defaultLinear,
-  defaultMaskColor,
   makeComponent,
   makeLayer,
   maskCapacity,
@@ -169,7 +168,7 @@ export async function addMaskLayer(
 ): Promise<string | null> {
   const capacity = maskCapacity(ctx.edits, null);
   if (capacity.layersFull || capacity.totalFull) return null;
-  const layer = makeLayer(nextLayerName(ctx.edits.masks), ctx.edits.masks.length, kind);
+  const layer = makeLayer(nextLayerName(ctx.edits.masks), kind);
   ctx.edits = { ...ctx.edits, masks: [...ctx.edits.masks, layer] };
   ctx.activeLayerId = layer.id;
   ctx.activeMaskComponentId = layer.components[0]?.id ?? null;
@@ -197,11 +196,7 @@ export async function duplicateMaskLayer(ctx: MaskLayersCtx, id: string): Promis
   if (capacity.layersFull || capacity.totalFull) return null;
   const source = ctx.edits.masks.find((layer) => layer.id === id);
   if (!source) return null;
-  const copy = cloneLayerWithNewIds(
-    source,
-    defaultMaskColor(ctx.edits.masks.length),
-    `${source.name} copy`
-  );
+  const copy = cloneLayerWithNewIds(source, `${source.name} copy`);
   const index = ctx.edits.masks.findIndex((layer) => layer.id === id);
   const masks = [...ctx.edits.masks];
   masks.splice(index + 1, 0, copy);
@@ -268,15 +263,6 @@ export async function toggleMaskLayerEnabled(ctx: MaskLayersCtx, id: string): Pr
 export async function renameMaskLayer(ctx: MaskLayersCtx, id: string, name: string): Promise<void> {
   patchMaskLayer(ctx, id, { name }, false);
   await ctx.onCommit('Rename Mask');
-}
-
-export async function setMaskLayerColor(
-  ctx: MaskLayersCtx,
-  id: string,
-  color: string
-): Promise<void> {
-  patchMaskLayer(ctx, id, { color }, false);
-  await ctx.onCommit('Change Mask Color');
 }
 
 export function setMaskLayerAmount(ctx: MaskLayersCtx, id: string, amount: number): void {

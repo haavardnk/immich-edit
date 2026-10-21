@@ -165,10 +165,10 @@ top of the sky. **Invert** edits everything outside the shapes instead. An AI cl
 A **Depth** mask starts with the whole photo selected. On its **Near → Far** slider, drag the
 right handle left to drop the farthest areas, such as the sky, and the left handle right to drop
 the closest ones. The positions are shares of the photo, not distances: 40 on the right handle
-keeps the nearest 40% of the pixels. While you drag, the selection shows in the layer color. Edge
+keeps the nearest 40% of the pixels. While you drag, the selection shows in red. Edge
 cleanup, **Grow** and **Feather** apply when you let go.
 
-`O`, or the overlay button on a mask, shows or hides the selected mask in its layer color. The
+`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay. The
 overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
 shows its paint while you draw. Masks lower in the list are applied on top of the
 ones above them, and **Duplicate layer** starts a new mask from an existing one.

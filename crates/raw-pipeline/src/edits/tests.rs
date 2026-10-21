@@ -49,7 +49,7 @@ fn stable_hash_is_pinned() {
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "31c61d6f85ddfd251eb552baecbe2ba1"
+        "e1cece71464db7171a9276976c650034"
     );
 }
 
@@ -79,13 +79,22 @@ fn serde_defaults() {
 }
 
 #[test]
+fn a_legacy_mask_layer_color_is_ignored() {
+    let mut json = serde_json::to_value(populated_edits()).unwrap();
+    json["masks"][0]["color"] = serde_json::json!("#ff9500");
+    let e: Edits = serde_json::from_value(json).unwrap();
+    if e != populated_edits() {
+        panic!("legacy color changed the layer: {:?}", e.masks);
+    }
+}
+
+#[test]
 fn mask_brush_serde_roundtrip_preserves_raster_id() {
     let mut e = Edits::default();
     e.masks.push(MaskLayer {
         id: "l1".into(),
         name: "brush layer".into(),
         enabled: true,
-        color: "#ff3b30".into(),
         amount: 1.0,
         invert: false,
         components: vec![MaskComponent {
@@ -131,7 +140,6 @@ fn referenced_raster_ids_dedups() {
         id: "l1".into(),
         name: String::new(),
         enabled: true,
-        color: "#fff".into(),
         amount: 1.0,
         invert: false,
         components: vec![make_comp("a", "r1"), make_comp("b", "r2")],
@@ -141,7 +149,6 @@ fn referenced_raster_ids_dedups() {
         id: "l2".into(),
         name: String::new(),
         enabled: true,
-        color: "#fff".into(),
         amount: 1.0,
         invert: false,
         components: vec![make_comp("c", "r1")],
@@ -160,7 +167,6 @@ fn retained_raster_ids_includes_probability_maps() {
         id: "l1".into(),
         name: String::new(),
         enabled: true,
-        color: "#fff".into(),
         amount: 1.0,
         invert: false,
         components: vec![MaskComponent {
@@ -200,7 +206,6 @@ fn clamped_preserves_brush_raster_id() {
         id: "l".into(),
         name: String::new(),
         enabled: true,
-        color: "#fff".into(),
         amount: 2.0,
         invert: false,
         components: vec![MaskComponent {
@@ -461,7 +466,6 @@ fn populated_edits() -> Edits {
             id: "layer-1".into(),
             name: "sky".into(),
             enabled: true,
-            color: "#00ff00".into(),
             amount: 0.75,
             invert: true,
             components: vec![

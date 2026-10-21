@@ -113,7 +113,6 @@ fn luma_range_edits() -> Edits {
             id: "L1".into(),
             name: String::new(),
             enabled: true,
-            color: "#fff".into(),
             amount: 1.0,
             invert: false,
             components: vec![MaskComponent {
