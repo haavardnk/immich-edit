@@ -35,7 +35,7 @@ test('a popover closes on Escape and restores focus to its trigger', async ({ pa
   await page.route('**/api/tags', (route) => route.fulfill(json(TAGS)));
   await gotoAsset(page);
 
-  const trigger = page.getByRole('button', { name: 'Tags (T)' });
+  const trigger = page.getByRole('button', { name: 'Tags (Shift+T)' });
   await trigger.focus();
   await page.keyboard.press('Enter');
 

@@ -6,6 +6,7 @@
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import { miredScale } from '$lib/components/editor/controls/sliderScale';
   import { editor } from '$lib/stores/editor.svelte';
+  import { hint } from '$lib/shortcuts/labels';
   import {
     KELVIN_MAX,
     KELVIN_MIN,
@@ -67,7 +68,7 @@
         ? 'bg-white/10'
         : 'text-dark/55 hover:bg-hairline hover:text-dark'}"
       icon={mdiEyedropperVariant}
-      title="Pick a neutral area in the image"
+      title={hint('Pick a neutral area in the image', 'pickWhiteBalance')}
       aria-label="Pick white balance"
       aria-pressed={editor.wbPicking}
       disabled={editor.wbBusy || !editor.assetId}

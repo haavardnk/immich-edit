@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   gotoAsset,
   installMocks,
@@ -123,8 +123,8 @@ test('the refine section keeps its state across a tab switch', async ({ page }) 
 
   const refine = page.getByRole('button', { name: /^Refine/ });
   const reselect = async (): Promise<void> => {
-    await page.keyboard.press('d');
-    await page.keyboard.press('m');
+    await page.keyboard.press('Shift+D');
+    await page.keyboard.press('Shift+M');
     await page.getByRole('button', { name: 'Mask 1', exact: true }).click();
   };
   await reselect();
@@ -144,16 +144,14 @@ test('mask shortcuts are shown where the actions live', async ({ page }) => {
   await page.getByRole('button', { name: 'Toggle mask overlays' }).hover();
   await expect(page.getByText('Hide mask overlays (O)')).toBeVisible();
   await page.getByRole('button', { name: 'New mask' }).click();
-  await expect(page.getByRole('button', { name: 'Linear gradient', exact: true })).toContainText(
-    /Shift\+L|⇧L/
-  );
-  await expect(page.getByRole('button', { name: 'Radial gradient', exact: true })).toContainText(
-    /Shift\+M|⇧M/
-  );
-  await expect(page.getByRole('button', { name: 'Brush', exact: true })).toContainText('K');
+  const keyOf = (name: string): Locator =>
+    page.getByRole('button', { name, exact: true }).locator('.font-mono');
+  await expect(keyOf('Linear gradient')).toHaveText('L');
+  await expect(keyOf('Radial gradient')).toHaveText('R');
+  await expect(keyOf('Brush')).toHaveText('K');
   await page.keyboard.press('Escape');
 
-  await page.keyboard.press('Shift+L');
+  await page.keyboard.press('l');
   await expect(page.getByRole('button', { name: 'Linear start' })).toBeVisible();
 
   await page.keyboard.press('Shift+/');

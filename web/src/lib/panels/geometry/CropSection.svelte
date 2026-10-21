@@ -103,7 +103,7 @@
       color="secondary"
       class="size-7 bg-neutral-800 not-disabled:hover:bg-neutral-700"
       icon={portrait ? mdiCropPortrait : mdiCropLandscape}
-      title={hint(portrait ? 'Switch to landscape' : 'Switch to portrait', 'flipAspect')}
+      title={portrait ? 'Switch to landscape' : 'Switch to portrait'}
       aria-label={portrait ? 'Switch to landscape' : 'Switch to portrait'}
       disabled={!orientationAvailable}
       onclick={editor.flipGeometryAspect}

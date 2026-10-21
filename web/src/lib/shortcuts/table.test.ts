@@ -1,30 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { CONTEXT_STACKS } from './context';
 import { matchKeybind } from './match';
-import { KEYBINDS, type Keybind, type KeybindContext } from './table';
+import { KEYBINDS, type Keybind } from './table';
 
-const CONTEXTS: KeybindContext[] = [
-  'global',
-  'grid',
-  'loupe',
-  'compare',
-  'survey',
-  'editor',
-  'geometry',
-  'masks',
-  'retouch'
-];
+vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/') } }));
+
+const SHARED_BY_DESIGN = /^(Escape|(Shift\+)?Arrow\w+)$/;
 
 describe('registry integrity', () => {
   const all = KEYBINDS as readonly Keybind[];
 
-  it.each(CONTEXTS)('has no colliding chords within %s', (context) => {
+  it.each(Object.entries(CONTEXT_STACKS))('has no colliding chords in the %s stack', (_, stack) => {
     const seen = new Map<string, string>();
     for (const bind of all) {
-      if (!bind.contexts.includes(context)) continue;
-      for (const spec of bind.keys) {
-        const prev = seen.get(spec);
+      if (!bind.contexts.some((c) => (stack as readonly string[]).includes(c))) continue;
+      for (const spec of bind.keys.filter((k) => !SHARED_BY_DESIGN.test(k))) {
+        const chord = spec.toLowerCase();
+        const prev = seen.get(chord);
         expect(prev, `${spec}: ${prev} vs ${bind.id}`).toBeUndefined();
-        seen.set(spec, bind.id);
+        seen.set(chord, bind.id);
       }
     }
   });
@@ -41,8 +35,9 @@ describe('registry integrity', () => {
       metaKey: false,
       ctrlKey: false,
       shiftKey: false,
-      altKey: false
-    } as KeyboardEvent;
+      altKey: false,
+      getModifierState: () => false
+    } as unknown as KeyboardEvent;
     const keyless = all.filter((bind) => bind.keys.length === 0);
     expect(keyless.length).toBeGreaterThan(0);
     for (const bind of keyless) {

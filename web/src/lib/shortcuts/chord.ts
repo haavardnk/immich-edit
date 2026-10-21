@@ -27,8 +27,11 @@ function normalizeKey(key: string): string {
 }
 
 export function chordMatches(e: KeyboardEvent, chord: Chord): boolean {
-  if (chord.mod !== (e.metaKey || e.ctrlKey)) return false;
-  if (chord.alt !== e.altKey) return false;
+  const layoutSymbol =
+    !chord.alt && !chord.code && chord.key.length === 1 && !/[a-z0-9]/.test(chord.key);
+  const altGraph = layoutSymbol && e.getModifierState('AltGraph');
+  if (chord.mod !== (e.metaKey || (e.ctrlKey && !altGraph))) return false;
+  if (!layoutSymbol && chord.alt !== e.altKey) return false;
   if ((chord.code ? e.code : normalizeKey(e.key)) !== chord.key) return false;
   if (chord.shift) return e.shiftKey;
   const shiftSensitive = chord.key.length > 1 || (chord.key >= 'a' && chord.key <= 'z');

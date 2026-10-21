@@ -22,16 +22,14 @@
   import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
   import { editorHref } from '$lib/editor/navigation';
   import { matchKeybind } from '$lib/shortcuts/match';
-  import { yieldsToControl } from '$lib/shortcuts/targets';
-  import type { KeybindContext } from '$lib/shortcuts/table';
+  import { hasTextSelection, yieldsToControl } from '$lib/shortcuts/targets';
+  import { CONTEXT_STACKS } from '$lib/shortcuts/context';
   import {
     createAssetGridLayout,
     verticalAssetIndex,
     visibleAssetRange,
     type AssetGridBox
   } from '$lib/browse/assetGridLayout';
-
-  const GRID_CONTEXTS: KeybindContext[] = ['grid', 'global'];
 
   let {
     assets,
@@ -297,7 +295,7 @@
     shiftPressed = e.shiftKey;
     if (browseView.loupeId || isTyping() || yieldsToControl(e)) return;
 
-    const bind = matchKeybind(e, GRID_CONTEXTS);
+    const bind = matchKeybind(e, CONTEXT_STACKS.grid);
     if (!bind) return;
     if (selectingAll) {
       e.preventDefault();
@@ -365,14 +363,14 @@
       }
       case 'copyEdits': {
         const ids = targets();
-        if (ids.length !== 1 || !ids[0]) return;
+        if (ids.length !== 1 || !ids[0] || hasTextSelection()) return;
         e.preventDefault();
         void copyEditsFrom(ids[0]);
         return;
       }
       case 'pasteEdits': {
         const ids = targets();
-        if (ids.length === 0) return;
+        if (ids.length === 0 || hasTextSelection()) return;
         e.preventDefault();
         void pasteEditsTo(ids);
         return;

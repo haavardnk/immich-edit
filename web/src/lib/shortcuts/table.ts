@@ -54,7 +54,7 @@ export const KEYBINDS = [
   },
   {
     id: 'favorite',
-    keys: ['p', 'f'],
+    keys: ['p'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
     group: 'Culling',
     label: 'Toggle favorite'
@@ -131,7 +131,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridTileInfo',
-    keys: ['Shift+i'],
+    keys: ['i'],
     contexts: ['grid'],
     group: 'Grid',
     label: 'Cycle thumbnail info: hover only, badges, name and date'
@@ -230,7 +230,7 @@ export const KEYBINDS = [
   },
   {
     id: 'toggleTags',
-    keys: ['t'],
+    keys: ['Shift+t'],
     contexts: ['loupe', 'editor'],
     group: 'Loupe',
     label: 'Toggle the tags panel'
@@ -331,15 +331,15 @@ export const KEYBINDS = [
 
   {
     id: 'fullscreen',
-    keys: ['Shift+f'],
+    keys: ['f'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'View',
     label: 'Toggle fullscreen'
   },
   {
-    id: 'loupeFilmstrip',
-    keys: ['Shift+t'],
-    contexts: ['loupe', 'compare', 'survey'],
+    id: 'filmstrip',
+    keys: ['Shift+s'],
+    contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'View',
     label: 'Hide or show the filmstrip'
   },
@@ -409,28 +409,28 @@ export const KEYBINDS = [
   },
   {
     id: 'openDevelop',
-    keys: ['d'],
+    keys: ['Shift+d'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Open Develop'
   },
   {
     id: 'openGeometry',
-    keys: ['r'],
+    keys: ['Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Open Geometry'
   },
   {
     id: 'openRetouch',
-    keys: ['q'],
+    keys: ['Shift+q'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Open Retouch'
   },
   {
     id: 'openMasks',
-    keys: ['m'],
+    keys: ['Shift+m'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Open Masks'
@@ -443,13 +443,6 @@ export const KEYBINDS = [
     label: 'Create a virtual copy'
   },
   {
-    id: 'perspective',
-    keys: ['Shift+p'],
-    contexts: ['editor'],
-    group: 'Editor',
-    label: 'Toggle the perspective corner handles'
-  },
-  {
     id: 'beforeAfter',
     keys: ['y'],
     contexts: ['editor'],
@@ -458,11 +451,11 @@ export const KEYBINDS = [
   },
   {
     id: 'holdOriginal',
-    keys: ['\\'],
+    keys: ['\\', '<'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Hold to view the original',
-    display: '\\ (hold)'
+    display: '\\ or < (hold)'
   },
   {
     id: 'togglePanels',
@@ -477,6 +470,13 @@ export const KEYBINDS = [
     contexts: ['editor'],
     group: 'Editor',
     label: 'Hide or show every panel'
+  },
+  {
+    id: 'pickWhiteBalance',
+    keys: ['w'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Pick white balance from a neutral area'
   },
   {
     id: 'autoAdjust',
@@ -494,21 +494,21 @@ export const KEYBINDS = [
   },
   {
     id: 'copyEdits',
-    keys: ['Mod+Shift+c'],
+    keys: ['Mod+c'],
     contexts: ['editor', 'grid', 'loupe'],
     group: 'Editor',
     label: 'Copy edits'
   },
   {
     id: 'pasteEdits',
-    keys: ['Mod+Shift+v'],
+    keys: ['Mod+v'],
     contexts: ['editor', 'grid', 'loupe'],
     group: 'Editor',
     label: 'Paste edits'
   },
   {
     id: 'openExport',
-    keys: ['Mod+Shift+e'],
+    keys: ['Shift+e'],
     contexts: ['editor'],
     group: 'Editor',
     label: 'Open Export'
@@ -564,7 +564,7 @@ export const KEYBINDS = [
   },
   {
     id: 'straighten',
-    keys: ['Shift+a'],
+    keys: ['a'],
     contexts: ['geometry'],
     group: 'Geometry',
     label: 'Draw a line along the horizon to level the photo'
@@ -583,13 +583,6 @@ export const KEYBINDS = [
     contexts: ['geometry'],
     group: 'Geometry',
     label: 'Cycle the crop guide: thirds, golden ratio, diagonals, grid, none'
-  },
-  {
-    id: 'flipAspect',
-    keys: ['Shift+x'],
-    contexts: ['geometry'],
-    group: 'Geometry',
-    label: 'Swap the crop between landscape and portrait'
   },
   {
     id: 'cropFromCentre',
@@ -640,14 +633,14 @@ export const KEYBINDS = [
   },
   {
     id: 'addRadialLayer',
-    keys: ['Shift+m'],
+    keys: ['r'],
     contexts: ['editor'],
     group: 'Masks',
     label: 'Add a radial mask layer'
   },
   {
     id: 'addLinearLayer',
-    keys: ['Shift+l'],
+    keys: ['l'],
     contexts: ['editor'],
     group: 'Masks',
     label: 'Add a linear mask layer'
