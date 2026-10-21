@@ -588,6 +588,11 @@ test('white balance eyedropper applies the sampled neutral to both sliders', asy
   await expect(surface).toBeVisible();
   const box = await surface.boundingBox();
   if (!box) throw new Error('white balance picker has no box');
+  const readout = page.getByTestId('wb-picker-readout');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(readout).toContainText('4100 K');
+  await page.mouse.move(1, 1);
+  await expect(readout).toHaveCount(0);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.up();
@@ -595,17 +600,52 @@ test('white balance eyedropper applies the sampled neutral to both sliders', asy
   await expect(surface).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4100 K');
   await expect(page.getByRole('button', { name: 'Edit Tint value' })).toHaveText('6');
-  expect(sampled).toHaveLength(1);
-  expect(sampled[0]?.u).toBeCloseTo(0.5, 1);
+  const picked = sampled.at(-1);
+  expect(picked?.u).toBeCloseTo(0.5, 1);
+  expect(picked?.w).toBe(0);
   await expect.poll(() => saves.length).toBeGreaterThan(0);
 });
 
-test('a rejected white balance sample toasts and keeps the picker open', async ({ page }) => {
-  let calls = 0;
+test('dragging a white balance box samples its area', async ({ page }) => {
+  const sampled: Array<Record<string, unknown>> = [];
   await installMocks(page, {
     onWhiteBalance: (route) => {
-      calls++;
-      if (calls === 1) {
+      sampled.push((route.request().postDataJSON() as Record<string, unknown>) ?? {});
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ mode: 'absolute', kelvin: 3900, tint: 3 })
+      });
+    }
+  });
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Pick white balance' }).click();
+  const surface = page.getByTestId('wb-picker-surface');
+  const box = await surface.boundingBox();
+  if (!box) throw new Error('white balance picker has no box');
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.7, { steps: 5 });
+
+  await expect(page.getByTestId('wb-picker-box')).toBeVisible();
+  await expect(page.getByTestId('wb-picker-readout')).toContainText('3900 K');
+  await page.mouse.up();
+
+  await expect(surface).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('3900 K');
+  const picked = sampled.at(-1);
+  expect(picked?.u).toBeCloseTo(0.2, 1);
+  expect(picked?.v).toBeCloseTo(0.3, 1);
+  expect(picked?.w).toBeCloseTo(0.4, 1);
+  expect(picked?.h).toBeCloseTo(0.4, 1);
+});
+
+test('a rejected white balance sample toasts and keeps the picker open', async ({ page }) => {
+  let reject = true;
+  await installMocks(page, {
+    onWhiteBalance: (route) => {
+      if (reject) {
         return route.fulfill({
           status: 422,
           contentType: 'application/json',
@@ -630,9 +670,11 @@ test('a rejected white balance sample toasts and keeps the picker open', async (
   await surface.click();
 
   await expect(page.getByRole('status').filter({ hasText: 'No usable colour here' })).toBeVisible();
+  await expect(page.getByTestId('wb-picker-readout')).toContainText('No usable colour here');
   await expect(surface).toBeVisible();
   await expect(button).toHaveAttribute('aria-pressed', 'true');
 
+  reject = false;
   await surface.click();
 
   await expect(surface).toHaveCount(0);

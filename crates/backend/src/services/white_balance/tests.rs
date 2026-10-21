@@ -26,41 +26,54 @@ fn uniform_frame(rgb: [f32; 3]) -> Arc<RawFrame> {
     })
 }
 
-fn centre() -> SamplePoint {
-    SamplePoint {
-        u: 0.5,
-        v: 0.5,
+fn sample_at(u: f32, v: f32, w: f32, h: f32) -> WhiteBalanceSample {
+    WhiteBalanceSample {
+        u,
+        v,
+        w,
+        h,
         edits: Edits::default(),
     }
 }
 
+fn centre() -> WhiteBalanceSample {
+    sample_at(0.5, 0.5, 0.0, 0.0)
+}
+
 #[test]
-fn sample_points_outside_the_unit_square_are_rejected() {
-    for (u, v, ok) in [
-        (0.0, 1.0, true),
-        (0.5, 0.5, true),
-        (1.5, 0.5, false),
-        (0.5, -0.1, false),
-        (f32::NAN, 0.5, false),
+fn samples_outside_the_unit_square_are_rejected() {
+    for (u, v, w, h, ok) in [
+        (0.0, 1.0, 0.0, 0.0, true),
+        (0.5, 0.5, 0.0, 0.0, true),
+        (0.2, 0.3, 0.8, 0.7, true),
+        (0.25, 0.5, 0.5, 0.0, true),
+        (1.5, 0.5, 0.0, 0.0, false),
+        (0.5, -0.1, 0.0, 0.0, false),
+        (f32::NAN, 0.5, 0.0, 0.0, false),
+        (0.5, 0.5, 0.6, 0.1, false),
+        (0.5, 0.5, 0.1, -0.1, false),
+        (0.5, 0.5, f32::NAN, 0.1, false),
+        (0.5, 0.5, 0.1, f32::INFINITY, false),
     ] {
-        let point = SamplePoint {
-            u,
-            v,
-            edits: Edits::default(),
-        };
-        assert_eq!(point.validate().is_ok(), ok, "({u}, {v})");
+        assert_eq!(
+            sample_at(u, v, w, h).validate().is_ok(),
+            ok,
+            "({u}, {v}, {w}, {h})"
+        );
     }
 }
 
 #[tokio::test]
 async fn a_warm_sample_solves_to_a_cooler_temperature() {
-    let solved = sample(uniform_frame([0.6, 0.45, 0.3]), centre(), None)
-        .await
-        .expect("warm sample solves");
-    let WhiteBalance::Relative { temp, .. } = solved else {
-        panic!("display white solves relative, got {solved:?}");
-    };
-    assert!(temp < 0.0, "got {solved:?}");
+    for req in [centre(), sample_at(0.25, 0.25, 0.5, 0.5)] {
+        let solved = sample(uniform_frame([0.6, 0.45, 0.3]), req, None)
+            .await
+            .expect("warm sample solves");
+        let WhiteBalance::Relative { temp, .. } = solved else {
+            panic!("display white solves relative, got {solved:?}");
+        };
+        assert!(temp < 0.0, "got {solved:?}");
+    }
 }
 
 #[tokio::test]

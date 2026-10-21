@@ -79,14 +79,17 @@ describe('white balance picker', () => {
     await editor.load('asset-1');
   });
 
-  it('applies and commits a sampled neutral point', async () => {
+  it.each([
+    ['point', { u: 0.25, v: 0.75, w: 0, h: 0 }],
+    ['box', { u: 0.1, v: 0.2, w: 0.3, h: 0.4 }]
+  ])('applies and commits a sampled neutral %s', async (_kind, sample) => {
     mocks.sampleWhiteBalance.mockResolvedValue({ mode: 'absolute', kelvin: 4100, tint: 4 });
     editor.toggleWbPicker();
     expect(editor.wbPicking).toBe(true);
 
-    await editor.pickWhiteBalance(0.25, 0.75);
+    await editor.pickWhiteBalance(sample);
 
-    expect(mocks.sampleWhiteBalance.mock.calls[0]?.slice(0, 3)).toEqual(['asset-1', 0.25, 0.75]);
+    expect(mocks.sampleWhiteBalance.mock.calls[0]?.slice(0, 2)).toEqual(['asset-1', sample]);
     expect(editor.edits.basic.white_balance).toEqual({ mode: 'absolute', kelvin: 4100, tint: 4 });
     expect(editor.wbPicking).toBe(false);
     expect(mocks.putEdits).toHaveBeenCalledTimes(1);
@@ -106,7 +109,7 @@ describe('white balance picker', () => {
     mocks.sampleWhiteBalance.mockRejectedValue(new Error('No usable colour here'));
     editor.toggleWbPicker();
 
-    await editor.pickWhiteBalance(0.5, 0.5);
+    await editor.pickWhiteBalance({ u: 0.5, v: 0.5, w: 0, h: 0 });
 
     expect(editor.edits.basic.white_balance).toEqual(asShotWhiteBalance());
     expect(editor.error).toBeNull();

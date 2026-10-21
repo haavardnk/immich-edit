@@ -272,6 +272,76 @@ fn clipped_or_mixed_mosaic_samples_do_not_solve() {
     }
 }
 
+fn area(u: f32, v: f32, w: f32, h: f32) -> SampleArea {
+    SampleArea { u, v, w, h }
+}
+
+#[test]
+fn area_sample_neutralises_the_box() {
+    let cast = [0.55, 0.40, 0.28];
+    let split = |x: usize, _: usize| if x < 48 { cast } else { [0.1, 0.4, 0.1] };
+    for (name, frame) in [
+        ("RGB", make_frame_with(96, 96, split)),
+        ("RGGB", make_mosaic_with(96, 96, "RGGB", split)),
+        ("X-Trans", make_mosaic_with(96, 96, XTRANS, split)),
+    ] {
+        let wb =
+            sample_white_balance_area(&frame, &Edits::default(), None, area(0.05, 0.1, 0.4, 0.8))
+                .unwrap_or_else(|| panic!("{name} box solves"));
+        let left = spread(neutralised(cast, wb));
+        assert!(left < 0.03, "{name} left spread {left}");
+    }
+}
+
+#[test]
+fn area_sample_keeps_cfa_phase_at_partial_edge_blocks() {
+    let cast = [0.55, 0.40, 0.28];
+    for (cfa, w, h) in [("RGGB", 97, 99), (XTRANS, 98, 100)] {
+        let frame = make_mosaic_with(w, h, cfa, |_, _| cast);
+        let wb =
+            sample_white_balance_area(&frame, &Edits::default(), None, area(0.9, 0.9, 0.1, 0.1))
+                .unwrap_or_else(|| panic!("{cfa} {w}x{h} edge box solves"));
+        let left = spread(neutralised(cast, wb));
+        assert!(left < 0.03, "{cfa} {w}x{h} left spread {left}");
+    }
+}
+
+#[test]
+fn area_sample_solves_a_box_the_point_picker_rejects_as_mixed() {
+    let warm = [0.55, 0.40, 0.28];
+    let cool = [0.30, 0.40, 0.50];
+    let mean = [0.425, 0.40, 0.39];
+    for cfa in ["RGGB", XTRANS] {
+        let frame = make_mosaic_with(96, 96, cfa, |x, _| if x < 48 { warm } else { cool });
+        assert!(sample_white_balance(&frame, &Edits::default(), None, 0.5, 0.5).is_none());
+        let wb =
+            sample_white_balance_area(&frame, &Edits::default(), None, area(0.25, 0.25, 0.5, 0.5))
+                .unwrap_or_else(|| panic!("{cfa} mixed box solves"));
+        let left = spread(neutralised(mean, wb));
+        assert!(left < 0.03, "{cfa} left spread {left}");
+    }
+}
+
+#[test]
+fn area_sample_skips_clipped_samples_until_most_are_clipped() {
+    let cast = [0.55, 0.40, 0.28];
+    for (clipped_rows, solves) in [(30, true), (70, false)] {
+        let frame = make_frame_with(96, 96, |_, y| {
+            if y < clipped_rows {
+                [0.97, 0.8, 0.6]
+            } else {
+                cast
+            }
+        });
+        let wb =
+            sample_white_balance_area(&frame, &Edits::default(), None, area(0.0, 0.0, 1.0, 1.0));
+        assert_eq!(wb.is_some(), solves, "{clipped_rows} clipped rows: {wb:?}");
+        if let Some(wb) = wb {
+            assert!(spread(neutralised(cast, wb)) < 0.03, "{wb:?}");
+        }
+    }
+}
+
 #[test]
 fn auto_white_balance_neutralises_grey_amid_colour() {
     let target = WhiteBalance::Relative {

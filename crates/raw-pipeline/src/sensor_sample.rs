@@ -41,7 +41,7 @@ pub(crate) fn cfa_block(cfa_pattern: &str) -> (usize, Vec<usize>) {
     }
 }
 
-fn mosaic_block_rgb(
+pub(crate) fn mosaic_block_rgb(
     data: &[f32],
     w: usize,
     dim: usize,
