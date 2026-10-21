@@ -3,8 +3,10 @@ import { autoEdits } from '$lib/api/edits';
 import { applyCopySections } from '$lib/editor/copyPaste';
 import { LOOK_AMOUNT_FULL, withLookAmount } from '$lib/edits/lookAmount';
 import { manifestToEdits } from '$lib/edits/manifest';
+import { keysFor } from '$lib/shortcuts/labels';
 import { clipboard } from '$lib/stores/clipboard.svelte';
 import { copyDialog } from '$lib/stores/copyDialog.svelte';
+import { toasts } from '$lib/stores/toasts.svelte';
 import { isIdentity, resetDevelopEdits, type EditManifest, type Edits } from '$lib/types/edits';
 import { errorMessage } from '$lib/utils/errors';
 
@@ -22,19 +24,30 @@ export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
   if (!ctx.assetId) return;
   ctx.edits = resetDevelopEdits(ctx.edits);
   await ctx.onCommit('Reset Develop');
+  toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, 3000);
 }
 
 export function copyEdits(ctx: DevelopCtx): void {
-  if (isIdentity(ctx.edits)) return;
-  copyDialog.show($state.snapshot(ctx.edits) as Edits);
+  if (isIdentity(ctx.edits)) {
+    toasts.push('info', 'This photo has no edits to copy', 3000);
+    return;
+  }
+  copyDialog.show($state.snapshot(ctx.edits) as Edits, () =>
+    toasts.push('success', 'Copied settings', 3000)
+  );
 }
 
 export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
+  if (!ctx.initialised) return;
   const snap = clipboard.snapshot();
-  if (!snap || !ctx.initialised) return;
+  if (!snap) {
+    toasts.push('info', 'Nothing copied', 3000);
+    return;
+  }
   ctx.edits = applyCopySections(ctx.edits, snap.edits, snap.sections);
   ctx.onLive();
   await ctx.onCommit('Paste');
+  toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, 3000);
 }
 
 export async function applyPreset(
