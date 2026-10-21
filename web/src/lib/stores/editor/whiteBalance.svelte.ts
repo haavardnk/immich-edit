@@ -1,4 +1,9 @@
-import { autoWhiteBalance, getAsShotWhite, sampleWhiteBalance } from '$lib/api/edits';
+import {
+  autoWhiteBalance,
+  getAsShotWhite,
+  sampleWhiteBalance,
+  type WhiteBalanceSample
+} from '$lib/api/edits';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { errorMessage } from '$lib/utils/errors';
 import type { AsShotWhite, Edits, WhiteBalance } from '$lib/types/edits';
@@ -44,11 +49,14 @@ export function cancelWbPicker(ctx: WhiteBalanceCtx): void {
   ctx.wbPicking = false;
 }
 
-export async function pickWhiteBalance(ctx: WhiteBalanceCtx, u: number, v: number): Promise<void> {
+export async function pickWhiteBalance(
+  ctx: WhiteBalanceCtx,
+  sample: WhiteBalanceSample
+): Promise<void> {
   if (!ctx.assetId || !ctx.initialised || ctx.wbBusy) return;
   ctx.wbBusy = true;
   try {
-    const solved = await sampleWhiteBalance(ctx.assetId, u, v, $state.snapshot(ctx.edits));
+    const solved = await sampleWhiteBalance(ctx.assetId, sample, $state.snapshot(ctx.edits));
     applySolved(ctx, solved);
     ctx.wbPicking = false;
     await ctx.onCommit('White Balance');

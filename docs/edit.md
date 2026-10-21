@@ -40,7 +40,9 @@ side panels, `Shift+Tab` hides every panel, and `Shift+F` goes full screen.
    weights detected faces, keeps night scenes dark, and holds exposure back rather than blow out
    bright areas. Then:
    - **White Balance**: **Pick white balance** and click something that should be neutral gray, or
-     use **Auto white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
+     drag a box over a larger gray area to use its average. While you hover or drag, a card next
+     to the pointer shows the **Temperature** and **Tint** the pick would set. Or use **Auto
+     white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
      that could be neutral gray and stays near the camera's white when a scene has none, so warm
      interiors and colorful subjects keep their mood. On RAW files the sliders show
      the white in Kelvin, start at the camera's as-shot white, and reset to it; positive **Tint**

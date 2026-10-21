@@ -9,8 +9,10 @@ use crate::sensor_sample::{
 };
 use serde::Serialize;
 
+mod area;
 mod auto;
 
+pub use area::{SampleArea, sample_white_balance_area};
 pub use auto::auto_white_balance;
 
 const SAMPLE_RADIUS: i32 = 2;

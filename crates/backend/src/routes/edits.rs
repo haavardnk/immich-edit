@@ -21,7 +21,7 @@ use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
 };
 use crate::services::render::{RenderError, RenderIdentity};
-use crate::services::white_balance::{self, SamplePoint};
+use crate::services::white_balance::{self, WhiteBalanceSample};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -281,15 +281,15 @@ pub async fn white_balance_sample(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-    Json(point): Json<SamplePoint>,
+    Json(req): Json<WhiteBalanceSample>,
 ) -> Result<Json<WhiteBalance>, AppError> {
-    point.validate()?;
+    req.validate()?;
     let frame = state
         .render
         .frame(RenderIdentity::from(&ctx), &ctx.immich, id.source())
         .await?;
-    let profile = state.render.dcp_profile(&point.edits, &frame).await?;
-    Ok(Json(white_balance::sample(frame, point, profile).await?))
+    let profile = state.render.dcp_profile(&req.edits, &frame).await?;
+    Ok(Json(white_balance::sample(frame, req, profile).await?))
 }
 
 pub async fn white_balance_auto(

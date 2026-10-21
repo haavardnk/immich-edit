@@ -43,7 +43,7 @@ import type { ViewSnapshot } from '$lib/stores/editor/previewEdge';
 import { ViewportNav } from '$lib/stores/editor/viewport';
 import type { PreviewMeta } from '$lib/types/preview';
 import type { AssetDetail, TagRef } from '$lib/types/asset';
-import { getEdits } from '$lib/api/edits';
+import { getEdits, type WhiteBalanceSample } from '$lib/api/edits';
 import { type PreviewMode } from '$lib/api/preview';
 import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
 import { getAsset } from '$lib/api/assets';
@@ -374,8 +374,8 @@ class EditorStore {
 
   cancelWbPicker = (): void => whiteBalance.cancelWbPicker(this);
 
-  pickWhiteBalance = (u: number, v: number): Promise<void> =>
-    whiteBalance.pickWhiteBalance(this, u, v);
+  pickWhiteBalance = (sample: WhiteBalanceSample): Promise<void> =>
+    whiteBalance.pickWhiteBalance(this, sample);
 
   onAutoWhiteBalance = (): Promise<void> => whiteBalance.autoWb(this);
 
