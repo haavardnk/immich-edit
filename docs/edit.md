@@ -132,7 +132,8 @@ Going back in **Edit history** deletes every entry after the one you pick. Make 
 [virtual copy](#try-variations) first if you might want the later state again.
 
 **Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
-It keeps the camera profile, the crop and rotation, masks and retouch strokes. Reset the crop in
+It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms
+the reset and names the undo key. Reset the crop in
 **Geometry**, and delete masks and strokes in their own tabs.
 
 ## Adjust part of the photo
@@ -217,7 +218,8 @@ another tool.
 **Copy edits** (`Ctrl+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
 **Tone**, **Color**, **Detail**, **Lens Corrections**, **Effects**, **Geometry & crop**, **Masks**
 and **Retouch**. The last three start unchecked, because a crop or a mask rarely fits another
-photo. Then open another photo and press **Paste edits** (`Ctrl+V`). To paste onto many
+photo. Then open another photo and press **Paste edits** (`Ctrl+V`). A short message confirms
+each copy and paste, or says when there is nothing to copy or paste. To paste onto many
 photos at once, use [**Edit and export selected**](export.md#export-many-photos).
 
 A preset keeps a look for later. In **Presets**, press **Save current as preset**, give it a name
