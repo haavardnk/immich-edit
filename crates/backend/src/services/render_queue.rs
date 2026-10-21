@@ -44,6 +44,7 @@ pub enum RenderLane {
     Original,
     Weight,
     Roi,
+    Geometry,
     Source,
     SourceTile,
 }

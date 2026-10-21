@@ -109,27 +109,27 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Editor
 
-| Keys           | Action                                           | Available in        |
-| -------------- | ------------------------------------------------ | ------------------- |
-| `←` / `→`      | Previous / next photo                            | Editor              |
-| `Ctrl+Z`       | Undo                                             | Editor              |
-| `Ctrl+Shift+Z` | Redo                                             | Editor              |
-| `Shift+D`      | Open Develop                                     | Editor              |
-| `Shift+R`      | Open Geometry                                    | Editor              |
-| `Shift+Q`      | Open Retouch                                     | Editor              |
-| `Shift+M`      | Open Masks                                       | Editor              |
-| `Ctrl+'`       | Create a virtual copy                            | Grid, Loupe, Editor |
-| `Y`            | Toggle the before / after split                  | Editor              |
-| `\` / `<`      | Hold to view the original                        | Editor              |
-| `Tab`          | Hide or show the side panels                     | Editor              |
-| `Shift+Tab`    | Hide or show every panel                         | Editor              |
-| `W`            | Pick white balance from a neutral area           | Editor              |
-| `Ctrl+U`       | Auto adjust                                      | Editor              |
-| `Ctrl+Shift+R` | Reset develop settings                           | Editor              |
-| `Ctrl+C`       | Copy edits                                       | Editor, Grid, Loupe |
-| `Ctrl+V`       | Paste edits                                      | Editor, Grid, Loupe |
-| `Shift+E`      | Open Export                                      | Editor              |
-| `Esc`          | Step out of the active tool, panel or fullscreen | Editor              |
+| Keys           | Action                                                  | Available in        |
+| -------------- | ------------------------------------------------------- | ------------------- |
+| `←` / `→`      | Previous / next photo                                   | Editor              |
+| `Ctrl+Z`       | Undo                                                    | Editor              |
+| `Ctrl+Shift+Z` | Redo                                                    | Editor              |
+| `Shift+D`      | Open Develop                                            | Editor              |
+| `Shift+R`      | Open Geometry                                           | Editor              |
+| `Shift+Q`      | Open Retouch                                            | Editor              |
+| `Shift+M`      | Open Masks                                              | Editor              |
+| `Ctrl+'`       | Create a virtual copy                                   | Grid, Loupe, Editor |
+| `Y`            | Toggle the before / after split                         | Editor              |
+| `\` / `<`      | Hold to view the original                               | Editor              |
+| `Tab`          | Hide or show the side panels                            | Editor              |
+| `Shift+Tab`    | Hide or show every panel                                | Editor              |
+| `W`            | Pick white balance from a neutral area                  | Editor              |
+| `Ctrl+U`       | Auto adjust                                             | Editor              |
+| `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
+| `Ctrl+C`       | Copy edits                                              | Editor, Grid, Loupe |
+| `Ctrl+V`       | Paste edits                                             | Editor, Grid, Loupe |
+| `Shift+E`      | Open Export                                             | Editor              |
+| `Esc`          | Step out of the active tool, panel or fullscreen        | Editor              |
 
 ## Sliders
 
@@ -144,7 +144,6 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 | Keys                           | Action                                                            | Available in |
 | ------------------------------ | ----------------------------------------------------------------- | ------------ |
-| `Enter`                        | Apply the crop and transform and return to Develop                | Geometry     |
 | `A`                            | Draw a line along the horizon to level the photo                  | Geometry     |
 | `Shift + drag inside the crop` | Draw a straighten line without arming the tool                    | Geometry     |
 | `O`                            | Cycle the crop guide: thirds, golden ratio, diagonals, grid, none | Geometry     |

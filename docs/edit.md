@@ -194,8 +194,9 @@ Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll
 
 ## Crop and straighten
 
-**Geometry** shows the whole photo while you work, and applies the result when you switch to
-another tool.
+**Geometry** shows the whole photo while you work. Each change saves as soon as you let go, as its
+own step in the history, so `Cmd+Z` or `Ctrl+Z` takes back the last crop or rotation without
+leaving the tool. The tool stays open until you pick another one.
 
 - **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1**,
   **3:2**, **5:4** or **7:5**; **Custom…** takes any whole-number width and height. The button beside
@@ -206,12 +207,14 @@ another tool.
   thirds, golden ratio, diagonals, a grid and none, and remembers your choice.
 - **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`,
   and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
-  the same without the button. **Rotate left 90°** and **Rotate right 90°** turn the photo, and
-  **Flip Horizontal** and **Flip Vertical** mirror it.
+  the same without the button. **Rotate left 90°** and **Rotate right 90°** in the bar at the top
+  turn the photo, and **Flip horizontal** and **Flip vertical** mirror it.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
   afterwards. **Corner handles** lets you drag the four corners onto a shape that
   should be rectangular instead.
-- **Reset Transform** undoes everything in this tool.
+- The reset arrow beside **Crop** or **Transform** undoes just that section. **Reset** in the bar at
+  the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
+  leaves your develop settings alone.
 
 ## Reuse edits
 

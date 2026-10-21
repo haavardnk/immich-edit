@@ -2,7 +2,7 @@
   import { hint } from '$lib/shortcuts/labels';
   import { editor } from '$lib/stores/editor.svelte';
   import { ui, CROP_GRIDS } from '$lib/stores/ui.svelte';
-  import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
+  import { cropIsDefault, type GeometrySession } from '$lib/stores/editor/geometry.svelte';
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import TextInput from '$lib/components/TextInput.svelte';
   import { croppedOutputSize } from '$lib/utils/geom';
@@ -32,7 +32,7 @@
     aspect.kind === 'ratio' ? { num: String(aspect.num), den: String(aspect.den) } : customDraft
   );
   const orientationAvailable = $derived(aspect.kind === 'ratio' && aspect.num !== aspect.den);
-  const cropModified = $derived(sess.userEditedCrop || aspect.kind !== 'original');
+  const cropModified = $derived(!cropIsDefault(sess) || aspect.kind !== 'original');
   const gridLabel = $derived(CROP_GRIDS.find((g) => g.id === ui.cropGrid)?.label ?? '');
   const outputSize = $derived(
     editor.meta
@@ -52,19 +52,19 @@
   function onAspectChange(key: string): void {
     customPicked = key === CUSTOM_KEY;
     const next = aspectForKey(key, portrait);
-    if (next) editor.updateGeometryDraftAspect(next);
+    if (next) void editor.setGeometryAspect(next);
   }
 
   function setCustomSide(side: 'num' | 'den', raw: string): void {
     customDraft = { ...customValues, [side]: raw };
     const num = parseRatioSide(customDraft.num);
     const den = parseRatioSide(customDraft.den);
-    if (num !== null && den !== null) editor.updateGeometryDraftAspect({ kind: 'ratio', num, den });
+    if (num !== null && den !== null) void editor.setGeometryAspect({ kind: 'ratio', num, den });
   }
 
   function resetCrop(): void {
     customPicked = false;
-    editor.updateGeometryDraftAspect({ kind: 'original' });
+    void editor.setGeometryAspect({ kind: 'original' }, 'Reset crop');
   }
 </script>
 

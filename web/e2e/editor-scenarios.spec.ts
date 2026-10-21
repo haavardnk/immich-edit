@@ -519,3 +519,59 @@ test('develop reset keeps masks, retouch and the crop', async ({ page }) => {
   expect(body.manifest.ops.transform).toBeDefined();
   await expect(page.getByRole('button', { name: 'Reset develop settings' })).toBeDisabled();
 });
+
+test('geometry action buttons rotate, flip and reset', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  const reset = page.getByRole('button', { name: 'Reset geometry', exact: true });
+  await expect(reset).toBeDisabled();
+
+  const steps: [string, string][] = [
+    ['Rotate right 90°', 'Rotate'],
+    ['Flip horizontal', 'Flip'],
+    ['Reset geometry', 'Reset Geometry']
+  ];
+  for (const [name, action] of steps) {
+    const saved = page.waitForRequest(
+      (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+    );
+    await page.getByRole('button', { name, exact: true }).click();
+    expect(((await saved).postDataJSON() as { action: string | null }).action).toBe(action);
+    if (action === 'Rotate') await expect(reset).toBeEnabled();
+  }
+  await expect(reset).toBeDisabled();
+});
+
+test('the reset shortcut on the Geometry tab resets only geometry', async ({ page }) => {
+  const edits = neutralEdits();
+  edits.basic.exposure_ev = 1;
+  edits.geometry.rotate = 90;
+  edits.geometry.flip_h = true;
+  await installMocks(page, {
+    editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits), hash: 'hash-edited' }
+  });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('button', { name: 'Flip horizontal' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
+  await page.keyboard.press('ControlOrMeta+Shift+r');
+  const body = (await saved).postDataJSON() as {
+    manifest: { ops: Record<string, unknown> };
+    action: string | null;
+  };
+  expect(body.action).toBe('Reset Geometry');
+  expect(body.manifest.ops.exposure).toBeDefined();
+  expect(body.manifest.ops.transform).toBeUndefined();
+  await expect(page.getByRole('button', { name: 'Reset geometry', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Flip horizontal' })).toHaveAttribute(
+    'aria-pressed',
+    'false'
+  );
+});

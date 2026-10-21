@@ -72,8 +72,7 @@ describe('context resolution', () => {
     [{ key: 'f' }, ['survey', 'global'], 'fullscreen'],
     [{ key: 'F', shiftKey: true }, ['grid', 'global'], 'toggleFilters'],
     [{ key: 'c' }, ['retouch', 'editor', 'global'], 'retouchClone'],
-    [{ key: 'Enter' }, ['geometry', 'editor', 'global'], 'geometryDone'],
-    [{ key: 'Enter' }, ['editor', 'global'], null],
+    [{ key: 'Enter' }, ['geometry', 'editor', 'global'], null],
     [{ key: 'Escape' }, ['geometry', 'editor', 'global'], 'editorEscape'],
     [{ key: 'c' }, ['grid', 'global'], 'enterCompare'],
     [{ key: 'q' }, ['grid', 'global'], null]

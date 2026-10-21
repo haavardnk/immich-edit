@@ -996,40 +996,43 @@ test('Geometry pane always exposes crop controls', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
-  await geometrySlider(page, 'Angle').fill('5');
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
-  await page.getByRole('tab', { name: 'Develop' }).click();
+  await geometrySlider(page, 'Angle').fill('5');
   const request = await saved;
   const body = request.postDataJSON() as {
     manifest: { ops: { transform?: { angle?: number } } };
     action: string | null;
   };
   expect(body.manifest.ops.transform?.angle).toBe(5);
-  expect(body.action).toBe('Geometry');
-  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
+  expect(body.action).toBe('Straighten');
+  await page.getByRole('tab', { name: 'Develop' }).click();
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
 test('perspective sliders save into the transform op', async ({ page }) => {
-  await installMocks(page);
+  const saves: Array<Record<string, unknown>> = [];
+  await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Geometry' }).click();
+  await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
   await geometrySlider(page, 'Vertical').fill('40');
   await geometrySlider(page, 'Aspect').fill('-25');
 
-  const saved = page.waitForRequest(
-    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
-  );
-  await page.getByRole('tab', { name: 'Develop' }).click();
-  const request = await saved;
-  const body = request.postDataJSON() as {
-    manifest: { ops: { transform?: { perspective?: { vertical?: number; aspect?: number } } } };
-  };
-  expect(body.manifest.ops.transform?.perspective?.vertical).toBe(40);
-  expect(body.manifest.ops.transform?.perspective?.aspect).toBe(-25);
+  await expect
+    .poll(() => {
+      const body = saves.at(-1) as
+        | {
+            manifest: {
+              ops: { transform?: { perspective?: { vertical?: number; aspect?: number } } };
+            };
+          }
+        | undefined;
+      return body?.manifest.ops.transform?.perspective;
+    })
+    .toMatchObject({ vertical: 40, aspect: -25 });
 });
 
 test('perspective corner handles drag into the transform op', async ({ page }) => {
@@ -1045,20 +1048,21 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
 
   const box = await handle.boundingBox();
   if (!box) throw new Error('corner handle has no box');
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
+  );
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 20, { steps: 5 });
   await page.mouse.up();
 
-  const saved = page.waitForRequest(
-    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
-  );
-  await page.getByRole('tab', { name: 'Develop' }).click();
   const request = await saved;
   const body = request.postDataJSON() as {
     manifest: { ops: { transform?: { perspective?: { corners?: number[][] } } } };
+    action: string | null;
   };
   const corners = body.manifest.ops.transform?.perspective?.corners;
+  expect(body.action).toBe('Perspective');
   expect(corners).toBeDefined();
   expect(corners?.[0][0]).toBeGreaterThan(0);
   expect(corners?.[0][1]).toBeGreaterThan(0);
@@ -1165,71 +1169,57 @@ for (const how of ['tool', 'shift'] as const) {
   });
 }
 
-test('Shift+R opens Geometry and Escape drops the crop', async ({ page }) => {
-  const saves: Array<Record<string, unknown>> = [];
-  await installMocks(page, { onSave: (body) => saves.push(body) });
+test('a crop saves on release, undo restores it and Escape stays on Geometry', async ({ page }) => {
+  await installMocks(page, { previewBody: makePng(60, 40) });
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Develop' }).click();
-  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
-
   await page.keyboard.press('Shift+R');
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true'
+  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  await expect(geometryTab).toHaveAttribute('aria-selected', 'true');
+  const output = page.getByTestId('crop-output-size');
+  await expect(output).toHaveText('6000 × 4000 px');
+
+  const saved = page.waitForRequest(
+    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
   );
-  await expect(page.getByText('Angle', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
   await dragCropCorner(page);
+  const body = (await saved).postDataJSON() as {
+    manifest: { ops: { transform?: { crop?: { w: number } } } };
+    action: string | null;
+  };
+  expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
+  expect(body.action).toBe('Crop');
+  await expect(output).not.toHaveText('6000 × 4000 px');
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(output).toHaveText('6000 × 4000 px');
 
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
-  await page.waitForTimeout(300);
-  expect(saves.filter((body) => JSON.stringify(body).includes('"crop"'))).toEqual([]);
+  await expect(geometryTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 });
 
-for (const [open, apply] of [
-  ['Shift+R', 'Enter'],
-  ['rail', 'Enter'],
-  ['rail', 'rail']
-] as const) {
-  test(`Geometry opened by ${open} applies the crop on ${apply} and returns to Develop`, async ({
-    page
-  }) => {
-    await installMocks(page);
-    await gotoAsset(page);
-    const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+test('the active Geometry tab collapses the panels like any other tab', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  await geometryTab.click();
+  await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
-    if (open === 'rail') await geometryTab.click();
-    else await page.keyboard.press('Shift+R');
-    await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
-    await dragCropCorner(page);
+  await geometryTab.click();
+  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
+  await expect(geometryTab).toHaveAttribute('aria-selected', 'false');
 
-    const saved = page.waitForRequest(
-      (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
-    );
-    if (apply === 'rail') await geometryTab.click();
-    else await page.keyboard.press('Enter');
-    await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    );
-    await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
-    await expect(geometryTab).not.toBeFocused();
-    const body = (await saved).postDataJSON() as {
-      manifest: { ops: { transform?: { crop?: { w: number } } } };
-    };
-    expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
-  });
-}
+  await page.keyboard.press('Shift+D');
+  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
+});
 
-test('Enter applies the crop after a mouse click on a panel button', async ({ page }) => {
+test('Enter does not leave Geometry after a mouse click on a panel button', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
-  await dragCropCorner(page);
 
   const guide = page.getByRole('button', { name: /^Crop guide: / });
   const before = await guide.getAttribute('aria-label');
@@ -1237,17 +1227,11 @@ test('Enter applies the crop after a mouse click on a panel button', async ({ pa
   const after = await guide.getAttribute('aria-label');
   expect(after).not.toBe(before);
 
-  const saved = page.waitForRequest(
-    (request) => request.url().endsWith('/edits') && request.method() === 'PUT'
-  );
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('tab', { name: 'Develop' })).toHaveAttribute('aria-selected', 'true');
-  const body = (await saved).postDataJSON() as {
-    manifest: { ops: { transform?: { crop?: { w: number } } } };
-  };
-  expect(body.manifest.ops.transform?.crop?.w).toBeLessThan(1);
-  await page.keyboard.press('Shift+R');
-  await expect(guide).toHaveAttribute('aria-label', after ?? '');
+  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
 });
 
 test('Enter still activates a button reached with Tab', async ({ page }) => {

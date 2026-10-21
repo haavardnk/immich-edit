@@ -9,6 +9,7 @@ import {
   type DevelopSection,
   type Edits,
   type EditManifest,
+  type GeometryEdits,
   type LensEdits,
   type MaskComponent,
   type MaskComponentKind,
@@ -225,7 +226,7 @@ class EditorStore {
 
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
-    await this.finishGeometrySession();
+    await this.endGeometrySession();
     this.unload();
     this.assetId = id;
     this.error = null;
@@ -259,7 +260,7 @@ class EditorStore {
     this.previews.reset();
     this.viewport.reset();
     this.depthPreview.reset();
-    geometry.cancelSession(this);
+    void geometry.endSession(this);
     this.asset = null;
     this.meta = null;
     scopes.reset();
@@ -358,6 +359,8 @@ class EditorStore {
   retrySave = (): Promise<void> => this.saves.retry();
 
   onReset = (): Promise<void> => develop.resetDevelop(this);
+
+  resetGeometry = (): Promise<void> => geometry.reset(this);
 
   copyEdits = (): void => develop.copyEdits(this);
 
@@ -641,13 +644,15 @@ class EditorStore {
 
   startGeometrySession = (): void => geometry.startSession(this);
 
-  finishGeometrySession = (): Promise<void> => geometry.finishSession(this);
+  endGeometrySession = (): Promise<void> => geometry.endSession(this);
 
-  cancelGeometrySession = (): void => geometry.cancelSession(this);
+  syncGeometrySession = (g: GeometryEdits): void => geometry.syncSession(this, g);
 
-  get geometryDirty(): boolean {
-    return !!this.geometrySession && geometry.sessionDirty(this.geometrySession);
-  }
+  refreshGeometryFrame = (edits: Edits): void => geometry.refreshFrame(this, edits);
+
+  commitGeometry = (action: string): Promise<void> => geometry.commit(this, action);
+
+  scheduleCropCommit = (): void => geometry.scheduleCropCommit(this);
 
   rotateStep = (delta: 90 | 270): void => geometry.rotateStep(this, delta);
 
@@ -660,10 +665,10 @@ class EditorStore {
 
   updateGeometryDraftCrop = (crop: CropRect): void => geometry.updateDraftCrop(this, crop);
 
-  updateGeometryDraftAspect = (aspect: AspectLock): void =>
-    geometry.updateDraftAspect(this, aspect);
+  setGeometryAspect = (aspect: AspectLock, action?: string): Promise<void> =>
+    geometry.setAspect(this, aspect, action);
 
-  flipGeometryAspect = (): void => geometry.flipAspect(this);
+  flipGeometryAspect = (): Promise<void> => geometry.flipAspect(this);
 }
 
 export const editor = new EditorStore();

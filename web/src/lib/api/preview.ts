@@ -17,7 +17,7 @@ export interface ProofOptions {
   clipWarn: boolean;
 }
 
-export type RenderLane = 'base' | 'original' | 'weight' | 'roi';
+export type RenderLane = 'base' | 'original' | 'weight' | 'roi' | 'geometry';
 
 export type Roi = [number, number, number, number];
 

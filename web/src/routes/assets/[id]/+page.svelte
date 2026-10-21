@@ -38,7 +38,7 @@
   });
 
   onDestroy(() => {
-    void editor.finishGeometrySession().finally(() => editor.unload());
+    void editor.endGeometrySession().finally(() => editor.unload());
   });
 
   function guardPendingSave(event: BeforeUnloadEvent): void {
