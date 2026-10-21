@@ -289,6 +289,17 @@ async fn presets_are_scoped_to_the_owner() {
     )
     .await;
 
+    expect_status(
+        &member,
+        get(&format!(
+            "/api/assets/{}/presets/{preset_id}/thumb",
+            asset_id()
+        )),
+        StatusCode::NOT_FOUND,
+        "member preset thumb",
+    )
+    .await;
+
     let owned = body_json(
         expect_status(
             &admin,
