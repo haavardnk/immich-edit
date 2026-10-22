@@ -1,4 +1,4 @@
-import { listTags, upsertTags, type TagSummary } from '$lib/api/tags';
+import { upsertTags, type TagSummary } from '$lib/api/tags';
 import { library } from '$lib/stores/library.svelte';
 import type { TagRef } from '$lib/types/asset';
 
@@ -22,20 +22,6 @@ export function toTagRef(tag: TagSummary): TagRef {
     parentId: tag.parentId,
     color: tag.color
   };
-}
-
-let libraryTags: Promise<void> | null = null;
-
-export function libraryTagsReady(): Promise<void> {
-  if (library.tags.length > 0) return Promise.resolve();
-  libraryTags ??= listTags()
-    .then((tags) => {
-      library.tags = tags;
-    })
-    .catch(() => {
-      libraryTags = null;
-    });
-  return libraryTags;
 }
 
 export function findManagedTag(value: string): TagRef | null {

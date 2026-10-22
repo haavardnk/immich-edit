@@ -3,12 +3,13 @@
   import SearchableSelect from '$lib/components/SearchableSelect.svelte';
   import Popover from '$lib/components/Popover.svelte';
   import { library } from '$lib/stores/library.svelte';
-  import { listTags, type TagSummary } from '$lib/api/tags';
+  import type { TagSummary } from '$lib/api/tags';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { TagRef } from '$lib/types/asset';
   import { isManagedTag } from '$lib/browse/managedTags';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
+  import { onMount } from 'svelte';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
@@ -41,14 +42,8 @@
     pillsClass?: string;
   } = $props();
 
-  $effect(() => {
-    if (library.tags.length === 0) {
-      void listTags()
-        .then((t) => {
-          library.tags = t;
-        })
-        .catch((e: unknown) => toasts.fail('tags', e));
-    }
+  onMount(() => {
+    library.ensureTags().catch((e: unknown) => toasts.fail('tags', e));
   });
 
   function leafOf(value: string): string {

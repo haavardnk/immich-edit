@@ -1,5 +1,6 @@
 import { searchMetadata } from '$lib/api/search';
-import { findManagedTag, libraryTagsReady, tagHasValue } from '$lib/browse/managedTags';
+import { findManagedTag, tagHasValue } from '$lib/browse/managedTags';
+import { library } from '$lib/stores/library.svelte';
 import type { AssetSummary } from '$lib/types/album';
 import type { TagRef } from '$lib/types/asset';
 
@@ -22,7 +23,7 @@ export class TagMembers {
   }
 
   private async fetch(): Promise<void> {
-    await libraryTagsReady();
+    await library.ensureTags().catch(() => undefined);
     const tag = findManagedTag(this.value);
     if (!tag) {
       this.ids = new Set();

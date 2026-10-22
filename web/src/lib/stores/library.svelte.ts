@@ -60,9 +60,23 @@ class LibraryStore {
 
   private loaded = new SvelteSet<LibraryView>();
   private countsLoaded = false;
+  private tagsLoading: Promise<void> | null = null;
 
   isLoaded(view: LibraryView): boolean {
     return this.loaded.has(view);
+  }
+
+  ensureTags(): Promise<void> {
+    if (this.loaded.has('tags')) return Promise.resolve();
+    this.tagsLoading ??= listTags()
+      .then((tags) => {
+        this.tags = tags;
+        this.loaded.add('tags');
+      })
+      .finally(() => {
+        this.tagsLoading = null;
+      });
+    return this.tagsLoading;
   }
 
   async loadView(v: LibraryView): Promise<void> {
