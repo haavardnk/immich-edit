@@ -120,8 +120,18 @@ fn capture_sharpen_default() -> bool {
     true
 }
 
-fn is_zero_boost(boost: &f64) -> bool {
-    *boost == 0.0
+fn is_zero(value: &f64) -> bool {
+    *value == 0.0
+}
+
+pub const AI_DENOISE_STRENGTH: f64 = 75.0;
+
+fn ai_denoise_strength_default() -> f64 {
+    AI_DENOISE_STRENGTH
+}
+
+fn is_default_ai_denoise_strength(strength: &f64) -> bool {
+    *strength == AI_DENOISE_STRENGTH
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -148,8 +158,17 @@ pub struct DetailEdits {
     pub color_nr_smoothness: f64,
     #[serde(default = "capture_sharpen_default")]
     pub capture_sharpen: bool,
-    #[serde(default, skip_serializing_if = "is_zero_boost")]
+    #[serde(default, skip_serializing_if = "is_zero")]
     pub capture_corner_boost: f64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ai_denoise: bool,
+    #[serde(
+        default = "ai_denoise_strength_default",
+        skip_serializing_if = "is_default_ai_denoise_strength"
+    )]
+    pub ai_denoise_strength: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub ai_denoise_detail: f64,
 }
 
 impl Default for DetailEdits {
@@ -167,6 +186,9 @@ impl Default for DetailEdits {
             color_nr_smoothness: color_nr_smoothness_default(),
             capture_sharpen: capture_sharpen_default(),
             capture_corner_boost: 0.0,
+            ai_denoise: false,
+            ai_denoise_strength: AI_DENOISE_STRENGTH,
+            ai_denoise_detail: 0.0,
         }
     }
 }
@@ -180,6 +202,10 @@ impl DetailEdits {
         self.color_nr_amount.to_bits().hash(h);
         self.color_nr_detail.to_bits().hash(h);
         self.color_nr_smoothness.to_bits().hash(h);
+    }
+
+    pub fn ai_denoise_active(&self) -> bool {
+        self.ai_denoise && self.ai_denoise_strength > 0.0
     }
 
     pub fn sharpen_amount_for(&self, is_raw: bool) -> f64 {
@@ -219,7 +245,14 @@ impl DetailEdits {
             color_nr_smoothness: self.color_nr_smoothness.clamp(0.0, 100.0),
             capture_sharpen: self.capture_sharpen,
             capture_corner_boost: self.capture_corner_boost.clamp(0.0, 100.0),
+            ai_denoise: self.ai_denoise,
+            ai_denoise_strength: self.ai_denoise_strength.clamp(0.0, 100.0),
+            ai_denoise_detail: self.ai_denoise_detail.clamp(0.0, 100.0),
         };
+        if !out.ai_denoise {
+            out.ai_denoise_strength = AI_DENOISE_STRENGTH;
+            out.ai_denoise_detail = 0.0;
+        }
         if !out.capture_sharpen {
             out.capture_corner_boost = 0.0;
         }

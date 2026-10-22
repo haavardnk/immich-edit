@@ -6,7 +6,8 @@ use raw_pipeline::edits::{
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
-use raw_pipeline_testkit::frames::{haze_frame, noisy_frame, rgb_frame, synthetic_frame};
+use raw_pipeline_testkit::denoise::denoise_plane;
+use raw_pipeline_testkit::frames::{as_raw, haze_frame, noisy_frame, rgb_frame, synthetic_frame};
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with_budget};
 use raw_pipeline_testkit::render::rgb8_opts;
 
@@ -15,6 +16,83 @@ fn nr_edits() -> Edits {
     edits.detail.luma_nr_amount = 40.0;
     edits.detail.color_nr_amount = 30.0;
     edits
+}
+
+fn with_plane(frame: &RawFrame, key: u64) -> RenderOptions {
+    let rgb: Vec<f32> = frame.data.iter().map(|v| v * 0.5 + 0.1).collect();
+    RenderOptions {
+        denoise: Some(denoise_plane(frame, key, &rgb)),
+        ..rgb8_opts(frame.meta.width as u32)
+    }
+}
+
+fn ai_denoise_edits(strength: f64, luma_nr_amount: f64, exposure_ev: f64) -> Edits {
+    let mut edits = Edits::default();
+    edits.detail.ai_denoise = true;
+    edits.detail.ai_denoise_strength = strength;
+    edits.detail.luma_nr_amount = luma_nr_amount;
+    edits.basic.exposure_ev = exposure_ev;
+    edits
+}
+
+#[test]
+fn ai_denoise_blend_is_reused_across_display_edits() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = as_raw(noisy_frame(96, 64));
+    let opts = with_plane(&frame, 41);
+    for (plan, luma_nr_amount, strength) in [("fast", 0.0, 60.0), ("presence", 20.0, 50.0)] {
+        let render = |strength: f64, exposure_ev: f64| {
+            let edits = ai_denoise_edits(strength, luma_nr_amount, exposure_ev);
+            renderer.render(&frame, &edits, &opts).unwrap()
+        };
+        let start = renderer.denoise_blends();
+        let first = render(strength, 0.0);
+        render(strength, 0.7);
+        render(strength, -0.4);
+        let after_exposure = renderer.denoise_blends() - start;
+        if after_exposure != 1 {
+            panic!("{plan}: exposure changes ran {after_exposure} denoise blends, expected 1");
+        }
+        let stronger = render(strength + 30.0, 0.0);
+        render(strength, 0.0);
+        let after_strength = renderer.denoise_blends() - start;
+        if after_strength != 2 {
+            panic!("{plan}: a strength change and back ran {after_strength} blends, expected 2");
+        }
+        if stronger.bytes == first.bytes {
+            panic!("{plan}: the strength change had no effect");
+        }
+    }
+}
+
+#[test]
+fn ai_denoise_textures_stay_inside_the_texture_budget() {
+    const BUDGET: u64 = 256 * 1024;
+    let Some(renderer) = try_renderer_with_budget(BUDGET) else {
+        return;
+    };
+    let frames: Vec<RawFrame> = (0..6).map(|_| as_raw(noisy_frame(96, 64))).collect();
+    let edits = ai_denoise_edits(80.0, 20.0, 0.0);
+    for (key, frame) in (51..).zip(&frames) {
+        renderer
+            .render(frame, &edits, &with_plane(frame, key))
+            .unwrap();
+    }
+
+    let stats = renderer.pool_stats();
+    let budgeted = stats.texture_pool
+        + stats.wb_cache
+        + stats.nr_cache
+        + stats.capture_cache
+        + stats.denoise_cache;
+    if budgeted > BUDGET {
+        panic!("cached gpu textures used {budgeted} bytes for a {BUDGET} byte budget");
+    }
+    if stats.denoise_cache == 0 {
+        panic!("no denoise texture was cached");
+    }
 }
 
 #[test]

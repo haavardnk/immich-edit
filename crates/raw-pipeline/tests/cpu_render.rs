@@ -67,6 +67,23 @@ fn auto_adjust_reads_every_fixture() {
 }
 
 #[test]
+fn fast_and_quality_frames_share_dims_for_one_denoise_plane() {
+    for path in fixtures() {
+        let name = path.file_name().unwrap().to_string_lossy();
+        let bytes = std::fs::read(&path).unwrap();
+        let (Ok(fast), Ok(quality)) = (decode::decode(&bytes), decode::decode_quality(&bytes))
+        else {
+            continue;
+        };
+        let fast_dims = (fast.meta.width, fast.meta.height, fast.meta.is_raw);
+        let quality_dims = (quality.meta.width, quality.meta.height, quality.meta.is_raw);
+        if fast_dims != quality_dims {
+            panic!("{name}: fast frame {fast_dims:?} vs quality {quality_dims:?}");
+        }
+    }
+}
+
+#[test]
 fn auto_tools_agree_on_fast_and_quality_frames() {
     for path in fixtures() {
         let name = path.file_name().unwrap().to_string_lossy();

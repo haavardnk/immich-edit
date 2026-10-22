@@ -86,6 +86,9 @@ fn roundtrip_preserves_fields() {
             color_nr_smoothness: 60.0,
             capture_sharpen: false,
             capture_corner_boost: 30.0,
+            ai_denoise: true,
+            ai_denoise_strength: 40.0,
+            ai_denoise_detail: 25.0,
         },
         effects: EffectsEdits {
             vignette_amount: -35.0,
@@ -132,6 +135,27 @@ fn roundtrip_preserves_fields() {
     let back = manifest.to_edits();
     if back != original {
         panic!("roundtrip mismatch: {back:?} != {original:?}");
+    }
+}
+
+#[test]
+fn ai_denoise_doc_names_its_fields_and_defaults_missing_ones() {
+    let mut edits = Edits::default();
+    edits.detail.ai_denoise = true;
+    edits.detail.ai_denoise_strength = 60.0;
+    let mut manifest = EditManifest::from_edits(&edits);
+    let doc = serde_json::json!({ "strength": 60.0, "detail": 0.0 });
+    if manifest.ops.get("ai_denoise") != Some(&doc) {
+        panic!(
+            "unexpected ai_denoise doc: {:?}",
+            manifest.ops.get("ai_denoise")
+        );
+    }
+    manifest
+        .ops
+        .insert("ai_denoise".into(), serde_json::json!({ "strength": 60.0 }));
+    if manifest.to_edits().detail != edits.detail {
+        panic!("missing detail decoded to {:?}", manifest.to_edits().detail);
     }
 }
 

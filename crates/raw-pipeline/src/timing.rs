@@ -4,6 +4,7 @@ use parking_lot::Mutex;
 use web_time::Instant;
 
 pub const DEMOSAIC: &str = "demosaic";
+pub const AI_DENOISE: &str = "ai_denoise";
 pub const LENS: &str = "lens";
 pub const WB_PREPARE: &str = "wb_prepare";
 pub const RETOUCH: &str = "retouch";

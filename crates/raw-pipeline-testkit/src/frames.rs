@@ -22,6 +22,11 @@ pub fn rgb_frame(w: usize, h: usize, data: Vec<f32>) -> RawFrame {
     }
 }
 
+pub fn as_raw(mut frame: RawFrame) -> RawFrame {
+    frame.meta.is_raw = true;
+    frame
+}
+
 pub fn synthetic_frame(w: usize, h: usize) -> RawFrame {
     let mut data = vec![0.0f32; w * h * 3];
     for y in 0..h {

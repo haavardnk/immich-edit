@@ -78,6 +78,7 @@ pub struct GpuPoolStats {
     pub wb_cache: u64,
     pub nr_cache: u64,
     pub capture_cache: u64,
+    pub denoise_cache: u64,
     pub atlas_cache: u64,
     pub atlas_pool: u64,
 }
@@ -114,7 +115,13 @@ fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {
 
 impl GpuRenderer {
     pub fn pool_stats(&self) -> GpuPoolStats {
-        let [wb_cache, nr_cache, capture_cache] = self.stage_cache_bytes();
+        let [
+            wb_cache,
+            nr_cache,
+            capture_cache,
+            denoise_plane,
+            denoise_blend,
+        ] = self.stage_cache_bytes();
         GpuPoolStats {
             texture_pool: self.texture_pool.bytes(),
             uniform_pool: self.uniform_pool.bytes(),
@@ -133,6 +140,7 @@ impl GpuRenderer {
             wb_cache,
             nr_cache,
             capture_cache,
+            denoise_cache: denoise_plane + denoise_blend,
             atlas_cache: self
                 .atlas_cache
                 .lock()
@@ -149,13 +157,19 @@ impl GpuRenderer {
     }
 
     #[cfg(feature = "native")]
-    fn stage_cache_bytes(&self) -> [u64; 3] {
-        [super::Stage::Wb, super::Stage::Nr, super::Stage::Capture]
-            .map(|stage| self.sensor.stages.bytes(stage))
+    fn stage_cache_bytes(&self) -> [u64; 5] {
+        [
+            super::Stage::Wb,
+            super::Stage::Nr,
+            super::Stage::Capture,
+            super::Stage::DenoisePlane,
+            super::Stage::DenoiseBlend,
+        ]
+        .map(|stage| self.sensor.stages.bytes(stage))
     }
 
     #[cfg(not(feature = "native"))]
-    fn stage_cache_bytes(&self) -> [u64; 3] {
-        [0; 3]
+    fn stage_cache_bytes(&self) -> [u64; 5] {
+        [0; 5]
     }
 }

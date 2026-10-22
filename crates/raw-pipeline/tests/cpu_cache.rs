@@ -1,3 +1,4 @@
+use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{
     CpuRenderer, cpu,
     edits::{
@@ -6,10 +7,12 @@ use raw_pipeline::{
     },
     frame::{OutputFormat, RenderOptions},
 };
+use raw_pipeline_testkit::denoise::denoise_plane;
 use raw_pipeline_testkit::fixtures::first_fixture_frame;
 use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
 
-fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
+fn variants(frame: &RawFrame) -> Vec<(&'static str, Edits, RenderOptions)> {
+    let plane_len = frame.meta.width * frame.meta.height * 3;
     let preview = || RenderOptions {
         max_edge: 900,
         output: OutputFormat::Rgb8,
@@ -81,6 +84,9 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
         ..Default::default()
     };
 
+    let mut ai_denoise = Edits::default();
+    ai_denoise.detail.ai_denoise = true;
+
     vec![
         ("identity", Edits::default(), preview()),
         ("exposure", exposure, preview()),
@@ -92,6 +98,22 @@ fn variants() -> Vec<(&'static str, Edits, RenderOptions)> {
         ("geometry", geometry, preview()),
         ("clarity_dehaze", clarity, preview()),
         ("masked_wb", masked_wb, preview()),
+        (
+            "ai_denoise",
+            ai_denoise.clone(),
+            RenderOptions {
+                denoise: Some(denoise_plane(frame, 1, &vec![0.1; plane_len])),
+                ..preview()
+            },
+        ),
+        (
+            "ai_denoise_new_plane",
+            ai_denoise,
+            RenderOptions {
+                denoise: Some(denoise_plane(frame, 2, &vec![0.3; plane_len])),
+                ..preview()
+            },
+        ),
         (
             "quality",
             Edits::default(),
@@ -112,7 +134,7 @@ fn cpu_cache_matches_uncached() {
         return;
     };
     let renderer = CpuRenderer::new();
-    for (name, edits, options) in variants() {
+    for (name, edits, options) in variants(&frame) {
         let expected = cpu::render(&frame, &edits, &options).unwrap();
         for pass in 0..2 {
             let got = renderer.render(&frame, &edits, &options).unwrap();

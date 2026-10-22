@@ -1,14 +1,20 @@
+use std::sync::Arc;
+
+use raw_pipeline::ai_denoise::DenoisePlane;
 use raw_pipeline::edits::{
     BasicEdits, ColorEdits, DcpEdits, DcpMode, DetailEdits, Edits, EffectsEdits,
 };
 use raw_pipeline::frame::{OutputFormat, PreviewMode, RawFrame, RenderOptions};
+use raw_pipeline_testkit::denoise::denoise_plane;
 use raw_pipeline_testkit::frames::{
-    detail_frame, haze_frame, noisy_frame, split_tone_frame, step_edge_frame, stripe_frame,
-    synthetic_frame,
+    as_raw, detail_frame, haze_frame, noisy_frame, split_tone_frame, step_edge_frame, stripe_frame,
+    synthetic_bayer_frame, synthetic_frame,
 };
 use raw_pipeline_testkit::gpu::try_renderer;
 use raw_pipeline_testkit::parity::{ParityLedger, mean_abs_delta, require_same_dims};
 use raw_pipeline_testkit::render::rgb8_opts;
+
+const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
 #[test]
 fn gpu_presence_sliders_match_cpu_via_fallback() {
@@ -537,4 +543,192 @@ fn gpu_linear_histogram_changes_with_vignette() {
     if diff == 0 {
         panic!("linear histogram unchanged after vignette");
     }
+}
+
+fn smoothed_plane(frame: &RawFrame, key: u64, lift: f32) -> Arc<DenoisePlane> {
+    let w = frame.meta.width;
+    let h = frame.meta.height;
+    let rgb = match frame.cpp {
+        3 => frame.data.clone(),
+        _ => frame.data.iter().flat_map(|v| [*v; 3]).collect(),
+    };
+    let at = |x: isize, y: isize, c: usize| {
+        let x = x.clamp(0, w as isize - 1) as usize;
+        let y = y.clamp(0, h as isize - 1) as usize;
+        rgb[(y * w + x) * 3 + c]
+    };
+    let smoothed: Vec<f32> = (0..w * h * 3)
+        .map(|i| {
+            let c = i % 3;
+            let x = ((i / 3) % w) as isize;
+            let y = ((i / 3) / w) as isize;
+            let sum: f32 = (-2..=2)
+                .flat_map(|dy| (-2..=2).map(move |dx| (dx, dy)))
+                .map(|(dx, dy)| at(x + dx, y + dy, c))
+                .sum();
+            sum / 25.0 + lift
+        })
+        .collect();
+    denoise_plane(frame, key, &smoothed)
+}
+
+fn ai_denoise_edits(strength: f64, presence: bool) -> Edits {
+    let mut edits = Edits::default();
+    edits.detail.ai_denoise = true;
+    edits.detail.ai_denoise_strength = strength;
+    edits.detail.sharpen_amount = Some(0.0);
+    if presence {
+        edits.detail.luma_nr_amount = 20.0;
+    }
+    edits
+}
+
+#[test]
+fn gpu_ai_denoise_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let rgb = as_raw(noisy_frame(192, 128));
+    let bayer = as_raw(synthetic_bayer_frame(1024, 768, "RGGB"));
+    let odd = as_raw(synthetic_bayer_frame(1029, 769, "RGGB"));
+    let xtrans = as_raw(synthetic_bayer_frame(1031, 769, XTRANS));
+    let cases = [
+        ("fast", &rgb, rgb8_opts(192), false, 0.7),
+        ("presence", &rgb, rgb8_opts(192), true, 0.7),
+        ("superpixel", &bayer, rgb8_opts(384), false, 0.7),
+        ("superpixel-presence", &bayer, rgb8_opts(384), true, 0.7),
+        ("superpixel-odd", &odd, rgb8_opts(384), false, 0.7),
+        ("superpixel-odd-presence", &odd, rgb8_opts(384), true, 0.7),
+        ("xtrans", &xtrans, rgb8_opts(256), false, 0.7),
+        ("xtrans-presence", &xtrans, rgb8_opts(256), true, 0.7),
+    ];
+    let mut ledger = ParityLedger::new("ai_denoise");
+    for (key, (label, frame, base, presence, limit)) in (11..).zip(cases) {
+        let opts = RenderOptions {
+            denoise: Some(smoothed_plane(frame, key, 0.0)),
+            ..base
+        };
+        let edits = ai_denoise_edits(80.0, presence);
+        let mut plain_edits = edits.clone();
+        plain_edits.detail.ai_denoise = false;
+        let plain = raw_pipeline::cpu::render(frame, &plain_edits, &opts).unwrap();
+        let plain_gpu = renderer.render(frame, &plain_edits, &opts).unwrap();
+        ledger.check(
+            &format!("{label}-plain"),
+            &plain.bytes,
+            &plain_gpu.bytes,
+            limit,
+        );
+        let cpu = raw_pipeline::cpu::render(frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(frame, &edits, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        let effect = mean_abs_delta(&plain.bytes, &cpu.bytes);
+        if effect < 1.0 {
+            panic!("{label}: AI denoise barely changed the cpu image: {effect:.3}");
+        }
+        let gpu_effect = mean_abs_delta(&plain_gpu.bytes, &gpu.bytes);
+        if gpu_effect < 1.0 {
+            panic!("{label}: AI denoise barely changed the gpu image: {gpu_effect:.3}");
+        }
+        ledger.check(label, &cpu.bytes, &gpu.bytes, limit);
+        let zero_edits = ai_denoise_edits(0.0, presence);
+        let zero = raw_pipeline::cpu::render(frame, &zero_edits, &opts).unwrap();
+        if zero.bytes != plain.bytes {
+            panic!("{label}: zero strength changed the cpu image");
+        }
+        let zero_gpu = renderer.render(frame, &zero_edits, &opts).unwrap();
+        if zero_gpu.bytes != plain_gpu.bytes {
+            panic!("{label}: zero strength changed the gpu image");
+        }
+    }
+    ledger.finish();
+}
+
+#[test]
+fn gpu_ai_denoise_detail_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let rgb = as_raw(noisy_frame(192, 128));
+    let bayer = as_raw(synthetic_bayer_frame(1024, 768, "RGGB"));
+    let cases = [
+        ("fast", &rgb, rgb8_opts(192), false),
+        ("presence", &rgb, rgb8_opts(192), true),
+        ("superpixel", &bayer, rgb8_opts(384), false),
+        ("superpixel-presence", &bayer, rgb8_opts(384), true),
+    ];
+    let mut ledger = ParityLedger::new("ai_denoise_detail");
+    for (key, (label, frame, base, presence)) in (41..).zip(cases) {
+        let opts = RenderOptions {
+            denoise: Some(smoothed_plane(frame, key, 0.0)),
+            ..base
+        };
+        let smooth = ai_denoise_edits(100.0, presence);
+        let mut grainy = smooth.clone();
+        grainy.detail.ai_denoise_detail = 70.0;
+        let cpu_smooth = raw_pipeline::cpu::render(frame, &smooth, &opts).unwrap();
+        let cpu = raw_pipeline::cpu::render(frame, &grainy, &opts).unwrap();
+        let gpu = renderer.render(frame, &grainy, &opts).unwrap();
+        require_same_dims(label, &cpu, &gpu);
+        let effect = mean_abs_delta(&cpu_smooth.bytes, &cpu.bytes);
+        if effect < 0.5 {
+            panic!("{label}: detail barely changed the cpu image: {effect:.3}");
+        }
+        ledger.check(label, &cpu.bytes, &gpu.bytes, 0.7);
+    }
+    ledger.finish();
+}
+
+#[test]
+fn a_plane_that_does_not_match_the_frame_fails_on_both_renderers() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = as_raw(noisy_frame(96, 64));
+    let other = as_raw(noisy_frame(64, 96));
+    let opts = RenderOptions {
+        denoise: Some(smoothed_plane(&other, 31, 0.0)),
+        ..rgb8_opts(96)
+    };
+    for presence in [false, true] {
+        let edits = ai_denoise_edits(80.0, presence);
+        if raw_pipeline::cpu::render(&frame, &edits, &opts).is_ok() {
+            panic!("presence {presence}: the cpu rendered with a mismatched plane");
+        }
+        if renderer.render(&frame, &edits, &opts).is_ok() {
+            panic!("presence {presence}: the gpu rendered with a mismatched plane");
+        }
+    }
+}
+
+#[test]
+fn gpu_ai_denoise_follows_a_new_plane() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = as_raw(noisy_frame(160, 96));
+    let mut ledger = ParityLedger::new("ai_denoise");
+    for presence in [false, true] {
+        let edits = ai_denoise_edits(100.0, presence);
+        let mut previous: Option<Vec<u8>> = None;
+        for (key, lift) in [(21, 0.0), (22, 0.05)] {
+            let opts = RenderOptions {
+                denoise: Some(smoothed_plane(&frame, key, lift)),
+                ..rgb8_opts(160)
+            };
+            let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+            let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+            ledger.check(
+                &format!("plane-{key}-presence-{presence}"),
+                &cpu.bytes,
+                &gpu.bytes,
+                0.7,
+            );
+            if previous.as_ref() == Some(&gpu.bytes) {
+                panic!("presence {presence}: the gpu kept serving the previous plane");
+            }
+            previous = Some(gpu.bytes);
+        }
+    }
+    ledger.finish();
 }

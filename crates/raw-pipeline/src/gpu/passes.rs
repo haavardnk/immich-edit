@@ -3,6 +3,8 @@ pub mod common;
 pub mod dcp_huesat;
 pub mod dehaze;
 pub mod demosaic;
+#[cfg(feature = "native")]
+pub mod denoise_blend;
 pub mod effects_tone;
 pub mod luma_pyramid;
 pub mod lut;
@@ -37,6 +39,8 @@ use dcp_huesat::DcpHueSatPass;
 use dehaze::DehazePasses;
 #[cfg(feature = "native")]
 use demosaic::DemosaicPass;
+#[cfg(feature = "native")]
+use denoise_blend::DenoiseBlendPass;
 use effects_tone::EffectsTonePass;
 use luma_pyramid::LumaPyramidPass;
 use lut::LutPass;
@@ -101,6 +105,7 @@ pub struct GpuPasses {
 pub struct SensorStagePasses {
     pub demosaic: DemosaicPass,
     pub xtrans: XtransPasses,
+    pub denoise_blend: DenoiseBlendPass,
     pub sensor: SensorPass,
     pub wb_prepare: WbPreparePass,
     pub retouch: RetouchPasses,
@@ -114,6 +119,7 @@ impl SensorStagePasses {
         build_passes! {
             demosaic: DemosaicPass::new(ctx),
             xtrans: XtransPasses::new(ctx),
+            denoise_blend: DenoiseBlendPass::new(ctx),
             sensor: SensorPass::new(ctx),
             wb_prepare: WbPreparePass::new(ctx, registry),
             retouch: RetouchPasses::new(ctx),
@@ -123,6 +129,7 @@ impl SensorStagePasses {
         Self {
             demosaic,
             xtrans,
+            denoise_blend,
             sensor,
             wb_prepare,
             retouch,

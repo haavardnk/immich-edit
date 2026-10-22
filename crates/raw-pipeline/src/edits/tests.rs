@@ -49,7 +49,7 @@ fn stable_hash_is_pinned() {
     );
     assert_eq!(
         populated_edits().stable_hash(),
-        "e1cece71464db7171a9276976c650034"
+        "3a470ba5c514d9e558e5fc52386dd219"
     );
 }
 
@@ -254,6 +254,34 @@ fn nr_hash_tracks_every_field() {
 }
 
 #[test]
+fn turning_ai_denoise_off_resets_its_settings() {
+    let off = DetailEdits {
+        ai_denoise_strength: 20.0,
+        ai_denoise_detail: 30.0,
+        ..DetailEdits::default()
+    };
+    assert_eq!(off.clamped(), DetailEdits::default().clamped());
+    let on = DetailEdits {
+        ai_denoise: true,
+        ai_denoise_detail: 140.0,
+        ..off
+    };
+    assert_eq!(on.clamped().ai_denoise_detail, 100.0);
+}
+
+#[test]
+fn the_sensor_stage_keeps_ai_denoise() {
+    let mut edits = Edits::default();
+    edits.detail.ai_denoise = true;
+    edits.detail.ai_denoise_strength = 55.0;
+    edits.detail.ai_denoise_detail = 20.0;
+    let sensor = edits.sensor_stage().detail;
+    assert!(sensor.ai_denoise);
+    assert_eq!(sensor.ai_denoise_strength, 55.0);
+    assert_eq!(sensor.ai_denoise_detail, 20.0);
+}
+
+#[test]
 fn lens_hash_tracks_every_field() {
     fn hash(l: &LensEdits) -> u64 {
         use std::hash::Hasher;
@@ -418,6 +446,9 @@ fn populated_edits() -> Edits {
             color_nr_smoothness: 45.0,
             capture_sharpen: false,
             capture_corner_boost: 30.0,
+            ai_denoise: true,
+            ai_denoise_strength: 55.0,
+            ai_denoise_detail: 20.0,
         },
         effects: EffectsEdits {
             vignette_amount: -30.0,

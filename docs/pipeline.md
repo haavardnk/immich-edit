@@ -42,6 +42,7 @@ relative tolerance of `1e-4`. This also checks uniform packing.
 `cpu::render_with_cancel`:
 
 1. Demosaics Bayer or X-Trans mosaics.
+1. Blends the AI Denoise result into the demosaiced image when one is supplied.
 1. Resolves the camera matrix and DCP baseline.
 1. Runs sensor operations, including effective lens corrections.
 1. Applies EXIF orientation.
@@ -56,10 +57,10 @@ retouch, dehaze, masks, and geometry all have CPU implementations.
 ### Sensor-stage cache
 
 `SPATIAL_BOUNDARY = (Tone, -35)` separates expensive source-dependent work from display work.
-`CpuRenderer` can cache the lower half for previews: demosaic, lens correction, orientation, as-shot
-white balance and camera matrix, retouch, noise reduction, capture sharpening, and preview
-reduction. User white balance, exposure, tone, color, geometry, masks, and output continue from the
-cached image, so a white balance change never re-runs noise reduction.
+`CpuRenderer` can cache the lower half for previews: demosaic, AI Denoise blend, lens correction,
+orientation, as-shot white balance and camera matrix, retouch, noise reduction, capture sharpening,
+and preview reduction. User white balance, exposure, tone, color, geometry, masks, and output
+continue from the cached image, so a white balance change never re-runs noise reduction.
 
 Quality renders and nonstandard preview modes bypass the cache. `tests/cpu_cache.rs` compares cache
 misses and hits with uncached `cpu::render`.
@@ -106,29 +107,30 @@ above, so bright areas come down without flattening or changing color.
 | Order | Pass | Responsibility |
 | --- | --- | --- |
 | 1 | Upload and demosaic | Mosaic or RGB input to scene-linear texture |
-| 2 | Sensor | Lens vignette and sensor-space corrections |
-| 3 | White-balance preparation | As-shot white balance and camera-to-sRGB base |
-| 4 | Retouch | Heal and clone strokes when active |
-| 5 | Noise reduction | Color, then luma wavelet shrinkage against a measured noise profile |
-| 6 | Capture sharpening | RAW-only deconvolution before preview reduction |
-| 7 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
-| 8 | Dehaze | Bounded atmosphere estimate and guided filter |
-| 9 | Presence | Texture, clarity, and shadows pyramid |
-| 10 | Process | User white balance, DCP HueSatMap, fused operators, and geometry sampling |
-| 11 | Masks | Component weight and local adjustment blend |
-| 12 | Sharpen | Global and per-pixel masked amount |
-| 13 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
-| 14 | DCP finish | LookTable, profile tone curve, curves |
-| 15 | LUT | `.cube` 1D shaper and tetrahedral 3D sampling in display sRGB |
-| 16 | Mask overlay | Optional red coverage overlay |
-| 17 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
+| 2 | AI Denoise | Blend the stored full-resolution AI Denoise result at the chosen strength and detail |
+| 3 | Sensor | Lens vignette and sensor-space corrections |
+| 4 | White-balance preparation | As-shot white balance and camera-to-sRGB base |
+| 5 | Retouch | Heal and clone strokes when active |
+| 6 | Noise reduction | Color, then luma wavelet shrinkage against a measured noise profile |
+| 7 | Capture sharpening | RAW-only deconvolution before preview reduction |
+| 8 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
+| 9 | Dehaze | Bounded atmosphere estimate and guided filter |
+| 10 | Presence | Texture, clarity, and shadows pyramid |
+| 11 | Process | User white balance, DCP HueSatMap, fused operators, and geometry sampling |
+| 12 | Masks | Component weight and local adjustment blend |
+| 13 | Sharpen | Global and per-pixel masked amount |
+| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
+| 15 | DCP finish | LookTable, profile tone curve, curves |
+| 16 | LUT | `.cube` 1D shaper and tetrahedral 3D sampling in display sRGB |
+| 17 | Mask overlay | Optional red coverage overlay |
+| 18 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
 
 The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
 the contract.
 
 ## Portable linear source
 
-A render splits into a sensor stage (passes 1 to 7 plus the dehaze atmosphere estimate) and a
+A render splits into a sensor stage (passes 1 to 8 plus the dehaze atmosphere estimate) and a
 display chain (everything after). `render_source` on either renderer runs only the sensor stage and
 returns a `SourceImage`: the as-shot white-balanced, noise-reduced, preview-sized frame as
 half-float RGB, plus the frame metadata and the atmosphere the display chain needs for dehaze. It
@@ -136,10 +138,10 @@ always takes the presence path and always estimates the atmosphere, so one sourc
 display edit. `GpuRenderer::upload_source` turns a decoded source back into a texture, and the
 display chain renders it byte for byte like the frame it came from.
 
-`Edits::sensor_stage` keeps only the fields that change the source: noise reduction, capture
-sharpening, lens, retouch, the DCP selection, and crop and rotation, which set its resolution. The
-CPU source is already oriented, so its metadata carries identity orientation and oriented
-dimensions.
+`Edits::sensor_stage` keeps only the fields that change the source: AI Denoise, noise reduction,
+capture sharpening, lens, retouch, the DCP selection, and crop and rotation, which set its
+resolution. The CPU source is already oriented, so its metadata carries identity orientation and
+oriented dimensions.
 
 `source::encode` writes an `IESR` stream: a versioned binary header that keeps every float bit for
 bit, then the half-float samples as per-channel planes of high and low bytes, each row delta

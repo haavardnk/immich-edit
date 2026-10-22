@@ -11,6 +11,9 @@ impl Edits {
             color_nr_smoothness: self.detail.color_nr_smoothness,
             capture_sharpen: self.detail.capture_sharpen,
             capture_corner_boost: self.detail.capture_corner_boost,
+            ai_denoise: self.detail.ai_denoise,
+            ai_denoise_strength: self.detail.ai_denoise_strength,
+            ai_denoise_detail: self.detail.ai_denoise_detail,
             ..DetailEdits::default()
         };
         let geometry = GeometryEdits {

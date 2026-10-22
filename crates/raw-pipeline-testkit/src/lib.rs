@@ -1,5 +1,6 @@
 pub mod baseline;
 pub mod color;
+pub mod denoise;
 pub mod fixtures;
 pub mod frames;
 pub mod gpu;
