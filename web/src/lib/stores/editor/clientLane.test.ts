@@ -49,6 +49,7 @@ describe('client lane', () => {
     const drawn: number[] = [];
     const lane = new ClientLane(client, BASE_SLOT, {
       assetId: () => 'a',
+      sourceRevision: () => '',
       onFrame: (_job, f) => drawn.push(f.width),
       onError: (err) => {
         throw err;
@@ -79,6 +80,7 @@ describe('client lane', () => {
     const close = vi.fn();
     const lane = new ClientLane(client, BASE_SLOT, {
       assetId: () => 'a',
+      sourceRevision: () => '',
       onFrame,
       onError: () => {},
       onIdle: () => {}
@@ -114,6 +116,7 @@ describe('client lane', () => {
     } as unknown as ClientRenderer;
     const lane = new ClientLane(client, TILE_SLOT, {
       assetId: () => 'a',
+      sourceRevision: () => '',
       onFrame: () => {},
       onError: (err) => {
         throw err;
@@ -136,5 +139,35 @@ describe('client lane', () => {
     expect(loads.map((l) => l.roi)).toEqual(['0,0,0.5,0.5', '0.5,0,0.5,0.5']);
     expect(views.map((v) => [v.roi?.join(','), v.tile])).toEqual([['0,0,0.5,0.5', true]]);
     expect(lane.busy).toBe(true);
+  });
+
+  it('fetches a new source when the source revision changes', async () => {
+    let revision = '';
+    const loadSource = vi.fn(async () => SOURCE);
+    const client = {
+      inputs: async () => ({ sensor_key: 'k', rasters: [], lut: null }),
+      loadSource,
+      prepare: async () => {},
+      render: async () => frame(1)
+    } as unknown as ClientRenderer;
+    const lane = new ClientLane(client, BASE_SLOT, {
+      assetId: () => 'a',
+      sourceRevision: () => revision,
+      onFrame: () => {},
+      onError: (err) => {
+        throw err;
+      },
+      onIdle: () => {}
+    });
+
+    lane.submit(job(256));
+    await flush();
+    lane.submit(job(256));
+    await flush();
+    expect(loadSource).toHaveBeenCalledOnce();
+    revision = 'denoised';
+    lane.submit(job(256));
+    await flush();
+    expect(loadSource).toHaveBeenCalledTimes(2);
   });
 });

@@ -134,6 +134,25 @@ describe('manifest codec', () => {
     expect(roundTrip(edits).detail.capture_sharpen).toBe(false);
   });
 
+  it('records AI denoise with its strength and reads the server form back', () => {
+    const edits = neutralEdits();
+    expect(editsToManifest(edits).ops.ai_denoise).toBeUndefined();
+    edits.detail.ai_denoise = true;
+    edits.detail.ai_denoise_strength = 40;
+    expect(editsToManifest(edits).ops.ai_denoise).toEqual({ strength: 40, detail: 0 });
+    edits.detail.ai_denoise_detail = 30;
+    expect(editsToManifest(edits).ops.ai_denoise).toEqual({ strength: 40, detail: 30 });
+    expect(roundTrip(edits).detail).toEqual(edits.detail);
+    const fromServer = manifestToEdits({
+      schema_version: 5,
+      ops: { ai_denoise: { strength: 60 } }
+    });
+    expect(fromServer.detail.ai_denoise).toBe(true);
+    expect(fromServer.detail.ai_denoise_strength).toBe(60);
+    expect(fromServer.detail.ai_denoise_detail).toBe(0);
+    expect(isIdentity(fromServer)).toBe(false);
+  });
+
   it('preserves every flat op field', () => {
     const edits = neutralEdits();
     edits.basic.exposure_ev = 1.5;

@@ -245,6 +245,17 @@ rejects incomplete or changed files when the SHA-256 digest differs.
 The first request loads a model. `ML_RUNTIME=auto` tries WebGPU and falls back to CPU. On arm64
 Linux, CPU inference is expected. Lower-memory model alternatives are available in Settings.
 
+## AI Denoise does not finish
+
+**AI Denoise** needs its model installed under **App settings** > **Models**, and `ML_RUNTIME`
+must not be `off`. It runs once per photo at full resolution, so a large RAW file can take a minute
+or more without a GPU. Masks and other photos wait for the same inference slots; see
+`ML_MAX_CONCURRENCY` in [configuration](configuration.md).
+
+When **AI Denoise failed** appears, press **Try again**. If it fails again, the server log has the
+cause. An export of a photo whose result is still running waits up to `EXPORT_TIMEOUT_SECS` and then
+returns `409 Conflict`; export again once the progress bar finishes.
+
 ## A save returns `409 Conflict`
 
 Two tabs changed the same edit record. The losing tab receives the current server version. There is

@@ -5,13 +5,13 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { NEUTRAL_DETAIL, neutralSharpenAmount } from '$lib/types/edits';
   import { Tooltip } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
+  import NoiseReductionSection from './detail/NoiseReductionSection.svelte';
 
   const isRaw = $derived(editor.meta?.is_raw ?? false);
   const defaultSharpen = $derived(neutralSharpenAmount(isRaw));
   const sharpenAmount = $derived(editor.edits.detail.sharpen_amount ?? defaultSharpen);
   const sharpenInactive = $derived(sharpenAmount === 0);
-  const lumaNrInactive = $derived(editor.edits.detail.luma_nr_amount === 0);
-  const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
   const sharpenModified = $derived(
     editor.edits.detail.capture_sharpen !== NEUTRAL_DETAIL.capture_sharpen ||
       editor.edits.detail.capture_corner_boost !== NEUTRAL_DETAIL.capture_corner_boost ||
@@ -20,7 +20,6 @@
       editor.edits.detail.sharpen_detail !== NEUTRAL_DETAIL.sharpen_detail ||
       editor.edits.detail.sharpen_masking !== NEUTRAL_DETAIL.sharpen_masking
   );
-  const nrModified = $derived(!lumaNrInactive || !colorNrInactive);
 
   function setSharpenAmount(v: number): void {
     editor.edits.detail.sharpen_amount = v === defaultSharpen ? null : v;
@@ -41,16 +40,6 @@
     editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
     editor.edits.detail.sharpen_masking = NEUTRAL_DETAIL.sharpen_masking;
     void editor.onCommit('Reset Sharpening');
-  }
-
-  function resetNr(): void {
-    editor.edits.detail.luma_nr_amount = NEUTRAL_DETAIL.luma_nr_amount;
-    editor.edits.detail.luma_nr_detail = NEUTRAL_DETAIL.luma_nr_detail;
-    editor.edits.detail.luma_nr_contrast = NEUTRAL_DETAIL.luma_nr_contrast;
-    editor.edits.detail.color_nr_amount = NEUTRAL_DETAIL.color_nr_amount;
-    editor.edits.detail.color_nr_detail = NEUTRAL_DETAIL.color_nr_detail;
-    editor.edits.detail.color_nr_smoothness = NEUTRAL_DETAIL.color_nr_smoothness;
-    void editor.onCommit('Reset Noise Reduction');
   }
 </script>
 
@@ -73,7 +62,7 @@
           checked={editor.edits.detail.capture_sharpen}
           disabled={!isRaw}
           onChange={onToggleCaptureSharpen}
-          {...props}
+          {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
     </Tooltip>
@@ -128,63 +117,5 @@
       previewMode="sharpen_mask"
     />
   </div>
-  <div class="flex flex-col gap-1 py-1.5">
-    <SectionHeader
-      title="Noise Reduction"
-      section="noise_reduction"
-      modified={nrModified}
-      onReset={resetNr}
-    />
-    <EditSlider
-      label="Luminance"
-      commitAction="Luminance NR"
-      bind:value={editor.edits.detail.luma_nr_amount}
-      min={0}
-      max={100}
-    />
-    <EditSlider
-      label="Detail"
-      commitAction="Luminance NR Detail"
-      bind:value={editor.edits.detail.luma_nr_detail}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={lumaNrInactive}
-    />
-    <EditSlider
-      label="Contrast"
-      commitAction="Luminance NR Contrast"
-      bind:value={editor.edits.detail.luma_nr_contrast}
-      min={0}
-      max={100}
-      disabled={lumaNrInactive}
-    />
-  </div>
-  <div class="flex flex-col gap-1 pt-1.5">
-    <EditSlider
-      label="Color"
-      commitAction="Color NR"
-      bind:value={editor.edits.detail.color_nr_amount}
-      min={0}
-      max={100}
-    />
-    <EditSlider
-      label="Detail"
-      commitAction="Color NR Detail"
-      bind:value={editor.edits.detail.color_nr_detail}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={colorNrInactive}
-    />
-    <EditSlider
-      label="Smoothness"
-      commitAction="Color NR Smoothness"
-      bind:value={editor.edits.detail.color_nr_smoothness}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={colorNrInactive}
-    />
-  </div>
+  <NoiseReductionSection />
 </div>

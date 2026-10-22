@@ -1,6 +1,6 @@
+import { AI_DENOISE_STRENGTH, neutralEdits } from '$lib/types/edits';
 import { describe, expect, it } from 'vitest';
 import { modifiedDevelopPanels, modifiedTabCount } from './modified';
-import { neutralEdits } from '$lib/types/edits';
 
 describe('editor modified state', () => {
   it('maps active operators to their develop panels', () => {
@@ -29,5 +29,17 @@ describe('editor modified state', () => {
 
     expect(modifiedDevelopPanels(edits).size).toBe(0);
     expect(modifiedTabCount(edits, 'develop')).toBe(0);
+  });
+
+  it.each([
+    ['on at the default strength', true, AI_DENOISE_STRENGTH, true],
+    ['on at a custom strength', true, 40, true],
+    ['off', false, AI_DENOISE_STRENGTH, false]
+  ])('marks Detail modified only while AI denoise is on (%s)', (_name, on, strength, modified) => {
+    const edits = neutralEdits();
+    edits.detail.ai_denoise = on;
+    edits.detail.ai_denoise_strength = strength;
+
+    expect(modifiedDevelopPanels(edits).has('detail')).toBe(modified);
   });
 });

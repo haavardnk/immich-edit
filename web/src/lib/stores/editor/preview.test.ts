@@ -138,7 +138,8 @@ function context(): PreviewCtx {
     maskStroke: 'idle',
     colorPicker: null,
     proofSpace: 'srgb',
-    gamutWarn: false
+    gamutWarn: false,
+    sourceRevision: ''
   };
 }
 

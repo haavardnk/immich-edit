@@ -11,7 +11,12 @@ export interface DetailEdits {
   color_nr_amount: number;
   color_nr_detail: number;
   color_nr_smoothness: number;
+  ai_denoise: boolean;
+  ai_denoise_strength: number;
+  ai_denoise_detail: number;
 }
+
+export const AI_DENOISE_STRENGTH = 75;
 
 export const NEUTRAL_DETAIL: DetailEdits = {
   capture_sharpen: true,
@@ -25,10 +30,17 @@ export const NEUTRAL_DETAIL: DetailEdits = {
   luma_nr_contrast: 0,
   color_nr_amount: 0,
   color_nr_detail: 50,
-  color_nr_smoothness: 50
+  color_nr_smoothness: 50,
+  ai_denoise: false,
+  ai_denoise_strength: AI_DENOISE_STRENGTH,
+  ai_denoise_detail: 0
 };
 
 export const RAW_SHARPEN_AMOUNT = 40;
+
+export function aiDenoiseActive(detail: DetailEdits): boolean {
+  return detail.ai_denoise && detail.ai_denoise_strength > 0;
+}
 
 export function neutralSharpenAmount(isRaw: boolean): number {
   return isRaw ? RAW_SHARPEN_AMOUNT : 0;

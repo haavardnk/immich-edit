@@ -128,6 +128,19 @@ const FIELDS: FieldDef[] = [
     label: 'Sharpen Masking',
     get: (e) => e.detail.sharpen_masking
   },
+  { kind: 'boolean', section: 'detail', label: 'AI Denoise', get: (e) => e.detail.ai_denoise },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'AI Denoise Strength',
+    get: (e) => e.detail.ai_denoise_strength
+  },
+  {
+    kind: 'number',
+    section: 'detail',
+    label: 'AI Denoise Detail',
+    get: (e) => e.detail.ai_denoise_detail
+  },
   { kind: 'number', section: 'detail', label: 'Luminance NR', get: (e) => e.detail.luma_nr_amount },
   {
     kind: 'number',

@@ -1,4 +1,5 @@
 import {
+  aiDenoiseActive,
   neutralEdits,
   isIdentity,
   effectiveLens,
@@ -35,6 +36,7 @@ import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
 import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
+import { AiDenoiseTracker } from '$lib/stores/editor/aiDenoise.svelte';
 import { DepthPreview, type DepthTarget } from '$lib/stores/editor/depthPreview';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
@@ -67,7 +69,18 @@ class EditorStore {
   edits = $state<Edits>(neutralEdits());
   previewUrl = $state<string | null>(null);
   previewFrame = $state.raw<PreviewFrame | null>(null);
-  meta = $state<PreviewMeta | null>(null);
+  private previewMeta = $state<PreviewMeta | null>(null);
+
+  get meta(): PreviewMeta | null {
+    return this.previewMeta;
+  }
+
+  set meta(value: PreviewMeta | null) {
+    const wasRaw = this.previewMeta?.is_raw === true;
+    this.previewMeta = value;
+    if ((value?.is_raw === true) !== wasRaw) this.syncAiDenoise();
+  }
+
   lensProfile = $state<LensProfileMatch | null>(null);
   lensProfileError = $state<string | null>(null);
   pending = $state(false);
@@ -176,6 +189,16 @@ class EditorStore {
   private previews = new PreviewEngine(this);
   private viewport = new ViewportNav(this, () => this.previews.snapshot);
   private depthPreview = new DepthPreview(this);
+  readonly aiDenoise = new AiDenoiseTracker(() => this.previews.live());
+
+  get sourceRevision(): string {
+    return this.aiDenoise.revision;
+  }
+
+  private syncAiDenoise(): void {
+    const raw = this.meta?.is_raw === true;
+    this.aiDenoise.sync(this.assetId, raw && aiDenoiseActive(this.edits.detail));
+  }
 
   initialised = $state(false);
 
@@ -242,7 +265,7 @@ class EditorStore {
       this.history.push($state.snapshot(this.edits) as Edits);
       fetchLensProfile(this, id);
       void loadFaceData(id);
-      this.previews.live();
+      this.onLive();
     } catch (e) {
       this.error = errorMessage(e);
     }
@@ -265,6 +288,7 @@ class EditorStore {
     void geometry.endSession(this);
     this.asset = null;
     this.meta = null;
+    this.aiDenoise.reset();
     scopes.reset();
     this.lensProfile = null;
     this.lensProfileError = null;
@@ -331,6 +355,7 @@ class EditorStore {
 
   onLive = (): void => {
     this.previews.live();
+    this.syncAiDenoise();
   };
 
   beginDrag = (): void => {
