@@ -232,7 +232,7 @@ Restart the service after a driver crash. If device loss repeats under memory pr
 
 ### A mask type is missing
 
-An administrator must install that model kind under **Settings** > **App settings** > **Mask models**.
+An administrator must install that model kind under **Settings** > **App settings** > **Models**.
 Check `ML_RUNTIME`; `off` disables every generated mask.
 
 ### Model installation fails

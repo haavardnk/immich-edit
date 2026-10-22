@@ -10,7 +10,7 @@ permalink: /administration/
 
 Open **Settings** from the gear in the top bar. Every user sees **Account**, with
 **Signed-in devices** inside it, and **Preview rendering**, plus **Diagnostics** in the sidebar.
-Administrators also get **App settings** with **Users**, **Mask models**, **Editing defaults** and
+Administrators also get **App settings** with **Users**, **Models**, **Editing defaults** and
 **Immich instance**.
 Sections stay collapsed until you open them.
 
@@ -59,21 +59,22 @@ and rotates the server epoch. Back up `DATA_DIR` first. The confirmation require
 Rebinding takes an email and password or an API key; an OAuth-only administrator creates an Immich
 API key for it.
 
-## Mask models
+## Models
 
-AI masks are optional. Install models under **App settings** > **Mask models**.
+AI masks and **AI Denoise** are optional. Install their models under **App settings** > **Models**.
 
 Installs run one at a time and verify a pinned SHA-256 digest. A failed item shows the reason and a
 **Retry** action. **Cancel download** stops a running or queued install and deletes the partial
 file, so a stalled download no longer holds up the others. Models are shared by all users and stored
 under `DATA_DIR/models`.
 
-The catalog covers subject, people, sky, depth, scene, and click selection. Check each model's
-license before commercial use. Select an installed default when a kind has more than one model.
+The catalog covers subject, people, sky, depth, scene, and click selection for masks, plus
+**AI Denoise** for RAW photos. Check each model's license before commercial use. Select an
+installed default when a kind has more than one model.
 
 `ML_RUNTIME=auto` tries WebGPU and falls back to CPU. `gpu` fails rather than falling back, `cpu`
-skips WebGPU, and `off` disables AI masks. On arm64 Linux, inference is CPU-only because the ONNX
-Runtime distribution has no WebGPU provider for that target.
+skips WebGPU, and `off` disables AI masks and **AI Denoise**. On arm64 Linux, inference is
+CPU-only because the ONNX Runtime distribution has no WebGPU provider for that target.
 
 ## LUTs, camera profiles, and watermarks
 

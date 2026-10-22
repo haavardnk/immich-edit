@@ -236,19 +236,17 @@
   border-color: var(--immich-ui-light-200);
 }
 
-.mask-model-select [data-select-trigger] > div {
+.model-select [data-select-trigger] > div {
   background-color: var(--immich-ui-light-100);
 }
 
-:root.dark
-  body:has(.mask-model-select [data-select-trigger][data-state='open'])
-  [data-select-content] {
+:root.dark body:has(.model-select [data-select-trigger][data-state='open']) [data-select-content] {
   background-color: var(--immich-ui-light-100);
   border-color: var(--immich-ui-light-200);
 }
 
 :root.dark
-  body:has(.mask-model-select [data-select-trigger][data-state='open'])
+  body:has(.model-select [data-select-trigger][data-state='open'])
   [data-select-content]
   [role='option'][data-highlighted] {
   background-color: var(--immich-ui-light-200);

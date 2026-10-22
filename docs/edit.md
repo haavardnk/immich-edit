@@ -164,7 +164,7 @@ set of adjustments.
    - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
      the area for you. **Click to select** and **Box select** find an object you click or draw a box
      around. These need a model that an administrator installs; see
-     [mask models](administration.md#mask-models).
+     [models](administration.md#models).
 1. Set the adjustments below the mask list. **Amount** fades the whole mask in or out.
 
 To refine a mask, open **Refine** on it and use **Add**, **Subtract** or **Intersect** with

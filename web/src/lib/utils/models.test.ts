@@ -1,15 +1,16 @@
+import type { Model } from '$lib/api/models';
 import { describe, expect, it } from 'vitest';
-import type { MaskModel } from '$lib/api/masks';
-import { formatMb, formatSeconds, installPercent, kindLabel } from './maskModels';
+import { formatMb, formatSeconds, installPercent, kindLabel } from './models';
 
-function model(size_bytes: number, progress_bytes: number): MaskModel {
-  return { size_bytes, progress_bytes } as MaskModel;
+function model(size_bytes: number, progress_bytes: number): Model {
+  return { size_bytes, progress_bytes } as Model;
 }
 
-describe('maskModels', () => {
+describe('models', () => {
   it.each([
     ['semantic', 'Scene classes'],
     ['click', 'Click to select'],
+    ['denoise', 'AI Denoise'],
     ['unknown-kind', 'unknown-kind']
   ])('labels %s as %s', (kind, expected) => {
     expect(kindLabel(kind)).toBe(expected);

@@ -5,10 +5,10 @@ use ort::environment::Environment;
 use ort::memory::{AllocationDevice, AllocatorType, MemoryInfo, MemoryType};
 use ort::session::Session;
 use ort::session::builder::SessionBuilder;
-use ort::value::Outlet;
+use ort::value::{DynValue, Outlet};
 
 #[derive(Debug, thiserror::Error)]
-pub enum SegmentError {
+pub enum ModelError {
     #[error("onnxruntime: {0}")]
     Ort(String),
     #[error("invalid input: {0}")]
@@ -17,8 +17,16 @@ pub enum SegmentError {
     Model(String),
 }
 
-pub fn ort_err<R>(e: ort::Error<R>) -> SegmentError {
-    SegmentError::Ort(e.to_string())
+pub fn ort_err<R>(e: ort::Error<R>) -> ModelError {
+    ModelError::Ort(e.to_string())
+}
+
+pub(crate) fn extract_f32(value: &DynValue) -> Result<(Vec<i64>, Vec<f32>), ModelError> {
+    if let Ok((dims, v)) = value.try_extract_tensor::<f32>() {
+        return Ok((dims.to_vec(), v.to_vec()));
+    }
+    let (dims, v) = value.try_extract_tensor::<half::f16>().map_err(ort_err)?;
+    Ok((dims.to_vec(), v.iter().map(|h| h.to_f32()).collect()))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -52,17 +60,17 @@ pub struct SessionConfig {
     pub force_cpu_nodes: Vec<String>,
 }
 
-pub struct SegmentRuntime {
+pub struct ModelRuntime {
     pub session: Session,
     pub backend: Backend,
 }
 
-impl SegmentRuntime {
+impl ModelRuntime {
     pub fn open(
         path: &Path,
         mode: RuntimeMode,
         config: &SessionConfig,
-    ) -> Result<Self, SegmentError> {
+    ) -> Result<Self, ModelError> {
         if mode != RuntimeMode::Cpu {
             match build_webgpu(path, config) {
                 Ok(session) => {
@@ -88,28 +96,28 @@ impl SegmentRuntime {
         })
     }
 
-    pub fn first_input(&self) -> Result<&Outlet, SegmentError> {
+    pub fn first_input(&self) -> Result<&Outlet, ModelError> {
         self.session
             .inputs()
             .first()
-            .ok_or_else(|| SegmentError::Model("declares no inputs".into()))
+            .ok_or_else(|| ModelError::Model("declares no inputs".into()))
     }
 
-    pub fn first_output(&self) -> Result<&Outlet, SegmentError> {
+    pub fn first_output(&self) -> Result<&Outlet, ModelError> {
         self.session
             .outputs()
             .first()
-            .ok_or_else(|| SegmentError::Model("declares no outputs".into()))
+            .ok_or_else(|| ModelError::Model("declares no outputs".into()))
     }
 }
 
 static ENVIRONMENT: LazyLock<Result<Environment, String>> =
     LazyLock::new(|| ort::init().build().map_err(|e| e.to_string()));
 
-fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, SegmentError> {
+fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, ModelError> {
     let environment = ENVIRONMENT
         .as_ref()
-        .map_err(|e| SegmentError::Ort(e.clone()))?;
+        .map_err(|e| ModelError::Ort(e.clone()))?;
     let mut builder = Session::builder(environment)
         .map_err(ort_err)?
         .with_memory_pattern(config.memory_pattern)
@@ -133,7 +141,7 @@ fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, SegmentError> 
 }
 
 #[cfg(not(all(target_arch = "aarch64", target_os = "linux")))]
-fn build_webgpu(path: &Path, config: &SessionConfig) -> Result<Session, SegmentError> {
+fn build_webgpu(path: &Path, config: &SessionConfig) -> Result<Session, ModelError> {
     use ort::ep::WebGPU;
 
     let mut ep = WebGPU::default();
@@ -148,8 +156,8 @@ fn build_webgpu(path: &Path, config: &SessionConfig) -> Result<Session, SegmentE
 }
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-fn build_webgpu(_path: &Path, _config: &SessionConfig) -> Result<Session, SegmentError> {
-    Err(SegmentError::Ort(
+fn build_webgpu(_path: &Path, _config: &SessionConfig) -> Result<Session, ModelError> {
+    Err(ModelError::Ort(
         "onnxruntime ships no webgpu build for aarch64 linux".into(),
     ))
 }
@@ -225,11 +233,11 @@ mod tests {
     fn a_model_without_inputs_is_an_error_not_a_panic() {
         let path = std::env::temp_dir().join(format!("ml-no-inputs-{}.onnx", std::process::id()));
         std::fs::write(&path, constant_only_model()).unwrap();
-        let runtime = SegmentRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
+        let runtime = ModelRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
         std::fs::remove_file(&path).unwrap();
         let runtime = runtime.unwrap();
 
-        assert!(matches!(runtime.first_input(), Err(SegmentError::Model(_))));
+        assert!(matches!(runtime.first_input(), Err(ModelError::Model(_))));
         assert_eq!(runtime.first_output().unwrap().name(), "y");
     }
 }

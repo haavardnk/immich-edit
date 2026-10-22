@@ -6,6 +6,7 @@ pub enum ModelKind {
     Depth,
     Semantic,
     Click,
+    Denoise,
 }
 
 impl ModelKind {
@@ -17,6 +18,7 @@ impl ModelKind {
             Self::Depth => "depth",
             Self::Semantic => "semantic",
             Self::Click => "click",
+            Self::Denoise => "denoise",
         }
     }
 }
@@ -144,4 +146,28 @@ impl ModelSpec {
         normalization: Normalization::IMAGENET,
         activation: Activation::Softmax { channel: 0 },
     };
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ModelInput {
+    Image(ModelSpec),
+    Tile { edge: u32 },
+}
+
+impl ModelInput {
+    pub const NIND_DENOISE: Self = Self::Tile { edge: 504 };
+
+    pub fn edge(&self) -> u32 {
+        match self {
+            Self::Image(spec) => spec.input_edge,
+            Self::Tile { edge } => *edge,
+        }
+    }
+
+    pub fn image(&self) -> Option<&ModelSpec> {
+        match self {
+            Self::Image(spec) => Some(spec),
+            Self::Tile { .. } => None,
+        }
+    }
 }

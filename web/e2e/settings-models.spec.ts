@@ -60,8 +60,8 @@ test('mask models section starts collapsed and expands on click', async ({ page 
     'aria-expanded',
     'false'
   );
-  await page.getByRole('button', { name: /^Mask models/ }).click();
-  await expect(page.getByRole('button', { name: /^Mask models/ })).toHaveAttribute(
+  await page.getByRole('button', { name: /^Models/ }).click();
+  await expect(page.getByRole('button', { name: /^Models/ })).toHaveAttribute(
     'aria-expanded',
     'true'
   );
@@ -81,7 +81,7 @@ test('download button shows install progress and surfaces failures', async ({ pa
   );
   await page.goto('/settings');
   await page.getByRole('button', { name: /app settings/i }).click();
-  await page.getByRole('button', { name: /^Mask models/ }).click();
+  await page.getByRole('button', { name: /^Models/ }).click();
   await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
 
   await expect(
@@ -109,7 +109,7 @@ test('a running download can be cancelled', async ({ page }) => {
   );
   await page.goto('/settings');
   await page.getByRole('button', { name: /app settings/i }).click();
-  await page.getByRole('button', { name: /^Mask models/ }).click();
+  await page.getByRole('button', { name: /^Models/ }).click();
   await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
   await expect(
     page.getByRole('progressbar', { name: 'SAM 2 Tiny download progress' })

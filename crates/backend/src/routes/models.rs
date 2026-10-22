@@ -76,7 +76,7 @@ async fn catalog_view(state: &AppState) -> Result<Vec<CatalogView>, AppError> {
             source: entry.source,
             notes: entry.notes,
             size_bytes: entry.total_bytes(),
-            input_edge: entry.spec.input_edge,
+            input_edge: entry.input.edge(),
             gpu_ms: entry.cost.gpu_ms,
             gpu_mb: entry.cost.gpu_mb,
             cpu_ms: entry.cost.cpu_ms,

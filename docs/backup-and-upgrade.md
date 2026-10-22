@@ -24,7 +24,7 @@ a host directory instead, such as `./data:/data`, back up that directory.
 | `instance.key` | Key used to decrypt stored Immich credentials |
 | `dcp/` | Imported and bundled camera profiles referenced by the database |
 | `luts/` | Imported `.cube` files referenced by edits |
-| `models/` | Downloaded mask models; reinstallable, but part of a complete backup |
+| `models/` | Downloaded AI models; reinstallable, but part of a complete backup |
 | `rasters/` | Brush and generated-mask pixels referenced by saved edits |
 | `watermarks/` | Imported export watermark PNGs referenced by the database |
 

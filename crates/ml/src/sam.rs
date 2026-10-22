@@ -5,7 +5,7 @@ use ort::value::TensorRef;
 
 use crate::image::{Placement, activate, mask_to_source, to_tensor};
 use crate::model::{Activation, ModelSpec};
-use crate::runtime::{Backend, RuntimeMode, SegmentError, SegmentRuntime, SessionConfig, ort_err};
+use crate::runtime::{Backend, ModelError, ModelRuntime, RuntimeMode, SessionConfig, ort_err};
 use crate::segmenter::Mask;
 
 pub const SAM_EDGE: usize = 1024;
@@ -52,11 +52,11 @@ const PROMPT_INPUTS: [&str; 5] = [
 ];
 
 pub struct SamEncoder {
-    runtime: SegmentRuntime,
+    runtime: ModelRuntime,
 }
 
 pub struct SamDecoder {
-    runtime: SegmentRuntime,
+    runtime: ModelRuntime,
 }
 
 impl SamEncoder {
@@ -64,9 +64,9 @@ impl SamEncoder {
         path: &Path,
         mode: RuntimeMode,
         config: &SessionConfig,
-    ) -> Result<Self, SegmentError> {
+    ) -> Result<Self, ModelError> {
         Ok(Self {
-            runtime: SegmentRuntime::open(path, mode, config)?,
+            runtime: ModelRuntime::open(path, mode, config)?,
         })
     }
 
@@ -79,9 +79,9 @@ impl SamEncoder {
         rgb8: &[u8],
         width: u32,
         height: u32,
-    ) -> Result<Embedding, SegmentError> {
+    ) -> Result<Embedding, ModelError> {
         if rgb8.len() != (width as usize) * (height as usize) * 3 {
-            return Err(SegmentError::Input(
+            return Err(ModelError::Input(
                 "rgb8 length does not match dimensions".into(),
             ));
         }
@@ -131,9 +131,9 @@ impl SamDecoder {
         path: &Path,
         mode: RuntimeMode,
         config: &SessionConfig,
-    ) -> Result<Self, SegmentError> {
+    ) -> Result<Self, ModelError> {
         Ok(Self {
-            runtime: SegmentRuntime::open(path, mode, config)?,
+            runtime: ModelRuntime::open(path, mode, config)?,
         })
     }
 
@@ -145,7 +145,7 @@ impl SamDecoder {
         &mut self,
         embedding: &Embedding,
         points: &[ClickPoint],
-    ) -> Result<Mask, SegmentError> {
+    ) -> Result<Mask, ModelError> {
         self.decode_with(embedding, points, None)
     }
 
@@ -154,9 +154,9 @@ impl SamDecoder {
         embedding: &Embedding,
         points: &[ClickPoint],
         bbox: Option<BoxPrompt>,
-    ) -> Result<Mask, SegmentError> {
+    ) -> Result<Mask, ModelError> {
         if points.is_empty() && bbox.is_none() {
-            return Err(SegmentError::Input("no points given".into()));
+            return Err(ModelError::Input("no points given".into()));
         }
         let prompts = points.len() + if bbox.is_some() { 2 } else { 0 };
         let mut coords: Vec<f32> = Vec::with_capacity(prompts * 2);
@@ -218,12 +218,12 @@ impl SamDecoder {
             .try_extract_tensor::<f32>()
             .map_err(ort_err)?;
         if dims.len() < 2 {
-            return Err(SegmentError::Input("decoder output has no plane".into()));
+            return Err(ModelError::Input("decoder output has no plane".into()));
         }
         let raw_h = dims[dims.len() - 2];
         let raw_w = dims[dims.len() - 1];
         if raw_h <= 0 || raw_w <= 0 {
-            return Err(SegmentError::Input(format!(
+            return Err(ModelError::Input(format!(
                 "decoder output plane is {raw_w}x{raw_h}"
             )));
         }
@@ -231,7 +231,7 @@ impl SamDecoder {
         let w = raw_w as usize;
         let plane = w * h;
         if plane == 0 || values.len() < plane {
-            return Err(SegmentError::Input(format!(
+            return Err(ModelError::Input(format!(
                 "decoder returned {} values, expected at least {plane}",
                 values.len()
             )));
@@ -273,7 +273,7 @@ impl SamDecoder {
 fn embedding_slots(
     inputs: &[String],
     tensors: &[EmbeddingTensor],
-) -> Result<std::collections::HashMap<String, usize>, SegmentError> {
+) -> Result<std::collections::HashMap<String, usize>, ModelError> {
     let mut slots = std::collections::HashMap::new();
     let mut taken = vec![false; tensors.len()];
     let wanted: Vec<&String> = inputs
@@ -291,7 +291,7 @@ fn embedding_slots(
             continue;
         }
         let Some(i) = taken.iter().position(|t| !t) else {
-            return Err(SegmentError::Input(format!(
+            return Err(ModelError::Input(format!(
                 "decoder input {name} has no matching encoder output"
             )));
         };

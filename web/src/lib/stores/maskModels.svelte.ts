@@ -1,4 +1,9 @@
-import { listMaskModels, type MaskKind, type SemanticClass } from '$lib/api/masks';
+import type { MaskKind, SemanticClass } from '$lib/api/masks';
+import { listModels, type ModelKind } from '$lib/api/models';
+
+function isMaskKind(kind: ModelKind): kind is MaskKind {
+  return kind !== 'denoise';
+}
 
 class MaskModelsState {
   kinds = $state<{ kind: MaskKind; installed: boolean }[]>([]);
@@ -20,12 +25,12 @@ class MaskModelsState {
 
   load = async (): Promise<void> => {
     try {
-      const models = await listMaskModels();
+      const models = await listModels();
       this.failed = false;
       this.enabled = models.enabled;
       this.semanticClasses = models.semantic_classes ?? [];
       this.kinds = models.enabled
-        ? [...new Set(models.models.map((m) => m.kind))].map((kind) => ({
+        ? [...new Set(models.models.map((m) => m.kind).filter(isMaskKind))].map((kind) => ({
             kind,
             installed: models.models.some((m) => m.kind === kind && m.installed)
           }))

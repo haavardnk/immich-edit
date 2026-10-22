@@ -15,7 +15,7 @@ Use Docker Compose for a first installation.
 - Docker Engine with the `docker compose` plugin
 - A desktop browser for the editor. With WebGPU it can draw previews itself; on a plain
   `http://` LAN address that takes [one extra step](rendering.md#browser-previews-on-a-local-network)
-- 8 GB RAM recommended for RAW rendering and local mask models
+- 8 GB RAM recommended for RAW rendering and local AI models
 
 ## Start the container
 
@@ -64,5 +64,5 @@ jobs.
 - [Put it behind HTTPS](deploy.md#reverse-proxy), or pick another way to get
   [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
 - [Pass a GPU through](gpu-passthrough.md) for faster exports and AI masks.
-- [Install mask models](administration.md#mask-models) if you want AI masks.
+- [Install models](administration.md#models) if you want AI masks or **AI Denoise**.
 - [Start editing](use.md).

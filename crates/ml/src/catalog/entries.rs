@@ -1,4 +1,4 @@
-use crate::model::{ModelKind, ModelSpec};
+use crate::model::{ModelInput, ModelKind, ModelSpec};
 
 use super::{CatalogEntry, CatalogFile, Cost, Tier};
 
@@ -15,7 +15,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "schirrmacher/ormbg",
         notes: "Soft per-strand alpha; keeps hair and small jewellery.",
-        spec: ModelSpec::ORMBG,
+        input: ModelInput::Image(ModelSpec::ORMBG),
         cost: Cost {
             gpu_ms: 742,
             gpu_mb: 431,
@@ -35,7 +35,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "xuebinqin/U-2-Net",
         notes: "320px only; blobby at high resolution. For constrained hosts.",
-        spec: ModelSpec::U2NET,
+        input: ModelInput::Image(ModelSpec::U2NET),
         cost: Cost {
             gpu_ms: 116,
             gpu_mb: 68,
@@ -55,7 +55,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "ZHKKKe/MODNet",
         notes: "Tuned for people. Softer edges around hair than the subject models, and the fastest model here.",
-        spec: ModelSpec::MODNET,
+        input: ModelInput::Image(ModelSpec::MODNET),
         cost: Cost {
             gpu_ms: 140,
             gpu_mb: 122,
@@ -75,7 +75,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "MIT",
         source: "xiongzhu666/Sky-Segmentation-and-Post-processing",
         notes: "Picks out sky for skies, horizons and reflections.",
-        spec: ModelSpec::SKYSEG,
+        input: ModelInput::Image(ModelSpec::SKYSEG),
         cost: Cost {
             gpu_ms: 260,
             gpu_mb: 431,
@@ -95,7 +95,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "DepthAnything/Depth-Anything-V2",
         notes: "A quarter of the download and twice the speed of Base. Depth edges are softer.",
-        spec: ModelSpec::DEPTH_ANYTHING,
+        input: ModelInput::Image(ModelSpec::DEPTH_ANYTHING),
         cost: Cost {
             gpu_ms: 339,
             gpu_mb: 284,
@@ -115,7 +115,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "CC-BY-NC-4.0",
         source: "DepthAnything/Depth-Anything-V2",
         notes: "Estimates distance from camera, so you can mask by depth: near subject, mid ground, or far background.",
-        spec: ModelSpec::DEPTH_ANYTHING,
+        input: ModelInput::Image(ModelSpec::DEPTH_ANYTHING),
         cost: Cost {
             gpu_ms: 873,
             gpu_mb: 761,
@@ -135,7 +135,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "NVIDIA Source Code License (non-commercial)",
         source: "nvidia/segformer-b2-finetuned-ade-512-512",
         notes: "One model for sky, water, foliage, buildings, ground and people. Pick the class when you add the mask.",
-        spec: ModelSpec::SEGFORMER_ADE,
+        input: ModelInput::Image(ModelSpec::SEGFORMER_ADE),
         cost: Cost {
             gpu_ms: 332,
             gpu_mb: 371,
@@ -155,7 +155,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "NVIDIA Source Code License (non-commercial)",
         source: "nvidia/segformer-b0-finetuned-ade-512-512",
         notes: "Same classes at a seventh of the download and four times the speed. Edges are looser on thin detail.",
-        spec: ModelSpec::SEGFORMER_ADE,
+        input: ModelInput::Image(ModelSpec::SEGFORMER_ADE),
         cost: Cost {
             gpu_ms: 71,
             gpu_mb: 133,
@@ -179,7 +179,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "facebook/sam2-hiera-tiny",
         notes: "Click to add or remove parts of a mask. Follows edges more closely than MobileSAM, especially on hair and thin branches.",
-        spec: ModelSpec::SAM,
+        input: ModelInput::Image(ModelSpec::SAM),
         cost: Cost {
             gpu_ms: 729,
             gpu_mb: 417,
@@ -203,12 +203,32 @@ pub const CATALOG: &[CatalogEntry] = &[
         license: "Apache-2.0",
         source: "ChaoningZhang/MobileSAM",
         notes: "Click to add or remove parts of a mask. Encodes the photo once, then each click is fast.",
-        spec: ModelSpec::SAM,
+        input: ModelInput::Image(ModelSpec::SAM),
         cost: Cost {
             gpu_ms: 1131,
             gpu_mb: 512,
             cpu_ms: 4200,
             cpu_mb: 600,
+        },
+    },
+    CatalogEntry {
+        id: "nind_utnet",
+        name: "NIND UtNet",
+        kind: ModelKind::Denoise,
+        tier: Tier::Recommended,
+        url: "https://huggingface.co/CyberTimon/RapidRAW-Models/resolve/main/nind_denoise_utnet_684.onnx",
+        sha256: "ee3586279d514df557ff3f7dec6df37fafc51ba5d3a3435b2cc9ac2d9017e7fe",
+        size_bytes: 124_202_581,
+        aux: None,
+        license: "GPL-3.0 (weights), CC-BY-SA-3.0 (NIND dataset)",
+        source: "trougnouf/nind-denoise",
+        notes: "AI Denoise for RAW photos. Runs once per photo at full resolution and is cached; a 24 MP photo takes one to two minutes.",
+        input: ModelInput::NIND_DENOISE,
+        cost: Cost {
+            gpu_ms: 360,
+            gpu_mb: 640,
+            cpu_ms: 710,
+            cpu_mb: 640,
         },
     },
 ];
