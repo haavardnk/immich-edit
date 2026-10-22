@@ -1,4 +1,4 @@
-import type { MaskModel } from '$lib/api/masks';
+import type { Model } from '$lib/api/models';
 
 const KIND_LABELS: Record<string, string> = {
   subject: 'Subject',
@@ -6,14 +6,15 @@ const KIND_LABELS: Record<string, string> = {
   sky: 'Sky',
   depth: 'Depth',
   semantic: 'Scene classes',
-  click: 'Click to select'
+  click: 'Click to select',
+  denoise: 'AI Denoise'
 };
 
 export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind;
 }
 
-export function installPercent(m: MaskModel): number {
+export function installPercent(m: Model): number {
   if (m.size_bytes <= 0) return 0;
   return Math.min(100, Math.round((m.progress_bytes / m.size_bytes) * 100));
 }

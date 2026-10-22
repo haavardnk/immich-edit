@@ -110,22 +110,10 @@ impl SegmentService {
     }
 
     async fn resolve(&self, kind: ModelKind) -> Result<String, SegmentServiceError> {
-        if let Some(id) = self.models.preferred(kind.as_str()).await?
-            && self.models.find_by_catalog(&id).await?.is_some()
-        {
-            return Ok(id);
-        }
-        if let Some(entry) = catalog::default_for(kind)
-            && self.models.find_by_catalog(entry.id).await?.is_some()
-        {
-            return Ok(entry.id.to_string());
-        }
-        for entry in catalog::for_kind(kind) {
-            if self.models.find_by_catalog(entry.id).await?.is_some() {
-                return Ok(entry.id.to_string());
-            }
-        }
-        Err(SegmentServiceError::ModelMissing(kind.as_str()))
+        self.models
+            .resolve_installed(kind)
+            .await?
+            .ok_or(SegmentServiceError::ModelMissing(kind.as_str()))
     }
 
     pub async fn generate(
@@ -143,8 +131,8 @@ impl SegmentService {
         let catalog_id = self.resolve(kind).await?;
         let path = self.models.resolve_path(&catalog_id).await?;
         let spec = catalog::find(&catalog_id)
+            .and_then(|entry| entry.input.image())
             .ok_or(SegmentServiceError::ModelMissing(kind.as_str()))?
-            .spec
             .clone();
         let activation = match &class {
             Some(id) => {

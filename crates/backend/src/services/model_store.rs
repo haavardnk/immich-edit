@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
-use ml::CatalogEntry;
+use ml::{CatalogEntry, ModelKind, catalog};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tokio::fs;
@@ -217,6 +217,26 @@ impl ModelStore {
             warn_unless_missing(fs::remove_file(&aux).await, &aux);
         }
         Ok(())
+    }
+
+    pub async fn resolve_installed(
+        &self,
+        kind: ModelKind,
+    ) -> Result<Option<String>, ModelStoreError> {
+        if let Some(id) = self.preferred(kind.as_str()).await?
+            && self.find_by_catalog(&id).await?.is_some()
+        {
+            return Ok(Some(id));
+        }
+        let candidates = catalog::default_for(kind)
+            .into_iter()
+            .chain(catalog::for_kind(kind));
+        for entry in candidates {
+            if self.find_by_catalog(entry.id).await?.is_some() {
+                return Ok(Some(entry.id.to_string()));
+            }
+        }
+        Ok(None)
     }
 
     pub async fn preferred(&self, kind: &str) -> Result<Option<String>, ModelStoreError> {

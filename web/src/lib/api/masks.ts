@@ -1,38 +1,10 @@
-import { getJson, sendJson, url } from './client';
+import { sendJson, url } from './client';
 
 export type MaskKind = 'subject' | 'people' | 'sky' | 'depth' | 'semantic' | 'click';
 
 export interface SemanticClass {
   id: string;
   name: string;
-}
-
-export interface MaskModel {
-  id: string;
-  name: string;
-  kind: MaskKind;
-  tier: 'recommended' | 'alternative' | 'low_memory';
-  license: string;
-  source: string;
-  notes: string;
-  size_bytes: number;
-  input_edge: number;
-  gpu_ms: number;
-  gpu_mb: number;
-  cpu_ms: number;
-  cpu_mb: number;
-  installed: boolean;
-  installing: boolean;
-  progress_bytes: number;
-  install_error: string | null;
-}
-
-export interface MaskModelsResponse {
-  runtime: string;
-  enabled: boolean;
-  models: MaskModel[];
-  active: Partial<Record<MaskKind, string>>;
-  semantic_classes: SemanticClass[];
 }
 
 export interface GeneratedMask {
@@ -49,10 +21,6 @@ export interface RebakedMask {
   raster_id: string;
   width: number;
   height: number;
-}
-
-export function listMaskModels(): Promise<MaskModelsResponse> {
-  return getJson<MaskModelsResponse>('/api/masks/models', undefined, { silent: true });
 }
 
 export function generateMask(
@@ -122,22 +90,4 @@ export function rebakeMask(
     feather,
     range: range ?? null
   });
-}
-
-export function installMaskModel(id: string): Promise<void> {
-  return sendJson<void>('POST', url`/api/admin/models/${id}`, undefined, undefined, {
-    silent: true
-  });
-}
-
-export function cancelMaskModelInstall(id: string): Promise<void> {
-  return sendJson<void>('DELETE', url`/api/admin/models/${id}/install`, undefined);
-}
-
-export function removeMaskModel(id: string): Promise<void> {
-  return sendJson<void>('DELETE', url`/api/admin/models/${id}`, undefined);
-}
-
-export function selectMaskModel(kind: MaskKind, modelId: string): Promise<void> {
-  return sendJson<void>('PUT', '/api/admin/masks/default', { kind, model_id: modelId });
 }

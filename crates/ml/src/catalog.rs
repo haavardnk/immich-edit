@@ -1,7 +1,7 @@
 mod entries;
 mod semantic;
 
-use crate::model::{ModelKind, ModelSpec};
+use crate::model::{ModelInput, ModelKind};
 
 pub use entries::CATALOG;
 pub use semantic::{SEMANTIC_CLASSES, SemanticClass, semantic_class};
@@ -41,7 +41,7 @@ pub struct CatalogEntry {
     pub license: &'static str,
     pub source: &'static str,
     pub notes: &'static str,
-    pub spec: ModelSpec,
+    pub input: ModelInput,
     pub cost: Cost,
 }
 
@@ -58,6 +58,7 @@ pub const KINDS: &[ModelKind] = &[
     ModelKind::Depth,
     ModelKind::Semantic,
     ModelKind::Click,
+    ModelKind::Denoise,
 ];
 
 pub fn find(id: &str) -> Option<&'static CatalogEntry> {
@@ -119,5 +120,16 @@ mod tests {
     #[test]
     fn subject_default_is_ormbg() {
         assert_eq!(default_for(ModelKind::Subject).unwrap().id, "ormbg");
+    }
+
+    #[test]
+    fn only_denoise_rows_take_raw_tiles() {
+        for e in CATALOG {
+            let tiled = e.input.image().is_none();
+            assert_eq!(tiled, e.kind == ModelKind::Denoise, "{}", e.id);
+            if let Some(spec) = e.input.image() {
+                assert_eq!(spec.kind, e.kind, "{}", e.id);
+            }
+        }
     }
 }

@@ -20,7 +20,10 @@ immich-edit builds on these projects:
 - [RapidRAW](https://github.com/CyberTimon/RapidRAW) inspired parts of the editing pipeline.
 - [rawler](https://github.com/dnglab/dnglab) parses RAW files.
 - [wgpu](https://wgpu.rs/) runs GPU rendering on Vulkan and Metal.
-- [ONNX Runtime](https://onnxruntime.ai/) runs local mask models.
+- [ONNX Runtime](https://onnxruntime.ai/) runs local AI models.
+- [nind-denoise](https://github.com/trougnouf/nind-denoise) provides the optional AI Denoise model.
+  Its weights are GPL-3.0 and were trained on the Natural Image Noise Dataset, which is
+  CC-BY-SA-3.0. immich-edit downloads the model only when an administrator installs it.
 - [lensfun](https://lensfun.github.io/) provides lens correction data.
 - [justified-layout](https://github.com/flickr/justified-layout) arranges mixed-aspect photo rows.
 

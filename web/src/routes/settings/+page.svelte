@@ -6,7 +6,7 @@
   import AccountSection from '$lib/components/settings/AccountSection.svelte';
   import SessionsSection from '$lib/components/settings/SessionsSection.svelte';
   import UsersSection from '$lib/components/settings/UsersSection.svelte';
-  import MaskModelsSection from '$lib/components/settings/MaskModelsSection.svelte';
+  import ModelsSection from '$lib/components/settings/ModelsSection.svelte';
   import InstanceSection from '$lib/components/settings/InstanceSection.svelte';
   import RenderDefaultsSection from '$lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '$lib/components/settings/PreviewRenderingSection.svelte';
@@ -81,12 +81,12 @@
             <UsersSection />
           </SettingsGroup>
           <SettingsGroup
-            title="Mask models"
-            description="Manage models used for AI-assisted masks."
+            title="Models"
+            description="Manage models used for AI masks and AI Denoise."
             open={adminSection === 'models'}
             onOpenChange={(open) => setAdminSection('models', open)}
           >
-            <MaskModelsSection />
+            <ModelsSection />
           </SettingsGroup>
           <SettingsGroup
             title="Editing defaults"

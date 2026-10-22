@@ -157,7 +157,7 @@ test('settings deep links and close returns to the previous page', async ({ page
     'aria-expanded',
     'true'
   );
-  await expect(page.getByRole('button', { name: /^Mask models/ })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: /^Models/ })).toHaveAttribute(
     'aria-expanded',
     'true'
   );

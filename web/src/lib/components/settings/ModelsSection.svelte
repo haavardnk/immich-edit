@@ -1,22 +1,22 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
-    listMaskModels,
-    installMaskModel,
-    cancelMaskModelInstall,
-    removeMaskModel,
-    selectMaskModel,
-    type MaskKind,
-    type MaskModel,
-    type MaskModelsResponse
-  } from '$lib/api/masks';
-  import { kindLabel, installPercent, formatSeconds, formatMb } from '$lib/utils/maskModels';
-  import { errorMessage } from '$lib/utils/errors';
+    cancelModelInstall,
+    installModel,
+    listModels,
+    removeModel,
+    selectDefaultModel,
+    type Model,
+    type ModelKind,
+    type ModelsResponse
+  } from '$lib/api/models';
   import Notice from '$lib/components/Notice.svelte';
-  import { mdiClose, mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
+  import { errorMessage } from '$lib/utils/errors';
+  import { formatMb, formatSeconds, installPercent, kindLabel } from '$lib/utils/models';
   import { Badge, IconButton, LoadingSpinner, ProgressBar, Select, Text } from '@immich/ui';
+  import { mdiClose, mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
+  import { onMount } from 'svelte';
 
-  let models = $state<MaskModelsResponse | null>(null);
+  let models = $state<ModelsResponse | null>(null);
   let error = $state<string | null>(null);
   let busyModels = $state<string[]>([]);
 
@@ -35,23 +35,23 @@
 
   async function load(): Promise<void> {
     try {
-      models = await listMaskModels();
+      models = await listModels();
     } catch (e) {
       error = errorMessage(e);
     }
   }
 
-  async function toggleModel(m: MaskModel): Promise<void> {
+  async function toggleModel(m: Model): Promise<void> {
     if (busyModels.includes(m.id)) return;
     busyModels = [...busyModels, m.id];
     error = null;
     try {
       if (m.installing) {
-        await cancelMaskModelInstall(m.id);
+        await cancelModelInstall(m.id);
       } else if (m.installed) {
-        await removeMaskModel(m.id);
+        await removeModel(m.id);
       } else {
-        await installMaskModel(m.id);
+        await installModel(m.id);
       }
       await load();
     } catch (e) {
@@ -66,10 +66,10 @@
     await Promise.all(missingRecommended.map((m) => toggleModel(m)));
   }
 
-  async function chooseModel(kind: MaskKind, modelId: string): Promise<void> {
+  async function chooseModel(kind: ModelKind, modelId: string): Promise<void> {
     error = null;
     try {
-      await selectMaskModel(kind, modelId);
+      await selectDefaultModel(kind, modelId);
       await load();
     } catch (e) {
       error = errorMessage(e);
@@ -92,7 +92,7 @@
     </div>
   {:else if !models.enabled}
     <Text size="tiny" color="muted">
-      Segmentation is disabled. Set ML_RUNTIME to auto, gpu or cpu to enable it.
+      AI models are disabled. Set ML_RUNTIME to auto, gpu or cpu to enable them.
     </Text>
   {:else}
     <div class="flex min-h-8 items-center justify-between gap-3 text-xs text-dark/65">
@@ -114,7 +114,7 @@
       {/if}
     </div>
 
-    {#snippet modelRow(model: MaskModel)}
+    {#snippet modelRow(model: Model)}
       {@const action = model.installing
         ? 'Cancel download'
         : model.installed
@@ -135,7 +135,8 @@
           <div class="mt-0.5 truncate text-dark/65">{model.notes}</div>
           <div class="truncate text-dark/65">
             {formatMb(model.size_bytes)} · {model.gpu_mb} MB VRAM · ~{formatSeconds(model.gpu_ms)} GPU{#if model.cpu_ms > 0}
-              · ~{formatSeconds(model.cpu_ms)} CPU{/if}
+              · ~{formatSeconds(model.cpu_ms)} CPU{/if}{#if model.kind === 'denoise'}
+              per {model.input_edge} px tile{/if}
           </div>
           {#if model.install_error}
             <div class="truncate text-danger-300">Download failed: {model.install_error}</div>
@@ -192,7 +193,7 @@
               }))}
               <Select
                 size="tiny"
-                class="mask-model-select w-48"
+                class="model-select w-48"
                 placeholder="Active model"
                 options={modelOptions}
                 value={models.active[kind] ?? installed[0]?.id}

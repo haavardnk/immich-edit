@@ -1,10 +1,12 @@
 use std::path::Path;
 
-use ort::value::{DynValue, TensorRef};
+use ort::value::TensorRef;
 
 use crate::image::{Placement, activate, mask_to_source, to_tensor};
 use crate::model::{Activation, Layout, ModelSpec};
-use crate::runtime::{Backend, RuntimeMode, SegmentError, SegmentRuntime, SessionConfig};
+use crate::runtime::{
+    Backend, ModelError, ModelRuntime, RuntimeMode, SessionConfig, extract_f32, ort_err,
+};
 
 pub struct Mask {
     pub values: Vec<f32>,
@@ -13,7 +15,7 @@ pub struct Mask {
 }
 
 pub struct Segmenter {
-    runtime: SegmentRuntime,
+    runtime: ModelRuntime,
     spec: ModelSpec,
 }
 
@@ -23,8 +25,8 @@ impl Segmenter {
         spec: ModelSpec,
         mode: RuntimeMode,
         config: &SessionConfig,
-    ) -> Result<Self, SegmentError> {
-        let runtime = SegmentRuntime::open(path, mode, config)?;
+    ) -> Result<Self, ModelError> {
+        let runtime = ModelRuntime::open(path, mode, config)?;
         Ok(Self { runtime, spec })
     }
 
@@ -36,7 +38,7 @@ impl Segmenter {
         &self.spec
     }
 
-    pub fn run(&mut self, rgb8: &[u8], width: u32, height: u32) -> Result<Mask, SegmentError> {
+    pub fn run(&mut self, rgb8: &[u8], width: u32, height: u32) -> Result<Mask, ModelError> {
         self.run_with(rgb8, width, height, self.spec.activation)
     }
 
@@ -46,9 +48,9 @@ impl Segmenter {
         width: u32,
         height: u32,
         activation: Activation,
-    ) -> Result<Mask, SegmentError> {
+    ) -> Result<Mask, ModelError> {
         if rgb8.len() != (width as usize) * (height as usize) * 3 {
-            return Err(SegmentError::Input(
+            return Err(ModelError::Input(
                 "rgb8 length does not match dimensions".into(),
             ));
         }
@@ -73,9 +75,9 @@ impl Segmenter {
             .session
             .run(ort::inputs![
                 input_name.as_str() => TensorRef::from_array_view((shape, tensor.as_slice()))
-                    .map_err(crate::runtime::ort_err)?
+                    .map_err(ort_err)?
             ])
-            .map_err(crate::runtime::ort_err)?;
+            .map_err(ort_err)?;
 
         let (runtime_dims, values) = extract_f32(&outputs[output_name.as_str()])?;
         let out_dims = if runtime_dims.iter().any(|d| *d > 0) {
@@ -86,12 +88,12 @@ impl Segmenter {
         let (mw, mh) = plane_dims(&out_dims, values.len());
         let plane = mw * mh;
         if plane == 0 {
-            return Err(SegmentError::Input(format!(
+            return Err(ModelError::Input(format!(
                 "output plane is {mw}x{mh} for dims {out_dims:?}"
             )));
         }
         if values.len() < plane {
-            return Err(SegmentError::Input(format!(
+            return Err(ModelError::Input(format!(
                 "output has {} values, expected at least {plane}",
                 values.len()
             )));
@@ -133,16 +135,6 @@ fn plane_dims(dims: &[i64], len: usize) -> (usize, usize) {
     }
     let edge = (len as f64).sqrt() as usize;
     (edge, edge)
-}
-
-fn extract_f32(value: &DynValue) -> Result<(Vec<i64>, Vec<f32>), SegmentError> {
-    if let Ok((dims, v)) = value.try_extract_tensor::<f32>() {
-        return Ok((dims.to_vec(), v.to_vec()));
-    }
-    let (dims, v) = value
-        .try_extract_tensor::<half::f16>()
-        .map_err(crate::runtime::ort_err)?;
-    Ok((dims.to_vec(), v.iter().map(|h| h.to_f32()).collect()))
 }
 
 pub fn placement_for(spec: &ModelSpec, width: u32, height: u32) -> Placement {
