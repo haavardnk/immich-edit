@@ -1,7 +1,7 @@
 mod header;
 #[cfg(feature = "native")]
 mod window;
-mod wire;
+pub(crate) mod wire;
 
 use crate::frame::FrameMeta;
 

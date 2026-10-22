@@ -53,6 +53,7 @@ pub struct RenderOptions {
     pub rasters: crate::mask_raster::RasterMap,
     pub luts: crate::lut::LutMap,
     pub dcp: Option<std::sync::Arc<crate::dcp::DcpProfile>>,
+    pub denoise: Option<std::sync::Arc<crate::ai_denoise::DenoisePlane>>,
     #[cfg(feature = "native")]
     pub metadata: Option<crate::metadata::ExportMetadata>,
 }
@@ -256,6 +257,7 @@ impl Default for RenderOptions {
             rasters: crate::mask_raster::empty_rasters(),
             luts: crate::lut::empty_luts(),
             dcp: None,
+            denoise: None,
             #[cfg(feature = "native")]
             metadata: None,
         }

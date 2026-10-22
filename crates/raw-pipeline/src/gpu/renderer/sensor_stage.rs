@@ -10,6 +10,7 @@ use super::detail::NoiseProfile;
 use super::stage_cache::StageCache;
 use super::{GpuRenderer, RenderPlan};
 use crate::PipelineResult;
+use crate::ai_denoise::DenoisePlane;
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::gpu::budget::GpuBudget;
@@ -54,11 +55,13 @@ struct SensorRequest<'a> {
     frame: &'a RawFrame,
     edits: &'a Edits,
     options: &'a RenderOptions,
+    denoise: Option<&'a DenoisePlane>,
 }
 
 pub(super) struct SensorCaches {
     pub frames: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
     pub superpixels: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
+    pub denoise_blends: AtomicU64,
     pub atmospheres: Mutex<lru::LruCache<u64, [f32; 3]>>,
     pub atmosphere_estimates: AtomicU64,
     pub noise_profiles: Mutex<lru::LruCache<u64, NoiseProfile>>,
@@ -74,6 +77,7 @@ impl SensorCaches {
         Self {
             frames: Mutex::new(lru::LruCache::new(frames)),
             superpixels: Mutex::new(lru::LruCache::new(frames)),
+            denoise_blends: AtomicU64::new(0),
             atmospheres: Mutex::new(lru::LruCache::new(atmospheres)),
             atmosphere_estimates: AtomicU64::new(0),
             noise_profiles: Mutex::new(lru::LruCache::new(noise_profiles)),
@@ -160,6 +164,17 @@ impl GpuRenderer {
         let cached = t.stage(timing::DEMOSAIC, || self.get_or_demosaic(frame, block))?;
         crate::cancel::check(cancel)?;
         let edits = edits.clamped();
+        let denoise = crate::ai_denoise::active_plane(frame, &edits, options)?;
+        let cached = match denoise {
+            Some((plane, mix)) => {
+                let blended = t.stage(timing::AI_DENOISE, || {
+                    self.submit_denoise_blend(frame, &cached, plane, mix)
+                })?;
+                crate::cancel::check(cancel)?;
+                blended
+            }
+            None => cached,
+        };
         let cached = if edits.lens.any_active() {
             let corrected = t.stage(timing::LENS, || self.submit_sensor(&cached, &edits))?;
             crate::cancel::check(cancel)?;
@@ -182,6 +197,7 @@ impl GpuRenderer {
             frame,
             edits: &edits,
             options,
+            denoise: denoise.map(|(plane, _)| plane.as_ref()),
         };
         self.spatial_base(&cached, request, plan.atmosphere, t, cancel)
     }
@@ -198,10 +214,11 @@ impl GpuRenderer {
             frame,
             edits,
             options,
+            denoise,
         } = request;
         let setup = crate::dcp::setup::resolve(&frame.meta, edits, options.dcp.as_deref());
         let dims = (cached.width, cached.height);
-        let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb);
+        let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb, denoise);
         let wb_base = t.stage(timing::WB_PREPARE, || {
             self.submit_wb_prepare(cached, &frame.meta, edits, &setup, keys.wb)
         })?;

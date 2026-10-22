@@ -4,6 +4,8 @@ mod atmosphere;
 mod capture_sharpen;
 mod dehaze;
 #[cfg(feature = "native")]
+mod denoise;
+#[cfg(feature = "native")]
 mod nr;
 mod presence;
 #[cfg(feature = "native")]

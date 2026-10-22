@@ -1,5 +1,6 @@
 use std::hash::{Hash, Hasher};
 
+use crate::ai_denoise::{DenoisePlane, hash_active};
 use crate::edits::{Edits, hash_strokes};
 use crate::frame::RawFrame;
 use crate::ops::capture_sharpen::CaptureSigma;
@@ -16,6 +17,7 @@ impl StageKeys {
         edits: &Edits,
         dims: (u32, u32),
         cam_to_srgb: [[f32; 3]; 3],
+        denoise: Option<&DenoisePlane>,
     ) -> Self {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         frame.id.hash(&mut h);
@@ -27,6 +29,7 @@ impl StageKeys {
             }
         }
         edits.lens.hash_key(&mut h);
+        hash_active(denoise, edits, &mut h);
         let wb = h.finish();
 
         let mut h = std::collections::hash_map::DefaultHasher::new();

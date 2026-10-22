@@ -44,6 +44,10 @@ pub(super) struct Prepared {
     out_dims: (u32, u32),
     preview_ratio: Option<f32>,
     block: Option<usize>,
+    denoise: Option<(
+        Arc<crate::ai_denoise::DenoisePlane>,
+        crate::ai_denoise::DenoiseMix,
+    )>,
 }
 
 impl Prepared {
@@ -62,7 +66,11 @@ struct SceneOutput {
     oriented: (usize, usize),
 }
 
-pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) -> Prepared {
+pub(super) fn prepare(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+) -> crate::PipelineResult<Prepared> {
     let mut edits = edits.clamped();
     edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(frame.meta.is_raw));
     edits.geometry.crop = crate::geom::compose_roi(edits.geometry.crop, options.roi);
@@ -79,6 +87,8 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
     );
     let block = crate::geom::superpixel_block(frame, options, preview_ratio);
     let block_scale = block.unwrap_or(1) as f32;
+    let denoise = crate::ai_denoise::active_plane(frame, &edits, options)?
+        .map(|(plane, mix)| (plane.clone(), mix));
 
     let setup = crate::dcp::setup::resolve(&frame.meta, &edits, options.dcp.as_deref());
     let ctx = OpContext {
@@ -103,14 +113,15 @@ pub(super) fn prepare(frame: &RawFrame, edits: &Edits, options: &RenderOptions) 
         },
         scratch: OpScratch::default(),
     };
-    Prepared {
+    Ok(Prepared {
         edits,
         ctx,
         setup,
         out_dims,
         preview_ratio,
         block,
-    }
+        denoise,
+    })
 }
 
 pub(super) fn cached_sensor_stage(
@@ -128,6 +139,7 @@ pub(super) fn cached_sensor_stage(
         options,
         prep.preview_ratio,
         prep.block,
+        prep.denoise.as_ref().map(|(plane, _)| plane.as_ref()),
     );
     if let Some(stage) = renderer.get(key) {
         return Ok(stage);
@@ -176,6 +188,18 @@ fn oriented_sensor(
     });
 
     let mut sensor_image = LinearImage::new(rgb, sensor_w, sensor_h);
+    if let Some((plane, mix)) = &prep.denoise {
+        clock.time(timing::AI_DENOISE, || {
+            crate::ai_denoise::blend(
+                &mut sensor_image.rgb,
+                sensor_w,
+                plane,
+                prep.block.unwrap_or(1),
+                *mix,
+            )
+        });
+        cancel::check(cancel)?;
+    }
     clock.time(timing::LENS, || {
         run_sensor_ops(&mut sensor_image, &prep.edits, cancel)
     })?;
@@ -213,7 +237,7 @@ pub(crate) fn render_cached(
     cancel: Option<&CancelToken>,
     renderer: Option<&CpuRenderer>,
 ) -> crate::PipelineResult<RenderedImage> {
-    let prep = prepare(frame, edits, options);
+    let prep = prepare(frame, edits, options)?;
     let clock = StageClock::default();
     let Some(renderer) = renderer.filter(|_| renderer::sensor_cacheable(options)) else {
         let (mut image, oriented, preview_dims) = oriented_sensor(frame, &prep, &clock, cancel)?;
@@ -250,7 +274,7 @@ pub(crate) fn render_cached(
     finish_render(frame, &prep, options, scene, clock, cancel)
 }
 
-fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
+pub(crate) fn full_demosaic(frame: &RawFrame) -> Vec<f32> {
     if frame.cpp != 1 || frame.cfa_pattern.is_empty() {
         return frame.data.clone();
     }

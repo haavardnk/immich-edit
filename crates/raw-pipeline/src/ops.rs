@@ -1,3 +1,4 @@
+pub mod ai_denoise;
 pub mod blur;
 pub mod box_filter;
 pub mod brightness;
@@ -70,6 +71,7 @@ pub enum Stage {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GpuPass {
+    Denoise,
     Lens,
     Retouch,
     Dehaze,
@@ -293,6 +295,7 @@ impl OpRegistry {
 
 pub fn default_registry() -> OpRegistry {
     OpRegistry::new(vec![
+        Box::new(ai_denoise::AiDenoiseOp),
         Box::new(lens_profile::LensProfileOp),
         Box::new(lens_distortion::LensDistortionOp),
         Box::new(lens_vignette::LensVignetteOp),

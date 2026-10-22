@@ -1,3 +1,4 @@
+pub mod ai_denoise;
 #[cfg(feature = "native")]
 pub mod auto;
 pub mod cancel;

@@ -4,7 +4,7 @@ use crate::edits::Edits;
 
 pub struct WhiteBalanceOp;
 
-fn camera_wb(raw: [f32; 4]) -> [f32; 4] {
+pub(crate) fn camera_wb(raw: [f32; 4]) -> [f32; 4] {
     let mut c = raw;
     if c[0] == 0.0 && c[1] == 0.0 && c[2] == 0.0 {
         c = [1.0, 1.0, 1.0, 1.0];

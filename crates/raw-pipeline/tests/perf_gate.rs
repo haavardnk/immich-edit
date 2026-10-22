@@ -135,6 +135,9 @@ fn edits_detail_heavy() -> Edits {
             color_nr_smoothness: 25.0,
             capture_sharpen: true,
             capture_corner_boost: 0.0,
+            ai_denoise: false,
+            ai_denoise_strength: raw_pipeline::edits::AI_DENOISE_STRENGTH,
+            ai_denoise_detail: 0.0,
         },
         ..Default::default()
     }

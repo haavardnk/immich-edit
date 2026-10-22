@@ -5,6 +5,7 @@ use std::sync::Arc;
 use lru::LruCache;
 use parking_lot::Mutex;
 
+use crate::ai_denoise::DenoisePlane;
 use crate::cancel::CancelToken;
 use crate::dcp::setup::DcpSetup;
 use crate::edits::Edits;
@@ -88,6 +89,7 @@ pub(crate) fn sensor_cache_key(
     options: &RenderOptions,
     preview_ratio: Option<f32>,
     superpixel_block: Option<usize>,
+    denoise: Option<&DenoisePlane>,
 ) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     frame.id.hash(&mut h);
@@ -108,6 +110,7 @@ pub(crate) fn sensor_cache_key(
     d.hash_nr(&mut h);
     d.capture_sharpen.hash(&mut h);
     d.capture_corner_boost.to_bits().hash(&mut h);
+    crate::ai_denoise::hash_active(denoise, edits, &mut h);
     preview_ratio.map(f32::to_bits).hash(&mut h);
     superpixel_block.hash(&mut h);
     options.roi.is_some().hash(&mut h);

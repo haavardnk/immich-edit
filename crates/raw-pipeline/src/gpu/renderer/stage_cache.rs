@@ -13,6 +13,8 @@ pub(in crate::gpu::renderer) enum Stage {
     Wb,
     Nr,
     Capture,
+    DenoisePlane,
+    DenoiseBlend,
 }
 
 struct Entry {

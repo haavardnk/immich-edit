@@ -16,7 +16,7 @@ pub(crate) fn render_source(
     cancel: Option<&CancelToken>,
     renderer: &CpuRenderer,
 ) -> crate::PipelineResult<RenderedSource> {
-    let prep = prepare(frame, edits, options);
+    let prep = prepare(frame, edits, options)?;
     let clock = StageClock::default();
     let stage = cached_sensor_stage(frame, &prep, options, renderer, &clock, cancel)?;
     cancel::check(cancel)?;

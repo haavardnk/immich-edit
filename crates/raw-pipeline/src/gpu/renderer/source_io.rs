@@ -130,7 +130,7 @@ fn texel_size(format: TextureFormat) -> u32 {
     }
 }
 
-fn texel_bytes(rgb_f16: &[u16], format: TextureFormat) -> Vec<u8> {
+pub(super) fn texel_bytes(rgb_f16: &[u16], format: TextureFormat) -> Vec<u8> {
     let one = f16::ONE.to_bits();
     let texel = texel_size(format) as usize;
     let mut out = vec![0u8; rgb_f16.len() / 3 * texel];

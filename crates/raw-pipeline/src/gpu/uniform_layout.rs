@@ -14,6 +14,7 @@ use super::passes::dehaze::{
     DehazeFilterParams, DehazeNormParams, DehazeSizeParams, MIN_WGSL, NORM_WGSL, PACK_WGSL,
 };
 use super::passes::demosaic::{DEMOSAIC_WGSL, SUPERPIXEL_WGSL};
+use super::passes::denoise_blend::{DENOISE_BLEND_WGSL, DenoiseBlendParams};
 use super::passes::effects_tone::{EffectsToneParams, effects_tone_wgsl};
 use super::passes::lut::{LutParams, lut_wgsl};
 use super::passes::mask_blend::{MASK_BLEND_WGSL, MaskBlendParams};
@@ -353,6 +354,11 @@ fn uniform_structs_mirror_wgsl() {
             "retouch_apply",
             retouch(),
             uniform_struct(RETOUCH_APPLY_WGSL),
+        ),
+        (
+            "denoise_blend",
+            layout!(DenoiseBlendParams { size, strength, detail, luma, neutral } pad { _pad0, _pad1 }),
+            uniform_struct(DENOISE_BLEND_WGSL),
         ),
         (
             "sensor",

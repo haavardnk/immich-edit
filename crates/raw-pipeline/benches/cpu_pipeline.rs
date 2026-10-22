@@ -119,6 +119,7 @@ fn edits_detail_heavy() -> Edits {
             color_nr_smoothness: 25.0,
             capture_sharpen: true,
             capture_corner_boost: 0.0,
+            ..DetailEdits::default()
         },
         ..Default::default()
     }

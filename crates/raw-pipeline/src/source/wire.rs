@@ -16,14 +16,24 @@ const PLAIN_MAGIC: &[u8; 4] = b"IESP";
 const VERSION: u32 = 2;
 const PREFIX_BYTES: usize = 12;
 const MAX_HEADER_BYTES: usize = 4096;
-const MAX_PIXELS: u64 = 64 * 1024 * 1024;
+pub(crate) const MAX_PIXELS: u64 = 128 * 1024 * 1024;
 #[cfg(feature = "native")]
 const ZSTD_LEVEL: i32 = 1;
+
+pub(crate) fn wire_pixels(width: u64, height: u64) -> Option<usize> {
+    let pixels = width.checked_mul(height)?;
+    (pixels > 0 && pixels <= MAX_PIXELS).then_some(pixels as usize)
+}
 
 #[cfg(feature = "native")]
 pub fn encode(image: &SourceImage, coding: SourceCoding) -> PipelineResult<Vec<u8>> {
     let (w, h) = image.header.dims;
-    if image.rgb_f16.len() as u64 != w as u64 * h as u64 * 3 {
+    let Some(pixels) = wire_pixels(w.into(), h.into()) else {
+        return Err(PipelineError::Encode(format!(
+            "source dims {w}x{h} out of range"
+        )));
+    };
+    if image.rgb_f16.len() != pixels * 3 {
         return Err(PipelineError::Encode(format!(
             "source holds {} samples, expected {w}x{h}x3",
             image.rgb_f16.len()
@@ -90,11 +100,10 @@ pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
     let (head, payload) = bytes[PREFIX_BYTES..].split_at(head_len);
     let header = header::read(head)?;
     let (w, h) = header.dims;
-    let pixels = w as u64 * h as u64;
-    if pixels == 0 || pixels > MAX_PIXELS {
+    let Some(pixels) = wire_pixels(w.into(), h.into()) else {
         return Err(invalid(&format!("dims {w}x{h} out of range")));
-    }
-    let expected = pixels as usize * 6;
+    };
+    let expected = pixels * 6;
     let planes = if compressed {
         let mut planes = Vec::with_capacity(expected);
         ruzstd::decoding::StreamingDecoder::new(payload)
@@ -116,7 +125,7 @@ pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
 }
 
 #[cfg(feature = "native")]
-fn to_planes(rgb: &[u16], w: usize, h: usize) -> Vec<u8> {
+pub(crate) fn to_planes(rgb: &[u16], w: usize, h: usize) -> Vec<u8> {
     let samples = w * h * 3;
     let mut planes = vec![0u8; samples * 2];
     let (hi, lo) = planes.split_at_mut(samples);
@@ -136,7 +145,7 @@ fn to_planes(rgb: &[u16], w: usize, h: usize) -> Vec<u8> {
     planes
 }
 
-fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
+pub(crate) fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
     let samples = w * h * 3;
     let (hi, lo) = planes.split_at(samples);
     let mut rgb = vec![0u16; samples];
@@ -278,6 +287,50 @@ mod tests {
             if decode(&bytes).is_ok() {
                 panic!("{label}: a malformed stream decoded");
             }
+        }
+    }
+
+    #[test]
+    fn the_pixel_limit_admits_the_largest_target_sensors() {
+        for (w, h) in [(11648, 8736), (12000, 9000), (1, 1)] {
+            if wire_pixels(w, h).is_none() {
+                panic!("{w}x{h} is rejected by the wire limit");
+            }
+        }
+        for (w, h) in [(0, 9000), (MAX_PIXELS + 1, 1), (u64::MAX, u64::MAX)] {
+            if wire_pixels(w, h).is_some() {
+                panic!("{w}x{h} passes the wire limit");
+            }
+        }
+    }
+
+    #[test]
+    fn the_wire_limit_is_checked_from_the_header_before_any_payload() {
+        let source = image(8, 4);
+        let good = encode(&source, SourceCoding::Framed).unwrap();
+        let head_len = u32::from_le_bytes([good[8], good[9], good[10], good[11]]) as usize;
+        let payload = &good[PREFIX_BYTES + head_len..];
+        let restamp = |dims: (u32, u32)| {
+            let mut header = source.header.clone();
+            header.dims = dims;
+            header.window = None;
+            let mut head = Vec::new();
+            header::write(&header, &mut head).unwrap();
+            assemble(MAGIC, &head, payload)
+        };
+        let at_target = format!("{:?}", decode(&restamp((12000, 9000))).err());
+        if !at_target.contains("payload size") {
+            panic!("a 12000x9000 header was refused before its payload: {at_target}");
+        }
+        let over = format!("{:?}", decode(&restamp((16384, 16384))).err());
+        if !over.contains("out of range") {
+            panic!("an oversized header was not refused: {over}");
+        }
+        let mut huge = source.clone();
+        huge.header.dims = (16384, 16384);
+        huge.rgb_f16 = Vec::new();
+        if encode(&huge, SourceCoding::Framed).is_ok() {
+            panic!("an oversized source encoded");
         }
     }
 }

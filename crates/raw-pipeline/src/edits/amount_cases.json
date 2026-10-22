@@ -216,5 +216,23 @@
         "balance": -15
       }
     }
+  },
+  {
+    "name": "ai denoise passes through at the preset value",
+    "amount": 50,
+    "preset": {
+      "detail": {
+        "ai_denoise": true,
+        "ai_denoise_strength": 40,
+        "ai_denoise_detail": 30,
+        "luma_nr_amount": 40
+      }
+    },
+    "expect": {
+      "/detail/ai_denoise": true,
+      "/detail/ai_denoise_strength": 40,
+      "/detail/ai_denoise_detail": 30,
+      "/detail/luma_nr_amount": 20
+    }
   }
 ]
