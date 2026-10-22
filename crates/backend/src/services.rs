@@ -8,6 +8,7 @@ pub mod copy_expand;
 pub mod credentials;
 pub mod crypto;
 pub mod dcp_store;
+pub mod disk_lru;
 pub mod edit_merge;
 pub mod edited_thumb;
 pub mod edits_store;
