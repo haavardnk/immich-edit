@@ -7,6 +7,7 @@ export interface EditedAssetEntry {
   id: string;
   hash: string;
   updated_at: string;
+  revision?: string;
   asset?: AssetDetail;
 }
 

@@ -67,12 +67,10 @@ pub fn etag_matches(headers: &HeaderMap, etag: &HeaderValue) -> bool {
         })
 }
 
-pub fn attach_validators(resp: &mut Response, etag: HeaderValue) {
+pub fn attach_validators(resp: &mut Response, etag: HeaderValue, cache: &'static str) {
     resp.headers_mut().insert(header::ETAG, etag);
-    resp.headers_mut().insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static(CACHE_REVALIDATE),
-    );
+    resp.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static(cache));
 }
 
 pub fn accepts_zstd(headers: &HeaderMap) -> bool {

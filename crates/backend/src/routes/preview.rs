@@ -65,7 +65,10 @@ pub async fn get_preview(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, q.max)?;
     let edits = state.edits.get_edits_or_default(ctx.owner, id).await?;
-    let render_revision = state.render.render_revision().await?;
+    let render_revision = state
+        .render
+        .asset_revision(RenderIdentity::from(&ctx), id.source(), &edits)
+        .await?;
     let etag = headers::etag(&format!(
         "{}-{}-{}-{}-{}",
         edits.stable_hash(),
@@ -77,7 +80,7 @@ pub async fn get_preview(
     let unchanged = etag_matches(&request_headers, &etag);
     if unchanged {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
-        attach_validators(&mut resp, etag);
+        attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
         return Ok(resp);
     }
     let mut resp = render_to_response(
@@ -98,7 +101,7 @@ pub async fn get_preview(
         },
     )
     .await?;
-    attach_validators(&mut resp, etag);
+    attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
     Ok(resp)
 }
 

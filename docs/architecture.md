@@ -125,8 +125,9 @@ which **Fastest** adds to the download and decode time it measures to time the s
 source-dependent stages. The service also caches decoded preview and quality frames within byte
 budgets.
 
-Other caches include edited thumbnails, click-model embeddings, preview metadata, reusable GPU
-textures, and generated mask rasters. Diagnostics reports current use and limits.
+Other caches include edited thumbnails, click-model embeddings, AI Denoise results, preview
+metadata, reusable GPU textures, and generated mask rasters. Diagnostics reports current use and
+limits.
 
 GPU device loss marks the renderer unavailable, falls back to CPU, and permits a later rebuild.
 
@@ -140,10 +141,15 @@ deleted when the job reaches a terminal state.
 
 The model catalog is compiled into `crates/ml`, but model files are downloaded only after an
 administrator requests them. Files are verified, stored under `DATA_DIR/models`, and selected per
-model kind. One whole-image session and one click session can remain loaded until the idle timeout.
+model kind. One whole-image session, one click session, and one denoise session can remain loaded
+until the idle timeout. Every inference job shares the `ML_MAX_CONCURRENCY` limit.
 
 Generated masks are baked to ordinary rasters. Model inference stays outside the hot preview and
 export paths.
+
+AI Denoise runs the model once per RAW photo and user, in tiles over the full-resolution mosaic, and
+stores the result under `DATA_DIR/cache/denoise`. Renders blend that stored result into the sensor
+stage at the chosen strength; an export waits for a pending result first.
 
 ## Boundaries
 

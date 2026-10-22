@@ -154,21 +154,22 @@ pub async fn thumb(
         .get_edits_or_default(ctx.owner, asset_id)
         .await?;
     let look = preset.manifest.to_edits();
-    let render_revision = state.render.render_revision().await?;
+    let current_hash = current.stable_hash();
+    let look_hash = look.stable_hash();
+    let edits = merge_edits(current, look, MergeSections::look_only()).clamped();
+    let revision = state
+        .render
+        .asset_revision(RenderIdentity::from(&ctx), asset_id.source(), &edits)
+        .await?;
     let etag = headers::etag(&format!(
         "{}-{}-{}-{}-{}",
-        current.stable_hash(),
-        look.stable_hash(),
-        max_edge,
-        ctx.server_epoch,
-        render_revision
+        current_hash, look_hash, max_edge, ctx.server_epoch, revision
     ))?;
     if etag_matches(&request_headers, &etag) {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
-        attach_validators(&mut resp, etag);
+        attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
         return Ok(resp);
     }
-    let edits = merge_edits(current, look, MergeSections::look_only()).clamped();
     let opts = RenderOptions {
         max_edge,
         quality: false,
@@ -197,7 +198,7 @@ pub async fn thumb(
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
-    attach_validators(&mut resp, etag);
+    attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
     Ok(resp)
 }
 

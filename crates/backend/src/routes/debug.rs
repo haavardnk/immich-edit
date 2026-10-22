@@ -15,7 +15,10 @@ pub struct GpuPoolBytes {
     pub sharpen_targets: u64,
     pub wb_cache: u64,
     pub nr_cache: u64,
+    pub capture_cache: u64,
+    pub denoise_cache: u64,
     pub atlas_cache: u64,
+    pub atlas_pool: u64,
     pub total: u64,
 }
 
@@ -27,6 +30,8 @@ pub struct CacheBytes {
     pub quality_frames_cap: u64,
     pub rasters_disk_used: u64,
     pub rasters_disk_cap: u64,
+    pub denoise_disk_used: u64,
+    pub denoise_disk_cap: u64,
 }
 
 #[derive(Serialize)]
@@ -48,17 +53,24 @@ pub async fn timings(State(state): State<AppState>, _admin: AdminCtx) -> Json<Ti
         sharpen_targets: s.sharpen_targets,
         wb_cache: s.wb_cache,
         nr_cache: s.nr_cache,
+        capture_cache: s.capture_cache,
+        denoise_cache: s.denoise_cache,
         atlas_cache: s.atlas_cache,
+        atlas_pool: s.atlas_pool,
         total: s.texture_pool
             + s.uniform_pool
             + s.output_targets
             + s.sharpen_targets
             + s.wb_cache
             + s.nr_cache
-            + s.atlas_cache,
+            + s.capture_cache
+            + s.denoise_cache
+            + s.atlas_cache
+            + s.atlas_pool,
     });
     let frames = state.render.frame_cache_bytes().await;
     let (rasters_used, rasters_cap) = state.rasters.disk_bytes();
+    let (denoise_used, denoise_cap) = state.render.denoise().store().disk_bytes().await;
     Json(Timings {
         renderer_active: state.render.active(),
         gpu_timestamps: state.render.gpu_timestamps(),
@@ -71,6 +83,8 @@ pub async fn timings(State(state): State<AppState>, _admin: AdminCtx) -> Json<Ti
             quality_frames_cap: frames.quality_cap,
             rasters_disk_used: rasters_used,
             rasters_disk_cap: rasters_cap,
+            denoise_disk_used: denoise_used,
+            denoise_disk_cap: denoise_cap,
         },
     })
 }

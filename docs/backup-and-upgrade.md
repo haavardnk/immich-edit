@@ -28,8 +28,8 @@ a host directory instead, such as `./data:/data`, back up that directory.
 | `rasters/` | Brush and generated-mask pixels referenced by saved edits |
 | `watermarks/` | Imported export watermark PNGs referenced by the database |
 
-Directories under `cache/` contain regenerable thumbnails, click-model embeddings, export staging
-files, and frame-related caches.
+Directories under `cache/` contain regenerable thumbnails, click-model embeddings, AI Denoise
+results, export staging files, and frame-related caches.
 
 {: .warning }
 Deleting `rasters/` destroys brush and generated masks. `instance.key` must stay with the database.

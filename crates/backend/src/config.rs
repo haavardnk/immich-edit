@@ -34,6 +34,7 @@ pub struct Config {
     pub thumb_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub embedding_cache_mb: u64,
+    pub denoise_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
@@ -73,6 +74,7 @@ struct FileConfig {
     thumb_max_concurrency: Option<usize>,
     mask_cache_mb: Option<u64>,
     embedding_cache_mb: Option<u64>,
+    denoise_cache_mb: Option<u64>,
     raw_frame_cache_mb: Option<u64>,
     quality_frame_cache_mb: Option<u64>,
     gpu_texture_cache_mb: Option<u64>,
@@ -198,6 +200,13 @@ impl Config {
             });
         }
 
+        let denoise_cache_mb = parse_or("DENOISE_CACHE_MB", file.denoise_cache_mb, 4096u64)?;
+        if denoise_cache_mb == 0 {
+            return Err(ConfigError::InvalidValue {
+                key: "DENOISE_CACHE_MB".into(),
+                value: "0".into(),
+            });
+        }
         let raw_frame_cache_mb = parse_or(
             "RAW_FRAME_CACHE_MB",
             file.raw_frame_cache_mb,
@@ -297,6 +306,7 @@ impl Config {
             thumb_max_concurrency,
             mask_cache_mb,
             embedding_cache_mb,
+            denoise_cache_mb,
             raw_frame_cache_mb,
             quality_frame_cache_mb,
             gpu_texture_cache_mb,
@@ -343,6 +353,7 @@ impl Config {
             thumb_max_concurrency: self.thumb_max_concurrency,
             mask_cache_mb: self.mask_cache_mb,
             embedding_cache_mb: self.embedding_cache_mb,
+            denoise_cache_mb: self.denoise_cache_mb,
             raw_frame_cache_mb: self.raw_frame_cache_mb,
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
@@ -373,6 +384,7 @@ pub struct RedactedConfig {
     pub thumb_max_concurrency: usize,
     pub mask_cache_mb: u64,
     pub embedding_cache_mb: u64,
+    pub denoise_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: u64,
@@ -412,6 +424,8 @@ mod tests {
             "RENDER_MAX_CONCURRENCY",
             "THUMB_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
+            "EMBEDDING_CACHE_MB",
+            "DENOISE_CACHE_MB",
             "IMMICH_EDIT_RENDERER",
             "GPU_TIMESTAMPS",
             "IMMICH_EDIT_CONFIG",
@@ -459,6 +473,12 @@ mod tests {
         if cfg.embedding_cache_mb != 2048 {
             panic!("embedding_cache_mb");
         }
+        if cfg.denoise_cache_mb != 4096 {
+            panic!("denoise_cache_mb");
+        }
+        if cfg.redacted().denoise_cache_mb != 4096 {
+            panic!("redacted denoise_cache_mb");
+        }
         if cfg.quality_frame_cache_mb != 512 {
             panic!("quality_frame_cache_mb");
         }
@@ -467,6 +487,24 @@ mod tests {
         }
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
+        }
+    }
+
+    #[test]
+    fn rejects_a_zero_denoise_cache() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+            std::env::set_var("DENOISE_CACHE_MB", "0");
+        }
+        let result = Config::load();
+        unsafe { std::env::remove_var("DENOISE_CACHE_MB") };
+        match result {
+            Err(ConfigError::InvalidValue { key, value })
+                if key == "DENOISE_CACHE_MB" && value == "0" => {}
+            Ok(_) => panic!("DENOISE_CACHE_MB=0 was accepted"),
+            Err(other) => panic!("DENOISE_CACHE_MB=0 failed with another error: {other}"),
         }
     }
 

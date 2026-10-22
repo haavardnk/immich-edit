@@ -43,6 +43,6 @@ export function assetThumbUrl(
 ): string {
   const hash = editedThumbs.getHash(id);
   return hash
-    ? editedThumbUrl(id, hash, editedThumbs.revision, editedSize)
+    ? editedThumbUrl(id, hash, editedThumbs.getRevision(id), editedSize)
     : thumbUrl(sourceId(id), immichSize);
 }

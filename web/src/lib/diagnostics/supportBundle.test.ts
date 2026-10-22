@@ -52,7 +52,9 @@ function timings(overrides: Partial<DebugTimings>): DebugTimings {
       quality_frames_used: 0,
       quality_frames_cap: 0,
       rasters_disk_used: 0,
-      rasters_disk_cap: 0
+      rasters_disk_cap: 0,
+      denoise_disk_used: 0,
+      denoise_disk_cap: 0
     },
     ...overrides
   };

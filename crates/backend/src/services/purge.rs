@@ -10,6 +10,9 @@ pub async fn purge_owner(state: &AppState, owner: Uuid) -> Result<(), AppError> 
     state.auth.revoke_all_for_user(owner).await?;
     state.rasters.purge_owner(owner).await?;
     state.edited_thumb.purge_owner(owner).await?;
+    state.render.denoise().store().purge_owner(owner).await;
+    #[cfg(feature = "ml")]
+    state.denoise.purge_owner(owner);
     crate::services::export::purge_owner_exports(state, owner).await;
     Ok(())
 }
@@ -27,5 +30,8 @@ pub async fn purge_instance(state: &AppState) {
     if let Err(error) = state.edited_thumb.purge_all().await {
         tracing::warn!(error = %error, "purge edited thumbnails after rebind");
     }
+    state.render.denoise().store().purge_all().await;
+    #[cfg(feature = "ml")]
+    state.denoise.purge_all();
     crate::services::export::purge_all_exports(state).await;
 }

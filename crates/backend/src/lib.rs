@@ -56,12 +56,16 @@ pub async fn run() -> anyhow::Result<()> {
     #[cfg(feature = "ml")]
     {
         let segment = state.segment.clone();
+        let denoise = state.denoise.clone();
         let mut segment_shutdown = shutdown_tx.subscribe();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(15));
             loop {
                 tokio::select! {
-                    _ = interval.tick() => segment.release_idle().await,
+                    _ = interval.tick() => {
+                        segment.release_idle().await;
+                        denoise.release_idle().await;
+                    }
                     _ = segment_shutdown.changed() => break,
                 }
             }

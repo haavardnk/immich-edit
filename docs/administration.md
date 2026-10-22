@@ -72,9 +72,13 @@ The catalog covers subject, people, sky, depth, scene, and click selection for m
 **AI Denoise** for RAW photos. Check each model's license before commercial use. Select an
 installed default when a kind has more than one model.
 
+**AI Denoise** works on one photo at a time. While it runs it needs roughly 1 GB of RAM for a 24 MP
+photo, on top of the model itself.
+
 `ML_RUNTIME=auto` tries WebGPU and falls back to CPU. `gpu` fails rather than falling back, `cpu`
-skips WebGPU, and `off` disables AI masks and **AI Denoise**. On arm64 Linux, inference is
-CPU-only because the ONNX Runtime distribution has no WebGPU provider for that target.
+skips WebGPU, and `off` disables AI masks and new **AI Denoise** runs; results that are already
+stored still apply. On arm64 Linux, inference is CPU-only because the ONNX Runtime distribution has
+no WebGPU provider for that target.
 
 ## LUTs, camera profiles, and watermarks
 

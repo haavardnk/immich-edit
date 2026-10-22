@@ -8,6 +8,9 @@ pub mod copy_expand;
 pub mod credentials;
 pub mod crypto;
 pub mod dcp_store;
+#[cfg(feature = "ml")]
+pub mod denoise;
+pub mod denoise_store;
 pub mod disk_lru;
 pub mod edit_merge;
 pub mod edited_thumb;
@@ -24,6 +27,8 @@ pub mod login_session;
 pub mod lut_store;
 #[cfg(feature = "ml")]
 pub mod mask_scene;
+#[cfg(feature = "ml")]
+pub mod ml_runtime;
 #[cfg(feature = "ml")]
 pub mod model_download;
 #[cfg(feature = "ml")]

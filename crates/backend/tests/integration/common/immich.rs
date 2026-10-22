@@ -53,20 +53,23 @@ pub fn asset_id() -> Uuid {
     Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap()
 }
 
+pub const ARW_FIXTURE: &str = "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw";
+
 pub fn arw_response() -> ResponseTemplate {
-    raw_response(
-        "Sony_ILCE-7S_14bit_14bit_compressed_3-2.arw",
-        "image/x-sony-arw",
-    )
+    raw_response(ARW_FIXTURE, "image/x-sony-arw")
 }
 
-pub fn raw_response(fixture: &str, content_type: &str) -> ResponseTemplate {
+pub fn raw_fixture(fixture: &str) -> Vec<u8> {
     let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../raw-pipeline/tests/fixtures")
         .join(fixture);
+    std::fs::read(file).expect("committed RAW fixture")
+}
+
+pub fn raw_response(fixture: &str, content_type: &str) -> ResponseTemplate {
     ResponseTemplate::new(200)
         .insert_header("content-type", content_type)
-        .set_body_bytes(std::fs::read(file).expect("committed RAW fixture"))
+        .set_body_bytes(raw_fixture(fixture))
 }
 
 pub fn plain_jpeg() -> Vec<u8> {
