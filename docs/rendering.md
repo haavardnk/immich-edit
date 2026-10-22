@@ -23,6 +23,7 @@ graphics card helps.
 | The original in split view | Server |
 | Exports, batch jobs and edited thumbnails | Server |
 | AI mask models | Server |
+| AI Denoise | Server |
 
 With browser previews, the server prepares the photo once: it decodes the original, applies the
 source settings, and sends the result to the browser. The browser applies everything else locally,

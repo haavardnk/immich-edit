@@ -1,8 +1,9 @@
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
+use tracing::Dispatch;
 use tracing::Level;
-use tracing::subscriber::DefaultGuard;
+use tracing::subscriber::{DefaultGuard, NoSubscriber};
 use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Default)]
@@ -41,7 +42,14 @@ impl<'a> MakeWriter<'a> for Capture {
     }
 }
 
+fn keep_interest_shared() {
+    // https://github.com/tokio-rs/tracing/issues/2874: with one live dispatcher a callsite first hit on another thread caches Interest::never.
+    static PINNED: OnceLock<Dispatch> = OnceLock::new();
+    PINNED.get_or_init(|| Dispatch::new(NoSubscriber::default()));
+}
+
 pub fn capture_logs(level: Level) -> (Capture, DefaultGuard) {
+    keep_interest_shared();
     let capture = Capture::default();
     let subscriber = tracing_subscriber::fmt()
         .with_writer(capture.clone())
@@ -53,6 +61,7 @@ pub fn capture_logs(level: Level) -> (Capture, DefaultGuard) {
 }
 
 pub fn capture_json_logs(level: Level) -> (Capture, DefaultGuard) {
+    keep_interest_shared();
     let capture = Capture::default();
     let subscriber = tracing_subscriber::fmt()
         .with_writer(capture.clone())

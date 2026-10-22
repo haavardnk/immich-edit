@@ -39,7 +39,10 @@ pub async fn post_source(
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
     let roi = parse_roi(body.roi)?;
     let edits = body.edits.clamped().sensor_stage();
-    let render_revision = state.render.render_revision().await?;
+    let render_revision = state
+        .render
+        .asset_revision(RenderIdentity::from(&ctx), id.source(), &edits)
+        .await?;
     let region = roi.map_or(String::new(), |r| {
         format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
     });
@@ -58,7 +61,7 @@ pub async fn post_source(
     ))?;
     if etag_matches(&request_headers, &etag) {
         let mut resp = StatusCode::NOT_MODIFIED.into_response();
-        attach_validators(&mut resp, etag);
+        attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
         resp.headers_mut()
             .insert(header::VARY, HeaderValue::from_static("accept-encoding"));
         return Ok(resp);
@@ -115,6 +118,6 @@ pub async fn post_source(
             headers::header_value(&dcp_id)?,
         );
     }
-    attach_validators(&mut resp, etag);
+    attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
     Ok(resp)
 }

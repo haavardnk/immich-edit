@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 use crate::safe_path;
 use crate::services::cleanup::warn_unless_missing;
-use crate::services::render::{RenderError, RenderIdentity, RenderService};
+use crate::services::render::{AssetRevision, RenderError, RenderIdentity, RenderService};
 use crate::services::render_queue::{RenderPriority, RenderQueue};
 
 const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
@@ -19,8 +19,6 @@ const TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 pub enum EditedThumbError {
     #[error("not found")]
     NotFound,
-    #[error("hash mismatch")]
-    HashMismatch,
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("render: {0}")]
@@ -30,8 +28,13 @@ pub enum EditedThumbError {
 pub struct ThumbRequest<'a> {
     pub asset_id: AssetKey,
     pub edits: Edits,
-    pub expected_hash: &'a str,
+    pub revision: &'a AssetRevision,
     pub size: u32,
+}
+
+pub struct Thumb {
+    pub bytes: Vec<u8>,
+    pub current: bool,
 }
 
 #[derive(Clone)]
@@ -104,29 +107,30 @@ impl EditedThumbService {
         identity: RenderIdentity,
         immich: crate::immich::ImmichClient,
         req: ThumbRequest<'_>,
-    ) -> Result<Vec<u8>, EditedThumbError> {
+    ) -> Result<Thumb, EditedThumbError> {
         let ThumbRequest {
             asset_id,
             edits,
-            expected_hash,
+            revision,
             size,
         } = req;
-        let actual = edits.stable_hash();
-        if actual != expected_hash {
-            return Err(EditedThumbError::HashMismatch);
-        }
-        let render_revision = render.render_revision().await?;
-        let render_hash = format!("{actual}-{render_revision}");
+        let render_hash = format!("{}-{revision}", edits.stable_hash());
         let path = self.cache_path(identity, asset_id, &render_hash, size)?;
         if let Ok(bytes) = fs::read(&path).await {
-            return Ok(bytes);
+            return Ok(Thumb {
+                bytes,
+                current: true,
+            });
         }
         let work = async {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).await?;
             }
             if let Ok(bytes) = fs::read(&path).await {
-                return Ok(bytes);
+                return Ok(Thumb {
+                    bytes,
+                    current: true,
+                });
             }
             let opts = RenderOptions {
                 max_edge: size,
@@ -138,16 +142,26 @@ impl EditedThumbService {
                 preview_mode: PreviewMode::None,
                 ..Default::default()
             };
+            let source = asset_id.source();
             let rendered = render
-                .render(identity, immich, asset_id.source(), edits, opts, None)
+                .render(identity, immich, source, edits.clone(), opts, None)
                 .await?;
+            if render.asset_revision(identity, source, &edits).await? != *revision {
+                return Ok(Thumb {
+                    bytes: rendered.bytes,
+                    current: false,
+                });
+            }
             let tmp = path.with_extension(format!("{}.tmp", Uuid::new_v4()));
             fs::write(&tmp, &rendered.bytes).await?;
             if let Err(error) = fs::rename(&tmp, &path).await {
                 let _ = fs::remove_file(&tmp).await;
                 return Err(error.into());
             }
-            Ok(rendered.bytes)
+            Ok(Thumb {
+                bytes: rendered.bytes,
+                current: true,
+            })
         };
         self.queue
             .run(RenderPriority::Background, work)

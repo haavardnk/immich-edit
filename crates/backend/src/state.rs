@@ -6,6 +6,9 @@ use crate::services::auth_store::AuthStore;
 use crate::services::client_log_limiter::ClientLogLimiter;
 use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
+#[cfg(feature = "ml")]
+use crate::services::denoise::DenoiseService;
+use crate::services::denoise_store::DenoiseStore;
 use crate::services::edited_thumb::EditedThumbService;
 use crate::services::edits_store::EditsStore;
 #[cfg(feature = "ml")]
@@ -16,6 +19,8 @@ use crate::services::job_store::JobStore;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
 #[cfg(feature = "ml")]
+use crate::services::ml_runtime::InferencePermits;
+#[cfg(feature = "ml")]
 use crate::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use crate::services::model_store::ModelStore;
@@ -23,7 +28,7 @@ use crate::services::oauth_providers::ProviderCache;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
-use crate::services::render::{RenderCacheOptions, RenderService};
+use crate::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
 use crate::services::search::TimelineCache;
 use crate::services::search::filter::Scope;
@@ -58,6 +63,8 @@ pub struct AppState {
     pub installs: ModelInstaller,
     #[cfg(feature = "ml")]
     pub segment: SegmentService,
+    #[cfg(feature = "ml")]
+    pub denoise: DenoiseService,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
     pub timelines: TimelineCache,
@@ -117,6 +124,18 @@ impl AppState {
         if imported > 0 {
             tracing::info!(count = imported, "imported bundled dcp profiles");
         }
+        #[cfg(feature = "ml")]
+        let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
+            .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
+        let denoise_store = DenoiseStore::new(
+            std::path::Path::new(&config.cache_dir),
+            config.denoise_cache_mb,
+        )
+        .map_err(|e| anyhow::anyhow!("denoise cache: {e}"))?;
+        #[cfg(feature = "ml")]
+        let denoise_inputs = DenoiseInputs::new(denoise_store, models.clone());
+        #[cfg(not(feature = "ml"))]
+        let denoise_inputs = DenoiseInputs::new(denoise_store);
         let render = RenderService::new(
             RenderCacheOptions {
                 raw_frame_cache_mb: config.raw_frame_cache_mb,
@@ -128,6 +147,7 @@ impl AppState {
             rasters.clone(),
             luts.clone(),
             dcp.clone(),
+            denoise_inputs,
         );
         let instance_cfg = instance
             .get()
@@ -138,9 +158,6 @@ impl AppState {
         let edited_thumb = EditedThumbService::new(&config.cache_dir, queue.clone())
             .map_err(|e| anyhow::anyhow!("edited thumb cache: {e}"))?;
         #[cfg(feature = "ml")]
-        let models = ModelStore::new(edits.pool(), std::path::Path::new(&config.data_dir))
-            .map_err(|e| anyhow::anyhow!("model store: {e}"))?;
-        #[cfg(feature = "ml")]
         let installs = ModelInstaller::new(models.clone());
         #[cfg(feature = "ml")]
         let embeddings = EmbeddingCache::new(
@@ -148,7 +165,11 @@ impl AppState {
             config.embedding_cache_mb,
         )?;
         #[cfg(feature = "ml")]
-        let segment = SegmentService::new(&config, models.clone(), embeddings);
+        let inference = InferencePermits::new(config.ml_max_concurrency);
+        #[cfg(feature = "ml")]
+        let segment = SegmentService::new(&config, models.clone(), embeddings, inference.clone());
+        #[cfg(feature = "ml")]
+        let denoise = DenoiseService::new(&config, render.clone(), models.clone(), inference);
         Ok(Self {
             config: Arc::new(config),
             crypto,
@@ -175,6 +196,8 @@ impl AppState {
             installs,
             #[cfg(feature = "ml")]
             segment,
+            #[cfg(feature = "ml")]
+            denoise,
             tag_counts: AssetCountCache::new(Scope::Tag),
             people_counts: AssetCountCache::new(Scope::Person),
             timelines: TimelineCache::default(),

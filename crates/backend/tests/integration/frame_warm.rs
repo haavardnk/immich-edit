@@ -40,6 +40,7 @@ fn with_frame_cache(state: &AppState, raw_frame_cache_mb: u64) -> AppState {
         state.rasters.clone(),
         state.luts.clone(),
         state.dcp.clone(),
+        state.render.denoise().clone(),
     );
     state
 }

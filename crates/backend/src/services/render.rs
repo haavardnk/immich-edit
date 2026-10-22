@@ -15,12 +15,14 @@ use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
 use crate::services::render_telemetry::RenderTelemetry;
 
+mod denoise;
 mod device;
 mod frames;
 mod inputs;
 mod lens;
 mod warm;
 
+pub use denoise::{AssetRevision, DenoiseInputs, OwnerPlanes, PlaneState};
 pub use device::RendererKind;
 pub use warm::WARM_NEIGHBOURS;
 
@@ -72,6 +74,7 @@ pub struct RenderService {
     warmer: FrameWarmer,
     device: RenderDevice,
     inputs: RenderInputs,
+    denoise: DenoiseInputs,
     lens: LensProfiles,
     telemetry: RenderTelemetry,
 }
@@ -80,6 +83,21 @@ impl RenderService {
     pub async fn render_revision(&self) -> Result<String, RenderError> {
         let dcp = self.inputs.dcp_revision().await?;
         Ok(format!("{dcp}-l{}", u8::from(self.lens.auto())))
+    }
+
+    pub async fn asset_revision(
+        &self,
+        identity: RenderIdentity,
+        source: Uuid,
+        edits: &Edits,
+    ) -> Result<AssetRevision, RenderError> {
+        let base = self.render_revision().await?;
+        let plane = self.denoise.state(identity, source, edits).await;
+        Ok(AssetRevision::new(base, plane))
+    }
+
+    pub fn denoise(&self) -> &DenoiseInputs {
+        &self.denoise
     }
 
     pub fn lens_auto(&self) -> bool {
@@ -97,6 +115,7 @@ impl RenderService {
         rasters: RasterStore,
         luts: crate::services::lut_store::LutStore,
         dcp: crate::services::dcp_store::DcpStore,
+        denoise: DenoiseInputs,
     ) -> Self {
         let telemetry = RenderTelemetry::new();
         Self {
@@ -115,6 +134,7 @@ impl RenderService {
                 gpu_timestamps,
             ),
             inputs: RenderInputs::new(rasters, luts, dcp),
+            denoise,
             lens: LensProfiles::default(),
             telemetry,
         }
@@ -241,6 +261,9 @@ impl RenderService {
                 .resolve(identity, &immich, source, edits.lens)
                 .await;
         }
+        if options.denoise.is_none() {
+            options.denoise = self.denoise.plane(identity, source, &edits, &frame).await;
+        }
         options.rasters = self.inputs.rasters_for(identity, &edits).await;
         options.luts = self.inputs.luts_for(&edits).await?;
         options.dcp = self
@@ -287,6 +310,7 @@ impl RenderService {
                 .resolve(identity, &immich, source, edits.lens)
                 .await;
         }
+        options.denoise = self.denoise.plane(identity, source, &edits, &frame).await;
         let dcp = self.inputs.dcp_for(&edits, &frame).await?;
         let dcp_id = dcp.as_ref().map(|selection| selection.id.clone());
         options.dcp = dcp.map(|selection| selection.profile);

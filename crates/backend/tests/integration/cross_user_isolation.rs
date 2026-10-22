@@ -611,3 +611,58 @@ async fn export_presets_are_scoped_to_the_owner() {
         panic!("owner export preset after member calls: {owned}");
     }
 }
+
+#[cfg(feature = "ml")]
+async fn source_etag(app: &axum::Router, id: uuid::Uuid, what: &str) -> String {
+    let resp = expect_status(
+        app,
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/source"),
+            serde_json::json!({"max_edge": 256, "edits": {"detail": {"ai_denoise": true}}}),
+        ),
+        StatusCode::OK,
+        what,
+    )
+    .await;
+    header_str(&resp, "etag").expect("source etag")
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn denoise_planes_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}/original")))
+        .and(header("x-api-key", MEMBER_API_KEY))
+        .respond_with(arw_response())
+        .mount(&server)
+        .await;
+    let state = ml_enabled(test_state(&server).await);
+    install_fake_model(&state).await;
+    let (admin, member) = two_owner_routers(&server, state.clone()).await;
+    let owner = identity_for(&state, test_user_id()).await;
+    let key = plane_key(owner, id);
+    let owner_plane = format!("dn{:x}", key.plane_id());
+    put_grey_plane(&state, key).await;
+
+    assert_eq!(denoise_call(&admin, id, "GET").await["state"], "ready");
+    assert_eq!(denoise_call(&member, id, "GET").await["state"], "idle");
+    let started = denoise_call(&member, id, "POST").await;
+    assert!(
+        matches!(started["state"].as_str(), Some("queued" | "running")),
+        "the member must bake their own plane, not reuse the owner's: {started}"
+    );
+    assert_eq!(settle_denoise(&member, id).await["state"], "failed");
+
+    let owner_etag = source_etag(&admin, id, "owner source").await;
+    assert!(owner_etag.contains(&owner_plane), "{owner_etag}");
+    let member_etag = source_etag(&member, id, "member source").await;
+    assert!(
+        !member_etag.contains(&owner_plane),
+        "the member's source must not use the owner's plane: {member_etag}"
+    );
+    assert_eq!(denoise_call(&admin, id, "GET").await["state"], "ready");
+}

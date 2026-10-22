@@ -4,13 +4,13 @@ use std::time::{Duration, Instant};
 use ml::model::Activation;
 use ml::runtime::SessionConfig;
 use ml::{
-    BakeParams, BoxPrompt, ClickPoint, ModelKind, RuntimeMode, SamDecoder, SamEncoder, Segmenter,
-    bake, catalog,
+    BakeParams, BoxPrompt, ClickPoint, ModelKind, SamDecoder, SamEncoder, Segmenter, bake, catalog,
 };
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Mutex;
 
 use crate::config::{Config, MlRuntimeMode};
 use crate::services::embedding_cache::{EmbeddingCache, EmbeddingKey};
+use crate::services::ml_runtime::{InferencePermits, runtime_mode};
 use crate::services::model_store::{ModelStore, ModelStoreError};
 
 #[derive(Debug, thiserror::Error)]
@@ -66,20 +66,25 @@ pub struct SegmentService {
     mode: MlRuntimeMode,
     max_edge: u32,
     idle: Duration,
-    permits: Arc<Semaphore>,
+    permits: InferencePermits,
     loaded: Arc<Mutex<Option<Loaded>>>,
     sam: Arc<Mutex<Option<LoadedSam>>>,
 }
 
 impl SegmentService {
-    pub fn new(config: &Config, models: ModelStore, embeddings: EmbeddingCache) -> Self {
+    pub fn new(
+        config: &Config,
+        models: ModelStore,
+        embeddings: EmbeddingCache,
+        permits: InferencePermits,
+    ) -> Self {
         Self {
             models,
             embeddings,
             mode: config.ml_runtime,
             max_edge: config.ml_max_edge,
             idle: Duration::from_secs(config.ml_idle_secs),
-            permits: Arc::new(Semaphore::new(config.ml_max_concurrency)),
+            permits,
             loaded: Arc::new(Mutex::new(None)),
             sam: Arc::new(Mutex::new(None)),
         }
@@ -95,14 +100,6 @@ impl SegmentService {
 
     pub fn max_edge(&self) -> u32 {
         self.max_edge
-    }
-
-    fn runtime_mode(&self) -> RuntimeMode {
-        match self.mode {
-            MlRuntimeMode::Gpu => RuntimeMode::Gpu,
-            MlRuntimeMode::Cpu => RuntimeMode::Cpu,
-            _ => RuntimeMode::Auto,
-        }
     }
 
     pub async fn active_model(&self, kind: ModelKind) -> Option<String> {
@@ -149,10 +146,10 @@ impl SegmentService {
             .permits
             .acquire()
             .await
-            .map_err(|_| SegmentServiceError::Worker)?;
+            .ok_or(SegmentServiceError::Worker)?;
 
         let slot = self.loaded.clone();
-        let mode = self.runtime_mode();
+        let mode = runtime_mode(self.mode);
         let idle = self.idle;
         let id_for_task = catalog_id.clone();
 
@@ -260,14 +257,14 @@ impl SegmentService {
             .permits
             .acquire()
             .await
-            .map_err(|_| SegmentServiceError::Worker)?;
+            .ok_or(SegmentServiceError::Worker)?;
 
         let width = key.width;
         let height = key.height;
         let cached = self.embeddings.get(&key).await;
 
         let slot = self.sam.clone();
-        let mode = self.runtime_mode();
+        let mode = runtime_mode(self.mode);
         let idle = self.idle;
         let id_for_task = catalog_id.clone();
         let started = Instant::now();

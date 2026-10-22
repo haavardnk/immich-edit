@@ -78,10 +78,10 @@ fn download_response(filename: &str, rendered: RenderedExport) -> Result<Respons
     );
     resp.headers_mut()
         .insert(header::CONTENT_DISPOSITION, headers::attachment(filename)?);
-    if !rendered.metadata_warnings.is_empty() {
+    if !rendered.warnings.is_empty() {
         resp.headers_mut().insert(
             headers::EXPORT_WARNINGS,
-            headers::json_list(&rendered.metadata_warnings)?,
+            headers::json_list(&rendered.warnings)?,
         );
     }
     Ok(resp.into_response())

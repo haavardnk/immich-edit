@@ -3,13 +3,17 @@ import { listEditedAssets, type EditedAssetEntry } from '$lib/api/edits';
 class EditedThumbsStore {
   entries = $state<EditedAssetEntry[]>([]);
   revision = $state('');
-  private map = $state(new Map<string, string>());
+  private map = $state(new Map<string, { hash: string; revision?: string }>());
   private hydrated = false;
   private hydrating: Promise<void> | null = null;
   private listenersBound = false;
 
   getHash(id: string): string | undefined {
-    return this.map.get(id);
+    return this.map.get(id)?.hash;
+  }
+
+  getRevision(id: string): string {
+    return this.map.get(id)?.revision || this.revision;
   }
 
   get count(): number {
@@ -31,14 +35,12 @@ class EditedThumbsStore {
     const { render_revision, items } = await listEditedAssets();
     this.entries = items;
     this.revision = render_revision;
-    const next = new Map<string, string>();
-    for (const e of items) next.set(e.id, e.hash);
-    this.map = next;
+    this.map = new Map(items.map((e) => [e.id, { hash: e.hash, revision: e.revision }]));
   }
 
   upsert(id: string, hash: string, updatedAt: string): void {
     const next = new Map(this.map);
-    next.set(id, hash);
+    next.set(id, { hash });
     this.map = next;
     const filtered = this.entries.filter((e) => e.id !== id);
     filtered.unshift({ id, hash, updated_at: updatedAt });

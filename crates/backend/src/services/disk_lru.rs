@@ -88,6 +88,13 @@ impl DiskLru {
         self.state.lock().await.lru.get(path);
     }
 
+    pub async fn forget(&self, path: &Path) {
+        let mut st = self.state.lock().await;
+        if let Some(size) = st.lru.pop(path) {
+            st.total_bytes = st.total_bytes.saturating_sub(size);
+        }
+    }
+
     pub async fn forget_under(&self, dir: &Path) {
         let mut st = self.state.lock().await;
         let stale: Vec<PathBuf> = st
@@ -173,6 +180,10 @@ mod tests {
             lru.record(dir.path().join(format!("{i}.bin")), 1).await;
         }
         assert_eq!(lru.bytes().await.0, count);
+        let first = dir.path().join("0.bin");
+        lru.forget(&first).await;
+        lru.forget(&first).await;
+        assert_eq!(lru.bytes().await.0, count - 1);
         lru.forget_under(dir.path()).await;
         assert_eq!(lru.bytes().await.0, 0);
     }

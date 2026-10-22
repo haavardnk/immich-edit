@@ -23,6 +23,7 @@ pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
 
 mod archive;
 mod batch;
+mod denoise;
 mod immich_metadata;
 mod naming;
 mod output_sharpen;
@@ -90,7 +91,7 @@ pub struct ExportImmichRequest<'a> {
 pub struct RenderedExport {
     pub bytes: Bytes,
     pub output: OutputFormat,
-    pub metadata_warnings: Vec<String>,
+    pub warnings: Vec<String>,
 }
 
 pub async fn render_export(
@@ -120,6 +121,7 @@ pub async fn render_export(
         }
         None => None,
     };
+    let denoise = denoise::prepare(state, identity, immich, id, &edits).await?;
     let work = async {
         let frame = state
             .render
@@ -151,6 +153,7 @@ pub async fn render_export(
             output,
             output_color_space: params.output_color_space(),
             metadata,
+            denoise: denoise.plane,
             ..Default::default()
         };
         let rendered = state
@@ -161,10 +164,16 @@ pub async fn render_export(
         for warning in &rendered.metadata_warnings {
             tracing::warn!(asset = %id, warning = %warning, "export metadata not copied");
         }
+        let warnings = denoise
+            .skipped
+            .map(str::to_string)
+            .into_iter()
+            .chain(rendered.metadata_warnings)
+            .collect();
         Ok(RenderedExport {
             bytes: Bytes::from(rendered.bytes),
             output,
-            metadata_warnings: rendered.metadata_warnings,
+            warnings,
         })
     };
     state
@@ -254,19 +263,12 @@ pub async fn export_to_immich(
         if let (Some(job), Some(hash)) = (job, request_hash.as_deref()) {
             state
                 .edits
-                .put_export_job_uploaded(
-                    job,
-                    hash,
-                    new_id,
-                    &filename,
-                    &status,
-                    &rendered.metadata_warnings,
-                )
+                .put_export_job_uploaded(job, hash, new_id, &filename, &status, &rendered.warnings)
                 .await?;
         }
 
         let warnings: Vec<String> = rendered
-            .metadata_warnings
+            .warnings
             .into_iter()
             .chain(run_post_upload(state, identity, immich, &original, body, new_id, &status).await)
             .collect();

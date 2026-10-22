@@ -5,6 +5,9 @@ use immich_edit_backend::services::asset_counts::AssetCountCache;
 use immich_edit_backend::services::auth_store::{AuthKind, AuthStore};
 use immich_edit_backend::services::crypto::InstanceCrypto;
 use immich_edit_backend::services::dcp_store::DcpStore;
+#[cfg(feature = "ml")]
+use immich_edit_backend::services::denoise::DenoiseService;
+use immich_edit_backend::services::denoise_store::DenoiseStore;
 use immich_edit_backend::services::edited_thumb::EditedThumbService;
 use immich_edit_backend::services::edits_store::EditsStore;
 #[cfg(feature = "ml")]
@@ -14,13 +17,15 @@ use immich_edit_backend::services::job_store::JobStore;
 use immich_edit_backend::services::login_limiter::LoginLimiter;
 use immich_edit_backend::services::lut_store::LutStore;
 #[cfg(feature = "ml")]
+use immich_edit_backend::services::ml_runtime::InferencePermits;
+#[cfg(feature = "ml")]
 use immich_edit_backend::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::model_store::ModelStore;
 use immich_edit_backend::services::preview_meta::PreviewMetaStore;
 use immich_edit_backend::services::preview_scopes::PreviewScopeStore;
 use immich_edit_backend::services::raster_store::RasterStore;
-use immich_edit_backend::services::render::{RenderCacheOptions, RenderService};
+use immich_edit_backend::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
 use immich_edit_backend::services::search::TimelineCache;
 use immich_edit_backend::services::search::filter::Scope;
@@ -32,10 +37,14 @@ use std::sync::Arc;
 use uuid::Uuid;
 use wiremock::MockServer;
 
+#[cfg(feature = "ml")]
+mod denoise;
 mod http;
 mod immich;
 mod logs;
 
+#[cfg(feature = "ml")]
+pub use denoise::*;
 pub use http::*;
 pub use immich::*;
 pub use logs::*;
@@ -64,6 +73,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         thumb_max_concurrency: 1,
         mask_cache_mb: 1024,
         embedding_cache_mb: 512,
+        denoise_cache_mb: 512,
         raw_frame_cache_mb: 256,
         quality_frame_cache_mb: 256,
         gpu_texture_cache_mb: 256,
@@ -103,7 +113,29 @@ pub async fn test_state(server: &MockServer) -> AppState {
     #[cfg(feature = "ml")]
     let embeddings = EmbeddingCache::new(&cache_dir, 512).unwrap();
     #[cfg(feature = "ml")]
-    let segment = SegmentService::new(&config, models.clone(), embeddings);
+    let inference = InferencePermits::new(config.ml_max_concurrency);
+    #[cfg(feature = "ml")]
+    let segment = SegmentService::new(&config, models.clone(), embeddings, inference.clone());
+    let denoise_store = DenoiseStore::new(&cache_dir, 512).unwrap();
+    #[cfg(feature = "ml")]
+    let denoise_inputs = DenoiseInputs::new(denoise_store, models.clone());
+    #[cfg(not(feature = "ml"))]
+    let denoise_inputs = DenoiseInputs::new(denoise_store);
+    let render = RenderService::new(
+        RenderCacheOptions {
+            raw_frame_cache_mb: 256,
+            quality_frame_cache_mb: 256,
+            gpu_texture_cache_mb: 256,
+        },
+        RendererMode::Cpu,
+        false,
+        rasters.clone(),
+        luts.clone(),
+        dcp.clone(),
+        denoise_inputs,
+    );
+    #[cfg(feature = "ml")]
+    let denoise = DenoiseService::new(&config, render.clone(), models.clone(), inference);
     let queue = RenderQueue::new(1, 1);
     AppState {
         config: Arc::new(config),
@@ -116,18 +148,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         capabilities: immich_edit_backend::services::immich_capabilities::CapabilityCache::new(),
         edits,
         jobs,
-        render: RenderService::new(
-            RenderCacheOptions {
-                raw_frame_cache_mb: 256,
-                quality_frame_cache_mb: 256,
-                gpu_texture_cache_mb: 256,
-            },
-            RendererMode::Cpu,
-            false,
-            rasters.clone(),
-            luts.clone(),
-            dcp.clone(),
-        ),
+        render,
         edited_thumb: EditedThumbService::new(&cache_dir, queue.clone()).unwrap(),
         queue,
         preview_meta: PreviewMetaStore::new(),
@@ -142,6 +163,8 @@ pub async fn test_state(server: &MockServer) -> AppState {
         installs,
         #[cfg(feature = "ml")]
         segment,
+        #[cfg(feature = "ml")]
+        denoise,
         tag_counts: AssetCountCache::new(Scope::Tag),
         people_counts: AssetCountCache::new(Scope::Person),
         timelines: TimelineCache::default(),
@@ -219,6 +242,14 @@ pub async fn two_owner_apps(server: &MockServer) -> (axum::Router, axum::Router)
 
 pub async fn two_owner_state(server: &MockServer) -> (AppState, axum::Router, axum::Router) {
     let state = test_state(server).await;
+    let (admin, member) = two_owner_routers(server, state.clone()).await;
+    (state, admin, member)
+}
+
+pub async fn two_owner_routers(
+    server: &MockServer,
+    state: AppState,
+) -> (axum::Router, axum::Router) {
     let admin = ImmichUser {
         id: test_user_id(),
         email: "admin@test.local".into(),
@@ -248,7 +279,6 @@ pub async fn two_owner_state(server: &MockServer) -> (AppState, axum::Router, ax
     )
     .await;
     (
-        state.clone(),
         wrap_auth(router(state.clone()), admin_token),
         wrap_auth(router(state), member_token),
     )

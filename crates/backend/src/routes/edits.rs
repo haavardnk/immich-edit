@@ -20,7 +20,7 @@ use crate::routes::faces::normalize as normalize_face;
 use crate::services::edits_store::{
     EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
 };
-use crate::services::render::{RenderError, RenderIdentity};
+use crate::services::render::{AssetRevision, RenderError, RenderIdentity};
 use crate::services::white_balance::{self, WhiteBalanceSample};
 use crate::state::AppState;
 
@@ -60,6 +60,7 @@ pub struct ListQuery {
 pub struct EditedAssetItem {
     #[serde(flatten)]
     pub entry: EditedAssetEntry,
+    pub revision: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub asset: Option<AssetDetail>,
 }
@@ -101,11 +102,24 @@ pub async fn list(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<EditedAssetList>, AppError> {
     let render_revision = state.render.render_revision().await?;
+    let planes = state
+        .render
+        .denoise()
+        .owner_planes(RenderIdentity::from(&ctx))
+        .await;
+    let revision_of = |entry: &EditedAssetEntry| {
+        let plane = planes.state(entry.id.source(), entry.ai_denoise);
+        AssetRevision::new(render_revision.clone(), plane).to_string()
+    };
     let entries = state.edits.list_edited_assets(ctx.owner).await?;
     if !query.with_assets {
         let items = entries
             .into_iter()
-            .map(|entry| EditedAssetItem { entry, asset: None })
+            .map(|entry| EditedAssetItem {
+                revision: revision_of(&entry),
+                entry,
+                asset: None,
+            })
             .collect();
         return Ok(Json(EditedAssetList {
             render_revision,
@@ -150,7 +164,11 @@ pub async fn list(
                 }
                 a
             });
-            EditedAssetItem { entry, asset }
+            EditedAssetItem {
+                revision: revision_of(&entry),
+                entry,
+                asset,
+            }
         })
         .collect();
     Ok(Json(EditedAssetList {

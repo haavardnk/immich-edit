@@ -6,6 +6,8 @@ pub mod client_log;
 pub mod copies;
 pub mod dcp;
 pub mod debug;
+#[cfg(feature = "ml")]
+pub mod denoise;
 pub mod edited_thumb;
 pub mod edits;
 pub mod export;

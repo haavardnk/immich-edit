@@ -72,6 +72,8 @@ pub struct EditedAssetEntry {
     pub id: AssetKey,
     pub hash: String,
     pub updated_at: String,
+    #[serde(skip)]
+    pub ai_denoise: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -298,6 +300,7 @@ impl EditsStore {
                 id,
                 hash: edits.stable_hash(),
                 updated_at,
+                ai_denoise: edits.detail.clamped().ai_denoise_active(),
             });
         }
         Ok(out)

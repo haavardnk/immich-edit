@@ -11,6 +11,14 @@ mod copies;
 mod cross_user_isolation;
 mod csrf;
 mod debug;
+#[cfg(feature = "ml")]
+mod denoise;
+#[cfg(feature = "ml")]
+mod denoise_export;
+#[cfg(feature = "ml")]
+mod denoise_report;
+#[cfg(feature = "ml")]
+mod denoise_revision;
 mod edits;
 mod export;
 mod export_immich;

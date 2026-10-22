@@ -30,11 +30,12 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `GPU_TEXTURE_CACHE_MB` | `512` | `64` to `16384`; reusable GPU textures plus cached white balance, noise reduction, and capture sharpening results |
 | `MASK_CACHE_MB` | `512` | Disk budget for unreferenced mask rasters; must be nonzero |
 | `EMBEDDING_CACHE_MB` | `2048` | Disk budget for click-model embeddings; must be nonzero |
+| `DENOISE_CACHE_MB` | `4096` | Disk budget for AI Denoise results; must be nonzero and hold at least one result, up to 6 bytes per pixel. The two most recent results also stay in RAM |
 | `IMMICH_EDIT_RENDERER` | `auto` | `auto`, `gpu`, or `cpu` for the server renderer. A software rasterizer such as llvmpipe is used when no hardware GPU is present, and Diagnostics marks it. Browser previews are chosen per browser under **Settings** > **Preview rendering**; see [rendering](rendering.md) |
 | `GPU_TIMESTAMPS` | `false` | `true` records device time per GPU render stage in Diagnostics. Needs an adapter with timestamp queries; others fall back to wall time only |
 | `ML_RUNTIME` | `auto` | `auto`, `gpu`, `cpu`, or `off` |
 | `ML_MAX_EDGE` | `2048` | `256` to `8192`; source edge sent to mask inference |
-| `ML_MAX_CONCURRENCY` | `1` | Concurrent inference jobs; must be nonzero |
+| `ML_MAX_CONCURRENCY` | `1` | Concurrent inference jobs for AI masks and AI Denoise; must be nonzero |
 | `ML_IDLE_SECS` | `60` | Seconds before an inactive model session unloads |
 | `ALLOWED_ORIGINS` | Empty | Comma-separated HTTP or HTTPS origins without a path or trailing slash |
 | `TRUSTED_PROXIES` | Loopback, private, and link-local ranges | Comma-separated IP addresses or CIDR prefixes whose `X-Forwarded-For` and `X-Forwarded-Proto` headers are believed |

@@ -212,17 +212,17 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
     put_edits(&app, id, exposure_manifest(1.5)).await;
 
     let lean = body_json(app.clone().oneshot(get("/api/edits")).await.unwrap()).await;
-    if !lean["render_revision"]
-        .as_str()
-        .is_some_and(|r| !r.is_empty())
-    {
+    let Some(render_revision) = lean["render_revision"].as_str().filter(|r| !r.is_empty()) else {
         panic!("list lost its render revision: {lean}");
+    };
+    if lean["items"][0]["revision"] != render_revision {
+        panic!("an entry without AI denoise must carry the render revision: {lean}");
     }
     let lean = &lean["items"];
     let entry = lean[0].as_object().expect("entry object");
     let mut keys: Vec<&str> = entry.keys().map(String::as_str).collect();
     keys.sort_unstable();
-    if keys != ["hash", "id", "updated_at"] {
+    if keys != ["hash", "id", "revision", "updated_at"] {
         panic!("default list shape changed: {lean}");
     }
 
@@ -236,8 +236,8 @@ async fn list_edits_stays_lean_unless_assets_are_requested() {
     if rich[0]["asset"]["originalFileName"] != "DSC0001.ARW" {
         panic!("enriched list: {rich}");
     }
-    if rich[0]["hash"] != lean[0]["hash"] {
-        panic!("enriched entry lost its hash: {rich}");
+    if rich[0]["hash"] != lean[0]["hash"] || rich[0]["revision"] != lean[0]["revision"] {
+        panic!("enriched entry lost its hash or revision: {rich}");
     }
 }
 

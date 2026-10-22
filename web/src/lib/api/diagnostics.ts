@@ -16,6 +16,7 @@ export interface RedactedConfig {
   thumb_max_concurrency: number;
   mask_cache_mb: number;
   embedding_cache_mb: number;
+  denoise_cache_mb: number;
   raw_frame_cache_mb: number;
   quality_frame_cache_mb: number;
   gpu_texture_cache_mb: number;
@@ -83,7 +84,10 @@ export interface GpuPoolBytes {
   sharpen_targets: number;
   wb_cache: number;
   nr_cache: number;
+  capture_cache: number;
+  denoise_cache: number;
   atlas_cache: number;
+  atlas_pool: number;
   total: number;
 }
 
@@ -94,6 +98,8 @@ export interface CacheBytes {
   quality_frames_cap: number;
   rasters_disk_used: number;
   rasters_disk_cap: number;
+  denoise_disk_used: number;
+  denoise_disk_cap: number;
 }
 
 export interface StageStats {

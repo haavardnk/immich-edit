@@ -179,9 +179,23 @@ impl From<RenderError> for AppError {
 impl From<EditedThumbError> for AppError {
     fn from(err: EditedThumbError) -> Self {
         match err {
-            EditedThumbError::NotFound | EditedThumbError::HashMismatch => Self::NotFound,
+            EditedThumbError::NotFound => Self::NotFound,
             EditedThumbError::Render(e) => e.into(),
             EditedThumbError::Io(e) => Self::internal("edited thumb io", &e),
+        }
+    }
+}
+
+#[cfg(feature = "ml")]
+impl From<crate::services::denoise::DenoiseError> for AppError {
+    fn from(err: crate::services::denoise::DenoiseError) -> Self {
+        use crate::services::denoise::{BUSY_RETRY_SECS, DenoiseError as E};
+        match err {
+            E::Upstream(e) => e.into(),
+            E::Unsupported(m) => Self::UnsupportedFormat(m),
+            E::Internal { context, cause } => Self::internal(context, &*cause),
+            E::Busy => Self::RateLimited(Some(BUSY_RETRY_SECS)),
+            e @ (E::Purged | E::StillRunning) => Self::Conflict(e.user_message().into()),
         }
     }
 }
@@ -342,6 +356,36 @@ mod tests {
 
     #[cfg(feature = "ml")]
     #[test]
+    fn denoise_errors_map_to_codes_without_leaking_causes() {
+        use crate::services::denoise::DenoiseError;
+        let cases = [
+            (
+                DenoiseError::internal("bake", std::io::Error::other("/srv/models")),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal",
+            ),
+            (
+                DenoiseError::Upstream(ImmichError::Timeout),
+                StatusCode::GATEWAY_TIMEOUT,
+                "upstream_timeout",
+            ),
+            (DenoiseError::StillRunning, StatusCode::CONFLICT, "conflict"),
+            (DenoiseError::Purged, StatusCode::CONFLICT, "conflict"),
+            (
+                DenoiseError::Busy,
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limited",
+            ),
+        ];
+        for (err, status, code) in cases {
+            let (got_status, got_code, message) = AppError::from(err).parts();
+            assert_eq!((got_status, got_code), (status, code));
+            assert!(!message.contains("/srv"), "{message}");
+        }
+    }
+
+    #[cfg(feature = "ml")]
+    #[test]
     fn model_store_errors_map_to_status() {
         assert_eq!(
             status_of(ModelStoreError::NotFound.into()),
@@ -356,7 +400,7 @@ mod tests {
     #[test]
     fn store_errors_map_to_status() {
         assert_eq!(
-            status_of(EditedThumbError::HashMismatch.into()),
+            status_of(EditedThumbError::NotFound.into()),
             StatusCode::NOT_FOUND
         );
         assert_eq!(

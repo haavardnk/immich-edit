@@ -213,7 +213,7 @@ async fn run_zip_item(
     Ok(serde_json::json!({
         "filename": filename,
         "bytes": rendered.bytes.len(),
-        "warnings": rendered.metadata_warnings,
+        "warnings": rendered.warnings,
     }))
 }
 
