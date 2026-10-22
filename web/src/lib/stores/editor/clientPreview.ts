@@ -111,6 +111,7 @@ export class ClientPreview {
   ): ClientLane {
     return new ClientLane(client, slot, {
       assetId: () => this.ctx.assetId,
+      sourceRevision: () => this.ctx.sourceRevision,
       onFrame,
       onError: (err) => this.onError(err),
       onIdle: () => {

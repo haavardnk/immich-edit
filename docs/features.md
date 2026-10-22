@@ -90,7 +90,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Export-stage output sharpening | ✓ Yes | Screen, matte, or glossy pass after the resize, separate from Develop sharpening; see [export](export.md#output-sharpening) |
 | Deconvolution sharpening | ✗ No | Unsharp-mask style sharpening only |
 | Luma and color noise reduction | ✓ Yes | CPU and GPU |
-| AI denoise | ✗ No | — |
+| AI denoise | ✓ Yes | RAW only; runs once per photo on the server and needs an admin-installed model; see [edit](edit.md) |
 | AI super resolution or upscale | ✗ No | — |
 | Texture, clarity, and dehaze | ✓ Yes | Global controls; texture and clarity also work in masks |
 | Hot or dead pixel correction | ✗ No | — |

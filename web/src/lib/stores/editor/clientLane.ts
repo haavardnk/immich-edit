@@ -12,6 +12,7 @@ export interface ClientJob {
 
 export interface ClientLaneHooks {
   assetId(): string | null;
+  sourceRevision(): string;
   onFrame(job: ClientJob, frame: RenderedFrame, source: SourceInfo, ms: number): void;
   onError(err: unknown): void;
   onIdle(): void;
@@ -130,7 +131,11 @@ export class ClientLane {
     const assetId = this.hooks.assetId();
     if (!assetId) return null;
     const inputs = await this.renderer.inputs(job.edits, job.view.max_edge);
-    const key = this.slot.key(assetId, inputs.sensor_key, job.view);
+    const key = this.slot.key(
+      assetId,
+      `${inputs.sensor_key}:${this.hooks.sourceRevision()}`,
+      job.view
+    );
     if (key !== this.sourceKey) this.want({ key, assetId, job });
     if (!this.drawable(key)) return null;
     await this.renderer.prepare(inputs);

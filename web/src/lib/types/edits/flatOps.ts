@@ -39,6 +39,7 @@ interface FlatOp {
   tris?: TriField[];
   active: (e: Edits) => boolean;
   identity?: (e: Edits) => boolean;
+  present?: (e: Edits) => void;
 }
 
 function nf(key: string, get: (e: Edits) => number, set: (e: Edits, v: number) => void): NumField {
@@ -162,6 +163,17 @@ const FLAT_OPS: FlatOp[] = [
       e.detail.sharpen_masking !== NEUTRAL_DETAIL.sharpen_masking
   },
   {
+    id: 'ai_denoise',
+    nums: [
+      detailField('strength', 'ai_denoise_strength'),
+      detailField('detail', 'ai_denoise_detail')
+    ],
+    active: (e) => e.detail.ai_denoise,
+    present: (e) => {
+      e.detail.ai_denoise = true;
+    }
+  },
+  {
     id: 'luma_nr',
     nums: [
       detailField('amount', 'luma_nr_amount'),
@@ -274,6 +286,7 @@ export function decodeFlatOps(ops: Record<string, unknown>, e: Edits): void {
     const src = ops[op.id] ?? (op.legacyId ? ops[op.legacyId] : undefined);
     if (!src || typeof src !== 'object') continue;
     const raw = src as Record<string, unknown>;
+    op.present?.(e);
     for (const f of op.nums) {
       const v = raw[f.key];
       if (typeof v === 'number') f.set(e, v);

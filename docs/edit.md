@@ -70,6 +70,13 @@ act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy a
    the corners for lenses that are softer there.
    Noise reduction measures the noise in each photo, so the same settings suit a clean ISO 100
    shot and a grainy ISO 12800 one.
+   - **AI Denoise** removes noise from a RAW photo with a neural network. The server runs it once
+     per photo at full resolution, which takes from seconds to a minute or two, and shows progress
+     under its sliders. The photo updates when it finishes, and the result is kept, so later edits
+     and exports reuse it. **Strength** blends between the original and the denoised photo.
+     **Detail** brings back fine luminance grain for a natural look while color noise stays
+     removed. It needs a model that an administrator installs; see
+     [models](administration.md#models).
    - **Luminance** sets how much grain to remove. Its **Detail** keeps fine texture that stands
      above the noise, and **Contrast** keeps more of the coarse grain so smooth areas don't look
      plastic.

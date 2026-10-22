@@ -77,6 +77,7 @@ export interface PreviewCtx extends MaskWeightCtx {
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
   proofSpace: ColorSpaceOpt;
   gamutWarn: boolean;
+  readonly sourceRevision: string;
 }
 
 export class PreviewEngine {

@@ -111,7 +111,10 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
           luma_nr_contrast: neutral.detail.luma_nr_contrast,
           color_nr_amount: neutral.detail.color_nr_amount,
           color_nr_detail: neutral.detail.color_nr_detail,
-          color_nr_smoothness: neutral.detail.color_nr_smoothness
+          color_nr_smoothness: neutral.detail.color_nr_smoothness,
+          ai_denoise: neutral.detail.ai_denoise,
+          ai_denoise_strength: neutral.detail.ai_denoise_strength,
+          ai_denoise_detail: neutral.detail.ai_denoise_detail
         }
       };
     case 'vignette':

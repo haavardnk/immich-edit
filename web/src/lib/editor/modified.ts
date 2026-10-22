@@ -21,7 +21,7 @@ const DEVELOP_PANEL_OPS: Record<string, readonly string[]> = {
   'color-grading': ['color_grade'],
   bw: ['bw'],
   lut: ['lut_3d'],
-  detail: ['capture_sharpen', 'sharpen', 'luma_nr', 'color_nr'],
+  detail: ['capture_sharpen', 'sharpen', 'ai_denoise', 'luma_nr', 'color_nr'],
   lens: ['lens_profile'],
   effects: ['vignette', 'grain']
 };
