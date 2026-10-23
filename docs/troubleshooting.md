@@ -298,6 +298,8 @@ Set:
 RUST_LOG=info,immich_edit_backend=debug,http=debug,upstream=debug
 ```
 
+For AI mask or model problems, add `onnxruntime=debug`.
+
 `LOG_FORMAT=json` writes one JSON object per line for log collectors. See
 [logs](configuration.md#logs) for the targets.
 
