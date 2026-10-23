@@ -76,6 +76,7 @@ Other targets:
 | `upstream` | Failed Immich calls with their cause |
 | `client` | Browser errors from signed-in sessions, at most 30 a minute per user |
 | `panic` | Panics with location and backtrace |
+| `onnxruntime` | ONNX Runtime messages from AI models. Warnings and errors by default; `debug` adds session setup and per-run detail |
 
 The application itself logs under `immich_edit_backend`. For example,
 `RUST_LOG=info,http=debug` adds successful requests.

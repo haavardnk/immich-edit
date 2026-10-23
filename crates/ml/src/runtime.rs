@@ -7,6 +7,10 @@ use ort::session::Session;
 use ort::session::builder::SessionBuilder;
 use ort::value::{DynValue, Outlet};
 
+mod ort_log;
+#[cfg(test)]
+mod test_logs;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
     #[error("onnxruntime: {0}")]
@@ -111,8 +115,13 @@ impl ModelRuntime {
     }
 }
 
-static ENVIRONMENT: LazyLock<Result<Environment, String>> =
-    LazyLock::new(|| ort::init().build().map_err(|e| e.to_string()));
+static ENVIRONMENT: LazyLock<Result<Environment, String>> = LazyLock::new(|| {
+    let environment = ort_log::routed(ort::init())
+        .build()
+        .map_err(|e| e.to_string())?;
+    environment.set_log_level(ort_log::threshold());
+    Ok(environment)
+});
 
 fn base_builder(config: &SessionConfig) -> Result<SessionBuilder, ModelError> {
     let environment = ENVIRONMENT
@@ -227,6 +236,20 @@ mod tests {
             bytes_field(8, &int_field(2, 13)),
         ]
         .concat()
+    }
+
+    #[test]
+    fn opening_a_session_logs_nothing_at_info() {
+        let path = std::env::temp_dir().join(format!("ml-quiet-{}.onnx", std::process::id()));
+        std::fs::write(&path, constant_only_model()).unwrap();
+        let (logs, guard) = test_logs::capture(tracing::Level::INFO);
+        let runtime = SegmentRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
+        drop(guard);
+        std::fs::remove_file(&path).unwrap();
+        runtime.unwrap();
+
+        let text = logs.text();
+        assert!(!text.contains(" INFO "), "{text}");
     }
 
     #[test]

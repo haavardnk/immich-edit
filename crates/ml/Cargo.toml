@@ -12,3 +12,6 @@ ort = { version = "=2.0.0-rc.14", features = ["half"] }
 
 [target.'cfg(not(all(target_arch = "aarch64", target_os = "linux")))'.dependencies]
 ort = { version = "=2.0.0-rc.14", features = ["webgpu"] }
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
