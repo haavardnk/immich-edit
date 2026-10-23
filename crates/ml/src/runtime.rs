@@ -243,7 +243,7 @@ mod tests {
         let path = std::env::temp_dir().join(format!("ml-quiet-{}.onnx", std::process::id()));
         std::fs::write(&path, constant_only_model()).unwrap();
         let (logs, guard) = test_logs::capture(tracing::Level::INFO);
-        let runtime = SegmentRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
+        let runtime = ModelRuntime::open(&path, RuntimeMode::Cpu, &SessionConfig::default());
         drop(guard);
         std::fs::remove_file(&path).unwrap();
         runtime.unwrap();
