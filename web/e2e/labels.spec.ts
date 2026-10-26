@@ -109,7 +109,8 @@ test('the editor sets a label with its key and shows its colour', async ({ page 
   const label = bar.getByRole('button', { name: 'Green label' });
   await expect(label).toBeVisible();
   const color = (target: Locator) => target.evaluate((el) => getComputedStyle(el).color);
-  expect(await color(label)).not.toBe(await color(bar.getByRole('button', { name: /^Favorite/ })));
+  const neutral = await color(bar.getByRole('button', { name: /^Favorite/ }));
+  await expect.poll(() => color(label)).not.toBe(neutral);
 
   expect(await focusRingClipped(bar.getByRole('radiogroup', { name: 'Rating' }))).toBe('');
   expect(await focusRingClipped(label)).toBe('');
