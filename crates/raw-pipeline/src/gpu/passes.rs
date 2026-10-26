@@ -6,6 +6,7 @@ pub mod demosaic;
 #[cfg(feature = "native")]
 pub mod denoise_blend;
 pub mod effects_tone;
+pub mod lens_blur;
 pub mod luma_pyramid;
 pub mod lut;
 pub mod mask_blend;
@@ -42,6 +43,7 @@ use demosaic::DemosaicPass;
 #[cfg(feature = "native")]
 use denoise_blend::DenoiseBlendPass;
 use effects_tone::EffectsTonePass;
+use lens_blur::LensBlurPasses;
 use luma_pyramid::LumaPyramidPass;
 use lut::LutPass;
 use mask_blend::MaskBlendPass;
@@ -79,6 +81,7 @@ macro_rules! build_passes {
 
 pub struct GpuPasses {
     pub dehaze: DehazePasses,
+    pub lens_blur: LensBlurPasses,
     pub mipgen: MipgenPass,
     pub luma_pyramid: LumaPyramidPass,
     pub presence: PresencePass,
@@ -153,6 +156,7 @@ impl GpuPasses {
         let registry = default_registry();
         build_passes! {
             dehaze: DehazePasses::new(ctx),
+            lens_blur: LensBlurPasses::new(ctx),
             mipgen: MipgenPass::new(ctx),
             luma_pyramid: LumaPyramidPass::new(ctx),
             presence: PresencePass::new(ctx),
@@ -177,6 +181,7 @@ impl GpuPasses {
         }
         Self {
             dehaze,
+            lens_blur,
             mipgen,
             luma_pyramid,
             presence,

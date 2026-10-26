@@ -36,6 +36,7 @@ pub fn window_rect(meta: &FrameMeta, edits: &Edits, full: (u32, u32)) -> Option<
     let (u0, u1) = bounds(sensor.map(|p| p.0));
     let (v0, v1) = bounds(sensor.map(|p| p.1));
     let (align, margin) = spatial_support(full);
+    let margin = margin + crate::ops::lens_blur::window_margin(edits, full);
     let start = |t: f32, n: u32| {
         let px = (t * n as f32).floor() as u32;
         px.saturating_sub(margin) / align * align
@@ -160,6 +161,26 @@ mod tests {
         };
         if crop_rgb(&rgb, 4, rect) != [15, 16, 17, 18, 19, 20, 27, 28, 29, 30, 31, 32] {
             panic!("crop picked the wrong texels");
+        }
+    }
+
+    #[test]
+    fn a_lens_blur_widens_the_window_by_its_reach() {
+        let full = (6000, 4000);
+        let plain = cropped(0.4, 0.4, 0.2, 0.2);
+        let mut blurred = plain.clone();
+        blurred.lens_blur.amount = 30.0;
+        blurred.lens_blur.depth_raster_id = "depth".into();
+        let source = blurred.sensor_stage();
+        let (Some(a), Some(b)) = (
+            window_rect(&meta((false, false, false)), &plain, full),
+            window_rect(&meta((false, false, false)), &source, full),
+        ) else {
+            panic!("a small region was not windowed");
+        };
+        let reach = crate::ops::lens_blur::window_margin(&source, full);
+        if reach < 120 || a.origin.0 < b.origin.0 + reach - 64 {
+            panic!("blur reach {reach} did not widen {a:?} to {b:?}");
         }
     }
 }

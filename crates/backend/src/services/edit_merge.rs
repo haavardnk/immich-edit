@@ -58,6 +58,7 @@ pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> 
         geometry: pick(sections.geometry, incoming.geometry, current.geometry),
         masks: pick(sections.masks, incoming.masks, current.masks),
         retouch: pick(sections.retouch, incoming.retouch, current.retouch),
+        lens_blur: current.lens_blur,
         unknown_ops: current.unknown_ops,
     }
 }
@@ -137,6 +138,23 @@ mod tests {
         assert_eq!(merged.effects.vignette_amount, 40.0);
         assert_eq!(merged.geometry.rotate, 0);
         assert_eq!(merged.retouch, vec![stroke("current")]);
+    }
+
+    #[test]
+    fn a_depth_map_never_travels_to_another_photo() {
+        let mut current = Edits::default();
+        current.lens_blur.depth_raster_id = "mine".into();
+        let mut other = incoming();
+        other.lens_blur.amount = 60.0;
+        other.lens_blur.depth_raster_id = "theirs".into();
+        let all = MergeSections {
+            geometry: true,
+            masks: true,
+            retouch: true,
+            ..MergeSections::look_only()
+        };
+        let merged = merge_edits(current.clone(), other, all);
+        assert_eq!(merged.lens_blur, current.lens_blur);
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use raw_pipeline::edits::BokehShape;
 use raw_pipeline::frame::RawFrame;
 use raw_pipeline::{
     CpuRenderer, cpu,
@@ -8,6 +9,7 @@ use raw_pipeline::{
     frame::{OutputFormat, RenderOptions},
 };
 use raw_pipeline_testkit::denoise::denoise_plane;
+use raw_pipeline_testkit::depth::{depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::fixtures::first_fixture_frame;
 use raw_pipeline_testkit::frames::{rgb_frame, synthetic_frame};
 
@@ -98,6 +100,14 @@ fn variants(frame: &RawFrame) -> Vec<(&'static str, Edits, RenderOptions)> {
         ("geometry", geometry, preview()),
         ("clarity_dehaze", clarity, preview()),
         ("masked_wb", masked_wb, preview()),
+        (
+            "lens_blur",
+            lens_blur_edits(80.0, BokehShape::Hexagon, 40.0),
+            RenderOptions {
+                rasters: depth_rasters(),
+                ..preview()
+            },
+        ),
         (
             "ai_denoise",
             ai_denoise.clone(),

@@ -1,3 +1,4 @@
+use super::lens_blur::LENS_BLUR_FOCUS_MAX;
 use super::*;
 
 #[test]
@@ -575,6 +576,7 @@ fn populated_edits() -> Edits {
             source: Vec2f { x: 0.6, y: 0.7 },
             enabled: true,
         }],
+        lens_blur: LensBlurEdits::default(),
         unknown_ops: std::collections::BTreeMap::from([(
             "future_op".to_string(),
             serde_json::json!({ "amount": 42 }),
@@ -643,6 +645,14 @@ fn max_magnitude(value: &serde_json::Value) -> f64 {
 fn clamping_bounds_every_numeric_field() {
     let mut base = populated_edits();
     base.unknown_ops.clear();
+    base.lens_blur = LensBlurEdits {
+        amount: 40.0,
+        focus_min: 0.1,
+        focus_max: 0.5,
+        shape: BokehShape::Octagon,
+        boost: 30.0,
+        depth_raster_id: "depth".into(),
+    };
     base.masks[0].components.extend(every_component_kind());
     if let Some(p) = base.geometry.perspective.as_mut() {
         p.corners = Some([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]);
@@ -719,4 +729,37 @@ fn radial_angles_are_normalised_to_half_turns() {
             "{angle}"
         );
     }
+}
+
+#[test]
+fn a_depth_map_is_referenced_only_while_the_blur_renders() {
+    let mut e = Edits::default();
+    e.lens_blur.depth_raster_id = "depth".into();
+    assert!(e.referenced_raster_ids().is_empty());
+    assert_eq!(e.retained_raster_ids(), vec!["depth".to_string()]);
+    e.lens_blur.amount = 30.0;
+    assert_eq!(e.referenced_raster_ids(), vec!["depth".to_string()]);
+    assert!(
+        !serde_json::to_string(&Edits::default())
+            .unwrap()
+            .contains("lens_blur")
+    );
+}
+
+#[test]
+fn an_inactive_lens_blur_clamps_to_its_defaults_but_keeps_the_depth_map() {
+    let e = LensBlurEdits {
+        amount: 0.0,
+        focus_min: 0.6,
+        focus_max: 0.2,
+        shape: BokehShape::Hexagon,
+        boost: 50.0,
+        depth_raster_id: "depth".into(),
+    };
+    let clamped = e.clamped();
+    assert_eq!(clamped.depth_raster_id, "depth");
+    assert_eq!(clamped.focus_max, LENS_BLUR_FOCUS_MAX);
+    assert_eq!(clamped.shape, BokehShape::Circle);
+    let active = LensBlurEdits { amount: 10.0, ..e }.clamped();
+    assert_eq!((active.focus_min, active.focus_max), (0.2, 0.6));
 }

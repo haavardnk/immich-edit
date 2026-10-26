@@ -92,6 +92,7 @@ fn presence_display(edits: &Edits) -> bool {
     b.texture != 0.0
         || b.clarity != 0.0
         || b.dehaze != 0.0
+        || edits.lens_blur.active()
         || crate::ops::presence::has_shadows(edits)
         || masked_presence
 }
@@ -127,6 +128,7 @@ pub struct GpuRenderer {
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<lut::LutTextures>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
+    depth_tex_cache: Mutex<lru::LruCache<String, Arc<Texture>>>,
     atlas_pool: Mutex<Vec<masks::MaskAtlas>>,
     atlas_allocs: std::sync::atomic::AtomicU64,
     atlas_uploads: std::sync::atomic::AtomicU64,
@@ -140,6 +142,7 @@ pub struct GpuRenderer {
 const LUT_TEX_CACHE_ITEMS: usize = 4;
 const HUESAT_TEX_CACHE_ITEMS: usize = 4;
 const ATLAS_CACHE_ITEMS: usize = 32;
+const DEPTH_TEX_CACHE_ITEMS: usize = 4;
 const ATLAS_POOL_ITEMS: usize = 2;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
@@ -194,6 +197,9 @@ impl GpuRenderer {
             )),
             atlas_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(ATLAS_CACHE_ITEMS).expect("nonzero"),
+            )),
+            depth_tex_cache: Mutex::new(lru::LruCache::new(
+                NonZeroUsize::new(DEPTH_TEX_CACHE_ITEMS).expect("nonzero"),
             )),
             atlas_pool: Mutex::new(Vec::new()),
             atlas_allocs: std::sync::atomic::AtomicU64::new(0),

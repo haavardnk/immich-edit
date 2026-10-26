@@ -3,6 +3,7 @@ mod color;
 mod curves;
 mod geometry;
 mod lens;
+mod lens_blur;
 mod masks;
 mod retouch;
 mod stages;
@@ -21,6 +22,7 @@ pub use color::{
 pub use curves::{CURVE_LUT_SIZE, CurvePoint, CurvePoints, CurvesEdits};
 pub use geometry::{AspectLock, CropRect, GeometryEdits};
 pub use lens::LensEdits;
+pub use lens_blur::{BokehShape, LensBlurEdits};
 pub use masks::{
     ClickPointMeta, GeneratedMeta, MAX_REFINE_PX, MaskComponent, MaskComponentKind,
     MaskComponentMode, MaskLayer, MaskSource, MaskedEdits, N_MAX_CLICK_POINTS,
@@ -371,6 +373,8 @@ pub struct Edits {
     pub masks: Vec<MaskLayer>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub retouch: Vec<RetouchStroke>,
+    #[serde(default, skip_serializing_if = "LensBlurEdits::is_default")]
+    pub lens_blur: LensBlurEdits,
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub unknown_ops: std::collections::BTreeMap<String, serde_json::Value>,
 }
@@ -397,6 +401,7 @@ impl Edits {
             geometry: self.geometry.clamped(),
             masks: clamp_masks(&self.masks),
             retouch: clamp_retouch(&self.retouch),
+            lens_blur: self.lens_blur.clamped(),
             unknown_ops: self.unknown_ops.clone(),
         }
     }
@@ -419,11 +424,18 @@ impl Edits {
                 }
             }
         }
+        if self.lens_blur.active() && !out.contains(&self.lens_blur.depth_raster_id) {
+            out.push(self.lens_blur.depth_raster_id.clone());
+        }
         out
     }
 
     pub fn retained_raster_ids(&self) -> Vec<String> {
         let mut out = self.referenced_raster_ids();
+        let depth = &self.lens_blur.depth_raster_id;
+        if !depth.is_empty() && !out.contains(depth) {
+            out.push(depth.clone());
+        }
         for layer in &self.masks {
             for comp in &layer.components {
                 let Some(meta) = &comp.generated else {

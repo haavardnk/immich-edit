@@ -1,3 +1,4 @@
+use raw_pipeline::edits::{Edits, LensEdits};
 use raw_pipeline::frame::{OutputFormat, RenderOptions};
 use uuid::Uuid;
 
@@ -21,14 +22,7 @@ pub async fn render_scene(
     owner: Uuid,
     asset_id: AssetKey,
 ) -> Result<SceneImage, AppError> {
-    let mut edits = state.edits.get_edits_or_default(owner, asset_id).await?;
-    edits.geometry = Default::default();
-    edits.lens = raw_pipeline::edits::LensEdits {
-        profile_enabled: Some(false),
-        ..Default::default()
-    };
-    edits.effects = Default::default();
-    edits.masks.clear();
+    let edits = scene_edits(state.edits.get_edits_or_default(owner, asset_id).await?);
 
     let opts = RenderOptions {
         max_edge: state.segment.max_edge(),
@@ -52,6 +46,18 @@ pub async fn render_scene(
     })
 }
 
+fn scene_edits(mut edits: Edits) -> Edits {
+    edits.geometry = Default::default();
+    edits.lens = LensEdits {
+        profile_enabled: Some(false),
+        ..Default::default()
+    };
+    edits.effects = Default::default();
+    edits.masks.clear();
+    edits.lens_blur = Default::default();
+    edits
+}
+
 pub fn combine_coverage(base: &[u8], patch: &[u8], subtract: bool) -> Vec<u8> {
     base.iter()
         .zip(patch)
@@ -67,7 +73,22 @@ pub fn combine_coverage(base: &[u8], patch: &[u8], subtract: bool) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::combine_coverage;
+    use super::{combine_coverage, scene_edits};
+    use raw_pipeline::edits::Edits;
+
+    #[test]
+    fn the_scene_keeps_tone_but_drops_blur_and_framing() {
+        let mut edits = Edits::default();
+        edits.basic.exposure_ev = 0.7;
+        edits.geometry.rotate = 1;
+        edits.lens_blur.amount = 50.0;
+        edits.lens_blur.depth_raster_id = "depth".into();
+        let scene = scene_edits(edits);
+        assert_eq!(scene.basic.exposure_ev, 0.7);
+        assert_eq!(scene.geometry.rotate, 0);
+        assert!(scene.lens_blur.is_default());
+        assert_eq!(scene.lens.profile_enabled, Some(false));
+    }
 
     #[test]
     fn adding_keeps_the_strongest_coverage() {

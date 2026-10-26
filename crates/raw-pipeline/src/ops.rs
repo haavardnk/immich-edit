@@ -16,6 +16,7 @@ pub(crate) mod denoise;
 pub mod exposure;
 pub mod grain;
 pub mod hsl;
+pub mod lens_blur;
 pub mod lens_ca;
 pub mod lens_correction;
 pub mod lens_distortion;
@@ -75,6 +76,7 @@ pub enum GpuPass {
     Lens,
     Retouch,
     Dehaze,
+    LensBlur,
     Effects,
 }
 
@@ -310,6 +312,7 @@ pub fn default_registry() -> OpRegistry {
         Box::new(texture::TextureOp),
         Box::new(clarity::ClarityOp),
         Box::new(dehaze::DehazeOp),
+        Box::new(lens_blur::LensBlurOp),
         Box::new(exposure::ExposureOp),
         Box::new(brightness::BrightnessOp),
         Box::new(tone_regions::ToneRegionsOp),

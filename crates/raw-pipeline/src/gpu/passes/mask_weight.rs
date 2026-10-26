@@ -50,8 +50,9 @@ pub struct MaskWeightParams {
 
 pub fn mask_weight_wgsl() -> String {
     format!(
-        "{}\n{}",
+        "{}\n{}\n{}",
         crate::gpu::shader_builder::GEOMETRY_WGSL,
+        crate::gpu::shader_builder::LENS_WARP_WGSL,
         include_str!("../../../assets/shaders/mask_weight.wgsl")
     )
 }

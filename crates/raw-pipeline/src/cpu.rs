@@ -1,6 +1,8 @@
 pub mod dehaze;
 pub mod demosaic;
 pub mod fused;
+#[cfg(feature = "native")]
+pub mod lens_blur;
 pub mod masked;
 #[cfg(feature = "native")]
 pub mod pipeline;

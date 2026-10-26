@@ -1,15 +1,17 @@
 use crate::cancel::{self, CancelToken};
 use crate::cpu::fused::{CpuFusedOp, FusedSegment, apply_segment};
+use crate::cpu::lens_blur::LensBlurFrame;
 use crate::cpu::masked::{blend_layer_images, build_layer_evals, effective_edits_for_layer};
 use crate::cpu::presence::has_presence;
 use crate::cpu::presence_pyramid::LumaPyramid;
 use crate::cpu::transform;
 use crate::edits::Edits;
 use crate::ops::LinearImage;
+use crate::ops::lens_blur::LensBlur;
 use crate::ops::lens_distortion::LensWarpParams;
 use crate::ops::presence::{CLARITY_EDGE_EPS, has_shadows, presence_amounts, presence_blurs};
 use crate::ops::tone_regions::ShadowsGuide;
-use crate::ops::{GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
+use crate::ops::{GpuPass, GpuRoute, OpContext, OpScratch, RenderContext, default_registry};
 use crate::timing::{self, StageClock};
 use std::sync::Arc;
 
@@ -293,6 +295,24 @@ pub(super) fn run_pipeline_ops_inner(
                     s.push(make_op(&layer_amounts[i]));
                 }
                 presence_done = true;
+            }
+            continue;
+        }
+        if op.gpu_route() == GpuRoute::Pass(GpuPass::LensBlur) {
+            flush(image, &mut layer_images, &mut segment, &mut layer_segments);
+            let dims = (image.width as u32, image.height as u32);
+            if let Some(blur) = LensBlur::resolve(edits, rasters, dims) {
+                clock.time(timing::cpu_op_stage(op.id()), || {
+                    let Some(frame) =
+                        LensBlurFrame::new(&blur, &lens_warp, (image.width, image.height))
+                    else {
+                        return;
+                    };
+                    frame.apply(image);
+                    for li in layer_images.iter_mut() {
+                        frame.apply(li);
+                    }
+                });
             }
             continue;
         }
