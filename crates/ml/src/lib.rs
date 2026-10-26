@@ -10,6 +10,7 @@ pub mod segmenter;
 
 pub use catalog::{CATALOG, CatalogEntry, CatalogFile, Cost, Tier};
 pub use denoise::Denoiser;
+pub use depth::refine_depth;
 pub use model::{Activation, Fit, Layout, ModelInput, ModelKind, ModelSpec, Normalization};
 pub use refine::{BakeParams, RangeWindow, bake};
 pub use runtime::{Backend, ModelError, ModelRuntime, RuntimeMode, SessionConfig};

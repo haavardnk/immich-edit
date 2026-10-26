@@ -5,6 +5,7 @@ use ml::model::Activation;
 use ml::runtime::SessionConfig;
 use ml::{
     BakeParams, BoxPrompt, ClickPoint, ModelKind, SamDecoder, SamEncoder, Segmenter, bake, catalog,
+    refine_depth,
 };
 use tokio::sync::Mutex;
 
@@ -38,6 +39,21 @@ pub struct MaskResult {
     pub backend: &'static str,
     pub model_id: String,
     pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModelRun<T> {
+    pub output: T,
+    pub backend: &'static str,
+    pub model_id: String,
+    pub elapsed_ms: u64,
+}
+
+fn unit_bytes(values: &[f32]) -> Vec<u8> {
+    values
+        .iter()
+        .map(|v| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
+        .collect()
 }
 
 fn luma_guide(rgb8: &[u8]) -> Vec<f32> {
@@ -106,6 +122,13 @@ impl SegmentService {
         self.resolve(kind).await.ok()
     }
 
+    pub async fn ready(&self, kind: ModelKind) -> Result<String, SegmentServiceError> {
+        if !self.enabled() {
+            return Err(SegmentServiceError::Disabled);
+        }
+        self.resolve(kind).await
+    }
+
     async fn resolve(&self, kind: ModelKind) -> Result<String, SegmentServiceError> {
         self.models
             .resolve_installed(kind)
@@ -122,10 +145,60 @@ impl SegmentService {
         params: BakeParams,
         class: Option<String>,
     ) -> Result<MaskResult, SegmentServiceError> {
-        if !self.enabled() {
-            return Err(SegmentServiceError::Disabled);
-        }
-        let catalog_id = self.resolve(kind).await?;
+        let run = self
+            .run_image_model(kind, class, rgb8, (width, height), move |values, guide| {
+                let bytes = bake(values, guide, width as usize, height as usize, params);
+                (bytes, unit_bytes(values))
+            })
+            .await?;
+        let (bytes, prob) = run.output;
+        Ok(MaskResult {
+            bytes,
+            prob,
+            width,
+            height,
+            backend: run.backend,
+            model_id: run.model_id,
+            elapsed_ms: run.elapsed_ms,
+        })
+    }
+
+    pub async fn depth(
+        &self,
+        rgb8: Vec<u8>,
+        width: u32,
+        height: u32,
+    ) -> Result<ModelRun<Vec<u8>>, SegmentServiceError> {
+        self.run_image_model(
+            ModelKind::Depth,
+            None,
+            rgb8,
+            (width, height),
+            move |values, guide| {
+                unit_bytes(&refine_depth(
+                    values,
+                    guide,
+                    width as usize,
+                    height as usize,
+                ))
+            },
+        )
+        .await
+    }
+
+    async fn run_image_model<T, F>(
+        &self,
+        kind: ModelKind,
+        class: Option<String>,
+        rgb8: Vec<u8>,
+        (width, height): (u32, u32),
+        finish: F,
+    ) -> Result<ModelRun<T>, SegmentServiceError>
+    where
+        T: Send + 'static,
+        F: FnOnce(&[f32], &[f32]) -> T + Send + 'static,
+    {
+        let catalog_id = self.ready(kind).await?;
         let path = self.models.resolve_path(&catalog_id).await?;
         let spec = catalog::find(&catalog_id)
             .and_then(|entry| entry.input.image())
@@ -154,7 +227,7 @@ impl SegmentService {
         let id_for_task = catalog_id.clone();
 
         let started = Instant::now();
-        let out = tokio::task::spawn_blocking(move || {
+        let (output, backend) = tokio::task::spawn_blocking(move || {
             let mut guard = slot.blocking_lock();
             let stale = guard
                 .as_ref()
@@ -178,44 +251,29 @@ impl SegmentService {
                 .map_err(|e| SegmentServiceError::Inference(e.to_string()))?;
             loaded.used_at = Instant::now();
             let backend = loaded.segmenter.backend().as_str();
-
+            drop(guard);
             let guide = luma_guide(&rgb8);
-            let bytes = bake(
-                &mask.values,
-                &guide,
-                width as usize,
-                height as usize,
-                params,
-            );
-            let prob: Vec<u8> = mask
-                .values
-                .iter()
-                .map(|v| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
-                .collect();
-            Ok::<(Vec<u8>, Vec<u8>, &'static str), SegmentServiceError>((bytes, prob, backend))
+            Ok::<(T, &'static str), SegmentServiceError>((finish(&mask.values, &guide), backend))
         })
         .await
         .map_err(|_| SegmentServiceError::Worker)??;
 
-        let elapsed_ms = started.elapsed().as_millis() as u64;
-        tracing::info!(
-            model = %catalog_id,
-            backend = out.2,
-            width,
-            height,
-            elapsed_ms,
-            "generated mask"
-        );
-
-        Ok(MaskResult {
-            bytes: out.0,
-            prob: out.1,
-            width,
-            height,
-            backend: out.2,
+        let run = ModelRun {
+            output,
+            backend,
             model_id: catalog_id,
-            elapsed_ms,
-        })
+            elapsed_ms: started.elapsed().as_millis() as u64,
+        };
+        tracing::info!(
+            model = %run.model_id,
+            kind = kind.as_str(),
+            backend = run.backend,
+            width,
+            height,
+            elapsed_ms = run.elapsed_ms,
+            "ran image model"
+        );
+        Ok(run)
     }
 
     pub async fn rebake(
@@ -324,11 +382,7 @@ impl SegmentService {
                 height as usize,
                 params,
             );
-            let prob: Vec<u8> = mask
-                .values
-                .iter()
-                .map(|v| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
-                .collect();
+            let prob = unit_bytes(&mask.values);
             Ok::<_, SegmentServiceError>((bytes, prob, backend, embedding, fresh))
         })
         .await

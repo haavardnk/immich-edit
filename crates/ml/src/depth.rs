@@ -1,6 +1,7 @@
-use crate::refine::{RangeWindow, range_weight};
+use crate::refine::{RangeWindow, guided_filter, guided_radius, range_weight};
 
 const LEVELS: usize = 256;
+const REFINE_EPS: f32 = 1e-3;
 
 fn level(value: f32) -> usize {
     (value.clamp(0.0, 1.0) * 255.0 + 0.5) as usize
@@ -22,6 +23,10 @@ pub fn window_by_rank(nearness: &[f32], window: RangeWindow) -> Vec<f32> {
         *slot = range_weight(rank, window);
     }
     nearness.iter().map(|v| weights[level(*v)]).collect()
+}
+
+pub fn refine_depth(disparity: &[f32], guide: &[f32], w: usize, h: usize) -> Vec<f32> {
+    guided_filter(guide, disparity, w, h, guided_radius(w, h), REFINE_EPS)
 }
 
 #[cfg(test)]
@@ -84,5 +89,32 @@ mod tests {
             window_by_rank(&nearness, window),
             window_by_rank(&stored, window)
         );
+    }
+
+    #[test]
+    fn refined_depth_snaps_to_the_image_edge() {
+        let (w, h) = (96usize, 32usize);
+        let edge = 48usize;
+        let guide: Vec<f32> = (0..w * h)
+            .map(|i| if i % w < edge { 0.8 } else { 0.2 })
+            .collect();
+        let coarse: Vec<f32> = (0..w * h)
+            .map(|i| (((i % w) as f32 - edge as f32 + 12.0) / 24.0).clamp(0.0, 1.0))
+            .map(|t| 1.0 - t)
+            .collect();
+        let refined = refine_depth(&coarse, &guide, w, h);
+        let row = 16 * w;
+        let step = |plane: &[f32]| plane[row + edge - 3] - plane[row + edge + 2];
+        if step(&refined) < 2.0 * step(&coarse) {
+            panic!(
+                "edge step {} did not sharpen from {}",
+                step(&refined),
+                step(&coarse)
+            );
+        }
+        let flat = refined[row + 4] - refined[row + w - 5];
+        if flat < 0.9 {
+            panic!("far ends lost their depth difference: {flat}");
+        }
     }
 }
