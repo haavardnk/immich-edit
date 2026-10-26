@@ -210,6 +210,8 @@ pub fn router(state: AppState) -> Router {
             "/assets/{id}",
             get(routes::assets::detail).put(routes::assets::update),
         )
+        .route("/trash", post(routes::trash::trash))
+        .route("/trash/restore", post(routes::trash::restore))
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))
         .route(
             "/assets/{id}/copies",

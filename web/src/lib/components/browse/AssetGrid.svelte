@@ -9,12 +9,11 @@
   import { browseView } from '$lib/stores/browseView.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { hides } from '$lib/browse/loadedFilter';
-  import { browsing } from '$lib/stores/browsing.svelte';
   import { compare } from '$lib/stores/compare.svelte';
   import { multiMembers, type MultiMode } from '$lib/browse/compareEntry';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { trash } from '$lib/stores/trash.svelte';
   import { ui } from '$lib/stores/ui.svelte';
-  import { deleteCopy } from '$lib/api/copies';
   import { isCopy } from '$lib/browse/assetKey';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
   import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
@@ -23,6 +22,7 @@
   import { editorHref } from '$lib/editor/navigation';
   import { matchKeybind } from '$lib/shortcuts/match';
   import { hasTextSelection, yieldsToControl } from '$lib/shortcuts/targets';
+  import { isModalOpen } from '@immich/ui';
   import { CONTEXT_STACKS } from '$lib/shortcuts/context';
   import {
     createAssetGridLayout,
@@ -210,6 +210,13 @@
     targets().forEach((id) => void clearFlags(id));
   }
 
+  function applyTrash(): boolean {
+    const ids = new Set(targets());
+    if (ids.size === 0) return false;
+    void trash.request(items.filter((asset) => ids.has(asset.id)));
+    return true;
+  }
+
   function applyLabelKey(key: string): boolean {
     const ids = targets();
     if (ids.length === 0) return false;
@@ -278,22 +285,9 @@
     }
   }
 
-  async function removeCopy(id: string): Promise<void> {
-    try {
-      await deleteCopy(id);
-    } catch (e) {
-      toasts.fail('delete copy', e);
-      return;
-    }
-    if (selection.selected.has(id)) selection.toggle(id);
-    if (browseView.activeId === id) browseView.setActive(null);
-    browsing.remove(id);
-    toasts.push('success', 'Virtual copy deleted');
-  }
-
   function onKeydown(e: KeyboardEvent): void {
     shiftPressed = e.shiftKey;
-    if (browseView.loupeId || isTyping() || yieldsToControl(e)) return;
+    if (browseView.loupeId || isModalOpen() || isTyping() || yieldsToControl(e)) return;
 
     const bind = matchKeybind(e, CONTEXT_STACKS.grid);
     if (!bind) return;
@@ -338,6 +332,9 @@
       case 'unflag':
         e.preventDefault();
         return applyUnflag();
+      case 'trash':
+        if (applyTrash()) e.preventDefault();
+        return;
       case 'label':
         if (applyLabelKey(e.key)) e.preventDefault();
         return;
@@ -499,7 +496,9 @@
         onActivate={() => browseView.setActive(item.asset.id)}
         onLoupe={() => browseView.openLoupe(item.asset.id)}
         onRate={(rating) => void rateAsset(item.asset.id, rating)}
-        onDeleteCopy={isCopy(item.asset.id) ? () => void removeCopy(item.asset.id) : undefined}
+        onDeleteCopy={isCopy(item.asset.id)
+          ? () => void trash.removeCopy(item.asset.id)
+          : undefined}
       />
     </div>
   {/each}

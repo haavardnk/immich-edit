@@ -4,6 +4,7 @@
   import { isKeybind } from '$lib/shortcuts/match';
   import { keyLabel } from '$lib/shortcuts/chord';
   import { yieldsToControl } from '$lib/shortcuts/targets';
+  import { isModalOpen } from '@immich/ui';
   import type { Vec2f } from '$lib/types/edits';
   import { MAX_POLYGON_POINTS } from '$lib/types/masks';
 
@@ -50,7 +51,7 @@
   }
 
   function onKey(e: KeyboardEvent): void {
-    if (yieldsToControl(e)) return;
+    if (isModalOpen() || yieldsToControl(e)) return;
     if (isKeybind(e, 'maskCancelDraw')) {
       e.preventDefault();
       editor.cancelPolygon();

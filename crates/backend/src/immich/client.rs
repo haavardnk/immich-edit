@@ -243,6 +243,38 @@ impl ImmichClient {
             .map(|_| ())
     }
 
+    pub async fn trash_assets(&self, ids: &[Uuid]) -> ImmichResult<()> {
+        let url = self.url("api/assets")?;
+        let body = serde_json::json!({ "ids": ids, "force": false });
+        send(self.authed(self.http.delete(url).json(&body)))
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn restore_assets(&self, ids: &[Uuid]) -> ImmichResult<u64> {
+        let url = self.url("api/trash/restore/assets")?;
+        let body = serde_json::json!({ "ids": ids });
+        let bytes = send(self.authed(self.http.post(url).json(&body))).await?;
+        let resp: TrashResponse = parse_json(&bytes)?;
+        Ok(resp.count)
+    }
+
+    pub async fn copy_asset(&self, source: Uuid, target: Uuid) -> ImmichResult<()> {
+        let url = self.url("api/assets/copy")?;
+        let body = serde_json::json!({
+            "sourceId": source,
+            "targetId": target,
+            "sidecar": false,
+            "albums": true,
+            "sharedLinks": true,
+            "favorite": true,
+            "stack": true,
+        });
+        send(self.authed(self.http.put(url).json(&body)))
+            .await
+            .map(|_| ())
+    }
+
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
         self.put_json("api/tags", body).await
     }
@@ -478,6 +510,8 @@ pub struct ServerFeatures {
     pub password_login: bool,
     pub smart_search: bool,
     pub ocr: bool,
+    #[serde(default)]
+    pub trash: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -485,6 +519,13 @@ pub struct ServerFeatures {
 pub struct ServerConfig {
     #[serde(default)]
     pub oauth_button_text: String,
+    #[serde(default)]
+    pub trash_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct TrashResponse {
+    count: u64,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -555,7 +596,8 @@ async fn execute(client: &Client, request: reqwest::Request) -> ImmichResult<req
         return Ok(resp);
     }
     Err(match status.as_u16() {
-        401 | 403 => ImmichError::Unauthorized,
+        401 => ImmichError::Unauthorized,
+        403 => forbidden(resp).await,
         404 => ImmichError::NotFound,
         408 => ImmichError::Timeout,
         code @ 300..=399 => ImmichError::Redirect(code),
@@ -565,6 +607,18 @@ async fn execute(client: &Client, request: reqwest::Request) -> ImmichResult<req
         },
         code => ImmichError::Status(code),
     })
+}
+
+async fn forbidden(resp: reqwest::Response) -> ImmichError {
+    let message = rejection_message(resp, 403).await;
+    if message.starts_with("Missing required permission") {
+        ImmichError::Rejected {
+            status: 403,
+            message,
+        }
+    } else {
+        ImmichError::Unauthorized
+    }
 }
 
 async fn rejection_message(resp: reqwest::Response, code: u16) -> String {

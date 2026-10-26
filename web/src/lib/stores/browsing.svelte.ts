@@ -10,11 +10,22 @@ export interface BrowsePager {
   loadMore(): Promise<boolean>;
 }
 
+export interface RemovedAsset {
+  index: number;
+  asset: AssetSummary;
+}
+
+export interface Removal {
+  list: number;
+  items: RemovedAsset[];
+}
+
 class BrowsingStore {
   assets = $state<AssetSummary[]>([]);
   total = $state<number | undefined>(undefined);
   readonly visible = $derived(this.assets.filter((asset) => this.shows(asset)));
   private pager = $state.raw<BrowsePager | null>(null);
+  private list = 0;
 
   get count(): number {
     return Math.max(
@@ -32,11 +43,13 @@ class BrowsingStore {
   }
 
   set(assets: AssetSummary[], pager: BrowsePager | null = null): void {
+    this.list += 1;
     this.assets = assets;
     this.pager = pager;
   }
 
   clear(): void {
+    this.list += 1;
     this.assets = [];
     this.total = undefined;
     this.pager = null;
@@ -78,6 +91,29 @@ class BrowsingStore {
     const idx = this.assets.findIndex((a) => a.id === id);
     if (idx < 0) return;
     this.assets.splice(idx, 1);
+  }
+
+  removeMany(ids: ReadonlySet<string>): Removal {
+    const items: RemovedAsset[] = [];
+    for (let index = this.assets.length - 1; index >= 0; index -= 1) {
+      const asset = this.assets[index];
+      if (!asset || !ids.has(asset.id)) continue;
+      this.assets.splice(index, 1);
+      items.unshift({ index, asset });
+    }
+    if (this.total !== undefined) this.total = Math.max(0, this.total - items.length);
+    return { list: this.list, items };
+  }
+
+  reinsert(removal: Removal, keep: (asset: AssetSummary) => boolean = () => true): void {
+    if (removal.list !== this.list) return;
+    let added = 0;
+    for (const { index, asset } of removal.items) {
+      if (!keep(asset) || this.assets.some((a) => a.id === asset.id)) continue;
+      this.assets.splice(Math.min(index, this.assets.length), 0, asset);
+      added += 1;
+    }
+    if (this.total !== undefined) this.total += added;
   }
 
   positionOf(id: string): number {

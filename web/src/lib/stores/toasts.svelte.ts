@@ -2,10 +2,16 @@ import { errorMessage } from '$lib/utils/errors';
 
 export type ToastKind = 'error' | 'warn' | 'info' | 'success';
 
+export type ToastAction = {
+  label: string;
+  run: () => void;
+};
+
 export type Toast = {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 };
 
 const MAX_VISIBLE = 3;
@@ -22,15 +28,15 @@ export class ToastStore {
   private nextId = 1;
   private recent = new Map<string, number>();
 
-  push = (kind: ToastKind, message: string, ttlMs?: number): void => {
+  push = (kind: ToastKind, message: string, ttlMs?: number, action?: ToastAction): void => {
     const key = `${kind}:${message}`;
     const now = Date.now();
     const last = this.recent.get(key);
-    if (last != null && now - last < 3000) return;
+    if (!action && last != null && now - last < 3000) return;
     this.recent.set(key, now);
     const id = this.nextId++;
     const ttl = ttlMs ?? DEFAULT_TTL[kind];
-    let next = [...this.items, { id, kind, message }];
+    let next = [...this.items, { id, kind, message, action }];
     if (next.length > MAX_VISIBLE) next = next.slice(next.length - MAX_VISIBLE);
     this.items = next;
     if (ttl > 0) setTimeout(() => this.dismiss(id), ttl);

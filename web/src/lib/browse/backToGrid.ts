@@ -12,5 +12,5 @@ export async function backToGrid(
   browseView.setActive(inList ? assetId : null);
   const target = validReturnPath(returnPath) ? returnPath : (browseView.lastGridPath ?? '/photos');
   await goto(target);
-  if (returnToLoupe && assetId) browseView.openLoupe(assetId);
+  if (returnToLoupe && inList && assetId) browseView.openLoupe(assetId);
 }

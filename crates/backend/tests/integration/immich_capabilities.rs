@@ -73,3 +73,28 @@ async fn an_unreadable_version_falls_back_to_flat_search() {
         panic!("unknown version: {body}");
     }
 }
+
+#[tokio::test]
+async fn trash_follows_immich_features_and_config() {
+    for (trash, days) in [(Some(true), Some(30)), (Some(false), None), (None, None)] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, 3, 1).await;
+        if let Some(trash) = trash {
+            mock_trash_feature(&server, trash).await;
+        }
+        if let Some(days) = days {
+            Mock::given(method("GET"))
+                .and(path("/api/server/config"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                    "oauthButtonText": "",
+                    "trashDays": days,
+                })))
+                .mount(&server)
+                .await;
+        }
+        let body = capabilities(&server).await;
+        if body["trash"] != trash.unwrap_or(false) || body["trash_days"] != json!(days) {
+            panic!("trash {trash:?} days {days:?}: {body}");
+        }
+    }
+}

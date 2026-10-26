@@ -5,6 +5,8 @@ export interface ImmichCapabilities {
   structured_search: boolean;
   smart_search: boolean;
   ocr: boolean;
+  trash: boolean;
+  trash_days: number | null;
 }
 
 export async function getImmichCapabilities(): Promise<ImmichCapabilities> {

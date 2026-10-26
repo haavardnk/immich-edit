@@ -12,6 +12,9 @@
   import { rejected } from '$lib/stores/rejected.svelte';
   import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
   import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
+  import { NOT_OWNER_TRASH } from '$lib/browse/trash';
+  import { isCopy } from '$lib/browse/assetKey';
+  import { trash } from '$lib/stores/trash.svelte';
   import DisabledReason from '$lib/components/DisabledReason.svelte';
   import {
     LABEL_NAMES,
@@ -48,6 +51,7 @@
     mdiContentDuplicate,
     mdiImageEditOutline,
     mdiTagOutline,
+    mdiTrashCanOutline,
     mdiTuneVariant,
     mdiViewGridOutline
   } from '@mdi/js';
@@ -90,6 +94,7 @@
   });
   let single = $derived(!selectingAll && count === 1 ? (picked[0] ?? null) : null);
   let allOwned = $derived(picked.every(ownsAsset));
+  let trashable = $derived(picked.some((a) => isCopy(a.id) || ownsAsset(a)));
   let notOwnedReason = $derived(count === 1 ? NOT_OWNER : SOME_NOT_OWNER);
   let multiMode = $derived<MultiMode>(count === 2 ? 'compare' : 'survey');
   let canMulti = $derived(!selectingAll && count >= 2 && count <= MAX_PANES);
@@ -411,6 +416,19 @@
             onclick={() => (band = band === 'albums' ? null : 'albums')}
           />
         </div>
+        <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
+        <DisabledReason locked={!trashable} reason={NOT_OWNER_TRASH} class="flex shrink-0">
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            icon={mdiTrashCanOutline}
+            title={hint(`Move ${photos} to the Immich trash`, 'trash')}
+            aria-label="Move to Immich trash"
+            disabled={metaBusy || !trashable}
+            onclick={() => void trash.request(picked)}
+          />
+        </DisabledReason>
       </ControlBarContent>
 
       <ControlBarOverflow class="ps-2">

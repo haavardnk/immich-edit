@@ -5,6 +5,7 @@
   import Popover from '$lib/components/Popover.svelte';
   import MenuItem from '$lib/components/MenuItem.svelte';
   import { hint, keysFor } from '$lib/shortcuts/labels';
+  import { trashLabel } from '$lib/browse/trash';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,
@@ -18,6 +19,7 @@
     mdiKeyboardOutline,
     mdiPencilOutline,
     mdiDotsVertical,
+    mdiTrashCanOutline,
     mdiViewGridOutline,
     mdiCircleHalfFull
   } from '@mdi/js';
@@ -29,9 +31,11 @@
     moreActive: boolean;
     onSelectViewMode: (mode: CompareMode) => void;
     onOpenEditor: () => void;
+    onTrash: () => void;
   };
 
-  let { filename, copyBadge, multi, moreActive, onSelectViewMode, onOpenEditor }: Props = $props();
+  let { filename, copyBadge, multi, moreActive, onSelectViewMode, onOpenEditor, onTrash }: Props =
+    $props();
 
   let viewModeOpen = $state(false);
   let moreOpen = $state(false);
@@ -195,6 +199,17 @@
           onclick={() => {
             moreOpen = false;
             browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance);
+          }}
+        />
+        <div class="my-1 border-t border-dark/10"></div>
+        <MenuItem
+          icon={mdiTrashCanOutline}
+          label={trashLabel(copyBadge !== null)}
+          keys={keysFor('trash')}
+          disabled={multi}
+          onclick={() => {
+            moreOpen = false;
+            onTrash();
           }}
         />
         <div class="my-1 border-t border-dark/10"></div>

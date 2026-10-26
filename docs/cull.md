@@ -138,9 +138,9 @@ filter shows one color, or only photos without a label.
 The first time you rate, favorite, tag, reject or label in a browser, immich-edit asks before it
 writes to Immich. Press **Sync to Immich** to allow it. Ratings, favorites and tags are stored in
 Immich, so they show up there too. Reject adds the Immich tag `immich-edit/reject`, and a label
-adds `immich-edit/label/red` and so on, so Immich searches and workflows can use them. immich-edit
-never deletes a photo or moves it to the trash; set **Rejected** to **Hide** to filter rejects out,
-or to **Only** to find them and delete them in Immich later.
+adds `immich-edit/label/red` and so on, so Immich searches and workflows can use them. Reject on its
+own deletes nothing; set **Rejected** to **Hide** to filter rejects out, or to **Only** to find
+them and [move them to the trash](#delete-photos).
 
 Photos another Immich user owns, such as a partner's photos in your timeline or another user's
 photos in a shared album, follow Immich's rules: the rating, favorite, reject, label and tag
@@ -191,6 +191,7 @@ removes a pane in compare and survey.
 1. At a burst, select the frames and press `N`. Drop frames until one is left, and rate it.
 1. Under **Rating**, keep `≥` and pick the lowest star count you want to edit, such as three
    stars (Immich 3.2 and later). What is left is your edit list.
+1. To clear out the misses, set **Rejected** to **Only** and press **Move rejected to trash**.
 
 ## Act on a selection
 
@@ -198,14 +199,14 @@ With photos selected, the selection bar shows one heart, one star row, one rejec
 color label. Each shows what the selection already is: filled when every photo has it, faded when
 only some do. A click sets every photo the same way, so **Favorite** on a mixed selection favorites
 all of them instead of flipping each one, and a star sets that rating on all. Click the lit star
-again to clear the rating. The bar also has **Tags**, **Albums**, **Create virtual copy**, and
-**Edit and export selected**. **Albums** adds the selection to existing Immich albums; inside an
-album it also offers **Remove from** that album, which drops the photos from the grid while they
-stay in Immich. **Edit and export selected** pastes edits, applies a preset or exports every selected
-photo in one go; see [export many photos](export.md#export-many-photos). When the selection holds a
-photo another Immich user owns, the favorite, rating, reject, label and **Tags** controls are
-disabled, and hovering them says why. `Shift+B` moves keyboard focus from the grid into the
-selection bar.
+again to clear the rating. The bar also has **Tags**, **Albums**, **Create virtual copy**,
+**Edit and export selected**, and **Move to Immich trash**. **Albums** adds the selection to
+existing Immich albums; inside an album it also offers **Remove from** that album, which drops the
+photos from the grid while they stay in Immich. **Edit and export selected** pastes edits, applies a
+preset or exports every selected photo in one go; see
+[export many photos](export.md#export-many-photos). When the selection holds a photo another Immich
+user owns, the favorite, rating, reject, label and **Tags** controls are disabled, and hovering
+them says why. `Shift+B` moves keyboard focus from the grid into the selection bar.
 
 With one photo selected, the bar shows its filename in place of the count and an **Open in
 editor** button. With two it offers **Compare selected**, and with three or more **Survey
@@ -216,6 +217,24 @@ on screen in the loupe, and asks which settings to take, remembering your last c
 `Ctrl+V` pastes them onto every selected photo as a background job; in the loupe it pastes
 onto the photo on screen. When you have selected text on the page, both keys copy and paste the
 text instead.
+
+## Delete photos
+
+**Move to Immich trash** sends photos you own to the Immich trash. It is on the selection bar, in
+the **More** menu of the loupe and the editor, and on `Delete` or `Backspace` in the grid and the
+loupe. To trash every reject in a view at the end of a cull, set **Rejected** to **Only** and press
+**Move rejected to trash** beside the filter chips. immich-edit always asks first and says how long
+Immich keeps trashed photos. **Undo** on the message afterwards brings them back; later, restore
+them from the trash in Immich until Immich empties it.
+
+A virtual copy is deleted from immich-edit instead, which cannot be undone. Trashing an original
+takes its virtual copies out of view with it; its edits and copies stay in immich-edit and come
+back when the original is restored. Photos another Immich user owns are skipped.
+
+{: .warning }
+immich-edit deletes nothing while the trash is turned off in Immich, because Immich would then
+remove the photos for good. Signed in with an Immich API key, the key needs the `asset.delete`
+permission.
 
 ## Virtual copies
 

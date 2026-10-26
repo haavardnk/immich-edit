@@ -211,6 +211,7 @@ export interface InstallOpts {
   structuredSearch?: boolean;
   smartSearch?: boolean;
   ocr?: boolean;
+  trash?: boolean;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -226,6 +227,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets: Array<Record<string, unknown>> = [];
   const copies: CopyRecord[] = [];
+  const trashed = new Set<string>();
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
@@ -290,6 +292,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
     const items = expanded(ordered(body.sort as MockSort, pageAssets))
+      .filter((a) => !trashed.has(a.id.split('_')[0] ?? a.id))
       .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
       .filter((a) => matchesManagedTags(a.tags, filter))
@@ -322,7 +325,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           immich_version: structured ? '3.2.2' : '3.1.0',
           structured_search: structured,
           smart_search: opts.smartSearch ?? true,
-          ocr: opts.ocr ?? true
+          ocr: opts.ocr ?? true,
+          trash: opts.trash ?? true,
+          trash_days: 30
         })
       );
     }
@@ -593,6 +598,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         return route.fulfill({ ...json(record), status: 201 });
       }
       return route.fulfill(json(copies.filter((c) => c.source_asset_id === source)));
+    }
+
+    if ((p === '/api/trash' || p === '/api/trash/restore') && method === 'POST') {
+      const { ids } = req.postDataJSON() as { ids: string[] };
+      for (const id of ids) {
+        if (p === '/api/trash') trashed.add(id);
+        else trashed.delete(id);
+      }
+      return route.fulfill(json({ count: ids.length }));
     }
 
     const copyMatch = p.match(/^\/api\/copies\/([^/]+)$/);

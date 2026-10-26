@@ -198,6 +198,21 @@ pub async fn mock_server_version(server: &MockServer, major: u64, minor: u64, pa
         .await;
 }
 
+pub async fn mock_trash_feature(server: &MockServer, enabled: bool) {
+    Mock::given(method("GET"))
+        .and(path("/api/server/features"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "oauth": false,
+            "oauthAutoLaunch": false,
+            "passwordLogin": true,
+            "smartSearch": true,
+            "ocr": true,
+            "trash": enabled,
+        })))
+        .mount(server)
+        .await;
+}
+
 pub async fn mock_ping_ok(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/api/server/ping"))

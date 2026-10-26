@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { browsing } from '$lib/stores/browsing.svelte';
   import { browseView } from '$lib/stores/browseView.svelte';
+  import { trash } from '$lib/stores/trash.svelte';
   import { compare, CENTERED, type PaneView } from '$lib/stores/compare.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
@@ -46,7 +47,7 @@
   import { CONTEXT_STACKS } from '$lib/shortcuts/context';
   import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
   import { panStep } from '$lib/utils/imageViewport';
-  import { IconButton } from '@immich/ui';
+  import { IconButton, isModalOpen } from '@immich/ui';
   import ContextMenuItem from '$lib/components/ContextMenuItem.svelte';
   import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
 
@@ -242,6 +243,11 @@
     });
   }
 
+  function moveToTrash(): void {
+    if (multi || !asset) return;
+    void trash.request([asset]);
+  }
+
   function openEditor(id: string | null = focusedId): void {
     if (!id) return;
     browseView.leaveLoupeForEditor(id);
@@ -267,7 +273,7 @@
   }
 
   function onKeydown(e: KeyboardEvent): void {
-    if (!currentId) return;
+    if (!currentId || isModalOpen()) return;
     if (e.key === 'Escape' && ui.fullscreen) {
       e.preventDefault();
       ui.toggleFullscreen();
@@ -361,6 +367,9 @@
       case 'unflag':
         e.preventDefault();
         return unflag();
+      case 'trash':
+        e.preventDefault();
+        return moveToTrash();
       case 'label': {
         const next = nextLabelFromKey(e.key, label);
         if (next === undefined) return;
@@ -449,6 +458,7 @@
         {moreActive}
         onSelectViewMode={selectViewMode}
         onOpenEditor={() => openEditor()}
+        onTrash={moveToTrash}
       />
     {/if}
 

@@ -3,7 +3,7 @@
 A self-hosted, non-destructive RAW editor for an existing
 [Immich](https://immich.app/) library. It browses assets through Immich, decodes and exports on the
 server, draws live previews in the browser when WebGPU is available, and stores edits locally.
-Originals remain unchanged.
+Originals remain unchanged, and go to the Immich trash only when you ask.
 
 > [!WARNING]
 > immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the upgrade notes

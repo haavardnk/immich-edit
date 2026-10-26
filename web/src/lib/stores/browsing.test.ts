@@ -34,6 +34,26 @@ describe('browsing store', () => {
     expect(feed.map((a) => a.id)).toEqual([A, `${A}_1`, `${A}_2`, B]);
   });
 
+  it('removes many in place and puts them back where they were', () => {
+    browsing.total = 2;
+    browsing.insertCopy(`${A}_1`, A, null);
+    const removed = browsing.removeMany(new Set([A, `${A}_1`]));
+    expect(browsing.assets).toBe(feed);
+    expect(feed.map((a) => a.id)).toEqual([B]);
+    expect(browsing.total).toBe(0);
+    browsing.reinsert(removed);
+    expect(browsing.assets).toBe(feed);
+    expect(feed.map((a) => a.id)).toEqual([A, `${A}_1`, B]);
+    expect(browsing.total).toBe(2);
+  });
+
+  it('does not put removed photos into a list loaded since', () => {
+    const removed = browsing.removeMany(new Set([A]));
+    browsing.set([summary(B)]);
+    browsing.reinsert(removed);
+    expect(browsing.assets.map((a) => a.id)).toEqual([B]);
+  });
+
   it('removes a copy without replacing the array', () => {
     browsing.insertCopy(`${A}_1`, A, null);
     browsing.remove(`${A}_1`);

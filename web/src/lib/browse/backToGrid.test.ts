@@ -40,4 +40,11 @@ describe('backToGrid', () => {
     await backToGrid('c');
     expect(browseView.activeId).toBeNull();
   });
+
+  it('does not reopen the loupe on an asset that left the list', async () => {
+    browseView.setLastGridPath('/photos');
+    browseView.leaveLoupeForEditor('c');
+    await backToGrid('c');
+    expect(browseView.loupeId).toBeNull();
+  });
 });
