@@ -31,7 +31,7 @@ impl Default for BakeParams {
 const LEVEL_BLACK: f32 = 0.03;
 const LEVEL_RANGE: f32 = 0.94;
 
-fn guided_radius(w: usize, h: usize) -> usize {
+pub(crate) fn guided_radius(w: usize, h: usize) -> usize {
     (w.max(h) as f32 * 0.0075).round().clamp(8.0, 24.0) as usize
 }
 

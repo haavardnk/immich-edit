@@ -12,7 +12,7 @@ use crate::common::{
 };
 
 #[cfg(feature = "ml")]
-use crate::common::json_request;
+use crate::common::{empty_request, json_request, seed_and_wrap};
 #[cfg(feature = "ml")]
 use serde_json::Value;
 
@@ -321,4 +321,46 @@ async fn a_click_box_thinner_than_the_minimum_is_rejected() {
 async fn a_valid_click_box_reaches_the_segmentation_check() {
     let body = click_error(serde_json::json!({ "x0": 0.8, "y0": 0.8, "x1": 0.2, "y1": 0.2 })).await;
     assert_eq!(body["message"], "segmentation is disabled on this server");
+}
+
+#[cfg(feature = "ml")]
+async fn depth_error(state: immich_edit_backend::state::AppState, server: &MockServer) -> Value {
+    let app = seed_and_wrap(server, state).await;
+    let id = Uuid::new_v4();
+    let res = app
+        .oneshot(empty_request("POST", &format!("/api/assets/{id}/depth")))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    body_json(res).await
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn a_depth_map_is_rejected_when_segmentation_is_off() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let body = depth_error(state, &server).await;
+    assert_eq!(body["message"], "segmentation is disabled on this server");
+}
+
+#[cfg(feature = "ml")]
+#[tokio::test]
+async fn a_depth_map_needs_an_installed_depth_model() {
+    use immich_edit_backend::config::MlRuntimeMode;
+    use immich_edit_backend::services::ml_runtime::InferencePermits;
+    use immich_edit_backend::services::segment::SegmentService;
+
+    let server = MockServer::start().await;
+    let mut state = test_state(&server).await;
+    let mut config = (*state.config).clone();
+    config.ml_runtime = MlRuntimeMode::Cpu;
+    state.segment = SegmentService::new(
+        &config,
+        state.models.clone(),
+        state.segment.embeddings().clone(),
+        InferencePermits::new(config.ml_max_concurrency),
+    );
+    let body = depth_error(state, &server).await;
+    assert_eq!(body["message"], "no model installed for depth");
 }

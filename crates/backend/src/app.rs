@@ -53,6 +53,7 @@ fn model_routes() -> Router<AppState> {
         .route("/assets/{id}/masks/generate", post(routes::masks::generate))
         .route("/masks/rebake", post(routes::masks::rebake))
         .route("/assets/{id}/masks/click", post(routes::masks::click))
+        .route("/assets/{id}/depth", post(routes::depth::generate))
         .route(
             "/assets/{id}/denoise",
             get(routes::denoise::status).post(routes::denoise::start),

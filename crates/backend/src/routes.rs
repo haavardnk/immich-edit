@@ -8,6 +8,8 @@ pub mod dcp;
 pub mod debug;
 #[cfg(feature = "ml")]
 pub mod denoise;
+#[cfg(feature = "ml")]
+pub mod depth;
 pub mod edited_thumb;
 pub mod edits;
 pub mod export;

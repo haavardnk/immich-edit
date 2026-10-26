@@ -175,7 +175,7 @@ fn bake_params(grow: f32, feather: f32, range: Option<&RangeBody>) -> Result<Bak
     })
 }
 
-fn map_segment_err(err: SegmentServiceError) -> AppError {
+pub(super) fn map_segment_err(err: SegmentServiceError) -> AppError {
     match err {
         SegmentServiceError::Disabled => {
             AppError::BadRequest("segmentation is disabled on this server".into())
@@ -187,7 +187,7 @@ fn map_segment_err(err: SegmentServiceError) -> AppError {
     }
 }
 
-async fn scene_render(
+pub(super) async fn scene_render(
     state: &AppState,
     ctx: &AuthCtx,
     asset_id: AssetKey,
@@ -222,11 +222,7 @@ pub async fn generate(
         req.feather,
         req.range.as_ref().or(full_depth.as_ref()),
     )?;
-    if !state.segment.enabled() {
-        return Err(AppError::BadRequest(
-            "segmentation is disabled on this server".into(),
-        ));
-    }
+    state.segment.ready(kind).await.map_err(map_segment_err)?;
 
     let SceneImage {
         rgb8,
@@ -327,11 +323,11 @@ pub async fn click(
         Some(b) => Some(scene_box(&b)?),
         None => None,
     };
-    if !state.segment.enabled() {
-        return Err(AppError::BadRequest(
-            "segmentation is disabled on this server".into(),
-        ));
-    }
+    state
+        .segment
+        .ready(ModelKind::Click)
+        .await
+        .map_err(map_segment_err)?;
 
     let SceneImage {
         rgb8,
