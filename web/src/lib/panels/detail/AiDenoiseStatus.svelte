@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { DenoiseStatus } from '$lib/api/denoise';
+  import ModelMissingNotice from '$lib/components/ModelMissingNotice.svelte';
   import Notice from '$lib/components/Notice.svelte';
-  import { session } from '$lib/stores/session.svelte';
-  import { Button, Link, ProgressBar } from '@immich/ui';
+  import { Button, ProgressBar } from '@immich/ui';
 
   let {
     status,
@@ -43,16 +43,10 @@
     {/if}
   </div>
 {:else if status?.state === 'model_missing'}
-  <Notice
-    color="warning"
-    message={session.isAdmin
-      ? 'The AI Denoise model is not installed.'
-      : 'The AI Denoise model is not installed. Ask an administrator to install it.'}
-  >
-    {#if session.isAdmin}
-      <Link href="/settings#models" class="flex-none">Models settings</Link>
-    {/if}
-  </Notice>
+  <ModelMissingNotice
+    message="The AI Denoise model is not installed."
+    askAdmin="Ask an administrator to install it."
+  />
 {:else if status?.state === 'disabled'}
   <Notice color="warning" message="AI models are turned off on this server." />
 {:else if status?.state === 'unsupported'}

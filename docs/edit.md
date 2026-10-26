@@ -86,6 +86,14 @@ act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy a
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).
    **Remove Chromatic Aberration** is off until you turn it on.
+1. **Lens Blur** blurs what lies in front of or behind your subject, like a wide aperture. Press
+   **Generate depth** once per photo; the server estimates how far away each part of the photo is
+   with the depth model, and the blur turns on. **Focal Range** picks the band of distance that
+   stays sharp, from the nearest part of the photo on the left to the farthest on the right.
+   **Amount** sets how strong the blur gets at the distance farthest from that band, **Bokeh**
+   sets the shape of out-of-focus highlights, and **Boost** makes those highlights brighter. Set
+   **Amount** above 0 to change the other three. The depth model is
+   installed by an administrator under [**Models**](administration.md#models).
 1. **Effects** adds a vignette and grain. Grain is strongest in the midtones and, like film, leaves
    deep shadows and bright highlights clean.
 
@@ -230,9 +238,10 @@ leaving the tool. The tool stays open until you pick another one.
 **Copy edits** (`Ctrl+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
 **Tone**, **Color**, **Detail**, **Lens Corrections**, **Effects**, **Geometry & crop**, **Masks**
 and **Retouch**. The last three start unchecked, because a crop or a mask rarely fits another
-photo. Then open another photo and press **Paste edits** (`Ctrl+V`). A short message confirms
-each copy and paste, or says when there is nothing to copy or paste. To paste onto many
-photos at once, use [**Edit and export selected**](export.md#export-many-photos).
+photo. **Lens Blur** is never copied, because its depth map belongs to one photo. Then open
+another photo and press **Paste edits** (`Ctrl+V`). A short message confirms each copy and paste,
+or says when there is nothing to copy or paste. To paste onto many photos at once, use
+[**Edit and export selected**](export.md#export-many-photos).
 
 A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press
 `Shift+P` or **Presets** in the bottom bar to show it, and again to close it along with the

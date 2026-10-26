@@ -232,6 +232,34 @@ describe('manifest codec', () => {
     expect(decoded.geometry.aspect).toEqual(edits.geometry.aspect);
   });
 
+  it('preserves lens blur and keeps a depth map with the blur off', () => {
+    const edits = neutralEdits();
+    edits.lens_blur = {
+      amount: 45,
+      focus_min: 0.1,
+      focus_max: 0.4,
+      shape: 'hexagon',
+      boost: 20,
+      depth_raster_id: 'depth-1'
+    };
+    expect(roundTrip(edits).lens_blur).toEqual(edits.lens_blur);
+
+    const off = neutralEdits();
+    off.lens_blur.depth_raster_id = 'depth-1';
+    expect(editsToManifest(off).ops.lens_blur).toMatchObject({ depth_raster_id: 'depth-1' });
+    expect(roundTrip(off).lens_blur.depth_raster_id).toBe('depth-1');
+    expect(isIdentity(off)).toBe(true);
+  });
+
+  it('reads an unknown bokeh shape as a circle', () => {
+    const edits = manifestToEdits({
+      schema_version: 5,
+      ops: { lens_blur: { amount: 30, shape: 'star', depth_raster_id: 'd' } }
+    });
+    expect(edits.lens_blur.shape).toBe('circle');
+    expect(edits.lens_blur.focus_max).toBe(0.3);
+  });
+
   it('preserves retouch strokes', () => {
     const edits = neutralEdits();
     edits.retouch = [

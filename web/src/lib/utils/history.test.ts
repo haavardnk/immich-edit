@@ -266,6 +266,29 @@ describe('historyDetails', () => {
     });
   });
 
+  it('groups lens blur changes under one section', () => {
+    const prev = neutralEdits();
+    const curr = neutralEdits();
+    curr.lens_blur = {
+      amount: 50,
+      focus_min: 0.1,
+      focus_max: 0.4,
+      shape: 'hexagon',
+      boost: 0,
+      depth_raster_id: 'depth'
+    };
+    const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
+      (detail) => detail.key === 'lens_blur'
+    );
+    expect(group?.label).toBe('Lens Blur');
+    expect(group?.items).toEqual([
+      { kind: 'value', label: 'Lens Blur Amount', before: '0', after: '50' },
+      { kind: 'summary', text: 'Depth map generated' },
+      { kind: 'value', label: 'Focal Range', before: '0–30', after: '10–40' },
+      { kind: 'value', label: 'Bokeh', before: 'circle', after: 'hexagon' }
+    ]);
+  });
+
   it('summarizes LUT selection changes', () => {
     const prev = neutralEdits();
     const curr = neutralEdits();

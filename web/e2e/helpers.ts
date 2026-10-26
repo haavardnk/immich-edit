@@ -126,8 +126,8 @@ export const NEUTRAL_RECORD = {
   hash: 'hash-neutral'
 };
 
-export function json(data: unknown): Parameters<Route['fulfill']>[0] {
-  return { status: 200, contentType: 'application/json', body: JSON.stringify(data) };
+export function json(data: unknown, status = 200): Parameters<Route['fulfill']>[0] {
+  return { status, contentType: 'application/json', body: JSON.stringify(data) };
 }
 
 export function png(): Parameters<Route['fulfill']>[0] {

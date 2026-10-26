@@ -357,7 +357,7 @@
           </div>
         {/if}
 
-        {#if activeComp && activeComp.kind.kind === 'brush' && maskModels.clickInstalled}
+        {#if activeComp && activeComp.kind.kind === 'brush' && maskModels.installed('click')}
           <MaskClickRefine layerId={active.id} />
         {/if}
 

@@ -94,27 +94,18 @@
       />
     {/if}
     {#if meta.kind === 'depth'}
-      <div class="panel-row h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-white/3">
-        <span class="truncate text-[11px] font-medium text-dark/65 select-none">Near → Far</span>
-        <DualRangeSlider
-          value={[depthMin, depthMax]}
-          min={0}
-          max={1}
-          step={0.01}
-          defaultValue={[0, 1]}
-          thumbLabels={['Near limit', 'Far limit']}
-          valueText={(v: number) => `${Math.round(v * 100)}% of the photo is nearer`}
-          onLive={([near, far]) => {
-            depthMin = near;
-            depthMax = far;
-            previewDepth();
-          }}
-          onCommit={rebake}
-        />
-        <span class="px-1 text-right font-mono text-[10px] text-dark/65 tabular-nums">
-          {Math.round(depthMin * 100)}–{Math.round(depthMax * 100)}
-        </span>
-      </div>
+      <DualRangeSlider
+        label="Near → Far"
+        value={[depthMin, depthMax]}
+        defaultValue={[0, 1]}
+        thumbLabels={['Near limit', 'Far limit']}
+        onLive={([near, far]) => {
+          depthMin = near;
+          depthMax = far;
+          previewDepth();
+        }}
+        onCommit={rebake}
+      />
       <SliderRow
         label="Softness"
         value={depthSoftness}

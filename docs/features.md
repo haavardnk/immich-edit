@@ -100,7 +100,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Alternate high-quality export demosaic | ✗ No | Exports use the same Bayer or X-Trans method as previews |
 | Moiré and false-color correction | ✗ No | — |
 | Manual purple or green defringe | ✗ No | Lens chromatic-aberration correction is profile based |
-| Depth-based lens blur and bokeh | ✗ No | Depth masks exist, but there is no blur operator |
+| Depth-based lens blur and bokeh | ✓ Yes | Global; circle, hexagon or octagon bokeh with highlight boost; needs an admin-installed depth model; see [edit](edit.md) |
 
 ## Masks and retouch
 

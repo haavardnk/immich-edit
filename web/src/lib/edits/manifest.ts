@@ -7,6 +7,7 @@ import {
 } from '$lib/types/edits';
 import { decodeColor, encodeColor } from './manifest/color';
 import { decodeTransform, encodeTransform } from './manifest/geometry';
+import { decodeLensBlur, encodeLensBlur } from './manifest/lensBlur';
 import { decodeMasks } from './manifest/masks';
 import { decodeRetouch } from './manifest/retouch';
 import { decodeCurves, encodeCurves } from './manifest/tone';
@@ -25,6 +26,7 @@ export function editsToManifest(edits: Edits): EditManifest {
   encodeTransform(edits, ops);
   if (edits.masks.length > 0) ops.masks = { layers: edits.masks };
   if (edits.retouch.length > 0) ops.retouch = { strokes: edits.retouch };
+  encodeLensBlur(edits, ops);
   return { schema_version: 5, ops };
 }
 
@@ -43,5 +45,6 @@ export function manifestToEdits(doc: EditManifest): Edits {
   decodeMasks(ops, edits);
   if (version < 5) negateLegacyMaskTints(edits);
   decodeRetouch(ops, edits);
+  decodeLensBlur(ops, edits);
   return edits;
 }

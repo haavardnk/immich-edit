@@ -3,6 +3,7 @@ import type {
   CurveChannel,
   Edits,
   GeometryEdits,
+  LensBlurEdits,
   LensEdits,
   MaskLayer,
   WhiteBalance
@@ -16,6 +17,7 @@ import {
   neutralSharpenAmount,
   whiteBalanceIsAsShot
 } from '$lib/types/edits';
+import { percentRange } from '$lib/utils/percent';
 import { neutralPerspective } from '$lib/utils/perspective';
 
 type NumberFieldDef = {
@@ -235,6 +237,13 @@ const FIELDS: FieldDef[] = [
   { kind: 'number', section: 'lens', label: 'Lens Vignetting', get: (e) => e.lens.vignette_amount },
   {
     kind: 'number',
+    section: 'lens_blur',
+    label: 'Lens Blur Amount',
+    get: (e) => e.lens_blur.amount
+  },
+  { kind: 'number', section: 'lens_blur', label: 'Lens Blur Boost', get: (e) => e.lens_blur.boost },
+  {
+    kind: 'number',
     section: 'color',
     label: 'Color Balance',
     get: (e) => e.color.color_grade.balance,
@@ -287,7 +296,8 @@ const SECTION_LABELS: Record<string, string> = {
   color: 'Color',
   detail: 'Detail',
   effects: 'Effects',
-  lens: 'Lens'
+  lens: 'Lens',
+  lens_blur: 'Lens Blur'
 };
 
 const CURVE_LABELS: Record<CurveChannel, string> = {
@@ -462,6 +472,22 @@ function aspectLabel(aspect: GeometryEdits['aspect']): string {
   return aspect.kind === 'original' ? 'Original' : 'Free';
 }
 
+function lensBlurItems(prev: LensBlurEdits, curr: LensBlurEdits): HistoryDetailItem[] {
+  const items: HistoryDetailItem[] = [];
+  if (prev.depth_raster_id !== curr.depth_raster_id)
+    items.push({
+      kind: 'summary',
+      text: curr.depth_raster_id ? 'Depth map generated' : 'Depth map removed'
+    });
+  const focusBefore = percentRange(prev.focus_min, prev.focus_max);
+  const focusAfter = percentRange(curr.focus_min, curr.focus_max);
+  if (focusBefore !== focusAfter)
+    items.push({ kind: 'value', label: 'Focal Range', before: focusBefore, after: focusAfter });
+  if (prev.shape !== curr.shape)
+    items.push({ kind: 'value', label: 'Bokeh', before: prev.shape, after: curr.shape });
+  return items;
+}
+
 function geometryItems(prev: GeometryEdits, curr: GeometryEdits): HistoryDetailItem[] {
   const items: HistoryDetailItem[] = [];
   if (prev.rotate !== curr.rotate)
@@ -551,6 +577,14 @@ function dcpLabel(edits: Edits): string {
   return edits.color.dcp.profile_id ? 'Imported profile' : 'Unavailable profile';
 }
 
+function groupFor(groups: Map<string, HistoryDetailGroup>, key: string): HistoryDetailGroup {
+  const existing = groups.get(key);
+  if (existing) return existing;
+  const group: HistoryDetailGroup = { key, label: SECTION_LABELS[key] ?? key, items: [] };
+  groups.set(key, group);
+  return group;
+}
+
 export function historyDetails(
   entry: EditHistoryEntry,
   previous: EditHistoryEntry | null,
@@ -560,16 +594,14 @@ export function historyDetails(
   const groups = new Map<string, HistoryDetailGroup>();
   for (const field of FIELDS) {
     if (!fieldChanged(field, prev, curr, isRaw)) continue;
-    const existing = groups.get(field.section);
-    const group = existing ?? {
-      key: field.section,
-      label: SECTION_LABELS[field.section] ?? field.section,
-      items: []
-    };
-    if (!existing) groups.set(field.section, group);
     const before = fmtField(field, prev, isRaw);
     const after = fmtField(field, curr, isRaw);
-    group.items.push({ kind: 'value', label: field.label, before, after });
+    groupFor(groups, field.section).items.push({
+      kind: 'value',
+      label: field.label,
+      before,
+      after
+    });
   }
 
   const nested: HistoryDetailGroup[] = [
@@ -580,43 +612,30 @@ export function historyDetails(
   const wbBefore = whiteBalanceLabel(prev.basic.white_balance);
   const wbAfter = whiteBalanceLabel(curr.basic.white_balance);
   if (wbBefore !== wbAfter) {
-    let group = groups.get('basic');
-    if (!group) {
-      group = { key: 'basic', label: 'Basic', items: [] };
-      groups.set('basic', group);
-    }
-    group.items.push({ kind: 'value', label: 'White Balance', before: wbBefore, after: wbAfter });
+    groupFor(groups, 'basic').items.push({
+      kind: 'value',
+      label: 'White Balance',
+      before: wbBefore,
+      after: wbAfter
+    });
   }
+  const blurItems = lensBlurItems(prev.lens_blur, curr.lens_blur);
+  if (blurItems.length > 0) groupFor(groups, 'lens_blur').items.push(...blurItems);
   if (profileChanged(prev.lens, curr.lens)) {
-    let group = groups.get('lens');
-    if (!group) {
-      group = { key: 'lens', label: 'Lens', items: [] };
-      groups.set('lens', group);
-    }
-    group.items.push({ kind: 'summary', text: 'Profile data changed' });
+    groupFor(groups, 'lens').items.push({ kind: 'summary', text: 'Profile data changed' });
   }
   if (
     prev.color.dcp.mode !== curr.color.dcp.mode ||
     prev.color.dcp.profile_id !== curr.color.dcp.profile_id ||
     prev.color.dcp.illuminant !== curr.color.dcp.illuminant
   ) {
-    let group = groups.get('color');
-    if (!group) {
-      group = { key: 'color', label: 'Color', items: [] };
-      groups.set('color', group);
-    }
-    group.items.push({
+    groupFor(groups, 'color').items.push({
       kind: 'summary',
       text: `Camera profile: ${dcpLabel(prev)} → ${dcpLabel(curr)}`
     });
   }
   if (prev.color.lut_3d.lut_id !== curr.color.lut_3d.lut_id) {
-    let group = groups.get('color');
-    if (!group) {
-      group = { key: 'color', label: 'Color', items: [] };
-      groups.set('color', group);
-    }
-    group.items.push({ kind: 'summary', text: 'LUT selection changed' });
+    groupFor(groups, 'color').items.push({ kind: 'summary', text: 'LUT selection changed' });
   }
   return [...groups.values(), ...nested.filter((group) => group.items.length > 0)];
 }

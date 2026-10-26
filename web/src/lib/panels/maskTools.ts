@@ -122,7 +122,7 @@ export function stopClickTool(): void {
 }
 
 function armClickTool(target: MaskTarget, box: boolean): void {
-  if (!maskModels.clickInstalled) {
+  if (!maskModels.installed('click')) {
     promptInstall('click');
     return;
   }

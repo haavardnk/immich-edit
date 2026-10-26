@@ -3,6 +3,7 @@ import type { DetailEdits } from './detail';
 import type { EffectsEdits } from './effects';
 import type { GeometryEdits } from './geometry';
 import type { LensEdits } from './lens';
+import type { LensBlurEdits } from './lensBlur';
 import type { MaskLayer } from './masks';
 import type { RetouchStroke } from './retouch';
 import type { BasicEdits, ToneEdits } from './tone';
@@ -17,6 +18,7 @@ export interface Edits {
   geometry: GeometryEdits;
   masks: MaskLayer[];
   retouch: RetouchStroke[];
+  lens_blur: LensBlurEdits;
 }
 
 export interface EditManifest {

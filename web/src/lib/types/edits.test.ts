@@ -165,7 +165,14 @@ const SECTION_FIELDS: Record<DevelopSection, string[]> = {
   grain: ['effects.grain_amount', 'effects.grain_size', 'effects.grain_roughness'],
   lens: ['lens.profile_enabled', 'lens.k1'],
   lut: ['color.lut_3d.lut_id', 'color.lut_3d.amount'],
-  bw: ['color.bw.enabled', 'color.bw.mix.green', 'color.bw.shadows.sat', 'color.bw.balance']
+  bw: ['color.bw.enabled', 'color.bw.mix.green', 'color.bw.shadows.sat', 'color.bw.balance'],
+  lens_blur: [
+    'lens_blur.amount',
+    'lens_blur.focus_min',
+    'lens_blur.focus_max',
+    'lens_blur.shape',
+    'lens_blur.boost'
+  ]
 };
 
 function read(edits: Edits, path: string): unknown {
@@ -217,6 +224,14 @@ function graded(): Edits {
   edits.color.bw.mix.green = 40;
   edits.color.bw.shadows.sat = 25;
   edits.color.bw.balance = -30;
+  edits.lens_blur = {
+    amount: 60,
+    focus_min: 0.1,
+    focus_max: 0.5,
+    shape: 'hexagon',
+    boost: 40,
+    depth_raster_id: 'depth'
+  };
   edits.geometry.rotate = 90;
   return edits;
 }
@@ -239,6 +254,7 @@ describe('neutraliseSection', () => {
     }
     expect(bypassed.color.hsl).toEqual(edits.color.hsl);
     expect(bypassed.geometry).toEqual(edits.geometry);
+    expect(bypassed.lens_blur.depth_raster_id).toBe('depth');
     expect(bypassed.color.dcp).toEqual(edits.color.dcp);
   });
 

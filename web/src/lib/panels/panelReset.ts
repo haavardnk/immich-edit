@@ -1,4 +1,4 @@
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import { neutralEdits, resetLensBlur, type Edits } from '$lib/types/edits';
 
 type PanelReset = (edits: Edits, neutral: Edits) => Edits;
 
@@ -22,6 +22,7 @@ const PANEL_RESETS: Record<string, PanelReset> = {
   lut: (edits, neutral) => ({ ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } }),
   detail: (edits, neutral) => ({ ...edits, detail: neutral.detail }),
   lens: (edits, neutral) => ({ ...edits, lens: neutral.lens }),
+  'lens-blur': (edits) => ({ ...edits, lens_blur: resetLensBlur(edits.lens_blur) }),
   effects: (edits, neutral) => ({ ...edits, effects: neutral.effects })
 };
 

@@ -69,8 +69,8 @@ file, so a stalled download no longer holds up the others. Models are shared by 
 under `DATA_DIR/models`.
 
 The catalog covers subject, people, sky, depth, scene, and click selection for masks, plus
-**AI Denoise** for RAW photos. Check each model's license before commercial use. Select an
-installed default when a kind has more than one model.
+**AI Denoise** for RAW photos. The depth model also drives **Lens Blur**. Check each model's
+license before commercial use. Select an installed default when a kind has more than one model.
 
 **AI Denoise** works on one photo at a time. While it runs it needs roughly 1 GB of RAM for a 24 MP
 photo, on top of the model itself.
