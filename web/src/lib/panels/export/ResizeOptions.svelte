@@ -128,7 +128,7 @@
 {/if}
 
 {#if error}
-  <p class="px-1 text-[10px] leading-snug text-danger-300">{error}</p>
+  <p class="px-1 text-[10px] leading-snug text-danger-800">{error}</p>
 {/if}
 
 {#if form.resizeMode === 'dimensions' || form.resizeMode === 'megapixels'}

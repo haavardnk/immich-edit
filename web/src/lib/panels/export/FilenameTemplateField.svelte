@@ -38,7 +38,7 @@
   />
   <p id="{id}-hint" class="px-1 text-[10px] leading-snug text-dark/65">
     {#if error}
-      <span class="text-danger-300">{error}</span>
+      <span class="text-danger-800">{error}</span>
     {:else if preview}
       <span class="font-mono">{preview}</span>
     {/if}
