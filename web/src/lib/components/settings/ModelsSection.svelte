@@ -139,7 +139,7 @@
               per {model.input_edge} px tile{/if}
           </div>
           {#if model.install_error}
-            <div class="truncate text-danger-300">Download failed: {model.install_error}</div>
+            <div class="truncate text-danger-800">Download failed: {model.install_error}</div>
           {/if}
           {#if model.installing}
             <ProgressBar

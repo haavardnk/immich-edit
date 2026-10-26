@@ -81,8 +81,8 @@
     <span class="editor-compact-label select-none">Source</span>
     <span
       class="rounded-full px-1.5 text-[10px] leading-4 {editor.retouchAnchor
-        ? 'bg-success-950/60 text-success-200'
-        : 'bg-danger-950/60 text-danger-200'}"
+        ? 'bg-success-500/15 text-success-800'
+        : 'bg-danger-500/15 text-danger-800'}"
     >
       {editor.retouchAnchor ? 'Set' : 'Not set'}
     </span>
@@ -115,7 +115,7 @@
     role="status"
     aria-live="polite"
     class={editor.retouchSourceMissed && !editor.retouchAnchor
-      ? 'animate-pulse text-[10px] text-danger-200'
+      ? 'animate-pulse text-[10px] text-danger-800'
       : 'sr-only'}
   >
     {editor.retouchSourceMissed && !editor.retouchAnchor ? 'Set a source before painting' : ''}

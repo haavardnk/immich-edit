@@ -30,10 +30,10 @@
   };
 
   const tones: Record<Tone, string> = {
-    danger: 'border-danger-500/25 bg-danger-500/10 text-danger-200',
-    warning: 'border-warning-500/25 bg-warning-500/10 text-warning-200',
-    info: 'border-info-500/25 bg-info-500/10 text-info-200',
-    success: 'border-success-500/25 bg-success-500/10 text-success-200'
+    danger: 'border-danger-500/25 bg-danger-500/10 text-danger-800',
+    warning: 'border-warning-500/25 bg-warning-500/10 text-warning-800',
+    info: 'border-info-500/25 bg-info-500/10 text-info-800',
+    success: 'border-success-500/25 bg-success-500/10 text-success-800'
   };
 </script>
 

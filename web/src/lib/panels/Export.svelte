@@ -169,7 +169,7 @@
 
   {#if result && result.warnings.length > 0}
     <ul
-      class="space-y-0.5 rounded-sm border border-warning-500/40 bg-warning-950/40 px-2 py-1.5 text-[10px] leading-snug text-warning-100"
+      class="space-y-0.5 rounded-sm border border-warning-500/25 bg-warning-500/10 px-2 py-1.5 text-[10px] leading-snug text-warning-800"
     >
       {#each result.warnings as w (w)}
         <li class="flex items-start gap-1.5">
