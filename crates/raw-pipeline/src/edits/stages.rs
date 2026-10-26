@@ -1,4 +1,4 @@
-use super::{DetailEdits, Edits, GeometryEdits};
+use super::{DetailEdits, Edits, GeometryEdits, LensBlurEdits};
 
 impl Edits {
     pub fn sensor_stage(&self) -> Self {
@@ -27,6 +27,10 @@ impl Edits {
             lens: self.lens,
             geometry,
             retouch: self.retouch.clone(),
+            lens_blur: LensBlurEdits {
+                depth_raster_id: self.lens_blur.depth_raster_id.clone(),
+                ..LensBlurEdits::default()
+            },
             ..Self::default()
         };
         out.color.dcp = self.color.dcp.clone();

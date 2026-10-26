@@ -26,7 +26,7 @@ Every operator implements `Op` and declares one mandatory `GpuRoute`:
 | `Fused` | Pointwise Rust and WGSL implementation in the generated process pass |
 | `Presence` | Texture, clarity, and luma-pyramid infrastructure |
 | `Detail` | Dedicated noise-reduction or capture-sharpen path |
-| `Pass(name)` | Dedicated named GPU pass such as retouch or dehaze |
+| `Pass(name)` | Dedicated named GPU pass such as retouch, dehaze, or lens blur |
 | `Manifest` | Persistence-only entry that never runs as a normal operator |
 
 There is no default route. A new operator that omits it fails to compile. Registry tests check that
@@ -52,7 +52,7 @@ relative tolerance of `1e-4`. This also checks uniform packing.
 1. Computes preview metadata and encodes the result.
 
 CPU operators do not skip `Detail` routes. Noise reduction, capture sharpening, creative sharpening,
-retouch, dehaze, masks, and geometry all have CPU implementations.
+retouch, dehaze, lens blur, masks, and geometry all have CPU implementations.
 
 ### Sensor-stage cache
 
@@ -115,15 +115,16 @@ above, so bright areas come down without flattening or changing color.
 | 7 | Capture sharpening | RAW-only deconvolution before preview reduction |
 | 8 | Preview reduction | Shared Lanczos3 target whenever the preview is smaller than the source |
 | 9 | Dehaze | Bounded atmosphere estimate and guided filter |
-| 10 | Presence | Texture, clarity, and shadows pyramid |
-| 11 | Process | User white balance, DCP HueSatMap, fused operators, and geometry sampling |
-| 12 | Masks | Component weight and local adjustment blend |
-| 13 | Sharpen | Global and per-pixel masked amount |
-| 14 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
-| 15 | DCP finish | LookTable, profile tone curve, curves |
-| 16 | LUT | `.cube` 1D shaper and tetrahedral 3D sampling in display sRGB |
-| 17 | Mask overlay | Optional red coverage overlay |
-| 18 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
+| 10 | Lens blur | Depth-driven circle-of-confusion gather when Lens Blur is active |
+| 11 | Presence | Texture, clarity, and shadows pyramid |
+| 12 | Process | User white balance, DCP HueSatMap, fused operators, and geometry sampling |
+| 13 | Masks | Component weight and local adjustment blend |
+| 14 | Sharpen | Global and per-pixel masked amount |
+| 15 | Effects and output | Vignette, grain, destination gamut, transfer curve, curves |
+| 16 | DCP finish | LookTable, profile tone curve, curves |
+| 17 | LUT | `.cube` 1D shaper and tetrahedral 3D sampling in display sRGB |
+| 18 | Mask overlay | Optional red coverage overlay |
+| 19 | Readback and encode | Warning paint, histogram, scopes, and output encoding |
 
 The exact encoder grouping can combine adjacent entries. The order and color-space boundaries are
 the contract.
@@ -140,8 +141,9 @@ display chain renders it byte for byte like the frame it came from.
 
 `Edits::sensor_stage` keeps only the fields that change the source: AI Denoise, noise reduction,
 capture sharpening, lens, retouch, the DCP selection, and crop and rotation, which set its
-resolution. The CPU source is already oriented, so its metadata carries identity orientation and
-oriented dimensions.
+resolution. It also keeps the Lens Blur depth map id, because a windowed source widens its margin
+by the largest blur reach whenever a depth map exists. The CPU source is already oriented, so its
+metadata carries identity orientation and oriented dimensions.
 
 `source::encode` writes an `IESR` stream: a versioned binary header that keeps every float bit for
 bit, then the half-float samples as per-channel planes of high and low bytes, each row delta
@@ -194,6 +196,26 @@ rules must change together.
 Negative dehaze adds haze by raising the transmission to a power that grows with the slider, so a
 pixel moves toward the atmosphere by `1 - t^(3|amount|)`. Distant or already hazy areas fog first,
 while clear, dark foreground keeps its contrast until the slider is near its end.
+
+## Lens blur
+
+Lens blur is a `Tone` operator at order -33, after dehaze and before texture and clarity, on the
+scene-linear image at the same resolution dehaze sees. Mask layers start from the blurred image.
+It reads the depth raster named by `lens_blur.depth_raster_id`, a disparity map (255 nearest) in
+the same scene space as generated masks, through the inverse lens warp.
+
+- Focus: the depth levels whose distance rank overlaps **Focal Range** stay sharp. Outside that
+  band the signed circle of confusion grows linearly with disparity, and the depth extreme farthest
+  from the band reaches the full **Amount**, at most 2% of the long edge.
+- Blur: both renderers average the image into a grid of power-of-two cells sized so the blur
+  radius spans at most 16 of them, anchored to the oriented frame. Each cell gathers the cells
+  whose aperture covers it; a farther cell never spreads over a nearer one. **Bokeh** tests
+  offsets against a polygon, and **Boost** weights bright cells up. The result is upsampled with
+  depth-aware bilinear weights and blended over the sharp pixel by the larger of its own circle of
+  confusion and the spread that reached it, so a blurred foreground also covers sharp pixels behind
+  its edge.
+- The GPU source is sensor-oriented and may be a window, so the shaders map each texel to the
+  oriented frame before sampling depth or the grid.
 
 ## Camera profiles and tone
 

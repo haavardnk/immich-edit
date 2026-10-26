@@ -36,6 +36,8 @@ fn dehaze_runs_after_nr_and_before_presence() {
     assert!(pos("capture_sharpen") < pos("dehaze"));
     assert!(pos("dehaze") < pos("texture"));
     assert!(pos("dehaze") < pos("clarity"));
+    assert!(pos("dehaze") < pos("lens_blur"));
+    assert!(pos("lens_blur") < pos("texture"));
 }
 
 #[test]

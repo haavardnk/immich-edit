@@ -50,6 +50,7 @@ pub(super) struct StageState {
     pub texture: Arc<Texture>,
     pub extent: SourceExtent,
     pub window: [f32; 4],
+    pub origin: (u32, u32),
     pub shadows_mip: f32,
     pub shadows: Option<Arc<Texture>>,
     atmosphere: Option<[f32; 3]>,
@@ -67,6 +68,7 @@ impl StageState {
             window: source
                 .window
                 .map_or(FULL_WINDOW, |w| w.uv_rect(source.dims)),
+            origin: source.window.map_or((0, 0), |w| w.origin),
             shadows_mip: presence_blurs(full_w, full_h).shadows.level as f32,
             shadows: None,
             atmosphere: source.atmosphere,
@@ -200,6 +202,7 @@ impl GpuRenderer {
 
         let t = &timings;
         self.dehaze_stage(&mut state, &edits_c, t, cancel)?;
+        self.lens_blur_stage(&mut state, meta, &edits_c, opts, t, cancel)?;
         let base = state.texture.clone();
         self.presence_stage(&mut state, &edits_c, t, cancel)?;
         self.layer_presence_stage(&mut state, &base, &edits_c, t, cancel)?;

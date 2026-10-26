@@ -16,6 +16,7 @@ use super::passes::dehaze::{
 use super::passes::demosaic::{DEMOSAIC_WGSL, SUPERPIXEL_WGSL};
 use super::passes::denoise_blend::{DENOISE_BLEND_WGSL, DenoiseBlendParams};
 use super::passes::effects_tone::{EffectsToneParams, effects_tone_wgsl};
+use super::passes::lens_blur::{LensBlurParams, apply_wgsl, down_wgsl, gather_wgsl};
 use super::passes::lut::{LutParams, lut_wgsl};
 use super::passes::mask_blend::{MASK_BLEND_WGSL, MaskBlendParams};
 use super::passes::mask_selector::{MaskSelectorParams, mask_selector_wgsl};
@@ -158,6 +159,23 @@ fn uniform_structs_mirror_wgsl() {
     let xtrans = || layout!(XtransParams { size, pattern } pad { _pad });
     let bins = || layout!(BinParams { size, step } pad { _pad });
     let nr_size = || layout!(NrSizeParams { size } pad { _pad });
+    let lens_blur = || {
+        layout!(LensBlurParams {
+            size,
+            origin,
+            full,
+            grid_origin,
+            grid_size,
+            ds,
+            reach,
+            orient,
+            lens,
+            radius,
+            boost,
+            blades,
+            table,
+        } pad { _pad0, _pad })
+    };
     let retouch = || {
         layout!(RetouchParams {
             dims,
@@ -215,6 +233,17 @@ fn uniform_structs_mirror_wgsl() {
             "dehaze_apply",
             layout!(DehazeApplyParams { size, lo_size, atmosphere, amount, scale } pad { _pad }),
             uniform_struct(APPLY_WGSL),
+        ),
+        ("lens_blur_down", lens_blur(), uniform_struct(&down_wgsl())),
+        (
+            "lens_blur_gather",
+            lens_blur(),
+            uniform_struct(&gather_wgsl()),
+        ),
+        (
+            "lens_blur_apply",
+            lens_blur(),
+            uniform_struct(&apply_wgsl()),
         ),
         (
             "demosaic",

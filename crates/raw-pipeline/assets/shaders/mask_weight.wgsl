@@ -120,26 +120,7 @@ fn display_to_scene(disp_u: f32, disp_v: f32) -> vec2<f32> {
         vec2<f32>(disp_u, disp_v),
     );
     let m = geom_ortho_inverse(p.flags, oriented);
-    let mu = m.x;
-    let mv = m.y;
-    let k1 = p.lens.x;
-    let k2 = p.lens.y;
-    let k3 = p.lens.z;
-    let zoom = p.lens.w;
-    if (k1 == 0.0 && k2 == 0.0 && k3 == 0.0 && zoom == 1.0) {
-        return vec2<f32>(mu, mv);
-    }
-    let mw = p.geom_extra3.z;
-    let mh = p.geom_extra3.w;
-    let half_diag = 0.5 * sqrt(mw * mw + mh * mh);
-    let nx = (mu - 0.5) * mw;
-    let ny = (mv - 0.5) * mh;
-    let r = sqrt(nx * nx + ny * ny) * zoom / max(half_diag, 1e-6);
-    let r2 = r * r;
-    let r4 = r2 * r2;
-    let r6 = r4 * r2;
-    let s = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
-    return vec2<f32>(0.5 + (mu - 0.5) * zoom * s, 0.5 + (mv - 0.5) * zoom * s);
+    return lens_mask_to_scene_uv(p.lens, m, p.geom_extra3.zw);
 }
 
 fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32 {

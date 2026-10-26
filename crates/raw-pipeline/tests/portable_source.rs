@@ -1,11 +1,12 @@
 use raw_pipeline::CpuRenderer;
 use raw_pipeline::GpuRenderer;
 use raw_pipeline::edits::{
-    CropRect, DetailEdits, Edits, GeometryEdits, MaskComponent, MaskComponentKind,
+    BokehShape, CropRect, DetailEdits, Edits, GeometryEdits, MaskComponent, MaskComponentKind,
     MaskComponentMode, MaskLayer, MaskSource, MaskedEdits, Vec2f, WhiteBalance,
 };
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::source::{self, LinearKind, SourceImage};
+use raw_pipeline_testkit::depth::{depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::fixtures::first_fixture_frame;
 use raw_pipeline_testkit::frames::{haze_frame, split_tone_frame};
 use raw_pipeline_testkit::gpu::try_renderer;
@@ -68,6 +69,7 @@ fn display_edits() -> Edits {
 fn all_edits() -> Edits {
     let display = display_edits();
     Edits {
+        lens_blur: lens_blur_edits(60.0, BokehShape::Octagon, 20.0).lens_blur,
         detail: DetailEdits {
             luma_nr_amount: 35.0,
             color_nr_amount: 25.0,
@@ -265,6 +267,7 @@ fn a_preview_source_estimates_the_cpu_atmosphere() {
 fn tile_opts(max_edge: u32, roi: CropRect) -> RenderOptions {
     RenderOptions {
         roi: Some(roi),
+        rasters: depth_rasters(),
         ..rgb8_opts(max_edge)
     }
 }
@@ -272,7 +275,15 @@ fn tile_opts(max_edge: u32, roi: CropRect) -> RenderOptions {
 fn tile_cases() -> Vec<(&'static str, Edits)> {
     let mut tilted = all_edits();
     tilted.geometry.rotate_angle = 3.0;
-    vec![("display", display_edits()), ("tilted", tilted)]
+    let blurred = Edits {
+        lens_blur: lens_blur_edits(100.0, BokehShape::Hexagon, 60.0).lens_blur,
+        ..display_edits()
+    };
+    vec![
+        ("display", display_edits()),
+        ("tilted", tilted),
+        ("lens blur", blurred),
+    ]
 }
 
 #[test]

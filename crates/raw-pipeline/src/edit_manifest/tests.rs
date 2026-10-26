@@ -1,7 +1,7 @@
 use super::*;
 use crate::edits::{
-    BasicEdits, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits, HslBand,
-    HslEdits, LensEdits, ToneEdits, WhiteBalance,
+    BasicEdits, BokehShape, ColorEdits, CurvesEdits, DetailEdits, EffectsEdits, GeometryEdits,
+    HslBand, HslEdits, LensBlurEdits, LensEdits, ToneEdits, WhiteBalance,
 };
 
 #[test]
@@ -129,6 +129,14 @@ fn roundtrip_preserves_fields() {
         },
         masks: Vec::new(),
         retouch: Vec::new(),
+        lens_blur: LensBlurEdits {
+            amount: 45.0,
+            focus_min: 0.1,
+            focus_max: 0.4,
+            shape: BokehShape::Hexagon,
+            boost: 20.0,
+            depth_raster_id: "depth-1".into(),
+        },
         unknown_ops: Default::default(),
     };
     let manifest = EditManifest::from_edits(&original);
@@ -489,5 +497,19 @@ fn masks_unknown_kind_skipped() {
             "expected only valid layer to survive, got {:?}",
             edits.masks
         );
+    }
+}
+
+#[test]
+fn a_generated_depth_map_survives_with_the_blur_off() {
+    let mut edits = Edits::default();
+    edits.lens_blur.depth_raster_id = "depth-1".into();
+    let manifest = EditManifest::from_edits(&edits);
+    let doc = manifest.ops.get("lens_blur").expect("lens_blur op");
+    if doc["depth_raster_id"] != "depth-1" || doc["shape"] != "circle" {
+        panic!("unexpected doc {doc}");
+    }
+    if manifest.to_edits() != edits {
+        panic!("depth map lost: {:?}", manifest.to_edits().lens_blur);
     }
 }

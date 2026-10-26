@@ -6,10 +6,12 @@ use wgpu::Texture;
 use super::StageState;
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
-use crate::frame::FrameMeta;
+use crate::frame::{FrameMeta, RenderOptions};
 use crate::gpu::renderer::GpuRenderer;
+use crate::gpu::renderer::detail::LensBlurInput;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
+use crate::ops::lens_blur::LensBlur;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
@@ -31,6 +33,33 @@ impl GpuRenderer {
         let tex = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
             self.submit_dehaze(&state.texture, state.extent, edits, atmosphere)
+        })?;
+        crate::cancel::check(cancel)?;
+        state.texture = state.hold(tex);
+        Ok(())
+    }
+
+    pub(super) fn lens_blur_stage(
+        &self,
+        state: &mut StageState,
+        meta: &FrameMeta,
+        edits: &Edits,
+        opts: &RenderOptions,
+        t: &RenderTimings,
+        cancel: Option<&CancelToken>,
+    ) -> PipelineResult<()> {
+        let Some(blur) = LensBlur::resolve(edits, &opts.rasters, state.extent.full) else {
+            return Ok(());
+        };
+        let input = LensBlurInput {
+            extent: state.extent,
+            origin: state.origin,
+            orientation: meta.orientation,
+            blur: &blur,
+            lens: &edits.lens,
+        };
+        let tex = t.stage(timing::LENS_BLUR, || {
+            self.submit_lens_blur(&state.texture, input)
         })?;
         crate::cancel::check(cancel)?;
         state.texture = state.hold(tex);

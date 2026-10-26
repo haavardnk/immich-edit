@@ -7,6 +7,7 @@ pub const HEADER_BYTES: usize = size_of::<crate::gpu::uniforms::ProcessHeader>()
 pub const MAX_OPS: u32 = 128;
 
 pub const GEOMETRY_WGSL: &str = include_str!("../../assets/shaders/geometry.wgsl");
+pub const LENS_WARP_WGSL: &str = include_str!("../../assets/shaders/lens_warp.wgsl");
 
 const PROCESS_HEADER_FIELDS: &str = "    src_size: vec2<u32>,
     out_size: vec2<u32>,

@@ -12,6 +12,7 @@ pub const NOISE_REDUCTION: &str = "noise_reduction";
 pub const CAPTURE_SHARPEN: &str = "capture_sharpen";
 pub const PREVIEW_RESAMPLE: &str = "preview_resample";
 pub const DEHAZE: &str = "dehaze";
+pub const LENS_BLUR: &str = "lens_blur";
 pub const PRESENCE: &str = "presence";
 pub const SHADOWS: &str = "shadows";
 pub const POINTWISE: &str = "pointwise";
