@@ -1,0 +1,1 @@
+ALTER TABLE export_jobs ADD COLUMN original_trashed INTEGER NOT NULL DEFAULT 0;

@@ -11,6 +11,9 @@
   import type { TagSummary } from '$lib/api/tags';
   import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
   import { NOT_OWNER_STACK } from '$lib/browse/ownership';
+  import Notice from '$lib/components/Notice.svelte';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import { REPLACE_STACKS, replaceWarning } from './replace';
   import type { ExportForm } from './settings';
   import type { StackPrimary } from '$lib/api/export';
   import { IconButton } from '@immich/ui';
@@ -19,9 +22,20 @@
 
   let {
     form = $bindable<ExportForm>(),
+    replaceOriginal = $bindable(false),
     stackable = true,
-    stackReason = NOT_OWNER_STACK
-  }: { form: ExportForm; stackable?: boolean; stackReason?: string } = $props();
+    stackReason = NOT_OWNER_STACK,
+    replaceReason = null
+  }: {
+    form: ExportForm;
+    replaceOriginal?: boolean;
+    stackable?: boolean;
+    stackReason?: string;
+    replaceReason?: string | null;
+  } = $props();
+
+  const replacing = $derived(replaceOriginal && replaceReason === null);
+  const canStack = $derived(stackable && !replacing);
 
   const availableTags = $derived(library.tags.filter((tag) => !isManagedTag(toTagRef(tag))));
   const selectedAlbums = $derived(
@@ -105,17 +119,33 @@
       checked={form.favorite}
       onChange={(v) => (form.favorite = v)}
     />
-    <DisabledReason locked={!stackable} reason={stackReason} class="w-fit">
+    <DisabledReason
+      locked={!canStack}
+      reason={replacing ? REPLACE_STACKS : stackReason}
+      class="w-fit"
+    >
       <CheckboxRow
         label="Stack with original"
-        checked={stackable && form.stackWithOriginal}
-        disabled={!stackable}
+        checked={canStack && form.stackWithOriginal}
+        disabled={!canStack}
         onChange={(v) => (form.stackWithOriginal = v)}
+      />
+    </DisabledReason>
+    <DisabledReason locked={replaceReason !== null} reason={replaceReason ?? ''} class="w-fit">
+      <CheckboxRow
+        label="Replace original"
+        checked={replacing}
+        disabled={replaceReason !== null}
+        onChange={(v) => (replaceOriginal = v)}
       />
     </DisabledReason>
   </div>
 
-  {#if stackable && form.stackWithOriginal}
+  {#if replacing}
+    <Notice color="warning" message={replaceWarning(immichCapabilities.trashDays)} />
+  {/if}
+
+  {#if canStack && form.stackWithOriginal}
     <RadioGroup.Root
       bind:value={() => form.stackPrimary, (v) => (form.stackPrimary = v as StackPrimary)}
       orientation="horizontal"

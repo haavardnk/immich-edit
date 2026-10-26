@@ -141,17 +141,18 @@ unmatched brace shows an error under the field and blocks the export until you f
   stacks your own photos, so the option is off and disabled for a photo another Immich user owns;
   hovering it says why. In a batch that mixes your photos with someone else's, the upload stacks
   yours and reports `Stacking skipped` for the others.
+- **Replace original** keeps only the edit; see [replace the original](#replace-the-original).
 
 The new photo lands next to the original in the Immich timeline, dated by the original's capture
 time, even with **Metadata** set to **None**.
 
-The edit also gets the date, time zone, map location, description and star rating Immich shows
-for the original, including changes you made there. **All but location** leaves out the map
-location, and **None** copies none of them. The upload waits until Immich has read the new file,
-up to 30 seconds, then copies the values, and Immich keeps them from then on. A download holds
-only what the original file holds, so changes made in Immich reach uploads only. When Immich
-refuses the values, the upload still counts and reports `Metadata copy failed:` with Immich's
-reason.
+The edit also gets the date, time zone, map location, description and star rating Immich shows for
+the original, including changes you made there. **All but location** leaves out the map location,
+and **None** copies none of them. The upload waits until Immich has read the new file, up to 30
+seconds, then copies the values, and Immich keeps them from then on. If Immich has not read it by
+then, the upload reports `Metadata copied before Immich read the upload`. A download holds only what
+the original file holds, so changes made in Immich reach uploads only. When Immich refuses the
+values, the upload still counts and reports `Metadata copy failed:` with Immich's reason.
 
 Immich refuses a file it already has. Uploading an identical export again reports
 `Not uploaded: identical asset already exists in Immich (matched by content hash)`.
@@ -159,6 +160,28 @@ Change the edit or a format option to upload another one. A failed upload shows 
 
 The edit stays in immich-edit after the upload. Change it later and export again for an updated
 file; the earlier upload stays in Immich until you delete it there.
+
+### Replace the original
+
+**Replace original** is for keeping only the finished photo in Immich. After the upload and every
+option above have gone through, the upload gets the original's albums, shared links and stack, and
+its favorite unless **Mark as favorite** is on; it also takes the original's place on top of a
+stack. Then the original goes to the Immich trash and the editor returns to the grid. **Undo** on
+the message, or restoring the original from the trash in Immich, brings the original back; the
+upload keeps what it was given. Immich does not move faces; it finds them again on the upload.
+
+{: .warning }
+Immich deletes a trashed original for good when its trash period ends, and a RAW original then
+survives only as the exported file. To edit the photo again, restore the original from the Immich
+trash first.
+
+The option is off again after every upload. It cannot be combined with **Stack with original**,
+and it is disabled for a photo another Immich user owns, while the Immich trash is turned off, and
+for a batch that holds two versions of one photo. When anything before it fails, such as an album
+Immich refuses or Immich taking more than 30 seconds to read the upload, the original stays and
+the upload reports `Original kept:` with the reason. Replacing a virtual copy's original takes the
+photo's other versions out of view with it. Signed in with an Immich API key, the key needs the
+`asset.copy` and `asset.delete` permissions.
 
 ## Export many photos
 

@@ -259,7 +259,12 @@ impl ImmichClient {
         Ok(resp.count)
     }
 
-    pub async fn copy_asset(&self, source: Uuid, target: Uuid) -> ImmichResult<()> {
+    pub async fn copy_asset(
+        &self,
+        source: Uuid,
+        target: Uuid,
+        flags: CopyFlags,
+    ) -> ImmichResult<()> {
         let url = self.url("api/assets/copy")?;
         let body = serde_json::json!({
             "sourceId": source,
@@ -267,10 +272,10 @@ impl ImmichClient {
             "sidecar": false,
             "albums": true,
             "sharedLinks": true,
-            "favorite": true,
-            "stack": true,
+            "favorite": flags.favorite,
+            "stack": flags.stack,
         });
-        send(self.authed(self.http.put(url).json(&body)))
+        run(self.authed(self.http.put(url).json(&body)))
             .await
             .map(|_| ())
     }
@@ -472,6 +477,12 @@ impl ImmichClient {
         let bytes = resp.bytes().await.map_err(body_err)?;
         Ok((bytes, content_type))
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CopyFlags {
+    pub stack: bool,
+    pub favorite: bool,
 }
 
 pub struct UploadRequest<'a> {

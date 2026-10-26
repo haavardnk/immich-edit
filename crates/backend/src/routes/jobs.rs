@@ -18,7 +18,7 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
-    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job,
+    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job, validate_export_job,
 };
 use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJob, NewJobItem};
 use crate::services::paste_edits::PASTE_EDITS_KIND;
@@ -73,6 +73,9 @@ pub async fn create(
     }
     if asset_ids.len() > MAX_ITEMS {
         return Err(AppError::BadRequest("too many items".into()));
+    }
+    if kind == EXPORT_JOB_KIND {
+        validate_export_job(&ctx.immich, &body.params, &asset_ids).await?;
     }
     let items: Vec<NewJobItem> = asset_ids
         .into_iter()

@@ -18,6 +18,9 @@
   import ImmichOptions from '$lib/panels/export/ImmichOptions.svelte';
   import { exportSettings } from '$lib/panels/export/exportSettings.svelte';
   import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '$lib/browse/ownership';
+  import { sourceId } from '$lib/browse/assetKey';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import { replaceBlocked } from '$lib/panels/export/replace';
   import {
     baseOptions,
     ensureLibraryLoaded,
@@ -29,6 +32,7 @@
   const form = $derived(exportSettings.form);
   const destination = $derived(exportSettings.destination);
   let busy = $state(false);
+  let replaceOriginal = $state(false);
 
   $effect(() => {
     if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
@@ -37,10 +41,15 @@
   async function submit(): Promise<void> {
     if (busy) return;
     busy = true;
+    const replace = replaceOriginal && replaceReason === null;
+    replaceOriginal = false;
     await runBulkJob(
       (assetIds) =>
         destination === 'immich'
-          ? createImmichExportJob(assetIds, immichOptions(form, stackable))
+          ? createImmichExportJob(
+              assetIds,
+              immichOptions(form, { stackable, replaceOriginal: replace })
+            )
           : createZipExportJob(assetIds, baseOptions(form)),
       'Failed to queue export'
     );
@@ -51,6 +60,14 @@
   let picked = $derived(browsing.assets.filter((asset) => selection.selected.has(asset.id)));
   let first = $derived(picked[0] ?? null);
   let stackable = $derived(picked.length < selection.count || picked.some(ownsAsset));
+  let replaceReason = $derived(
+    replaceBlocked({
+      owned: stackable,
+      trashOn: immichCapabilities.trash,
+      versionsOfOnePhoto: new Set(picked.map((a) => sourceId(a.id))).size < picked.length,
+      single: selection.count === 1
+    })
+  );
   let nameExample = $derived(
     first
       ? {
@@ -97,8 +114,10 @@
     <ExportSection title="Immich">
       <ImmichOptions
         bind:form={exportSettings.form}
+        bind:replaceOriginal
         {stackable}
         stackReason={selection.count === 1 ? NOT_OWNER_STACK : NONE_OWNED_STACK}
+        {replaceReason}
       />
     </ExportSection>
   {/if}

@@ -146,7 +146,7 @@ pub async fn collect_existing_filenames(
     original: &AssetDetail,
 ) -> Vec<String> {
     let mut names = vec![original.original_file_name.clone()];
-    let Some(stack_id) = original.stack_id.or(original.stack.as_ref().map(|s| s.id)) else {
+    let Some(stack_id) = original.current_stack_id() else {
         return names;
     };
     match immich.get_stack(stack_id).await {

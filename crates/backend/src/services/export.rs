@@ -24,6 +24,7 @@ mod naming;
 mod output_sharpen;
 mod params;
 mod post_upload;
+mod replace;
 mod resize;
 mod watermark;
 

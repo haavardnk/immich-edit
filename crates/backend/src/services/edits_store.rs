@@ -432,6 +432,7 @@ pub struct ExportJobRecord {
     pub filename: Option<String>,
     pub upload_status: Option<String>,
     pub warnings: Vec<String>,
+    pub original_trashed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -750,9 +751,17 @@ mod tests {
         {
             panic!("uploaded mismatch: {r:?}");
         }
-        s.complete_export_job(job, &["w1".into()]).await.unwrap();
+        if r.original_trashed {
+            panic!("trashed before completion: {r:?}");
+        }
+        s.complete_export_job(job, &["w1".into()], true)
+            .await
+            .unwrap();
         let r = s.get_export_job(job).await.unwrap().unwrap();
-        if r.status != ExportJobStatus::Completed || r.warnings != vec!["w1".to_string()] {
+        if r.status != ExportJobStatus::Completed
+            || r.warnings != vec!["w1".to_string()]
+            || !r.original_trashed
+        {
             panic!("completed mismatch: {r:?}");
         }
     }

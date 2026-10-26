@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { editor } from '$lib/stores/editor.svelte';
   import Notice from '$lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
@@ -17,6 +18,9 @@
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
   import { ownsAsset } from '$lib/browse/ownership';
+  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import { replaceBlocked } from './export/replace';
+  import { backToGrid } from '$lib/browse/backToGrid';
   import {
     baseOptions,
     COLOR_SPACES,
@@ -63,6 +67,24 @@
   );
   let invalid = $derived(formInvalid(form));
   let stackable = $derived(editor.asset ? ownsAsset(editor.asset) : true);
+  let replaceReason = $derived(
+    replaceBlocked({ owned: stackable, trashOn: immichCapabilities.trash })
+  );
+
+  let replaceOriginal = $state(false);
+
+  async function afterUpload(upload: Promise<boolean>): Promise<void> {
+    const assetId = editor.assetId;
+    if (await upload) await backToGrid(assetId, page.url.searchParams.get('from'));
+  }
+
+  function upload(): void {
+    const replace = replaceOriginal && replaceReason === null;
+    replaceOriginal = false;
+    void afterUpload(
+      editor.onUploadToImmich(immichOptions(form, { stackable, replaceOriginal: replace }))
+    );
+  }
 </script>
 
 <div class="flex flex-col gap-1">
@@ -108,7 +130,12 @@
 
   {#if destination === 'immich'}
     <ExportSection title="Immich">
-      <ImmichOptions bind:form={exportSettings.form} {stackable} />
+      <ImmichOptions
+        bind:form={exportSettings.form}
+        bind:replaceOriginal
+        {stackable}
+        {replaceReason}
+      />
     </ExportSection>
   {/if}
 
@@ -129,7 +156,9 @@
           class="h-6 panel-action"
           leadingIcon={mdiRefresh}
           onclick={() =>
-            void (destination === 'download' ? editor.retryExport() : editor.retryUpload())}
+            void (destination === 'download'
+              ? editor.retryExport()
+              : afterUpload(editor.retryUpload()))}
           disabled={isLoading}
         >
           Retry
@@ -161,7 +190,7 @@
       disabled={isLoading || !editor.assetId || invalid}
       onclick={() => {
         if (destination === 'download') void editor.onExport(baseOptions(form));
-        else void editor.onUploadToImmich(immichOptions(form, stackable));
+        else upload();
       }}
     >
       {isLoading ? busyLabel : buttonLabel}

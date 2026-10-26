@@ -11,8 +11,8 @@ impl EditsStore {
         job: ExportJobKey<'_>,
     ) -> Result<Option<ExportJobRecord>, EditsStoreError> {
         let row = sqlx::query(
-            "SELECT request_hash, status, immich_asset_id, filename, upload_status, warnings_json \
-             FROM export_jobs WHERE user_id = ?3 AND asset_id = ?1 AND idempotency_key = ?2",
+            "SELECT request_hash, status, immich_asset_id, filename, upload_status, warnings_json, \
+             original_trashed FROM export_jobs WHERE user_id = ?3 AND asset_id = ?1 AND idempotency_key = ?2",
         )
         .bind(job.asset_id.to_string())
         .bind(job.key)
@@ -31,6 +31,7 @@ impl EditsStore {
             filename: row.try_get("filename")?,
             upload_status: row.try_get("upload_status")?,
             warnings: row.try_get::<Json<Vec<String>>, _>("warnings_json")?.0,
+            original_trashed: row.try_get("original_trashed")?,
         }))
     }
 
@@ -112,11 +113,13 @@ impl EditsStore {
         &self,
         job: ExportJobKey<'_>,
         warnings: &[String],
+        original_trashed: bool,
     ) -> Result<(), EditsStoreError> {
         let now = Utc::now().to_rfc3339();
         let warnings_json = serde_json::to_string(warnings)?;
         sqlx::query(
-            "UPDATE export_jobs SET status = 'completed', warnings_json = ?3, updated_at = ?4 \
+            "UPDATE export_jobs SET status = 'completed', warnings_json = ?3, updated_at = ?4, \
+             original_trashed = ?6 \
              WHERE user_id = ?5 AND asset_id = ?1 AND idempotency_key = ?2",
         )
         .bind(job.asset_id.to_string())
@@ -124,6 +127,7 @@ impl EditsStore {
         .bind(&warnings_json)
         .bind(&now)
         .bind(job.owner.to_string())
+        .bind(original_trashed)
         .execute(&self.pool)
         .await?;
         Ok(())

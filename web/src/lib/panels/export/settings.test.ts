@@ -191,6 +191,7 @@ describe('immichOptions', () => {
       favorite: true,
       stackWithOriginal: false,
       stackPrimary: 'edited',
+      replaceOriginal: false,
       filenameTemplate: '{name}_edit'
     });
   });
@@ -199,8 +200,13 @@ describe('immichOptions', () => {
     [true, true],
     [false, false]
   ])('stacks only when stackable is %s', (stackable, stacked) => {
-    const opts = immichOptions(form({ stackWithOriginal: true }), stackable);
+    const opts = immichOptions(form({ stackWithOriginal: true }), { stackable });
     expect(opts.stackWithOriginal).toBe(stacked);
+  });
+
+  it('never stacks when it replaces the original', () => {
+    const opts = immichOptions(form({ stackWithOriginal: true }), { replaceOriginal: true });
+    expect(opts).toMatchObject({ stackWithOriginal: false, replaceOriginal: true });
   });
 });
 

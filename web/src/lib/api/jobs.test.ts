@@ -23,7 +23,8 @@ const immich: ImmichExportOptions = {
   tagIds: [],
   favorite: false,
   stackWithOriginal: false,
-  stackPrimary: 'edited'
+  stackPrimary: 'edited',
+  replaceOriginal: false
 };
 
 function stubFetch(): { body: () => Record<string, unknown> } {
@@ -67,6 +68,13 @@ describe('export jobs', () => {
       watermark_inset: 0.03
     });
     expect(params).not.toHaveProperty('filename_suffix');
+  });
+
+  it('sends replace original with an Immich export', async () => {
+    const req = stubFetch();
+    await createImmichExportJob(['a'], { ...immich, replaceOriginal: true });
+    const params = req.body().params as Record<string, unknown>;
+    expect(params).toMatchObject({ replace_original: true, stack_with_original: false });
   });
 
   it('sends concrete asset ids', async () => {

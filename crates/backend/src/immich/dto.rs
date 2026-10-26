@@ -83,6 +83,8 @@ pub struct AssetDetail {
     pub checksum: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
+    #[serde(rename = "isTrashed", default)]
+    pub is_trashed: bool,
     #[serde(rename = "exifInfo", default)]
     pub exif_info: Option<ExifInfo>,
     #[serde(default)]
@@ -95,6 +97,16 @@ pub struct AssetDetail {
     pub copy_of: Option<Uuid>,
     #[serde(rename = "copyLabel", default, skip_serializing_if = "Option::is_none")]
     pub copy_label: Option<String>,
+}
+
+impl AssetDetail {
+    pub fn current_stack_id(&self) -> Option<Uuid> {
+        self.stack_id.or(self.stack.as_ref().map(|s| s.id))
+    }
+
+    pub fn owned_by_other(&self, user: Uuid) -> bool {
+        self.owner_id.is_some_and(|owner| owner != user)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

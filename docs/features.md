@@ -35,6 +35,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
 | Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
+| Replace the original with the exported edit | ✓ Yes | Moves albums, shared links, favorite and stack to the upload and trashes the original; see [replace the original](export.md#replace-the-original) |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
 | Move photos to the Immich trash | ✓ Yes | Owned photos only, with **Undo**; refused while the Immich trash is off; see [delete photos](cull.md#delete-photos) |
 | Archive, empty the trash, or delete assets for good | ✗ No | Restore older deletions from the trash in Immich |

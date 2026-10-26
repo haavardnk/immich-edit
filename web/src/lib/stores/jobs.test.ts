@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobs } from './jobs.svelte';
 import { toasts } from './toasts.svelte';
-import { getJob, listJobs, type Job } from '$lib/api/jobs';
+import { getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
+import { trash } from '$lib/stores/trash.svelte';
+
+vi.mock('$lib/stores/trash.svelte', () => ({ trash: { removeTrashed: vi.fn() } }));
 
 vi.mock('$lib/stores/editedThumbs.svelte', () => ({
   editedThumbs: { refresh: vi.fn().mockResolvedValue(undefined) }
@@ -126,6 +129,27 @@ describe('tracked jobs', () => {
     expect(jobs.watched).toEqual([]);
     expect(jobs.attention).toBe(false);
     expect(editedThumbs.refresh).toHaveBeenCalled();
+  });
+
+  it('takes trashed originals of a replace export out of the grid', async () => {
+    const replace = job({ kind: 'export_immich', params: { replace_original: true } });
+    const item = (asset_id: string, original_trashed: boolean) =>
+      ({ asset_id, result: { original_trashed } }) as JobItem;
+    mockedGetJob.mockResolvedValue({
+      job: replace,
+      items: [
+        item('11111111-1111-1111-1111-111111111111_1', true),
+        item('b', false),
+        item('33333333-3333-3333-3333-333333333333', true)
+      ]
+    });
+    jobs.track(replace);
+    jobs.receive({ ...replace, status: 'completed', completed: 3 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(trash.removeTrashed).toHaveBeenCalledWith(
+      ['11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'],
+      'Moved 2 originals to the Immich trash'
+    );
   });
 
   it('keeps a finish with failures and flags the jobs button', async () => {

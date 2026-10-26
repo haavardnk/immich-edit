@@ -359,14 +359,21 @@ export function baseOptions(f: ExportForm): ExportOptions {
   };
 }
 
-export function immichOptions(f: ExportForm, stackable = true): ImmichExportOptions {
+export function immichOptions(
+  f: ExportForm,
+  {
+    stackable = true,
+    replaceOriginal = false
+  }: { stackable?: boolean; replaceOriginal?: boolean } = {}
+): ImmichExportOptions {
   return {
     ...baseOptions(f),
     albumIds: f.albumIds,
     tagIds: f.tagIds,
     favorite: f.favorite,
-    stackWithOriginal: stackable && f.stackWithOriginal,
-    stackPrimary: f.stackPrimary
+    stackWithOriginal: stackable && !replaceOriginal && f.stackWithOriginal,
+    stackPrimary: f.stackPrimary,
+    replaceOriginal
   };
 }
 

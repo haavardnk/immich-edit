@@ -34,6 +34,7 @@ export interface Job {
 export interface JobItemResult {
   filename?: string;
   warnings?: string[];
+  original_trashed?: boolean;
 }
 
 export interface JobItem {
@@ -119,7 +120,8 @@ export function createImmichExportJob(assetIds: string[], opts: ImmichExportOpti
       tag_ids: opts.tagIds,
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
-      stack_primary: opts.stackPrimary
+      stack_primary: opts.stackPrimary,
+      replace_original: opts.replaceOriginal
     }
   });
 }

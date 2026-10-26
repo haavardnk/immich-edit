@@ -23,6 +23,7 @@ mod edits;
 mod export;
 mod export_immich;
 mod export_presets;
+mod export_replace;
 mod faces;
 mod folders;
 mod frame_cache_isolation;
