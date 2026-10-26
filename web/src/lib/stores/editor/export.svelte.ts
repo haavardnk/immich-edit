@@ -6,7 +6,9 @@ import {
   type ExportOptions,
   type ImmichExportOptions
 } from '$lib/api/export';
+import { sourceId } from '$lib/browse/assetKey';
 import { toasts } from '$lib/stores/toasts.svelte';
+import { trash } from '$lib/stores/trash.svelte';
 import type { AssetDetail } from '$lib/types/asset';
 import type { Edits } from '$lib/types/edits';
 import { downloadBlob } from '$lib/utils/download';
@@ -59,39 +61,47 @@ export async function retryExport(ctx: ExportCtx): Promise<void> {
   if (ctx.lastDownloadOpts) await onExport(ctx, ctx.lastDownloadOpts);
 }
 
-export async function onUploadToImmich(ctx: ExportCtx, opts: ImmichExportOptions): Promise<void> {
-  if (!ctx.assetId) return;
+export async function onUploadToImmich(
+  ctx: ExportCtx,
+  opts: ImmichExportOptions
+): Promise<boolean> {
+  if (!ctx.assetId) return false;
   ctx.lastImmichOpts = opts;
   ctx.exportingToImmich = true;
   ctx.lastUpload = null;
   try {
     const result = await uploadToImmich(ctx.assetId, $state.snapshot(ctx.edits), opts);
     const duplicate = result.status.toLowerCase() === 'duplicate';
-    const message = duplicate
+    const outcome = duplicate
       ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
       : `Uploaded ${result.filename} to Immich`;
-    toasts.push(duplicate ? 'warn' : 'success', message, 10000);
+    const message = result.original_trashed
+      ? `${outcome}; the original moved to the Immich trash`
+      : outcome;
     ctx.lastUpload = {
       kind: duplicate ? 'duplicate' : 'success',
       message,
       warnings: result.warnings
     };
-    if (opts.stackWithOriginal || opts.favorite) {
-      try {
-        ctx.asset = await getAsset(ctx.assetId);
-      } catch {
-        return;
-      }
+    if (result.original_trashed) {
+      trash.removeTrashed([sourceId(ctx.assetId)], message);
+      return true;
     }
+    toasts.push(duplicate ? 'warn' : 'success', message, 10000);
+    if (opts.stackWithOriginal || opts.favorite) {
+      ctx.asset = await getAsset(ctx.assetId).catch(() => ctx.asset);
+    }
+    return false;
   } catch (e) {
     const message = errorMessage(e);
     ctx.lastUpload = { kind: 'error', message: `Upload failed: ${message}`, warnings: [] };
     toasts.push('error', `Upload failed: ${message}`, 10000);
+    return false;
   } finally {
     ctx.exportingToImmich = false;
   }
 }
 
-export async function retryUpload(ctx: ExportCtx): Promise<void> {
-  if (ctx.lastImmichOpts) await onUploadToImmich(ctx, ctx.lastImmichOpts);
+export async function retryUpload(ctx: ExportCtx): Promise<boolean> {
+  return ctx.lastImmichOpts ? onUploadToImmich(ctx, ctx.lastImmichOpts) : false;
 }

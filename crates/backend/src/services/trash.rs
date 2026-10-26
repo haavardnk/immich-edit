@@ -20,6 +20,15 @@ pub async fn move_to_trash(
     ids: &[Uuid],
 ) -> Result<(), AppError> {
     ensure_enabled(immich).await?;
+    discard(state, identity, immich, ids).await
+}
+
+pub async fn discard(
+    state: &AppState,
+    identity: RenderIdentity,
+    immich: &ImmichClient,
+    ids: &[Uuid],
+) -> Result<(), AppError> {
     immich.trash_assets(ids).await?;
     forget_counts(state, identity).await;
     Ok(())

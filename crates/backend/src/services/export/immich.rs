@@ -10,10 +10,11 @@ use crate::immich::client::UploadRequest;
 use crate::services::edits_store::{ExportJobKey, ExportJobRecord, ExportJobStatus};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
+use crate::services::trash;
 use crate::state::AppState;
 use crate::telemetry::ErrorChain;
 
-use super::post_upload::run_post_upload;
+use super::post_upload::finish_upload;
 use super::*;
 
 #[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
@@ -40,6 +41,26 @@ pub struct ExportToImmichBody {
     pub stack_with_original: bool,
     #[serde(default)]
     pub stack_primary: StackPrimary,
+    #[serde(default)]
+    pub replace_original: bool,
+}
+
+impl ExportToImmichBody {
+    pub fn validate(&self) -> Result<(), AppError> {
+        replace_fits(self.replace_original, self.stack_with_original)
+    }
+}
+
+pub(super) fn replace_fits(
+    replace_original: bool,
+    stack_with_original: bool,
+) -> Result<(), AppError> {
+    if replace_original && stack_with_original {
+        return Err(AppError::BadRequest(
+            "replace original and stack with original cannot be combined".into(),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -48,6 +69,7 @@ pub struct ExportToImmichResult {
     pub filename: String,
     pub status: String,
     pub warnings: Vec<String>,
+    pub original_trashed: bool,
 }
 
 pub struct ExportImmichRequest<'a> {
@@ -67,6 +89,7 @@ pub async fn export_to_immich(
 ) -> Result<ExportToImmichResult, AppError> {
     let id = req.asset_id;
     let body = req.body;
+    body.validate()?;
     let identity = RenderIdentity {
         owner,
         server_epoch: req.server_epoch,
@@ -101,6 +124,9 @@ pub async fn export_to_immich(
 
     let result: Result<ExportToImmichResult, AppError> = async {
         let template = NameTemplate::parse(body.params.filename_template.as_deref())?;
+        if body.replace_original {
+            trash::ensure_enabled(immich).await?;
+        }
         let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
@@ -143,14 +169,19 @@ pub async fn export_to_immich(
                 .await?;
         }
 
+        let finished =
+            finish_upload(state, identity, immich, &original, body, new_id, &status).await;
         let warnings: Vec<String> = rendered
             .warnings
             .into_iter()
-            .chain(run_post_upload(state, identity, immich, &original, body, new_id, &status).await)
+            .chain(finished.warnings)
             .collect();
 
         if let Some(job) = job {
-            state.edits.complete_export_job(job, &warnings).await?;
+            state
+                .edits
+                .complete_export_job(job, &warnings, finished.original_trashed)
+                .await?;
         }
 
         Ok(ExportToImmichResult {
@@ -158,6 +189,7 @@ pub async fn export_to_immich(
             filename,
             status,
             warnings,
+            original_trashed: finished.original_trashed,
         })
     }
     .await;
@@ -193,6 +225,7 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "favorite": body.favorite,
         "stack_with_original": body.stack_with_original,
         "stack_primary": format!("{:?}", body.stack_primary),
+        "replace_original": body.replace_original,
         "filename_template": body.params.filename_template,
         "resize_mode": body.params.resize_mode.map(|m| format!("{m:?}")),
         "resize_width": body.params.resize_width,
@@ -221,6 +254,7 @@ fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
         filename: rec.filename.clone().unwrap_or_default(),
         status: rec.upload_status.clone().unwrap_or_default(),
         warnings: rec.warnings.clone(),
+        original_trashed: rec.original_trashed,
     }
 }
 
@@ -238,27 +272,30 @@ async fn resume_export_job(
     };
     let original = immich.asset(job.asset_id.source()).await?;
     let upload_status = existing.upload_status.clone().unwrap_or_default();
+    let finished = finish_upload(
+        state,
+        identity,
+        immich,
+        &original,
+        body,
+        new_id,
+        &upload_status,
+    )
+    .await;
     let warnings: Vec<String> = existing
         .warnings
         .into_iter()
-        .chain(
-            run_post_upload(
-                state,
-                identity,
-                immich,
-                &original,
-                body,
-                new_id,
-                &upload_status,
-            )
-            .await,
-        )
+        .chain(finished.warnings)
         .collect();
-    state.edits.complete_export_job(job, &warnings).await?;
+    state
+        .edits
+        .complete_export_job(job, &warnings, finished.original_trashed)
+        .await?;
     Ok(ExportToImmichResult {
         asset_id: new_id,
         filename: existing.filename.unwrap_or_default(),
         status: upload_status,
         warnings,
+        original_trashed: finished.original_trashed,
     })
 }

@@ -433,10 +433,10 @@ class EditorStore {
 
   retryExport = (): Promise<void> => exportActions.retryExport(this);
 
-  onUploadToImmich = (opts: ImmichExportOptions): Promise<void> =>
+  onUploadToImmich = (opts: ImmichExportOptions): Promise<boolean> =>
     exportActions.onUploadToImmich(this, opts);
 
-  retryUpload = (): Promise<void> => exportActions.retryUpload(this);
+  retryUpload = (): Promise<boolean> => exportActions.retryUpload(this);
 
   maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> =>
     maskLayers.maskCapacityFor(this, layerId);

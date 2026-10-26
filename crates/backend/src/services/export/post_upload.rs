@@ -1,13 +1,60 @@
 use uuid::Uuid;
 
-use crate::immich::dto::AssetDetail;
+use crate::immich::dto::{AssetDetail, BulkIdResponse};
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
+use super::replace::{Replacement, replace_original};
 use super::{ExportToImmichBody, StackPrimary, immich_metadata};
 
-pub(super) async fn run_post_upload(
+pub(super) struct Finished {
+    pub warnings: Vec<String>,
+    pub original_trashed: bool,
+}
+
+pub(super) async fn finish_upload(
+    state: &AppState,
+    identity: RenderIdentity,
+    immich: &ImmichClient,
+    original: &AssetDetail,
+    body: &ExportToImmichBody,
+    new_id: Uuid,
+    upload_status: &str,
+) -> Finished {
+    let mut warnings = run_post_upload(
+        state,
+        identity,
+        immich,
+        original,
+        body,
+        new_id,
+        upload_status,
+    )
+    .await;
+    if !body.replace_original {
+        return Finished {
+            warnings,
+            original_trashed: false,
+        };
+    }
+    let replacement = Replacement {
+        original,
+        new_id,
+        step_failed: !warnings.is_empty(),
+        favorite_set: body.favorite,
+    };
+    let replaced = replace_original(state, identity, immich, replacement).await;
+    if let Err(warning) = &replaced {
+        warnings.push(warning.clone());
+    }
+    Finished {
+        warnings,
+        original_trashed: replaced.is_ok(),
+    }
+}
+
+async fn run_post_upload(
     state: &AppState,
     identity: RenderIdentity,
     immich: &ImmichClient,
@@ -31,7 +78,9 @@ pub(super) async fn run_post_upload(
     if let Some(update) =
         immich_metadata::bulk_update(new_id, original.exif_info.as_ref(), body.params.metadata())
     {
-        immich_metadata::await_extraction(immich, new_id).await;
+        if !immich_metadata::await_extraction(immich, new_id).await {
+            warnings.push("Metadata copied before Immich read the upload".into());
+        }
         if let Err(e) = immich.update_assets(&update).await {
             warnings.push(format!("Metadata copy failed: {}", e.short()));
         }
@@ -40,13 +89,8 @@ pub(super) async fn run_post_upload(
     for album_id in &body.album_ids {
         match immich.add_assets_to_album(*album_id, &[new_id]).await {
             Ok(items) => {
-                for item in items {
-                    if !item.success {
-                        warnings.push(format!(
-                            "Album {album_id} failed: {}",
-                            item.error.unwrap_or_else(|| "unknown".into())
-                        ));
-                    }
+                for error in refusals(items) {
+                    warnings.push(format!("Album {album_id} failed: {error}"));
                 }
             }
             Err(e) => warnings.push(format!("Album {album_id} failed: {}", e.short())),
@@ -60,13 +104,8 @@ pub(super) async fn run_post_upload(
                     .tag_counts
                     .invalidate(identity.owner, identity.server_epoch, *tag_id)
                     .await;
-                for item in items {
-                    if !item.success {
-                        warnings.push(format!(
-                            "Tag {tag_id} failed: {}",
-                            item.error.unwrap_or_else(|| "unknown".into())
-                        ));
-                    }
+                for error in refusals(items) {
+                    warnings.push(format!("Tag {tag_id} failed: {error}"));
                 }
             }
             Err(e) => warnings.push(format!("Tag {tag_id} failed: {}", e.short())),
@@ -74,10 +113,7 @@ pub(super) async fn run_post_upload(
     }
 
     if body.stack_with_original {
-        if original
-            .owner_id
-            .is_some_and(|owner| owner != identity.owner)
-        {
+        if original.owned_by_other(identity.owner) {
             warnings.push("Stacking skipped: the original belongs to another Immich user".into());
         } else if let Err(e) =
             stack_with_original(immich, original, new_id, body.stack_primary).await
@@ -89,15 +125,22 @@ pub(super) async fn run_post_upload(
     warnings
 }
 
+fn refusals(items: Vec<BulkIdResponse>) -> impl Iterator<Item = String> {
+    items
+        .into_iter()
+        .filter(|item| !item.success)
+        .map(|item| item.error.unwrap_or_else(|| "unknown".into()))
+        .filter(|error| error != "duplicate")
+}
+
 async fn stack_with_original(
     immich: &ImmichClient,
     original: &AssetDetail,
     new_id: Uuid,
     primary: StackPrimary,
 ) -> Result<(), ImmichError> {
-    let existing_stack_id = original.stack_id.or(original.stack.as_ref().map(|s| s.id));
     let mut ids: Vec<Uuid> = vec![new_id, original.id.source()];
-    if let Some(stack_id) = existing_stack_id
+    if let Some(stack_id) = original.current_stack_id()
         && let Ok(stack) = immich.get_stack(stack_id).await
     {
         for a in stack.assets {

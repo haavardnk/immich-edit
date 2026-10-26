@@ -204,6 +204,7 @@ export interface ImmichExportOptions extends ExportOptions {
   favorite: boolean;
   stackWithOriginal: boolean;
   stackPrimary: StackPrimary;
+  replaceOriginal: boolean;
 }
 
 export interface ImmichExportResult {
@@ -211,6 +212,7 @@ export interface ImmichExportResult {
   filename: string;
   status: string;
   warnings: string[];
+  original_trashed: boolean;
 }
 
 export async function uploadToImmich(
@@ -237,6 +239,7 @@ export async function uploadToImmich(
       favorite: opts.favorite,
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
+      replace_original: opts.replaceOriginal,
       filename_template: opts.filenameTemplate,
       ...finishParams(opts)
     },

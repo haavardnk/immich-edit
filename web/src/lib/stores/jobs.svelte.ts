@@ -9,14 +9,22 @@ import {
   type JobItem
 } from '$lib/api/jobs';
 import { url } from '$lib/api/client';
+import { sourceId } from '$lib/browse/assetKey';
+import { countOf } from '$lib/utils/plural';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { toasts } from '$lib/stores/toasts.svelte';
+import { trash } from '$lib/stores/trash.svelte';
 
 const POLL_BASE_MS = 4000;
 const MAX_BACKOFF_STEPS = 4;
 const MAX_STREAM_ERRORS = 5;
 const DONE_TOAST_MS = 6000;
 const REFRESHES_THUMBS = new Set(['apply_preset', 'paste_edits', 'reset_edits']);
+
+function replacesOriginals(job: Job): boolean {
+  const params = job.params as { replace_original?: unknown } | null;
+  return job.kind === 'export_immich' && params?.replace_original === true;
+}
 
 class JobsStore {
   jobs = $state<Job[]>([]);
@@ -95,9 +103,27 @@ class JobsStore {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
       void editedThumbs.refresh();
     }
+    if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
     this.disconnect(job.id);
     this.settle(job);
   };
+
+  private async forgetTrashedOriginals(id: string): Promise<void> {
+    let items: JobItem[];
+    try {
+      items = (await getJob(id)).items;
+    } catch {
+      return;
+    }
+    const originals = items
+      .filter((item) => item.result?.original_trashed)
+      .map((item) => sourceId(item.asset_id));
+    if (originals.length === 0) return;
+    trash.removeTrashed(
+      originals,
+      `Moved ${countOf(originals.length, 'original')} to the Immich trash`
+    );
+  }
 
   private settle(job: Job): void {
     if (!this.watched.includes(job.id)) return;

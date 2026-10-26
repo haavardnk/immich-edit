@@ -1,17 +1,22 @@
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
+use crate::error::AppError;
+use crate::immich::ImmichClient;
 use crate::services::job_runner::{ItemOutcome, JobExecutor, JobItemError};
 use crate::services::job_store::{JobItemRecord, JobRecord};
 use crate::services::render::RenderIdentity;
+use crate::services::trash;
 use crate::state::AppState;
 
 use super::archive::write_unique;
+use super::immich::replace_fits;
 use super::*;
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +33,8 @@ pub struct ExportJobParams {
     pub stack_with_original: bool,
     #[serde(default)]
     pub stack_primary: StackPrimary,
+    #[serde(default)]
+    pub replace_original: bool,
     #[serde(default, rename = "filename_suffix")]
     legacy_suffix: Option<String>,
     #[serde(default)]
@@ -45,6 +52,30 @@ impl ExportJobParams {
         }
         Ok(parsed)
     }
+}
+
+pub async fn validate_export_job(
+    immich: &ImmichClient,
+    params: &serde_json::Value,
+    asset_ids: &[String],
+) -> Result<(), AppError> {
+    let parsed = ExportJobParams::parse(params).map_err(|e| AppError::BadRequest(e.to_string()))?;
+    replace_fits(parsed.replace_original, parsed.stack_with_original)?;
+    if !parsed.replace_original {
+        return Ok(());
+    }
+    let mut sources = HashSet::new();
+    for id in asset_ids {
+        let key = id
+            .parse::<AssetKey>()
+            .map_err(|_| AppError::BadRequest(format!("invalid asset id: {id}")))?;
+        if !sources.insert(key.source()) {
+            return Err(AppError::BadRequest(
+                "replace original takes one version of each photo".into(),
+            ));
+        }
+    }
+    trash::ensure_enabled(immich).await
 }
 
 fn item_seq(job: &JobRecord, item: &JobItemRecord) -> Seq {
@@ -107,10 +138,7 @@ async fn job_edits(
     }
 }
 
-pub async fn job_immich(
-    state: &AppState,
-    job: &JobRecord,
-) -> Result<crate::immich::ImmichClient, JobItemError> {
+pub async fn job_immich(state: &AppState, job: &JobRecord) -> Result<ImmichClient, JobItemError> {
     let (cred, kind) = state
         .jobs
         .job_credential(job.id)
@@ -128,7 +156,7 @@ pub async fn job_immich(
         .ok_or_else(|| JobItemError::msg("instance not configured"))?;
     let base = url::Url::parse(&url)?;
     let auth = kind.immich_auth(cred);
-    crate::immich::ImmichClient::with_auth(
+    ImmichClient::with_auth(
         base,
         auth,
         std::time::Duration::from_secs(state.config.original_timeout_secs),
@@ -154,6 +182,7 @@ async fn run_immich_item(
         favorite: params.favorite,
         stack_with_original: params.stack_with_original,
         stack_primary: params.stack_primary,
+        replace_original: params.replace_original,
     };
     let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(

@@ -18,6 +18,7 @@ fn hash_request_differs_by_color_space() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
+        replace_original: false,
     };
     let srgb = hash_request(asset, &make(ColorSpaceOpt::Srgb));
     let p3 = hash_request(asset, &make(ColorSpaceOpt::Displayp3));
@@ -38,6 +39,7 @@ fn hash_request_differs_by_filename_template() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
+        replace_original: false,
     };
     assert_ne!(
         hash_request(asset, &make(Some("{name}_a"))),
@@ -103,6 +105,7 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
+        replace_original: false,
     };
     let hash = hash_request(asset, &body);
     let job = ExportJobKey {
@@ -115,7 +118,11 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         .put_export_job_uploaded(job, &hash, uploaded, "x_edit.jpg", "created", &[])
         .await
         .unwrap();
-    state.edits.complete_export_job(job, &[]).await.unwrap();
+    state
+        .edits
+        .complete_export_job(job, &[], false)
+        .await
+        .unwrap();
 
     let app = seed_and_wrap(&server, state).await;
     let req_body = serde_json::json!({});
@@ -162,6 +169,7 @@ async fn export_immich_resume_keeps_render_warnings() {
         favorite: false,
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
+        replace_original: false,
     };
     let job = ExportJobKey {
         owner: test_user_id(),
@@ -254,6 +262,7 @@ async fn export_immich_stacks_only_owned_originals() {
             favorite: false,
             stack_with_original: true,
             stack_primary: StackPrimary::default(),
+            replace_original: false,
         };
         let job = ExportJobKey {
             owner: test_user_id(),
