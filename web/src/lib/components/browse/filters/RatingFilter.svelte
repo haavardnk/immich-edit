@@ -7,6 +7,7 @@
   import { structuredRoute } from '$lib/browse/browseRoutes';
   import { page } from '$app/state';
   import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '$lib/browse/rating';
+  import { countOf } from '$lib/utils/plural';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps, RadioGroup } from 'bits-ui';
   import { mdiStar, mdiStarOffOutline, mdiStarOutline } from '@mdi/js';
@@ -27,8 +28,6 @@
   const stars = $derived(ratingStars(browseControls.filters.rating));
   const op = $derived(ranges ? (ratingOp(browseControls.filters.rating) ?? opChoice) : 'eq');
   const lit = $derived(hover || stars);
-
-  const starName = (n: number): string => `${n} star${n > 1 ? 's' : ''}`;
 
   function pickStar(value: string): void {
     const n = STARS.find((star) => String(star) === value);
@@ -93,12 +92,12 @@
       onmouseleave={() => (hover = 0)}
     >
       {#each STARS as n (n)}
-        <Tooltip text={starName(n)}>
+        <Tooltip text={countOf(n, 'star')}>
           {#snippet child({ props })}
             <RadioGroup.Item
               {...props}
               value={String(n)}
-              aria-label={starName(n)}
+              aria-label={countOf(n, 'star')}
               class={starItemClass}
               onmouseenter={() => (hover = n)}
             >

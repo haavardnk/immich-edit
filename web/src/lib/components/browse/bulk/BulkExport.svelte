@@ -21,6 +21,7 @@
   import { sourceId } from '$lib/browse/assetKey';
   import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
   import { replaceBlocked } from '$lib/panels/export/replace';
+  import { countOf } from '$lib/utils/plural';
   import {
     baseOptions,
     ensureLibraryLoaded,
@@ -83,7 +84,7 @@
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
   <div class="text-[11px] text-dark/65 select-none">
-    {selection.count} asset{selection.count === 1 ? '' : 's'} selected
+    {countOf(selection.count, 'asset')} selected
   </div>
 
   <ExportPresetMenu />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { hint } from '$lib/shortcuts/labels';
   import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
+  import { countOf } from '$lib/utils/plural';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';
@@ -17,9 +18,11 @@
 
   let hover = $state<number>(0);
 
-  const starName = (n: number): string => `${n} star${n > 1 ? 's' : ''}`;
   const tooltip = $derived(
-    hint(hover === 0 ? 'Rating' : hover === rating ? 'Clear rating' : starName(hover), 'rate')
+    hint(
+      hover === 0 ? 'Rating' : hover === rating ? 'Clear rating' : countOf(hover, 'star'),
+      'rate'
+    )
   );
 
   function onStarClick(n: number, e: MouseEvent): void {
@@ -76,7 +79,7 @@
           class="p-0.5 leading-none transition-colors disabled:opacity-50 {active || disabled
             ? 'text-dark'
             : 'text-dark/45 hover:text-dark/65'} {preview ? 'opacity-70' : ''}"
-          aria-label={starName(n)}
+          aria-label={countOf(n, 'star')}
           {disabled}
           onmouseenter={disabled ? undefined : () => (hover = n)}
           onclick={(e) => onStarClick(n, e)}

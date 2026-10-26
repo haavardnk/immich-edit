@@ -12,6 +12,7 @@
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/stores/labels';
   import { editorHref } from '$lib/editor/navigation';
   import { captureTime, fmtDay } from '$lib/utils/exif';
+  import { countOf } from '$lib/utils/plural';
   import type { TileInfo } from '$lib/stores/browseView.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import {
@@ -252,7 +253,7 @@
       {#if rating > 0 && (!onRate || info !== 'full')}
         <span
           role="img"
-          aria-label="{rating} star{rating === 1 ? '' : 's'}"
+          aria-label={countOf(rating, 'star')}
           class="shrink-0 items-center gap-0.5 text-[10px] {onRate
             ? 'flex group-hover:hidden group-has-[:focus-visible]:hidden'
             : 'flex'}"

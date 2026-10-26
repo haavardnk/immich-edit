@@ -7,6 +7,7 @@
   import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
   import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
+  import { countOf } from '$lib/utils/plural';
 
   type RunPool = <T>(items: T[], limit: number, fn: (item: T) => Promise<void>) => Promise<void>;
 
@@ -52,7 +53,7 @@
     } else {
       toasts.push(
         'success',
-        `${add ? 'Added' : 'Removed'} tags on ${ids.length} asset${ids.length === 1 ? '' : 's'}`,
+        `${add ? 'Added' : 'Removed'} tags on ${countOf(ids.length, 'asset')}`,
         4000
       );
     }
@@ -62,7 +63,7 @@
 
 <div class="flex flex-col gap-2 border-t px-4 py-3">
   <span class="px-1 text-xs text-dark/60">
-    Pick tags, then apply them to the {ids.length} selected asset{ids.length === 1 ? '' : 's'}
+    Pick tags, then apply them to the {countOf(ids.length, 'selected asset')}
   </span>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <div class="min-w-0 flex-1 sm:min-w-55">
