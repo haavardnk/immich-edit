@@ -10,6 +10,6 @@ permalink: /use/
 
 immich-edit works on the library your Immich server already has. You cull photos, edit them
 non-destructively, and send the results back to Immich or download them. Originals are never
-changed.
+changed, and go to the Immich trash only when you ask.
 
 A typical session follows the pages below in order: pick the keepers, edit them, then export.

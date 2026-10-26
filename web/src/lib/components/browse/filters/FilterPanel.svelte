@@ -22,7 +22,7 @@
   import { hint } from '$lib/shortcuts/labels';
   import { matchKeybind } from '$lib/shortcuts/match';
   import { isTypingTarget } from '$lib/shortcuts/targets';
-  import { Button, IconButton } from '@immich/ui';
+  import { Button, IconButton, isModalOpen } from '@immich/ui';
   import { mdiClose, mdiRestore } from '@mdi/js';
   import { tick } from 'svelte';
 
@@ -49,7 +49,7 @@
   }
 
   function onKeydown(e: KeyboardEvent): void {
-    if (browseView.loupeId || isTypingTarget(e)) return;
+    if (browseView.loupeId || isModalOpen() || isTypingTarget(e)) return;
     if (matchKeybind(e, ['grid']) !== 'toggleFilters') return;
     e.preventDefault();
     if (browseView.filtersOpen) void close();

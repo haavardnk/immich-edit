@@ -32,6 +32,7 @@ pub mod search;
 pub mod setup;
 pub mod source;
 pub mod tags;
+pub mod trash;
 pub mod watermarks;
 
 use axum::body::Body;

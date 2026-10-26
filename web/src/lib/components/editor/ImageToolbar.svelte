@@ -10,6 +10,8 @@
   import { hint, keysFor } from '$lib/shortcuts/labels';
   import { copyIndex, isCopy } from '$lib/browse/assetKey';
   import { backToGrid } from '$lib/browse/backToGrid';
+  import { trashLabel } from '$lib/browse/trash';
+  import { trash } from '$lib/stores/trash.svelte';
   import { IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,
@@ -22,7 +24,8 @@
     mdiKeyboardOutline,
     mdiCircleHalfFull,
     mdiFullscreen,
-    mdiInformationOutline
+    mdiInformationOutline,
+    mdiTrashCanOutline
   } from '@mdi/js';
 
   let moreOpen = $state(false);
@@ -35,6 +38,12 @@
 
   function goBack(): void {
     void backToGrid(assetId, page.url.searchParams.get('from'));
+  }
+
+  async function moveToTrash(): Promise<void> {
+    const asset = editor.asset;
+    if (!asset) return;
+    if (await trash.request([asset])) goBack();
   }
 
   function holdOriginal(down: boolean): void {
@@ -220,6 +229,16 @@
           />
           <div class="my-1 border-t border-dark/10"></div>
           <SoftProofControl />
+          <div class="my-1 border-t border-dark/10"></div>
+          <MenuItem
+            icon={mdiTrashCanOutline}
+            label={trashLabel(copyBadge !== null)}
+            disabled={!editor.asset}
+            onclick={() => {
+              moreOpen = false;
+              void moveToTrash();
+            }}
+          />
           <div class="my-1 border-t border-dark/10"></div>
           <MenuItem
             icon={mdiKeyboardOutline}

@@ -37,4 +37,23 @@ describe('toast store', () => {
     vi.advanceTimersByTime(1);
     expect(store.items).toHaveLength(0);
   });
+
+  it('keeps an action with its toast', () => {
+    const store = new ToastStore();
+    const run = vi.fn();
+    store.push('success', 'Moved', 0, { label: 'Undo', run });
+
+    store.items[0]?.action?.run();
+
+    expect(store.items[0]?.action?.label).toBe('Undo');
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it('never swallows a repeated toast that carries an action', () => {
+    const store = new ToastStore();
+    const action = { label: 'Undo', run: vi.fn() };
+    store.push('success', 'Moved 1 photo', 0, action);
+    store.push('success', 'Moved 1 photo', 0, action);
+    expect(store.items).toHaveLength(2);
+  });
 });

@@ -81,6 +81,13 @@ export const KEYBINDS = [
     label: 'Set or clear the red, yellow, green or blue label',
     display: '6 – 9'
   },
+  {
+    id: 'trash',
+    keys: ['Delete', 'Backspace'],
+    contexts: ['grid', 'loupe'],
+    group: 'Culling',
+    label: 'Move to the Immich trash, or delete a virtual copy'
+  },
 
   {
     id: 'gridMove',

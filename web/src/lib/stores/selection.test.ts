@@ -56,3 +56,12 @@ describe('active', () => {
     expect(selection.active).toBe(expected);
   });
 });
+
+describe('forget', () => {
+  it('drops removed ids and their anchor', () => {
+    selection.selectLoaded(['a', 'b', 'c']);
+    selection.forget(new Set(['c']));
+    expect([...selection.selected]).toEqual(['a', 'b']);
+    expect(selection.anchorId).toBeNull();
+  });
+});

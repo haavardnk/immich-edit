@@ -9,6 +9,7 @@ import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
 import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
 import { isKeybind, matchKeybind } from './match';
 import { hasTextSelection, isRadioGroupTarget, isTypingTarget, yieldsToControl } from './targets';
+import { isModalOpen } from '@immich/ui';
 import { activeContexts } from './context';
 import { editorHref } from '$lib/editor/navigation';
 import { defaultLinear, defaultRadial } from '$lib/types/masks';
@@ -74,6 +75,7 @@ function onEscape(e: KeyboardEvent): void {
 }
 
 export function editorKeydown(e: KeyboardEvent, id: string): void {
+  if (isModalOpen()) return;
   if (isKeybind(e, 'editorEscape')) {
     onEscape(e);
     return;

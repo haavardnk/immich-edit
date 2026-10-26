@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { toasts, type ToastKind } from '$lib/stores/toasts.svelte';
+  import { toasts, type ToastAction, type ToastKind } from '$lib/stores/toasts.svelte';
   import { jobs } from '$lib/stores/jobs.svelte';
   import JobToast from '$lib/components/jobs/JobToast.svelte';
-  import { Toast, type Color } from '@immich/ui';
+  import { Toast, type Color, type ToastButton } from '@immich/ui';
 
   const colors: Record<ToastKind, Color> = {
     error: 'danger',
@@ -10,6 +10,17 @@
     success: 'success',
     info: 'info'
   };
+
+  function actionButton(action: ToastAction): (close: () => void) => ToastButton {
+    return (close) => ({
+      label: action.label,
+      variant: 'ghost',
+      onclick: () => {
+        close();
+        action.run();
+      }
+    });
+  }
 </script>
 
 <div class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
@@ -31,6 +42,7 @@
         color={colors[toast.kind]}
         icon={false}
         title={toast.message}
+        button={toast.action ? actionButton(toast.action) : undefined}
         onClose={() => toasts.dismiss(toast.id)}
       />
     </div>

@@ -5,6 +5,7 @@
   import { toasts } from '$lib/stores/toasts.svelte';
   import { isKeybind } from '$lib/shortcuts/match';
   import { isRadioGroupTarget, isTypingTarget } from '$lib/shortcuts/targets';
+  import { isModalOpen } from '@immich/ui';
   import { keysFor } from '$lib/shortcuts/labels';
   import { type Vec2f } from '$lib/types/edits';
   import { displayUvToSceneUv, sceneUvToDisplayUv, viewTransform } from '$lib/utils/canvasCoords';
@@ -85,6 +86,7 @@
   }
 
   function onKeyDown(e: KeyboardEvent): void {
+    if (isModalOpen()) return;
     if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
       e.preventDefault();
       editor.cancelColorPicker();

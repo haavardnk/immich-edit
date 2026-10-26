@@ -48,4 +48,5 @@ mod sessions;
 mod setup_oauth;
 mod source;
 mod tags;
+mod trash;
 mod watermarks;

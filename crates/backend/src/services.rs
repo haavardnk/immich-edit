@@ -50,5 +50,6 @@ pub mod reset_edits;
 pub mod search;
 #[cfg(feature = "ml")]
 pub mod segment;
+pub mod trash;
 pub mod watermark_store;
 pub mod white_balance;

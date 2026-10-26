@@ -36,7 +36,8 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
-| Archive, trash, restore, or delete assets | ✗ No | Reject uses an `immich-edit/reject` tag and never deletes |
+| Move photos to the Immich trash | ✓ Yes | Owned photos only, with **Undo**; refused while the Immich trash is off; see [delete photos](cull.md#delete-photos) |
+| Archive, empty the trash, or delete assets for good | ✗ No | Restore older deletions from the trash in Immich |
 | Map and location browsing | ✗ No | — |
 | Immich memories | ✗ No | — |
 | Partner sharing and public share links | ✗ No | Use Immich for sharing |

@@ -11,6 +11,7 @@
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
+  import TrashDialog from './TrashDialog.svelte';
   import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
   import EditorToolRail from '$lib/components/editor/EditorToolRail.svelte';
   import Loupe from '$lib/components/browse/Loupe.svelte';
@@ -93,6 +94,7 @@
 <KeybindsHelp />
 <CopyDialog />
 <MetadataConsentDialog />
+<TrashDialog />
 <JobsDrawer />
 {#if browseView.loupeId}
   <Loupe />

@@ -14,7 +14,8 @@
     mdiFilterOutline,
     mdiCircle,
     mdiClose,
-    mdiTextBoxOutline
+    mdiTextBoxOutline,
+    mdiTrashCanOutline
   } from '@mdi/js';
 
   let {
@@ -22,14 +23,28 @@
     totalCount,
     hiddenCount = 0,
     hideSort = false,
-    sortBasis = 'capture'
+    sortBasis = 'capture',
+    onTrashRejected
   }: {
     title: string;
     totalCount?: number;
     hiddenCount?: number;
     hideSort?: boolean;
     sortBasis?: 'capture' | 'edit';
+    onTrashRejected?: () => Promise<void>;
   } = $props();
+
+  let trashBusy = $state(false);
+
+  async function trashRejected(): Promise<void> {
+    if (!onTrashRejected || trashBusy) return;
+    trashBusy = true;
+    try {
+      await onTrashRejected();
+    } finally {
+      trashBusy = false;
+    }
+  }
 
   const chips = $derived(activeFilterChips(browseControls.filters, idName));
 
@@ -176,5 +191,20 @@
         />
       </span>
     {/each}
+    {#if onTrashRejected && browseControls.filters.rejected === 'only'}
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="danger"
+        class="ms-auto"
+        leadingIcon={mdiTrashCanOutline}
+        title="Load every rejected photo here and move them to the Immich trash"
+        loading={trashBusy}
+        disabled={trashBusy}
+        onclick={() => void trashRejected()}
+      >
+        Move rejected to trash
+      </Button>
+    {/if}
   </div>
 {/if}

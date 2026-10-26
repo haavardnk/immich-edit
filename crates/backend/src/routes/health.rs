@@ -38,6 +38,8 @@ pub struct ImmichCapabilitiesBody {
     pub structured_search: bool,
     pub smart_search: bool,
     pub ocr: bool,
+    pub trash: bool,
+    pub trash_days: Option<u32>,
 }
 
 pub async fn immich_capabilities(
@@ -50,6 +52,8 @@ pub async fn immich_capabilities(
         structured_search: caps.structured_search,
         smart_search: caps.smart_search,
         ocr: caps.ocr,
+        trash: caps.trash,
+        trash_days: caps.trash_days,
     })
 }
 

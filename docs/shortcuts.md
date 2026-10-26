@@ -28,14 +28,15 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Culling
 
-| Keys                                                                  | Action                                            | Available in                         |
-| --------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------ |
-| `0` / `1` / `2` / `3` / `4` / `5`                                     | Set, toggle or clear the rating                   | Grid, Loupe, Compare, Survey, Editor |
-| `Shift+0` / `Shift+1` / `Shift+2` / `Shift+3` / `Shift+4` / `Shift+5` | Set the rating and move to the next photo         | Grid, Loupe, Compare, Survey         |
-| `P`                                                                   | Toggle favorite                                   | Grid, Loupe, Compare, Survey, Editor |
-| `X`                                                                   | Toggle reject                                     | Grid, Loupe, Compare, Survey, Editor |
-| `U`                                                                   | Clear favorite and reject                         | Grid, Loupe, Compare, Survey, Editor |
-| `6` / `7` / `8` / `9`                                                 | Set or clear the red, yellow, green or blue label | Grid, Loupe, Compare, Survey, Editor |
+| Keys                                                                  | Action                                             | Available in                         |
+| --------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
+| `0` / `1` / `2` / `3` / `4` / `5`                                     | Set, toggle or clear the rating                    | Grid, Loupe, Compare, Survey, Editor |
+| `Shift+0` / `Shift+1` / `Shift+2` / `Shift+3` / `Shift+4` / `Shift+5` | Set the rating and move to the next photo          | Grid, Loupe, Compare, Survey         |
+| `P`                                                                   | Toggle favorite                                    | Grid, Loupe, Compare, Survey, Editor |
+| `X`                                                                   | Toggle reject                                      | Grid, Loupe, Compare, Survey, Editor |
+| `U`                                                                   | Clear favorite and reject                          | Grid, Loupe, Compare, Survey, Editor |
+| `6` / `7` / `8` / `9`                                                 | Set or clear the red, yellow, green or blue label  | Grid, Loupe, Compare, Survey, Editor |
+| `Del` / `Backspace`                                                   | Move to the Immich trash, or delete a virtual copy | Grid, Loupe                          |
 
 ## Grid
 

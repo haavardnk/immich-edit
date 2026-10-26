@@ -53,6 +53,8 @@ pub enum AppError {
     AccessDisabled,
     #[error("rate limited")]
     RateLimited(Option<u64>),
+    #[error("the Immich trash is turned off")]
+    TrashDisabled,
 }
 
 impl AppError {
@@ -142,6 +144,11 @@ impl AppError {
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limited",
                 "too many attempts; try again later".into(),
+            ),
+            Self::TrashDisabled => (
+                StatusCode::CONFLICT,
+                "trash_disabled",
+                "The Immich trash is turned off, so Immich would delete these photos for good. Turn the trash on in Immich's administration settings first.".into(),
             ),
         }
     }

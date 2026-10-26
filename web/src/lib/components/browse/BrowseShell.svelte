@@ -5,6 +5,8 @@
   import Notice from '$lib/components/Notice.svelte';
   import { browseControls } from '$lib/stores/browseControls.svelte';
   import { hides } from '$lib/browse/loadedFilter';
+  import { trash } from '$lib/stores/trash.svelte';
+  import { toasts } from '$lib/stores/toasts.svelte';
   import type { AssetSummary } from '$lib/types/album';
   import { Button, LoadingSpinner } from '@immich/ui';
 
@@ -46,6 +48,16 @@
     assets.filter((asset) => hides(browseControls.filters, asset)).length
   );
   const headerTotal = $derived(countLoaded ? assets.length - hiddenCount : totalCount);
+
+  async function trashRejected(): Promise<void> {
+    if (onLoadAll && !(await onLoadAll())) return;
+    const rejects = assets.filter((asset) => !hides(browseControls.filters, asset));
+    if (rejects.length === 0) {
+      toasts.push('info', 'No rejected photos here');
+      return;
+    }
+    void trash.request(rejects);
+  }
 </script>
 
 <div class="flex min-h-0 flex-1">
@@ -73,6 +85,7 @@
         totalCount={headerTotal}
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}
+        onTrashRejected={assets.length > hiddenCount ? trashRejected : undefined}
       />
       {#if assets.length === 0}
         <div
