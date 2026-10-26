@@ -3,6 +3,7 @@ import { NEUTRAL_DETAIL } from './detail';
 import { NEUTRAL_EFFECTS } from './effects';
 import { neutralGeometry } from './geometry';
 import { NEUTRAL_LENS } from './lens';
+import { NEUTRAL_LENS_BLUR, resetLensBlur } from './lensBlur';
 import type { Edits } from './model';
 import { neutralBasic, neutralTone } from './tone';
 
@@ -16,7 +17,8 @@ export function neutralEdits(): Edits {
     lens: { ...NEUTRAL_LENS },
     geometry: neutralGeometry(),
     masks: [],
-    retouch: []
+    retouch: [],
+    lens_blur: { ...NEUTRAL_LENS_BLUR }
   };
 }
 
@@ -30,7 +32,8 @@ export function resetDevelopEdits(edits: Edits): Edits {
     },
     geometry: edits.geometry,
     masks: edits.masks,
-    retouch: edits.retouch
+    retouch: edits.retouch,
+    lens_blur: resetLensBlur(edits.lens_blur)
   };
 }
 
@@ -44,7 +47,8 @@ export function originalPreviewEdits(edits: Edits): Edits {
     detail: neutral.detail,
     effects: neutral.effects,
     masks: [],
-    retouch: []
+    retouch: [],
+    lens_blur: resetLensBlur(edits.lens_blur)
   };
 }
 
@@ -57,6 +61,7 @@ export type DevelopSection =
   | 'vignette'
   | 'grain'
   | 'lens'
+  | 'lens_blur'
   | 'lut'
   | 'bw';
 
@@ -140,6 +145,8 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
       };
     case 'lens':
       return { ...edits, lens: neutral.lens };
+    case 'lens_blur':
+      return { ...edits, lens_blur: resetLensBlur(edits.lens_blur) };
     case 'lut':
       return { ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } };
     case 'bw':

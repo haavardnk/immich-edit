@@ -1,6 +1,7 @@
 import { bandsAllZero, bwIsNeutral, colorGradeIsZero, dcpIsDefault, lut3dIsActive } from './color';
 import { flatOpsAreIdentity } from './flatOps';
 import { geometryIsIdentity } from './geometry';
+import { lensBlurActive } from './lensBlur';
 import type { Edits } from './model';
 import { curvesEditsIsIdentity } from './tone';
 import { whiteBalanceIsAsShot } from './whiteBalance';
@@ -21,6 +22,7 @@ export function isDevelopIdentity(e: Edits): boolean {
     bandsAllZero(e.color.hsl.bands) &&
     colorGradeIsZero(e.color.color_grade) &&
     !lut3dIsActive(e.color.lut_3d) &&
-    bwIsNeutral(e.color.bw)
+    bwIsNeutral(e.color.bw) &&
+    !lensBlurActive(e.lens_blur)
   );
 }

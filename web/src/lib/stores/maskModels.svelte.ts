@@ -19,8 +19,8 @@ class MaskModelsState {
     return null;
   }
 
-  get clickInstalled(): boolean {
-    return this.kinds.some((entry) => entry.kind === 'click' && entry.installed);
+  installed(kind: MaskKind): boolean {
+    return this.kinds.some((entry) => entry.kind === kind && entry.installed);
   }
 
   load = async (): Promise<void> => {

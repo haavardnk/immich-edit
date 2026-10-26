@@ -8,6 +8,7 @@ import LutPanel from './Lut.svelte';
 import DcpPanel from './Dcp.svelte';
 import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
+import LensBlurPanel from './LensBlur.svelte';
 import EffectsPanel from './Effects.svelte';
 
 export interface PanelDef {
@@ -29,6 +30,7 @@ export const developPanels: PanelDef[] = [
   { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
   { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
   { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
+  { id: 'lens-blur', title: 'Lens Blur', component: LensBlurPanel, defaultOpen: false },
   { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false }
 ];
 

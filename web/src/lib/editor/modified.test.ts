@@ -42,4 +42,12 @@ describe('editor modified state', () => {
 
     expect(modifiedDevelopPanels(edits).has('detail')).toBe(modified);
   });
+
+  it('marks Lens Blur modified only while it renders', () => {
+    const edits = neutralEdits();
+    edits.lens_blur.depth_raster_id = 'depth';
+    expect(modifiedDevelopPanels(edits).has('lens-blur')).toBe(false);
+    edits.lens_blur.amount = 30;
+    expect(modifiedDevelopPanels(edits).has('lens-blur')).toBe(true);
+  });
 });

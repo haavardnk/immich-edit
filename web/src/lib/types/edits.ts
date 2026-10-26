@@ -5,6 +5,7 @@ export { decodeFlatOps, encodeFlatOps } from './edits/flatOps';
 export * from './edits/geometry';
 export * from './edits/identity';
 export * from './edits/lens';
+export * from './edits/lensBlur';
 export * from './edits/masks';
 export * from './edits/model';
 export * from './edits/neutral';

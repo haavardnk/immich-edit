@@ -19,6 +19,7 @@ export function presetEdits(current: Edits, { manifest, opts }: PresetPreview): 
     lens: incoming.lens,
     geometry: opts.includeGeometry ? incoming.geometry : current.geometry,
     masks: opts.includeMasks ? incoming.masks : current.masks,
-    retouch: current.retouch
+    retouch: current.retouch,
+    lens_blur: current.lens_blur
   };
 }

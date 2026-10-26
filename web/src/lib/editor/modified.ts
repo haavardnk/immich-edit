@@ -1,6 +1,6 @@
 import { editsToManifest } from '$lib/edits/manifest';
 import type { EditorTab } from '$lib/stores/ui.svelte';
-import type { Edits } from '$lib/types/edits';
+import { lensBlurActive, type Edits } from '$lib/types/edits';
 
 const DEVELOP_PANEL_OPS: Record<string, readonly string[]> = {
   dcp: ['dcp_hue_sat'],
@@ -23,11 +23,13 @@ const DEVELOP_PANEL_OPS: Record<string, readonly string[]> = {
   lut: ['lut_3d'],
   detail: ['capture_sharpen', 'sharpen', 'ai_denoise', 'luma_nr', 'color_nr'],
   lens: ['lens_profile'],
+  'lens-blur': ['lens_blur'],
   effects: ['vignette', 'grain']
 };
 
 export function modifiedDevelopPanels(edits: Edits): Set<string> {
   const active = new Set(Object.keys(editsToManifest(edits).ops));
+  if (!lensBlurActive(edits.lens_blur)) active.delete('lens_blur');
   return new Set(
     Object.entries(DEVELOP_PANEL_OPS)
       .filter(([, opIds]) => opIds.some((id) => active.has(id)))

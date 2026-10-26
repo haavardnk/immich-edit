@@ -19,6 +19,8 @@ function everyPanelModified(): Edits {
   edits.color.lut_3d.lut_id = 'lut-1';
   edits.detail.luma_nr_amount = 25;
   edits.lens.k1 = 0.1;
+  edits.lens_blur.amount = 40;
+  edits.lens_blur.depth_raster_id = 'depth';
   edits.effects.grain_amount = 10;
   edits.geometry.rotate = 90;
   return edits;
@@ -38,6 +40,7 @@ describe('resetDevelopPanel', () => {
       'lut',
       'detail',
       'lens',
+      'lens-blur',
       'effects'
     ]);
   });
@@ -48,5 +51,6 @@ describe('resetDevelopPanel', () => {
 
     expect([...modifiedDevelopPanels(reset)]).toEqual(PANELS.filter((id) => id !== panelId));
     expect(reset.geometry).toEqual(edits.geometry);
+    expect(reset.lens_blur.depth_raster_id).toBe('depth');
   });
 });
