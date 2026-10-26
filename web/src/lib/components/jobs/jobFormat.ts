@@ -1,4 +1,5 @@
 import { isJobActive, type Job } from '$lib/api/jobs';
+import { countOf } from '$lib/utils/plural';
 
 const KIND_LABELS: Record<string, string> = {
   export_immich: 'Export to Immich',
@@ -22,5 +23,5 @@ export function jobOutcome(job: Job): string {
   if (job.status === 'cancelled') return 'Cancelled';
   if (job.failed > 0) return `${job.failed} of ${job.total} failed`;
   if (job.status === 'failed') return 'Failed';
-  return `Done, ${job.completed} photo${job.completed === 1 ? '' : 's'}`;
+  return `Done, ${countOf(job.completed, 'photo')}`;
 }

@@ -7,6 +7,7 @@ import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
 import { ratingOp, ratingStars } from '$lib/browse/rating';
 import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '$lib/browse/exifFilters';
 import { ID_FILTERS, idChipLabel, type IdFilterKey } from '$lib/browse/idFilters';
+import { countOf } from '$lib/utils/plural';
 
 export interface FilterChip {
   key: FilterKey;
@@ -23,7 +24,7 @@ const VISIBILITY_LABELS: Record<BrowseFilters['visibility'], string> = {
 function ratingLabel(rating: BrowseFilters['rating']): string {
   if (rating === 'unrated') return 'Unrated';
   const stars = ratingStars(rating);
-  const name = `${stars} star${stars === 1 ? '' : 's'}`;
+  const name = countOf(stars, 'star');
   const op = ratingOp(rating);
   if (op === 'gte') return `≥ ${name}`;
   if (op === 'lte') return `≤ ${name}`;
@@ -81,6 +82,6 @@ export function withoutFilter(filters: BrowseFilters, key: FilterKey): BrowseFil
 }
 
 export function photoCountLabel(total: number, hidden: number): string {
-  const photos = `${total} photo${total === 1 ? '' : 's'}`;
+  const photos = countOf(total, 'photo');
   return hidden > 0 ? `${photos}, ${hidden} hidden` : photos;
 }

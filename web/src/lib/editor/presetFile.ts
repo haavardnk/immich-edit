@@ -1,4 +1,5 @@
 import type { Preset, PresetInput } from '$lib/api/presets';
+import { countOf } from '$lib/utils/plural';
 
 export const PRESET_FILE_KIND = 'immich-edit-presets';
 export const PRESET_FILE_VERSION = 1;
@@ -76,7 +77,7 @@ export function newPresets(
 }
 
 function presetCount(n: number): string {
-  return `${n} preset${n === 1 ? '' : 's'}`;
+  return countOf(n, 'preset');
 }
 
 export function importSummary(imported: number, skipped: number, failed: number): string {

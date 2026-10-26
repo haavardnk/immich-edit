@@ -11,6 +11,7 @@
   import { selection } from '$lib/stores/selection.svelte';
   import { toasts } from '$lib/stores/toasts.svelte';
   import type { AlbumSummary } from '$lib/types/album';
+  import { countOf } from '$lib/utils/plural';
 
   let { ids, busy = $bindable() }: { ids: string[]; busy: boolean } = $props();
 
@@ -20,7 +21,7 @@
   const currentAlbum = $derived(
     page.route.id === '/albums/[id]' ? (albums.find((a) => a.id === page.params.id) ?? null) : null
   );
-  const photos = $derived(`${ids.length} selected photo${ids.length === 1 ? '' : 's'}`);
+  const photos = $derived(countOf(ids.length, 'selected photo'));
 
   onMount(() => {
     listAlbums()

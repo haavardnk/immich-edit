@@ -7,6 +7,7 @@
     type SessionInfo
   } from '$lib/api/account';
   import { formatWhen } from '$lib/utils/datetime';
+  import { countOf } from '$lib/utils/plural';
   import { mdiLaptop, mdiLogoutVariant } from '@mdi/js';
   import { Badge, Icon, IconButton, LoadingSpinner, Text } from '@immich/ui';
 
@@ -42,7 +43,7 @@
 <section class="space-y-3 py-2">
   <div class="flex min-h-8 items-center justify-between gap-3">
     <Text size="tiny" color="muted">
-      {sessions.length} active {sessions.length === 1 ? 'session' : 'sessions'}
+      {countOf(sessions.length, 'active session')}
     </Text>
     {#if sessions.length > 1}
       <IconButton

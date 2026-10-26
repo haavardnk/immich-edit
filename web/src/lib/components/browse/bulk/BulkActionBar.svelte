@@ -30,6 +30,7 @@
   import RejectButton from '$lib/components/RejectButton.svelte';
   import StarRating from '$lib/components/StarRating.svelte';
   import { commonValue, coverage } from '$lib/utils/selectionState';
+  import { countOf } from '$lib/utils/plural';
   import { toasts } from '$lib/stores/toasts.svelte';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
@@ -161,7 +162,7 @@
     if (failed > 0) {
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
-      toasts.push('success', `Updated ${ids.length} asset${ids.length === 1 ? '' : 's'}`, 4000);
+      toasts.push('success', `Updated ${countOf(ids.length, 'asset')}`, 4000);
     }
   }
 
@@ -187,7 +188,7 @@
     } else {
       toasts.push(
         'success',
-        `Created ${ids.length} virtual cop${ids.length === 1 ? 'y' : 'ies'}`,
+        `Created ${countOf(ids.length, 'virtual copy', 'virtual copies')}`,
         4000
       );
     }
@@ -230,7 +231,7 @@
     } else {
       toasts.push(
         'success',
-        `${value ? 'Rejected' : 'Unrejected'} ${ids.length} asset${ids.length === 1 ? '' : 's'}`,
+        `${value ? 'Rejected' : 'Unrejected'} ${countOf(ids.length, 'asset')}`,
         4000
       );
     }
@@ -266,7 +267,7 @@
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
       const what = color ? `${LABEL_NAMES[color]} label on` : 'Cleared the label of';
-      toasts.push('success', `${what} ${ids.length} photo${ids.length === 1 ? '' : 's'}`, 4000);
+      toasts.push('success', `${what} ${countOf(ids.length, 'photo')}`, 4000);
     }
   }
 </script>

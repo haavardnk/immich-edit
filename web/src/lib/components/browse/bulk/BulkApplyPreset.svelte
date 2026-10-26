@@ -4,6 +4,7 @@
   import { createApplyPresetJob, type ApplyPresetOptions } from '$lib/api/jobs';
   import { runBulkJob } from '$lib/api/bulkJob';
   import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
+  import { countOf } from '$lib/utils/plural';
   import PresetApplyOptions from '$lib/components/preset/ApplyOptions.svelte';
   import PresetPicker from '$lib/components/preset/PresetPicker.svelte';
   import { Button } from '@immich/ui';
@@ -42,7 +43,7 @@
 
 <div class="flex flex-col gap-2 px-3 py-2">
   <div class="text-[11px] text-dark/65 select-none">
-    {selection.count} asset{selection.count === 1 ? '' : 's'} selected
+    {countOf(selection.count, 'asset')} selected
   </div>
 
   {#if presets.presets.length === 0}

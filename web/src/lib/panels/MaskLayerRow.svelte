@@ -3,6 +3,7 @@
   import { editor } from '$lib/stores/editor.svelte';
   import { maskedEditsIsZero, type MaskLayer } from '$lib/types/edits';
   import type { MaskCapacity } from '$lib/types/masks';
+  import { countOf } from '$lib/utils/plural';
   import { Button, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {
@@ -92,9 +93,7 @@
       <span class="truncate">{layer.name}</span>
     </Button>
   {/if}
-  <Tooltip
-    text="{layer.components.length} shape{layer.components.length === 1 ? '' : 's'} in this mask"
-  >
+  <Tooltip text="{countOf(layer.components.length, 'shape')} in this mask">
     {#snippet child({ props })}
       <span
         {...mergeProps(props, { tabindex: -1 })}
