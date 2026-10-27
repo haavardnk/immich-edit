@@ -16,7 +16,15 @@ export function degToRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
+export function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
 export const MAX_STRAIGHTEN_DEG = 45;
+
+export function clampStraighten(deg: number): number {
+  return Math.max(-MAX_STRAIGHTEN_DEG, Math.min(MAX_STRAIGHTEN_DEG, deg));
+}
 export const MIN_CROP = 0.05;
 
 export type CropHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';

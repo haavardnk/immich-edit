@@ -81,7 +81,8 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Automatic RAW lens profiles | ✓ Yes | Distortion and vignette, with an instance-wide opt-out; chromatic aberration remains opt-in |
 | Crop, rotate, and flip | ✓ Yes | Geometry controls; straighten by drawing a line along the horizon |
 | Manual perspective correction | ✓ Yes | Keystone, aspect, and corner controls |
-| Automatic or guided upright | ✗ No | — |
+| Guided upright | ✓ Yes | Solves angle and keystone from two to four drawn lines; see [edit](edit.md) |
+| Automatic upright | ✗ No | — |
 
 ## Detail
 

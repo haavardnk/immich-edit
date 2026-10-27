@@ -14,6 +14,7 @@
   import { neutralPerspective, perspectiveCssMatrix } from '$lib/utils/perspective';
   import { stageFrame } from '$lib/editor/geometryStage';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
+  import UprightGuides from './UprightGuides.svelte';
   import type { CropRect } from '$lib/types/edits';
 
   let container = $state<HTMLDivElement | null>(null);
@@ -306,6 +307,10 @@
           onpointerup={onLineUp}
           onpointercancel={onLineUp}
         ></div>
+      {/if}
+
+      {#if ui.geometryTool === 'upright'}
+        <UprightGuides {frame} guides={sess.guides} />
       {/if}
 
       {#if line}
