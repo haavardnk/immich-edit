@@ -1,9 +1,8 @@
 <script lang="ts">
   import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
   import MaskedEditSlider from './MaskedEditSlider.svelte';
   import { editor } from '$lib/stores/editor.svelte';
-  import { Button, Icon } from '@immich/ui';
-  import { mdiRestore } from '@mdi/js';
 
   let { layerId }: { layerId: string } = $props();
 
@@ -31,19 +30,12 @@
     <div class="flex-1 min-w-0 text-[10px] uppercase tracking-wider text-dark/65 truncate">
       Adjustments · {layer?.name ?? ''}
     </div>
-    <Button
-      type="button"
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      class="size-6 shrink-0 p-0"
+    <ResetButton
       title="Reset every adjustment on this mask"
-      aria-label="Reset mask adjustments"
+      label="Reset mask adjustments"
       disabled={isDefault}
       onclick={reset}
-    >
-      <Icon icon={mdiRestore} size="13px" aria-hidden="true" />
-    </Button>
+    />
   </div>
   <SliderRow
     label="Amount"

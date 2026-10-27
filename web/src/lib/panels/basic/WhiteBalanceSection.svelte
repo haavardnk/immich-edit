@@ -61,12 +61,9 @@
 <SectionHeader title="White Balance" section="white_balance" {modified} onReset={reset}>
   {#snippet actions()}
     <IconButton
-      size="small"
+      size="tiny"
       variant="ghost"
       color={editor.wbPicking ? 'primary' : 'secondary'}
-      class="size-6 rounded p-0 {editor.wbPicking
-        ? 'bg-white/10'
-        : 'text-dark/55 hover:bg-hairline hover:text-dark'}"
       icon={mdiEyedropperVariant}
       title={hint('Pick a neutral area in the image', 'pickWhiteBalance')}
       aria-label="Pick white balance"
@@ -75,10 +72,9 @@
       onclick={editor.toggleWbPicker}
     />
     <IconButton
-      size="small"
+      size="tiny"
       variant="ghost"
       color="secondary"
-      class="size-6 rounded p-0 text-dark/55 hover:bg-hairline hover:text-dark"
       icon={mdiAutoFix}
       title="Auto white balance"
       aria-label="Auto white balance"
