@@ -206,6 +206,7 @@ pub(crate) fn demosaic_patch(
         cpp: 3,
         #[cfg(feature = "native")]
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     };
     Some((patch, x - x0 as f32, y - y0 as f32))
@@ -252,6 +253,7 @@ pub(crate) fn decimate_mosaic(frame: &RawFrame) -> Option<RawFrame> {
         cpp: 3,
         #[cfg(feature = "native")]
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     })
 }

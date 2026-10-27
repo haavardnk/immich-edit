@@ -12,6 +12,9 @@ use crate::gpu::context::GpuContext;
 
 use super::demosaic::linear_format_str;
 
+pub(super) const BICUBIC_CLAMPED_WGSL: &str =
+    include_str!("../../../assets/shaders/bicubic_clamped.wgsl");
+
 pub(super) fn uniform_entry(binding: u32, size: u64) -> BindGroupLayoutEntry {
     BindGroupLayoutEntry {
         binding,

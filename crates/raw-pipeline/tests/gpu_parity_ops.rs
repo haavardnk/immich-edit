@@ -3,6 +3,7 @@ use raw_pipeline::edits::{
     RetouchMode, RetouchStroke, ToneEdits, Vec2f,
 };
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::geom::dng_warp::{DngWarp, EmbeddedLens, WarpPlane};
 use raw_pipeline::{decode, edits::Edits};
 use raw_pipeline_testkit::fixtures::any_fixture;
 use raw_pipeline_testkit::frames::{detail_frame, rgb_frame, synthetic_frame};
@@ -516,6 +517,55 @@ fn gpu_lens_resampling_matches_cpu_on_fine_detail() {
         let gpu = renderer.render(&frame, &edits, &opts).unwrap();
         require_same_dims(label, &cpu, &gpu);
         ledger.check(label, &cpu.bytes, &gpu.bytes, 0.1);
+    }
+    ledger.finish();
+}
+
+#[test]
+fn gpu_embedded_dng_warp_matches_cpu() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let opts = rgb8_opts(96);
+    let shared = WarpPlane {
+        radial: [0.9844, 0.1333, -0.3011, 0.1486],
+        tangential: [0.002, -0.001],
+    };
+    let mut split = [shared; 3];
+    split[0].radial[0] = 0.975;
+    split[2].radial[0] = 0.995;
+    let distortion = LensEdits {
+        profile_enabled: Some(true),
+        distortion_amount: 100.0,
+        k1: -0.1,
+        ..Default::default()
+    };
+    let cases = [
+        ("dng-warp-shared", [shared; 3], LensEdits::default(), 0.07),
+        ("dng-warp-split", split, LensEdits::default(), 0.07),
+        ("dng-warp-then-lens", [shared; 3], distortion, 0.13),
+    ];
+    let mut ledger = ParityLedger::new("lens");
+    for (label, planes, lens, limit) in cases {
+        let plain = detail_frame(96, 64);
+        let mut frame = detail_frame(96, 64);
+        frame.embedded_lens = EmbeddedLens::Warp(DngWarp {
+            planes,
+            center: [0.48, 0.52],
+        });
+        let edits = Edits {
+            lens,
+            ..Default::default()
+        };
+        let cpu = raw_pipeline::cpu::render(&frame, &edits, &opts).unwrap();
+        let gpu = renderer.render(&frame, &edits, &opts).unwrap();
+        let unwarped = raw_pipeline::cpu::render(&plain, &edits, &opts).unwrap();
+        let effect = mean_abs_delta(&cpu.bytes, &unwarped.bytes);
+        if effect < 2.0 {
+            panic!("{label}: embedded warp had no visible effect ({effect:.3})");
+        }
+        require_same_dims(label, &cpu, &gpu);
+        ledger.check(label, &cpu.bytes, &gpu.bytes, limit);
     }
     ledger.finish();
 }

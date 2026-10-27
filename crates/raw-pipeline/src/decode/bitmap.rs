@@ -119,6 +119,7 @@ pub(super) fn frame_from_rgb8(
         data: linear,
         cpp: 3,
         exif,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }
@@ -154,6 +155,7 @@ fn frame_from_rgb16(
         data: linear,
         cpp: 3,
         exif,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }

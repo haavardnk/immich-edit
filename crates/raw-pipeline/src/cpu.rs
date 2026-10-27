@@ -1,5 +1,7 @@
 pub mod dehaze;
 pub mod demosaic;
+#[cfg(feature = "native")]
+pub mod dng_warp;
 pub mod fused;
 #[cfg(feature = "native")]
 pub mod lens_blur;

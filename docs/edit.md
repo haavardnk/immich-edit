@@ -85,6 +85,8 @@ act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy a
 1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
    An administrator can turn the automatic correction off under
    [**Editing defaults**](administration.md#editing-defaults).
+   Phone and drone DNGs carry their own corrections, which always apply, so the automatic profile
+   stays off for them; you can still turn a profile on.
    **Remove Chromatic Aberration** is off until you turn it on.
 1. **Lens Blur** blurs what lies in front of or behind your subject, like a wide aperture. Press
    **Generate depth** once per photo; the server estimates how far away each part of the photo is

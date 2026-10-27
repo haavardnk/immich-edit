@@ -51,6 +51,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Bayer RAW | ✓ Yes | Native 2x2 CPU and GPU demosaic |
 | Fujifilm X-Trans RAW | ✓ Yes | Native 6x6 CPU and GPU demosaic |
 | Linear and Bayer DNG input | ✓ Yes | Tested end to end |
+| Phone and drone DNG corrections | ✓ Yes | Lens shading maps, vignette and distortion stored in the DNG are always applied; iPhone ProRAW's profile gain table map is not |
 | JPEG, PNG, TIFF, WebP, HEIC, AVIF, JPEG XL, GIF, and BMP input | ✓ Yes | [Format details](compatibility.md) |
 | Sigma Foveon `.x3f` | ✗ No | Not decoded by rawler |
 | CFA patterns other than 2x2 Bayer or 6x6 X-Trans | ✗ No | Rejected rather than rendered incorrectly |
@@ -78,7 +79,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Custom camera ICC input profiles | ✗ No | Camera profiles use DCP only |
 | Creative 3D LUTs | ✓ Yes | `.cube` import with amount control, including 1D shaper tables and input ranges; importing is admin-only |
 | 3D LUT export | ✗ No | No `.cube` download or baking from current color edits |
-| Automatic RAW lens profiles | ✓ Yes | Distortion and vignette, with an instance-wide opt-out; chromatic aberration remains opt-in |
+| Automatic RAW lens profiles | ✓ Yes | Distortion and vignette, with an instance-wide opt-out; chromatic aberration remains opt-in; skipped for DNGs that carry their own corrections |
 | Crop, rotate, and flip | ✓ Yes | Geometry controls; straighten by drawing a line along the horizon |
 | Manual perspective correction | ✓ Yes | Keystone, aspect, and corner controls |
 | Guided upright | ✓ Yes | Solves angle and keystone from two to four drawn lines; see [edit](edit.md) |
@@ -96,7 +97,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | AI denoise | ✓ Yes | RAW only; runs once per photo on the server and needs an admin-installed model; see [edit](edit.md) |
 | AI super resolution or upscale | ✗ No | — |
 | Texture, clarity, and dehaze | ✓ Yes | Global controls; texture and clarity also work in masks |
-| Hot or dead pixel correction | ✗ No | — |
+| Hot or dead pixel correction | ✓ Yes | Automatic on every Bayer and X-Trans RAW, plus the bad-pixel lists a DNG carries; no control |
 | Demosaic method selection or dual demosaic | ✗ No | One method per CFA type |
 | Alternate high-quality export demosaic | ✗ No | Exports use the same Bayer or X-Trans method as previews |
 | Moiré and false-color correction | ✗ No | — |

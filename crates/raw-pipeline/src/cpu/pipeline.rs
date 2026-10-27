@@ -4,7 +4,7 @@ mod source;
 
 use crate::cancel::{self, CancelToken};
 use crate::cpu::renderer::{self, CpuRenderer};
-use crate::cpu::{demosaic, transform};
+use crate::cpu::{demosaic, dng_warp, transform};
 use crate::edits::Edits;
 use crate::finish::{FinalImage, FinalPixels, encode, final_stage, has_final_stage};
 use crate::frame::{BitDepth, RawFrame, RenderOptions, RenderedImage};
@@ -201,6 +201,9 @@ fn oriented_sensor(
         cancel::check(cancel)?;
     }
     clock.time(timing::LENS, || {
+        if let Some(warp) = frame.embedded_lens.warp() {
+            dng_warp::apply_dng_warp(&mut sensor_image, warp);
+        }
         run_sensor_ops(&mut sensor_image, &prep.edits, cancel)
     })?;
     cancel::check(cancel)?;

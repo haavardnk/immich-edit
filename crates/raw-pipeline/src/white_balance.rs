@@ -230,15 +230,23 @@ fn display_uv_to_sensor_px(frame: &RawFrame, edits: &Edits, u: f32, v: f32) -> O
     px = px.clamp(0.0, w - 1.0);
     py = py.clamp(0.0, h - 1.0);
 
-    if !edits.lens.distortion_active() {
-        return Some((px, py));
-    }
-    let warp = LensWarpParams::from_edits(
-        &edits.lens,
-        frame.meta.width as u32,
-        frame.meta.height as u32,
-    );
-    let (sx, sy) = warp.output_px_to_source_px(px, py);
+    let (sx, sy) = if edits.lens.distortion_active() {
+        LensWarpParams::from_edits(
+            &edits.lens,
+            frame.meta.width as u32,
+            frame.meta.height as u32,
+        )
+        .output_px_to_source_px(px, py)
+    } else {
+        (px, py)
+    };
+    let [sx, sy] = match frame.embedded_lens.warp() {
+        Some(warp) => {
+            warp.frame(frame.meta.width, frame.meta.height)
+                .source_px(&warp.planes[1], sx, sy)
+        }
+        None => [sx, sy],
+    };
     (sx >= 0.0 && sy >= 0.0 && sx <= w - 1.0 && sy <= h - 1.0).then_some((sx, sy))
 }
 

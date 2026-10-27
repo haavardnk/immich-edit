@@ -103,6 +103,7 @@ mod tests {
             data: vec![0.0f32; n],
             cpp: 1,
             exif: None,
+            embedded_lens: Default::default(),
             id: FrameId::fresh(),
         })
     }

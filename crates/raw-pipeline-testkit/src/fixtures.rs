@@ -7,6 +7,7 @@ const RAW_EXTS: &[&str] = &[
     "raf", "raw", "rw2", "rwl", "sr2", "srw", "x3f",
 ];
 const IMAGE_EXTS: &[&str] = &["avif", "heic", "hif", "jpg", "jxl", "png", "tif", "webp"];
+const DEFAULT_FIXTURE: &str = "Canon_EOS_5D_3-2.cr2";
 
 fn tests_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../raw-pipeline/tests")
@@ -45,12 +46,18 @@ pub fn image_fixtures() -> Vec<PathBuf> {
     fixtures_with(IMAGE_EXTS)
 }
 
+fn default_first() -> Vec<PathBuf> {
+    let mut paths = fixtures();
+    paths.sort_by_key(|p| p.file_name().is_none_or(|n| n != DEFAULT_FIXTURE));
+    paths
+}
+
 pub fn any_fixture() -> Option<PathBuf> {
-    fixtures().into_iter().next()
+    default_first().into_iter().next()
 }
 
 pub fn first_decodable_fixture() -> Option<PathBuf> {
-    fixtures().into_iter().find(|p| {
+    default_first().into_iter().find(|p| {
         std::fs::read(p)
             .ok()
             .map(|b| decode::decode(&b).is_ok())
@@ -59,7 +66,7 @@ pub fn first_decodable_fixture() -> Option<PathBuf> {
 }
 
 pub fn first_fixture_frame() -> Option<RawFrame> {
-    fixtures()
+    default_first()
         .into_iter()
         .find_map(|p| std::fs::read(&p).ok().and_then(|b| decode::decode(&b).ok()))
 }

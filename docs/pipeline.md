@@ -43,6 +43,7 @@ relative tolerance of `1e-4`. This also checks uniform packing.
 
 1. Demosaics Bayer or X-Trans mosaics.
 1. Blends the AI Denoise result into the demosaiced image when one is supplied.
+1. Applies the DNG's own lens warp when the file carries one.
 1. Resolves the camera matrix and DCP baseline.
 1. Runs sensor operations, including effective lens corrections.
 1. Applies EXIF orientation.
@@ -81,6 +82,26 @@ mask layers too. Noise
 reduction, capture sharpening, and the dehaze atmosphere estimate therefore see the as-shot white
 balance, and a white balance change reuses all of them.
 
+### DNG corrections and bad pixels
+
+RAW decode repairs hot and dead pixels first. Every Bayer and X-Trans mosaic is checked against
+the same-color photosites in its 5×5 neighborhood: a photosite more than twice as bright as all of
+them (or less than half as bright), by at least 2% of white, is replaced by their median. A point of
+light spreads into the neighboring photosites of the other colors and a defective photosite does
+not, so a photosite whose four direct neighbors stand out from their own colors on average by at
+least 5% of its excess is kept. DNG `FixBadPixelsConstant` and `FixBadPixelsList` entries in
+`OpcodeList1` are repaired the same way, whether or not they look defective.
+
+After [highlight reconstruction](#highlight-reconstruction), decode multiplies the mosaic by the
+DNG's gain maps and radial vignette from `OpcodeList2` and `OpcodeList3`, per color, without the
+DNG SDK's clamp at white so rebuilt highlights survive. Phones store lens shading this way, and
+drones and some compact cameras add a vignette. Linear DNGs get the same gains per channel after
+decode. A gain listed after the warp is evaluated where the warp moves each photosite. A
+`WarpRectilinear` distortion correction travels with the frame and runs after demosaic and the AI
+Denoise blend, before user lens corrections, on both renderers. A photo with any of these
+corrections skips the automatic lensfun profile, so nothing is corrected twice. Other opcodes are
+skipped, and a malformed one never stops the photo from opening.
+
 ### Highlight reconstruction
 
 RAW decode rebuilds clipped photosites before demosaic, so both renderers and every later stage see
@@ -108,7 +129,7 @@ above, so bright areas come down without flattening or changing color.
 | --- | --- | --- |
 | 1 | Upload and demosaic | Mosaic or RGB input to scene-linear texture |
 | 2 | AI Denoise | Blend the stored full-resolution AI Denoise result at the chosen strength and detail |
-| 3 | Sensor | Lens vignette and sensor-space corrections |
+| 3 | Sensor | The DNG's own lens warp, then lens vignette and sensor-space corrections |
 | 4 | White-balance preparation | As-shot white balance and camera-to-sRGB base |
 | 5 | Retouch | Heal and clone strokes when active |
 | 6 | Noise reduction | Color, then luma wavelet shrinkage against a measured noise profile |

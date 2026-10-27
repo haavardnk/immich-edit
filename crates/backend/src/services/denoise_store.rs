@@ -19,7 +19,7 @@ use crate::services::render::RenderIdentity;
 const MEMORY_SLOTS: NonZeroUsize = NonZeroUsize::new(2).unwrap();
 const MB: u64 = 1024 * 1024;
 const EXTENSION: &str = "iedn";
-pub const BAKE_REVISION: u32 = 1;
+pub const BAKE_REVISION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PlaneKey {

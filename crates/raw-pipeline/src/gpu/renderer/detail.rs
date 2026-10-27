@@ -5,6 +5,7 @@ mod capture_sharpen;
 mod dehaze;
 #[cfg(feature = "native")]
 mod denoise;
+
 mod lens_blur;
 #[cfg(feature = "native")]
 mod nr;

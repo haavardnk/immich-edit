@@ -36,6 +36,7 @@ fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
         data: Vec::new(),
         cpp,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }

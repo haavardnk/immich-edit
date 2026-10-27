@@ -1,3 +1,4 @@
+use crate::geom::dng_warp::EmbeddedLens;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub type OrientFlips = (bool, bool, bool);
@@ -33,6 +34,7 @@ pub struct RawFrame {
     pub cpp: usize,
     #[cfg(feature = "native")]
     pub exif: Option<little_exif::metadata::Metadata>,
+    pub embedded_lens: EmbeddedLens,
     pub id: FrameId,
 }
 
