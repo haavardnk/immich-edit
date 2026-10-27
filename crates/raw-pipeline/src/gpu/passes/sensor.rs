@@ -5,9 +5,16 @@ use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::gpu::context::GpuContext;
 
-use super::common::{make_layout, make_pipeline, storage_entry, tex_entry, uniform_entry_unsized};
+use super::common::{
+    BICUBIC_CLAMPED_WGSL, make_layout, make_pipeline, storage_entry, tex_entry,
+    uniform_entry_unsized,
+};
 
-pub const SENSOR_WGSL: &str = include_str!("../../../assets/shaders/sensor.wgsl");
+const SENSOR_WGSL: &str = include_str!("../../../assets/shaders/sensor.wgsl");
+
+pub fn sensor_wgsl() -> String {
+    [SENSOR_WGSL, BICUBIC_CLAMPED_WGSL].concat()
+}
 
 pub struct SensorPass {
     pub layout: BindGroupLayout,
@@ -25,7 +32,7 @@ impl SensorPass {
                 storage_entry(2, ctx.linear_format),
             ],
         );
-        let pipeline = make_pipeline(ctx, &layout, "sensor.wgsl", SENSOR_WGSL);
+        let pipeline = make_pipeline(ctx, &layout, "sensor.wgsl", &sensor_wgsl());
         Self { layout, pipeline }
     }
 }

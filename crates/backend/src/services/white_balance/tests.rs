@@ -22,6 +22,7 @@ fn uniform_frame(rgb: [f32; 3]) -> Arc<RawFrame> {
         data: rgb.repeat(SIZE * SIZE),
         cpp: 3,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     })
 }

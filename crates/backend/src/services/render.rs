@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use raw_pipeline::CancelToken;
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{Edits, LensEdits};
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::source::SourceCoding;
 use raw_pipeline::timing::StageTiming;
@@ -240,6 +240,20 @@ impl RenderService {
             .map(|timed| timed.image)
     }
 
+    async fn auto_lens(
+        &self,
+        identity: RenderIdentity,
+        immich: &ImmichClient,
+        source: Uuid,
+        frame: &RawFrame,
+        lens: LensEdits,
+    ) -> LensEdits {
+        if !frame.meta.is_raw || frame.embedded_lens.is_corrected() {
+            return lens;
+        }
+        self.lens.resolve(identity, immich, source, lens).await
+    }
+
     pub async fn render_timed(
         &self,
         identity: RenderIdentity,
@@ -255,12 +269,9 @@ impl RenderService {
             self.frame(identity, &immich, source).await?
         };
         let mut edits = edits;
-        if frame.meta.is_raw {
-            edits.lens = self
-                .lens
-                .resolve(identity, &immich, source, edits.lens)
-                .await;
-        }
+        edits.lens = self
+            .auto_lens(identity, &immich, source, &frame, edits.lens)
+            .await;
         if options.denoise.is_none() {
             options.denoise = self.denoise.plane(identity, source, &edits, &frame).await;
         }
@@ -304,12 +315,9 @@ impl RenderService {
             coding,
         } = request;
         let frame = self.frame(identity, &immich, source).await?;
-        if frame.meta.is_raw {
-            edits.lens = self
-                .lens
-                .resolve(identity, &immich, source, edits.lens)
-                .await;
-        }
+        edits.lens = self
+            .auto_lens(identity, &immich, source, &frame, edits.lens)
+            .await;
         options.denoise = self.denoise.plane(identity, source, &edits, &frame).await;
         let dcp = self.inputs.dcp_for(&edits, &frame).await?;
         let dcp_id = dcp.as_ref().map(|selection| selection.id.clone());

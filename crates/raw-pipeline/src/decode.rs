@@ -1,5 +1,8 @@
+mod bad_pixels;
 mod bitmap;
+mod dng;
 mod highlights;
+mod mosaic;
 mod raw;
 
 #[cfg(test)]
@@ -8,12 +11,14 @@ mod tests;
 use crate::PipelineError;
 use crate::frame::RawFrame;
 use bitmap::{decode_image, sniff_format};
+use dng::DngCorrections;
 use little_exif::metadata::Metadata;
 use raw::{decode_raw_fast, decode_raw_quality};
 use rawler::rawsource::RawSource;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-type DevelopFn = fn(rawler::RawImage, Option<Metadata>) -> crate::PipelineResult<RawFrame>;
+type DevelopFn =
+    fn(rawler::RawImage, Option<Metadata>, &DngCorrections) -> crate::PipelineResult<RawFrame>;
 
 pub fn decode(data: &[u8]) -> crate::PipelineResult<RawFrame> {
     decode_with(data, decode_raw_fast)
@@ -49,7 +54,8 @@ fn decode_with(data: &[u8], develop: DevelopFn) -> crate::PipelineResult<RawFram
                 crate::metadata::exif::from_raw_metadata(&meta, &raw_image.make, &raw_image.model)
             });
         let exif = crate::metadata::exif::merge(exif, fallback);
-        develop(raw_image, exif)
+        let corrections = DngCorrections::read(data);
+        develop(raw_image, exif, &corrections)
     }))
     .unwrap_or_else(|_| {
         Err(PipelineError::Unsupported(format!(

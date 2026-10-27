@@ -15,6 +15,7 @@ use super::passes::dehaze::{
 };
 use super::passes::demosaic::{DEMOSAIC_WGSL, SUPERPIXEL_WGSL};
 use super::passes::denoise_blend::{DENOISE_BLEND_WGSL, DenoiseBlendParams};
+use super::passes::dng_warp::{DngWarpParams, dng_warp_wgsl};
 use super::passes::effects_tone::{EffectsToneParams, effects_tone_wgsl};
 use super::passes::lens_blur::{LensBlurParams, apply_wgsl, down_wgsl, gather_wgsl};
 use super::passes::lut::{LutParams, lut_wgsl};
@@ -33,7 +34,7 @@ use super::passes::presence::{
 };
 use super::passes::resample::{RESAMPLE_WGSL, ResampleParams};
 use super::passes::retouch::{RETOUCH_APPLY_WGSL, RETOUCH_PREP_WGSL, RetouchParams};
-use super::passes::sensor::{SENSOR_WGSL, SensorParams};
+use super::passes::sensor::{SensorParams, sensor_wgsl};
 use super::passes::sharpen::{SHARPEN_BLUR_WGSL, SHARPEN_WGSL, SharpenBlurParams, SharpenParams};
 use super::passes::xtrans::{XTRANS_GREEN_WGSL, XTRANS_RGB_WGSL};
 use super::shader_builder::{self, BuiltProcessShader, StageMask};
@@ -390,9 +391,14 @@ fn uniform_structs_mirror_wgsl() {
             uniform_struct(DENOISE_BLEND_WGSL),
         ),
         (
+            "dng_warp",
+            layout!(DngWarpParams { size, center, radius, split, radial, tangential } pad { _pad }),
+            uniform_struct(&dng_warp_wgsl()),
+        ),
+        (
             "sensor",
             layout!(SensorParams { size, zoom, vig_amount, coeffs, ca_vig } pad {}),
-            uniform_struct(SENSOR_WGSL),
+            uniform_struct(&sensor_wgsl()),
         ),
         (
             "sharpen_blur",

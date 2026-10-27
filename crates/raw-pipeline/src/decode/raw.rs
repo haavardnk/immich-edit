@@ -1,4 +1,7 @@
+use super::bad_pixels;
+use super::dng::DngCorrections;
 use super::highlights::{reconstruct_mosaic, reconstruct_rgb};
+use super::mosaic::{ActiveArea, Mosaic};
 use crate::PipelineError;
 use crate::frame::{FrameId, FrameMeta, RawFrame};
 use rawler::cfa::CFA;
@@ -121,32 +124,49 @@ fn populate_xyz_to_cam_from_color_matrix(raw_image: &mut rawler::RawImage) {
 }
 
 pub(super) fn decode_raw_fast(
-    mut raw_image: rawler::RawImage,
+    raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
+    dng: &DngCorrections,
 ) -> crate::PipelineResult<RawFrame> {
     if raw_image.cpp != 1 {
-        return decode_raw_quality(raw_image, exif);
+        return decode_raw_quality(raw_image, exif, dng);
     }
-    let cfa = match &raw_image.photometric {
+    match &raw_image.photometric {
         RawPhotometricInterpretation::Cfa(config)
             if config.sensor == SensorType::Bayer && config.cfa.is_rgb() =>
         {
-            config.cfa.clone()
+            let cfa = config.cfa.clone();
+            mosaic_frame(raw_image, exif, cfa, dng)
         }
-        _ => return decode_raw_quality(raw_image, exif),
-    };
+        _ => decode_raw_quality(raw_image, exif, dng),
+    }
+}
 
+fn active_pattern(raw_image: &rawler::RawImage, cfa: &CFA) -> String {
+    let [x, y] = ActiveArea::of(raw_image).origin;
+    cfa.shift(x, y).name
+}
+
+fn mosaic_frame(
+    mut raw_image: rawler::RawImage,
+    exif: Option<little_exif::metadata::Metadata>,
+    cfa: CFA,
+    dng: &DngCorrections,
+) -> crate::PipelineResult<RawFrame> {
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
+    let flagged = dng.flagged_pixels(&raw_image);
     let (mut data, width, height) = scaled_mosaic(&raw_image);
-    let cfa_pattern = match raw_image.active_area {
-        Some(area) => cfa.shift(area.p.x, area.p.y).name,
-        None => cfa.name,
-    };
+    let cfa_pattern = active_pattern(&raw_image, &cfa);
+    bad_pixels::repair(
+        &mut Mosaic::whole(&mut data, width, height, &cfa_pattern),
+        &flagged,
+    );
 
     let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
     reconstruct_mosaic(&mut data, width, height, &cfa_pattern, wb_coeffs);
+    dng.apply_gains(&mut Mosaic::whole(&mut data, width, height, &cfa_pattern));
 
     Ok(RawFrame {
         meta: FrameMeta {
@@ -165,15 +185,16 @@ pub(super) fn decode_raw_fast(
         data,
         cpp: 1,
         exif,
+        embedded_lens: dng.embedded_lens(true),
         id: FrameId::fresh(),
     })
 }
 
 pub(super) fn scaled_mosaic(raw_image: &rawler::RawImage) -> (Vec<f32>, usize, usize) {
-    let (x0, y0, width, height) = match raw_image.active_area {
-        Some(area) => (area.p.x, area.p.y, area.d.w, area.d.h),
-        None => (0, 0, raw_image.width, raw_image.height),
-    };
+    let ActiveArea {
+        origin: [x0, y0],
+        size: [width, height],
+    } = ActiveArea::of(raw_image);
     let data = match &raw_image.data {
         RawImageData::Integer(src) => scale_rows(src, raw_image, (x0, y0), (width, height)),
         RawImageData::Float(src) => scale_rows(src, raw_image, (x0, y0), (width, height)),
@@ -215,6 +236,7 @@ fn scale_rows<T: Copy + Into<f32> + Sync>(
 pub(super) fn decode_raw_quality(
     mut raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
+    dng: &DngCorrections,
 ) -> crate::PipelineResult<RawFrame> {
     if raw_image.cpp == 1
         && let RawPhotometricInterpretation::Cfa(config) = &raw_image.photometric
@@ -222,7 +244,7 @@ pub(super) fn decode_raw_quality(
         match config.sensor {
             SensorType::Xtrans => {
                 let cfa = config.cfa.clone();
-                return decode_raw_xtrans(raw_image, exif, cfa);
+                return decode_raw_xtrans(raw_image, exif, cfa, dng);
             }
             SensorType::Bayer if !config.cfa.is_rgb() && config.cfa.unique_colors() != 4 => {
                 return Err(PipelineError::Unsupported(format!(
@@ -244,23 +266,22 @@ pub(super) fn decode_raw_quality(
     let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
         extract_common(&mut raw_image, &exif);
 
-    let mosaic_pattern = match &raw_image.photometric {
+    let mosaic_cfa = match &raw_image.photometric {
         RawPhotometricInterpretation::Cfa(config) if raw_image.cpp == 1 && config.cfa.is_rgb() => {
-            Some(config.cfa.name.clone())
+            Some(config.cfa.clone())
         }
         _ => None,
     };
     let mut steps = vec![ProcessingStep::Demosaic, ProcessingStep::CropActiveArea];
-    match &mosaic_pattern {
-        Some(pattern) => {
-            raw_image
-                .apply_scaling()
-                .map_err(|e| PipelineError::Decode(format!("scale: {e}")))?;
-            if let RawImageData::Float(data) = &mut raw_image.data {
-                reconstruct_mosaic(data, raw_image.width, raw_image.height, pattern, wb_coeffs);
-            }
+    let gains_applied = match &mosaic_cfa {
+        Some(cfa) => correct_full_mosaic(&mut raw_image, cfa, wb_coeffs, dng)?,
+        None => {
+            steps.insert(0, ProcessingStep::Rescale);
+            raw_image.cpp == 3
         }
-        None => steps.insert(0, ProcessingStep::Rescale),
+    };
+    if !gains_applied && dng.has_gains() {
+        tracing::debug!(model = %raw_image.clean_model, "skipping DNG gains on this pixel layout");
     }
     let intermediate = RawDevelop { steps }
         .develop_intermediate(&raw_image)
@@ -296,6 +317,7 @@ pub(super) fn decode_raw_quality(
     };
     if raw_image.cpp == 3 {
         reconstruct_rgb(&mut data, width, height, wb_coeffs);
+        dng.apply_gains_rgb(&mut data, width, height);
     }
 
     Ok(RawFrame {
@@ -315,14 +337,44 @@ pub(super) fn decode_raw_quality(
         data,
         cpp: 3,
         exif,
+        embedded_lens: dng.embedded_lens(gains_applied),
         id: FrameId::fresh(),
     })
 }
 
+fn correct_full_mosaic(
+    raw_image: &mut rawler::RawImage,
+    cfa: &CFA,
+    wb_coeffs: [f32; 4],
+    dng: &DngCorrections,
+) -> crate::PipelineResult<bool> {
+    let flagged = dng.flagged_pixels(raw_image);
+    raw_image
+        .apply_scaling()
+        .map_err(|e| PipelineError::Decode(format!("scale: {e}")))?;
+    let area = ActiveArea::of(raw_image);
+    let active = active_pattern(raw_image, cfa);
+    let stride = raw_image.width;
+    let height = raw_image.height;
+    let RawImageData::Float(data) = &mut raw_image.data else {
+        return Ok(false);
+    };
+    if !area.fits(stride, height) {
+        tracing::warn!(?area, stride, height, "active area exceeds the raw image");
+        reconstruct_mosaic(data, stride, height, &cfa.name, wb_coeffs);
+        return Ok(false);
+    }
+    bad_pixels::repair(&mut Mosaic::window(data, stride, area, &active), &flagged);
+    reconstruct_mosaic(data, stride, height, &cfa.name, wb_coeffs);
+    dng.apply_gains(&mut Mosaic::window(data, stride, area, &active));
+    Ok(true)
+}
+
 fn decode_raw_xtrans(
-    mut raw_image: rawler::RawImage,
+    raw_image: rawler::RawImage,
     exif: Option<little_exif::metadata::Metadata>,
     cfa: CFA,
+    dng: &DngCorrections,
 ) -> crate::PipelineResult<RawFrame> {
     if crate::cpu::demosaic::parse_xtrans(&cfa.name).is_none() {
         return Err(PipelineError::Unsupported(format!(
@@ -330,36 +382,5 @@ fn decode_raw_xtrans(
             cfa.name
         )));
     }
-
-    let (wb_coeffs, xyz_to_cam, color_matrices, orientation) =
-        extract_common(&mut raw_image, &exif);
-
-    let (mut data, width, height) = scaled_mosaic(&raw_image);
-    let cfa_pattern = match raw_image.active_area {
-        Some(area) => cfa.shift(area.p.x, area.p.y).name,
-        None => cfa.name,
-    };
-
-    let capture_sigma = crate::capture_sigma::estimate(&data, width, height, &cfa_pattern);
-    reconstruct_mosaic(&mut data, width, height, &cfa_pattern, wb_coeffs);
-
-    Ok(RawFrame {
-        meta: FrameMeta {
-            width,
-            height,
-            wb_coeffs,
-            xyz_to_cam,
-            color_matrices,
-            orientation,
-            is_raw: true,
-            capture_sigma,
-            model: raw_image.clean_model.clone(),
-        },
-        cfa_pattern,
-        bps: 16,
-        data,
-        cpp: 1,
-        exif,
-        id: FrameId::fresh(),
-    })
+    mosaic_frame(raw_image, exif, cfa, dng)
 }

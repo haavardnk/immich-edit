@@ -5,6 +5,7 @@ pub mod dehaze;
 pub mod demosaic;
 #[cfg(feature = "native")]
 pub mod denoise_blend;
+pub mod dng_warp;
 pub mod effects_tone;
 pub mod lens_blur;
 pub mod luma_pyramid;
@@ -42,6 +43,8 @@ use dehaze::DehazePasses;
 use demosaic::DemosaicPass;
 #[cfg(feature = "native")]
 use denoise_blend::DenoiseBlendPass;
+#[cfg(feature = "native")]
+use dng_warp::DngWarpPass;
 use effects_tone::EffectsTonePass;
 use lens_blur::LensBlurPasses;
 use luma_pyramid::LumaPyramidPass;
@@ -109,6 +112,7 @@ pub struct SensorStagePasses {
     pub demosaic: DemosaicPass,
     pub xtrans: XtransPasses,
     pub denoise_blend: DenoiseBlendPass,
+    pub dng_warp: DngWarpPass,
     pub sensor: SensorPass,
     pub wb_prepare: WbPreparePass,
     pub retouch: RetouchPasses,
@@ -123,6 +127,7 @@ impl SensorStagePasses {
             demosaic: DemosaicPass::new(ctx),
             xtrans: XtransPasses::new(ctx),
             denoise_blend: DenoiseBlendPass::new(ctx),
+            dng_warp: DngWarpPass::new(ctx),
             sensor: SensorPass::new(ctx),
             wb_prepare: WbPreparePass::new(ctx, registry),
             retouch: RetouchPasses::new(ctx),
@@ -133,6 +138,7 @@ impl SensorStagePasses {
             demosaic,
             xtrans,
             denoise_blend,
+            dng_warp,
             sensor,
             wb_prepare,
             retouch,

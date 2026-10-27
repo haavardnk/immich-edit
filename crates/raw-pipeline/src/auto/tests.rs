@@ -33,6 +33,7 @@ fn make_mosaic_frame_with<F: Fn(usize, usize) -> f32>(
         data,
         cpp: 1,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }
@@ -64,6 +65,7 @@ fn make_frame_with<F: Fn(usize, usize) -> f32>(w: usize, h: usize, f: F) -> RawF
         data,
         cpp: 3,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }

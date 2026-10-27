@@ -275,6 +275,7 @@ fn sensor_scaling_darkens_the_render() {
             data: frame.data.iter().map(|v| v * 0.25).collect(),
             cpp: frame.cpp,
             exif: None,
+            embedded_lens: frame.embedded_lens.clone(),
             id: FrameId::fresh(),
         };
         let bright = mean_luma(&cpu::render(frame, &Edits::default(), &opts).unwrap().bytes);
@@ -323,6 +324,7 @@ fn non_raw_ignores_the_profile_mode() {
             cfa_pattern: frame.cfa_pattern.clone(),
             data: frame.data.clone(),
             exif: None,
+            embedded_lens: frame.embedded_lens.clone(),
             id: FrameId::fresh(),
             ..*frame
         };

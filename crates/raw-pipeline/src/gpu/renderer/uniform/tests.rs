@@ -35,6 +35,7 @@ fn frame() -> RawFrame {
         data,
         cpp: 3,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }

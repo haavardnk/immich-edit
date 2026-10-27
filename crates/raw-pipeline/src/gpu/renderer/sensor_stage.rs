@@ -175,6 +175,14 @@ impl GpuRenderer {
             }
             None => cached,
         };
+        let cached = match frame.embedded_lens.warp() {
+            Some(warp) => {
+                let warped = t.stage(timing::LENS, || self.submit_dng_warp(&cached, warp))?;
+                crate::cancel::check(cancel)?;
+                warped
+            }
+            None => cached,
+        };
         let cached = if edits.lens.any_active() {
             let corrected = t.stage(timing::LENS, || self.submit_sensor(&cached, &edits))?;
             crate::cancel::check(cancel)?;

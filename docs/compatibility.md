@@ -26,8 +26,14 @@ camera-specific fix. The rows marked tested have committed end-to-end fixtures.
 | Hasselblad | `.3fr`, `.fff` | Decoder support |
 | Phase One | `.iiq` | Decoder support |
 | Ricoh | `.dng` | Tested |
+| Apple, Google, LG and other phones | `.dng` | iPhone 8 and Nexus 5X tested; iPhone ProRAW decodes |
+| DJI | `.dng` | Mini 2 tested |
 | Adobe DNG | Linear and Bayer `.dng` | Tested |
 | Sigma | `.x3f` | Not supported |
+
+Phone and drone DNGs store lens shading, vignette and distortion corrections in the file, and
+those are always applied, as in Lightroom. Fisheye warps, map tables and per-row or per-column
+adjustments are skipped, and so is the profile gain table map in iPhone ProRAW files.
 
 Pixel-shift and multi-frame files decode only their first sub-frame. Bayer and X-Trans sensors are
 supported; an unusual color filter array outside those is rejected. Fujifilm X-Trans uses a

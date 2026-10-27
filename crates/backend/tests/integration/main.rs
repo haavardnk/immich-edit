@@ -34,6 +34,7 @@ mod immich_capabilities;
 mod input_validation;
 mod jobs;
 mod jobs_lifecycle;
+mod lens_profile;
 mod logging;
 mod login_rate_limit;
 mod middleware;

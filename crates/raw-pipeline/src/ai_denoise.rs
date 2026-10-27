@@ -45,6 +45,7 @@ fn raw_frame(width: usize, height: usize, data: Vec<f32>) -> RawFrame {
         cpp: 3,
         #[cfg(feature = "native")]
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }

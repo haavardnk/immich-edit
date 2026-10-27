@@ -2,6 +2,7 @@ use super::*;
 use crate::color::{Calibration, CameraWhite, inverse_3x3, mat3_vec};
 use crate::edits::{CropRect, GeometryEdits};
 use crate::frame::{FrameId, FrameMeta};
+use crate::geom::dng_warp::{DngWarp, EmbeddedLens, WarpPlane};
 
 fn make_frame(w: usize, h: usize, rgb: [f32; 3]) -> RawFrame {
     make_frame_with(w, h, |_, _| rgb)
@@ -29,6 +30,7 @@ fn make_frame_with<F: Fn(usize, usize) -> [f32; 3]>(w: usize, h: usize, f: F) ->
         data,
         cpp: 3,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }
@@ -233,6 +235,30 @@ fn sample_uses_display_coordinates_after_crop() {
     };
     let wb = sample_white_balance(&frame, &edits, None, 0.5, 0.5).expect("cropped patch solves");
     assert!(spread(neutralised(cast, wb)) < 0.03);
+}
+
+#[test]
+fn sample_follows_the_embedded_dng_warp() {
+    let cast = [0.55, 0.40, 0.28];
+    let mut frame = make_frame_with(128, 64, |x, _| {
+        if (24..56).contains(&x) {
+            cast
+        } else {
+            [0.1, 0.4, 0.1]
+        }
+    });
+    let plain = sample_white_balance(&frame, &Edits::default(), None, 0.1, 0.5).expect("solves");
+    assert!(spread(neutralised(cast, plain)) > 0.03);
+    let zoom = WarpPlane {
+        radial: [0.5, 0.0, 0.0, 0.0],
+        tangential: [0.0, 0.0],
+    };
+    frame.embedded_lens = EmbeddedLens::Warp(DngWarp {
+        planes: [zoom; 3],
+        center: [0.5, 0.5],
+    });
+    let warped = sample_white_balance(&frame, &Edits::default(), None, 0.1, 0.5).expect("solves");
+    assert!(spread(neutralised(cast, warped)) < 0.03);
 }
 
 #[test]

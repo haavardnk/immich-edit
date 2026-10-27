@@ -18,6 +18,7 @@ pub fn rgb_frame(w: usize, h: usize, data: Vec<f32>) -> RawFrame {
         data,
         cpp: 3,
         exif: None,
+        embedded_lens: Default::default(),
         id: FrameId::fresh(),
     }
 }
