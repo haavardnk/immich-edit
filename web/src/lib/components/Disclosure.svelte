@@ -52,7 +52,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="group/reset absolute top-1 right-0.75 size-6 rounded p-0 text-dark/55 hover:bg-hairline hover:text-dark"
+      class="group/reset absolute top-1 right-0.75 size-6 p-0"
       title="Reset {title} panel"
       aria-label="Reset {title} panel"
       onclick={onReset}
@@ -63,7 +63,7 @@
       ></span>
       <Icon
         icon={mdiRestore}
-        size="12px"
+        size="60%"
         class="hidden group-hover/reset:block group-focus-visible/reset:block"
         aria-hidden="true"
       />
