@@ -53,12 +53,9 @@ function onEscape(e: KeyboardEvent): void {
   if (ui.keybindsHelpOpen) {
     e.preventDefault();
     ui.closeKeybindsHelp();
-  } else if (ui.editorTab === 'geometry' && ui.straightening) {
+  } else if (ui.editorTab === 'geometry' && ui.geometryTool) {
     e.preventDefault();
-    ui.straightening = false;
-  } else if (ui.editorTab === 'geometry' && ui.perspectiveCorners) {
-    e.preventDefault();
-    ui.perspectiveCorners = false;
+    ui.geometryTool = null;
   } else if (ui.editorTab === 'retouch' && editor.retouchSampling) {
     e.preventDefault();
     editor.toggleRetouchSampling();
@@ -169,7 +166,7 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
       void createVirtualCopy(id, { returnPath: page.url.searchParams.get('from') });
       return;
     case 'straighten':
-      ui.toggleStraighten();
+      ui.toggleGeometryTool('straighten');
       return;
     case 'cropGrid':
       ui.cycleCropGrid();
