@@ -14,9 +14,9 @@ import { errorMessage } from '$lib/utils/errors';
 import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
 import {
   aspectRatioFor,
+  clampStraighten,
   constrainCropRect,
   largestInscribedRect,
-  MAX_STRAIGHTEN_DEG,
   quarterTurnCrop,
   refitCropAtAspect
 } from '$lib/utils/geom';
@@ -30,6 +30,7 @@ import {
   type PerspectiveEdits
 } from '$lib/utils/perspective';
 import { LIVE_EDGE } from './previewEdge';
+import type { UprightGuide } from '$lib/utils/upright';
 
 export interface GeometrySession {
   frameUrl: string | null;
@@ -43,6 +44,7 @@ export interface GeometrySession {
   draftAspect: AspectLock;
   draftPerspective: PerspectiveEdits;
   userEditedCrop: boolean;
+  guides: UprightGuide[];
 }
 
 export interface GeometryCtx {
@@ -62,7 +64,7 @@ let frameKey: string | null = null;
 let frameAbort: AbortController | null = null;
 let wheelTimer: ReturnType<typeof setTimeout> | null = null;
 
-function ready(ctx: GeometryCtx): GeometrySession | null {
+export function ready(ctx: GeometryCtx): GeometrySession | null {
   const sess = ctx.geometrySession;
   return sess && sess.srcW > 0 ? sess : null;
 }
@@ -71,7 +73,7 @@ function perspInv(sess: GeometrySession): Mat3 {
   return perspectiveInverse(sess.draftPerspective);
 }
 
-function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
+export function sourceDims(sess: GeometrySession): { sw: number; sh: number } {
   const swapped = sess.draftRotate === 90 || sess.draftRotate === 270;
   return { sw: swapped ? sess.srcH : sess.srcW, sh: swapped ? sess.srcW : sess.srcH };
 }
@@ -89,7 +91,7 @@ export function cropIsDefault(sess: GeometrySession): boolean {
   );
 }
 
-function refitDraftCrop(sess: GeometrySession): void {
+export function refitDraftCrop(sess: GeometrySession): void {
   const { sw, sh } = sourceDims(sess);
   const angle = sess.draftAngle;
   const persp = perspInv(sess);
@@ -159,7 +161,20 @@ export function refreshFrame(ctx: GeometryCtx, edits: Edits): void {
   void loadFrame(ctx, sess, ctx.assetId, frame, controller);
 }
 
+function dropGuidesIfTurned(sess: GeometrySession, geometry: GeometryEdits): void {
+  const turned =
+    sess.draftRotate !== geometry.rotate ||
+    sess.draftFlipH !== geometry.flip_h ||
+    sess.draftFlipV !== geometry.flip_v;
+  if (turned) sess.guides = [];
+}
+
+function dropGuides(ctx: GeometryCtx): void {
+  if (ctx.geometrySession) ctx.geometrySession.guides = [];
+}
+
 function resetDrafts(sess: GeometrySession, geometry: GeometryEdits): void {
+  dropGuidesIfTurned(sess, geometry);
   sess.draftRotate = geometry.rotate;
   sess.draftFlipH = geometry.flip_h;
   sess.draftFlipV = geometry.flip_v;
@@ -185,7 +200,8 @@ export function startSession(ctx: GeometryCtx): void {
     draftCrop: FULL_CROP,
     draftAspect: { kind: 'original' },
     draftPerspective: neutralPerspective(),
-    userEditedCrop: false
+    userEditedCrop: false,
+    guides: []
   };
   resetDrafts(sess, edits.geometry);
   ctx.geometrySession = sess;
@@ -227,6 +243,7 @@ export async function commit(
   if (!sess) return;
   const geometry = draftGeometry(sess, ctx.edits.geometry);
   if (sameGeometry(ctx.edits.geometry, geometry)) return;
+  dropGuidesIfTurned(sess, ctx.edits.geometry);
   ctx.edits = { ...ctx.edits, geometry };
   await ctx.onCommit(action);
 }
@@ -293,7 +310,7 @@ export function flipStep(ctx: GeometryCtx, axis: 'h' | 'v'): void {
 export function updateDraftAngle(ctx: GeometryCtx, angle: number): void {
   const sess = ready(ctx);
   if (!sess) return;
-  sess.draftAngle = Math.max(-MAX_STRAIGHTEN_DEG, Math.min(MAX_STRAIGHTEN_DEG, angle));
+  sess.draftAngle = clampStraighten(angle);
   refitDraftCrop(sess);
 }
 
@@ -315,7 +332,15 @@ export function updateDraftCrop(ctx: GeometryCtx, crop: CropRect): void {
   sess.userEditedCrop = !cropIsDefault(sess);
 }
 
+export async function resetTransform(ctx: GeometryCtx): Promise<void> {
+  dropGuides(ctx);
+  updateDraftAngle(ctx, 0);
+  updateDraftPerspective(ctx, neutralPerspective());
+  await commit(ctx, 'Reset transform');
+}
+
 export async function reset(ctx: GeometryCtx): Promise<void> {
+  dropGuides(ctx);
   if (!ctx.assetId || geometryIsIdentity(ctx.edits.geometry)) return;
   if (wheelTimer) clearTimeout(wheelTimer);
   wheelTimer = null;

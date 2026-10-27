@@ -17,7 +17,7 @@ export const IDENTITY_MAT3: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 export const CORNER_LIMIT = 0.25;
 
-const KEYSTONE_GAIN = 0.005;
+export const KEYSTONE_GAIN = 0.005;
 const ASPECT_BASE = 1.5;
 const MIN_W = 0.05;
 const MIN_QUAD_AREA = 0.05;
@@ -66,8 +66,8 @@ export function perspectiveQuad(p: PerspectiveEdits | null): Quad {
 
 function perspectiveParamsMatrix(p: PerspectiveEdits): Mat3 {
   const c = clampPerspective(p);
-  const raw = mat3Mul(centeredToUv(paramsMatrix(c)), cornerMatrix(c));
-  return mat3Mul(fitToFrame(raw), centeredToUv(paramsMatrix(c)));
+  const raw = mat3Mul(centeredToUv(keystoneAspectMatrix(c)), cornerMatrix(c));
+  return mat3Mul(fitToFrame(raw), centeredToUv(keystoneAspectMatrix(c)));
 }
 
 export function cornerOffsetsFor(
@@ -181,7 +181,7 @@ function perspectiveMatrices(p: PerspectiveEdits | null): [Mat3, Mat3] {
 }
 
 function tryMatrices(c: PerspectiveEdits): [Mat3, Mat3] | null {
-  const raw = mat3Mul(centeredToUv(paramsMatrix(c)), cornerMatrix(c));
+  const raw = mat3Mul(centeredToUv(keystoneAspectMatrix(c)), cornerMatrix(c));
   const forward = mat3Mul(fitToFrame(raw), raw);
   const inverse = mat3Inverse(forward);
   if (!inverse) return null;
@@ -257,7 +257,7 @@ function lerpPoint(a: Point, b: Point, t: number): Point {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 }
 
-function paramsMatrix(p: PerspectiveEdits): Mat3 {
+export function keystoneAspectMatrix(p: PerspectiveEdits): Mat3 {
   const kv = p.vertical * KEYSTONE_GAIN;
   const kh = p.horizontal * KEYSTONE_GAIN;
   const a = Math.pow(ASPECT_BASE, p.aspect / 100);

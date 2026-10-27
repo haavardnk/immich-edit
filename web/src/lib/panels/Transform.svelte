@@ -7,13 +7,9 @@
   import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
   import CropSection from './geometry/CropSection.svelte';
   import type { Edits, GeometryEdits } from '$lib/types/edits';
-  import {
-    neutralPerspective,
-    perspectiveIsIdentity,
-    type PerspectiveEdits
-  } from '$lib/utils/perspective';
+  import { perspectiveIsIdentity, type PerspectiveEdits } from '$lib/utils/perspective';
   import { IconButton } from '@immich/ui';
-  import { mdiVectorSquare, mdiAngleAcute } from '@mdi/js';
+  import { mdiVectorSquare, mdiAngleAcute, mdiRulerSquare } from '@mdi/js';
 
   $effect(() => {
     const assetId = editor.assetId;
@@ -58,17 +54,12 @@
       title: hint('Straighten', 'straighten'),
       icon: mdiAngleAcute
     },
+    { id: 'upright', label: 'Guided upright', title: 'Guided upright', icon: mdiRulerSquare },
     { id: 'corners', label: 'Corner handles', title: 'Corner handles', icon: mdiVectorSquare }
   ];
 
   function onPerspectiveLive(key: (typeof perspectiveSliders)[number]['key'], v: number): void {
     editor.updateGeometryDraftPerspective({ [key]: v });
-  }
-
-  function resetTransform(): void {
-    editor.updateGeometryDraftAngle(0);
-    editor.updateGeometryDraftPerspective(neutralPerspective());
-    void editor.commitGeometry('Reset transform');
   }
 </script>
 
@@ -77,7 +68,11 @@
     <CropSection sess={editor.geometrySession} />
 
     <div class="flex flex-col gap-1 py-1.5">
-      <SectionHeader title="Transform" modified={transformModified} onReset={resetTransform}>
+      <SectionHeader
+        title="Transform"
+        modified={transformModified}
+        onReset={() => void editor.resetGeometryTransform()}
+      >
         {#snippet actions()}
           {#each geometryTools as tool (tool.id)}
             <IconButton

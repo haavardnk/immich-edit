@@ -229,6 +229,13 @@ leaving the tool. The tool stays open until you pick another one.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
   afterwards. **Corner handles** lets you drag the four corners onto a shape that
   should be rectangular instead.
+- **Guided upright** sets **Angle**, **Vertical** and **Horizontal** from lines you draw, and
+  replaces any **Corner handles** adjustment. Turn it on and draw along at least two edges that
+  should be upright or level, such as the sides of a building or a horizon. A line within 35° of
+  upright counts as upright and one within 35° of level counts as level; anything between is
+  ignored. Up to two of each kind count, and a third replaces the oldest. One line of the other kind
+  also fixes any remaining slant. Drag a line's ends to adjust it, or click its **×** to remove it.
+  The lines stay until you leave the tool, rotate or flip the photo, or reset.
 - The reset arrow beside **Crop** or **Transform** undoes just that section. **Reset** in the bar at
   the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
   leaves your develop settings alone.

@@ -34,6 +34,7 @@ import * as maskGen from '$lib/stores/editor/maskGen';
 import * as metadata from '$lib/stores/editor/metadata';
 import * as retouch from '$lib/stores/editor/retouch';
 import * as geometry from '$lib/stores/editor/geometry.svelte';
+import * as upright from '$lib/stores/editor/upright';
 import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { AiDenoiseTracker } from '$lib/stores/editor/aiDenoise.svelte';
@@ -61,6 +62,7 @@ import { errorMessage } from '$lib/utils/errors';
 import { loadFaceData } from '$lib/stores/zoomTargets';
 import type { PanStep } from '$lib/utils/imageViewport';
 import type { PerspectiveEdits } from '$lib/utils/perspective';
+import type { UprightGuide } from '$lib/utils/upright';
 import type { PreviewSurface } from '$lib/utils/previewSurface';
 
 class EditorStore {
@@ -390,6 +392,8 @@ class EditorStore {
 
   resetGeometry = (): Promise<void> => geometry.reset(this);
 
+  resetGeometryTransform = (): Promise<void> => geometry.resetTransform(this);
+
   copyEdits = (): void => develop.copyEdits(this);
 
   pasteEdits = (): Promise<void> => develop.pasteEdits(this);
@@ -714,6 +718,13 @@ class EditorStore {
     geometry.setAspect(this, aspect, action);
 
   flipGeometryAspect = (): Promise<void> => geometry.flipAspect(this);
+
+  addUprightGuide = (guide: UprightGuide): Promise<void> => upright.addGuide(this, guide);
+
+  moveUprightGuide = (index: number, guide: UprightGuide): Promise<void> =>
+    upright.moveGuide(this, index, guide);
+
+  removeUprightGuide = (index: number): Promise<void> => upright.removeGuide(this, index);
 }
 
 export const editor = new EditorStore();
