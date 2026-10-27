@@ -42,6 +42,8 @@ cargo install wasm-bindgen-cli --locked --version <the wasm-bindgen version in C
 `dev.sh` builds it before starting and rebuilds it when `crates/raw-pipeline` or
 `crates/web-render` change. Outside `dev.sh`, run `npm run wasm` in `web/`. The script stops and
 prints the exact install command when the installed `wasm-bindgen` does not match `Cargo.lock`.
+The script builds the `wasm` Cargo profile (fat LTO, one codegen unit), which CI holds to a gzip
+size budget; `dev.sh` sets `WASM_PROFILE=release` so watch rebuilds stay fast.
 
 ## Run the development servers
 
