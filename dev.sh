@@ -15,6 +15,7 @@ export DATA_DIR="${DATA_DIR:-./data}"
 export DCP_DIR="${DCP_DIR:-crates/backend/assets/dcp}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/dev-server}"
 export IMMICH_EDIT_BACKEND="${IMMICH_EDIT_BACKEND:-http://${BIND_ADDR}}"
+export WASM_PROFILE="${WASM_PROFILE:-release}"
 
 if [[ "$(uname -s)" == Darwin ]] && command -v brew >/dev/null; then
   brew_prefix="$(brew --prefix)"
