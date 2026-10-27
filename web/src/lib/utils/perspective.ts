@@ -316,7 +316,7 @@ function clampPoint(p: Point): Point {
   return [clamp(p[0], -CORNER_LIMIT, CORNER_LIMIT), clamp(p[1], -CORNER_LIMIT, CORNER_LIMIT)];
 }
 
-function unitSquareCorners(): Quad {
+export function unitSquareCorners(): Quad {
   return [
     [0, 0],
     [1, 0],

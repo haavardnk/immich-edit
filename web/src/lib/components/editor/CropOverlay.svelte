@@ -5,19 +5,15 @@
   import {
     rotatedBbox,
     aspectRatioFor,
-    degToRad,
     angleFromLine,
     resizeCrop,
     scaleCropAboutCentre,
     type CropHandle,
     type Point
   } from '$lib/utils/geom';
-  import {
-    cornerOffsetsFor,
-    mat3Apply,
-    perspectiveCssMatrix,
-    perspectiveForward
-  } from '$lib/utils/perspective';
+  import { neutralPerspective, perspectiveCssMatrix } from '$lib/utils/perspective';
+  import { stageFrame } from '$lib/editor/geometryStage';
+  import PerspectiveCorners from './PerspectiveCorners.svelte';
   import type { CropRect } from '$lib/types/edits';
 
   let container = $state<HTMLDivElement | null>(null);
@@ -70,31 +66,19 @@
   const imgH = $derived((sess?.srcH ?? 1) * scale);
   const orientedW = $derived(swapped ? imgH : imgW);
   const orientedH = $derived(swapped ? imgW : imgH);
-  const perspCss = $derived(
-    sess
-      ? perspectiveCssMatrix(perspectiveForward(sess.draftPerspective), orientedW, orientedH)
-      : 'none'
+  const frame = $derived(
+    stageFrame({
+      bboxW,
+      bboxH,
+      orientedW,
+      orientedH,
+      angle: sess?.draftAngle ?? 0,
+      perspective: sess?.draftPerspective ?? neutralPerspective()
+    })
   );
-  const cornerHandles = $derived.by<{ x: number; y: number }[]>(() => {
-    if (!sess) return [];
-    const f = perspectiveForward(sess.draftPerspective);
-    const a = degToRad(sess.draftAngle);
-    const cos = Math.cos(a);
-    const sin = Math.sin(a);
-    const base: [number, number][] = [
-      [0, 0],
-      [1, 0],
-      [1, 1],
-      [0, 1]
-    ];
-    return base.map((b) => {
-      const uv = mat3Apply(f, b);
-      const px = (uv[0] - 0.5) * orientedW;
-      const py = (uv[1] - 0.5) * orientedH;
-      return { x: px * cos - py * sin + bboxW / 2, y: px * sin + py * cos + bboxH / 2 };
-    });
-  });
-  const quadPoints = $derived(cornerHandles.map((c) => `${c.x},${c.y}`).join(' '));
+  const perspCss = $derived(
+    sess ? perspectiveCssMatrix(frame.forward, orientedW, orientedH) : 'none'
+  );
   const crop = $derived(sess?.draftCrop ?? { x: 0, y: 0, w: 1, h: 1 });
   const cropPx = $derived({
     x: crop.x * bboxW,
@@ -143,7 +127,7 @@
     const length = Math.hypot(drawn.to.x - drawn.from.x, drawn.to.y - drawn.from.y);
     if (length < MIN_LINE_PX) return;
     editor.updateGeometryDraftAngle(sess.draftAngle + angleFromLine(drawn.from, drawn.to));
-    ui.straightening = false;
+    if (ui.geometryTool === 'straighten') ui.geometryTool = null;
     void editor.commitGeometry('Straighten');
   }
 
@@ -215,44 +199,6 @@
     panStartCrop = null;
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
     if (dragged) void editor.commitGeometry('Crop');
-  }
-
-  let cornerDrag = $state<number | null>(null);
-
-  function startCornerDrag(e: PointerEvent, index: number): void {
-    e.preventDefault();
-    e.stopPropagation();
-    cornerDrag = index;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onCornerMove(e: PointerEvent): void {
-    if (cornerDrag === null || !sess || !container) return;
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).offsetParent?.getBoundingClientRect();
-    if (!rect) return;
-    const a = degToRad(sess.draftAngle);
-    const cos = Math.cos(a);
-    const sin = Math.sin(a);
-    const dx = e.clientX - rect.left - bboxW / 2;
-    const dy = e.clientY - rect.top - bboxH / 2;
-    const px = dx * cos + dy * sin;
-    const py = -dx * sin + dy * cos;
-    const uv: [number, number] = [
-      px / Math.max(orientedW, 1) + 0.5,
-      py / Math.max(orientedH, 1) + 0.5
-    ];
-    editor.updateGeometryDraftPerspective({
-      corners: cornerOffsetsFor(sess.draftPerspective, cornerDrag, uv)
-    });
-  }
-
-  function onCornerUp(e: PointerEvent): void {
-    e.stopPropagation();
-    const dragged = cornerDrag !== null;
-    cornerDrag = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    if (dragged) void editor.commitGeometry('Perspective');
   }
 </script>
 
@@ -350,7 +296,7 @@
         {/each}
       </div>
 
-      {#if ui.straightening}
+      {#if ui.geometryTool === 'straighten'}
         <div
           class="absolute inset-0 cursor-crosshair touch-none"
           data-testid="straighten-surface"
@@ -380,32 +326,8 @@
         </svg>
       {/if}
 
-      {#if ui.perspectiveCorners}
-        <svg
-          class="absolute inset-0 pointer-events-none"
-          width={bboxW}
-          height={bboxH}
-          aria-hidden="true"
-        >
-          <polygon
-            points={quadPoints}
-            fill="none"
-            stroke="var(--color-primary)"
-            stroke-width="1"
-            stroke-dasharray="4 3"
-          />
-        </svg>
-        {#each cornerHandles as c, i (i)}
-          <button
-            class="absolute cursor-grab rounded-full border border-black/60 bg-primary active:cursor-grabbing"
-            style="width: 14px; height: 14px; left: {c.x - 7}px; top: {c.y - 7}px;"
-            onpointerdown={(e) => startCornerDrag(e, i)}
-            onpointermove={onCornerMove}
-            onpointerup={onCornerUp}
-            onpointercancel={onCornerUp}
-            aria-label="perspective corner {i + 1}"
-          ></button>
-        {/each}
+      {#if ui.geometryTool === 'corners'}
+        <PerspectiveCorners {frame} perspective={sess.draftPerspective} />
       {/if}
     </div>
   {/if}

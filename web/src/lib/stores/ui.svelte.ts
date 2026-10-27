@@ -12,6 +12,8 @@ export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
 export type CropGrid = 'thirds' | 'golden' | 'diagonal' | 'grid' | 'off';
 
+export type GeometryTool = 'straighten' | 'upright' | 'corners';
+
 export const CROP_GRIDS: { id: CropGrid; label: string }[] = [
   { id: 'thirds', label: 'Rule of thirds' },
   { id: 'golden', label: 'Golden ratio' },
@@ -108,8 +110,7 @@ class UiStore {
   keybindsHelpOpen = $state(false);
   metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
-  perspectiveCorners = $state(false);
-  straightening = $state(false);
+  geometryTool = $state<GeometryTool | null>(null);
   cropGrid = $state<CropGrid>('thirds');
   clipWarn = $state(false);
   greyCanvas = $state(false);
@@ -199,12 +200,8 @@ class UiStore {
     this.persistEditorUi();
   };
 
-  togglePerspectiveCorners = (): void => {
-    this.perspectiveCorners = !this.perspectiveCorners;
-  };
-
-  toggleStraighten = (): void => {
-    this.straightening = !this.straightening;
+  toggleGeometryTool = (tool: GeometryTool): void => {
+    this.geometryTool = this.geometryTool === tool ? null : tool;
   };
 
   cycleCropGrid = (): void => {
