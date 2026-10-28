@@ -254,21 +254,19 @@ test('the editor filmstrip preserves mixed source orientations', async ({ page }
 
   for (const fixture of fixtures) {
     const thumbnail = page.getByRole('link', { name: fixture.name });
-    const image = thumbnail.locator('img');
     await expect(thumbnail).toBeVisible();
-    await expect(image).toHaveJSProperty('complete', true);
     await expect
       .poll(() =>
-        image.evaluate((element) => element.naturalWidth > 0 && element.naturalHeight > 0)
+        thumbnail.evaluate((element) => {
+          const image = element.querySelector('img');
+          if (!image?.complete || image.naturalWidth === 0 || image.naturalHeight === 0) {
+            return Number.POSITIVE_INFINITY;
+          }
+          const bounds = element.getBoundingClientRect();
+          return Math.abs(bounds.width / bounds.height - image.naturalWidth / image.naturalHeight);
+        })
       )
-      .toBe(true);
-    const rendered = await thumbnail.evaluate((element) => {
-      const bounds = element.getBoundingClientRect();
-      return bounds.width / bounds.height;
-    });
-    const source = await image.evaluate((element) => element.naturalWidth / element.naturalHeight);
-    const ratios = { rendered, source };
-    expect(ratios.rendered).toBeCloseTo(ratios.source, 2);
+      .toBeLessThan(0.005);
   }
 });
 
