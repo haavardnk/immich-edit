@@ -36,13 +36,22 @@
       ? 'flex h-10 items-center gap-1 overflow-visible rounded-lg border border-hairline bg-neutral-900 px-1 text-dark shadow-popover'
       : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-white/10 bg-neutral-900 text-dark shadow-popover ring-1 ring-black/20'
   );
+
+  let tooltipOpen = $state(false);
+
+  $effect(() => {
+    if (open) tooltipOpen = false;
+  });
 </script>
 
 <Bits.Root bind:open={() => open, onOpenChange}>
   {#if trigger}
     <Bits.Trigger>
       {#snippet child({ props })}
-        <Tooltip text={tooltip}>
+        <Tooltip
+          text={tooltip}
+          bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
+        >
           {#snippet child({ props: tooltipProps })}
             {@render trigger(mergeProps(tooltipProps, props))}
           {/snippet}
