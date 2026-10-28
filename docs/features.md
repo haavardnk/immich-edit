@@ -174,7 +174,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original; copies the original's Immich date, time zone, location, description and rating |
 | DNG export | ✗ No | — |
 | PSD export | ✗ No | — |
-| XMP or Lightroom round trip | ✗ No | — |
+| XMP sidecar round trip with other editors | ✗ No | — |
 | OpenEXR, Radiance HDR, or PFM export | ✗ No | — |
 | HDR or extended-dynamic-range preview and export | ✗ No | No gain-map or scene-linear output |
 

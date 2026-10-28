@@ -44,7 +44,7 @@ panel clears every filter. The panel remembers whether it was open and which sec
 open. **Visibility** switches between **Timeline**, **Archived** and **Hidden**; folders and
 **Edited** show timeline photos and do not offer it. **Rating** picks **Any**, **Unrated** or a star
 count. On Immich 3.2 and later, the button before the stars switches between `≥` (at least, the
-default), `≤` (at most) and `=` (exactly); like Lightroom, `≤` also keeps unrated photos. Older
+default), `≤` (at most) and `=` (exactly); `≤` also keeps unrated photos. Older
 Immich versions match the exact star count. **Rejected** shows rejects, hides them or shows only
 them; **Only** lets you review everything you rejected before
 deleting it in Immich. **Not in any album** keeps photos that no album holds yet, so you can find
