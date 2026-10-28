@@ -36,6 +36,18 @@ function load(ids: string[], pages: string[][] = []): void {
   browsing.set(ids.map(summary), pager);
 }
 
+function deferPage(ids: string[], more: string[]): () => Promise<void> {
+  let resolvePage = (_loaded: boolean): void => undefined;
+  const page = new Promise<boolean>((resolve) => (resolvePage = resolve));
+  browsing.set(ids.map(summary), { hasMore: true, loadingMore: false, loadMore: () => page });
+  return async () => {
+    browsing.assets = [...browsing.assets, ...more.map(summary)];
+    resolvePage(true);
+    await page;
+    await Promise.resolve();
+  };
+}
+
 describe('loupe navigation', () => {
   beforeEach(() => {
     browseView.closeLoupe();
@@ -60,6 +72,26 @@ describe('loupe navigation', () => {
     stepLoupe(1);
     await Promise.resolve();
     await Promise.resolve();
+    expect(browseView.loupeId).toBe('c');
+  });
+
+  it('keeps every step pressed while the next page loads', async () => {
+    const arrive = deferPage(['a', 'b'], ['c', 'd', 'e']);
+    browseView.openLoupe('b');
+    stepLoupe(1);
+    stepLoupe(1);
+    await arrive();
+    expect(browseView.loupeId).toBe('d');
+  });
+
+  it('forgets steps past the end once the user steps back', async () => {
+    const arrive = deferPage(['a', 'b'], ['c', 'd', 'e']);
+    browseView.openLoupe('b');
+    stepLoupe(1);
+    stepLoupe(-1);
+    stepLoupe(1);
+    stepLoupe(1);
+    await arrive();
     expect(browseView.loupeId).toBe('c');
   });
 

@@ -14,18 +14,36 @@ function loadedIds(): string[] {
   return browsing.visible.map((asset) => asset.id);
 }
 
+let stepsPastEnd = 0;
+
+function walkForward(from: string, steps: number): string {
+  let cursor = from;
+  for (let step = 0; step < steps; step += 1) {
+    const next = browsing.nextOf(cursor);
+    if (!next) break;
+    cursor = next.id;
+  }
+  return cursor;
+}
+
 export function stepLoupe(delta: number): void {
   const from = browseView.loupeId;
   if (!from) return;
   const next = delta > 0 ? browsing.nextOf(from) : browsing.prevOf(from);
   if (next) {
+    stepsPastEnd = 0;
     browseView.openLoupe(next.id);
     return;
   }
   if (delta < 0) return;
+  stepsPastEnd += 1;
+  if (stepsPastEnd > 1) return;
   void browsing.requestMore().then((loaded) => {
-    const after = loaded && browseView.loupeId === from ? browsing.nextOf(from) : null;
-    if (after) browseView.openLoupe(after.id);
+    const steps = stepsPastEnd;
+    stepsPastEnd = 0;
+    if (!loaded || browseView.loupeId !== from) return;
+    const target = walkForward(from, steps);
+    if (target !== from) browseView.openLoupe(target);
   });
 }
 
