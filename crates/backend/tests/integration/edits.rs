@@ -203,6 +203,21 @@ async fn delete_with_if_match_conflict_returns_current() {
 }
 
 #[tokio::test]
+async fn render_revision_changes_with_the_build() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+
+    let list = body_json(app.oneshot(get("/api/edits")).await.unwrap()).await;
+    let build = format!("-v{}", env!("CARGO_PKG_VERSION"));
+    let carries_build = list["render_revision"]
+        .as_str()
+        .is_some_and(|revision| revision.ends_with(&build));
+    if !carries_build {
+        panic!("render revision must name the build so upgrades re-render: {list}");
+    }
+}
+
+#[tokio::test]
 async fn list_edits_stays_lean_unless_assets_are_requested() {
     let server = MockServer::start().await;
     let id = asset_id();
