@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobs } from './jobs.svelte';
 import { toasts } from './toasts.svelte';
 import { getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
+import { ApiError } from '$lib/api/client';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { trash } from '$lib/stores/trash.svelte';
 
@@ -96,6 +97,31 @@ function job(overrides: Partial<Job>): Job {
   };
 }
 
+function trashedItem(): JobItem {
+  return {
+    asset_id: '11111111-1111-1111-1111-111111111111',
+    result: { original_trashed: true }
+  } as JobItem;
+}
+
+function giveUpStreams(): { onerror: (() => void) | null }[] {
+  const streams: { onerror: (() => void) | null }[] = [];
+  vi.stubGlobal(
+    'EventSource',
+    class {
+      static CLOSED = 2;
+      readyState = 0;
+      onerror: (() => void) | null = null;
+      constructor() {
+        streams.push(this);
+      }
+      addEventListener(): void {}
+      close(): void {}
+    }
+  );
+  return streams;
+}
+
 describe('tracked jobs', () => {
   beforeEach(() => {
     vi.stubGlobal(
@@ -150,6 +176,102 @@ describe('tracked jobs', () => {
       ['11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'],
       'Moved 2 originals to the Immich trash'
     );
+  });
+
+  it('takes trashed originals out of the grid when the drawer poll sees the end', async () => {
+    const replace = job({ kind: 'export_immich', params: { replace_original: true } });
+    const done = { ...replace, status: 'completed' as const, completed: 1 };
+    mockedGetJob.mockResolvedValue({ job: done, items: [trashedItem()] });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+    mockedListJobs.mockResolvedValue([done]);
+
+    await jobs.load();
+    await jobs.load();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(trash.removeTrashed).toHaveBeenCalledOnce();
+  });
+
+  it('finishes a job once its details show the end', async () => {
+    const replace = job({ kind: 'export_immich', params: { replace_original: true } });
+    const done = { ...replace, status: 'completed' as const, completed: 1 };
+    mockedGetJob.mockResolvedValue({ job: done, items: [trashedItem()] });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+
+    await jobs.loadItems('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(trash.removeTrashed).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an ended job ended when a stale poll still says running', async () => {
+    const replace = job({ kind: 'export_immich', params: { replace_original: true } });
+    const done = { ...replace, status: 'completed' as const, completed: 1 };
+    mockedGetJob.mockResolvedValue({ job: done, items: [trashedItem()] });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+    jobs.receive(done);
+    mockedListJobs.mockResolvedValue([replace]);
+
+    await jobs.load();
+    jobs.receive(done);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(jobs.jobs[0]?.status).toBe('completed');
+    expect(trash.removeTrashed).toHaveBeenCalledOnce();
+  });
+
+  it('polls a job whose event stream gave up until it ends', async () => {
+    const streams = giveUpStreams();
+    const replace = job({ kind: 'export_immich', params: { replace_original: true } });
+    const done = { ...replace, status: 'completed' as const, completed: 1 };
+    mockedGetJob
+      .mockResolvedValueOnce({ job: replace, items: [] })
+      .mockResolvedValue({ job: done, items: [trashedItem()] });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+    for (let i = 0; i < 5; i++) streams[0]?.onerror?.();
+
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(trash.removeTrashed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(4000);
+
+    expect(trash.removeTrashed).toHaveBeenCalledOnce();
+    expect(jobs.jobs[0]?.status).toBe('completed');
+  });
+
+  it('keeps polling through repeated failures until the job ends', async () => {
+    const streams = giveUpStreams();
+    const replace = job({
+      id: 'job-flaky',
+      kind: 'export_immich',
+      params: { replace_original: true }
+    });
+    const done = { ...replace, status: 'completed' as const, completed: 1 };
+    mockedGetJob.mockReset();
+    for (let i = 0; i < 6; i++) mockedGetJob.mockRejectedValueOnce(new Error('offline'));
+    mockedGetJob.mockResolvedValue({ job: done, items: [trashedItem()] });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+    for (let i = 0; i < 5; i++) streams[0]?.onerror?.();
+
+    await vi.advanceTimersByTimeAsync(300000);
+
+    expect(trash.removeTrashed).toHaveBeenCalledOnce();
+  });
+
+  it('stops polling a job the server no longer has', async () => {
+    const streams = giveUpStreams();
+    mockedGetJob.mockReset();
+    mockedGetJob.mockRejectedValue(new ApiError(404, 'not_found', 'Job not found'));
+    jobs.track(job({ id: 'job-gone' }));
+    for (let i = 0; i < 5; i++) streams[0]?.onerror?.();
+
+    await vi.advanceTimersByTimeAsync(300000);
+
+    expect(mockedGetJob).toHaveBeenCalledOnce();
   });
 
   it('keeps a finish with failures and flags the jobs button', async () => {
