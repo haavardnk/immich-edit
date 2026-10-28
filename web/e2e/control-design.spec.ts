@@ -444,7 +444,7 @@ test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('button', { name: 'Tags (Shift+T)' }).click();
 
-  const search = page.getByPlaceholder('Search tags…');
+  const search = page.getByRole('combobox', { name: 'Add tags…' });
   const input = containerOf(search);
   const content = page.locator('.editor-compact-combobox-content');
   const neutral = await resolvedColor(page, '--color-neutral-800');

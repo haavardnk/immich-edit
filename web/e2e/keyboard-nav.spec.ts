@@ -39,7 +39,7 @@ test('a popover closes on Escape and restores focus to its trigger', async ({ pa
   await trigger.focus();
   await page.keyboard.press('Enter');
 
-  const search = page.getByPlaceholder('Search tags…');
+  const search = page.getByRole('combobox', { name: 'Add tags…' });
   await expect(search).toBeFocused();
 
   await page.keyboard.press('Escape');
