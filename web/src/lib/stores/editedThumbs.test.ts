@@ -50,4 +50,36 @@ describe('edited thumbnail URLs', () => {
     editedThumbs.upsert('a1', 'h3', 'u2');
     expect(assetThumbUrl('a1')).toContain('h=h3&r=d1-l1&');
   });
+
+  it('keep a save that lands while a refresh is in flight', async () => {
+    const stale = { render_revision: 'd1-l1', items: [{ id: 'a1', hash: 'h1', updated_at: 'u' }] };
+    const fresh = { render_revision: 'd1-l1', items: [{ id: 'a1', hash: 'h2', updated_at: 'u2' }] };
+    let answer = (): void => undefined;
+    mockedList
+      .mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(stale))))
+      .mockResolvedValueOnce(fresh);
+
+    const refreshing = editedThumbs.refresh();
+    editedThumbs.upsert('a1', 'h2', 'u2');
+    answer();
+    await refreshing;
+
+    expect(editedThumbs.getHash('a1')).toBe('h2');
+  });
+
+  it('keep the newest of two overlapping refreshes', async () => {
+    const older = { render_revision: 'd1-l1', items: [{ id: 'a1', hash: 'h1', updated_at: 'u' }] };
+    const newer = { render_revision: 'd1-l1', items: [{ id: 'a1', hash: 'h4', updated_at: 'u4' }] };
+    let answer = (): void => undefined;
+    mockedList
+      .mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(older))))
+      .mockResolvedValueOnce(newer);
+
+    const first = editedThumbs.refresh();
+    await editedThumbs.refresh();
+    answer();
+    await first;
+
+    expect(editedThumbs.getHash('a1')).toBe('h4');
+  });
 });

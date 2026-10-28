@@ -7,6 +7,8 @@ class EditedThumbsStore {
   private hydrated = false;
   private hydrating: Promise<void> | null = null;
   private listenersBound = false;
+  private writes = 0;
+  private refreshes = 0;
 
   getHash(id: string): string | undefined {
     return this.map.get(id)?.hash;
@@ -32,13 +34,19 @@ class EditedThumbsStore {
   }
 
   async refresh(): Promise<void> {
+    this.refreshes += 1;
+    const ticket = this.refreshes;
+    const started = this.writes;
     const { render_revision, items } = await listEditedAssets();
+    if (ticket !== this.refreshes) return;
+    if (started !== this.writes) return this.refresh();
     this.entries = items;
     this.revision = render_revision;
     this.map = new Map(items.map((e) => [e.id, { hash: e.hash, revision: e.revision }]));
   }
 
   upsert(id: string, hash: string, updatedAt: string): void {
+    this.writes += 1;
     const next = new Map(this.map);
     next.set(id, { hash });
     this.map = next;
@@ -49,6 +57,7 @@ class EditedThumbsStore {
 
   remove(id: string): void {
     if (!this.map.has(id)) return;
+    this.writes += 1;
     const next = new Map(this.map);
     next.delete(id);
     this.map = next;

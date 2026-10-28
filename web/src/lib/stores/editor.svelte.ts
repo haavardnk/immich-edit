@@ -38,6 +38,7 @@ import * as upright from '$lib/stores/editor/upright';
 import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
 import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
 import { AiDenoiseTracker } from '$lib/stores/editor/aiDenoise.svelte';
+import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 import { DepthPreview, type DepthTarget } from '$lib/stores/editor/depthPreview';
 import { EditHistory } from '$lib/stores/editor/history.svelte';
 import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
@@ -191,10 +192,15 @@ class EditorStore {
   private previews = new PreviewEngine(this);
   private viewport = new ViewportNav(this, () => this.previews.snapshot);
   private depthPreview = new DepthPreview(this);
-  readonly aiDenoise = new AiDenoiseTracker(() => this.previews.live());
+  readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
 
   get sourceRevision(): string {
     return this.aiDenoise.revision;
+  }
+
+  private onAiDenoiseReady(): void {
+    this.previews.live();
+    void editedThumbs.refresh().catch(() => undefined);
   }
 
   private syncAiDenoise(): void {
