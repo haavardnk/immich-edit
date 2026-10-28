@@ -5,108 +5,18 @@ on:
     tags: ['v*']
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-            arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v7
-      - id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit
-          tags: |
-            type=semver,pattern={{version}}
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: build
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/immich-edit,push-by-digest=true,name-canonical=true,push=true
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/immich-edit-cache:${{ matrix.arch }}
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/immich-edit-cache:${{ matrix.arch }},mode=max,ignore-error=true
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          # The pushed digest is an index; without this Trivy looks for its default linux/amd64 child.
-          TRIVY_PLATFORM: ${{ matrix.platform }}
-        with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit@${{ steps.build.outputs.digest }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest='${{ steps.build.outputs.digest }}'
-          touch "/tmp/digests/${digest#sha256:}"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: digests-${{ matrix.arch }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  merge:
-    needs: build
-    runs-on: ubuntu-latest
+  image:
+    uses: ./.github/workflows/image.yml
     permissions:
       contents: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          path: /tmp/digests
-          pattern: digests-*
-          merge-multiple: true
-      - id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
-            type=raw,value=edge
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Push manifest list
-        working-directory: /tmp/digests
-        run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ secrets.DOCKERHUB_USERNAME }}/immich-edit@sha256:%s ' *)
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0.24.3
-        with:
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/immich-edit:${{ steps.meta.outputs.version }}
-          format: cyclonedx-json
-          artifact-name: sbom-${{ steps.meta.outputs.version }}.cdx.json
-          upload-artifact: true
+      packages: write
+    secrets: inherit
+    with:
+      ref: ${{ github.sha }}
+      tests: run
+      sbom: true
+      tags: |
+        type=semver,pattern={{version}}
+        type=semver,pattern={{major}}.{{minor}}
+        type=semver,pattern={{major}}
+        type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
