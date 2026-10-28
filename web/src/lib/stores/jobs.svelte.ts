@@ -8,7 +8,7 @@ import {
   type Job,
   type JobItem
 } from '$lib/api/jobs';
-import { url } from '$lib/api/client';
+import { ApiError, url } from '$lib/api/client';
 import { sourceId } from '$lib/browse/assetKey';
 import { countOf } from '$lib/utils/plural';
 import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
@@ -20,6 +20,18 @@ const MAX_BACKOFF_STEPS = 4;
 const MAX_STREAM_ERRORS = 5;
 const DONE_TOAST_MS = 6000;
 const REFRESHES_THUMBS = new Set(['apply_preset', 'paste_edits', 'reset_edits']);
+
+function endedNow(previous: Job | undefined, next: Job): boolean {
+  return previous !== undefined && isJobActive(previous.status) && !isJobActive(next.status);
+}
+
+function revives(previous: Job | undefined, next: Job): boolean {
+  return previous !== undefined && !isJobActive(previous.status) && isJobActive(next.status);
+}
+
+function isGone(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 404 || error.status === 410);
+}
 
 function replacesOriginals(job: Job): boolean {
   const params = job.params as { replace_original?: unknown } | null;
@@ -37,6 +49,7 @@ class JobsStore {
 
   private sources = new Map<string, EventSource>();
   private streamErrors = new Map<string, number>();
+  private fallbacks = new Map<string, ReturnType<typeof setTimeout>>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private polling = false;
   private failures = 0;
@@ -48,8 +61,17 @@ class JobsStore {
     if (this.loading) return;
     this.loading = true;
     try {
-      this.jobs = await listJobs();
+      const fetched = await listJobs();
+      const previous = new Map(this.jobs.map((j) => [j.id, j]));
+      const merged = fetched.map((job) => {
+        const known = previous.get(job.id);
+        return known && revives(known, job) ? known : job;
+      });
+      this.jobs = merged;
       this.failures = 0;
+      for (const job of merged) {
+        if (endedNow(previous.get(job.id), job)) this.finish(job);
+      }
       this.syncStreams();
     } catch (e) {
       this.failures += 1;
@@ -98,15 +120,21 @@ class JobsStore {
   };
 
   receive = (job: Job): void => {
+    const previous = this.jobs.find((j) => j.id === job.id);
+    if (revives(previous, job)) return;
     this.patch(job);
-    if (isJobActive(job.status)) return;
+    if (endedNow(previous, job)) this.finish(job);
+  };
+
+  private finish(job: Job): void {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
       void editedThumbs.refresh();
     }
     if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
     this.disconnect(job.id);
+    this.stopFallback(job.id);
     this.settle(job);
-  };
+  }
 
   private async forgetTrashedOriginals(id: string): Promise<void> {
     let items: JobItem[];
@@ -168,7 +196,7 @@ class JobsStore {
   loadItems = async (id: string): Promise<void> => {
     try {
       const detail = await getJob(id);
-      this.patch(detail.job);
+      this.receive(detail.job);
       this.items = { ...this.items, [id]: detail.items };
     } catch (e) {
       toasts.fail('Failed to load job items', e, 6000);
@@ -215,6 +243,7 @@ class JobsStore {
       this.streamErrors.set(id, errors);
       if (errors >= MAX_STREAM_ERRORS) {
         this.disconnect(id);
+        this.pollJob(id, 0);
         return;
       }
       if (source.readyState === EventSource.CLOSED) {
@@ -230,6 +259,34 @@ class JobsStore {
       source.close();
       this.sources.delete(id);
     }
+  }
+
+  private pollJob(id: string, failures: number): void {
+    this.stopFallback(id);
+    const delay = POLL_BASE_MS * 2 ** Math.min(failures, MAX_BACKOFF_STEPS);
+    const timer = setTimeout(() => void this.checkJob(id, failures), delay);
+    this.fallbacks.set(id, timer);
+  }
+
+  private async checkJob(id: string, failures: number): Promise<void> {
+    this.fallbacks.delete(id);
+    let job: Job;
+    try {
+      job = (await getJob(id)).job;
+    } catch (e) {
+      if (!isGone(e)) this.pollJob(id, failures + 1);
+      return;
+    }
+    this.receive(job);
+    const current = this.jobs.find((j) => j.id === id);
+    if (current && isJobActive(current.status)) this.pollJob(id, 0);
+  }
+
+  private stopFallback(id: string): void {
+    const timer = this.fallbacks.get(id);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.fallbacks.delete(id);
   }
 
   private startPolling(): void {
