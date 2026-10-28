@@ -1,0 +1,45 @@
+name: Edge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  version:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      ref: ${{ steps.version.outputs.ref }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          echo "ref=$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}+edge.${SHA::7}" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: version
+    concurrency:
+      group: edge
+      cancel-in-progress: true
+    uses: ./.github/workflows/image.yml
+    permissions:
+      contents: write
+      packages: write
+    secrets: inherit
+    with:
+      ref: ${{ needs.version.outputs.ref }}
+      version: ${{ needs.version.outputs.version }}
+      tests: ${{ github.event_name == 'workflow_run' && 'skip' || 'run' }}
+      tags: type=raw,value=edge

@@ -20,9 +20,10 @@ runs as UID and GID `10001`.
 - Exact semantic versions such as `0.5.1`
 - Moving minor and major tags such as `0.5` and `0`
 - `latest` for the newest stable release
-- `edge` for the newest release, including prereleases
+- `edge` for the newest commit on `main` that passed CI, built between releases and not for
+  production use
 
-Every release image supports Linux `amd64` and `arm64`.
+Every image supports Linux `amd64` and `arm64`.
 
 ## Reverse proxy
 
