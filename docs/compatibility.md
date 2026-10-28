@@ -32,7 +32,7 @@ camera-specific fix. The rows marked tested have committed end-to-end fixtures.
 | Sigma | `.x3f` | Not supported |
 
 Phone and drone DNGs store lens shading, vignette and distortion corrections in the file, and
-those are always applied, as in Lightroom. Fisheye warps, map tables and per-row or per-column
+those are always applied. Fisheye warps, map tables and per-row or per-column
 adjustments are skipped, and so is the profile gain table map in iPhone ProRAW files.
 
 Pixel-shift and multi-frame files decode only their first sub-frame. Bayer and X-Trans sensors are

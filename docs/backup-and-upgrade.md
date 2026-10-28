@@ -99,6 +99,18 @@ sqlite3 /data/immich-edit.db ".backup '/data/immich-edit-backup.db'"
 Database migrations run during startup. If startup fails, keep the backup and read the reported
 configuration or migration error. Do not delete `DATA_DIR` to make the error disappear.
 
+## Upgrade to v0.7.0
+
+Back up `DATA_DIR` first. v0.7.0 converts saved edits in place, and v0.6.x does not start on the
+migrated database; to go back, [restore](#restore) the backup and pin the image to `0.6.8`.
+
+- White balance on RAW files is stored in Kelvin, and positive **Tint** adds magenta. Saved edits,
+  history and presets are converted and render nearly the same. Mask overlays are always red.
+- The new noise reduction, hot pixel repair, DNG corrections and sRGB LUT grading can change how
+  existing edits render. Previews and edited thumbnails regenerate once.
+- Immich API keys need `asset.delete` for the trash and `asset.copy` for **Replace original**.
+- Many [keyboard shortcuts](shortcuts.md) moved.
+
 ## Upgrade to v0.4.0
 
 v0.4.0 changes configuration and the neutral RAW rendering baseline.
