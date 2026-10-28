@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { DebugTimings, HealthInfo, LatencyStats } from '$lib/api/diagnostics';
 import { buildSupportBundle } from './supportBundle';
-import { hitRate } from './format';
+import { formatBytes, hitRate } from './format';
 
 const stats = (p50: number, p95: number): LatencyStats => ({
   count: 4,
@@ -99,6 +99,34 @@ describe('buildSupportBundle', () => {
         '- Requests cut off by the timeout: 2'
       ])
     );
+  });
+
+  it('reports AI denoise disk use and every GPU pool', () => {
+    const pools = {
+      texture_pool: 4096,
+      uniform_pool: 0,
+      output_targets: 0,
+      sharpen_targets: 0,
+      wb_cache: 0,
+      nr_cache: 0,
+      capture_cache: 1024,
+      denoise_cache: 2048,
+      atlas_cache: 0,
+      atlas_pool: 512,
+      total: 7680
+    };
+    const t = timings({
+      gpu_pool_bytes: pools,
+      cache_bytes: { ...timings({}).cache_bytes, denoise_disk_used: 1024, denoise_disk_cap: 4096 }
+    });
+    const lines = buildSupportBundle(health, t, browser, 'ua').split('\n');
+    const pool = lines.find((line) => line.startsWith('- GPU pool total:')) ?? '';
+    expect(lines).toContain(
+      `- AI denoise planes on disk: ${formatBytes(1024)} / ${formatBytes(4096)}`
+    );
+    for (const name of ['capture_cache', 'denoise_cache', 'atlas_cache', 'atlas_pool']) {
+      expect(pool).toContain(name);
+    }
   });
 
   it('notes missing timings', () => {
