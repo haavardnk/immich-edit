@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => ({
   getLensProfile: vi.fn(() => Promise.resolve(null)),
   livePreview: vi.fn(() => new Promise<never>(() => undefined)),
   startDenoise: vi.fn(() => Promise.resolve({ state: 'queued' })),
-  getDenoiseStatus: vi.fn(() => Promise.resolve({ state: 'queued' }))
+  getDenoiseStatus: vi.fn(() => Promise.resolve({ state: 'queued' })),
+  listEditedAssets: vi.fn()
 }));
 
 vi.mock('$lib/api/assets', () => ({ getAsset: mocks.getAsset }));
@@ -23,6 +24,7 @@ vi.mock('$lib/api/edits', () => ({
   putEdits: mocks.putEdits,
   deleteEdits: mocks.deleteEdits,
   restoreEdits: mocks.restoreEdits,
+  listEditedAssets: mocks.listEditedAssets,
   autoEdits: vi.fn()
 }));
 vi.mock('$lib/api/lensProfile', () => ({ getLensProfile: mocks.getLensProfile }));
@@ -36,6 +38,7 @@ vi.mock('$lib/api/preview', async (original) => ({
 }));
 
 import { editor } from '$lib/stores/editor.svelte';
+import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
 
 function asset(): AssetDetail {
   return {
@@ -157,6 +160,30 @@ describe('editor save coordination', () => {
     expect(mocks.startDenoise).toHaveBeenCalledWith('asset-1');
     await vi.waitFor(() => expect(editor.aiDenoise.status).toEqual({ state: 'queued' }));
     editor.unload();
+  });
+
+  it('refreshes the edited thumbnail revision when a bake lands', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      mocks.listEditedAssets.mockResolvedValue({
+        render_revision: 'base',
+        items: [{ id: 'asset-1', hash: 'hash-next', updated_at: '', revision: 'base-dn1f' }]
+      });
+      mocks.getDenoiseStatus.mockResolvedValueOnce({ state: 'ready' });
+      mocks.putEdits.mockResolvedValue(record('hash-next', 0, true));
+      editor.meta = previewMeta(true);
+
+      editor.edits.detail.ai_denoise = true;
+      editor.edits.detail.ai_denoise_strength = 75;
+      await editor.onCommit('AI Denoise');
+      await vi.waitFor(() => expect(editor.aiDenoise.status).toEqual({ state: 'queued' }));
+      await vi.advanceTimersByTimeAsync(1500);
+
+      await vi.waitFor(() => expect(editedThumbs.getRevision('asset-1')).toBe('base-dn1f'));
+    } finally {
+      vi.useRealTimers();
+      editor.unload();
+    }
   });
 
   it.each([
