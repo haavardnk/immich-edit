@@ -82,7 +82,11 @@ pub struct RenderService {
 impl RenderService {
     pub async fn render_revision(&self) -> Result<String, RenderError> {
         let dcp = self.inputs.dcp_revision().await?;
-        Ok(format!("{dcp}-l{}", u8::from(self.lens.auto())))
+        Ok(format!(
+            "{dcp}-l{}-v{}",
+            u8::from(self.lens.auto()),
+            env!("CARGO_PKG_VERSION")
+        ))
     }
 
     pub async fn asset_revision(
