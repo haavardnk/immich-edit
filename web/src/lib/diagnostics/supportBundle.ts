@@ -59,8 +59,13 @@ function timingLines(t: DebugTimings): string[] {
   lines.push(
     `- Mask rasters on disk: ${formatBytes(t.cache_bytes.rasters_disk_used)} / ${formatBytes(t.cache_bytes.rasters_disk_cap)}`
   );
+  lines.push(
+    `- AI denoise planes on disk: ${formatBytes(t.cache_bytes.denoise_disk_used)} / ${formatBytes(t.cache_bytes.denoise_disk_cap)}`
+  );
   if (t.gpu_pool_bytes) {
-    lines.push(`- GPU pool total: ${formatBytes(t.gpu_pool_bytes.total)}`);
+    const { total, ...pools } = t.gpu_pool_bytes;
+    const parts = Object.entries(pools).map(([name, bytes]) => `${name} ${formatBytes(bytes)}`);
+    lines.push(`- GPU pool total: ${formatBytes(total)} (${parts.join(', ')})`);
   }
   return lines;
 }
