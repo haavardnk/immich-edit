@@ -1,3 +1,5 @@
+ARG TESTS=run
+
 FROM rust:1.98-trixie AS wasm
 WORKDIR /build
 COPY rust-toolchain.toml Cargo.lock ./
@@ -31,8 +33,7 @@ COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates/ crates/
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM chef AS backend
-ARG APP_VERSION=0.0.0
+FROM chef AS toolchain
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     cmake \
@@ -45,8 +46,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=planner /build/recipe.json recipe.json
 COPY rust-toolchain.toml ./
+
+FROM toolchain AS backend
+ARG APP_VERSION=0.0.0
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-    cargo chef cook --release --tests --recipe-path recipe.json -j "$(nproc)"
+    cargo chef cook --release --recipe-path recipe.json -j "$(nproc)"
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
@@ -56,14 +60,25 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     mkdir -p /build/dylibs && \
     find target/release -maxdepth 1 -name '*.so*' -exec cp -L {} /build/dylibs/ \;
 
-FROM backend AS test
+FROM toolchain AS tests-run
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libimage-exiftool-perl \
     libio-compress-brotli-perl && \
     rm -rf /var/lib/apt/lists/*
-RUN cargo test --locked --release --workspace -j "$(nproc)" && \
+RUN --mount=type=cache,id=cargo-registry-test,target=/usr/local/cargo/registry,sharing=locked \
+    cargo chef cook --profile release-test --tests --recipe-path recipe.json -j "$(nproc)"
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+RUN --mount=type=cache,id=cargo-registry-test,target=/usr/local/cargo/registry,sharing=locked \
+    cargo test --locked --profile release-test --workspace -j "$(nproc)" && \
     touch /build/.tests-passed
+
+FROM debian:trixie-slim AS tests-skip
+RUN mkdir -p /build && \
+    touch /build/.tests-passed
+
+FROM tests-${TESTS} AS test
 
 FROM debian:trixie-slim
 RUN apt-get update && \
