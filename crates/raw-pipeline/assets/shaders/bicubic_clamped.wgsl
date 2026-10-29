@@ -1,8 +1,7 @@
 fn load_clamped(ix: i32, iy: i32) -> vec3<f32> {
-    let w = i32(p.size.x);
-    let h = i32(p.size.y);
-    let cx = clamp(ix, 0, w - 1);
-    let cy = clamp(iy, 0, h - 1);
+    let last = vec2<i32>(textureDimensions(src)) - 1;
+    let cx = clamp(ix, 0, last.x);
+    let cy = clamp(iy, 0, last.y);
     return textureLoad(src, vec2<i32>(cx, cy), 0).rgb;
 }
 
@@ -26,8 +25,8 @@ fn bicubic_row(ix: i32, iy: i32, wx: vec4<f32>) -> vec3<f32> {
 
 fn bicubic_rgb(s: vec2<f32>) -> vec3<f32> {
     let f = floor(s);
-    let ix = i32(f.x);
-    let iy = i32(f.y);
+    let ix = i32(f.x) - p.src_origin.x;
+    let iy = i32(f.y) - p.src_origin.y;
     let wx = cr_weights(s.x - f.x);
     let wy = cr_weights(s.y - f.y);
     return bicubic_row(ix, iy - 1, wx) * wy.x

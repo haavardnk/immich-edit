@@ -42,6 +42,7 @@ pub struct RenderCacheOptions {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: Option<u64>,
     pub gpu_memory_budget_mb: Option<u64>,
+    pub gpu_tile_edge: Option<u32>,
 }
 
 impl RenderCacheOptions {
@@ -54,6 +55,7 @@ impl RenderCacheOptions {
             host_budget_bytes: host_info()
                 .memory_bytes()
                 .map(|bytes| bytes.saturating_sub(frame_caches)),
+            tile_edge: self.gpu_tile_edge,
             timestamps,
         }
     }

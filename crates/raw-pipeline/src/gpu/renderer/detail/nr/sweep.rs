@@ -8,6 +8,7 @@ use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::texture::{STORAGE_SAMPLED, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::uniform_pool::PooledUniform;
+use crate::tile::Rect;
 
 const GROUP: u32 = 16;
 
@@ -119,4 +120,13 @@ pub(super) fn hist_groups((w, h): (u32, u32)) -> (u32, u32) {
 
 pub(super) fn half((w, h): (u32, u32)) -> (u32, u32) {
     (w.div_ceil(2), h.div_ceil(2))
+}
+
+pub(super) fn hist_core(core: Rect, scale: u32) -> [u32; 4] {
+    [
+        core.x / scale,
+        core.y / scale,
+        core.right().div_ceil(scale),
+        core.bottom().div_ceil(scale),
+    ]
 }

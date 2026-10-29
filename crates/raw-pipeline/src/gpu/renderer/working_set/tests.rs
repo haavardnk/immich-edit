@@ -13,6 +13,7 @@ use crate::frame::{BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptio
 use crate::gpu::memory::allocated_bytes;
 use crate::gpu::source::RenderSource;
 use crate::mask_raster::{MaskRaster, RasterMap};
+use crate::tile::TilePlan;
 
 const SAMPLE_EVERY: Duration = Duration::from_micros(100);
 const MAX_OVERESTIMATE: f64 = 1.25;
@@ -44,7 +45,8 @@ fn peak_render(frame: &RawFrame, edits: &Edits, opts: &RenderOptions) -> Option<
     if let Err(e) = rendered {
         panic!("the measured render failed: {e}");
     }
-    let estimate = renderer.estimate_render(RenderSource::Raw(frame), edits, opts);
+    let estimate =
+        renderer.estimate_render(RenderSource::Raw(frame), edits, opts, TilePlan::SinglePass);
     Some((peak.load(Ordering::Relaxed) - base, estimate))
 }
 

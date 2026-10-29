@@ -3,8 +3,7 @@ use std::collections::HashSet;
 use wgpu::TextureFormat;
 
 use super::display::{final_pass_active, layer_presence, scaled_dims};
-use super::upload::sensor_dims;
-use super::{GpuRenderer, RenderPlan, compose_edits, display_depth};
+use super::{GpuRenderer, RenderPlan, SensorShape, compose_edits, display_depth};
 use crate::cpu::demosaic::parse_xtrans;
 use crate::cpu::masked::{SelectorTaps, build_layer_eval};
 use crate::edits::{Edits, MaskLayer, RetouchMode};
@@ -17,12 +16,12 @@ use crate::gpu::resources::{HISTOGRAM_BYTES, SCOPE_BYTES};
 use crate::gpu::source::{RenderSource, SourceExtent};
 use crate::gpu::texture::texture_size;
 use crate::ops::ResolvedDcp;
-use crate::ops::capture_sharpen::frame_sigma;
 use crate::ops::dehaze::DehazeGrid;
 use crate::ops::lens_blur::kernel::BlurScale;
 use crate::ops::presence::has_shadows;
 use crate::ops::retouch::stroke_geometry;
 use crate::source::LinearKind;
+use crate::tile::{Rect, SensorTile, TilePlan};
 
 #[cfg(all(test, target_vendor = "apple"))]
 mod tests;
@@ -65,63 +64,88 @@ impl WorkingSet {
         edits: &Edits,
         options: &RenderOptions,
         presence: bool,
+        tiles: TilePlan,
     ) -> SourceExtent {
-        let full = (frame.meta.width as u32, frame.meta.height as u32);
-        let ratio = geom::preview_ratio(
-            frame.meta.orientation,
-            edits,
-            full,
-            options.max_edge,
-            options.quality,
-        );
-        let block = geom::superpixel_block(frame, options, ratio).unwrap_or(1);
-        let dims = sensor_dims(frame, block);
-        self.upload(frame, block, dims);
         let edits = edits.clamped();
-        let ai_denoise = crate::ai_denoise::active_plane(frame, &edits, options);
-        if let Ok(Some((plane, _))) = ai_denoise {
-            let (w, h) = plane.binned_dims(block);
-            self.texels((w as u32, h as u32), RGBA16);
-            self.linear(dims, true);
+        let shape = SensorShape::new(frame, &edits, options, presence);
+        let working = shape.working();
+        match tiles {
+            TilePlan::SinglePass => {
+                let tile = shape.chain.whole();
+                self.sensor_tile(frame, &edits, options, &shape, &tile, presence);
+            }
+            TilePlan::SensorTiled { edge } => {
+                self.linear(working, true);
+                self.bytes += shape
+                    .chain
+                    .tiles(edge)
+                    .iter()
+                    .map(|tile| {
+                        let mut set = WorkingSet {
+                            linear: self.linear,
+                            bytes: 0,
+                        };
+                        set.sensor_tile(frame, &edits, options, &shape, tile, presence);
+                        set.bytes
+                    })
+                    .max()
+                    .unwrap_or(0);
+            }
         }
-        if frame.embedded_lens.warp().is_some() {
-            self.linear(dims, true);
-        }
-        if edits.lens.any_active() {
-            self.linear(dims, true);
-        }
-        if !presence {
-            return SourceExtent { dims, full: dims };
-        }
-        self.linear(dims, true);
-        self.retouch(frame, &edits, dims);
-        let luma_planes = self.noise_reduction(&edits, dims);
-        if frame_sigma(frame, &edits, block).is_some() {
-            self.texels(dims, CAPTURE_PLANES.saturating_sub(luma_planes) * R32);
-            self.linear(dims, true);
-        }
-        let preview = ratio.and_then(|ratio| geom::resample_target(dims, ratio / block as f32));
-        let Some(preview) = preview else {
-            return SourceExtent { dims, full: dims };
-        };
-        self.linear((preview.0, dims.1), false);
-        self.linear(preview, true);
         SourceExtent {
-            dims: preview,
-            full: preview,
+            dims: working,
+            full: working,
         }
     }
 
-    fn upload(&mut self, frame: &RawFrame, block: usize, dims: (u32, u32)) {
-        if block == 1 && frame.cpp == 3 {
-            self.texels(dims, RGBA16);
+    fn sensor_tile(
+        &mut self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        shape: &SensorShape,
+        tile: &SensorTile,
+        presence: bool,
+    ) {
+        let input = tile.input().dims();
+        self.upload(frame, shape, tile.input());
+        if let Ok(Some(_)) = crate::ai_denoise::active_plane(frame, edits, options) {
+            self.texels(input, RGBA16);
+            self.linear(input, true);
+        }
+        for rect in &tile.rects[1..] {
+            self.linear(rect.dims(), true);
+        }
+        if !presence {
+            return;
+        }
+        let detail = tile.detail().dims();
+        self.linear(detail, true);
+        self.retouch(frame, edits, detail);
+        let luma_planes = self.noise_reduction(edits, detail);
+        if shape.sigma.is_some() {
+            self.texels(detail, CAPTURE_PLANES.saturating_sub(luma_planes) * R32);
+            self.linear(detail, true);
+        }
+        if shape.resamples() {
+            self.linear((tile.core.w, detail.1), false);
+            self.linear(tile.core.dims(), true);
+        }
+    }
+
+    fn upload(&mut self, frame: &RawFrame, shape: &SensorShape, input: Rect) {
+        let single_plane = shape.block.is_some() || frame.cpp != 3;
+        if single_plane {
+            let window = shape.mosaic_window(frame, input);
+            let samples = u64::from(window.w) * u64::from(window.h) * frame.cpp as u64;
+            self.bytes += MOSAIC_COPIES * samples * R32;
         } else {
-            self.bytes += MOSAIC_COPIES * frame.data.len() as u64 * 4;
+            self.texels(input.dims(), RGBA16);
         }
-        if block == 1 && parse_xtrans(&frame.cfa_pattern).is_some() {
-            self.texels(dims, R32);
+        if shape.block.is_none() && parse_xtrans(&frame.cfa_pattern).is_some() {
+            self.texels(input.dims(), R32);
         }
-        self.linear(dims, true);
+        self.linear(input.dims(), true);
     }
 
     fn retouch(&mut self, frame: &RawFrame, edits: &Edits, dims: (u32, u32)) {
@@ -305,6 +329,7 @@ impl GpuRenderer {
         source: RenderSource<'_>,
         edits: &Edits,
         options: &RenderOptions,
+        tiles: TilePlan,
     ) -> u64 {
         let edits = compose_edits(edits, options);
         let mut set = self.working_set();
@@ -316,7 +341,7 @@ impl GpuRenderer {
                 } else {
                     LinearKind::PreWb
                 };
-                (set.sensor(frame, &edits, options, presence), kind)
+                (set.sensor(frame, &edits, options, presence, tiles), kind)
             }
             RenderSource::Linear(linear) => (linear.extent(), linear.kind),
         };
@@ -329,10 +354,11 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
+        tiles: TilePlan,
     ) -> u64 {
         let edits = compose_edits(edits, options);
         let mut set = self.working_set();
-        let extent = set.sensor(frame, &edits, options, true);
+        let extent = set.sensor(frame, &edits, options, true, tiles);
         set.bytes += readback_size(extent.dims.0, extent.dims.1, RGBA16 as u32);
         set.bytes
     }

@@ -17,8 +17,17 @@ pub const CAPTURE_APPLY_UNIFORM_SIZE: u64 = size_of::<CaptureApplyParams>() as u
 pub const CAPTURE_KERNEL_MAX: usize = 16;
 
 pub const CAPTURE_LUMA_WGSL: &str = include_str!("../../../assets/shaders/capture_luma.wgsl");
-pub const CAPTURE_BLUR_WGSL: &str = include_str!("../../../assets/shaders/capture_blur.wgsl");
-pub const CAPTURE_APPLY_WGSL: &str = include_str!("../../../assets/shaders/capture_apply.wgsl");
+const CAPTURE_BLUR_WGSL: &str = include_str!("../../../assets/shaders/capture_blur.wgsl");
+const CAPTURE_APPLY_WGSL: &str = include_str!("../../../assets/shaders/capture_apply.wgsl");
+const CAPTURE_SIGMA_WGSL: &str = include_str!("../../../assets/shaders/capture_sigma.wgsl");
+
+pub fn capture_blur_wgsl() -> String {
+    [CAPTURE_BLUR_WGSL, CAPTURE_SIGMA_WGSL].concat()
+}
+
+pub fn capture_apply_wgsl() -> String {
+    [CAPTURE_APPLY_WGSL, CAPTURE_SIGMA_WGSL].concat()
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -35,6 +44,8 @@ pub struct CaptureBlurParams {
     pub mode: u32,
     pub levels: u32,
     pub half_diag: f32,
+    pub origin: [u32; 2],
+    pub frame: [u32; 2],
     pub _pad: [u32; 2],
     pub radius: [i32; SIGMA_LEVELS],
     pub kernel: [f32; CAPTURE_KERNEL_MAX * SIGMA_LEVELS],
@@ -46,6 +57,8 @@ pub struct CaptureApplyParams {
     pub size: [u32; 2],
     pub levels: u32,
     pub half_diag: f32,
+    pub origin: [u32; 2],
+    pub frame: [u32; 2],
     pub radius: [i32; SIGMA_LEVELS],
 }
 pub const CAPTURE_SCRATCH_FORMAT: TextureFormat = TextureFormat::R32Float;
@@ -85,7 +98,7 @@ impl CaptureSharpenPasses {
             ],
         );
         let blur_pipeline =
-            make_pipeline(ctx, &blur_layout, "capture_blur.wgsl", CAPTURE_BLUR_WGSL);
+            make_pipeline(ctx, &blur_layout, "capture_blur.wgsl", &capture_blur_wgsl());
         let apply_layout = make_layout(
             ctx,
             "capture-apply-bgl",
@@ -97,8 +110,12 @@ impl CaptureSharpenPasses {
                 storage_entry(4, ctx.linear_format),
             ],
         );
-        let apply_pipeline =
-            make_pipeline(ctx, &apply_layout, "capture_apply.wgsl", CAPTURE_APPLY_WGSL);
+        let apply_pipeline = make_pipeline(
+            ctx,
+            &apply_layout,
+            "capture_apply.wgsl",
+            &capture_apply_wgsl(),
+        );
         Self {
             luma_layout,
             luma_pipeline,

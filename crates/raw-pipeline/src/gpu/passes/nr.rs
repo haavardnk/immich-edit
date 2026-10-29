@@ -53,12 +53,13 @@ pub struct NrAtrousParams {
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct NrHistParams {
-    pub size: [u32; 2],
     pub lo_size: [u32; 2],
     pub lo: u32,
     pub count: u32,
     pub offset: u32,
     pub fine: u32,
+    pub _pad: [u32; 2],
+    pub core: [u32; 4],
 }
 
 #[repr(C)]

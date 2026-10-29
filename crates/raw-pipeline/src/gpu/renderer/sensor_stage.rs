@@ -1,3 +1,7 @@
+mod shape;
+mod tile;
+mod tiled;
+
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -10,7 +14,9 @@ use super::detail::NoiseProfile;
 use super::stage_cache::StageCache;
 use super::{GpuRenderer, RenderPlan};
 use crate::PipelineResult;
-use crate::ai_denoise::DenoisePlane;
+use crate::ai_denoise::{DenoiseMix, DenoisePlane};
+use crate::cancel::CancelToken;
+use crate::dcp::setup::DcpSetup;
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::gpu::budget::GpuBudget;
@@ -18,7 +24,9 @@ use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
 use crate::source::{LinearKind, RenderedSource};
+use crate::tile::{Rect, TilePlan};
 use crate::timing;
+pub(super) use shape::SensorShape;
 
 const FRAME_CACHE_ITEMS: usize = 2;
 const ATMOSPHERE_CACHE_ITEMS: usize = 16;
@@ -42,30 +50,120 @@ impl SourcePlan {
             atmosphere: edits.basic.dehaze != 0.0,
         }
     }
+
+    pub fn presence(&self) -> bool {
+        self.render == RenderPlan::Presence
+    }
 }
 
-pub(super) struct CachedFrame {
+pub(super) struct SensorFrame {
     pub texture: Arc<Texture>,
-    pub width: u32,
-    pub height: u32,
+    pub rect: Rect,
     pub block: usize,
 }
 
-struct SensorRequest<'a> {
+struct DetailJob {
+    setup: DcpSetup,
+    keys: StageKeys,
+}
+
+pub(super) struct SensorJob<'a> {
     frame: &'a RawFrame,
-    edits: &'a Edits,
-    options: &'a RenderOptions,
-    denoise: Option<&'a DenoisePlane>,
+    edits: Edits,
+    plan: SourcePlan,
+    tiles: TilePlan,
+    shape: SensorShape,
+    denoise: Option<(&'a DenoisePlane, DenoiseMix)>,
+    detail: Option<DetailJob>,
+    t: &'a RenderTimings<'a>,
+    cancel: Option<&'a CancelToken>,
+}
+
+impl<'a> SensorJob<'a> {
+    pub fn new(
+        frame: &'a RawFrame,
+        edits: &Edits,
+        options: &'a RenderOptions,
+        plan: SourcePlan,
+        tiles: TilePlan,
+        t: &'a RenderTimings<'a>,
+        cancel: Option<&'a CancelToken>,
+    ) -> PipelineResult<Self> {
+        let edits = edits.clamped();
+        let shape = SensorShape::new(frame, &edits, options, plan.presence());
+        let denoise = crate::ai_denoise::active_plane(frame, &edits, options)?
+            .map(|(plane, mix)| (plane.as_ref(), mix));
+        let detail = plan.presence().then(|| {
+            let setup = crate::dcp::setup::resolve(&frame.meta, &edits, options.dcp.as_deref());
+            let keys = StageKeys::new(
+                frame,
+                &edits,
+                shape.sensor(),
+                setup.cam_to_srgb,
+                denoise.map(|(plane, _)| plane),
+            );
+            DetailJob { setup, keys }
+        });
+        Ok(Self {
+            frame,
+            edits,
+            plan,
+            tiles,
+            shape,
+            denoise,
+            detail,
+            t,
+            cancel,
+        })
+    }
+
+    fn working_mips(&self) -> bool {
+        !self.shape.resamples() || self.plan.atmosphere
+    }
+
+    fn cached(&self) -> bool {
+        self.tiles == TilePlan::SinglePass
+    }
+
+    fn cache(&self, key: u64) -> Option<u64> {
+        self.cached().then_some(key)
+    }
+
+    fn check(&self) -> PipelineResult<()> {
+        crate::cancel::check(self.cancel)
+    }
+
+    fn nr_active(&self) -> bool {
+        let d = &self.edits.detail;
+        d.luma_nr_active() || d.color_nr_active()
+    }
+
+    fn source(&self, texture: Arc<Texture>, atmosphere: Option<[f32; 3]>) -> LinearSource {
+        let kind = if self.plan.presence() {
+            LinearKind::PostWb
+        } else {
+            LinearKind::PreWb
+        };
+        LinearSource {
+            meta: self.frame.meta.clone(),
+            kind,
+            dims: self.shape.working(),
+            texture,
+            atmosphere,
+            window: None,
+        }
+    }
 }
 
 pub(super) struct SensorCaches {
-    pub frames: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
-    pub superpixels: Mutex<lru::LruCache<u64, Arc<CachedFrame>>>,
+    pub frames: Mutex<lru::LruCache<u64, Arc<SensorFrame>>>,
+    pub superpixels: Mutex<lru::LruCache<u64, Arc<SensorFrame>>>,
     pub denoise_blends: AtomicU64,
     pub atmospheres: Mutex<lru::LruCache<u64, [f32; 3]>>,
     pub atmosphere_estimates: AtomicU64,
     pub noise_profiles: Mutex<lru::LruCache<u64, NoiseProfile>>,
     pub noise_estimates: AtomicU64,
+    pub tiles: AtomicU64,
     pub stages: StageCache,
 }
 
@@ -82,6 +180,7 @@ impl SensorCaches {
             atmosphere_estimates: AtomicU64::new(0),
             noise_profiles: Mutex::new(lru::LruCache::new(noise_profiles)),
             noise_estimates: AtomicU64::new(0),
+            tiles: AtomicU64::new(0),
             stages: StageCache::new(budget, texture_pool),
         }
     }
@@ -104,6 +203,10 @@ impl GpuRenderer {
         self.sensor.noise_estimates.load(Ordering::Relaxed)
     }
 
+    pub fn sensor_tiles(&self) -> u64 {
+        self.sensor.tiles.load(Ordering::Relaxed)
+    }
+
     pub fn linear_source(
         &self,
         frame: &RawFrame,
@@ -113,7 +216,10 @@ impl GpuRenderer {
         let timings = RenderTimings::new(&self.ctx);
         let edits = super::compose_edits(edits, options);
         let plan = SourcePlan::for_render(&edits, frame);
-        self.sensor_stage(frame, &edits, options, plan, &timings, None)
+        let tiles = TilePlan::SinglePass;
+        self.sensor_stage(&SensorJob::new(
+            frame, &edits, options, plan, tiles, &timings, None,
+        )?)
     }
 
     pub fn render_source(
@@ -121,24 +227,36 @@ impl GpuRenderer {
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
-        cancel: Option<&crate::cancel::CancelToken>,
+        cancel: Option<&CancelToken>,
     ) -> PipelineResult<RenderedSource> {
-        let _admitted = self.admit(self.estimate_source(frame, edits, options), cancel)?;
+        let composed = super::compose_edits(edits, options);
+        self.run_planned(
+            Some((frame, SourcePlan::PORTABLE)),
+            &composed,
+            options,
+            |tiles| self.estimate_source(frame, edits, options, tiles),
+            |tiles| self.render_source_planned(frame, &composed, options, tiles, cancel),
+            cancel,
+        )
+    }
+
+    fn render_source_planned(
+        &self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        tiles: TilePlan,
+        cancel: Option<&CancelToken>,
+    ) -> PipelineResult<RenderedSource> {
         pollster::block_on(self.guarded(async {
             let timings = RenderTimings::new(&self.ctx);
-            let edits = super::compose_edits(edits, options);
-            let linear = self.sensor_stage(
-                frame,
-                &edits,
-                options,
-                SourcePlan::PORTABLE,
-                &timings,
-                cancel,
-            )?;
+            let plan = SourcePlan::PORTABLE;
+            let job = SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
+            let linear = self.sensor_stage(&job)?;
             let started = std::time::Instant::now();
             let window = options
                 .roi
-                .and_then(|_| crate::source::window_rect(&linear.meta, &edits, linear.dims));
+                .and_then(|_| crate::source::window_rect(&linear.meta, edits, linear.dims));
             let image = self.read_source(&linear, window, cancel)?;
             timings
                 .clock()
@@ -151,166 +269,40 @@ impl GpuRenderer {
         }))
     }
 
-    pub(super) fn sensor_stage(
-        &self,
-        frame: &RawFrame,
-        edits: &Edits,
-        options: &RenderOptions,
-        plan: SourcePlan,
-        t: &RenderTimings,
-        cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<LinearSource> {
-        let full_dims = (frame.meta.width as u32, frame.meta.height as u32);
-        let preview_ratio = crate::geom::preview_ratio(
-            frame.meta.orientation,
-            edits,
-            full_dims,
-            options.max_edge,
-            options.quality,
-        );
-        let block = crate::geom::superpixel_block(frame, options, preview_ratio);
-        let cached = t.stage(timing::DEMOSAIC, || self.get_or_demosaic(frame, block))?;
-        crate::cancel::check(cancel)?;
-        let edits = edits.clamped();
-        let denoise = crate::ai_denoise::active_plane(frame, &edits, options)?;
-        let cached = match denoise {
-            Some((plane, mix)) => {
-                let blended = t.stage(timing::AI_DENOISE, || {
-                    self.submit_denoise_blend(frame, &cached, plane, mix)
-                })?;
-                crate::cancel::check(cancel)?;
-                blended
-            }
-            None => cached,
-        };
-        let cached = match frame.embedded_lens.warp() {
-            Some(warp) => {
-                let warped = t.stage(timing::LENS, || self.submit_dng_warp(&cached, warp))?;
-                crate::cancel::check(cancel)?;
-                warped
-            }
-            None => cached,
-        };
-        let cached = if edits.lens.any_active() {
-            let corrected = t.stage(timing::LENS, || self.submit_sensor(&cached, &edits))?;
-            crate::cancel::check(cancel)?;
-            corrected
-        } else {
-            cached
-        };
-        let dims = (cached.width, cached.height);
-        if plan.render == RenderPlan::Fast {
-            return Ok(LinearSource {
-                meta: frame.meta.clone(),
-                kind: LinearKind::PreWb,
-                dims,
-                texture: cached.texture.clone(),
-                atmosphere: None,
-                window: None,
-            });
+    pub(super) fn sensor_stage(&self, job: &SensorJob<'_>) -> PipelineResult<LinearSource> {
+        match job.tiles {
+            TilePlan::SinglePass => self.sensor_single(job),
+            TilePlan::SensorTiled { edge } => self.sensor_tiled(job, edge),
         }
-        let request = SensorRequest {
-            frame,
-            edits: &edits,
-            options,
-            denoise: denoise.map(|(plane, _)| plane.as_ref()),
-        };
-        self.spatial_base(&cached, request, plan.atmosphere, t, cancel)
     }
 
-    fn spatial_base(
+    fn sensor_single(&self, job: &SensorJob<'_>) -> PipelineResult<LinearSource> {
+        let tile = job.shape.chain.whole();
+        let base = self.sensor_base(job, &tile)?;
+        let Some(detail) = &job.detail else {
+            return Ok(job.source(base.texture.clone(), None));
+        };
+        let wb = self.sensor_wb(job, detail, &base)?;
+        let (texture, _) = self.sensor_detail(job, detail, &tile, &wb, None)?;
+        let atmosphere = self.atmosphere(job, detail, &texture)?;
+        Ok(job.source(texture, atmosphere))
+    }
+
+    fn atmosphere(
         &self,
-        cached: &CachedFrame,
-        request: SensorRequest<'_>,
-        with_atmosphere: bool,
-        t: &RenderTimings,
-        cancel: Option<&crate::cancel::CancelToken>,
-    ) -> PipelineResult<LinearSource> {
-        let SensorRequest {
-            frame,
-            edits,
-            options,
-            denoise,
-        } = request;
-        let setup = crate::dcp::setup::resolve(&frame.meta, edits, options.dcp.as_deref());
-        let dims = (cached.width, cached.height);
-        let keys = StageKeys::new(frame, edits, dims, setup.cam_to_srgb, denoise);
-        let wb_base = t.stage(timing::WB_PREPARE, || {
-            self.submit_wb_prepare(cached, &frame.meta, edits, &setup, keys.wb)
+        job: &SensorJob<'_>,
+        detail: &DetailJob,
+        texture: &Texture,
+    ) -> PipelineResult<Option<[f32; 3]>> {
+        if !job.plan.atmosphere {
+            return Ok(None);
+        }
+        let working = job.shape.working();
+        let key = detail.keys.spatial(job.shape.sigma, working);
+        let atmosphere = job.t.stage(timing::DEHAZE, || {
+            self.atmosphere_for(key, texture, working, job.cancel)
         })?;
-        crate::cancel::check(cancel)?;
-        let wb_base = if edits.retouch.iter().any(|s| s.is_effective()) {
-            let tex = t.stage(timing::RETOUCH, || {
-                self.submit_retouch(wb_base, dims, frame, edits)
-            })?;
-            crate::cancel::check(cancel)?;
-            tex
-        } else {
-            wb_base
-        };
-        let full_src: Arc<Texture> =
-            if edits.detail.luma_nr_active() || edits.detail.color_nr_active() {
-                let tex = t.stage(timing::NOISE_REDUCTION, || {
-                    self.submit_nr(&wb_base, dims, edits, &keys, cancel)
-                })?;
-                crate::cancel::check(cancel)?;
-                tex
-            } else {
-                wb_base
-            };
-        let sigma = crate::ops::capture_sharpen::frame_sigma(frame, edits, cached.block)
-            .filter(|_| dims.0 >= 8 && dims.1 >= 8);
-        let full_src: Arc<Texture> = match sigma {
-            Some(sigma) => {
-                let tex = t.stage(timing::CAPTURE_SHARPEN, || {
-                    self.submit_capture_sharpen(&full_src, dims, sigma, keys.capture(sigma))
-                })?;
-                crate::cancel::check(cancel)?;
-                tex
-            }
-            None => full_src,
-        };
-        let preview_dims = crate::geom::preview_ratio(
-            frame.meta.orientation,
-            edits,
-            (frame.meta.width as u32, frame.meta.height as u32),
-            options.max_edge,
-            options.quality,
-        )
-        .and_then(|ratio| crate::geom::resample_target(dims, ratio / cached.block as f32));
-        let (spatial_dims, texture) = match preview_dims {
-            Some(preview_dims) => {
-                let downsampled = t.stage(timing::PREVIEW_RESAMPLE, || {
-                    self.resample_lanczos(
-                        &full_src,
-                        dims,
-                        preview_dims,
-                        "preview-spatial-src",
-                        with_atmosphere,
-                    )
-                })?;
-                crate::cancel::check(cancel)?;
-                (preview_dims, downsampled)
-            }
-            None => (dims, full_src),
-        };
-        let atmosphere = if with_atmosphere {
-            let key = keys.spatial(sigma, spatial_dims);
-            let atm = t.stage(timing::DEHAZE, || {
-                self.atmosphere_for(key, &texture, spatial_dims, cancel)
-            })?;
-            crate::cancel::check(cancel)?;
-            Some(atm)
-        } else {
-            None
-        };
-        Ok(LinearSource {
-            meta: frame.meta.clone(),
-            kind: LinearKind::PostWb,
-            dims: spatial_dims,
-            texture,
-            atmosphere,
-            window: None,
-        })
+        job.check()?;
+        Ok(Some(atmosphere))
     }
 }

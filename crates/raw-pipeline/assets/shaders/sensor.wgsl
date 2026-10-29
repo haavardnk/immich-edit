@@ -1,9 +1,12 @@
 struct SensorParams {
-    size: vec2<u32>,
+    frame: vec2<u32>,
     zoom: f32,
     vig_amount: f32,
     coeffs: vec4<f32>,
     ca_vig: vec4<f32>,
+    dst_origin: vec2<u32>,
+    dst_size: vec2<u32>,
+    src_origin: vec2<i32>,
 };
 
 @group(0) @binding(0) var<uniform> p: SensorParams;
@@ -35,16 +38,17 @@ fn vignette_correction(r_norm: f32) -> f32 {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
-    let w = f32(p.size.x);
-    let h = f32(p.size.y);
+    if (gid.x >= p.dst_size.x || gid.y >= p.dst_size.y) { return; }
+    let w = f32(p.frame.x);
+    let h = f32(p.frame.y);
+    let px = gid.xy + p.dst_origin;
     let cx = w * 0.5;
     let cy = h * 0.5;
     let half_diag = 0.5 * sqrt(w * w + h * h);
     let inv_norm = 1.0 / half_diag;
 
-    let dx = (f32(gid.x) + 0.5 - cx) * p.zoom;
-    let dy = (f32(gid.y) + 0.5 - cy) * p.zoom;
+    let dx = (f32(px.x) + 0.5 - cx) * p.zoom;
+    let dy = (f32(px.y) + 0.5 - cy) * p.zoom;
 
     let ca_red = p.ca_vig.x;
     let ca_blue = p.ca_vig.y;

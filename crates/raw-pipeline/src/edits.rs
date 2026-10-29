@@ -384,6 +384,10 @@ impl Edits {
         *self == Self::default()
     }
 
+    pub fn retouch_active(&self) -> bool {
+        self.retouch.iter().any(|s| s.is_effective())
+    }
+
     pub fn masked_sharpen_active(&self) -> bool {
         self.masks
             .iter()

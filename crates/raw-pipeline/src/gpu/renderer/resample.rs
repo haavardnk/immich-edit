@@ -7,30 +7,48 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::resample;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
+use crate::tile::Rect;
 
 use super::GpuRenderer;
+
+#[derive(Clone, Copy)]
+pub(super) struct Resample {
+    pub src: Rect,
+    pub dst: Rect,
+    pub src_frame: (u32, u32),
+    pub dst_frame: (u32, u32),
+}
+
+impl Resample {
+    pub fn whole(src: (u32, u32), dst: (u32, u32)) -> Self {
+        Self {
+            src: Rect::full(src),
+            dst: Rect::full(dst),
+            src_frame: src,
+            dst_frame: dst,
+        }
+    }
+}
 
 impl GpuRenderer {
     pub(super) fn resample_lanczos(
         &self,
         src: &Texture,
-        src_dims: (u32, u32),
-        dst_dims: (u32, u32),
+        geometry: Resample,
         label: &str,
         mips: bool,
     ) -> PipelineResult<Arc<Texture>> {
-        let _span = tracing::debug_span!(
-            "gpu.resample_lanczos",
-            sw = src_dims.0,
-            sh = src_dims.1,
-            dw = dst_dims.0,
-            dh = dst_dims.1
-        )
-        .entered();
+        let Resample {
+            src: src_rect,
+            dst: dst_rect,
+            src_frame,
+            dst_frame,
+        } = geometry;
+        let (sw, sh) = src_rect.dims();
+        let (dw, dh) = dst_rect.dims();
+        let _span = tracing::debug_span!("gpu.resample_lanczos", sw, sh, dw, dh).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let (sw, sh) = src_dims;
-        let (dw, dh) = dst_dims;
 
         let make_texture = |w: u32, h: u32, label: &str, levels: u32| {
             texture_2d(
@@ -52,14 +70,30 @@ impl GpuRenderer {
         });
         let pass = &self.passes.resample;
         let steps = [
-            ((dw, sh), (sw, sh), sw as f32 / dw as f32, 0u32, src, &tmp),
-            ((dw, dh), (dw, sh), sh as f32 / dh as f32, 1u32, &tmp, &*dst),
+            (
+                (dw, sh),
+                (sw, sh),
+                src_frame.0 as f32 / dst_frame.0 as f32,
+                0u32,
+                (dst_rect.x, src_rect.x),
+                src,
+                &tmp,
+            ),
+            (
+                (dw, dh),
+                (dw, sh),
+                src_frame.1 as f32 / dst_frame.1 as f32,
+                1u32,
+                (dst_rect.y, src_rect.y),
+                &tmp,
+                &*dst,
+            ),
         ];
         let mut binds = Vec::with_capacity(steps.len());
         let mut uniforms = Vec::with_capacity(steps.len());
-        for (out_dims, in_dims, scale, axis, input, output) in steps {
+        for (out_dims, in_dims, scale, axis, origins, input, output) in steps {
             let uniform = self.uniform(
-                &resample::pack_params(out_dims, in_dims, scale, axis),
+                &resample::pack_params(out_dims, in_dims, scale, axis, origins),
                 "resample-uniform",
             );
             let in_view = full_view(input);

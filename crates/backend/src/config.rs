@@ -39,6 +39,7 @@ pub struct Config {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: Option<u64>,
     pub gpu_memory_budget_mb: Option<u64>,
+    pub gpu_tile_edge: Option<u32>,
     pub renderer: RendererMode,
     pub gpu_timestamps: bool,
     pub database_url: String,
@@ -80,6 +81,7 @@ struct FileConfig {
     quality_frame_cache_mb: Option<u64>,
     gpu_texture_cache_mb: Option<u64>,
     gpu_memory_budget_mb: Option<u64>,
+    gpu_tile_edge: Option<u32>,
     renderer: Option<String>,
     gpu_timestamps: Option<bool>,
     database_url: Option<String>,
@@ -251,6 +253,15 @@ impl Config {
                 value: mb.to_string(),
             });
         }
+        let gpu_tile_edge = parse_opt("GPU_TILE_EDGE", file.gpu_tile_edge)?;
+        if let Some(edge) = gpu_tile_edge
+            && !(256..=16384).contains(&edge)
+        {
+            return Err(ConfigError::InvalidValue {
+                key: "GPU_TILE_EDGE".into(),
+                value: edge.to_string(),
+            });
+        }
 
         let renderer = pick_mode("IMMICH_EDIT_RENDERER", file.renderer)?;
         let gpu_timestamps = parse_or("GPU_TIMESTAMPS", file.gpu_timestamps, false)?;
@@ -323,6 +334,7 @@ impl Config {
             quality_frame_cache_mb,
             gpu_texture_cache_mb,
             gpu_memory_budget_mb,
+            gpu_tile_edge,
             renderer,
             gpu_timestamps,
             database_url,
@@ -371,6 +383,7 @@ impl Config {
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
             gpu_memory_budget_mb: self.gpu_memory_budget_mb,
+            gpu_tile_edge: self.gpu_tile_edge,
             renderer: self.renderer,
             gpu_timestamps: self.gpu_timestamps,
             allowed_origins: self.allowed_origins.clone(),
@@ -403,6 +416,7 @@ pub struct RedactedConfig {
     pub quality_frame_cache_mb: u64,
     pub gpu_texture_cache_mb: Option<u64>,
     pub gpu_memory_budget_mb: Option<u64>,
+    pub gpu_tile_edge: Option<u32>,
     pub renderer: RendererMode,
     pub gpu_timestamps: bool,
     pub allowed_origins: Vec<String>,
@@ -437,6 +451,7 @@ mod tests {
             "QUALITY_FRAME_CACHE_MB",
             "GPU_TEXTURE_CACHE_MB",
             "GPU_MEMORY_BUDGET_MB",
+            "GPU_TILE_EDGE",
             "RENDER_MAX_CONCURRENCY",
             "THUMB_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
@@ -498,7 +513,10 @@ mod tests {
         if cfg.quality_frame_cache_mb != 512 {
             panic!("quality_frame_cache_mb");
         }
-        if cfg.gpu_texture_cache_mb.is_some() || cfg.gpu_memory_budget_mb.is_some() {
+        if cfg.gpu_texture_cache_mb.is_some()
+            || cfg.gpu_memory_budget_mb.is_some()
+            || cfg.gpu_tile_edge.is_some()
+        {
             panic!("gpu memory settings are derived from the device unless set");
         }
         if cfg.renderer != RendererMode::Auto {
@@ -532,11 +550,24 @@ mod tests {
             std::env::set_var("BIND_ADDR", "127.0.0.1:0");
             std::env::set_var("GPU_TEXTURE_CACHE_MB", "1024");
             std::env::set_var("GPU_MEMORY_BUDGET_MB", "4096");
+            std::env::set_var("GPU_TILE_EDGE", "512");
         }
         let cfg = Config::load().unwrap();
-        if (cfg.gpu_texture_cache_mb, cfg.gpu_memory_budget_mb) != (Some(1024), Some(4096)) {
+        let loaded = (
+            cfg.gpu_texture_cache_mb,
+            cfg.gpu_memory_budget_mb,
+            cfg.gpu_tile_edge,
+        );
+        if loaded != (Some(1024), Some(4096), Some(512)) {
             panic!("GPU memory overrides were not loaded");
         }
+        unsafe { std::env::set_var("GPU_TILE_EDGE", "64") };
+        match Config::load() {
+            Err(ConfigError::InvalidValue { key, .. }) if key == "GPU_TILE_EDGE" => {}
+            Ok(_) => panic!("GPU_TILE_EDGE=64 was accepted"),
+            Err(other) => panic!("GPU_TILE_EDGE=64 failed with another error: {other}"),
+        }
+        unsafe { std::env::remove_var("GPU_TILE_EDGE") };
         unsafe { std::env::set_var("GPU_MEMORY_BUDGET_MB", "32") };
         let result = Config::load();
         clear_env();

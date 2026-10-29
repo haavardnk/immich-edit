@@ -27,6 +27,7 @@ pub mod ops;
 pub mod scopes;
 mod sensor_sample;
 pub mod source;
+pub(crate) mod tile;
 pub mod timing;
 pub mod tone;
 pub mod warn;

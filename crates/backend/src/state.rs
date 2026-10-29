@@ -142,6 +142,7 @@ impl AppState {
                 quality_frame_cache_mb: config.quality_frame_cache_mb,
                 gpu_texture_cache_mb: config.gpu_texture_cache_mb,
                 gpu_memory_budget_mb: config.gpu_memory_budget_mb,
+                gpu_tile_edge: config.gpu_tile_edge,
             },
             config.renderer,
             config.gpu_timestamps,

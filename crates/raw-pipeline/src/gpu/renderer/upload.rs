@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use rayon::prelude::*;
 use wgpu::{
-    BufferDescriptor, BufferSize, BufferUsages, CommandEncoderDescriptor, TextureUsages, WriteOnly,
+    BufferDescriptor, BufferSize, BufferUsages, CommandEncoderDescriptor, Texture, TextureUsages,
+    WriteOnly,
 };
 
 use crate::frame::RawFrame;
@@ -13,16 +15,36 @@ use crate::gpu::helpers::{
 };
 use crate::gpu::limits::{check_storage_buffer, check_texture};
 use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d, write_texture_2d};
+use crate::tile::Rect;
 use crate::{PipelineError, PipelineResult};
 
-use super::{CachedFrame, GpuRenderer};
+use super::{GpuRenderer, SensorFrame, SensorShape};
 
 const UPLOAD_CHUNK: usize = 1 << 20;
+const SENSOR_USAGE: TextureUsages = STORAGE_SAMPLED.union(TextureUsages::COPY_SRC);
 
 pub(super) fn sensor_dims(frame: &RawFrame, block: usize) -> (u32, u32) {
     (
         (frame.meta.width / block) as u32,
         (frame.meta.height / block) as u32,
+    )
+}
+
+fn window_data(frame: &RawFrame, window: Rect) -> Cow<'_, [f32]> {
+    let stride = frame.meta.width * frame.cpp;
+    if window == Rect::full((frame.meta.width as u32, frame.meta.height as u32)) {
+        return Cow::Borrowed(&frame.data);
+    }
+    let span = window.x as usize * frame.cpp..window.right() as usize * frame.cpp;
+    Cow::Owned(
+        frame
+            .data
+            .chunks_exact(stride)
+            .skip(window.y as usize)
+            .take(window.h as usize)
+            .flat_map(|row| &row[span.clone()])
+            .copied()
+            .collect(),
     )
 }
 
@@ -61,40 +83,55 @@ impl GpuRenderer {
     pub(super) fn get_or_demosaic(
         &self,
         frame: &RawFrame,
-        block: Option<usize>,
-    ) -> PipelineResult<Arc<CachedFrame>> {
-        let cache = match block {
+        shape: &SensorShape,
+    ) -> PipelineResult<Arc<SensorFrame>> {
+        let cache = match shape.block {
             Some(_) => &self.sensor.superpixels,
             None => &self.sensor.frames,
         };
         let key = {
             let mut h = std::collections::hash_map::DefaultHasher::new();
             frame.id.hash(&mut h);
-            block.hash(&mut h);
+            shape.block.hash(&mut h);
             h.finish()
         };
         if let Some(c) = cache.lock().get(&key).cloned() {
             return Ok(c);
         }
-        check_texture(
-            &self.ctx.device.limits(),
-            "sensor",
-            sensor_dims(frame, block.unwrap_or(1)),
-        )?;
-        let cached = match block {
-            Some(block) => self.superpixel_to_texture(frame, block)?,
-            None if frame.cpp == 3 => self.upload_rgb_texture(frame)?,
-            None => self.demosaic_to_texture(frame)?,
-        };
+        let cached = self.demosaic(frame, shape, Rect::full(shape.sensor()))?;
         cache.lock().put(key, cached.clone());
         Ok(cached)
+    }
+
+    pub(super) fn demosaic(
+        &self,
+        frame: &RawFrame,
+        shape: &SensorShape,
+        rect: Rect,
+    ) -> PipelineResult<Arc<SensorFrame>> {
+        check_texture(&self.ctx.device.limits(), "sensor", rect.dims())?;
+        let window = shape.mosaic_window(frame, rect);
+        let data = window_data(frame, window);
+        let texture = match shape.block {
+            Some(block) => self.superpixel_to_texture(frame, block, &data, window, rect)?,
+            None if frame.cpp == 3 => self.upload_rgb_texture(&data, rect),
+            None => self.demosaic_to_texture(frame, &data, rect)?,
+        };
+        Ok(Arc::new(SensorFrame {
+            texture: Arc::new(texture),
+            rect,
+            block: shape.block.unwrap_or(1),
+        }))
     }
 
     fn superpixel_to_texture(
         &self,
         frame: &RawFrame,
         block: usize,
-    ) -> PipelineResult<Arc<CachedFrame>> {
+        data: &[f32],
+        window: Rect,
+        rect: Rect,
+    ) -> PipelineResult<Texture> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
         let (period, pattern) = match crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern) {
@@ -107,21 +144,21 @@ impl GpuRenderer {
             }
         };
         let params = SuperpixelParams {
-            size: [frame.meta.width as u32, frame.meta.height as u32],
+            size: [window.w, window.h],
             block: block as u32,
             period,
             pattern,
         };
-        let (w, h) = sensor_dims(frame, block);
+        let (w, h) = rect.dims();
         let uniform_buf = self.uniform(&params, "superpixel-uniform");
-        let raw_buf = mosaic_buffer(device, queue, "superpixel-raw-storage", &frame.data)?;
+        let raw_buf = mosaic_buffer(device, queue, "superpixel-raw-storage", data)?;
         let texture = texture_2d(
             device,
             "linear-superpixel",
             self.ctx.linear_format,
             (w, h),
             mip_count(w, h),
-            STORAGE_SAMPLED,
+            SENSOR_USAGE,
         );
         let view = mip_view(&texture, 0);
         let bind = bind_group(
@@ -143,31 +180,20 @@ impl GpuRenderer {
         );
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
-        Ok(Arc::new(CachedFrame {
-            texture: Arc::new(texture),
-            width: w,
-            height: h,
-            block,
-        }))
+        Ok(texture)
     }
 
-    fn upload_rgb_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
-        let _span = tracing::debug_span!(
-            "gpu.upload_rgb",
-            w = frame.meta.width as u32,
-            h = frame.meta.height as u32
-        )
-        .entered();
+    fn upload_rgb_texture(&self, data: &[f32], rect: Rect) -> Texture {
+        let (w, h) = rect.dims();
+        let _span = tracing::debug_span!("gpu.upload_rgb", w, h).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.meta.width as u32;
-        let h = frame.meta.height as u32;
 
         let one = half::f16::from_f32(1.0).to_bits();
-        let mut rgba_f16 = vec![one; frame.data.len() / 3 * 4];
+        let mut rgba_f16 = vec![one; data.len() / 3 * 4];
         rgba_f16
             .par_chunks_exact_mut(4)
-            .zip(frame.data.par_chunks_exact(3))
+            .zip(data.par_chunks_exact(3))
             .for_each(|(dst, rgb)| {
                 for (d, s) in dst.iter_mut().zip(rgb) {
                     *d = half::f16::from_f32(*s).to_bits();
@@ -180,7 +206,7 @@ impl GpuRenderer {
             self.ctx.linear_format,
             (w, h),
             mip_count(w, h),
-            STORAGE_SAMPLED | TextureUsages::COPY_DST,
+            SENSOR_USAGE | TextureUsages::COPY_DST,
         );
         write_texture_2d(
             queue,
@@ -195,29 +221,24 @@ impl GpuRenderer {
         });
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
-
-        Ok(Arc::new(CachedFrame {
-            texture: Arc::new(texture),
-            width: w,
-            height: h,
-            block: 1,
-        }))
+        texture
     }
 
-    fn demosaic_to_texture(&self, frame: &RawFrame) -> PipelineResult<Arc<CachedFrame>> {
-        let _span = tracing::debug_span!(
-            "gpu.demosaic",
-            w = frame.meta.width as u32,
-            h = frame.meta.height as u32
-        )
-        .entered();
+    fn demosaic_to_texture(
+        &self,
+        frame: &RawFrame,
+        data: &[f32],
+        rect: Rect,
+    ) -> PipelineResult<Texture> {
+        let (w, h) = rect.dims();
+        let _span = tracing::debug_span!("gpu.demosaic", w, h).entered();
         if frame.cpp != 1 {
             return Err(PipelineError::Unsupported(
                 "gpu demosaic requires single-plane bayer frame".into(),
             ));
         }
         if let Some(pattern) = crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern) {
-            return self.xtrans_to_texture(frame, &pattern);
+            return self.xtrans_to_texture(&pattern, data, rect);
         }
         if frame.cfa_pattern.len() != 4 {
             return Err(PipelineError::Unsupported(format!(
@@ -227,8 +248,6 @@ impl GpuRenderer {
         }
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.meta.width as u32;
-        let h = frame.meta.height as u32;
 
         let uniform_buf = self.uniform(
             &DemosaicParams {
@@ -239,7 +258,7 @@ impl GpuRenderer {
             "demosaic-uniform",
         );
 
-        let raw_buf = mosaic_buffer(device, queue, "raw-storage", &frame.data)?;
+        let raw_buf = mosaic_buffer(device, queue, "raw-storage", data)?;
 
         let texture = texture_2d(
             device,
@@ -247,7 +266,7 @@ impl GpuRenderer {
             self.ctx.linear_format,
             (w, h),
             mip_count(w, h),
-            STORAGE_SAMPLED,
+            SENSOR_USAGE,
         );
         let view = mip_view(&texture, 0);
 
@@ -271,30 +290,19 @@ impl GpuRenderer {
         );
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
-
-        Ok(Arc::new(CachedFrame {
-            texture: Arc::new(texture),
-            width: w,
-            height: h,
-            block: 1,
-        }))
+        Ok(texture)
     }
 
     fn xtrans_to_texture(
         &self,
-        frame: &RawFrame,
         pattern: &[u8; 36],
-    ) -> PipelineResult<Arc<CachedFrame>> {
-        let _span = tracing::debug_span!(
-            "gpu.xtrans",
-            w = frame.meta.width as u32,
-            h = frame.meta.height as u32
-        )
-        .entered();
+        data: &[f32],
+        rect: Rect,
+    ) -> PipelineResult<Texture> {
+        let (w, h) = rect.dims();
+        let _span = tracing::debug_span!("gpu.xtrans", w, h).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = frame.meta.width as u32;
-        let h = frame.meta.height as u32;
 
         let uniform_buf = self.uniform(
             &XtransParams {
@@ -305,10 +313,10 @@ impl GpuRenderer {
             "xtrans-uniform",
         );
 
-        let raw_buf = mosaic_buffer(device, queue, "xtrans-raw-storage", &frame.data)?;
+        let raw_buf = mosaic_buffer(device, queue, "xtrans-raw-storage", data)?;
         let green_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("xtrans-green-storage"),
-            size: (frame.meta.width as u64) * (frame.meta.height as u64) * 4,
+            size: u64::from(w) * u64::from(h) * 4,
             usage: BufferUsages::STORAGE,
             mapped_at_creation: false,
         });
@@ -319,7 +327,7 @@ impl GpuRenderer {
             self.ctx.linear_format,
             (w, h),
             mip_count(w, h),
-            STORAGE_SAMPLED,
+            SENSOR_USAGE,
         );
         let view = mip_view(&texture, 0);
 
@@ -368,12 +376,6 @@ impl GpuRenderer {
         );
         self.encode_mipgen(&mut encoder, &texture, w, h);
         queue.submit(Some(encoder.finish()));
-
-        Ok(Arc::new(CachedFrame {
-            texture: Arc::new(texture),
-            width: w,
-            height: h,
-            block: 1,
-        }))
+        Ok(texture)
     }
 }

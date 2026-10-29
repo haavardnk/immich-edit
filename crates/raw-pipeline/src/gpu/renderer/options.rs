@@ -12,6 +12,7 @@ pub struct GpuRendererOptions {
     pub texture_cache_max_bytes: Option<u64>,
     pub memory_budget_bytes: Option<u64>,
     pub host_budget_bytes: Option<u64>,
+    pub tile_edge: Option<u32>,
     pub timestamps: bool,
 }
 

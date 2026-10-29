@@ -37,8 +37,16 @@ The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls
 CPU renderer. `IMMICH_EDIT_RENDERER` chooses between them; see [configuration](configuration.md).
 
 A photo larger than the GPU's texture or buffer limits, or a render larger than its
-[memory budget](#gpu-memory), renders on the CPU. The next render uses the GPU again. Only a lost
-GPU device takes the GPU out of use until the server rebuilds it.
+[memory budget](#gpu-memory), first renders its sensor stage in tiles: demosaic, lens corrections,
+noise reduction and capture sharpening run on one section of the photo at a time, and the result
+matches a single-pass render exactly. The rest of the render then runs on the whole image. When
+even that image does not fit, the photo renders on the CPU. The next render uses the GPU again.
+Only a lost GPU device takes the GPU out of use until the server rebuilds it.
+
+Healing and clone strokes copy pixels across the whole photo, so a photo with retouch strokes
+cannot be tiled and renders on the CPU when it does not fit in one pass. Previews of photos whose
+long edge passes 32768 px (49152 px for X-Trans) average larger pixel blocks so the preview fits
+the GPU.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).
@@ -71,9 +79,10 @@ yourself, for example when other programs use the same GPU. A GPU that reports n
 no budget unless you set one.
 
 A render that does not fit next to the renders already running waits for them to finish. A render
-larger than the whole budget renders on the CPU. If the GPU runs out of memory anyway, the server
-lowers its budget to 90% of what was in use at the time and keeps that lower budget until it
-restarts.
+larger than the whole budget renders its sensor stage in tiles of 4096 px or smaller, and renders on
+the CPU only when no tile size fits. If the GPU runs out of memory anyway, the server lowers its
+budget to 90% of what was in use at the time, keeps that lower budget until it restarts, and
+retries the render in tiles.
 
 **Settings** > **Diagnostics** shows the GPU memory, the budget, the host budget, and the texture
 cache size.

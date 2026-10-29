@@ -233,8 +233,8 @@ The error after it names the cause:
 - `render needs ... of gpu memory, budget ...`: the render needs more GPU memory than the
   [budget](rendering.md#gpu-memory) allows, which happens with very large exports on GPUs with
   little memory. It renders on the CPU.
-- `gpu out of memory`: the GPU ran out of memory for this render, and the server lowers its GPU
-  memory budget so that renders of this size go to the CPU. If it happens often, set
+- `gpu out of memory`: the GPU ran out of memory for this render. The server lowers its GPU memory
+  budget and retries the render in tiles, then on the CPU. If it happens often, set
   `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower `GPU_TEXTURE_CACHE_MB`.
 
 The GPU stays in use for other photos in both cases.

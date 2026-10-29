@@ -29,6 +29,7 @@ as `render_max_concurrency` for `RENDER_MAX_CONCURRENCY`.
 | `QUALITY_FRAME_CACHE_MB` | `512` | `64` to `16384`; decoded quality frames in RAM |
 | `GPU_TEXTURE_CACHE_MB` | An eighth of the GPU memory budget, `256` to `4096`; `512` without a budget | `64` to `16384`; reusable GPU textures plus cached white balance, noise reduction, and capture sharpening results |
 | `GPU_MEMORY_BUDGET_MB` | Measured from the GPU | `64` or more; GPU memory that server renders may use together. See [GPU memory](rendering.md#gpu-memory) |
+| `GPU_TILE_EDGE` | Unset | `256` to `16384`; renders every RAW sensor stage in tiles of this many output pixels, for testing. Photos with retouch strokes still render in one pass. Unset, the server tiles only renders that do not fit in one pass |
 | `MASK_CACHE_MB` | `512` | Disk budget for unreferenced mask rasters; must be nonzero |
 | `EMBEDDING_CACHE_MB` | `2048` | Disk budget for click-model embeddings; must be nonzero |
 | `DENOISE_CACHE_MB` | `4096` | Disk budget for AI Denoise results; must be nonzero and hold at least one result, up to 6 bytes per pixel. The two most recent results also stay in RAM |
