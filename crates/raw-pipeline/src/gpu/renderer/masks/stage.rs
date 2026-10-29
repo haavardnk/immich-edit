@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoder, Texture, TextureView};
+use wgpu::{BufferUsages, CommandEncoder, Texture, TextureFormat, TextureView};
 
 use super::{
     LAYER_LABELS, MaskAtlas, MaskWeightJob, PREVIEW_LABELS, Retained, atlas_view, mask_aspect,
@@ -17,6 +17,7 @@ use crate::gpu::renderer::process::{ProcessPlan, ProcessViews};
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::resources::OutputTargets;
 use crate::gpu::texture::full_view;
+use crate::gpu::texture_pool::PooledTexture;
 
 pub(in crate::gpu::renderer) struct MaskStage<'a> {
     pub pass: &'a ProcessFastPass,
@@ -32,8 +33,9 @@ pub(in crate::gpu::renderer) struct MaskStage<'a> {
 pub(in crate::gpu::renderer) struct MaskStageOutput {
     pub preview_atlas: Option<MaskAtlas>,
     pub layer_atlas: Option<MaskAtlas>,
+    pub preview_weight: Option<PooledTexture>,
+    pub sharpen: Option<PooledTexture>,
     pub has_masks: bool,
-    pub preview_active: bool,
 }
 
 struct MaskViews {
@@ -44,20 +46,6 @@ struct MaskViews {
     linear: TextureView,
     selector: TextureView,
     atlas: TextureView,
-}
-
-impl MaskViews {
-    fn new(p: &OutputTargets, atlas: &MaskAtlas) -> Self {
-        Self {
-            scratch_linear: full_view(&p.mask_scratch_linear),
-            weight: full_view(&p.mask_weight),
-            sharpen: full_view(&p.mask_sharpen),
-            accum_alt: full_view(&p.mask_accum_alt),
-            linear: full_view(&p.linear_texture),
-            selector: full_view(&p.mask_selector),
-            atlas: atlas_view(&atlas.texture),
-        }
-    }
 }
 
 struct MaskLayerJob<'a> {
@@ -86,12 +74,14 @@ impl GpuRenderer {
             edits.masks.iter().filter(|l| l.is_effective()).collect()
         };
         let mut out = MaskStageOutput {
-            preview_atlas: preview_layer
-                .map(|layer| self.encode_mask_preview(encoder, &stage, layer, retained)),
             has_masks: !effective_layers.is_empty(),
-            preview_active: preview_layer.is_some(),
             ..Default::default()
         };
+        if let Some(layer) = preview_layer {
+            let (atlas, weight) = self.encode_mask_preview(encoder, &stage, layer, retained);
+            out.preview_atlas = Some(atlas);
+            out.preview_weight = Some(weight);
+        }
         if !out.has_masks {
             return out;
         }
@@ -103,12 +93,24 @@ impl GpuRenderer {
             .iter()
             .map(|layer| build_layer_eval(layer, &stage.opts.rasters, aspect))
             .collect();
-        if evals.iter().any(LayerEval::reads_display) {
-            self.encode_mask_selector(encoder, &stage, retained);
-        }
+        let reads_display = evals.iter().any(LayerEval::reads_display);
+        let selector = self.encode_mask_selector(encoder, &stage, reads_display, retained);
         let (atlas, slot_map) =
             self.prepare_mask_atlas(effective_layers.iter().copied(), &stage.opts.rasters);
-        let views = MaskViews::new(p, &atlas);
+        let accum_alt = self.mask_texture(TextureFormat::Rgba16Float, out_dims, "mask-accum-alt");
+        let scratch_linear =
+            self.mask_texture(TextureFormat::Rgba16Float, out_dims, "mask-scratch-linear");
+        let weight = self.mask_texture(TextureFormat::R32Float, out_dims, "mask-weight");
+        let sharpen = self.mask_texture(TextureFormat::R32Float, out_dims, "mask-sharpen");
+        let views = MaskViews {
+            scratch_linear: full_view(&scratch_linear),
+            weight: full_view(&weight),
+            sharpen: full_view(&sharpen),
+            accum_alt: full_view(&accum_alt),
+            linear: full_view(&p.linear_texture),
+            selector,
+            atlas: atlas_view(&atlas.texture),
+        };
         out.layer_atlas = Some(atlas);
 
         let masked_sharpen = edits.masked_sharpen_active();
@@ -130,8 +132,12 @@ impl GpuRenderer {
             accum_in_alt = !accum_in_alt;
         }
         if accum_in_alt {
-            copy_texture(encoder, &p.mask_accum_alt, &p.linear_texture, out_dims);
+            copy_texture(encoder, &accum_alt, &p.linear_texture, out_dims);
         }
+        retained
+            .textures
+            .extend([accum_alt, scratch_linear, weight]);
+        out.sharpen = Some(sharpen);
         out
     }
 
@@ -141,16 +147,15 @@ impl GpuRenderer {
         stage: &MaskStage<'_>,
         layer: &MaskLayer,
         retained: &mut Retained,
-    ) -> MaskAtlas {
+    ) -> (MaskAtlas, PooledTexture) {
         let (atlas, slot_map) =
             self.prepare_mask_atlas(std::iter::once(layer), &stage.opts.rasters);
         let atlas_view = atlas_view(&atlas.texture);
-        let weight_view = full_view(&stage.target.mask_weight);
+        let weight = self.mask_texture(TextureFormat::R32Float, stage.plan.out_dims, "mask-weight");
+        let weight_view = full_view(&weight);
         let eval = build_layer_eval(layer, &stage.opts.rasters, mask_aspect(&stage.plan.geom));
-        if eval.reads_display() {
-            self.encode_mask_selector(encoder, stage, retained);
-        }
-        let selector_view = full_view(&stage.target.mask_selector);
+        let selector_view =
+            self.encode_mask_selector(encoder, stage, eval.reads_display(), retained);
         let job = MaskWeightJob {
             labels: &PREVIEW_LABELS,
             eval: &eval,
@@ -167,7 +172,7 @@ impl GpuRenderer {
             stage.plan.out_dims,
             retained,
         );
-        atlas
+        (atlas, weight)
     }
 
     fn encode_mask_layer(

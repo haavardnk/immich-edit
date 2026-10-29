@@ -8,8 +8,8 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::passes::mask_selector::MaskSelectorParams;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{GpuRenderer, display_depth};
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
-use crate::gpu::texture_pool::{PooledTexture, TextureKey};
+use crate::gpu::texture::full_view;
+use crate::gpu::texture_pool::PooledTexture;
 
 struct SelectorStep<'a> {
     mode: u32,
@@ -24,8 +24,12 @@ impl GpuRenderer {
         &self,
         encoder: &mut CommandEncoder,
         stage: &MaskStage<'_>,
+        reads_display: bool,
         retained: &mut Retained,
-    ) {
+    ) -> TextureView {
+        if !reads_display {
+            return full_view(&self.dummy_texture);
+        }
         let geom = &stage.plan.geom;
         let out_dims = stage.plan.out_dims;
         let grid_scale = out_dims.0 as f32 / (geom.crop.w * geom.bw);
@@ -33,13 +37,8 @@ impl GpuRenderer {
         let taps = SelectorTaps::for_long_edge(long_edge);
         let margin = if geom.geom_warps { 2 * taps.reach() } else { 0 };
         let dims = (out_dims.0 + 2 * margin, out_dims.1 + 2 * margin);
-        let acquire = |format: TextureFormat, label: &'static str| {
-            self.texture_pool.acquire(
-                &self.ctx.device,
-                TextureKey::new(format, dims.0, dims.1, 1, STORAGE_SAMPLED),
-                label,
-            )
-        };
+        let acquire =
+            |format: TextureFormat, label: &'static str| self.mask_texture(format, dims, label);
         let expanded =
             (margin > 0).then(|| self.encode_selector_source(encoder, stage, margin, retained));
         let source = full_view(
@@ -55,7 +54,9 @@ impl GpuRenderer {
             expanded.unwrap_or_else(|| acquire(TextureFormat::Rgba16Float, "mask-selector-hold"));
         let [guide_v, mean_v, spread_v, hold_v, detail_v] =
             [&guide, &mean, &spread, &hold, &detail].map(|t| full_view(t));
-        let selector = full_view(&stage.target.mask_selector);
+        let selector_texture =
+            self.mask_texture(TextureFormat::Rgba32Float, out_dims, "mask-selector");
+        let selector = full_view(&selector_texture);
         let steps = [
             SelectorStep {
                 mode: 0,
@@ -98,7 +99,8 @@ impl GpuRenderer {
         }
         retained
             .textures
-            .extend([guide, mean, spread, detail, hold]);
+            .extend([guide, mean, spread, detail, hold, selector_texture]);
+        selector
     }
 
     fn encode_selector_source(
@@ -117,16 +119,10 @@ impl GpuRenderer {
         let pad_y = h * margin as f32 / out_h as f32;
         header.crop = [x - pad_x, y - pad_y, w + 2.0 * pad_x, h + 2.0 * pad_y];
         header.out_size = [dims.0, dims.1];
-        let key =
-            |format: TextureFormat| TextureKey::new(format, dims.0, dims.1, 1, STORAGE_SAMPLED);
-        let linear = self.texture_pool.acquire(
-            device,
-            key(TextureFormat::Rgba16Float),
-            "mask-selector-linear",
-        );
-        let tone = self.texture_pool.acquire(
-            device,
-            key(display_depth(stage.opts).format()),
+        let linear = self.mask_texture(TextureFormat::Rgba16Float, dims, "mask-selector-linear");
+        let tone = self.mask_texture(
+            display_depth(stage.opts).format(),
+            dims,
             "mask-selector-tone",
         );
         let bytes = build_process_uniform(

@@ -139,7 +139,7 @@ pub struct GpuRenderer {
     uniform_pool: Arc<UniformPool>,
     output_pool: Mutex<Vec<OutputTargets>>,
     sharpen_pool: Mutex<Vec<SharpenTargets>>,
-    dummy_luma: Texture,
+    dummy_texture: Texture,
 }
 
 const LUT_TEX_CACHE_ITEMS: usize = 4;
@@ -181,7 +181,7 @@ impl GpuRenderer {
         let ctx = GpuContext::new_async(options.timestamps).await?;
         let scope = ctx.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let passes = Arc::new(GpuPasses::new(&ctx));
-        let dummy_luma = make_dummy_luma(&ctx);
+        let dummy_texture = make_dummy_texture(&ctx);
         if let Some(err) = scope.pop().await {
             return Err(PipelineError::Unsupported(format!("gpu pipelines: {err}")));
         }
@@ -215,7 +215,7 @@ impl GpuRenderer {
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
             output_pool: Mutex::new(Vec::new()),
             sharpen_pool: Mutex::new(Vec::new()),
-            dummy_luma,
+            dummy_texture,
         })
     }
 
@@ -288,11 +288,11 @@ impl GpuRenderer {
     }
 }
 
-fn make_dummy_luma(ctx: &GpuContext) -> Texture {
+fn make_dummy_texture(ctx: &GpuContext) -> Texture {
     let bytes_per_texel = ctx.linear_format.block_copy_size(None).unwrap_or(8);
     let tex = texture_2d(
         &ctx.device,
-        "shadows-blur-dummy",
+        "dummy",
         ctx.linear_format,
         (1, 1),
         1,

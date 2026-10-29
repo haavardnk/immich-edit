@@ -20,12 +20,6 @@ pub(super) struct OutputTargets {
     pub histogram_counts: Buffer,
     pub scope_counts: Buffer,
     pub meta_readback: Buffer,
-    pub mask_accum_alt: Texture,
-    pub mask_selector: Texture,
-    pub mask_scratch_linear: Texture,
-    pub mask_scratch_tone: Texture,
-    pub mask_weight: Texture,
-    pub mask_sharpen: Texture,
     pub alloc_w: u32,
     pub alloc_h: u32,
 }
@@ -81,28 +75,6 @@ impl OutputTargets {
                 usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             }),
-            mask_accum_alt: make(
-                "mask-accum-alt",
-                TextureFormat::Rgba16Float,
-                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
-            ),
-            mask_selector: make("mask-selector", TextureFormat::Rgba32Float, STORAGE_SAMPLED),
-            mask_scratch_linear: make(
-                "mask-scratch-linear",
-                TextureFormat::Rgba16Float,
-                STORAGE_SAMPLED,
-            ),
-            mask_scratch_tone: make(
-                "mask-scratch-tone",
-                TextureFormat::Rgba8Unorm,
-                STORAGE_SAMPLED | TextureUsages::COPY_SRC,
-            ),
-            mask_weight: make("mask-weight", TextureFormat::R32Float, STORAGE_SAMPLED),
-            mask_sharpen: make(
-                "mask-sharpen",
-                TextureFormat::R32Float,
-                STORAGE_SAMPLED | TextureUsages::COPY_DST,
-            ),
             alloc_w: need_w,
             alloc_h: need_h,
         }
