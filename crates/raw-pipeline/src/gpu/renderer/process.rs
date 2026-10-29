@@ -85,14 +85,14 @@ impl ProcessViews {
         state: &StageState,
         target: &OutputTargets,
         display: &Texture,
-        dummy_luma: &Texture,
+        dummy_texture: &Texture,
         dcp_base: TextureView,
     ) -> Self {
         Self {
             src: full_view(&state.texture),
             out: full_view(display),
             linear: full_view(&target.linear_texture),
-            shadows: full_view(state.shadows.as_deref().unwrap_or(dummy_luma)),
+            shadows: full_view(state.shadows.as_deref().unwrap_or(dummy_texture)),
             dcp_base,
         }
     }

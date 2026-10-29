@@ -301,12 +301,7 @@ fn display_textures_are_reused_across_ticks() {
     }
 }
 
-#[test]
-fn mask_atlas_is_allocated_and_uploaded_once() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    let frame = synthetic_frame(96, 64);
+fn brush_opts() -> RenderOptions {
     let w: u32 = 32;
     let h: u32 = 32;
     let mut bytes = vec![0u8; (w * h) as usize];
@@ -320,13 +315,16 @@ fn mask_atlas_is_allocated_and_uploaded_once() {
         "brush_a".into(),
         Arc::new(MaskRaster::new(w, h, bytes).unwrap()),
     );
-    let opts = RenderOptions {
+    RenderOptions {
         max_edge: 96,
         output: OutputFormat::Rgb8,
         rasters,
         ..Default::default()
-    };
-    let brushed = |exposure_ev: f64| Edits {
+    }
+}
+
+fn brushed(exposure_ev: f64) -> Edits {
+    Edits {
         masks: vec![MaskLayer {
             id: "L1".into(),
             name: String::new(),
@@ -350,7 +348,16 @@ fn mask_atlas_is_allocated_and_uploaded_once() {
             },
         }],
         ..Default::default()
+    }
+}
+
+#[test]
+fn mask_atlas_is_allocated_and_uploaded_once() {
+    let Some(renderer) = try_renderer() else {
+        return;
     };
+    let frame = synthetic_frame(96, 64);
+    let opts = brush_opts();
 
     let first = renderer.render(&frame, &brushed(1.0), &opts).unwrap();
     let second = renderer.render(&frame, &brushed(0.4), &opts).unwrap();
@@ -369,5 +376,33 @@ fn mask_atlas_is_allocated_and_uploaded_once() {
     }
     if first.bytes == second.bytes {
         panic!("the two renders were identical, so the mask was not applied");
+    }
+}
+
+#[test]
+fn only_a_masked_render_allocates_mask_textures() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = synthetic_frame(96, 64);
+    let opts = brush_opts();
+
+    renderer.render(&frame, &Edits::default(), &opts).unwrap();
+    let plain = renderer.pool_stats();
+    renderer.render(&frame, &brushed(1.0), &opts).unwrap();
+    let masked = renderer.pool_stats();
+
+    let mask_bytes = 96 * 64 * 24;
+    if masked.texture_pool < plain.texture_pool + mask_bytes {
+        panic!(
+            "a masked render returned {} bytes to the pool after {}, expected {mask_bytes} more",
+            masked.texture_pool, plain.texture_pool
+        );
+    }
+    if masked.output_targets != plain.output_targets {
+        panic!(
+            "masks grew the output targets from {} to {} bytes",
+            plain.output_targets, masked.output_targets
+        );
     }
 }

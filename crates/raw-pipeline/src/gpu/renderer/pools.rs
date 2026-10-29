@@ -99,11 +99,6 @@ fn output_targets_bytes(o: &OutputTargets) -> u64 {
         + o.histogram_counts.size()
         + o.scope_counts.size()
         + o.meta_readback.size()
-        + texture_bytes(&o.mask_accum_alt)
-        + texture_bytes(&o.mask_selector)
-        + texture_bytes(&o.mask_scratch_linear)
-        + texture_bytes(&o.mask_scratch_tone)
-        + texture_bytes(&o.mask_weight)
 }
 
 fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {

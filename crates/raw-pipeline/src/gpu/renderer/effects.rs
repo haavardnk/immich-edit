@@ -6,25 +6,30 @@ use crate::gpu::dispatch::{bind_group, bind_group_indexed, dispatch_2d, tex};
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::passes::effects_tone::EffectsToneParams;
 use crate::gpu::passes::sharpen::{SHARPEN_KERNEL_HALF, SharpenBlurParams, SharpenParams};
-use crate::gpu::resources::{OutputTargets, SharpenTargets};
+use crate::gpu::resources::SharpenTargets;
 use crate::gpu::texture::full_view;
 use crate::gpu::uniform_pool::PooledUniform;
 use crate::ops::blur::discrete_gaussian_kernel;
 use crate::ops::curves::display_curves_uniform;
 
 use super::GpuRenderer;
-use super::display::DisplayTarget;
+use super::display::{DisplayTarget, FinishStage};
 
 impl GpuRenderer {
     pub(super) fn encode_sharpen(
         &self,
         encoder: &mut CommandEncoder,
-        edits: &Edits,
-        out: &OutputTargets,
+        stage: &FinishStage<'_>,
         sh: &SharpenTargets,
-        display: DisplayTarget,
-        preview: &PreviewMode,
     ) -> [PooledUniform; 3] {
+        let FinishStage {
+            edits,
+            opts,
+            target: out,
+            display,
+            masks,
+            ..
+        } = *stage;
         let (w, h) = display.dims;
         let _span = tracing::debug_span!("gpu.encode_sharpen", w = w, h = h).entered();
         let device = &self.ctx.device;
@@ -44,7 +49,7 @@ impl GpuRenderer {
         };
         let detail_weight = 0.5 + 0.5 * (d.sharpen_detail as f32 / 100.0);
         let masking = (d.sharpen_masking as f32 / 100.0).clamp(0.0, 1.0);
-        let preview_mode_u: u32 = match preview {
+        let preview_mode_u: u32 = match opts.preview_mode {
             PreviewMode::None => 0,
             PreviewMode::SharpenMask => 1,
             PreviewMode::SharpenRadius => 2,
@@ -64,7 +69,7 @@ impl GpuRenderer {
         let blur_h_view = full_view(&sh.blur_h);
         let blur_full_view = full_view(&sh.blur_full);
         let sharpened_lin_view = full_view(&sh.sharpened_lin);
-        let mask_sharpen_view = full_view(&out.mask_sharpen);
+        let mask_sharpen_view = full_view(masks.sharpen.as_deref().unwrap_or(&self.dummy_texture));
 
         let pass_h = &self.passes.output_sharpen;
 

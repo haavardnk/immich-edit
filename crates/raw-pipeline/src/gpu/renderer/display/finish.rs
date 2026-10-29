@@ -5,19 +5,19 @@ use super::DisplayTarget;
 use crate::PipelineResult;
 use crate::edits::Edits;
 use crate::frame::{OutputColorSpace, PreviewMode, RenderOptions};
-use crate::gpu::renderer::masks::Retained;
+use crate::gpu::renderer::masks::{MaskStageOutput, Retained};
 use crate::gpu::renderer::{GpuRenderer, pools};
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
 use crate::gpu::texture_pool::PooledTexture;
 use crate::ops::ResolvedDcp;
 
-pub(super) struct FinishStage<'s> {
+pub(in crate::gpu::renderer) struct FinishStage<'s> {
     pub edits: &'s Edits,
     pub opts: &'s RenderOptions,
     pub target: &'s OutputTargets,
     pub display: DisplayTarget<'s>,
     pub dcp: Option<&'s ResolvedDcp>,
-    pub has_masks: bool,
+    pub masks: &'s MaskStageOutput,
 }
 
 impl GpuRenderer {
@@ -34,7 +34,7 @@ impl GpuRenderer {
             target: p,
             display,
             dcp,
-            has_masks,
+            masks,
         } = stage;
         let (out_w, out_h) = display.dims;
         let sharpen_preview = matches!(
@@ -47,7 +47,7 @@ impl GpuRenderer {
             || sharpen_preview
             || edits.effects.any_active()
             || !edits.basic.curves.is_identity()
-            || has_masks
+            || masks.has_masks
             || dcp.is_some()
             || p3_active
             || opts.gamut_warn
@@ -60,7 +60,7 @@ impl GpuRenderer {
         };
         let run_sharpen = sharpen_active || edits.masked_sharpen_active() || sharpen_preview;
         if run_sharpen {
-            let uniforms = self.encode_sharpen(encoder, edits, p, s, display, &opts.preview_mode);
+            let uniforms = self.encode_sharpen(encoder, &stage, s);
             retained.uniforms.extend(uniforms);
         }
         let effects_src = if run_sharpen {

@@ -28,7 +28,7 @@ use crate::ops::presence::presence_blurs;
 use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
-use finish::FinishStage;
+pub(super) use finish::FinishStage;
 
 pub(super) struct DisplayInput<'s> {
     pub pass: &'s ProcessFastPass,
@@ -86,36 +86,20 @@ impl StageState {
 
 pub(super) enum DisplaySlot {
     Output,
-    Overlay,
     Pooled(PooledTexture),
 }
 
 impl DisplaySlot {
-    fn select(
-        overlay: bool,
-        lut: Option<PooledTexture>,
-        sixteen: Option<PooledTexture>,
-        scratch: &mut Vec<PooledTexture>,
-    ) -> Self {
-        match (overlay, lut, sixteen) {
-            (true, lut, sixteen) => {
-                scratch.extend(lut);
-                scratch.extend(sixteen);
-                Self::Overlay
-            }
-            (false, Some(lut), sixteen) => {
-                scratch.extend(sixteen);
-                Self::Pooled(lut)
-            }
-            (false, None, Some(sixteen)) => Self::Pooled(sixteen),
-            (false, None, None) => Self::Output,
-        }
+    fn select(candidates: [Option<PooledTexture>; 3], scratch: &mut Vec<PooledTexture>) -> Self {
+        let mut candidates = candidates.into_iter().flatten();
+        let slot = candidates.next().map_or(Self::Output, Self::Pooled);
+        scratch.extend(candidates);
+        slot
     }
 
     pub fn texture<'t>(&'t self, targets: &'t OutputTargets) -> &'t Texture {
         match self {
             Self::Output => &targets.texture,
-            Self::Overlay => &targets.mask_scratch_tone,
             Self::Pooled(texture) => texture,
         }
     }
@@ -253,7 +237,7 @@ impl GpuRenderer {
             scale: plan.ctx_op.render.output_scale,
         };
         let dcp_base = self.dcp_base_table_view(plan.ctx_op.render.dcp.as_deref());
-        let views = ProcessViews::new(&state, p, display.texture, &self.dummy_luma, dcp_base);
+        let views = ProcessViews::new(&state, p, display.texture, &self.dummy_texture, dcp_base);
 
         let mut encoder = self
             .ctx
@@ -283,19 +267,16 @@ impl GpuRenderer {
             target: p,
             display,
             dcp: plan.ctx_op.render.dcp.as_deref(),
-            has_masks: masks.has_masks,
+            masks: &masks,
         };
         let sharpen = self.encode_finish(&mut encoder, finish, &mut scratch, &mut retained)?;
         let lut = self.maybe_encode_lut(&mut encoder, &edits, opts, display);
         let graded = lut.as_deref().unwrap_or(display.texture);
-        if masks.preview_active {
-            self.encode_mask_weight_image(&mut encoder, p, out_dims, &mut retained);
-        }
-        let display_src = if masks.preview_active {
-            &p.mask_scratch_tone
-        } else {
-            graded
-        };
+        let overlay = masks.preview_weight.map(|weight| {
+            self.encode_mask_weight_image(&mut encoder, weight, out_dims, &mut retained)
+        });
+        retained.textures.extend(masks.sharpen);
+        let display_src = overlay.as_deref().unwrap_or(graded);
         let linear_src = match sharpen.as_ref() {
             Some(guard) => &guard[0].post_lin,
             None => &p.linear_texture,
@@ -314,7 +295,7 @@ impl GpuRenderer {
             dims: out_dims,
         };
         self.encode_meta_bins(&mut encoder, p, sources, bins, t);
-        let slot = DisplaySlot::select(masks.preview_active, lut, sixteen, &mut scratch);
+        let slot = DisplaySlot::select([overlay, lut, sixteen], &mut scratch);
         Ok(DisplayFrame {
             encoder,
             targets,

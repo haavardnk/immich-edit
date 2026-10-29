@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{BufferUsages, CommandEncoder, Extent3d, TextureView, TextureViewDescriptor};
+use wgpu::{
+    BufferUsages, CommandEncoder, Extent3d, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor,
+};
 
 use super::ATLAS_POOL_ITEMS;
 use super::GpuRenderer;
@@ -13,12 +16,14 @@ use crate::gpu::passes::mask_weight::{
     ATLAS_DIM, ATLAS_LAYERS, COMPONENT_BYTES, MaskWeightParams, pack_layer_eval,
     resample_raster_to_atlas,
 };
+use crate::gpu::texture::STORAGE_SAMPLED;
+use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::mask_raster::RasterMap;
 
 mod selector;
 mod stage;
 
-pub(super) use stage::MaskStage;
+pub(super) use stage::{MaskStage, MaskStageOutput};
 
 pub(super) struct MaskWeightLabels {
     uniform: &'static str,
@@ -49,7 +54,7 @@ pub(super) struct Retained {
     pub bufs: Vec<wgpu::Buffer>,
     pub uniforms: Vec<crate::gpu::uniform_pool::PooledUniform>,
     pub binds: Vec<wgpu::BindGroup>,
-    pub textures: Vec<crate::gpu::texture_pool::PooledTexture>,
+    pub textures: Vec<PooledTexture>,
 }
 
 pub(super) struct MaskWeightJob<'a> {
@@ -171,6 +176,20 @@ fn mask_weight_params(
 }
 
 impl GpuRenderer {
+    pub(super) fn mask_texture(
+        &self,
+        format: TextureFormat,
+        (w, h): (u32, u32),
+        label: &'static str,
+    ) -> PooledTexture {
+        let usage = STORAGE_SAMPLED | TextureUsages::COPY_SRC;
+        self.texture_pool.acquire(
+            &self.ctx.device,
+            TextureKey::new(format, w, h, 1, usage),
+            label,
+        )
+    }
+
     pub(super) fn encode_mask_weight(
         &self,
         encoder: &mut CommandEncoder,
