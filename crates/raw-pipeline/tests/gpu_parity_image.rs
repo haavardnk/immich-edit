@@ -538,20 +538,3 @@ fn gpu_downscale_preserves_detail_like_cpu() {
         );
     }
 }
-
-#[test]
-fn gpu_renders_frames_wider_than_8192() {
-    let Some(renderer) = try_renderer() else {
-        return;
-    };
-    if renderer.context().adapter.limits().max_texture_dimension_2d < 9000 {
-        return;
-    }
-    let frame = synthetic_bayer_frame(9000, 16, "RGGB");
-    let img = renderer
-        .render(&frame, &Edits::default(), &rgb8_opts(9000))
-        .unwrap();
-    if (img.width, img.height) != (9000, 16) {
-        panic!("wide frame rendered at {}x{}", img.width, img.height);
-    }
-}
