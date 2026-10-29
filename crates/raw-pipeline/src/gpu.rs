@@ -3,6 +3,7 @@ pub mod context;
 mod dispatch;
 pub mod display_depth;
 mod helpers;
+mod limits;
 pub mod passes;
 pub mod readback;
 mod renderer;

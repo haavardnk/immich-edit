@@ -4,6 +4,11 @@ use half::f16;
 use wgpu::{TextureFormat, TextureUsages};
 
 use super::GpuRenderer;
+#[cfg(feature = "native")]
+use crate::gpu::limits::check_buffer;
+use crate::gpu::limits::check_texture;
+#[cfg(feature = "native")]
+use crate::gpu::readback::{padded_row, readback_size};
 use crate::gpu::source::LinearSource;
 #[cfg(feature = "native")]
 use crate::gpu::texture::extent_2d;
@@ -16,12 +21,7 @@ use crate::{PipelineError, PipelineResult};
 impl GpuRenderer {
     pub fn upload_source(&self, image: &SourceImage) -> PipelineResult<LinearSource> {
         let (w, h) = image.header.dims;
-        let max_dim = self.ctx.device.limits().max_texture_dimension_2d;
-        if w == 0 || h == 0 || w > max_dim || h > max_dim {
-            return Err(PipelineError::Unsupported(format!(
-                "source dims {w}x{h} outside 1..={max_dim}"
-            )));
-        }
+        check_texture(&self.ctx.device.limits(), "linear source", (w, h))?;
         if image.rgb_f16.len() != w as usize * h as usize * 3 {
             return Err(PipelineError::Render(format!(
                 "source holds {} samples, expected {w}x{h}x3",
@@ -68,11 +68,13 @@ impl GpuRenderer {
         };
         let format = source.texture.format();
         let bpp = texel_size(format);
-        let padded = (w * bpp).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let padded = padded_row(w, bpp);
+        let size = readback_size(w, h, bpp);
+        check_buffer(&self.ctx.device.limits(), "linear source readback", size)?;
         let device = &self.ctx.device;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("linear-source-readback"),
-            size: padded as u64 * h as u64,
+            size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });

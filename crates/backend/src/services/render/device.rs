@@ -1,5 +1,7 @@
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use raw_pipeline::CancelToken;
@@ -118,28 +120,23 @@ impl RenderDevice {
         if matches!(self.mode, RendererMode::Cpu) {
             return on_cpu(&self.cpu);
         }
-        let gpu = self.gpu_or_rebuild();
-        if let Some(g) = gpu {
-            if g.is_lost() {
-                self.handle_device_lost();
-            } else {
-                let gpu_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| on_gpu(&g)));
-                match gpu_res {
-                    Ok(Ok(r)) => return Ok(r),
-                    Ok(Err(PipelineError::Cancelled)) => return Err(PipelineError::Cancelled),
-                    Ok(Err(PipelineError::DeviceLost)) => {
-                        self.handle_device_lost();
-                    }
-                    Ok(Err(e)) => {
-                        tracing::warn!(error = %e, "gpu render failed; falling back to cpu");
-                    }
-                    Err(_) => {
-                        tracing::error!(
-                            "gpu render panicked; dropping device and falling back to cpu"
-                        );
-                        self.handle_device_lost();
-                    }
-                }
+        let Some(gpu) = self.gpu_or_rebuild() else {
+            return on_cpu(&self.cpu);
+        };
+        if gpu.is_lost() {
+            self.handle_device_lost(&gpu);
+            return on_cpu(&self.cpu);
+        }
+        let attempt = catch_unwind(AssertUnwindSafe(|| on_gpu(&gpu)));
+        match gpu_outcome(attempt, gpu.is_lost()) {
+            GpuOutcome::Done(value) => return Ok(value),
+            GpuOutcome::Cancelled => return Err(PipelineError::Cancelled),
+            GpuOutcome::Lost => self.handle_device_lost(&gpu),
+            GpuOutcome::Failed(error) => {
+                tracing::warn!(%error, "gpu render failed; falling back to cpu");
+            }
+            GpuOutcome::Panicked => {
+                tracing::error!("gpu render panicked; keeping the device and falling back to cpu");
             }
         }
         on_cpu(&self.cpu)
@@ -177,13 +174,46 @@ impl RenderDevice {
         }
     }
 
-    fn handle_device_lost(&self) {
+    fn handle_device_lost(&self, failed: &Arc<GpuRenderer>) {
+        let mut slot = self.gpu.write().unwrap();
+        if !take_if_current(&mut slot, failed) {
+            return;
+        }
         tracing::error!("gpu device lost; dropping renderer and falling back to cpu");
-        *self.gpu.write().unwrap() = None;
         *self.label.write().unwrap() = None;
         *self.software_gpu.write().unwrap() = false;
         *self.active.write().unwrap() = RendererKind::Cpu;
         *self.last_rebuild.write().unwrap() = Some(Instant::now());
+    }
+}
+
+fn take_if_current<T>(slot: &mut Option<Arc<T>>, failed: &Arc<T>) -> bool {
+    if !slot
+        .as_ref()
+        .is_some_and(|current| Arc::ptr_eq(current, failed))
+    {
+        return false;
+    }
+    *slot = None;
+    true
+}
+
+enum GpuOutcome<T> {
+    Done(T),
+    Cancelled,
+    Lost,
+    Failed(PipelineError),
+    Panicked,
+}
+
+fn gpu_outcome<T>(attempt: thread::Result<Result<T, PipelineError>>, lost: bool) -> GpuOutcome<T> {
+    match attempt {
+        Ok(Ok(value)) => GpuOutcome::Done(value),
+        Ok(Err(PipelineError::Cancelled)) => GpuOutcome::Cancelled,
+        Ok(Err(PipelineError::DeviceLost)) => GpuOutcome::Lost,
+        _ if lost => GpuOutcome::Lost,
+        Ok(Err(error)) => GpuOutcome::Failed(error),
+        Err(_) => GpuOutcome::Panicked,
     }
 }
 
@@ -237,6 +267,78 @@ fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
                 tracing::warn!(error = %e, "gpu unavailable; using cpu");
             }
             cpu_only
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn failed(error: PipelineError) -> thread::Result<Result<u8, PipelineError>> {
+        Ok(Err(error))
+    }
+
+    fn panicked() -> thread::Result<Result<u8, PipelineError>> {
+        Err(Box::new("wgpu error"))
+    }
+
+    #[test]
+    fn a_stale_failure_does_not_drop_a_rebuilt_device() {
+        let stale = Arc::new(1u8);
+        let rebuilt = Arc::new(1u8);
+        let mut slot = Some(rebuilt.clone());
+        if take_if_current(&mut slot, &stale) || slot.is_none() {
+            panic!("a failure from a replaced renderer cleared the rebuilt one");
+        }
+        if !take_if_current(&mut slot, &rebuilt) || slot.is_some() {
+            panic!("a failure from the current renderer did not clear it");
+        }
+        if take_if_current(&mut slot, &rebuilt) {
+            panic!("an empty slot reported a renderer to drop");
+        }
+    }
+
+    #[test]
+    fn only_a_lost_device_drops_the_gpu() {
+        let cases = [
+            (Ok(Ok(7)), true, "done"),
+            (failed(PipelineError::Cancelled), true, "cancelled"),
+            (failed(PipelineError::DeviceLost), false, "lost"),
+            (
+                failed(PipelineError::OutOfMemory("heap".into())),
+                true,
+                "lost",
+            ),
+            (panicked(), true, "lost"),
+            (
+                failed(PipelineError::OutOfMemory("heap".into())),
+                false,
+                "failed",
+            ),
+            (
+                failed(PipelineError::Unsupported("16385x16".into())),
+                false,
+                "failed",
+            ),
+            (
+                failed(PipelineError::Render("gpu: validation".into())),
+                false,
+                "failed",
+            ),
+            (panicked(), false, "panicked"),
+        ];
+        for (case, (attempt, lost, expected)) in cases.into_iter().enumerate() {
+            let outcome = match gpu_outcome(attempt, lost) {
+                GpuOutcome::Done(_) => "done",
+                GpuOutcome::Cancelled => "cancelled",
+                GpuOutcome::Lost => "lost",
+                GpuOutcome::Failed(_) => "failed",
+                GpuOutcome::Panicked => "panicked",
+            };
+            if outcome != expected {
+                panic!("case {case} with lost={lost} was {outcome}, expected {expected}");
+            }
         }
     }
 }

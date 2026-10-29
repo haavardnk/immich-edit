@@ -62,6 +62,10 @@ impl UniformPool {
         let g = self.free.lock();
         g.iter().map(|(s, v)| s * v.len() as u64).sum()
     }
+
+    pub fn clear(&self) {
+        self.free.lock().clear();
+    }
 }
 
 pub struct PooledUniform {

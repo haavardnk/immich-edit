@@ -222,6 +222,19 @@ If the first preview times out, press **Retry** in the viewer. If every preview 
 - Raise `REQUEST_TIMEOUT_SECS` on a slow host with large RAW files.
 - Give the frame cache enough room for the files in use (`RAW_FRAME_CACHE_MB`).
 
+## One large photo renders slowly
+
+The server log shows `gpu render failed; falling back to cpu` for each render that left the GPU.
+The error after it names the cause:
+
+- `outside the gpu texture limit`, `over the gpu buffer limit` or `over the gpu storage binding
+  limit`: the photo or export is larger than the GPU accepts, such as a wide panorama. It renders
+  on the CPU.
+- `gpu out of memory`: the GPU ran out of memory for this render. Lower `RENDER_MAX_CONCURRENCY`
+  and `GPU_TEXTURE_CACHE_MB` if it happens often.
+
+The GPU stays in use for other photos in both cases.
+
 ## The GPU device is lost
 
 The backend falls back to CPU for active renders and later attempts to rebuild the GPU renderer.

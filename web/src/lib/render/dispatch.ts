@@ -4,7 +4,7 @@ import type { Call, GpuLimits, Started } from './protocol';
 export interface Renderer {
   adapter(): string;
   limits(): GpuLimits;
-  set_synthetic_source(edge: number): void;
+  set_synthetic_source(edge: number): unknown;
   drop_source(): void;
   set_source(bytes: Uint8Array): unknown;
   set_tile(bytes: Uint8Array): unknown;

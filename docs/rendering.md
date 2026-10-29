@@ -36,6 +36,10 @@ old one until it arrives.
 The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls back to a built-in
 CPU renderer. `IMMICH_EDIT_RENDERER` chooses between them; see [configuration](configuration.md).
 
+A photo larger than the GPU's texture or buffer limits, or a render that runs the GPU out of
+memory, renders on the CPU. The next render uses the GPU again. Only a lost GPU device takes the
+GPU out of use until the server rebuilds it.
+
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).
 

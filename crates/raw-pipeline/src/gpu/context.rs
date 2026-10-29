@@ -1,14 +1,19 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+#[cfg(feature = "native")]
+use parking_lot::Mutex;
 use wgpu::{
     Adapter, AdapterInfo, Backends, Device, DeviceDescriptor, DeviceType, Features, Instance,
-    InstanceDescriptor, Limits, MemoryHints, Queue, TextureFormat, TextureFormatFeatureFlags,
+    InstanceDescriptor, Limits, MemoryBudgetThresholds, MemoryHints, Queue, TextureFormat,
+    TextureFormatFeatureFlags,
 };
 
 use super::texture::STORAGE_SAMPLED;
 use super::timer::TimerSlots;
 use crate::{PipelineError, PipelineResult};
+
+const RESOURCE_CREATION_BUDGET_PERCENT: u8 = 90;
 
 pub struct GpuContext {
     pub instance: Instance,
@@ -20,6 +25,8 @@ pub struct GpuContext {
     pub timestamps: bool,
     pub(crate) timer_slots: TimerSlots,
     device_lost: Arc<AtomicBool>,
+    #[cfg(feature = "native")]
+    uncaptured: Arc<Mutex<Option<String>>>,
 }
 
 impl GpuContext {
@@ -36,6 +43,10 @@ impl GpuContext {
     pub async fn new_async(timestamps: bool) -> PipelineResult<Arc<Self>> {
         let mut instance_desc = InstanceDescriptor::new_without_display_handle();
         instance_desc.backends = Backends::PRIMARY;
+        instance_desc.memory_budget_thresholds = MemoryBudgetThresholds {
+            for_resource_creation: Some(RESOURCE_CREATION_BUDGET_PERCENT),
+            for_device_loss: None,
+        };
         let instance = Instance::new(instance_desc);
         let adapters = instance.enumerate_adapters(Backends::PRIMARY).await;
         let infos: Vec<AdapterInfo> = adapters.iter().map(|a| a.get_info()).collect();
@@ -78,6 +89,8 @@ impl GpuContext {
             tracing::error!(?reason, msg = %msg, "gpu device lost");
             flag.store(true, Ordering::SeqCst);
         });
+        #[cfg(feature = "native")]
+        let uncaptured = record_uncaptured_errors(&device);
 
         Ok(Arc::new(Self {
             instance,
@@ -89,11 +102,18 @@ impl GpuContext {
             timestamps,
             timer_slots: TimerSlots::default(),
             device_lost,
+            #[cfg(feature = "native")]
+            uncaptured,
         }))
     }
 
     pub fn is_lost(&self) -> bool {
         self.device_lost.load(Ordering::SeqCst)
+    }
+
+    #[cfg(feature = "native")]
+    pub(crate) fn take_uncaptured_error(&self) -> Option<String> {
+        self.uncaptured.lock().take()
     }
 
     pub fn adapter_label(&self) -> String {
@@ -107,6 +127,17 @@ impl GpuContext {
 
 pub fn adapter_label(info: &AdapterInfo) -> String {
     format!("{} ({:?}, {:?})", info.name, info.device_type, info.backend)
+}
+
+#[cfg(feature = "native")]
+fn record_uncaptured_errors(device: &Device) -> Arc<Mutex<Option<String>>> {
+    let slot = Arc::new(Mutex::new(None));
+    let sink = slot.clone();
+    device.on_uncaptured_error(Arc::new(move |error| {
+        tracing::error!(%error, "uncaptured gpu error");
+        *sink.lock() = Some(error.to_string());
+    }));
+    slot
 }
 
 fn required_limits(adapter: &Limits) -> Limits {

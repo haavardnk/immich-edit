@@ -21,7 +21,7 @@ export async function runBenchmark(
   now: () => number = () => performance.now()
 ): Promise<TickSample> {
   const view = JSON.stringify({ max_edge: edge, histogram: true });
-  renderer.set_synthetic_source(edge);
+  await renderer.set_synthetic_source(edge);
   try {
     const times: number[] = [];
     let pixels = 0;

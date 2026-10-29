@@ -8,15 +8,18 @@ use raw_pipeline::frame::RenderOptions;
 use raw_pipeline::gpu::{GpuRenderer, GpuRendererOptions, LinearSource};
 use raw_pipeline::lut::{CubeLut, LutMap};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
+use raw_pipeline::source::{SourceImage, decode};
+use raw_pipeline::{PipelineError, PipelineResult};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use wgpu::ErrorFilter;
 
 use crate::js;
 use crate::present::Presenter;
 use crate::view::{EditInputs, RenderView};
 
 const TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
+
+type Slot = fn(&mut Inputs) -> &mut Option<LinearSource>;
 
 #[derive(Default)]
 struct Inputs {
@@ -61,15 +64,9 @@ impl WebRenderer {
                 *sink.lock().unwrap_or_else(PoisonError::into_inner) =
                     Some(format!("{reason:?}, {message}"));
             });
-        let scope = gpu
-            .context()
-            .device
-            .push_error_scope(ErrorFilter::Validation);
-        let presenter = new_presenter(&gpu)?;
-        let tile_presenter = new_presenter(&gpu)?;
-        if let Some(err) = scope.pop().await {
-            return Err(JsError::new(&format!("presenter: {err}")));
-        }
+        let (presenter, tile_presenter) = gpu
+            .guarded(async { Ok((new_presenter(&gpu)?, new_presenter(&gpu)?)) })
+            .await?;
         if let Some(reason) = device_lost(&lost).await {
             return Err(JsError::new(&format!("the GPU device was lost: {reason}")));
         }
@@ -92,33 +89,22 @@ impl WebRenderer {
         js::limits(&self.inner.gpu.context().device.limits())
     }
 
-    pub fn set_synthetic_source(&self, edge: u32) -> Result<(), JsError> {
-        let source = self
-            .inner
-            .gpu
-            .upload_source(&crate::bench::synthetic_source(edge))?;
-        self.inner.inputs.borrow_mut().source = Some(source);
-        Ok(())
+    pub fn set_synthetic_source(&self, edge: u32) -> js_sys::Promise {
+        self.install(Ok(crate::bench::synthetic_source(edge)), |inputs| {
+            &mut inputs.source
+        })
     }
 
     pub fn drop_source(&self) {
         self.inner.inputs.borrow_mut().source = None;
     }
 
-    pub fn set_source(&self, bytes: &[u8]) -> Result<JsValue, JsError> {
-        let image = raw_pipeline::source::decode(bytes)?;
-        let source = self.inner.gpu.upload_source(&image)?;
-        let info = js::source(&image.header);
-        self.inner.inputs.borrow_mut().source = Some(source);
-        Ok(info)
+    pub fn set_source(&self, bytes: &[u8]) -> js_sys::Promise {
+        self.install(decode(bytes), |inputs| &mut inputs.source)
     }
 
-    pub fn set_tile(&self, bytes: &[u8]) -> Result<JsValue, JsError> {
-        let image = raw_pipeline::source::decode(bytes)?;
-        let tile = self.inner.gpu.upload_source(&image)?;
-        let info = js::source(&image.header);
-        self.inner.inputs.borrow_mut().tile = Some(tile);
-        Ok(info)
+    pub fn set_tile(&self, bytes: &[u8]) -> js_sys::Promise {
+        self.install(decode(bytes), |inputs| &mut inputs.tile)
     }
 
     pub fn drop_tile(&self) {
@@ -173,14 +159,35 @@ impl WebRenderer {
 
     pub fn render(&self, edits: String, view: String) -> js_sys::Promise {
         let inner = self.inner.clone();
+        self.spawn(async move { render(&inner, &edits, &view).await })
+    }
+}
+
+impl WebRenderer {
+    fn install(&self, image: PipelineResult<SourceImage>, slot: Slot) -> js_sys::Promise {
+        let inner = self.inner.clone();
+        self.spawn(async move {
+            let image = image?;
+            let gpu = &inner.gpu;
+            let source = gpu.guarded(async { gpu.upload_source(&image) }).await?;
+            *slot(&mut inner.inputs.borrow_mut()) = Some(source);
+            Ok(js::source(&image.header))
+        })
+    }
+
+    fn spawn(
+        &self,
+        work: impl Future<Output = Result<JsValue, JsError>> + 'static,
+    ) -> js_sys::Promise {
+        let lost = self.inner.lost.clone();
         wasm_bindgen_futures::future_to_promise(async move {
-            let rendered = render(&inner, &edits, &view).await;
-            if rendered.is_err()
-                && let Some(reason) = device_lost(&inner.lost).await
+            let result = work.await;
+            if result.is_err()
+                && let Some(reason) = device_lost(&lost).await
             {
                 return Err(JsError::new(&format!("the GPU device was lost: {reason}")).into());
             }
-            rendered.map_err(JsValue::from)
+            result.map_err(JsValue::from)
         })
     }
 }
@@ -209,13 +216,11 @@ async fn render(inner: &Inner, edits: &str, view: &str) -> Result<JsValue, JsErr
         );
         (source, opts)
     };
-    let ctx = inner.gpu.context();
-    let scope = ctx.device.push_error_scope(ErrorFilter::Validation);
-    let drawn = draw(inner, &source, &edits, &opts, &view).await;
-    if let Some(err) = scope.pop().await {
-        return Err(JsError::new(&format!("render: {err}")));
-    }
-    drawn
+    inner
+        .gpu
+        .guarded(draw(inner, &source, &edits, &opts, &view))
+        .await
+        .map_err(JsError::from)
 }
 
 async fn draw(
@@ -224,7 +229,7 @@ async fn draw(
     edits: &Edits,
     opts: &RenderOptions,
     view: &RenderView,
-) -> Result<JsValue, JsError> {
+) -> PipelineResult<JsValue> {
     let ctx = inner.gpu.context();
     let presenter = if view.roi.is_some() {
         &inner.tile_presenter
@@ -235,18 +240,18 @@ async fn draw(
     let target = presenter
         .borrow_mut()
         .acquire(ctx, frame.dims(), view.canvas_color_space())
-        .map_err(|e| JsError::new(&e))?;
+        .map_err(PipelineError::Render)?;
     frame.record(|encoder, texture| presenter.borrow().blit(ctx, encoder, texture, &target.view));
     let meta = inner.gpu.read_display_meta(frame).await?;
     target.present(ctx);
-    let bitmap = presenter.borrow().bitmap().map_err(|e| JsError::new(&e))?;
+    let bitmap = presenter.borrow().bitmap().map_err(PipelineError::Render)?;
     Ok(js::frame(&meta, bitmap))
 }
 
-fn new_presenter(gpu: &GpuRenderer) -> Result<Presenter, JsError> {
+fn new_presenter(gpu: &GpuRenderer) -> PipelineResult<Presenter> {
     let canvas = web_sys::OffscreenCanvas::new(1, 1)
-        .map_err(|e| JsError::new(&format!("offscreen canvas: {e:?}")))?;
-    Presenter::new(gpu.context(), canvas).map_err(|e| JsError::new(&e))
+        .map_err(|e| PipelineError::Render(format!("offscreen canvas: {e:?}")))?;
+    Presenter::new(gpu.context(), canvas).map_err(PipelineError::Render)
 }
 
 async fn device_lost(lost: &Mutex<Option<String>>) -> Option<String> {
