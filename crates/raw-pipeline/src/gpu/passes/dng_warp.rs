@@ -5,6 +5,7 @@ use wgpu::{BindGroupLayout, ComputePipeline};
 
 use crate::geom::dng_warp::DngWarp;
 use crate::gpu::context::GpuContext;
+use crate::tile::Rect;
 
 use super::common::{
     BICUBIC_CLAMPED_WGSL, make_layout, make_pipeline, storage_entry, tex_entry,
@@ -45,24 +46,28 @@ pub struct DngWarpParams {
     pub center: [f32; 2],
     pub radius: f32,
     pub split: u32,
-    pub _pad: [u32; 2],
+    pub dst_origin: [u32; 2],
     pub radial: [[f32; 4]; 3],
     pub tangential: [[f32; 4]; 3],
+    pub src_origin: [i32; 2],
+    pub _pad: [u32; 2],
 }
 
 impl DngWarpParams {
-    pub fn new(warp: &DngWarp, w: u32, h: u32) -> Self {
+    pub fn new(warp: &DngWarp, (w, h): (u32, u32), src: Rect, dst: Rect) -> Self {
         let frame = warp.frame(w as usize, h as usize);
         Self {
-            size: [w, h],
+            size: [dst.w, dst.h],
             center: frame.center,
             radius: frame.radius,
             split: u32::from(warp.is_split()),
-            _pad: [0; 2],
+            dst_origin: [dst.x, dst.y],
             radial: warp.planes.map(|p| p.radial),
             tangential: warp
                 .planes
                 .map(|p| [p.tangential[0], p.tangential[1], 0.0, 0.0]),
+            src_origin: [src.x as i32, src.y as i32],
+            _pad: [0; 2],
         }
     }
 }

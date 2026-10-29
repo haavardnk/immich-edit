@@ -24,6 +24,8 @@ use super::texture_pool::TexturePool;
 #[cfg(feature = "native")]
 use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
+#[cfg(feature = "native")]
+use crate::tile::TilePlan;
 
 #[cfg(feature = "native")]
 mod admission;
@@ -57,6 +59,8 @@ mod source_io;
 mod stage_cache;
 #[cfg(all(test, feature = "native"))]
 mod test_frame;
+#[cfg(feature = "native")]
+mod tile_plan;
 mod uniform;
 #[cfg(feature = "native")]
 mod upload;
@@ -71,7 +75,7 @@ pub use display::DisplayFrame;
 pub use options::GpuRendererOptions;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
-use sensor_stage::{CachedFrame, SensorCaches, SourcePlan};
+use sensor_stage::{SensorCaches, SensorFrame, SensorJob, SensorShape, SourcePlan};
 #[cfg(feature = "native")]
 use stage_cache::Stage;
 #[cfg(feature = "web")]
@@ -125,7 +129,7 @@ impl RenderPlan {
             || d.luma_nr_active()
             || d.color_nr_active()
             || crate::ops::capture_sharpen::frame_sigma(frame, edits, 1).is_some()
-            || edits.retouch.iter().any(|s| s.is_effective())
+            || edits.retouch_active()
         {
             Self::Presence
         } else {
@@ -154,6 +158,8 @@ pub struct GpuRenderer {
     memory: GpuMemory,
     #[cfg(feature = "native")]
     admission: Admission,
+    #[cfg(feature = "native")]
+    tiles: Option<TilePlan>,
 }
 
 const LUT_TEX_CACHE_ITEMS: usize = 4;
@@ -224,6 +230,8 @@ impl GpuRenderer {
             memory,
             #[cfg(feature = "native")]
             admission: Admission::new(budget_bytes),
+            #[cfg(feature = "native")]
+            tiles: options.tiles,
         })
     }
 
@@ -283,20 +291,45 @@ impl GpuRenderer {
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let source = source.into();
-        let _admitted = self.admit(self.estimate_render(source, edits, options), cancel)?;
+        let composed = compose_edits(edits, options);
+        let raw = match source {
+            RenderSource::Raw(frame) => Some((frame, SourcePlan::for_render(&composed, frame))),
+            RenderSource::Linear(_) => None,
+        };
+        self.run_planned(
+            raw,
+            &composed,
+            options,
+            |tiles| self.estimate_render(source, edits, options, tiles),
+            |tiles| self.render_planned(source, &composed, options, tiles, cancel),
+            cancel,
+        )
+    }
+
+    #[cfg(feature = "native")]
+    fn render_planned(
+        &self,
+        source: RenderSource<'_>,
+        edits: &Edits,
+        options: &RenderOptions,
+        tiles: TilePlan,
+        cancel: Option<&crate::cancel::CancelToken>,
+    ) -> PipelineResult<RenderedImage> {
         pollster::block_on(self.guarded(async {
             crate::cancel::check(cancel)?;
             let timings = RenderTimings::new(&self.ctx);
-            let edits = compose_edits(edits, options);
             let display = match source {
                 RenderSource::Raw(frame) => {
-                    let plan = SourcePlan::for_render(&edits, frame);
-                    let linear =
-                        self.sensor_stage(frame, &edits, options, plan, &timings, cancel)?;
-                    self.display_chain(&linear, &edits, options, timings, cancel)?
+                    let plan = SourcePlan::for_render(edits, frame);
+                    let linear = {
+                        let job =
+                            SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
+                        self.sensor_stage(&job)?
+                    };
+                    self.display_chain(&linear, edits, options, timings, cancel)?
                 }
                 RenderSource::Linear(linear) => {
-                    self.display_chain(linear, &edits, options, timings, cancel)?
+                    self.display_chain(linear, edits, options, timings, cancel)?
                 }
             };
             self.read_display(display, cancel)?

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use wgpu::{Buffer, Texture};
 
 use super::profile::{luma_block, packed};
-use super::sweep::{NrSweep, groups, hist_groups};
+use super::sweep::{NrSweep, groups, hist_core, hist_groups};
 use crate::gpu::passes::nr::{
     NR_INIT_READ, NR_INIT_ZERO, NR_LUMA_FORMAT, NrHistParams, NrPasses, NrShrinkParams,
     NrSizeParams,
@@ -11,6 +11,7 @@ use crate::gpu::passes::nr::{
 use crate::ops::denoise::LUMA_LEVELS;
 use crate::ops::denoise::estimate::{HIST_LEN, NoiseCurve};
 use crate::ops::denoise::shrink::LevelParams;
+use crate::tile::Rect;
 
 fn planes(
     sweep: &mut NrSweep<'_>,
@@ -40,6 +41,7 @@ pub(super) fn estimate(
     p: &NrPasses,
     src: &Texture,
     dims: (u32, u32),
+    core: Rect,
     hist: &Buffer,
 ) {
     let [mut cur, mut next] = planes(sweep, p, src, dims);
@@ -47,12 +49,13 @@ pub(super) fn estimate(
     for s in 0..LUMA_LEVELS {
         sweep.atrous(&p.luma, [&cur, &tmp, &next], dims, 1 << s);
         let params = NrHistParams {
-            size: [dims.0, dims.1],
             lo_size: [dims.0, dims.1],
             lo: 0,
             count: 1,
             offset: (luma_block(s) * HIST_LEN) as u32,
             fine: 0,
+            _pad: [0; 2],
+            core: hist_core(core, 1),
         };
         sweep.run(
             "nr-luma-hist",

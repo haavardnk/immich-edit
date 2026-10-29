@@ -37,8 +37,11 @@ The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls
 CPU renderer. `IMMICH_EDIT_RENDERER` chooses between them; see [configuration](configuration.md).
 
 A photo larger than the GPU's texture or buffer limits, or a render larger than its
-[memory budget](#gpu-memory), renders on the CPU. The next render uses the GPU again. Only a lost
-GPU device takes the GPU out of use until the server rebuilds it.
+[memory budget](#gpu-memory), renders its sensor stage (demosaic, lens corrections, noise
+reduction and capture sharpening) in tiles, and the result matches a single-pass render exactly.
+When the rest of the render still does not fit, or the photo has healing or clone strokes, it
+renders on the CPU. The next render uses the GPU again. Only a lost GPU device takes the GPU out of
+use until the server rebuilds it.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).
@@ -69,8 +72,8 @@ its container limit, minus `RAW_FRAME_CACHE_MB` and `QUALITY_FRAME_CACHE_MB`. Se
 reports no memory size has no budget unless you set one.
 
 A render waits until it fits next to the renders already running, and a render larger than the
-whole budget renders on the CPU. If the GPU runs out of memory anyway, the server lowers the budget
-until it restarts.
+whole budget renders in tiles, or on the CPU when no tile size fits. If the GPU runs out of memory
+anyway, the server lowers the budget until it restarts and retries the render in tiles.
 
 **Settings** > **Diagnostics** shows the GPU memory, the budgets and the texture cache size.
 

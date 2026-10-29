@@ -27,6 +27,7 @@ pub mod ops;
 pub mod scopes;
 mod sensor_sample;
 pub mod source;
+pub(crate) mod tile;
 pub mod timing;
 pub mod tone;
 pub mod warn;
@@ -72,3 +73,5 @@ pub use gpu::GpuRendererOptions;
 pub use gpu::context::GpuContext;
 pub use lut::{CubeLut, LutMap, empty_luts};
 pub use mask_raster::{MaskRaster, RasterMap, empty_rasters};
+#[cfg(feature = "native")]
+pub use tile::TilePlan;

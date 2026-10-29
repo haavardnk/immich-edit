@@ -14,27 +14,30 @@ use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::texture_pool::TextureKey;
 use crate::ops::capture_sharpen::{CaptureSigma, SIGMA_LEVELS, half_diagonal};
+use crate::tile::Rect;
 
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_capture_sharpen(
         &self,
         src: &Texture,
-        dims: (u32, u32),
+        rect: Rect,
+        frame: (u32, u32),
         sigma: CaptureSigma,
-        key: u64,
+        cache: Option<u64>,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.sensor.stages.get(Stage::Capture, key) {
+        if let Some(t) = cache.and_then(|key| self.sensor.stages.get(Stage::Capture, key)) {
             tracing::debug!(target: "gpu_cache", "capture_sharpen cache hit");
             return Ok(t);
         }
-        let _span =
-            tracing::debug_span!("gpu.submit_capture_sharpen", w = dims.0, h = dims.1).entered();
+        let (w, h) = rect.dims();
+        let _span = tracing::debug_span!("gpu.submit_capture_sharpen", w, h).entered();
         let device = &self.ctx.device;
-        let (w, h) = dims;
         let p = &self.passes.sensor_stage.capture_sharpen;
         let kernels = sigma.kernels();
         let levels = kernels.len() as u32;
-        let half_diag = half_diagonal(w as usize, h as usize);
+        let half_diag = half_diagonal(frame.0 as usize, frame.1 as usize);
+        let origin = [rect.x, rect.y];
+        let frame = [frame.0, frame.1];
         let mut radius = [0i32; SIGMA_LEVELS];
         let mut kernel_table = [0.0f32; CAPTURE_KERNEL_MAX * SIGMA_LEVELS];
         for (level, kernel) in kernels.iter().enumerate() {
@@ -57,6 +60,8 @@ impl GpuRenderer {
                 mode,
                 levels,
                 half_diag,
+                origin,
+                frame,
                 _pad: [0; 2],
                 radius,
                 kernel: kernel_table,
@@ -72,6 +77,8 @@ impl GpuRenderer {
                 size: [w, h],
                 levels,
                 half_diag,
+                origin,
+                frame,
                 radius,
             },
             "capture-apply-u",
@@ -179,7 +186,9 @@ impl GpuRenderer {
         self.ctx.queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(out);
-        self.sensor.stages.put(Stage::Capture, key, out.clone());
+        if let Some(key) = cache {
+            self.sensor.stages.put(Stage::Capture, key, out.clone());
+        }
         Ok(out)
     }
 }

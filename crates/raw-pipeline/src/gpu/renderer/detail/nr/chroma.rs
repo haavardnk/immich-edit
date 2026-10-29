@@ -3,7 +3,7 @@ use std::sync::Arc;
 use wgpu::{Buffer, Texture};
 
 use super::profile::{FINE_BLOCK, NoiseProfile, chroma_block, packed};
-use super::sweep::{NrSweep, groups, half, hist_groups};
+use super::sweep::{NrSweep, groups, half, hist_core, hist_groups};
 use crate::gpu::passes::nr::{
     NR_CHROMA_FORMAT, NR_INIT_CARRY_REFERENCE, NR_INIT_READ, NrApplyParams, NrHistParams, NrPasses,
     NrShrinkParams, NrSizeParams,
@@ -11,6 +11,7 @@ use crate::gpu::passes::nr::{
 use crate::ops::denoise::CHROMA_LEVELS;
 use crate::ops::denoise::estimate::HIST_LEN;
 use crate::ops::denoise::shrink::LevelParams;
+use crate::tile::Rect;
 
 const PB: u32 = 1;
 const CHANNELS: u32 = 2;
@@ -40,14 +41,15 @@ fn planes(
     [cur, next, base]
 }
 
-fn hist_params(size: (u32, u32), lo: (u32, u32), block: usize, fine: u32) -> NrHistParams {
+fn hist_params(lo: (u32, u32), block: usize, fine: u32, core: [u32; 4]) -> NrHistParams {
     NrHistParams {
-        size: [size.0, size.1],
         lo_size: [lo.0, lo.1],
         lo: PB,
         count: CHANNELS,
         offset: (block * HIST_LEN) as u32,
         fine,
+        _pad: [0; 2],
+        core,
     }
 }
 
@@ -56,6 +58,7 @@ pub(super) fn estimate(
     p: &NrPasses,
     src: &Texture,
     dims: (u32, u32),
+    core: Rect,
     hist: &Buffer,
 ) {
     let lo = half(dims);
@@ -64,7 +67,7 @@ pub(super) fn estimate(
     for s in 0..CHROMA_LEVELS {
         sweep.atrous(&p.chroma, [&cur, &tmp, &next], lo, 1 << s);
         if s == 0 {
-            let params = hist_params(dims, lo, FINE_BLOCK, 1);
+            let params = hist_params(lo, FINE_BLOCK, 1, hist_core(core, 1));
             sweep.run(
                 "nr-fine-hist",
                 &p.hist,
@@ -74,7 +77,7 @@ pub(super) fn estimate(
                 hist_groups(dims),
             );
         }
-        let params = hist_params(lo, lo, chroma_block(s), 0);
+        let params = hist_params(lo, chroma_block(s), 0, hist_core(core, 2));
         sweep.run(
             "nr-chroma-hist",
             &p.hist,

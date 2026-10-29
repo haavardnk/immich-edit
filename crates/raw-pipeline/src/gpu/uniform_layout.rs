@@ -5,8 +5,8 @@ use naga::{AddressSpace, Handle, Module, ScalarKind, Type, TypeInner};
 use super::display_depth::DisplayDepth;
 use super::helpers::{DemosaicParams, SuperpixelParams, XtransParams};
 use super::passes::capture_sharpen::{
-    CAPTURE_APPLY_WGSL, CAPTURE_BLUR_WGSL, CAPTURE_LUMA_WGSL, CaptureApplyParams,
-    CaptureBlurParams, CaptureLumaParams,
+    CAPTURE_LUMA_WGSL, CaptureApplyParams, CaptureBlurParams, CaptureLumaParams,
+    capture_apply_wgsl, capture_blur_wgsl,
 };
 use super::passes::dcp_huesat::{DcpHueSatParams, dcp_huesat_wgsl};
 use super::passes::dehaze::{
@@ -198,13 +198,13 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "capture_blur",
-            layout!(CaptureBlurParams { size, axis, mode, levels, half_diag, radius, kernel } pad { _pad }),
-            uniform_struct(CAPTURE_BLUR_WGSL),
+            layout!(CaptureBlurParams { size, axis, mode, levels, half_diag, origin, frame, radius, kernel } pad { _pad }),
+            uniform_struct(&capture_blur_wgsl()),
         ),
         (
             "capture_apply",
-            layout!(CaptureApplyParams { size, levels, half_diag, radius } pad {}),
-            uniform_struct(CAPTURE_APPLY_WGSL),
+            layout!(CaptureApplyParams { size, levels, half_diag, origin, frame, radius } pad {}),
+            uniform_struct(&capture_apply_wgsl()),
         ),
         (
             "clarity_guide",
@@ -346,7 +346,7 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "nr_hist",
-            layout!(NrHistParams { size, lo_size, lo, count, offset, fine } pad {}),
+            layout!(NrHistParams { lo_size, lo, count, offset, fine, core } pad { _pad }),
             uniform_struct(&nr_wgsl(NR_HIST_WGSL)),
         ),
         (
@@ -376,7 +376,7 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "resample",
-            layout!(ResampleParams { dst_size, src_size, scale, inv_filter_scale, axis } pad { _pad }),
+            layout!(ResampleParams { dst_size, src_size, scale, inv_filter_scale, axis, dst_origin, src_origin } pad { _pad }),
             uniform_struct(RESAMPLE_WGSL),
         ),
         ("retouch_prep", retouch(), uniform_struct(RETOUCH_PREP_WGSL)),
@@ -392,12 +392,12 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "dng_warp",
-            layout!(DngWarpParams { size, center, radius, split, radial, tangential } pad { _pad }),
+            layout!(DngWarpParams { size, center, radius, split, dst_origin, radial, tangential, src_origin } pad { _pad }),
             uniform_struct(&dng_warp_wgsl()),
         ),
         (
             "sensor",
-            layout!(SensorParams { size, zoom, vig_amount, coeffs, ca_vig } pad {}),
+            layout!(SensorParams { frame, zoom, vig_amount, coeffs, ca_vig, dst_origin, dst_size, src_origin } pad { _pad }),
             uniform_struct(&sensor_wgsl()),
         ),
         (

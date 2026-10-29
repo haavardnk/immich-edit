@@ -1,6 +1,8 @@
 use super::*;
 use crate::frame::{FrameId, FrameMeta};
 
+const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
 #[test]
 fn preview_ratio_cases() {
     let edits = crate::edits::Edits::default();
@@ -43,7 +45,6 @@ fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
 
 #[test]
 fn superpixel_block_cases() {
-    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
     let roi = RenderOptions {
         roi: Some(CropRect {
             x: 0.0,
@@ -73,6 +74,28 @@ fn superpixel_block_cases() {
     for (cfa, cpp, options, ratio, want) in cases {
         let got = superpixel_block(&mosaic_frame(cfa, cpp), options, ratio);
         assert_eq!(got, want, "{cfa} cpp={cpp} ratio={ratio:?}");
+    }
+}
+
+#[test]
+fn superpixel_blocks_grow_in_base_blocks_until_the_frame_fits_the_max_edge() {
+    let plain = RenderOptions::default();
+    let cases = [
+        ("RGGB", 32768, Some(40.0), Some(2)),
+        ("RGGB", 32769, Some(40.0), Some(4)),
+        ("RGGB", 65535, Some(40.0), Some(4)),
+        ("RGGB", 65535, Some(3.0), None),
+        (XTRANS, 49152, Some(40.0), Some(3)),
+        (XTRANS, 49153, Some(40.0), Some(6)),
+        (XTRANS, 65535, Some(5.0), None),
+    ];
+    for (cfa, width, ratio, want) in cases {
+        let mut frame = mosaic_frame(cfa, 1);
+        frame.meta.width = width;
+        let got = superpixel_block(&frame, &plain, ratio);
+        if got != want {
+            panic!("{cfa} {width} px at ratio {ratio:?}: block {got:?}, expected {want:?}");
+        }
     }
 }
 

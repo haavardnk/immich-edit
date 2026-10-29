@@ -6,6 +6,7 @@ pub mod fixtures;
 pub mod frames;
 pub mod gpu;
 pub mod lut;
+pub mod masks;
 pub mod parity;
 pub mod render;
 pub mod roundtrip;

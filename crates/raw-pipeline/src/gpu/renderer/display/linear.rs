@@ -10,6 +10,7 @@ use crate::edits::{Edits, MaskLayer};
 use crate::frame::{FrameMeta, RenderOptions};
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::LensBlurInput;
+use crate::gpu::renderer::resample::Resample;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
@@ -147,13 +148,14 @@ impl GpuRenderer {
                 return Ok(());
             };
             let work_dims = scaled_dims(dims, full, target);
+            let geometry = Resample::whole(dims, work_dims);
             let texture =
-                self.resample_lanczos(&state.texture, dims, work_dims, "process-downscale", false)?;
+                self.resample_lanczos(&state.texture, geometry, "process-downscale", false)?;
             let layers = state
                 .layers
                 .iter()
                 .map(|(id, tex)| {
-                    self.resample_lanczos(tex, dims, work_dims, "layer-downscale", false)
+                    self.resample_lanczos(tex, geometry, "layer-downscale", false)
                         .map(|t| (id.clone(), t))
                 })
                 .collect::<PipelineResult<HashMap<String, Arc<Texture>>>>()?;

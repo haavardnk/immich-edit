@@ -9,14 +9,13 @@ use std::sync::Arc;
 use wgpu::{Texture, TextureUsages};
 
 use crate::PipelineResult;
-use crate::cancel::CancelToken;
 use crate::edits::Edits;
 use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::renderer::cache_keys::StageKeys;
 use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::texture::{STORAGE_SAMPLED, texture_2d};
 use crate::ops::denoise;
+pub(in crate::gpu::renderer) use estimate::NoiseHistogram;
 pub(in crate::gpu::renderer) use profile::NoiseProfile;
 use sweep::NrSweep;
 
@@ -26,10 +25,10 @@ impl GpuRenderer {
         src: &Arc<Texture>,
         dims: (u32, u32),
         edits: &Edits,
-        keys: &StageKeys,
-        cancel: Option<&CancelToken>,
+        cache: Option<u64>,
+        profile: impl FnOnce() -> PipelineResult<NoiseProfile>,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.sensor.stages.get(Stage::Nr, keys.nr) {
+        if let Some(t) = cache.and_then(|key| self.sensor.stages.get(Stage::Nr, key)) {
             tracing::debug!(target: "gpu_cache", "nr_out cache hit");
             return Ok(t);
         }
@@ -37,7 +36,7 @@ impl GpuRenderer {
         if w < 3 || h < 3 {
             return Ok(src.clone());
         }
-        let profile = self.noise_profile_for(keys.nr_source, src, dims, cancel)?;
+        let profile = profile()?;
         let _span = tracing::debug_span!("gpu.submit_nr", w, h).entered();
         let d = &edits.detail;
         let chroma_levels = d.color_nr_active().then(|| {
@@ -77,7 +76,9 @@ impl GpuRenderer {
         self.encode_mipgen(sweep.encoder(), &out, w, h);
         sweep.submit();
         let out = Arc::new(out);
-        self.sensor.stages.put(Stage::Nr, keys.nr, out.clone());
+        if let Some(key) = cache {
+            self.sensor.stages.put(Stage::Nr, key, out.clone());
+        }
         Ok(out)
     }
 }

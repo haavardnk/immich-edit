@@ -57,6 +57,28 @@ fn a_preview_of_a_frame_past_the_limit_renders_from_superpixels() {
 }
 
 #[test]
+fn a_preview_of_the_widest_export_renders_from_larger_superpixels() {
+    const WIDEST: usize = 65535;
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    if renderer.context().device.limits().max_texture_dimension_2d < 16384 {
+        return;
+    }
+    let frame = synthetic_bayer_frame(WIDEST, 512, "RGGB");
+    let img = match renderer.render(&frame, &Edits::default(), &rgb8_opts(1024)) {
+        Ok(img) => img,
+        Err(e) => panic!("a superpixel preview of a {WIDEST}x512 frame failed: {e}"),
+    };
+    if img.width != 1024 || img.renderer != "gpu" {
+        panic!(
+            "superpixel preview rendered {}x{} on {}",
+            img.width, img.height, img.renderer
+        );
+    }
+}
+
+#[test]
 fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
     const BUDGET: u64 = 64 << 20;
     let Some(renderer) = try_renderer_with(GpuRendererOptions {

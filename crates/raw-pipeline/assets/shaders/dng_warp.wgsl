@@ -3,8 +3,10 @@ struct DngWarpParams {
     center: vec2<f32>,
     radius: f32,
     split: u32,
+    dst_origin: vec2<u32>,
     radial: array<vec4<f32>, 3>,
     tangential: array<vec4<f32>, 3>,
+    src_origin: vec2<i32>,
 };
 
 @group(0) @binding(0) var<uniform> p: DngWarpParams;
@@ -25,7 +27,8 @@ fn source_px(plane: u32, pos: vec2<f32>) -> vec2<f32> {
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
-    let pos = vec2<f32>(f32(gid.x) + 0.5, f32(gid.y) + 0.5);
+    let px = gid.xy + p.dst_origin;
+    let pos = vec2<f32>(f32(px.x) + 0.5, f32(px.y) + 0.5);
     let gid_i = vec2<i32>(i32(gid.x), i32(gid.y));
     if (p.split == 0u) {
         let rgb = bicubic_rgb(source_px(0u, pos));
