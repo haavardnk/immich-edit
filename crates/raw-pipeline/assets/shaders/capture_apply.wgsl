@@ -2,6 +2,8 @@ struct Params {
     size: vec2<u32>,
     levels: u32,
     half_diag: f32,
+    origin: vec2<u32>,
+    frame: vec2<u32>,
     radius: array<vec4<i32>, 8>,
 }
 
@@ -28,13 +30,6 @@ fn lum(x: i32, y: i32) -> f32 {
 fn light(x: i32, y: i32) -> f32 {
     let v = lum(x, y);
     return select(pow(v, 1.0 / 3.0), 0.0, v <= 0.0);
-}
-
-fn sigma_level(x: i32, y: i32) -> u32 {
-    if (p.levels <= 1u) { return 0u; }
-    let d = vec2<f32>(f32(x) + 0.5 - 0.5 * f32(p.size.x), f32(y) + 0.5 - 0.5 * f32(p.size.y));
-    let t = sqrt(dot(d, d)) / p.half_diag;
-    return min(u32(floor(t * f32(p.levels - 1u) + 0.5)), p.levels - 1u);
 }
 
 @compute @workgroup_size(16, 16, 1)

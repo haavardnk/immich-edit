@@ -9,7 +9,7 @@ use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::uniform::build_process_uniform;
-use crate::gpu::renderer::{CachedFrame, GpuRenderer};
+use crate::gpu::renderer::{GpuRenderer, SensorFrame};
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
 use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
 use crate::ops::capture_sharpen::CaptureSigma;
@@ -18,23 +18,20 @@ use crate::ops::{OpContext, OpScratch, RenderContext};
 impl GpuRenderer {
     pub(in crate::gpu::renderer) fn submit_wb_prepare(
         &self,
-        cached: &CachedFrame,
+        cached: &SensorFrame,
         meta: &FrameMeta,
         edits: &Edits,
         setup: &crate::dcp::setup::DcpSetup,
-        key: u64,
+        cache: Option<u64>,
     ) -> PipelineResult<Arc<Texture>> {
-        if let Some(t) = self.sensor.stages.get(Stage::Wb, key) {
+        if let Some(t) = cache.and_then(|key| self.sensor.stages.get(Stage::Wb, key)) {
             tracing::debug!(target: "gpu_cache", "wb_base cache hit");
             return Ok(t);
         }
-        let _span =
-            tracing::debug_span!("gpu.submit_wb_prepare", w = cached.width, h = cached.height)
-                .entered();
+        let (w, h) = cached.rect.dims();
+        let _span = tracing::debug_span!("gpu.submit_wb_prepare", w, h).entered();
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let w = cached.width;
-        let h = cached.height;
 
         let ctx_op = OpContext {
             render: RenderContext {
@@ -115,7 +112,9 @@ impl GpuRenderer {
         queue.submit(Some(encoder.finish()));
 
         let out = Arc::new(wb_base);
-        self.sensor.stages.put(Stage::Wb, key, out.clone());
+        if let Some(key) = cache {
+            self.sensor.stages.put(Stage::Wb, key, out.clone());
+        }
         Ok(out)
     }
 }

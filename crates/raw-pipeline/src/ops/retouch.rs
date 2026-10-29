@@ -21,7 +21,7 @@ impl Op for RetouchOp {
         30
     }
     fn is_active(&self, edits: &Edits) -> bool {
-        edits.retouch.iter().any(|s| s.is_effective())
+        edits.retouch_active()
     }
     fn to_doc(&self, edits: &Edits) -> Option<serde_json::Value> {
         if edits.retouch.is_empty() {

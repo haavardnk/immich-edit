@@ -1,5 +1,6 @@
 use rayon::prelude::*;
 
+use crate::tile::Rect;
 use crate::{PipelineError, PipelineResult};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,10 +35,6 @@ impl DenoisePlane {
         Self::new(key, width, height, rgb_f16)
     }
 
-    pub fn binned_dims(&self, block: usize) -> (usize, usize) {
-        (self.width / block, self.height / block)
-    }
-
     pub fn binned_pixel(&self, x: usize, y: usize, block: usize) -> [f32; 3] {
         let span = x * block * 3..(x + 1) * block * 3;
         let sum = self
@@ -53,11 +50,12 @@ impl DenoisePlane {
         sum.map(|s| s / cells)
     }
 
-    pub fn binned_rgb_f16(&self, block: usize) -> Vec<u16> {
-        let (w, h) = self.binned_dims(block);
-        (0..w * h)
+    pub fn binned_rgb_f16(&self, block: usize, window: Rect) -> Vec<u16> {
+        let (x, y) = (window.x as usize, window.y as usize);
+        let w = window.w as usize;
+        (0..w * window.h as usize)
             .into_par_iter()
-            .flat_map_iter(|i| self.binned_pixel(i % w, i / w, block))
+            .flat_map_iter(|i| self.binned_pixel(x + i % w, y + i / w, block))
             .map(|v| half::f16::from_f32(v).to_bits())
             .collect()
     }
@@ -80,12 +78,11 @@ mod tests {
             .flat_map(|i| [i as f32 * 0.125, 0.5, 1.0 - i as f32 * 0.125])
             .collect();
         let plane = DenoisePlane::from_rgb(1, 4, 2, &values).unwrap();
-        assert_eq!(plane.binned_dims(2), (2, 1));
         let left = plane.binned_pixel(0, 0, 2);
         let expected_red = (0.0 + 0.125 + 0.5 + 0.625) / 4.0;
         assert!((left[0] - expected_red).abs() < 1e-3, "{left:?}");
         assert!((left[1] - 0.5).abs() < 1e-3);
-        assert_eq!(plane.binned_rgb_f16(2).len(), 2 * 3);
+        assert_eq!(plane.binned_rgb_f16(2, Rect::full((2, 1))).len(), 2 * 3);
         assert_eq!(plane.binned_pixel(3, 1, 1)[0], 0.875);
     }
 }

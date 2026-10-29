@@ -4,9 +4,9 @@ use parking_lot::Mutex;
 
 use super::GpuRenderer;
 use super::pools::{PoolTarget, texture_bytes};
-use super::sensor_stage::CachedFrame;
+use super::sensor_stage::SensorFrame;
 
-type FrameCache = Mutex<lru::LruCache<u64, Arc<CachedFrame>>>;
+type FrameCache = Mutex<lru::LruCache<u64, Arc<SensorFrame>>>;
 
 impl GpuRenderer {
     pub(super) fn retained_bytes(&self) -> u64 {
@@ -55,7 +55,7 @@ fn clear_idle_targets<T>(pool: &Mutex<Vec<T>>) {
     }
 }
 
-fn is_idle(frame: &Arc<CachedFrame>) -> bool {
+fn is_idle(frame: &Arc<SensorFrame>) -> bool {
     Arc::strong_count(frame) == 1 && Arc::strong_count(&frame.texture) == 1
 }
 

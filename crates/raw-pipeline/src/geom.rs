@@ -123,6 +123,7 @@ pub fn preview_ratio(
 
 const BAYER_BLOCK: usize = 2;
 const XTRANS_BLOCK: usize = 3;
+const SUPERPIXEL_MAX_EDGE: usize = 16384;
 
 pub fn superpixel_block(
     frame: &RawFrame,
@@ -132,13 +133,15 @@ pub fn superpixel_block(
     if frame.cpp != 1 || options.roi.is_some() || options.preview_mode != PreviewMode::None {
         return None;
     }
-    let block = if crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern).is_some() {
+    let base = if crate::cpu::demosaic::parse_xtrans(&frame.cfa_pattern).is_some() {
         XTRANS_BLOCK
     } else if frame.cfa_pattern.len() == 4 {
         BAYER_BLOCK
     } else {
         return None;
     };
+    let long_edge = frame.meta.width.max(frame.meta.height);
+    let block = base * long_edge.div_ceil(base * SUPERPIXEL_MAX_EDGE).max(1);
     preview_ratio
         .filter(|ratio| *ratio >= block as f32)
         .map(|_| block)

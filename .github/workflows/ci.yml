@@ -48,7 +48,23 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo clippy -p immich-edit-backend --no-default-features --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - run: 'cargo test --workspace -- --skip sensor_tiles:: --skip renderer::working_set::tests'
+
+  gpu:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust
+          save-if: false
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-${{ runner.os }}-v1
+      - run: brew install nasm ninja jpeg-turbo libheif exiftool
+      - run: 'cargo test -p raw-pipeline --lib --test gpu_tiles -- sensor_tiles:: renderer::working_set::tests'
 
   wasm:
     runs-on: ubuntu-latest

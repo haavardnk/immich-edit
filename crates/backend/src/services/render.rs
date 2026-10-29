@@ -55,6 +55,7 @@ impl RenderCacheOptions {
                 .memory_bytes()
                 .map(|bytes| bytes.saturating_sub(frame_caches)),
             timestamps,
+            ..GpuRendererOptions::default()
         }
     }
 }

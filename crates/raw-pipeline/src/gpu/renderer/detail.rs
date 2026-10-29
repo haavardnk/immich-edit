@@ -17,4 +17,4 @@ mod wb_prepare;
 
 pub(super) use lens_blur::LensBlurInput;
 #[cfg(feature = "native")]
-pub(super) use nr::NoiseProfile;
+pub(super) use nr::{NoiseHistogram, NoiseProfile};

@@ -17,7 +17,9 @@ pub struct ResampleParams {
     pub scale: f32,
     pub inv_filter_scale: f32,
     pub axis: u32,
-    pub _pad: u32,
+    pub dst_origin: u32,
+    pub src_origin: u32,
+    pub _pad: [u32; 3],
 }
 
 pub struct ResamplePass {
@@ -46,6 +48,7 @@ pub fn pack_params(
     src_size: (u32, u32),
     scale: f32,
     axis: u32,
+    (dst_origin, src_origin): (u32, u32),
 ) -> ResampleParams {
     ResampleParams {
         dst_size: [dst_size.0, dst_size.1],
@@ -53,6 +56,8 @@ pub fn pack_params(
         scale,
         inv_filter_scale: 1.0 / scale.max(1.0),
         axis,
-        _pad: 0,
+        dst_origin,
+        src_origin,
+        _pad: [0; 3],
     }
 }

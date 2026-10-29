@@ -1,5 +1,7 @@
 use crate::gpu::context::RESOURCE_CREATION_BUDGET_PERCENT;
 use crate::gpu::memory::DeviceMemory;
+#[cfg(feature = "native")]
+use crate::tile::TilePlan;
 
 const MB: u64 = 1024 * 1024;
 const DEFAULT_TEXTURE_CACHE_BYTES: u64 = 512 * MB;
@@ -12,6 +14,8 @@ pub struct GpuRendererOptions {
     pub texture_cache_max_bytes: Option<u64>,
     pub memory_budget_bytes: Option<u64>,
     pub host_budget_bytes: Option<u64>,
+    #[cfg(feature = "native")]
+    pub tiles: Option<TilePlan>,
     pub timestamps: bool,
 }
 

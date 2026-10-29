@@ -4,6 +4,8 @@ struct Params {
     mode: u32,
     levels: u32,
     half_diag: f32,
+    origin: vec2<u32>,
+    frame: vec2<u32>,
     radius: array<vec4<i32>, 8>,
     kernel: array<vec4<f32>, 128>,
 }
@@ -14,13 +16,6 @@ struct Params {
 @group(0) @binding(3) var dst: texture_storage_2d<r32float, write>;
 
 const EPS: f32 = 1e-5;
-
-fn sigma_level(x: i32, y: i32) -> u32 {
-    if (p.levels <= 1u) { return 0u; }
-    let d = vec2<f32>(f32(x) + 0.5 - 0.5 * f32(p.size.x), f32(y) + 0.5 - 0.5 * f32(p.size.y));
-    let t = sqrt(dot(d, d)) / p.half_diag;
-    return min(u32(floor(t * f32(p.levels - 1u) + 0.5)), p.levels - 1u);
-}
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {

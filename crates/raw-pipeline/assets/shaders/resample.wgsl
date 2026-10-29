@@ -4,6 +4,8 @@ struct Params {
     scale: f32,
     inv_filter_scale: f32,
     axis: u32,
+    dst_origin: u32,
+    src_origin: u32,
 };
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -29,13 +31,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.dst_size.x || gid.y >= p.dst_size.y) { return; }
 
     var idx = gid.x;
-    var limit = i32(p.src_size.x) - 1;
+    var limit = i32(p.src_origin + p.src_size.x) - 1;
     if (p.axis == 1u) {
         idx = gid.y;
-        limit = i32(p.src_size.y) - 1;
+        limit = i32(p.src_origin + p.src_size.y) - 1;
     }
 
-    let center = (f32(idx) + 0.5) * p.scale;
+    let center = (f32(idx + p.dst_origin) + 0.5) * p.scale;
     let support = 3.0 / p.inv_filter_scale;
     let lo = max(i32(floor(center - support - 0.5)), 0);
     let hi = min(i32(ceil(center + support - 0.5)), limit);
@@ -44,8 +46,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     var wsum = 0.0;
     for (var s = lo; s <= hi; s = s + 1) {
         let w = lanczos3((f32(s) + 0.5 - center) * p.inv_filter_scale);
-        var c = vec2<i32>(s, i32(gid.y));
-        if (p.axis == 1u) { c = vec2<i32>(i32(gid.x), s); }
+        let local = s - i32(p.src_origin);
+        var c = vec2<i32>(local, i32(gid.y));
+        if (p.axis == 1u) { c = vec2<i32>(i32(gid.x), local); }
         acc = acc + textureLoad(src, c, 0).rgb * w;
         wsum = wsum + w;
     }

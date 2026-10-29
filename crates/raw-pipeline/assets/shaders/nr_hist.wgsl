@@ -1,10 +1,10 @@
 struct NrHistParams {
-    size: vec2<u32>,
     lo_size: vec2<u32>,
     lo: u32,
     count: u32,
     offset: u32,
     fine: u32,
+    core: vec4<u32>,
 }
 
 @group(0) @binding(0) var<uniform> p: NrHistParams;
@@ -42,7 +42,7 @@ fn main(
     let origin = wg.xy * HIST_TILE;
     for (var k = li; k < SIDE * SIDE; k += THREADS) {
         let q = origin + vec2<u32>(k % SIDE, k / SIDE) * SAMPLE_STRIDE;
-        if (q.x >= p.size.x || q.y >= p.size.y) {
+        if (any(q < p.core.xy) || any(q >= p.core.zw)) {
             continue;
         }
         let s = sample_detail(q);

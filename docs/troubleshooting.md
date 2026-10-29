@@ -231,9 +231,10 @@ The error after it names the cause:
   limit`: the photo or export is larger than the GPU accepts, such as a wide panorama. It renders
   on the CPU.
 - `render needs ... of gpu memory, budget ...`: the render does not fit the
-  [GPU memory budget](rendering.md#gpu-memory). It renders on the CPU.
-- `gpu out of memory`: the server lowers its GPU memory budget. If it happens often, set
-  `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower `GPU_TEXTURE_CACHE_MB`.
+  [GPU memory budget](rendering.md#gpu-memory) and no tile size fits. It renders on the CPU.
+- `gpu out of memory`: the server lowers its GPU memory budget and retries the render in tiles,
+  then on the CPU. If it happens often, set `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower
+  `GPU_TEXTURE_CACHE_MB`.
 
 The GPU stays in use for other photos in every case.
 
