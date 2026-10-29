@@ -9,11 +9,12 @@ use wgpu::{
     TextureFormatFeatureFlags,
 };
 
+use super::memory::{self, DeviceMemory};
 use super::texture::STORAGE_SAMPLED;
 use super::timer::TimerSlots;
 use crate::{PipelineError, PipelineResult};
 
-const RESOURCE_CREATION_BUDGET_PERCENT: u8 = 90;
+pub(super) const RESOURCE_CREATION_BUDGET_PERCENT: u8 = 90;
 
 pub struct GpuContext {
     pub instance: Instance,
@@ -22,6 +23,7 @@ pub struct GpuContext {
     pub queue: Queue,
     pub adapter_info: AdapterInfo,
     pub linear_format: TextureFormat,
+    pub memory: Option<DeviceMemory>,
     pub timestamps: bool,
     pub(crate) timer_slots: TimerSlots,
     device_lost: Arc<AtomicBool>,
@@ -91,6 +93,7 @@ impl GpuContext {
         });
         #[cfg(feature = "native")]
         let uncaptured = record_uncaptured_errors(&device);
+        let memory = memory::probe(&device);
 
         Ok(Arc::new(Self {
             instance,
@@ -99,6 +102,7 @@ impl GpuContext {
             queue,
             adapter_info,
             linear_format,
+            memory,
             timestamps,
             timer_slots: TimerSlots::default(),
             device_lost,

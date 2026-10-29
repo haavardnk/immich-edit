@@ -29,6 +29,10 @@ use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 pub(super) use finish::FinishStage;
+#[cfg(feature = "native")]
+pub(super) use finish::final_pass_active;
+#[cfg(feature = "native")]
+pub(super) use linear::{layer_presence, scaled_dims};
 
 pub(super) struct DisplayInput<'s> {
     pub pass: &'s ProcessFastPass,

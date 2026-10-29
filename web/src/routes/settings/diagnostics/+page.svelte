@@ -9,7 +9,13 @@
   } from '$lib/api/diagnostics';
   import Notice from '$lib/components/Notice.svelte';
   import RenderStages from '$lib/components/settings/RenderStages.svelte';
-  import { codecLabel, formatBytes, formatUs, perMegapixel } from '$lib/diagnostics/format';
+  import {
+    codecLabel,
+    formatBytes,
+    formatUs,
+    gpuMemoryRows,
+    perMegapixel
+  } from '$lib/diagnostics/format';
   import { buildSupportBundle } from '$lib/diagnostics/supportBundle';
   import { renderer } from '$lib/stores/renderer.svelte';
   import { errorMessage } from '$lib/utils/errors';
@@ -129,6 +135,12 @@
       {#if health.gpu_software}
         <dt class="text-dark/65">GPU type</dt>
         <dd class="font-mono text-amber-300">software rasterizer (no hardware GPU found)</dd>
+      {/if}
+      {#if health.gpu_memory}
+        {#each gpuMemoryRows(health.gpu_memory) as [label, value] (label)}
+          <dt class="text-dark/65">{label}</dt>
+          <dd class="font-mono">{value}</dd>
+        {/each}
       {/if}
       <dt class="text-dark/65">Immich</dt>
       <dd>

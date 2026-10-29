@@ -21,6 +21,8 @@ native = [
     "dep:flate2",
     "dep:pollster",
     "dep:zstd",
+    "dep:objc2-metal",
+    "dep:ash",
     "fast_image_resize/rayon",
     "wgpu/dx12",
     "wgpu/metal",
@@ -64,6 +66,12 @@ futures-channel = { version = "0.3", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 turbojpeg = { version = "1", default-features = false, features = ["cmake"], optional = true }
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+objc2-metal = { version = "0.3.2", default-features = false, features = ["std", "MTLDevice"], optional = true }
+
+[target.'cfg(not(target_vendor = "apple"))'.dependencies]
+ash = { version = "0.38", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }

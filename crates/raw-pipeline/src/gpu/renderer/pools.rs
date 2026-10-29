@@ -7,12 +7,14 @@ use crate::PipelineError;
 use crate::PipelineResult;
 use crate::gpu::context::GpuContext;
 use crate::gpu::resources::{OutputTargets, SharpenTargets};
+use crate::gpu::texture::texture_size;
 
 const TARGET_POOL_CAP: usize = 2;
 
 pub(super) trait PoolTarget: Sized {
     fn fits(&self, w: u32, h: u32) -> bool;
     fn allocate(ctx: &GpuContext, w: u32, h: u32) -> Self;
+    fn bytes(&self) -> u64;
 }
 
 impl PoolTarget for OutputTargets {
@@ -23,6 +25,15 @@ impl PoolTarget for OutputTargets {
     fn allocate(ctx: &GpuContext, w: u32, h: u32) -> Self {
         OutputTargets::allocate(ctx, w, h)
     }
+
+    fn bytes(&self) -> u64 {
+        texture_bytes(&self.texture)
+            + self.readback.size()
+            + texture_bytes(&self.linear_texture)
+            + self.histogram_counts.size()
+            + self.scope_counts.size()
+            + self.meta_readback.size()
+    }
 }
 
 impl PoolTarget for SharpenTargets {
@@ -32,6 +43,18 @@ impl PoolTarget for SharpenTargets {
 
     fn allocate(ctx: &GpuContext, w: u32, h: u32) -> Self {
         SharpenTargets::allocate(ctx, w, h)
+    }
+
+    fn bytes(&self) -> u64 {
+        [
+            &self.blur_h,
+            &self.blur_full,
+            &self.sharpened_lin,
+            &self.post_lin,
+        ]
+        .into_iter()
+        .map(texture_bytes)
+        .sum()
     }
 }
 
@@ -84,28 +107,11 @@ pub struct GpuPoolStats {
 }
 
 pub(super) fn texture_bytes(tex: &Texture) -> u64 {
-    let bpp = tex.format().block_copy_size(None).unwrap_or(0) as u64;
-    let w = tex.width() as u64;
-    let h = tex.height() as u64;
-    (0..tex.mip_level_count())
-        .map(|level| (w >> level).max(1) * (h >> level).max(1) * bpp)
-        .sum()
-}
-
-fn output_targets_bytes(o: &OutputTargets) -> u64 {
-    texture_bytes(&o.texture)
-        + o.readback.size()
-        + texture_bytes(&o.linear_texture)
-        + o.histogram_counts.size()
-        + o.scope_counts.size()
-        + o.meta_readback.size()
-}
-
-fn sharpen_targets_bytes(s: &SharpenTargets) -> u64 {
-    texture_bytes(&s.blur_h)
-        + texture_bytes(&s.blur_full)
-        + texture_bytes(&s.sharpened_lin)
-        + texture_bytes(&s.post_lin)
+    texture_size(
+        tex.format(),
+        (tex.width(), tex.height()),
+        tex.mip_level_count(),
+    )
 }
 
 impl GpuRenderer {
@@ -120,18 +126,8 @@ impl GpuRenderer {
         GpuPoolStats {
             texture_pool: self.texture_pool.bytes(),
             uniform_pool: self.uniform_pool.bytes(),
-            output_targets: self
-                .output_pool
-                .lock()
-                .iter()
-                .map(output_targets_bytes)
-                .sum(),
-            sharpen_targets: self
-                .sharpen_pool
-                .lock()
-                .iter()
-                .map(sharpen_targets_bytes)
-                .sum(),
+            output_targets: self.output_pool.lock().iter().map(PoolTarget::bytes).sum(),
+            sharpen_targets: self.sharpen_pool.lock().iter().map(PoolTarget::bytes).sum(),
             wb_cache,
             nr_cache,
             capture_cache,

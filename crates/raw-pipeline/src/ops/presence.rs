@@ -19,6 +19,18 @@ pub struct PresenceAmounts {
 }
 
 impl PresenceAmounts {
+    pub fn bits(&self) -> [u32; 3] {
+        [
+            self.texture.to_bits(),
+            self.clarity.to_bits(),
+            self.exposure.to_bits(),
+        ]
+    }
+
+    pub fn adjusts(&self) -> bool {
+        self.texture != 0.0 || self.clarity != 0.0
+    }
+
     pub fn is_zero(&self) -> bool {
         self.texture == 0.0 && self.clarity == 0.0
     }

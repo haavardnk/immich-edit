@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::gpu::memory::GpuMemory;
 use raw_pipeline::source::RenderedSource;
 use raw_pipeline::{CpuRenderer, GpuRenderer, GpuRendererOptions, PipelineError, RenderedImage};
 
@@ -32,8 +33,7 @@ pub struct RenderDevice {
     gpu: Arc<RwLock<Option<Arc<GpuRenderer>>>>,
     cpu: Arc<CpuRenderer>,
     mode: RendererMode,
-    texture_cache_bytes: u64,
-    timestamps: bool,
+    options: GpuRendererOptions,
     active: Arc<RwLock<RendererKind>>,
     label: Arc<RwLock<Option<String>>>,
     software_gpu: Arc<RwLock<bool>>,
@@ -41,14 +41,13 @@ pub struct RenderDevice {
 }
 
 impl RenderDevice {
-    pub fn new(mode: RendererMode, texture_cache_bytes: u64, timestamps: bool) -> Self {
-        let init = init_gpu(mode, gpu_options(texture_cache_bytes, timestamps));
+    pub fn new(mode: RendererMode, options: GpuRendererOptions) -> Self {
+        let init = init_gpu(mode, options);
         Self {
             gpu: Arc::new(RwLock::new(init.renderer)),
             cpu: Arc::new(CpuRenderer::new()),
             mode,
-            texture_cache_bytes,
-            timestamps,
+            options,
             active: Arc::new(RwLock::new(init.active)),
             label: Arc::new(RwLock::new(init.label)),
             software_gpu: Arc::new(RwLock::new(init.software)),
@@ -78,6 +77,10 @@ impl RenderDevice {
 
     pub fn pool_stats(&self) -> Option<raw_pipeline::GpuPoolStats> {
         self.gpu.read().unwrap().as_ref().map(|g| g.pool_stats())
+    }
+
+    pub fn memory(&self) -> Option<GpuMemory> {
+        self.gpu.read().unwrap().as_ref().map(|g| g.memory())
     }
 
     pub fn render_blocking(
@@ -155,7 +158,7 @@ impl RenderDevice {
         }
         *last = Some(now);
         drop(last);
-        match GpuRenderer::with_options(gpu_options(self.texture_cache_bytes, self.timestamps)) {
+        match GpuRenderer::with_options(self.options) {
             Ok(r) => {
                 let label = r.adapter_label();
                 tracing::info!(adapter = %label, "gpu renderer rebuilt after device loss");
@@ -224,13 +227,6 @@ struct GpuInit {
     software: bool,
 }
 
-fn gpu_options(texture_cache_max_bytes: u64, timestamps: bool) -> GpuRendererOptions {
-    GpuRendererOptions {
-        texture_cache_max_bytes,
-        timestamps,
-    }
-}
-
 fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
     let cpu_only = GpuInit {
         renderer: None,
@@ -273,7 +269,38 @@ fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
 
 #[cfg(test)]
 mod tests {
+    use raw_pipeline::frame::OutputFormat;
+    use raw_pipeline_testkit::frames::rgb_frame;
+
     use super::*;
+
+    #[test]
+    fn a_render_over_the_gpu_memory_budget_runs_on_the_cpu() {
+        let options = GpuRendererOptions {
+            memory_budget_bytes: Some(64 << 20),
+            ..GpuRendererOptions::default()
+        };
+        let device = RenderDevice::new(RendererMode::Auto, options);
+        if device.active() != RendererKind::Gpu {
+            return;
+        }
+        let opts = RenderOptions {
+            max_edge: 4000,
+            output: OutputFormat::Rgb8,
+            ..RenderOptions::default()
+        };
+        let frame = rgb_frame(4000, 3000, vec![0.4; 4000 * 3000 * 3]);
+        let rendered = device
+            .render_blocking(&frame, &Edits::default(), &opts, None)
+            .unwrap();
+        if rendered.renderer != "cpu" || device.active() != RendererKind::Gpu {
+            panic!(
+                "an over-budget render ran on {} and left the device {:?}",
+                rendered.renderer,
+                device.active()
+            );
+        }
+    }
 
     fn failed(error: PipelineError) -> thread::Result<Result<u8, PipelineError>> {
         Ok(Err(error))

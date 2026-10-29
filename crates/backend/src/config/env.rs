@@ -54,13 +54,23 @@ pub fn parse_or<T>(env_key: &str, file_value: Option<T>, default: T) -> Result<T
 where
     T: FromStr + Copy,
 {
+    Ok(parse_opt(env_key, file_value)?.unwrap_or(default))
+}
+
+pub fn parse_opt<T>(env_key: &str, file_value: Option<T>) -> Result<Option<T>, ConfigError>
+where
+    T: FromStr + Copy,
+{
     if let Ok(v) = std::env::var(env_key) {
-        return v.parse::<T>().map_err(|_| ConfigError::InvalidValue {
-            key: env_key.into(),
-            value: v,
-        });
+        return v
+            .parse::<T>()
+            .map(Some)
+            .map_err(|_| ConfigError::InvalidValue {
+                key: env_key.into(),
+                value: v,
+            });
     }
-    Ok(file_value.unwrap_or(default))
+    Ok(file_value)
 }
 
 pub fn load_allowed_origins(file_value: Option<Vec<String>>) -> Result<Vec<String>, ConfigError> {

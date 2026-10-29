@@ -14,6 +14,7 @@ use crate::frame::{RawFrame, RenderedImage};
 use super::budget::GpuBudget;
 use super::context::GpuContext;
 use super::display_depth::DisplayDepth;
+use super::memory::GpuMemory;
 use super::passes::GpuPasses;
 use super::resources::{OutputTargets, SharpenTargets};
 #[cfg(feature = "native")]
@@ -24,6 +25,8 @@ use super::texture_pool::TexturePool;
 use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
 
+#[cfg(feature = "native")]
+mod admission;
 #[cfg(feature = "native")]
 mod cache_keys;
 mod dcp;
@@ -37,11 +40,14 @@ mod mask_weight_image;
 mod masks;
 mod meta;
 mod mipgen;
+mod options;
 #[cfg(feature = "native")]
 mod output;
 mod pools;
 mod process;
 mod resample;
+#[cfg(feature = "native")]
+mod retained;
 #[cfg(feature = "native")]
 mod retouch;
 #[cfg(feature = "native")]
@@ -56,8 +62,13 @@ mod uniform;
 mod upload;
 #[cfg(feature = "web")]
 mod web;
+#[cfg(feature = "native")]
+mod working_set;
 
+#[cfg(feature = "native")]
+use admission::Admission;
 pub use display::DisplayFrame;
+pub use options::GpuRendererOptions;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
 use sensor_stage::{CachedFrame, SensorCaches, SourcePlan};
@@ -140,6 +151,9 @@ pub struct GpuRenderer {
     output_pool: Mutex<Vec<OutputTargets>>,
     sharpen_pool: Mutex<Vec<SharpenTargets>>,
     dummy_texture: Texture,
+    memory: GpuMemory,
+    #[cfg(feature = "native")]
+    admission: Admission,
 }
 
 const LUT_TEX_CACHE_ITEMS: usize = 4;
@@ -149,22 +163,6 @@ const DEPTH_TEX_CACHE_ITEMS: usize = 4;
 const ATLAS_POOL_ITEMS: usize = 2;
 const TEXTURE_POOL_CAP_PER_KEY: usize = 4;
 const UNIFORM_POOL_CAP_PER_SIZE: usize = 8;
-const DEFAULT_TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
-
-#[derive(Debug, Clone, Copy)]
-pub struct GpuRendererOptions {
-    pub texture_cache_max_bytes: u64,
-    pub timestamps: bool,
-}
-
-impl Default for GpuRendererOptions {
-    fn default() -> Self {
-        Self {
-            texture_cache_max_bytes: DEFAULT_TEXTURE_CACHE_MAX_BYTES,
-            timestamps: false,
-        }
-    }
-}
 
 impl GpuRenderer {
     #[cfg(feature = "native")]
@@ -189,7 +187,14 @@ impl GpuRenderer {
         if let Some(err) = ctx.take_uncaptured_error() {
             return Err(PipelineError::Unsupported(format!("gpu pipelines: {err}")));
         }
-        let budget = GpuBudget::new(options.texture_cache_max_bytes);
+        let budget_bytes = options.memory_budget(ctx.memory);
+        let memory = GpuMemory {
+            device: ctx.memory,
+            host_budget_bytes: options.host_budget_bytes,
+            budget_bytes,
+            texture_cache_bytes: options.texture_cache_bytes(budget_bytes),
+        };
+        let budget = GpuBudget::new(memory.texture_cache_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
         Ok(Self {
             ctx,
@@ -216,6 +221,9 @@ impl GpuRenderer {
             output_pool: Mutex::new(Vec::new()),
             sharpen_pool: Mutex::new(Vec::new()),
             dummy_texture,
+            memory,
+            #[cfg(feature = "native")]
+            admission: Admission::new(budget_bytes),
         })
     }
 
@@ -237,6 +245,14 @@ impl GpuRenderer {
 
     pub fn is_lost(&self) -> bool {
         self.ctx.is_lost()
+    }
+
+    pub fn memory(&self) -> GpuMemory {
+        GpuMemory {
+            #[cfg(feature = "native")]
+            budget_bytes: self.admission.budget(),
+            ..self.memory
+        }
     }
 
     pub fn mask_atlas_allocations(&self) -> u64 {
@@ -267,6 +283,7 @@ impl GpuRenderer {
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let source = source.into();
+        let _admitted = self.admit(self.estimate_render(source, edits, options), cancel)?;
         pollster::block_on(self.guarded(async {
             crate::cancel::check(cancel)?;
             let timings = RenderTimings::new(&self.ctx);

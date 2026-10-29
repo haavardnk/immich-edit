@@ -36,9 +36,9 @@ old one until it arrives.
 The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls back to a built-in
 CPU renderer. `IMMICH_EDIT_RENDERER` chooses between them; see [configuration](configuration.md).
 
-A photo larger than the GPU's texture or buffer limits, or a render that runs the GPU out of
-memory, renders on the CPU. The next render uses the GPU again. Only a lost GPU device takes the
-GPU out of use until the server rebuilds it.
+A photo larger than the GPU's texture or buffer limits, or a render larger than its
+[memory budget](#gpu-memory), renders on the CPU. The next render uses the GPU again. Only a lost
+GPU device takes the GPU out of use until the server rebuilds it.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).
@@ -59,6 +59,20 @@ A server GPU still matters with browser previews on. It speeds up:
 
 On a CPU-only server, browser previews keep slider feedback fast. The waits move to opening a
 photo, changing a source setting, and exporting.
+
+### GPU memory
+
+Server renders share one GPU memory budget, 90% of the memory the GPU reports. A GPU that shares
+system memory, such as Apple silicon or an integrated GPU, is also capped at the server's RAM, or
+its container limit, minus `RAW_FRAME_CACHE_MB` and `QUALITY_FRAME_CACHE_MB`. Set
+`GPU_MEMORY_BUDGET_MB` to override it, for example when other programs use the same GPU. A GPU that
+reports no memory size has no budget unless you set one.
+
+A render waits until it fits next to the renders already running, and a render larger than the
+whole budget renders on the CPU. If the GPU runs out of memory anyway, the server lowers the budget
+until it restarts.
+
+**Settings** > **Diagnostics** shows the GPU memory, the budgets and the texture cache size.
 
 ## The browser
 

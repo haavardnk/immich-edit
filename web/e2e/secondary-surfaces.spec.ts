@@ -248,6 +248,12 @@ test('diagnostics break render time down by stage', async ({ page }) => {
           renderer_active: 'gpu',
           gpu_adapter: 'Test GPU',
           gpu_software: false,
+          gpu_memory: {
+            device: { bytes: 8 * 2 ** 30, unified: false },
+            host_budget_bytes: null,
+            budget_bytes: 7.2 * 2 ** 30,
+            texture_cache_bytes: 2 ** 30
+          },
           host: {
             os: 'linux',
             arch: 'x86_64',
@@ -301,6 +307,8 @@ test('diagnostics break render time down by stage', async ({ page }) => {
   await page.goto('/settings/diagnostics');
 
   await expect(page.getByText('3.2.2', { exact: true })).toBeVisible();
+  await expect(page.getByText('8.00GiB dedicated')).toBeVisible();
+  await expect(page.getByText('7.20GiB')).toBeVisible();
   const table = page.getByRole('table', { name: 'GPU render stages' });
   await expect(table.getByRole('columnheader', { name: 'GPU p50' })).toBeVisible();
   await expect(

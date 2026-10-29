@@ -20,6 +20,10 @@ impl GpuRenderer {
         let result = work.await;
         let invalid = validation.pop().await;
         let exhausted = out_of_memory.pop().await;
+        #[cfg(feature = "native")]
+        if exhausted.is_some() {
+            self.admission.lower(self.retained_bytes());
+        }
         let Some(error) = exhausted.or(invalid) else {
             return result;
         };

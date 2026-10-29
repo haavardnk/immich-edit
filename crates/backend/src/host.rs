@@ -14,6 +14,15 @@ pub struct HostInfo {
     pub memory_limit_bytes: Option<u64>,
 }
 
+impl HostInfo {
+    pub fn memory_bytes(&self) -> Option<u64> {
+        match (self.memory_total_bytes, self.memory_limit_bytes) {
+            (Some(total), Some(limit)) => Some(total.min(limit)),
+            (total, limit) => total.or(limit),
+        }
+    }
+}
+
 static HOST: OnceLock<HostInfo> = OnceLock::new();
 
 pub fn host_info() -> &'static HostInfo {

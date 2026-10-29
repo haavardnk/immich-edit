@@ -14,6 +14,13 @@ pub(super) fn extent_2d((width, height): (u32, u32)) -> Extent3d {
     }
 }
 
+pub(super) fn texture_size(format: TextureFormat, (w, h): (u32, u32), mip_level_count: u32) -> u64 {
+    let texel = u64::from(format.block_copy_size(None).unwrap_or(0));
+    (0..mip_level_count)
+        .map(|level| u64::from((w >> level).max(1)) * u64::from((h >> level).max(1)) * texel)
+        .sum()
+}
+
 pub(super) fn texture_2d(
     device: &Device,
     label: &str,

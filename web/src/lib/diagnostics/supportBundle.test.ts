@@ -17,6 +17,7 @@ const health = {
   renderer_active: 'gpu',
   gpu_adapter: 'Test GPU',
   gpu_software: false,
+  gpu_memory: null,
   host: {
     os: 'linux',
     arch: 'x86_64',
@@ -127,6 +128,44 @@ describe('buildSupportBundle', () => {
     for (const name of ['capture_cache', 'denoise_cache', 'atlas_cache', 'atlas_pool']) {
       expect(pool).toContain(name);
     }
+  });
+
+  it.each([
+    {
+      name: 'a probed unified gpu',
+      memory: {
+        device: { bytes: 32 * 2 ** 30, unified: true },
+        host_budget_bytes: 16 * 2 ** 30,
+        budget_bytes: 16 * 2 ** 30,
+        texture_cache_bytes: 2 * 2 ** 30
+      },
+      expected: [
+        '- GPU memory: 32.00GiB unified',
+        '- GPU budget: 16.00GiB',
+        '- Host budget: 16.00GiB',
+        '- GPU texture cache: 2.00GiB'
+      ]
+    },
+    {
+      name: 'an unprobed gpu',
+      memory: {
+        device: null,
+        host_budget_bytes: null,
+        budget_bytes: null,
+        texture_cache_bytes: 512 * 2 ** 20
+      },
+      expected: [
+        '- GPU memory: not reported',
+        '- GPU budget: none',
+        '- Host budget: none',
+        '- GPU texture cache: 512.0MiB'
+      ]
+    }
+  ])('reports gpu memory for $name', ({ memory, expected }) => {
+    const lines = buildSupportBundle({ ...health, gpu_memory: memory }, null, browser, 'ua').split(
+      '\n'
+    );
+    expect(lines).toEqual(expect.arrayContaining(expected));
   });
 
   it('notes missing timings', () => {
