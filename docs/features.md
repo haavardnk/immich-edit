@@ -188,7 +188,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Docker on Linux amd64 and arm64 | ✓ Yes | Multi-architecture image |
 | Vulkan GPU rendering on Linux | ✓ Yes | Requires [GPU passthrough](gpu-passthrough.md) |
 | Metal GPU rendering on macOS | ✓ Yes | Native process only |
-| CPU rendering fallback | ✓ Yes | Available on every supported deployment |
+| CPU rendering fallback | ✓ Yes | Available on every supported deployment; renders anything past the GPU's size limits or [memory budget](rendering.md#gpu-memory) |
 | Browser preview rendering | ✓ Yes | Browsers with WebGPU render editor previews locally when they measure [clearly faster](rendering.md#the-browser) than the server, or always when set to **Browser**, so most slider moves send nothing to the server; other browsers, and any browser renderer failure, use server previews. A plain `http://` LAN address needs [one extra step](rendering.md#browser-previews-on-a-local-network) |
 | Local AI inference | ✓ Yes | Models run on the server; no cloud service |
 | Full mobile editor | ✗ No | The editor requires a desktop-width viewport |

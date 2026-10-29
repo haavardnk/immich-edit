@@ -1,5 +1,5 @@
 import type { DebugTimings, HealthInfo, LatencyStats, StageStats } from '$lib/api/diagnostics';
-import { codecLabel, formatBytes, formatUs, hitRate } from './format';
+import { codecLabel, formatBytes, formatUs, gpuMemoryRows, hitRate } from './format';
 
 function latencyRow(name: string, s: LatencyStats): string {
   return `| ${name} | ${s.count} | ${formatUs(s.p50_us)} | ${formatUs(s.p95_us)} | ${formatUs(s.p99_us)} | ${formatUs(s.max_us)} |`;
@@ -99,6 +99,9 @@ export function buildSupportBundle(
   lines.push(`- GPU adapter: ${h.gpu_adapter ?? 'none'}`);
   if (h.gpu_software) {
     lines.push('- GPU adapter is a software rasterizer (no hardware GPU found)');
+  }
+  if (h.gpu_memory) {
+    lines.push(...gpuMemoryRows(h.gpu_memory).map(([label, value]) => `- ${label}: ${value}`));
   }
   lines.push(
     `- HEIF codecs: hevc decode ${codecLabel(h.heif_codecs.hevc_decode)}, hevc encode ${codecLabel(h.heif_codecs.hevc_encode)}, av1 decode ${codecLabel(h.heif_codecs.av1_decode)}, av1 encode ${codecLabel(h.heif_codecs.av1_encode)}`

@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use wgpu::{Device, Texture, TextureFormat, TextureUsages};
 
 use super::budget::GpuBudget;
-use super::texture::texture_2d;
+use super::texture::{texture_2d, texture_size};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct TextureKey {
@@ -32,6 +32,10 @@ impl TextureKey {
             mip_level_count,
             usage_bits: usage.bits(),
         }
+    }
+
+    fn bytes(&self) -> u64 {
+        texture_size(self.format, (self.width, self.height), self.mip_level_count)
     }
 }
 
@@ -73,7 +77,7 @@ impl TexturePool {
                 if let Some(pos) = g.lru.iter().position(|k| *k == key) {
                     g.lru.remove(pos);
                 }
-                let bytes = texture_bytes(&key);
+                let bytes = key.bytes();
                 g.retained_bytes = g.retained_bytes.saturating_sub(bytes);
                 self.budget.release(bytes);
             }
@@ -97,7 +101,7 @@ impl TexturePool {
     }
 
     fn release(&self, key: TextureKey, tex: Arc<Texture>) {
-        let tex_bytes = texture_bytes(&key);
+        let tex_bytes = key.bytes();
         let mut g = self.free.lock();
         if g.by_key.get(&key).map(Vec::len).unwrap_or(0) >= self.cap_per_key {
             return;
@@ -131,24 +135,11 @@ fn evict_one(g: &mut FreePool, budget: &GpuBudget) -> bool {
     if let Some(v) = g.by_key.get_mut(&victim)
         && v.pop().is_some()
     {
-        let bytes = texture_bytes(&victim);
+        let bytes = victim.bytes();
         g.retained_bytes = g.retained_bytes.saturating_sub(bytes);
         budget.release(bytes);
     }
     true
-}
-
-fn texture_bytes(k: &TextureKey) -> u64 {
-    let bpp = k.format.block_copy_size(None).unwrap_or(0) as u64;
-    let w = k.width as u64;
-    let h = k.height as u64;
-    let mut total: u64 = 0;
-    for level in 0..k.mip_level_count {
-        let lw = (w >> level).max(1);
-        let lh = (h >> level).max(1);
-        total += lw * lh * bpp;
-    }
-    total
 }
 
 pub struct PooledTexture {

@@ -2042,6 +2042,7 @@ dependencies = [
  "ml",
  "rand 0.10.3",
  "raw-pipeline",
+ "raw-pipeline-testkit",
  "reqwest",
  "serde",
  "serde_json",
@@ -3790,6 +3791,7 @@ dependencies = [
 name = "raw-pipeline"
 version = "0.0.0"
 dependencies = [
+ "ash",
  "brotli-decompressor 6.2.0",
  "bytemuck",
  "criterion",
@@ -3806,6 +3808,7 @@ dependencies = [
  "lru",
  "multiversion 0.9.2",
  "naga",
+ "objc2-metal",
  "parking_lot",
  "png",
  "pollster",

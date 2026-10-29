@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use raw_pipeline::GpuRendererOptions;
 use raw_pipeline::edits::{
     Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
     WhiteBalance,
@@ -8,8 +9,15 @@ use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
 use raw_pipeline_testkit::denoise::denoise_plane;
 use raw_pipeline_testkit::frames::{as_raw, haze_frame, noisy_frame, rgb_frame, synthetic_frame};
-use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with_budget};
+use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
+
+fn texture_cache(bytes: u64) -> GpuRendererOptions {
+    GpuRendererOptions {
+        texture_cache_max_bytes: Some(bytes),
+        ..GpuRendererOptions::default()
+    }
+}
 
 fn nr_edits() -> Edits {
     let mut edits = Edits::default();
@@ -70,7 +78,7 @@ fn ai_denoise_blend_is_reused_across_display_edits() {
 #[test]
 fn ai_denoise_textures_stay_inside_the_texture_budget() {
     const BUDGET: u64 = 256 * 1024;
-    let Some(renderer) = try_renderer_with_budget(BUDGET) else {
+    let Some(renderer) = try_renderer_with(texture_cache(BUDGET)) else {
         return;
     };
     let frames: Vec<RawFrame> = (0..6).map(|_| as_raw(noisy_frame(96, 64))).collect();
@@ -98,7 +106,7 @@ fn ai_denoise_textures_stay_inside_the_texture_budget() {
 #[test]
 fn stage_textures_stay_inside_the_texture_budget() {
     const BUDGET: u64 = 256 * 1024;
-    let Some(renderer) = try_renderer_with_budget(BUDGET) else {
+    let Some(renderer) = try_renderer_with(texture_cache(BUDGET)) else {
         return;
     };
     let frames: Vec<RawFrame> = (0..6).map(|_| synthetic_frame(96, 64)).collect();

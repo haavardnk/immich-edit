@@ -4,6 +4,7 @@ mod dispatch;
 pub mod display_depth;
 mod helpers;
 mod limits;
+pub mod memory;
 pub mod passes;
 pub mod readback;
 mod renderer;

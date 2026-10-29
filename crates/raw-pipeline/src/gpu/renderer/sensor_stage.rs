@@ -123,6 +123,7 @@ impl GpuRenderer {
         options: &RenderOptions,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedSource> {
+        let _admitted = self.admit(self.estimate_source(frame, edits, options), cancel)?;
         pollster::block_on(self.guarded(async {
             let timings = RenderTimings::new(&self.ctx);
             let edits = super::compose_edits(edits, options);

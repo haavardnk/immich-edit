@@ -1,7 +1,7 @@
-use raw_pipeline::PipelineError;
 use raw_pipeline::edits::Edits;
+use raw_pipeline::{GpuRendererOptions, PipelineError};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
-use raw_pipeline_testkit::gpu::try_renderer;
+use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
 
 #[test]
@@ -53,5 +53,29 @@ fn a_preview_of_a_frame_past_the_limit_renders_from_superpixels() {
             "superpixel preview rendered {}x{} on {}",
             img.width, img.height, img.renderer
         );
+    }
+}
+
+#[test]
+fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
+    const BUDGET: u64 = 64 << 20;
+    let Some(renderer) = try_renderer_with(GpuRendererOptions {
+        memory_budget_bytes: Some(BUDGET),
+        ..GpuRendererOptions::default()
+    }) else {
+        return;
+    };
+    let large = synthetic_bayer_frame(4000, 3000, "RGGB");
+    match renderer.render(&large, &Edits::default(), &rgb8_opts(4000)) {
+        Err(PipelineError::Unsupported(_)) => {}
+        Err(e) => panic!("a frame over the memory budget failed with {e}"),
+        Ok(_) => panic!("a 4000x3000 frame rendered inside a {BUDGET} byte budget"),
+    }
+    let small = synthetic_bayer_frame(256, 256, "RGGB");
+    if let Err(e) = renderer.render(&small, &Edits::default(), &rgb8_opts(256)) {
+        panic!("a small frame after a refused one failed: {e}");
+    }
+    if renderer.memory().budget_bytes != Some(BUDGET) {
+        panic!("the budget became {:?}", renderer.memory().budget_bytes);
     }
 }
