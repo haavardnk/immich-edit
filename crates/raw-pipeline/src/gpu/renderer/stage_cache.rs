@@ -22,6 +22,12 @@ struct Entry {
     bytes: u64,
 }
 
+impl Entry {
+    fn is_idle(&self) -> bool {
+        Arc::strong_count(&self.texture) == 1
+    }
+}
+
 pub(in crate::gpu::renderer) struct StageCache {
     entries: Mutex<LruCache<(Stage, u64), Entry>>,
     budget: Arc<GpuBudget>,
@@ -72,6 +78,35 @@ impl StageCache {
             .filter(|((s, _), _)| *s == stage)
             .map(|(_, e)| e.bytes)
             .sum()
+    }
+
+    pub fn idle_bytes(&self) -> u64 {
+        self.entries
+            .lock()
+            .iter()
+            .filter(|(_, e)| e.is_idle())
+            .map(|(_, e)| e.bytes)
+            .sum()
+    }
+
+    pub fn trim(&self, bytes: u64) {
+        let mut entries = self.entries.lock();
+        let idle: Vec<(Stage, u64)> = entries
+            .iter()
+            .rev()
+            .filter(|(_, e)| e.is_idle())
+            .map(|(key, _)| *key)
+            .collect();
+        let mut freed = 0;
+        for key in idle {
+            if freed >= bytes {
+                return;
+            }
+            if let Some(evicted) = entries.pop(&key) {
+                self.budget.release(evicted.bytes);
+                freed += evicted.bytes;
+            }
+        }
     }
 
     pub fn clear(&self) {

@@ -1,3 +1,5 @@
+import type { GpuMemory } from '$lib/api/diagnostics';
+
 export function formatUs(us: number): string {
   if (us === 0) return '—';
   if (us < 1000) return `${us}µs`;
@@ -23,4 +25,19 @@ export function hitRate(hits: number, misses: number): string {
 
 export function perMegapixel(ms: number): string {
   return `${ms.toFixed(1)} ms/MP`;
+}
+
+export function gpuMemoryRows(memory: GpuMemory): [string, string][] {
+  const { device, budget_bytes, host_budget_bytes, texture_cache_bytes } = memory;
+  return [
+    [
+      'GPU memory',
+      device
+        ? `${formatBytes(device.bytes)} ${device.unified ? 'unified' : 'dedicated'}`
+        : 'not reported'
+    ],
+    ['GPU budget', budget_bytes === null ? 'none' : formatBytes(budget_bytes)],
+    ['Host budget', host_budget_bytes === null ? 'none' : formatBytes(host_budget_bytes)],
+    ['GPU texture cache', formatBytes(texture_cache_bytes)]
+  ];
 }

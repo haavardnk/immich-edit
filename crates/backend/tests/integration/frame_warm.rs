@@ -33,7 +33,8 @@ fn with_frame_cache(state: &AppState, raw_frame_cache_mb: u64) -> AppState {
         RenderCacheOptions {
             raw_frame_cache_mb,
             quality_frame_cache_mb: 256,
-            gpu_texture_cache_mb: 256,
+            gpu_texture_cache_mb: Some(256),
+            gpu_memory_budget_mb: None,
         },
         RendererMode::Cpu,
         false,

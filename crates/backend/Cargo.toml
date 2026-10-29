@@ -52,6 +52,7 @@ tower_governor = { version = "0.8", default-features = false, features = ["axum"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 
 [dev-dependencies]
+raw-pipeline-testkit = { path = "../raw-pipeline-testkit" }
 tokio = { workspace = true }
 little_exif = "0.6"
 wiremock = "0.6"

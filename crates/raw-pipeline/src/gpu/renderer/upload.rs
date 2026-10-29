@@ -19,7 +19,7 @@ use super::{CachedFrame, GpuRenderer};
 
 const UPLOAD_CHUNK: usize = 1 << 20;
 
-fn sensor_dims(frame: &RawFrame, block: usize) -> (u32, u32) {
+pub(super) fn sensor_dims(frame: &RawFrame, block: usize) -> (u32, u32) {
     (
         (frame.meta.width / block) as u32,
         (frame.meta.height / block) as u32,

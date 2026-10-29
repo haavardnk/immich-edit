@@ -52,8 +52,8 @@ pub struct WebRenderer {
 impl WebRenderer {
     pub async fn create() -> Result<WebRenderer, JsError> {
         let gpu = GpuRenderer::new_async(GpuRendererOptions {
-            texture_cache_max_bytes: TEXTURE_CACHE_MAX_BYTES,
-            timestamps: false,
+            texture_cache_max_bytes: Some(TEXTURE_CACHE_MAX_BYTES),
+            ..GpuRendererOptions::default()
         })
         .await?;
         let lost = Arc::new(Mutex::new(None));

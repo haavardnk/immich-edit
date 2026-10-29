@@ -9,8 +9,8 @@ pub use cf_access::CfAccess;
 use cf_access::load_cf_access;
 pub use cidr::{Cidr, default_trusted_proxies};
 use env::{
-    ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_or, pick, pick_mode,
-    reject_removed_keys,
+    ensure_dir_writable, load_allowed_origins, load_trusted_proxies, parse_opt, parse_or, pick,
+    pick_mode, reject_removed_keys,
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +37,8 @@ pub struct Config {
     pub denoise_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
-    pub gpu_texture_cache_mb: u64,
+    pub gpu_texture_cache_mb: Option<u64>,
+    pub gpu_memory_budget_mb: Option<u64>,
     pub renderer: RendererMode,
     pub gpu_timestamps: bool,
     pub database_url: String,
@@ -78,6 +79,7 @@ struct FileConfig {
     raw_frame_cache_mb: Option<u64>,
     quality_frame_cache_mb: Option<u64>,
     gpu_texture_cache_mb: Option<u64>,
+    gpu_memory_budget_mb: Option<u64>,
     renderer: Option<String>,
     gpu_timestamps: Option<bool>,
     database_url: Option<String>,
@@ -231,12 +233,22 @@ impl Config {
             });
         }
 
-        let gpu_texture_cache_mb =
-            parse_or("GPU_TEXTURE_CACHE_MB", file.gpu_texture_cache_mb, 512u64)?;
-        if !(64..=16384).contains(&gpu_texture_cache_mb) {
+        let gpu_texture_cache_mb = parse_opt("GPU_TEXTURE_CACHE_MB", file.gpu_texture_cache_mb)?;
+        if let Some(mb) = gpu_texture_cache_mb
+            && !(64..=16384).contains(&mb)
+        {
             return Err(ConfigError::InvalidValue {
                 key: "GPU_TEXTURE_CACHE_MB".into(),
-                value: gpu_texture_cache_mb.to_string(),
+                value: mb.to_string(),
+            });
+        }
+        let gpu_memory_budget_mb = parse_opt("GPU_MEMORY_BUDGET_MB", file.gpu_memory_budget_mb)?;
+        if let Some(mb) = gpu_memory_budget_mb
+            && mb < 64
+        {
+            return Err(ConfigError::InvalidValue {
+                key: "GPU_MEMORY_BUDGET_MB".into(),
+                value: mb.to_string(),
             });
         }
 
@@ -310,6 +322,7 @@ impl Config {
             raw_frame_cache_mb,
             quality_frame_cache_mb,
             gpu_texture_cache_mb,
+            gpu_memory_budget_mb,
             renderer,
             gpu_timestamps,
             database_url,
@@ -357,6 +370,7 @@ impl Config {
             raw_frame_cache_mb: self.raw_frame_cache_mb,
             quality_frame_cache_mb: self.quality_frame_cache_mb,
             gpu_texture_cache_mb: self.gpu_texture_cache_mb,
+            gpu_memory_budget_mb: self.gpu_memory_budget_mb,
             renderer: self.renderer,
             gpu_timestamps: self.gpu_timestamps,
             allowed_origins: self.allowed_origins.clone(),
@@ -387,7 +401,8 @@ pub struct RedactedConfig {
     pub denoise_cache_mb: u64,
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
-    pub gpu_texture_cache_mb: u64,
+    pub gpu_texture_cache_mb: Option<u64>,
+    pub gpu_memory_budget_mb: Option<u64>,
     pub renderer: RendererMode,
     pub gpu_timestamps: bool,
     pub allowed_origins: Vec<String>,
@@ -421,6 +436,7 @@ mod tests {
             "RAW_FRAME_CACHE_MB",
             "QUALITY_FRAME_CACHE_MB",
             "GPU_TEXTURE_CACHE_MB",
+            "GPU_MEMORY_BUDGET_MB",
             "RENDER_MAX_CONCURRENCY",
             "THUMB_MAX_CONCURRENCY",
             "MASK_CACHE_MB",
@@ -482,8 +498,8 @@ mod tests {
         if cfg.quality_frame_cache_mb != 512 {
             panic!("quality_frame_cache_mb");
         }
-        if cfg.gpu_texture_cache_mb != 512 {
-            panic!("gpu_texture_cache_mb");
+        if cfg.gpu_texture_cache_mb.is_some() || cfg.gpu_memory_budget_mb.is_some() {
+            panic!("gpu memory settings are derived from the device unless set");
         }
         if cfg.renderer != RendererMode::Auto {
             panic!("renderer");
@@ -505,6 +521,29 @@ mod tests {
                 if key == "DENOISE_CACHE_MB" && value == "0" => {}
             Ok(_) => panic!("DENOISE_CACHE_MB=0 was accepted"),
             Err(other) => panic!("DENOISE_CACHE_MB=0 failed with another error: {other}"),
+        }
+    }
+
+    #[test]
+    fn gpu_memory_settings_override_the_device_and_are_range_checked() {
+        let _g = lock();
+        clear_env();
+        unsafe {
+            std::env::set_var("BIND_ADDR", "127.0.0.1:0");
+            std::env::set_var("GPU_TEXTURE_CACHE_MB", "1024");
+            std::env::set_var("GPU_MEMORY_BUDGET_MB", "4096");
+        }
+        let cfg = Config::load().unwrap();
+        if (cfg.gpu_texture_cache_mb, cfg.gpu_memory_budget_mb) != (Some(1024), Some(4096)) {
+            panic!("GPU memory overrides were not loaded");
+        }
+        unsafe { std::env::set_var("GPU_MEMORY_BUDGET_MB", "32") };
+        let result = Config::load();
+        clear_env();
+        match result {
+            Err(ConfigError::InvalidValue { key, .. }) if key == "GPU_MEMORY_BUDGET_MB" => {}
+            Ok(_) => panic!("GPU_MEMORY_BUDGET_MB=32 was accepted"),
+            Err(other) => panic!("GPU_MEMORY_BUDGET_MB=32 failed with another error: {other}"),
         }
     }
 

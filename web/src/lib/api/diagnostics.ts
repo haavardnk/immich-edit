@@ -19,7 +19,8 @@ export interface RedactedConfig {
   denoise_cache_mb: number;
   raw_frame_cache_mb: number;
   quality_frame_cache_mb: number;
-  gpu_texture_cache_mb: number;
+  gpu_texture_cache_mb: number | null;
+  gpu_memory_budget_mb: number | null;
   renderer: string;
   gpu_timestamps: boolean;
   allowed_origins: string[];
@@ -45,6 +46,18 @@ export interface HostInfo {
   memory_limit_bytes: number | null;
 }
 
+export interface DeviceMemory {
+  bytes: number;
+  unified: boolean;
+}
+
+export interface GpuMemory {
+  device: DeviceMemory | null;
+  host_budget_bytes: number | null;
+  budget_bytes: number | null;
+  texture_cache_bytes: number;
+}
+
 export interface HealthInfo {
   status: string;
   version: string;
@@ -52,6 +65,7 @@ export interface HealthInfo {
   renderer_active: string;
   gpu_adapter: string | null;
   gpu_software: boolean;
+  gpu_memory: GpuMemory | null;
   host: HostInfo;
   heif_codecs: HeifCodecs;
   immich_reachable: boolean;

@@ -5,13 +5,15 @@ use wgpu::Texture;
 
 use super::StageState;
 use crate::cancel::CancelToken;
-use crate::edits::Edits;
+use crate::cpu::masked::effective_edits_for_layer;
+use crate::edits::{Edits, MaskLayer};
 use crate::frame::{FrameMeta, RenderOptions};
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::LensBlurInput;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
+use crate::ops::presence::{PresenceAmounts, presence_amounts};
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
@@ -93,22 +95,12 @@ impl GpuRenderer {
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<()> {
         let extent = state.extent;
-        let global = crate::ops::presence::presence_amounts(edits);
-        let mut cache: HashMap<(u32, u32, u32), Arc<Texture>> = HashMap::new();
-        for layer in edits.masks.iter().filter(|l| l.is_effective()) {
-            let eff = crate::cpu::masked::effective_edits_for_layer(edits, layer);
-            let amts = crate::ops::presence::presence_amounts(&eff);
-            if amts == global {
-                continue;
-            }
-            let key = (
-                amts.texture.to_bits(),
-                amts.clarity.to_bits(),
-                amts.exposure.to_bits(),
-            );
+        let mut cache: HashMap<[u32; 3], Arc<Texture>> = HashMap::new();
+        for (layer, eff, amts) in layer_presence(edits) {
+            let key = amts.bits();
             let tex = match cache.get(&key) {
                 Some(tex) => tex.clone(),
-                None if amts.texture == 0.0 && amts.clarity == 0.0 => base.clone(),
+                None if !amts.adjusts() => base.clone(),
                 None => {
                     let tex = t.stage(timing::PRESENCE, || {
                         self.submit_presence(base, extent, &eff)
@@ -176,7 +168,27 @@ impl GpuRenderer {
     }
 }
 
-fn scaled_dims(dims: (u32, u32), full: (u32, u32), target: (u32, u32)) -> (u32, u32) {
+pub(in crate::gpu::renderer) fn layer_presence(
+    edits: &Edits,
+) -> Vec<(&MaskLayer, Edits, PresenceAmounts)> {
+    let global = presence_amounts(edits);
+    edits
+        .masks
+        .iter()
+        .filter(|layer| layer.is_effective())
+        .filter_map(|layer| {
+            let eff = effective_edits_for_layer(edits, layer);
+            let amts = presence_amounts(&eff);
+            (amts != global).then_some((layer, eff, amts))
+        })
+        .collect()
+}
+
+pub(in crate::gpu::renderer) fn scaled_dims(
+    dims: (u32, u32),
+    full: (u32, u32),
+    target: (u32, u32),
+) -> (u32, u32) {
     if dims == full {
         return target;
     }

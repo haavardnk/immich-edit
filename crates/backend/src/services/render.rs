@@ -5,12 +5,14 @@ use bytes::Bytes;
 use raw_pipeline::CancelToken;
 use raw_pipeline::edits::{Edits, LensEdits};
 use raw_pipeline::frame::{RawFrame, RenderOptions};
+use raw_pipeline::gpu::memory::GpuMemory;
 use raw_pipeline::source::SourceCoding;
 use raw_pipeline::timing::StageTiming;
-use raw_pipeline::{PipelineError, RenderedImage};
+use raw_pipeline::{GpuRendererOptions, PipelineError, RenderedImage};
 use uuid::Uuid;
 
 use crate::config::RendererMode;
+use crate::host::host_info;
 use crate::immich::{ImmichClient, ImmichError};
 use crate::services::raster_store::RasterStore;
 use crate::services::render_telemetry::RenderTelemetry;
@@ -38,7 +40,23 @@ const MB: u64 = 1024 * 1024;
 pub struct RenderCacheOptions {
     pub raw_frame_cache_mb: u64,
     pub quality_frame_cache_mb: u64,
-    pub gpu_texture_cache_mb: u64,
+    pub gpu_texture_cache_mb: Option<u64>,
+    pub gpu_memory_budget_mb: Option<u64>,
+}
+
+impl RenderCacheOptions {
+    fn gpu(&self, timestamps: bool) -> GpuRendererOptions {
+        let frame_caches =
+            (self.raw_frame_cache_mb + self.quality_frame_cache_mb).saturating_mul(MB);
+        GpuRendererOptions {
+            texture_cache_max_bytes: self.gpu_texture_cache_mb.map(|mb| mb.saturating_mul(MB)),
+            memory_budget_bytes: self.gpu_memory_budget_mb.map(|mb| mb.saturating_mul(MB)),
+            host_budget_bytes: host_info()
+                .memory_bytes()
+                .map(|bytes| bytes.saturating_sub(frame_caches)),
+            timestamps,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize)]
@@ -132,11 +150,7 @@ impl RenderService {
                 telemetry.clone(),
             ),
             warmer: FrameWarmer::default(),
-            device: RenderDevice::new(
-                mode,
-                cache.gpu_texture_cache_mb.saturating_mul(MB),
-                gpu_timestamps,
-            ),
+            device: RenderDevice::new(mode, cache.gpu(gpu_timestamps)),
             inputs: RenderInputs::new(rasters, luts, dcp),
             denoise,
             lens: LensProfiles::default(),
@@ -166,6 +180,10 @@ impl RenderService {
 
     pub fn gpu_pool_stats(&self) -> Option<raw_pipeline::GpuPoolStats> {
         self.device.pool_stats()
+    }
+
+    pub fn gpu_memory(&self) -> Option<GpuMemory> {
+        self.device.memory()
     }
 
     pub async fn frame_cache_bytes(&self) -> FrameCacheBytes {

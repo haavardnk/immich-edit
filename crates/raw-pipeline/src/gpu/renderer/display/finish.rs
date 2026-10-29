@@ -37,28 +37,15 @@ impl GpuRenderer {
             masks,
         } = stage;
         let (out_w, out_h) = display.dims;
-        let sharpen_preview = matches!(
-            opts.preview_mode,
-            PreviewMode::SharpenMask | PreviewMode::SharpenRadius | PreviewMode::SharpenDetail
-        );
         let sharpen_active = edits.detail.sharpen_active();
         let p3_active = matches!(opts.output_color_space, OutputColorSpace::DisplayP3);
-        let final_pass_active = sharpen_active
-            || sharpen_preview
-            || edits.effects.any_active()
-            || !edits.basic.curves.is_identity()
-            || masks.has_masks
-            || dcp.is_some()
-            || p3_active
-            || opts.gamut_warn
-            || opts.clip_warn;
-        let sharpen = final_pass_active
+        let sharpen = final_pass_active(edits, opts, masks.has_masks, dcp.is_some())
             .then(|| pools::acquire_target(&self.sharpen_pool, &self.ctx, out_w, out_h))
             .transpose()?;
         let Some(s) = sharpen.as_ref().map(|guard| &guard[0]) else {
             return Ok(sharpen);
         };
-        let run_sharpen = sharpen_active || edits.masked_sharpen_active() || sharpen_preview;
+        let run_sharpen = sharpen_active || edits.masked_sharpen_active() || sharpen_preview(opts);
         if run_sharpen {
             let uniforms = self.encode_sharpen(encoder, &stage, s);
             retained.uniforms.extend(uniforms);
@@ -83,4 +70,28 @@ impl GpuRenderer {
         retained.uniforms.extend([uniform, curves]);
         Ok(sharpen)
     }
+}
+
+pub(in crate::gpu::renderer) fn final_pass_active(
+    edits: &Edits,
+    opts: &RenderOptions,
+    has_masks: bool,
+    has_dcp: bool,
+) -> bool {
+    edits.detail.sharpen_active()
+        || sharpen_preview(opts)
+        || edits.effects.any_active()
+        || !edits.basic.curves.is_identity()
+        || has_masks
+        || has_dcp
+        || matches!(opts.output_color_space, OutputColorSpace::DisplayP3)
+        || opts.gamut_warn
+        || opts.clip_warn
+}
+
+fn sharpen_preview(opts: &RenderOptions) -> bool {
+    matches!(
+        opts.preview_mode,
+        PreviewMode::SharpenMask | PreviewMode::SharpenRadius | PreviewMode::SharpenDetail
+    )
 }

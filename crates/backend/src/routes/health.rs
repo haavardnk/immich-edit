@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::State;
+use raw_pipeline::gpu::memory::GpuMemory;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -18,6 +19,7 @@ pub struct Health {
     pub renderer_active: RendererKind,
     pub gpu_adapter: Option<String>,
     pub gpu_software: bool,
+    pub gpu_memory: Option<GpuMemory>,
     pub host: &'static HostInfo,
     pub heif_codecs: raw_pipeline::encode::codecs::HeifCodecs,
     pub immich_reachable: bool,
@@ -77,6 +79,7 @@ pub async fn health(State(state): State<AppState>, ctx: AuthCtx) -> Json<Health>
         renderer_active: state.render.active(),
         gpu_adapter: state.render.gpu_label().map(|s| s.to_string()),
         gpu_software: state.render.software_gpu(),
+        gpu_memory: state.render.gpu_memory(),
         host: host_info(),
         heif_codecs: raw_pipeline::encode::codecs::heif_codecs(),
         immich_reachable: immich_status.ok,

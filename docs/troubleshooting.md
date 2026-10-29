@@ -230,10 +230,12 @@ The error after it names the cause:
 - `outside the gpu texture limit`, `over the gpu buffer limit` or `over the gpu storage binding
   limit`: the photo or export is larger than the GPU accepts, such as a wide panorama. It renders
   on the CPU.
-- `gpu out of memory`: the GPU ran out of memory for this render. Lower `RENDER_MAX_CONCURRENCY`
-  and `GPU_TEXTURE_CACHE_MB` if it happens often.
+- `render needs ... of gpu memory, budget ...`: the render does not fit the
+  [GPU memory budget](rendering.md#gpu-memory). It renders on the CPU.
+- `gpu out of memory`: the server lowers its GPU memory budget. If it happens often, set
+  `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower `GPU_TEXTURE_CACHE_MB`.
 
-The GPU stays in use for other photos in both cases.
+The GPU stays in use for other photos in every case.
 
 ## The GPU device is lost
 
