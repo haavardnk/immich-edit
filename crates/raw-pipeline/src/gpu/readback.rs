@@ -21,7 +21,7 @@ const CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(1);
 
 const ROW_ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 
-fn padded_row(width: u32, bpp: u32) -> u32 {
+pub(crate) fn padded_row(width: u32, bpp: u32) -> u32 {
     let unpadded = width * bpp;
     let rem = unpadded % ROW_ALIGN;
     if rem == 0 {
@@ -31,19 +31,14 @@ fn padded_row(width: u32, bpp: u32) -> u32 {
     }
 }
 
-pub fn padded_row_bytes(width: u32) -> u32 {
-    padded_row(width, 4)
-}
-
-fn padded_row_bytes_f16(width: u32) -> u32 {
-    padded_row(width, 8)
+pub(crate) fn readback_size(width: u32, height: u32, bpp: u32) -> u64 {
+    padded_row(width, bpp) as u64 * height as u64
 }
 
 pub fn make_readback_buffer(device: &Device, width: u32, height: u32) -> Buffer {
-    let size = (padded_row_bytes(width) as u64) * (height as u64);
     device.create_buffer(&BufferDescriptor {
         label: Some("readback"),
-        size,
+        size: readback_size(width, height, 4),
         usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
         mapped_at_creation: false,
     })
@@ -55,10 +50,9 @@ pub fn make_readback_buffer_wide(
     width: u32,
     height: u32,
 ) -> Buffer {
-    let size = (padded_row_bytes_f16(width) as u64) * (height as u64);
     device.create_buffer(&BufferDescriptor {
         label: Some(label),
-        size,
+        size: readback_size(width, height, 8),
         usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
         mapped_at_creation: false,
     })
@@ -165,7 +159,7 @@ pub fn read_rgba8(
     height: u32,
     cancel: Option<&CancelToken>,
 ) -> PipelineResult<Vec<u8>> {
-    let padded = padded_row_bytes(width) as usize;
+    let padded = padded_row(width, 4) as usize;
     let unpadded = (width * 4) as usize;
     map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);
@@ -189,7 +183,7 @@ pub fn read_rgba16uint_as_rgb(
     height: u32,
     cancel: Option<&CancelToken>,
 ) -> PipelineResult<Vec<u16>> {
-    let padded = padded_row_bytes_f16(width) as usize;
+    let padded = padded_row(width, 8) as usize;
     let unpadded_bytes = (width * 8) as usize;
     map_buffer_cancellable(ctx, buffer, cancel)?;
     let slice = buffer.slice(..);

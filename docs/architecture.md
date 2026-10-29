@@ -129,7 +129,9 @@ Other caches include edited thumbnails, click-model embeddings, AI Denoise resul
 metadata, reusable GPU textures, and generated mask rasters. Diagnostics reports current use and
 limits.
 
-GPU device loss marks the renderer unavailable, falls back to CPU, and permits a later rebuild.
+GPU device loss marks the renderer unavailable, falls back to CPU, and permits a later rebuild. A
+GPU error, a panic, or a frame past the device limits renders that request on the CPU and keeps the
+GPU renderer.
 
 ## Jobs
 

@@ -11,12 +11,20 @@ use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::helpers::{
     DemosaicParams, SuperpixelParams, XtransParams, cfa_to_indices, mip_count, xtrans_to_indices,
 };
+use crate::gpu::limits::{check_storage_buffer, check_texture};
 use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d, write_texture_2d};
 use crate::{PipelineError, PipelineResult};
 
 use super::{CachedFrame, GpuRenderer};
 
 const UPLOAD_CHUNK: usize = 1 << 20;
+
+fn sensor_dims(frame: &RawFrame, block: usize) -> (u32, u32) {
+    (
+        (frame.meta.width / block) as u32,
+        (frame.meta.height / block) as u32,
+    )
+}
 
 fn mosaic_buffer(
     device: &wgpu::Device,
@@ -27,6 +35,7 @@ fn mosaic_buffer(
     let bytes: &[u8] = bytemuck::cast_slice(data);
     let size = BufferSize::new(bytes.len() as u64)
         .ok_or_else(|| PipelineError::Render(format!("{label}: empty mosaic")))?;
+    check_storage_buffer(&device.limits(), "mosaic", size.get())?;
     let buffer = device.create_buffer(&BufferDescriptor {
         label: Some(label),
         size: size.get(),
@@ -67,6 +76,11 @@ impl GpuRenderer {
         if let Some(c) = cache.lock().get(&key).cloned() {
             return Ok(c);
         }
+        check_texture(
+            &self.ctx.device.limits(),
+            "sensor",
+            sensor_dims(frame, block.unwrap_or(1)),
+        )?;
         let cached = match block {
             Some(block) => self.superpixel_to_texture(frame, block)?,
             None if frame.cpp == 3 => self.upload_rgb_texture(frame)?,
@@ -98,8 +112,7 @@ impl GpuRenderer {
             period,
             pattern,
         };
-        let w = (frame.meta.width / block) as u32;
-        let h = (frame.meta.height / block) as u32;
+        let (w, h) = sensor_dims(frame, block);
         let uniform_buf = self.uniform(&params, "superpixel-uniform");
         let raw_buf = mosaic_buffer(device, queue, "superpixel-raw-storage", &frame.data)?;
         let texture = texture_2d(

@@ -85,6 +85,14 @@ impl SensorCaches {
             stages: StageCache::new(budget, texture_pool),
         }
     }
+
+    pub fn clear(&self) {
+        self.frames.lock().clear();
+        self.superpixels.lock().clear();
+        self.atmospheres.lock().clear();
+        self.noise_profiles.lock().clear();
+        self.stages.clear();
+    }
 }
 
 impl GpuRenderer {
@@ -115,32 +123,31 @@ impl GpuRenderer {
         options: &RenderOptions,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedSource> {
-        if self.ctx.is_lost() {
-            return Err(crate::PipelineError::DeviceLost);
-        }
-        let timings = RenderTimings::new(&self.ctx);
-        let edits = super::compose_edits(edits, options);
-        let linear = self.sensor_stage(
-            frame,
-            &edits,
-            options,
-            SourcePlan::PORTABLE,
-            &timings,
-            cancel,
-        )?;
-        let started = std::time::Instant::now();
-        let window = options
-            .roi
-            .and_then(|_| crate::source::window_rect(&linear.meta, &edits, linear.dims));
-        let image = self.read_source(&linear, window, cancel)?;
-        timings
-            .clock()
-            .add_wall(timing::READBACK, started.elapsed());
-        Ok(RenderedSource {
-            image,
-            renderer: "gpu".into(),
-            timings: timings.finish(cancel),
-        })
+        pollster::block_on(self.guarded(async {
+            let timings = RenderTimings::new(&self.ctx);
+            let edits = super::compose_edits(edits, options);
+            let linear = self.sensor_stage(
+                frame,
+                &edits,
+                options,
+                SourcePlan::PORTABLE,
+                &timings,
+                cancel,
+            )?;
+            let started = std::time::Instant::now();
+            let window = options
+                .roi
+                .and_then(|_| crate::source::window_rect(&linear.meta, &edits, linear.dims));
+            let image = self.read_source(&linear, window, cancel)?;
+            timings
+                .clock()
+                .add_wall(timing::READBACK, started.elapsed());
+            Ok(RenderedSource {
+                image,
+                renderer: "gpu".into(),
+                timings: timings.finish(cancel),
+            })
+        }))
     }
 
     pub(super) fn sensor_stage(

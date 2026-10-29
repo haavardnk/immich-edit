@@ -48,6 +48,8 @@ pub enum PipelineError {
     Cancelled,
     #[error("gpu device lost")]
     DeviceLost,
+    #[error("gpu out of memory: {0}")]
+    OutOfMemory(String),
 }
 
 pub type PipelineResult<T> = Result<T, PipelineError>;

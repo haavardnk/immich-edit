@@ -19,8 +19,8 @@
         renderer.set_dcp(await bytes('dcp'));
         renderer.set_lut(spec.lut_id, await bytes('lut.cube'));
         const source = await bytes(`${name}/source.iesr`);
-        if (spec.view.tile) renderer.set_tile(source);
-        else renderer.set_source(source);
+        if (spec.view.tile) await renderer.set_tile(source);
+        else await renderer.set_source(source);
         const edits = JSON.stringify(spec.edits);
         const view = JSON.stringify(spec.view);
         const first = performance.now();

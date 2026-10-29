@@ -176,7 +176,9 @@ impl GpuRenderer {
         let full_dims = (meta.width as u32, meta.height as u32);
         let out_dims =
             crate::geom::display_out_dims(meta.orientation, &edits_c, full_dims, opts.max_edge);
-        let passes = match display_depth(opts) {
+        let depth = display_depth(opts);
+        OutputTargets::check_limits(&self.ctx.device.limits(), out_dims, depth)?;
+        let passes = match depth {
             DisplayDepth::Eight => (&self.passes.process_fast, &self.passes.process_post_wb),
             DisplayDepth::Sixteen => {
                 let depth16 = self.passes.depth16(&self.ctx);

@@ -30,6 +30,7 @@ mod dcp;
 mod detail;
 mod display;
 mod effects;
+mod errors;
 mod geometry;
 mod lut;
 mod mask_weight_image;
@@ -48,6 +49,8 @@ mod sensor_stage;
 mod source_io;
 #[cfg(feature = "native")]
 mod stage_cache;
+#[cfg(all(test, feature = "native"))]
+mod test_frame;
 mod uniform;
 #[cfg(feature = "native")]
 mod upload;
@@ -182,6 +185,10 @@ impl GpuRenderer {
         if let Some(err) = scope.pop().await {
             return Err(PipelineError::Unsupported(format!("gpu pipelines: {err}")));
         }
+        #[cfg(feature = "native")]
+        if let Some(err) = ctx.take_uncaptured_error() {
+            return Err(PipelineError::Unsupported(format!("gpu pipelines: {err}")));
+        }
         let budget = GpuBudget::new(options.texture_cache_max_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
         Ok(Self {
@@ -259,25 +266,25 @@ impl GpuRenderer {
         options: &RenderOptions,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
-        if self.ctx.is_lost() {
-            return Err(PipelineError::DeviceLost);
-        }
-        crate::cancel::check(cancel)?;
         let source = source.into();
-        let timings = RenderTimings::new(&self.ctx);
-        let edits = compose_edits(edits, options);
-        let display = match source {
-            RenderSource::Raw(frame) => {
-                let plan = SourcePlan::for_render(&edits, frame);
-                let linear = self.sensor_stage(frame, &edits, options, plan, &timings, cancel)?;
-                self.display_chain(&linear, &edits, options, timings, cancel)?
-            }
-            RenderSource::Linear(linear) => {
-                self.display_chain(linear, &edits, options, timings, cancel)?
-            }
-        };
-        self.read_display(display, cancel)?
-            .into_rendered(options, source.meta().is_raw, cancel)
+        pollster::block_on(self.guarded(async {
+            crate::cancel::check(cancel)?;
+            let timings = RenderTimings::new(&self.ctx);
+            let edits = compose_edits(edits, options);
+            let display = match source {
+                RenderSource::Raw(frame) => {
+                    let plan = SourcePlan::for_render(&edits, frame);
+                    let linear =
+                        self.sensor_stage(frame, &edits, options, plan, &timings, cancel)?;
+                    self.display_chain(&linear, &edits, options, timings, cancel)?
+                }
+                RenderSource::Linear(linear) => {
+                    self.display_chain(linear, &edits, options, timings, cancel)?
+                }
+            };
+            self.read_display(display, cancel)?
+                .into_rendered(options, source.meta().is_raw, cancel)
+        }))
     }
 }
 

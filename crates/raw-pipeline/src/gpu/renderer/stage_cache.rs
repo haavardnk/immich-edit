@@ -73,4 +73,11 @@ impl StageCache {
             .map(|(_, e)| e.bytes)
             .sum()
     }
+
+    pub fn clear(&self) {
+        let mut entries = self.entries.lock();
+        let held: u64 = entries.iter().map(|(_, e)| e.bytes).sum();
+        entries.clear();
+        self.budget.release(held);
+    }
 }
