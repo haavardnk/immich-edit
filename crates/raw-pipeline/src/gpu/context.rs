@@ -51,22 +51,7 @@ impl GpuContext {
             .into_iter()
             .nth(index)
             .expect("index comes from the same list");
-        let adapter_limits = adapter.limits();
         let linear_format = pick_linear_format(&adapter);
-
-        let mut limits = Limits::default();
-        limits.max_texture_dimension_2d = limits
-            .max_texture_dimension_2d
-            .max(16384)
-            .min(adapter_limits.max_texture_dimension_2d);
-        limits.max_storage_buffer_binding_size = limits
-            .max_storage_buffer_binding_size
-            .max(1024 * 1024 * 1024)
-            .min(adapter_limits.max_storage_buffer_binding_size);
-        limits.max_buffer_size = limits
-            .max_buffer_size
-            .max(1024 * 1024 * 1024)
-            .min(adapter_limits.max_buffer_size);
 
         let timestamps = timestamps && adapter.features().contains(Features::TIMESTAMP_QUERY);
         let required_features = if timestamps {
@@ -79,7 +64,7 @@ impl GpuContext {
             .request_device(&DeviceDescriptor {
                 label: Some("immich-edit gpu"),
                 required_features,
-                required_limits: limits,
+                required_limits: required_limits(&adapter.limits()),
                 experimental_features: Default::default(),
                 memory_hints: MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
@@ -122,6 +107,15 @@ impl GpuContext {
 
 pub fn adapter_label(info: &AdapterInfo) -> String {
     format!("{} ({:?}, {:?})", info.name, info.device_type, info.backend)
+}
+
+fn required_limits(adapter: &Limits) -> Limits {
+    Limits {
+        max_texture_dimension_2d: adapter.max_texture_dimension_2d,
+        max_buffer_size: adapter.max_buffer_size,
+        max_storage_buffer_binding_size: adapter.max_storage_buffer_binding_size,
+        ..Limits::default()
+    }
 }
 
 fn pick_adapter_index(types: &[DeviceType]) -> Option<usize> {
@@ -178,6 +172,20 @@ mod tests {
     #[test]
     fn no_adapters_picks_nothing() {
         assert_eq!(pick_adapter_index(&[]), None);
+    }
+
+    #[test]
+    fn required_limits_are_the_adapter_maxima() {
+        let adapter = Limits {
+            max_texture_dimension_2d: 32768,
+            max_buffer_size: 1 << 40,
+            max_storage_buffer_binding_size: 1 << 32,
+            ..Limits::default()
+        };
+        let limits = required_limits(&adapter);
+        if limits != adapter {
+            panic!("required limits {limits:?} differ from the adapter maxima {adapter:?}");
+        }
     }
 
     #[test]
