@@ -33,6 +33,8 @@ pub(super) fn header_uniform(
     warp: bool,
 ) -> ProcessHeader {
     let (src_w, src_h) = state.extent.dims;
+    let shadows = state.shadows.as_ref();
+    let shadows_origin_level = shadows.map_or([0; 4], |s| [s.origin.0, s.origin.1, s.level, 0]);
     ProcessHeader {
         src_size: [src_w, src_h],
         out_size: [shape.full.0, shape.full.1],
@@ -43,7 +45,7 @@ pub(super) fn header_uniform(
             edits.geometry.flip_v as u32,
             geom.orient_packed,
         ],
-        geom_extra: [0.0, state.shadows_mip, 0.0, 0.0],
+        shadows_origin_level,
         active_mask: [0; 4],
         geom_extra2: [geom.cos_a, geom.sin_a, geom.bw, geom.bh],
         geom_extra3: [
@@ -55,7 +57,7 @@ pub(super) fn header_uniform(
         output: shape.output(),
         perspective: geom.persp_rows,
         src_window: state.window(),
-        shadows_window: state.shadows_window,
+        shadows_window: shadows.map_or([0; 4], |s| s.window),
     }
 }
 

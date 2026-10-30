@@ -10,11 +10,18 @@ mod lens_blur;
 #[cfg(feature = "native")]
 mod nr;
 mod presence;
+mod pyramid;
 #[cfg(feature = "native")]
 mod sensor;
 #[cfg(feature = "native")]
 mod wb_prepare;
 
+#[cfg(feature = "native")]
+pub(super) use atmosphere::atmosphere_level;
+#[cfg(feature = "native")]
+pub(super) use dehaze::{HazeSample, haze_dims};
 pub(super) use lens_blur::LensBlurInput;
 #[cfg(feature = "native")]
 pub(super) use nr::{NoiseHistogram, NoiseProfile};
+#[cfg(feature = "native")]
+pub(super) use pyramid::{PRESENCE_PYRAMID, PyramidSource, level_dims};

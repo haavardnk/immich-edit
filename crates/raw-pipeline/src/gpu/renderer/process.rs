@@ -61,7 +61,8 @@ pub(super) struct ProcessViews {
     pub src: TextureView,
     pub out: TextureView,
     pub linear: TextureView,
-    pub shadows: TextureView,
+    pub shadows_luma: TextureView,
+    pub shadows_blur: TextureView,
     pub dcp_base: TextureView,
 }
 
@@ -73,11 +74,13 @@ impl ProcessViews {
         dummy_texture: &Texture,
         dcp_base: TextureView,
     ) -> Self {
+        let shadows = state.shadows.as_ref();
         Self {
             src: full_view(&state.texture),
             out: full_view(display),
             linear: full_view(&target.linear_texture),
-            shadows: full_view(state.shadows.as_deref().unwrap_or(dummy_texture)),
+            shadows_luma: shadows.map_or_else(|| full_view(dummy_texture), |s| s.luma.clone()),
+            shadows_blur: shadows.map_or_else(|| full_view(dummy_texture), |s| s.blur.clone()),
             dcp_base,
         }
     }
@@ -113,8 +116,9 @@ impl GpuRenderer {
                 tex(&views.src),
                 tex(&views.out),
                 tex(&views.linear),
-                tex(&views.shadows),
+                tex(&views.shadows_luma),
                 tex(&views.dcp_base),
+                tex(&views.shadows_blur),
             ],
         );
         dispatch_2d(

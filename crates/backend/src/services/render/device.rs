@@ -271,6 +271,7 @@ fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
 mod tests {
     use raw_pipeline::frame::OutputFormat;
     use raw_pipeline_testkit::frames::rgb_frame;
+    use raw_pipeline_testkit::retouch::untileable_edits;
 
     use super::*;
 
@@ -289,10 +290,10 @@ mod tests {
             output: OutputFormat::Rgb8,
             ..RenderOptions::default()
         };
-        let mut edits = Edits::default();
-        edits.tone.shadows = 40.0;
         let frame = rgb_frame(4000, 3000, vec![0.4; 4000 * 3000 * 3]);
-        let rendered = device.render_blocking(&frame, &edits, &opts, None).unwrap();
+        let rendered = device
+            .render_blocking(&frame, &untileable_edits(), &opts, None)
+            .unwrap();
         if rendered.renderer != "cpu" || device.active() != RendererKind::Gpu {
             panic!(
                 "an over-budget render ran on {} and left the device {:?}",
