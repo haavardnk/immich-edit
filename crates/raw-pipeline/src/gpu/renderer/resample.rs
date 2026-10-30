@@ -19,17 +19,6 @@ pub(super) struct Resample {
     pub dst_frame: (u32, u32),
 }
 
-impl Resample {
-    pub fn whole(src: (u32, u32), dst: (u32, u32)) -> Self {
-        Self {
-            src: Rect::full(src),
-            dst: Rect::full(dst),
-            src_frame: src,
-            dst_frame: dst,
-        }
-    }
-}
-
 impl GpuRenderer {
     pub(super) fn resample_lanczos(
         &self,

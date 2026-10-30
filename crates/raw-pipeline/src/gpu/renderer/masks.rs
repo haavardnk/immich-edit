@@ -8,6 +8,7 @@ use wgpu::{
 
 use super::ATLAS_POOL_ITEMS;
 use super::GpuRenderer;
+use super::display::OutputShape;
 use super::geometry::ProcessGeom;
 use crate::cpu::masked::LayerEval;
 use crate::edits::{Edits, MaskComponentKind, MaskLayer};
@@ -145,7 +146,7 @@ fn mask_aspect(geom: &ProcessGeom) -> f32 {
 fn mask_weight_params(
     edits: &Edits,
     geom: &ProcessGeom,
-    out_dims: (u32, u32),
+    shape: &OutputShape,
     eval: &LayerEval,
     n_components: u32,
 ) -> MaskWeightParams {
@@ -153,7 +154,7 @@ fn mask_weight_params(
     let lens =
         crate::ops::lens_distortion::LensWarpParams::from_edits(&edits.lens, display_w, display_h);
     MaskWeightParams {
-        out_size: [out_dims.0, out_dims.1],
+        out_size: [shape.full.0, shape.full.1],
         n_components,
         layer_amount: eval.amount,
         crop: [geom.crop.x, geom.crop.y, geom.crop.w, geom.crop.h],
@@ -172,6 +173,7 @@ fn mask_weight_params(
         ],
         lens: [lens.k1, lens.k2, lens.k3, lens.zoom],
         perspective: geom.persp_rows,
+        tile: shape.output(),
     }
 }
 
@@ -196,12 +198,13 @@ impl GpuRenderer {
         job: MaskWeightJob<'_>,
         edits: &Edits,
         geom: &ProcessGeom,
-        out_dims: (u32, u32),
+        shape: &OutputShape,
         retained: &mut Retained,
     ) {
         let device = &self.ctx.device;
+        let out_dims = shape.dims();
         let (comp_bytes, n_components, poly_bytes) = pack_layer_eval(job.eval, job.slot_map);
-        let params = mask_weight_params(edits, geom, out_dims, job.eval, n_components);
+        let params = mask_weight_params(edits, geom, shape, job.eval, n_components);
         let params_buf = device.create_buffer_init(&BufferInitDescriptor {
             label: Some(job.labels.uniform),
             contents: bytemuck::bytes_of(&params),

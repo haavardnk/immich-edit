@@ -1,8 +1,26 @@
 use raw_pipeline::edits::Edits;
-use raw_pipeline::{GpuRendererOptions, PipelineError};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
+
+fn untileable() -> Edits {
+    let mut edits = Edits::default();
+    edits.tone.shadows = 40.0;
+    edits
+}
+
+fn require_refused(
+    renderer: &GpuRenderer,
+    what: &str,
+    result: raw_pipeline::PipelineResult<raw_pipeline::frame::RenderedImage>,
+) {
+    match result {
+        Err(PipelineError::Unsupported(_)) if !renderer.is_lost() => {}
+        Err(e) => panic!("{what} failed with {e}"),
+        Ok(img) => panic!("{what} rendered at {}x{}", img.width, img.height),
+    }
+}
 
 #[test]
 fn the_adapter_texture_limit_is_the_largest_frame_the_gpu_renders() {
@@ -11,13 +29,22 @@ fn the_adapter_texture_limit_is_the_largest_frame_the_gpu_renders() {
     };
     let limit = renderer.context().adapter.limits().max_texture_dimension_2d;
     let oversized = synthetic_bayer_frame(limit as usize + 1, 16, "RGGB");
-    match renderer.render(&oversized, &Edits::default(), &rgb8_opts(limit + 1)) {
-        Err(PipelineError::Unsupported(_)) => {}
-        Err(e) => panic!("a frame one pixel past the limit failed with {e}"),
+    let opts = rgb8_opts(limit + 1);
+    let result = renderer.render(&oversized, &untileable(), &opts);
+    require_refused(
+        &renderer,
+        "an untileable frame one pixel past the limit",
+        result,
+    );
+    match renderer.render(&oversized, &Edits::default(), &opts) {
+        Ok(img) if (img.width, img.height) == (limit + 1, 16) && renderer.display_tiles() > 0 => {}
         Ok(img) => panic!(
-            "a frame one pixel past the limit rendered at {}x{}",
-            img.width, img.height
+            "a frame one pixel past the limit rendered {}x{} in {} display tiles",
+            img.width,
+            img.height,
+            renderer.display_tiles()
         ),
+        Err(e) => panic!("a frame one pixel past the limit failed with {e}"),
     }
     let frame = synthetic_bayer_frame(limit as usize, 16, "RGGB");
     let img = match renderer.render(&frame, &Edits::default(), &rgb8_opts(limit)) {
@@ -88,11 +115,12 @@ fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
         return;
     };
     let large = synthetic_bayer_frame(4000, 3000, "RGGB");
-    match renderer.render(&large, &Edits::default(), &rgb8_opts(4000)) {
-        Err(PipelineError::Unsupported(_)) => {}
-        Err(e) => panic!("a frame over the memory budget failed with {e}"),
-        Ok(_) => panic!("a 4000x3000 frame rendered inside a {BUDGET} byte budget"),
-    }
+    let result = renderer.render(&large, &untileable(), &rgb8_opts(4000));
+    require_refused(
+        &renderer,
+        "an untileable frame over the memory budget",
+        result,
+    );
     let small = synthetic_bayer_frame(256, 256, "RGGB");
     if let Err(e) = renderer.render(&small, &Edits::default(), &rgb8_opts(256)) {
         panic!("a small frame after a refused one failed: {e}");

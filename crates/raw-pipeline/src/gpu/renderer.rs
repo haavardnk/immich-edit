@@ -34,6 +34,8 @@ mod cache_keys;
 mod dcp;
 mod detail;
 mod display;
+#[cfg(feature = "native")]
+mod display_tiles;
 mod effects;
 mod errors;
 mod geometry;
@@ -72,6 +74,8 @@ mod working_set;
 #[cfg(feature = "native")]
 use admission::Admission;
 pub use display::DisplayFrame;
+#[cfg(feature = "native")]
+use display::OutputShape;
 pub use options::GpuRendererOptions;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
@@ -160,6 +164,8 @@ pub struct GpuRenderer {
     admission: Admission,
     #[cfg(feature = "native")]
     tiles: Option<TilePlan>,
+    #[cfg(feature = "native")]
+    display_tiles: std::sync::atomic::AtomicU64,
 }
 
 const LUT_TEX_CACHE_ITEMS: usize = 4;
@@ -232,6 +238,8 @@ impl GpuRenderer {
             admission: Admission::new(budget_bytes),
             #[cfg(feature = "native")]
             tiles: options.tiles,
+            #[cfg(feature = "native")]
+            display_tiles: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -318,20 +326,22 @@ impl GpuRenderer {
         pollster::block_on(self.guarded(async {
             crate::cancel::check(cancel)?;
             let timings = RenderTimings::new(&self.ctx);
-            let display = match source {
-                RenderSource::Raw(frame) => {
+            let sensed;
+            let linear = match (source, tiles) {
+                (RenderSource::Raw(frame), TilePlan::DisplayTiled { edge }) => {
+                    return self.render_display_tiled(frame, edits, options, edge, timings, cancel);
+                }
+                (RenderSource::Raw(frame), _) => {
                     let plan = SourcePlan::for_render(edits, frame);
-                    let linear = {
-                        let job =
-                            SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
-                        self.sensor_stage(&job)?
-                    };
-                    self.display_chain(&linear, edits, options, timings, cancel)?
+                    let job = SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
+                    sensed = self.sensor_stage(&job)?;
+                    &sensed
                 }
-                RenderSource::Linear(linear) => {
-                    self.display_chain(linear, edits, options, timings, cancel)?
-                }
+                (RenderSource::Linear(linear), _) => linear,
             };
+            let full = linear.extent().full;
+            let shape = OutputShape::new(&linear.meta, edits, options.max_edge, full);
+            let display = self.display_chain(linear, edits, options, shape, timings, cancel)?;
             self.read_display(display, cancel)?
                 .into_rendered(options, source.meta().is_raw, cancel)
         }))

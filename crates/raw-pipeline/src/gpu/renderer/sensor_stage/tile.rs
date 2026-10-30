@@ -7,10 +7,38 @@ use crate::PipelineResult;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::{NoiseHistogram, NoiseProfile};
 use crate::gpu::renderer::resample::Resample;
+use crate::gpu::source::LinearSource;
 use crate::tile::{Rect, SensorTile, Warp};
 use crate::timing;
 
 impl GpuRenderer {
+    pub(in crate::gpu::renderer) fn sensor_window(
+        &self,
+        job: &SensorJob<'_>,
+        window: Rect,
+        profile: Option<NoiseProfile>,
+    ) -> PipelineResult<LinearSource> {
+        let tile = job.shape.chain.tile(window);
+        let (texture, extent) = self.sensor_tile(job, &tile, profile)?;
+        Ok(job.window_source(texture, extent))
+    }
+
+    pub(super) fn sensor_tile(
+        &self,
+        job: &SensorJob<'_>,
+        tile: &SensorTile,
+        profile: Option<NoiseProfile>,
+    ) -> PipelineResult<(Arc<Texture>, Rect)> {
+        let base = self.sensor_base(job, tile)?;
+        match &job.detail {
+            Some(detail) => {
+                let wb = self.sensor_wb(job, detail, &base)?;
+                self.sensor_detail(job, detail, tile, &wb, profile)
+            }
+            None => Ok((base.texture.clone(), base.rect)),
+        }
+    }
+
     pub(super) fn sensor_base(
         &self,
         job: &SensorJob<'_>,
@@ -18,7 +46,7 @@ impl GpuRenderer {
     ) -> PipelineResult<Arc<SensorFrame>> {
         let (frame, shape, t) = (job.frame, &job.shape, job.t);
         let mut cached = t.stage(timing::DEMOSAIC, || {
-            if job.cached() {
+            if job.cached {
                 self.get_or_demosaic(frame, shape)
             } else {
                 self.demosaic(frame, shape, tile.input())
@@ -27,7 +55,7 @@ impl GpuRenderer {
         job.check()?;
         if let Some((plane, mix)) = job.denoise {
             cached = t.stage(timing::AI_DENOISE, || {
-                self.submit_denoise_blend(frame, &cached, plane, mix, job.cached())
+                self.submit_denoise_blend(frame, &cached, plane, mix, job.cached)
             })?;
             job.check()?;
         }
@@ -111,7 +139,7 @@ impl GpuRenderer {
             src_frame: shape.sensor(),
             dst_frame: shape.working(),
         };
-        let mips = job.cached() && job.plan.atmosphere;
+        let mips = job.cached && job.plan.atmosphere;
         let out = t.stage(timing::PREVIEW_RESAMPLE, || {
             self.resample_lanczos(&src, geometry, "preview-spatial-src", mips)
         })?;

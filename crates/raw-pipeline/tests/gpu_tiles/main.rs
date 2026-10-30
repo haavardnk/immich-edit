@@ -1,3 +1,4 @@
+mod display_tiles;
 mod sensor_tiles;
 
 use raw_pipeline::decode;
@@ -18,22 +19,41 @@ fn decoded(name: &str) -> RawFrame {
 struct Pair {
     single: GpuRenderer,
     tiled: GpuRenderer,
+    sensor: bool,
 }
 
 impl Pair {
-    fn new(options: GpuRendererOptions) -> Option<Self> {
+    fn new(options: GpuRendererOptions, sensor: bool) -> Option<Self> {
         Some(Self {
             single: try_renderer()?,
             tiled: try_renderer_with(options)?,
+            sensor,
         })
     }
 
     fn forced(tiles: TilePlan) -> Option<Self> {
+        let sensor = matches!(tiles, TilePlan::SensorTiled { .. });
         let options = GpuRendererOptions {
             tiles: Some(tiles),
             ..GpuRendererOptions::default()
         };
-        Self::new(options)
+        Self::new(options, sensor)
+    }
+
+    fn budgeted(bytes: u64) -> Option<Self> {
+        let options = GpuRendererOptions {
+            memory_budget_bytes: Some(bytes),
+            ..GpuRendererOptions::default()
+        };
+        Self::new(options, false)
+    }
+
+    fn tiles(&self) -> u64 {
+        if self.sensor {
+            self.tiled.sensor_tiles()
+        } else {
+            self.tiled.display_tiles()
+        }
     }
 
     fn require(
@@ -43,12 +63,12 @@ impl Pair {
         edits: &Edits,
         opts: &RenderOptions,
     ) -> RenderedImage {
-        let before = self.tiled.sensor_tiles();
+        let before = self.tiles();
         let reference = render(&self.single, frame, edits, opts);
         let got = render(&self.tiled, frame, edits, opts);
         require_identical(label, &reference, &got);
-        if self.tiled.sensor_tiles() - before < 4 {
-            panic!("{label} rendered without sensor tiles");
+        if self.tiles() - before < 4 {
+            panic!("{label} rendered without tiles");
         }
         got
     }

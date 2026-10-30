@@ -31,8 +31,8 @@ impl GpuRenderer {
             return full_view(&self.dummy_texture);
         }
         let geom = &stage.plan.geom;
-        let out_dims = stage.plan.out_dims;
-        let grid_scale = out_dims.0 as f32 / (geom.crop.w * geom.bw);
+        let out_dims = stage.plan.shape.dims();
+        let grid_scale = stage.plan.shape.full.0 as f32 / (geom.crop.w * geom.bw);
         let long_edge = geom.oriented.0.max(geom.oriented.1) as f32 * grid_scale;
         let taps = SelectorTaps::for_long_edge(long_edge);
         let margin = if geom.geom_warps { 2 * taps.reach() } else { 0 };
@@ -111,14 +111,12 @@ impl GpuRenderer {
         retained: &mut Retained,
     ) -> PooledTexture {
         let device = &self.ctx.device;
-        let (out_w, out_h) = stage.plan.out_dims;
+        let (out_w, out_h) = stage.plan.shape.dims();
         let dims = (out_w + 2 * margin, out_h + 2 * margin);
         let mut header = stage.plan.layer_header;
-        let [x, y, w, h] = header.crop;
-        let pad_x = w * margin as f32 / out_w as f32;
-        let pad_y = h * margin as f32 / out_h as f32;
-        header.crop = [x - pad_x, y - pad_y, w + 2.0 * pad_x, h + 2.0 * pad_y];
-        header.out_size = [dims.0, dims.1];
+        let [x, y, ..] = header.output;
+        let pad = margin as i32;
+        header.output = [x - pad, y - pad, dims.0 as i32, dims.1 as i32];
         let linear = self.mask_texture(TextureFormat::Rgba16Float, dims, "mask-selector-linear");
         let tone = self.mask_texture(
             display_depth(stage.opts).format(),
