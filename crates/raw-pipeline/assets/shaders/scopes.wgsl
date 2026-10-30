@@ -1,7 +1,9 @@
 // color-space: display-referred 8-bit levels in, waveform/parade/vectorscope counts out
 
 struct BinParams {
-    size: vec2<u32>,
+    core: vec4<u32>,
+    origin: vec2<u32>,
+    full: vec2<u32>,
     step: u32,
 };
 
@@ -25,15 +27,19 @@ fn parade_cell(level: u32, column: u32, channel: u32) -> u32 {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.size.x || gid.y >= p.size.y || gid.y % p.step != 0u) {
+    if (gid.x >= p.core.z || gid.y >= p.core.w) {
         return;
     }
-    let d = load_display_u8(vec2<i32>(gid.xy));
+    let at = p.core.xy + gid.xy;
+    if (at.y % p.step != 0u) {
+        return;
+    }
+    let d = load_display_u8(vec2<i32>(at - p.origin));
     let weighted = 2126u * d.r + 7152u * d.g + 722u * d.b;
     let level = weighted / 10000u;
-    atomicAdd(&cells[(LEVELS - 1u - level) * WAVEFORM_COLUMNS + gid.x * WAVEFORM_COLUMNS / p.size.x], 1u);
+    atomicAdd(&cells[(LEVELS - 1u - level) * WAVEFORM_COLUMNS + at.x * WAVEFORM_COLUMNS / p.full.x], 1u);
 
-    let column = gid.x * PARADE_COLUMNS / p.size.x;
+    let column = at.x * PARADE_COLUMNS / p.full.x;
     atomicAdd(&cells[parade_cell(d.r, column, 0u)], 1u);
     atomicAdd(&cells[parade_cell(d.g, column, 1u)], 1u);
     atomicAdd(&cells[parade_cell(d.b, column, 2u)], 1u);

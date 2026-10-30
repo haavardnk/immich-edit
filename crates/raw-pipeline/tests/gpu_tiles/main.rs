@@ -4,7 +4,7 @@ mod sensor_tiles;
 use raw_pipeline::decode;
 use raw_pipeline::edits::{Edits, MaskComponentKind, Vec2f};
 use raw_pipeline::frame::{RawFrame, RenderOptions, RenderedImage};
-use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, TilingReport};
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 
@@ -48,14 +48,6 @@ impl Pair {
         Self::new(options, false)
     }
 
-    fn tiles(&self) -> u64 {
-        if self.sensor {
-            self.tiled.sensor_tiles()
-        } else {
-            self.tiled.display_tiles()
-        }
-    }
-
     fn require(
         &self,
         label: &str,
@@ -63,13 +55,10 @@ impl Pair {
         edits: &Edits,
         opts: &RenderOptions,
     ) -> RenderedImage {
-        let before = self.tiles();
         let reference = render(&self.single, frame, edits, opts);
         let got = render(&self.tiled, frame, edits, opts);
         require_identical(label, &reference, &got);
-        if self.tiles() - before < 4 {
-            panic!("{label} rendered without tiles");
-        }
+        require_tiles(label, got.tiling, self.sensor);
         got
     }
 
@@ -94,6 +83,17 @@ fn render(
     }
 }
 
+fn require_tiles(label: &str, tiling: TilingReport, sensor: bool) {
+    let planned = match tiling.plan {
+        TilePlan::SensorTiled { .. } => sensor,
+        TilePlan::DisplayTiled { .. } => !sensor,
+        TilePlan::SinglePass => false,
+    };
+    if !planned || tiling.tiles < 4 {
+        panic!("{label} rendered as {tiling:?}");
+    }
+}
+
 fn require_identical(label: &str, single: &RenderedImage, tiled: &RenderedImage) {
     if (single.width, single.height) != (tiled.width, tiled.height) {
         panic!(
@@ -109,6 +109,12 @@ fn require_identical(label: &str, single: &RenderedImage, tiled: &RenderedImage)
         .count();
     if differing > 0 || single.bytes.len() != tiled.bytes.len() {
         panic!("{label}: {differing} tiled bytes differ from the single pass");
+    }
+    if single.histogram != tiled.histogram || single.linear_histogram != tiled.linear_histogram {
+        panic!("{label}: tiled histograms differ from the single pass");
+    }
+    if single.scopes != tiled.scopes {
+        panic!("{label}: tiled scopes differ from the single pass");
     }
 }
 

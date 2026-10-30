@@ -1,12 +1,15 @@
 use crate::edits::Edits;
 use crate::frame::FrameMeta;
 use crate::geom;
+#[cfg(feature = "native")]
+use crate::tile::DisplayTile;
 use crate::tile::Rect;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::gpu::renderer) struct OutputShape {
     pub full: (u32, u32),
     pub rect: Rect,
+    pub core: Rect,
     pub scale: f32,
     pub ratio: f32,
 }
@@ -19,14 +22,19 @@ impl OutputShape {
         Self {
             full,
             rect: Rect::full(full),
+            core: Rect::full(full),
             scale: geom::output_scale(meta.orientation, edits, dims, full),
             ratio: (crop_w as f32 / full.0 as f32).max(crop_h as f32 / full.1 as f32),
         }
     }
 
     #[cfg(feature = "native")]
-    pub fn tile(self, rect: Rect) -> Self {
-        Self { rect, ..self }
+    pub fn tile(self, tile: &DisplayTile) -> Self {
+        Self {
+            rect: tile.rect,
+            core: tile.core,
+            ..self
+        }
     }
 
     pub fn dims(&self) -> (u32, u32) {

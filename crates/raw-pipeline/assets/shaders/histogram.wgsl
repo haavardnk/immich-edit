@@ -1,7 +1,9 @@
 // color-space: display-referred 8-bit levels and scene-linear output in, 256-bin counts out
 
 struct BinParams {
-    size: vec2<u32>,
+    core: vec4<u32>,
+    origin: vec2<u32>,
+    full: vec2<u32>,
     step: u32,
 };
 
@@ -42,14 +44,18 @@ fn main(
         atomicStore(&local_bins[i], 0u);
     }
     workgroupBarrier();
-    let origin = wg.xy * TILE;
+    let start = wg.xy * TILE;
     for (var k = li; k < TILE * TILE; k += THREADS) {
-        let x = origin.x + k % TILE;
-        let y = origin.y + k / TILE;
-        if (x >= p.size.x || y >= p.size.y || (y * p.size.x + x) % p.step != 0u) {
+        let local = start + vec2<u32>(k % TILE, k / TILE);
+        if (local.x >= p.core.z || local.y >= p.core.w) {
             continue;
         }
-        let c = vec2<i32>(i32(x), i32(y));
+        let x = p.core.x + local.x;
+        let y = p.core.y + local.y;
+        if ((y * p.full.x + x) % p.step != 0u) {
+            continue;
+        }
+        let c = vec2<i32>(vec2<u32>(x, y) - p.origin);
         let d = load_display_u8(c);
         count(DISPLAY_BASE, d.r, d.g, d.b, display_luma(d));
         let l = textureLoad(linear_tex, c, 0).rgb;

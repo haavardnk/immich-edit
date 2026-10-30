@@ -12,6 +12,7 @@ use crate::ops::LinearImage;
 use crate::ops::capture_sharpen::CaptureSigma;
 use crate::ops::curves::CurveLuts;
 use crate::ops::{OpContext, OpScratch, RenderContext};
+use crate::tile::TilingReport;
 use crate::timing::{self, StageClock};
 use ops::{OpInputs, OpRange, run_pipeline_ops_inner};
 use output::{FinishOptions, finish_output, resolve_lut};
@@ -429,6 +430,7 @@ fn finish_render(
         renderer: "cpu".into(),
         is_raw: frame.meta.is_raw,
         timings: clock.finish(),
+        tiling: TilingReport::SINGLE_PASS,
         metadata_warnings,
     })
 }

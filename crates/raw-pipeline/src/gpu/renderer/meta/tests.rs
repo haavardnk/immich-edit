@@ -10,6 +10,23 @@ struct Pixels {
     linear: Vec<[f32; 3]>,
 }
 
+impl Pixels {
+    fn crop(&self, width: u32, rect: Rect) -> Self {
+        let rows = |y: u32| {
+            let start = (y * width + rect.x) as usize;
+            start..start + rect.w as usize
+        };
+        Self {
+            display: (rect.y..rect.bottom())
+                .flat_map(|y| self.display[rows(y)].iter().copied())
+                .collect(),
+            linear: (rect.y..rect.bottom())
+                .flat_map(|y| self.linear[rows(y)].iter().copied())
+                .collect(),
+        }
+    }
+}
+
 fn synthetic(width: u32, height: u32) -> Pixels {
     let count = (width * height) as usize;
     let display = (0..count)
@@ -43,7 +60,28 @@ fn display_16(renderer: &GpuRenderer, dims: (u32, u32)) -> Texture {
     )
 }
 
-fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: bool) -> MetaCounts {
+fn tile_shape(full: (u32, u32), core: Rect, halo: u32) -> OutputShape {
+    OutputShape {
+        full,
+        rect: core.expand(halo, full),
+        core,
+        scale: 1.0,
+        ratio: 1.0,
+    }
+}
+
+fn whole(dims: (u32, u32)) -> OutputShape {
+    tile_shape(dims, Rect::full(dims), 0)
+}
+
+fn gpu_counts(
+    renderer: &GpuRenderer,
+    pixels: &Pixels,
+    shape: OutputShape,
+    wide: bool,
+) -> MetaCounts {
+    let pixels = &pixels.crop(shape.full.0, shape.rect);
+    let dims = shape.rect.dims();
     let (width, height) = dims;
     let pool = pools::acquire_target(&renderer.output_pool, &renderer.ctx, width, height).unwrap();
     let p = &pool[0];
@@ -105,7 +143,7 @@ fn gpu_counts(renderer: &GpuRenderer, pixels: &Pixels, dims: (u32, u32), wide: b
     let sources = MetaSources {
         display: display_src,
         linear: &p.linear_texture,
-        dims,
+        shape,
     };
     renderer.encode_meta_bins(&mut encoder, p, sources, request, &t);
     renderer.ctx.queue.submit(Some(encoder.finish()));
@@ -143,7 +181,7 @@ fn gpu_bins_match_the_cpu_counters() {
     ];
     for (label, dims, wide) in cases {
         let pixels = synthetic(dims.0, dims.1);
-        let counts = gpu_counts(&renderer, &pixels, dims, wide);
+        let counts = gpu_counts(&renderer, &pixels, whole(dims), wide);
         let (gpu_display, gpu_linear) = counts.histograms();
         let (cpu_display, cpu_linear) = cpu_histograms(&pixels);
         if gpu_display.as_ref() != Some(&cpu_display) {
@@ -157,6 +195,37 @@ fn gpu_bins_match_the_cpu_counters() {
         let gpu_scopes = counts.scopes(&StageClock::default());
         if gpu_scopes.as_ref() != Some(&cpu_scopes) {
             panic!("{label}: scope grids differ");
+        }
+    }
+}
+
+#[test]
+fn bins_summed_over_tile_cores_match_the_whole_frame() {
+    let Ok(renderer) = GpuRenderer::new() else {
+        eprintln!("no gpu adapter, skipping");
+        return;
+    };
+    let full = (1003, 601);
+    let pixels = synthetic(full.0, full.1);
+    for wide in [false, true] {
+        let single = gpu_counts(&renderer, &pixels, whole(full), wide);
+        let mut summed = MetaCounts::default();
+        for y in (0..full.1).step_by(250) {
+            for x in (0..full.0).step_by(301) {
+                let core = Rect::bounds(x, y, (x + 301).min(full.0), (y + 250).min(full.1));
+                summed.add(gpu_counts(
+                    &renderer,
+                    &pixels,
+                    tile_shape(full, core, 9),
+                    wide,
+                ));
+            }
+        }
+        if summed.histogram != single.histogram {
+            panic!("wide {wide}: tiled histogram differs from the single pass");
+        }
+        if summed.scopes != single.scopes {
+            panic!("wide {wide}: tiled scopes differ from the single pass");
         }
     }
 }

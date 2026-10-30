@@ -1,13 +1,13 @@
 use raw_pipeline::edits::{Edits, MaskedEdits};
 use raw_pipeline::frame::{RawFrame, RenderOptions};
-use raw_pipeline::{GpuRendererOptions, TilePlan};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, TilingReport};
 use raw_pipeline_testkit::denoise::denoise_plane;
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::try_renderer_with;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::render::rgb8_opts;
 
-use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, render};
+use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, render, require_tiles};
 
 const TILES: TilePlan = TilePlan::SensorTiled { edge: 1024 };
 const DJI: &str = "DJI_FC7303_16-9.dng";
@@ -132,8 +132,11 @@ fn render_over_budget(width: usize, height: usize, budget: u64) {
     if (img.width as usize, img.height as usize) != (width, height) {
         panic!("{width}x{height} rendered {}x{}", img.width, img.height);
     }
-    if renderer.sensor_tiles() == 0 {
-        panic!("{width}x{height} in {budget} bytes ran as a single pass");
+    if !matches!(img.tiling.plan, TilePlan::SensorTiled { .. }) {
+        panic!(
+            "{width}x{height} in {budget} bytes rendered as {:?}",
+            img.tiling
+        );
     }
 }
 
@@ -146,4 +149,28 @@ fn sensor_tiles_render_a_mosaic_over_the_single_pass_budget() {
 #[ignore = "renders a 100 MP frame; run by hand on a GPU with 8 GiB to spare"]
 fn sensor_tiles_render_a_100_mp_mosaic_over_the_single_pass_budget() {
     render_over_budget(11648, 8736, 6 << 30);
+}
+
+#[test]
+fn sensor_tiles_render_a_source_and_report_it() {
+    let Some(pair) = Pair::forced(TILES) else {
+        return;
+    };
+    let frame = decoded(CANON_5D);
+    let opts = rgb8_opts(2048);
+    let edits = lens_only();
+    let source = |renderer: &GpuRenderer| match renderer.render_source(&frame, &edits, &opts, None)
+    {
+        Ok(source) => source,
+        Err(e) => panic!("source render failed: {e}"),
+    };
+    let reference = source(&pair.single);
+    let got = source(&pair.tiled);
+    if reference.tiling != TilingReport::SINGLE_PASS {
+        panic!("the single pass source reported {:?}", reference.tiling);
+    }
+    require_tiles("the tiled source", got.tiling, true);
+    if got.image.rgb_f16 != reference.image.rgb_f16 {
+        panic!("the tiled source differs from the single pass");
+    }
 }

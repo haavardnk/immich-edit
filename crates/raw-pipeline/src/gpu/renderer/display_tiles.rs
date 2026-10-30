@@ -1,8 +1,6 @@
 mod context;
 mod stitch;
 
-use std::sync::atomic::Ordering;
-
 use super::GpuRenderer;
 use super::display::{DisplayRequest, OutputShape};
 use super::sensor_stage::{SensorJob, SensorShape, SourcePlan};
@@ -12,7 +10,8 @@ use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
-use crate::tile::{DisplayLayout, DisplayTile, Rect, TilePlan, support};
+use crate::tile::{DisplayLayout, DisplayTile, Rect, TilePlan, TilingReport, support};
+use crate::timing;
 use context::ContextJob;
 pub(super) use context::{Coarse, ContextPlan};
 use stitch::Stitch;
@@ -72,10 +71,6 @@ impl DisplayTiles {
 }
 
 impl GpuRenderer {
-    pub fn display_tiles(&self) -> u64 {
-        self.display_tiles.load(Ordering::Relaxed)
-    }
-
     pub(super) fn render_display_tiled<'a>(
         &'a self,
         frame: &RawFrame,
@@ -86,19 +81,21 @@ impl GpuRenderer {
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let plan = SourcePlan::for_render(edits, frame);
-        let tiling = TilePlan::DisplayTiled { edge };
+        let tile_plan = TilePlan::DisplayTiled { edge };
         let (layout, profile, context) = {
-            let job = SensorJob::new(frame, edits, options, plan, tiling, &timings, cancel)?;
+            let job = SensorJob::new(frame, edits, options, plan, tile_plan, &timings, cancel)?;
             let layout = DisplayTiles::new(frame, edits, options, job.shape(), edge);
             let partition = job.shape().chain.tiles(edge);
             let profile = self.tiled_noise_profile(&job, &partition)?;
             let context = match &layout.context {
-                Some(plan) => Some(self.build_context(&ContextJob {
-                    sensor: &job,
-                    options,
-                    profile,
-                    plan,
-                    layout: &layout,
+                Some(plan) => Some(timings.stage(timing::TILE_CONTEXT, || {
+                    self.build_context(&ContextJob {
+                        sensor: &job,
+                        options,
+                        profile,
+                        plan,
+                        layout: &layout,
+                    })
                 })?),
                 None => None,
             };
@@ -109,14 +106,14 @@ impl GpuRenderer {
         let mut timings = timings;
         for tile in &layout.tiles {
             let linear = {
-                let job = SensorJob::new(frame, edits, options, plan, tiling, &timings, cancel)?;
+                let job = SensorJob::new(frame, edits, options, plan, tile_plan, &timings, cancel)?;
                 self.sensor_window(&job, tile.window, profile)?
             };
             let request = DisplayRequest {
                 source: &linear,
                 edits,
                 opts: options,
-                shape: layout.shape.tile(tile.rect),
+                shape: layout.shape.tile(tile),
                 context: context.as_ref().map(|tiles| &tiles.context),
             };
             let display = self.display_chain(request, timings, cancel)?;
@@ -124,16 +121,15 @@ impl GpuRenderer {
             self.wait_idle(pooled)?;
             crate::cancel::check(cancel)?;
         }
-        self.display_tiles
-            .fetch_add(layout.tiles.len() as u64, Ordering::Relaxed);
         tracing::debug!(
             tiles = layout.tiles.len(),
             context = layout.cores.len(),
             edge,
             "gpu display tiles"
         );
+        let tiling = TilingReport::new(tile_plan, layout.tiles.len());
         stitch
             .finish(timings)?
-            .into_rendered(options, frame.meta.is_raw, cancel)
+            .into_rendered(options, frame.meta.is_raw, tiling, cancel)
     }
 }

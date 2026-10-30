@@ -1,5 +1,5 @@
 use raw_pipeline::edits::Edits;
-use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError, TilePlan};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
@@ -38,12 +38,12 @@ fn the_adapter_texture_limit_is_the_largest_frame_the_gpu_renders() {
         result,
     );
     match renderer.render(&oversized, &shadows(), &opts) {
-        Ok(img) if (img.width, img.height) == (limit + 1, 16) && renderer.display_tiles() > 0 => {}
+        Ok(img)
+            if (img.width, img.height) == (limit + 1, 16)
+                && matches!(img.tiling.plan, TilePlan::DisplayTiled { .. }) => {}
         Ok(img) => panic!(
-            "a frame one pixel past the limit rendered {}x{} in {} display tiles",
-            img.width,
-            img.height,
-            renderer.display_tiles()
+            "a frame one pixel past the limit rendered {}x{} as {:?}",
+            img.width, img.height, img.tiling
         ),
         Err(e) => panic!("a frame one pixel past the limit failed with {e}"),
     }

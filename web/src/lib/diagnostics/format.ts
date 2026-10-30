@@ -1,4 +1,4 @@
-import type { GpuMemory } from '$lib/api/diagnostics';
+import type { GpuMemory, PlanKind, PlanStats } from '$lib/api/diagnostics';
 
 export function formatUs(us: number): string {
   if (us === 0) return '—';
@@ -40,4 +40,14 @@ export function gpuMemoryRows(memory: GpuMemory): [string, string][] {
     ['Host budget', host_budget_bytes === null ? 'none' : formatBytes(host_budget_bytes)],
     ['GPU texture cache', formatBytes(texture_cache_bytes)]
   ];
+}
+
+const PLAN_LABELS: Record<PlanKind, string> = {
+  single_pass: 'Single pass',
+  sensor_tiled: 'Sensor tiles',
+  display_tiled: 'Display tiles'
+};
+
+export function planLabel({ plan, edge }: PlanStats): string {
+  return edge === null ? PLAN_LABELS[plan] : `${PLAN_LABELS[plan]} ${edge}px`;
 }

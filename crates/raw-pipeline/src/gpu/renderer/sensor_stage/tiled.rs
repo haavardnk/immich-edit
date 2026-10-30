@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use wgpu::{CommandEncoderDescriptor, PollType, Texture, TextureUsages};
 
@@ -44,9 +43,6 @@ impl GpuRenderer {
             self.wait_idle(pooled)?;
             job.check()?;
         }
-        self.sensor
-            .tiles
-            .fetch_add(tiles.len() as u64, Ordering::Relaxed);
         tracing::debug!(tiles = tiles.len(), edge, w, h, "gpu sensor tiles");
         if job.working_mips() {
             let mut encoder = self

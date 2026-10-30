@@ -4,6 +4,7 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferUsages, CommandEncoder, Texture, TextureFormat};
 
 use super::GpuRenderer;
+use super::display::OutputShape;
 use crate::PipelineResult;
 use crate::gpu::dispatch::{bind_group, buf, dispatch_2d, tex};
 use crate::gpu::passes::meta_bins::{BinParams, HISTOGRAM_TILE, MetaBinsPasses, SCOPES_GROUP};
@@ -16,6 +17,7 @@ use crate::gpu::texture::full_view;
 use crate::gpu::timer::RenderTimings;
 use crate::histogram::{BINS, Histogram, sample_step};
 use crate::scopes::{ScopeGrids, row_step};
+use crate::tile::Rect;
 use crate::timing::{self, StageClock};
 
 #[derive(Clone, Copy)]
@@ -28,7 +30,7 @@ pub(super) struct MetaRequest {
 pub(super) struct MetaSources<'t> {
     pub display: &'t Texture,
     pub linear: &'t Texture,
-    pub dims: (u32, u32),
+    pub shape: OutputShape,
 }
 
 #[derive(Default)]
@@ -38,6 +40,12 @@ pub(super) struct MetaCounts {
 }
 
 impl MetaCounts {
+    #[cfg(feature = "native")]
+    pub(super) fn add(&mut self, other: Self) {
+        add_counts(&mut self.histogram, other.histogram);
+        add_counts(&mut self.scopes, other.scopes);
+    }
+
     pub(super) fn histograms(&self) -> (Option<Histogram>, Option<Histogram>) {
         match &self.histogram {
             Some(counts) => {
@@ -70,7 +78,7 @@ impl GpuRenderer {
         let MetaSources {
             display,
             linear,
-            dims,
+            shape,
         } = sources;
         let passes = match display.format() {
             TextureFormat::Rgba16Uint => &self.passes.depth16(&self.ctx).meta_bins,
@@ -79,12 +87,12 @@ impl GpuRenderer {
         let display_view = full_view(display);
         if request.histogram {
             t.stage(timing::HISTOGRAM, || {
-                self.encode_histogram(encoder, p, passes, &display_view, linear, dims)
+                self.encode_histogram(encoder, p, passes, &display_view, linear, &shape)
             });
         }
         if request.scopes {
             t.stage(timing::SCOPES, || {
-                self.encode_scopes(encoder, p, passes, &display_view, dims)
+                self.encode_scopes(encoder, p, passes, &display_view, &shape)
             });
         }
     }
@@ -96,10 +104,10 @@ impl GpuRenderer {
         passes: &MetaBinsPasses,
         display_view: &wgpu::TextureView,
         linear_src: &Texture,
-        (out_w, out_h): (u32, u32),
+        shape: &OutputShape,
     ) {
-        let step = sample_step(out_w as usize * out_h as usize) as u32;
-        let params = self.bin_params(out_w, out_h, step);
+        let (w, h) = shape.full;
+        let params = self.bin_params(shape, sample_step(w as usize * h as usize) as u32);
         let linear_view = full_view(linear_src);
         let bind = bind_group(
             &self.ctx.device,
@@ -118,8 +126,8 @@ impl GpuRenderer {
             "histogram",
             &passes.histogram,
             &bind,
-            out_w.div_ceil(HISTOGRAM_TILE),
-            out_h.div_ceil(HISTOGRAM_TILE),
+            shape.core.w.div_ceil(HISTOGRAM_TILE),
+            shape.core.h.div_ceil(HISTOGRAM_TILE),
         );
         encoder.copy_buffer_to_buffer(&p.histogram_counts, 0, &p.meta_readback, 0, HISTOGRAM_BYTES);
     }
@@ -130,10 +138,10 @@ impl GpuRenderer {
         p: &OutputTargets,
         passes: &MetaBinsPasses,
         display_view: &wgpu::TextureView,
-        (out_w, out_h): (u32, u32),
+        shape: &OutputShape,
     ) {
-        let step = row_step(out_w as usize, out_h as usize) as u32;
-        let params = self.bin_params(out_w, out_h, step);
+        let (w, h) = shape.full;
+        let params = self.bin_params(shape, row_step(w as usize, h as usize) as u32);
         let bind = bind_group(
             &self.ctx.device,
             "scopes-bg",
@@ -150,8 +158,8 @@ impl GpuRenderer {
             "scopes",
             &passes.scopes,
             &bind,
-            out_w.div_ceil(SCOPES_GROUP),
-            out_h.div_ceil(SCOPES_GROUP),
+            shape.core.w.div_ceil(SCOPES_GROUP),
+            shape.core.h.div_ceil(SCOPES_GROUP),
         );
         encoder.copy_buffer_to_buffer(
             &p.scope_counts,
@@ -162,11 +170,15 @@ impl GpuRenderer {
         );
     }
 
-    fn bin_params(&self, out_w: u32, out_h: u32, step: u32) -> wgpu::Buffer {
+    fn bin_params(&self, shape: &OutputShape, step: u32) -> wgpu::Buffer {
+        let Rect { x, y, w, h } = shape.core;
+        let (origin_x, origin_y) = shape.origin();
         let params = BinParams {
-            size: [out_w, out_h],
+            core: [x, y, w, h],
+            origin: [origin_x, origin_y],
+            full: [shape.full.0, shape.full.1],
             step,
-            _pad: 0,
+            _pad: [0; 3],
         };
         self.ctx.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("meta-bins-uniform"),
@@ -222,6 +234,18 @@ impl MetaRequest {
         let histogram = self.histogram.then(|| counts.next()).flatten();
         let scopes = self.scopes.then(|| counts.next()).flatten();
         MetaCounts { histogram, scopes }
+    }
+}
+
+#[cfg(feature = "native")]
+fn add_counts(into: &mut Option<Vec<u32>>, from: Option<Vec<u32>>) {
+    match (into.as_mut(), from) {
+        (Some(sum), Some(part)) => sum
+            .iter_mut()
+            .zip(part)
+            .for_each(|(sum, part)| *sum += part),
+        (None, part) => *into = part,
+        (Some(_), None) => {}
     }
 }
 
