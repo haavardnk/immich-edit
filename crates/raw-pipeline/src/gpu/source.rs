@@ -40,6 +40,10 @@ impl LinearSource {
             full: self.window.map_or(self.dims, |w| w.full),
         }
     }
+
+    pub fn origin(&self) -> (u32, u32) {
+        self.window.map_or((0, 0), |w| w.origin)
+    }
 }
 
 #[cfg(feature = "native")]

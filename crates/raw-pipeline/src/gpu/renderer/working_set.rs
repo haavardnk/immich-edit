@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use wgpu::TextureFormat;
 
 use super::display::{OutputShape, final_pass_active, layer_presence};
-use super::display_tiles::DisplayTiles;
 use super::{GpuRenderer, RenderPlan, SensorShape, compose_edits, display_depth};
 use crate::cpu::demosaic::parse_xtrans;
 use crate::cpu::masked::{SelectorTaps, build_layer_eval};
@@ -21,8 +20,9 @@ use crate::ops::lens_blur::kernel::BlurScale;
 use crate::ops::presence::has_shadows;
 use crate::ops::retouch::stroke_geometry;
 use crate::source::LinearKind;
-use crate::tile::{DisplayTile, Rect, SensorTile, TilePlan};
+use crate::tile::{Rect, SensorTile, TilePlan};
 
+mod display_tiles;
 #[cfg(all(test, target_vendor = "apple"))]
 mod tests;
 
@@ -36,12 +36,18 @@ const MOSAIC_COPIES: u64 = 2;
 const NR_LUMA_PLANES: u64 = 4;
 const NR_CHROMA_PLANES: u64 = 5;
 const CAPTURE_PLANES: u64 = 4;
-const DEHAZE_MOMENTS: u64 = 9;
+const DEHAZE_MOMENTS: u64 = 2;
 const SHARPEN_TEXTURES: usize = 4;
 const MASK_TEXEL: u64 = 2 * RGBA16 + 2 * R32;
 const MASK_PREVIEW_TEXEL: u64 = R32 + RGBA8;
 const LENS_BLUR_GRIDS: u64 = 2;
 const SELECTOR_SCRATCH_TEXEL: u64 = RGBA32 + 4 * RGBA16;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Levels {
+    Local,
+    Context,
+}
 
 struct WorkingSet {
     linear: TextureFormat,
@@ -183,45 +189,6 @@ impl WorkingSet {
         luma_planes
     }
 
-    fn display_tiles(
-        &mut self,
-        frame: &RawFrame,
-        edits: &Edits,
-        options: &RenderOptions,
-        kind: LinearKind,
-        edge: u32,
-    ) {
-        let edits = edits.clamped();
-        let presence = kind == LinearKind::PostWb;
-        let shape = SensorShape::new(frame, &edits, options, presence);
-        let layout = DisplayTiles::new(frame, &edits, options, &shape, edge);
-        let sensor_bytes = |tile: &SensorTile| {
-            let mut set = self.empty();
-            set.sensor_tile(frame, &edits, options, &shape, tile, presence);
-            set.bytes
-        };
-        let tile_bytes = |tile: &DisplayTile| {
-            let sensor = shape.chain.tile(tile.window);
-            let extent = if shape.resamples() {
-                sensor.core
-            } else {
-                sensor.detail()
-            };
-            let mut set = self.empty();
-            set.bytes = sensor_bytes(&sensor);
-            let source = SourceExtent {
-                dims: extent.dims(),
-                full: shape.working(),
-            };
-            let output = layout.shape.tile(tile.rect);
-            set.display(&frame.meta, (source, kind), &edits, options, output);
-            set.bytes
-        };
-        let partition = shape.chain.tiles(edge).iter().map(sensor_bytes).max();
-        let tiles = layout.tiles.iter().map(tile_bytes).max();
-        self.bytes += partition.max(tiles).unwrap_or(0);
-    }
-
     fn empty(&self) -> Self {
         WorkingSet {
             linear: self.linear,
@@ -235,12 +202,13 @@ impl WorkingSet {
         source: (SourceExtent, LinearKind),
         edits: &Edits,
         opts: &RenderOptions,
-        shape: OutputShape,
+        output: (OutputShape, Levels),
     ) {
         let edits = edits.clamped();
         let (extent, kind) = source;
+        let (shape, levels) = output;
         let layers = if kind == LinearKind::PostWb {
-            self.spatial(extent, &edits, opts)
+            self.spatial(extent, &edits, opts, levels)
         } else {
             0
         };
@@ -261,12 +229,21 @@ impl WorkingSet {
         self.output(out, long_edge, &edits, opts, dcp.as_deref());
     }
 
-    fn spatial(&mut self, extent: SourceExtent, edits: &Edits, opts: &RenderOptions) -> usize {
+    fn spatial(
+        &mut self,
+        extent: SourceExtent,
+        edits: &Edits,
+        opts: &RenderOptions,
+        levels: Levels,
+    ) -> usize {
         let dims = extent.dims;
+        let local = levels == Levels::Local;
         if edits.basic.dehaze != 0.0 {
+            self.linear(dims, false);
+        }
+        if edits.basic.dehaze != 0.0 && local {
             let scale = DehazeGrid::for_dims(extent.full).scale;
             let low = ((dims.0 / scale).max(1), (dims.1 / scale).max(1));
-            self.linear(dims, false);
             self.linear(low, false);
             self.texels(low, DEHAZE_MOMENTS * RGBA32);
         }
@@ -290,14 +267,14 @@ impl WorkingSet {
             .collect();
         let global = usize::from(edits.basic.texture != 0.0 || edits.basic.clarity != 0.0);
         let presence_passes = global + layer_passes.len();
-        if presence_passes > 0 {
+        if presence_passes > 0 && local {
             self.linear(dims, true);
         }
         for _ in 0..presence_passes {
             self.linear(dims, false);
         }
         if has_shadows(edits) {
-            self.linear(dims, true);
+            self.linear(dims, local);
         }
         layers.len()
     }
@@ -392,7 +369,13 @@ impl GpuRenderer {
             RenderSource::Linear(linear) => (linear.extent(), linear.kind),
         };
         let shape = OutputShape::new(source.meta(), &edits, options.max_edge, linear.0.full);
-        set.display(source.meta(), linear, &edits, options, shape);
+        set.display(
+            source.meta(),
+            linear,
+            &edits,
+            options,
+            (shape, Levels::Local),
+        );
         set.bytes
     }
 

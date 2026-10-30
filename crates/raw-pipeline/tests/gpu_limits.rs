@@ -3,8 +3,9 @@ use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
+use raw_pipeline_testkit::retouch::untileable_edits;
 
-fn untileable() -> Edits {
+fn shadows() -> Edits {
     let mut edits = Edits::default();
     edits.tone.shadows = 40.0;
     edits
@@ -30,13 +31,13 @@ fn the_adapter_texture_limit_is_the_largest_frame_the_gpu_renders() {
     let limit = renderer.context().adapter.limits().max_texture_dimension_2d;
     let oversized = synthetic_bayer_frame(limit as usize + 1, 16, "RGGB");
     let opts = rgb8_opts(limit + 1);
-    let result = renderer.render(&oversized, &untileable(), &opts);
+    let result = renderer.render(&oversized, &untileable_edits(), &opts);
     require_refused(
         &renderer,
         "an untileable frame one pixel past the limit",
         result,
     );
-    match renderer.render(&oversized, &Edits::default(), &opts) {
+    match renderer.render(&oversized, &shadows(), &opts) {
         Ok(img) if (img.width, img.height) == (limit + 1, 16) && renderer.display_tiles() > 0 => {}
         Ok(img) => panic!(
             "a frame one pixel past the limit rendered {}x{} in {} display tiles",
@@ -115,7 +116,7 @@ fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
         return;
     };
     let large = synthetic_bayer_frame(4000, 3000, "RGGB");
-    let result = renderer.render(&large, &untileable(), &rgb8_opts(4000));
+    let result = renderer.render(&large, &untileable_edits(), &rgb8_opts(4000));
     require_refused(
         &renderer,
         "an untileable frame over the memory budget",

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use wgpu::Texture;
 
-use super::{OutputShape, StageState};
+use super::{ContextNeeds, GlobalContext, OutputShape, PresenceLevels, StageState};
 use crate::cancel::CancelToken;
 use crate::cpu::masked::effective_edits_for_layer;
 use crate::edits::{Edits, MaskLayer};
@@ -14,36 +14,49 @@ use crate::gpu::renderer::resample::Resample;
 use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
-use crate::ops::presence::{PresenceAmounts, presence_amounts};
+use crate::ops::presence::{PresenceAmounts, has_shadows, presence_amounts};
 use crate::tile::Rect;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
 impl GpuRenderer {
-    pub(super) fn dehaze_stage(
+    pub(in crate::gpu::renderer) fn dehaze_stage(
         &self,
         state: &mut StageState,
         edits: &Edits,
+        context: Option<&GlobalContext>,
         t: &RenderTimings,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<()> {
         if edits.basic.dehaze == 0.0 {
             return Ok(());
         }
-        let atmosphere = state.atmosphere.ok_or_else(|| {
-            PipelineError::Unsupported("dehaze needs an atmosphere estimate on the source".into())
-        })?;
-        let dims = state.extent.dims;
-        let tex = t.stage(timing::DEHAZE, || {
+        let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
+        let (dims, placed) = (state.extent.dims, state.placed());
+        let (out, ab) = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-            self.submit_dehaze(&state.texture, state.extent, edits, atmosphere)
+            let (haze, ab) = match context {
+                Some(context) => (context.haze()?.clone(), None),
+                None => {
+                    let atmosphere = state.atmosphere.ok_or_else(|| {
+                        PipelineError::Unsupported(
+                            "dehaze needs an atmosphere estimate on the source".into(),
+                        )
+                    })?;
+                    let (haze, ab) = self.submit_local_haze(&state.texture, placed, atmosphere);
+                    (haze, Some(ab))
+                }
+            };
+            let out = self.submit_dehaze_apply(&state.texture, placed, &haze, amount);
+            PipelineResult::Ok((out, ab))
         })?;
         crate::cancel::check(cancel)?;
-        state.texture = state.hold(tex);
+        state.held.extend(ab);
+        state.texture = state.hold(out);
         Ok(())
     }
 
-    pub(super) fn lens_blur_stage(
+    pub(in crate::gpu::renderer) fn lens_blur_stage(
         &self,
         state: &mut StageState,
         meta: &FrameMeta,
@@ -70,18 +83,42 @@ impl GpuRenderer {
         Ok(())
     }
 
-    pub(super) fn presence_stage(
+    pub(super) fn presence_levels(
         &self,
         state: &mut StageState,
         edits: &Edits,
+        context: Option<&GlobalContext>,
+        t: &RenderTimings,
+        cancel: Option<&CancelToken>,
+    ) -> PipelineResult<PresenceLevels> {
+        let needs = ContextNeeds::new(edits);
+        if !needs.levels() {
+            return Ok(PresenceLevels::default());
+        }
+        if let Some(context) = context {
+            return Ok(context.presence.clone());
+        }
+        let (levels, held) = t.stage(timing::PRESENCE, || {
+            PipelineResult::Ok(self.submit_presence_levels(&state.texture, state.placed(), needs))
+        })?;
+        crate::cancel::check(cancel)?;
+        state.held.extend(held);
+        Ok(levels)
+    }
+
+    pub(in crate::gpu::renderer) fn presence_stage(
+        &self,
+        state: &mut StageState,
+        edits: &Edits,
+        levels: &PresenceLevels,
         t: &RenderTimings,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<()> {
-        if edits.basic.texture == 0.0 && edits.basic.clarity == 0.0 {
+        if !presence_amounts(edits).adjusts() {
             return Ok(());
         }
         let tex = t.stage(timing::PRESENCE, || {
-            self.submit_presence(&state.texture, state.extent, edits)
+            self.submit_presence_adjust(&state.texture, state.placed(), levels, edits)
         })?;
         crate::cancel::check(cancel)?;
         state.texture = state.hold(tex);
@@ -93,10 +130,11 @@ impl GpuRenderer {
         state: &mut StageState,
         base: &Arc<Texture>,
         edits: &Edits,
+        levels: &PresenceLevels,
         t: &RenderTimings,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<()> {
-        let extent = state.extent;
+        let placed = state.placed();
         let mut cache: HashMap<[u32; 3], Arc<Texture>> = HashMap::new();
         for (layer, eff, amts) in layer_presence(edits) {
             let key = amts.bits();
@@ -105,7 +143,7 @@ impl GpuRenderer {
                 None if !amts.adjusts() => base.clone(),
                 None => {
                     let tex = t.stage(timing::PRESENCE, || {
-                        self.submit_presence(base, extent, &eff)
+                        self.submit_presence_adjust(base, placed, levels, &eff)
                     })?;
                     crate::cancel::check(cancel)?;
                     state.hold(tex)
@@ -121,16 +159,18 @@ impl GpuRenderer {
         &self,
         state: &mut StageState,
         edits: &Edits,
+        context: Option<&GlobalContext>,
         t: &RenderTimings,
     ) -> PipelineResult<()> {
-        if !crate::ops::presence::has_shadows(edits) {
+        if !has_shadows(edits) {
             return Ok(());
         }
-        let pyramid = t.stage(timing::SHADOWS, || {
-            self.submit_luma_pyramid(&state.texture, state.extent)
+        let blur = context.map(GlobalContext::shadows).transpose()?;
+        let (shadows, pyramid) = t.stage(timing::SHADOWS, || {
+            PipelineResult::Ok(self.submit_shadows_luma(&state.texture, state.placed(), blur))
         })?;
-        state.shadows = Some(state.hold(pyramid));
-        state.shadows_window = state.window();
+        state.held.push(pyramid);
+        state.shadows = Some(shadows);
         Ok(())
     }
 

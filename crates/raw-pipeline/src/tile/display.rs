@@ -19,6 +19,7 @@ pub struct DisplayLayout<'a> {
     pub working: (u32, u32),
     pub target: Option<(u32, u32)>,
     pub halo: u32,
+    pub reach: u32,
     pub align: u32,
 }
 
@@ -60,7 +61,7 @@ impl DisplayLayout<'_> {
         DisplayTile {
             core,
             rect,
-            window: window.align(self.align),
+            window: window.expand(self.reach, self.working).align(self.align),
         }
     }
 }

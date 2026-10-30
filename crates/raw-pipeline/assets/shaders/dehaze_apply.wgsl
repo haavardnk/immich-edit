@@ -1,6 +1,8 @@
 struct Params {
     size: vec2<u32>,
     lo_size: vec2<u32>,
+    origin: vec2<u32>,
+    grid_origin: vec2<u32>,
     atmosphere: vec4<f32>,
     amount: f32,
     scale: f32,
@@ -17,10 +19,11 @@ fn sample_ab(sp: vec2<f32>) -> vec2<f32> {
     let base = floor(sp);
     let f = sp - base;
     let hi = vec2<i32>(p.lo_size) - vec2<i32>(1);
-    let x0 = clamp(i32(base.x), 0, hi.x);
-    let y0 = clamp(i32(base.y), 0, hi.y);
-    let x1 = clamp(i32(base.x) + 1, 0, hi.x);
-    let y1 = clamp(i32(base.y) + 1, 0, hi.y);
+    let cell = vec2<i32>(base) - vec2<i32>(p.grid_origin);
+    let x0 = clamp(cell.x, 0, hi.x);
+    let y0 = clamp(cell.y, 0, hi.y);
+    let x1 = clamp(cell.x + 1, 0, hi.x);
+    let y1 = clamp(cell.y + 1, 0, hi.y);
     let c00 = textureLoad(ab_mean, vec2<i32>(x0, y0), 0).rg;
     let c10 = textureLoad(ab_mean, vec2<i32>(x1, y0), 0).rg;
     let c01 = textureLoad(ab_mean, vec2<i32>(x0, y1), 0).rg;
@@ -33,7 +36,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if (gid.x >= p.size.x || gid.y >= p.size.y) { return; }
     let pos = vec2<i32>(i32(gid.x), i32(gid.y));
     let c = textureLoad(rgb_in, pos, 0).rgb;
-    let ab = sample_ab((vec2<f32>(pos) + vec2<f32>(0.5)) / p.scale - vec2<f32>(0.5));
+    let ab = sample_ab((vec2<f32>(gid.xy + p.origin) + vec2<f32>(0.5)) / p.scale - vec2<f32>(0.5));
     let cc = clamp(c, vec3<f32>(0.0), vec3<f32>(1.0));
     let g = 0.2126 * cc.r + 0.7152 * cc.g + 0.0722 * cc.b;
     let t = clamp(ab.x * g + ab.y, 0.0, 1.0);

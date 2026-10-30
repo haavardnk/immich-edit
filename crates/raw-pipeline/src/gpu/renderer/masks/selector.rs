@@ -142,8 +142,9 @@ impl GpuRenderer {
                 tex(&stage.views.src),
                 tex(&full_view(&tone)),
                 tex(&full_view(&linear)),
-                tex(&stage.views.shadows),
+                tex(&stage.views.shadows_luma),
                 tex(&stage.views.dcp_base),
+                tex(&stage.views.shadows_blur),
             ],
         );
         dispatch_2d(

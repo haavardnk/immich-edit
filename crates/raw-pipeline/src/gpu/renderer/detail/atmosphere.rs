@@ -1,23 +1,34 @@
 use wgpu::{BufferUsages, CommandEncoderDescriptor, Texture};
 
+use super::pyramid::level_dims;
 use crate::PipelineResult;
+use crate::cancel::CancelToken;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::texture::extent_2d;
 
+pub(in crate::gpu::renderer) fn atmosphere_level((w, h): (u32, u32)) -> u32 {
+    let max_dim = w.max(h);
+    if max_dim <= 256 {
+        return 0;
+    }
+    (max_dim as f32 / 256.0).log2().ceil() as u32
+}
+
 impl GpuRenderer {
+    pub(in crate::gpu::renderer) fn cached_atmosphere(&self, key: u64) -> Option<[f32; 3]> {
+        self.sensor.atmospheres.lock().get(&key).copied()
+    }
+
     pub(in crate::gpu::renderer) fn atmosphere_for(
         &self,
         key: u64,
-        src: &Texture,
-        dims: (u32, u32),
-        cancel: Option<&crate::cancel::CancelToken>,
+        estimate: impl FnOnce() -> PipelineResult<[f32; 3]>,
     ) -> PipelineResult<[f32; 3]> {
-        if let Some(a) = self.sensor.atmospheres.lock().get(&key).copied() {
+        if let Some(a) = self.cached_atmosphere(key) {
             tracing::debug!(target: "dehaze", "atm cache hit");
             return Ok(a);
         }
-        let _span = tracing::debug_span!("gpu_dehaze_atm", w = dims.0, h = dims.1).entered();
-        let atm = self.estimate_atmosphere(src, dims, cancel)?;
+        let atm = estimate()?;
         self.sensor
             .atmosphere_estimates
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -25,22 +36,24 @@ impl GpuRenderer {
         Ok(atm)
     }
 
-    fn estimate_atmosphere(
+    pub(in crate::gpu::renderer) fn estimate_atmosphere(
         &self,
         src: &Texture,
-        dims: (u32, u32),
-        cancel: Option<&crate::cancel::CancelToken>,
+        (w, h): (u32, u32),
+        cancel: Option<&CancelToken>,
     ) -> PipelineResult<[f32; 3]> {
-        let (w, h) = dims;
-        let max_dim = w.max(h);
-        let level: u32 = if max_dim <= 256 {
-            0
-        } else {
-            (max_dim as f32 / 256.0).log2().ceil() as u32
-        };
-        let level = level.min(src.mip_level_count().saturating_sub(1));
-        let wl = (w >> level).max(1);
-        let hl = (h >> level).max(1);
+        let _span = tracing::debug_span!("gpu_dehaze_atm", w, h).entered();
+        let level = atmosphere_level((w, h)).min(src.mip_level_count().saturating_sub(1));
+        self.read_atmosphere(src, level, level_dims((w, h), level), cancel)
+    }
+
+    pub(in crate::gpu::renderer) fn read_atmosphere(
+        &self,
+        src: &Texture,
+        level: u32,
+        (wl, hl): (u32, u32),
+        cancel: Option<&CancelToken>,
+    ) -> PipelineResult<[f32; 3]> {
         let bpp: u32 = 8;
         let row_align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let unpadded = wl * bpp;

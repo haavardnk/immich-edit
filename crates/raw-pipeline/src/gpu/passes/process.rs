@@ -48,6 +48,7 @@ impl ProcessFastPass {
                 storage_entry(3, TextureFormat::Rgba16Float),
                 tex_entry(4),
                 tex_entry_with(5, false, TextureViewDimension::D3),
+                tex_entry(6),
             ],
         );
         let pipeline = make_pipeline_raw(ctx, &layout, &format!("{label_prefix}-cp"), &built.wgsl);

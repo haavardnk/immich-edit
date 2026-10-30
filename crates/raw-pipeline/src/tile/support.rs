@@ -24,6 +24,10 @@ fn gcd(a: u32, b: u32) -> u32 {
     if b == 0 { a } else { gcd(b, a % b) }
 }
 
+pub fn lcm(a: u32, b: u32) -> u32 {
+    a / gcd(a, b) * b
+}
+
 fn cfa_period(cfa: &str, cpp: usize) -> Option<u32> {
     if cpp != 1 {
         return None;
@@ -37,7 +41,7 @@ fn cfa_period(cfa: &str, cpp: usize) -> Option<u32> {
 
 pub fn alignment(cfa: &str, cpp: usize, block: usize) -> u32 {
     let cfa = cfa_period(cfa, cpp).map_or(1, |period| period / gcd(period, block as u32));
-    cfa * HIST_ALIGN / gcd(cfa, HIST_ALIGN)
+    lcm(cfa, HIST_ALIGN)
 }
 
 pub fn demosaic(cfa: &str, cpp: usize, block: usize) -> u32 {

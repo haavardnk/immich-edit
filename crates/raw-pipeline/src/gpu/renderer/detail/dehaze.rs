@@ -1,65 +1,113 @@
 use wgpu::{CommandEncoderDescriptor, Texture};
 
-use crate::PipelineResult;
-use crate::edits::Edits;
-use crate::gpu::dispatch::{begin_pass, bind_group, samp, tex};
+use crate::gpu::dispatch::{begin_pass, bind_group, tex};
 use crate::gpu::passes::dehaze::{
     DehazeApplyParams, DehazeDownsampleParams, DehazeFilterParams, DehazeNormParams,
     DehazeSizeParams, MOMENT_FORMAT,
 };
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::source::SourceExtent;
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
+use crate::gpu::renderer::display::{GridView, HazeGrid, Placed};
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::ops::dehaze::DehazeGrid;
+use crate::tile::Rect;
+
+pub(in crate::gpu::renderer) fn haze_dims((w, h): (u32, u32), scale: u32) -> (u32, u32) {
+    ((w / scale).max(1), (h / scale).max(1))
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::gpu::renderer) struct HazeSample {
+    pub cells: Rect,
+    pub read: (u32, u32),
+    pub scale: u32,
+}
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn submit_dehaze(
+    pub(in crate::gpu::renderer) fn submit_local_haze(
         &self,
         src: &Texture,
-        extent: SourceExtent,
-        edits: &Edits,
-        atm: [f32; 3],
-    ) -> PipelineResult<PooledTexture> {
+        placed: Placed,
+        atmosphere: [f32; 3],
+    ) -> (HazeGrid, PooledTexture) {
+        let Placed { extent, origin } = placed;
+        let grid = DehazeGrid::for_dims(extent.full);
+        let lo = haze_dims(extent.dims, grid.scale);
+        let lo_src = self.texture_pool.acquire(
+            &self.ctx.device,
+            TextureKey::new(self.ctx.linear_format, lo.0, lo.1, 1, STORAGE_SAMPLED),
+            "dehaze-lo-src",
+        );
+        let sample = HazeSample {
+            cells: Rect::full(lo),
+            read: (0, 0),
+            scale: grid.scale,
+        };
+        self.submit_haze_downsample(src, &lo_src, sample);
+        let ab = self.submit_haze_grid(&lo_src, lo, grid, atmosphere);
+        let haze = HazeGrid {
+            atmosphere,
+            ab: GridView::local(full_view(&ab), origin, grid.scale.trailing_zeros()),
+        };
+        (haze, ab)
+    }
+
+    pub(in crate::gpu::renderer) fn submit_haze_downsample(
+        &self,
+        src: &Texture,
+        dst: &Texture,
+        sample: HazeSample,
+    ) {
         let device = &self.ctx.device;
-        let (w, h) = extent.dims;
-        let DehazeGrid {
-            scale,
-            patch: r_patch,
-            guided: r_gf,
-            ..
-        } = DehazeGrid::for_dims(extent.full);
-        let lw = (w / scale).max(1);
-        let lh = (h / scale).max(1);
-        let amount = (edits.basic.dehaze as f32 / 100.0).clamp(-1.0, 1.0);
-
-        let scratch_key = TextureKey::new(self.ctx.linear_format, lw, lh, 1, STORAGE_SAMPLED);
-        let moment_key = TextureKey::new(MOMENT_FORMAT, lw, lh, 1, STORAGE_SAMPLED);
-        let make_scratch_lo =
-            |label: &'static str| self.texture_pool.acquire(device, scratch_key, label);
-        let make_moment_lo =
-            |label: &'static str| self.texture_pool.acquire(device, moment_key, label);
-        let lo_src = make_scratch_lo("dehaze-lo-src");
-        let dn = make_moment_lo("dehaze-dn");
-        let dn_h = make_moment_lo("dehaze-dn-h");
-        let dn_min = make_moment_lo("dehaze-dn-min");
-        let packed = make_moment_lo("dehaze-pack");
-        let packed_h = make_moment_lo("dehaze-pack-h");
-        let packed_v = make_moment_lo("dehaze-pack-v");
-        let ab = make_moment_lo("dehaze-ab");
-        let ab_h = make_moment_lo("dehaze-ab-h");
-        let ab_v = make_moment_lo("dehaze-ab-v");
-        let out_key = TextureKey::new(self.ctx.linear_format, w, h, 1, STORAGE_SAMPLED);
-        let out = self.texture_pool.acquire(device, out_key, "dehaze-out");
-
-        let downsample_buf = self.uniform(
+        let HazeSample { cells, read, scale } = sample;
+        let uniform = self.uniform(
             &DehazeDownsampleParams {
-                size: [lw, lh],
+                size: [cells.w, cells.h],
+                read: [read.0, read.1],
+                write: [cells.x, cells.y],
                 scale,
                 _pad: 0,
             },
             "dehaze-downsample-u",
         );
+        let p = &self.passes.dehaze;
+        let bind = bind_group(
+            device,
+            "dehaze-downsample-bg",
+            &p.downsample_layout,
+            &[
+                uniform.as_entire_binding(),
+                tex(&full_view(src)),
+                tex(&full_view(dst)),
+            ],
+        );
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("dehaze-downsample-enc"),
+        });
+        {
+            let mut c = begin_pass(&mut encoder, "dehaze-downsample-pass");
+            c.set_pipeline(&p.downsample_pipeline);
+            c.set_bind_group(0, &bind, &[]);
+            c.dispatch_workgroups(cells.w.div_ceil(16), cells.h.div_ceil(16), 1);
+        }
+        self.ctx.queue.submit(Some(encoder.finish()));
+    }
+
+    pub(in crate::gpu::renderer) fn submit_haze_grid(
+        &self,
+        lo_src: &Texture,
+        (lw, lh): (u32, u32),
+        grid: DehazeGrid,
+        atm: [f32; 3],
+    ) -> PooledTexture {
+        let device = &self.ctx.device;
+        let moment_key = TextureKey::new(MOMENT_FORMAT, lw, lh, 1, STORAGE_SAMPLED);
+        let moments = [
+            self.texture_pool
+                .acquire(device, moment_key, "dehaze-moments-a"),
+            self.texture_pool
+                .acquire(device, moment_key, "dehaze-moments-b"),
+        ];
         let norm_buf = self.uniform(
             &DehazeNormParams {
                 size: [lw, lh],
@@ -68,8 +116,7 @@ impl GpuRenderer {
             },
             "dehaze-norm-u",
         );
-
-        let make_filter_u = |radius: u32, axis: u32, label: &'static str| {
+        let filter_u = |radius: u32, axis: u32, label: &'static str| {
             let params = DehazeFilterParams {
                 size: [lw, lh],
                 radius,
@@ -77,23 +124,94 @@ impl GpuRenderer {
             };
             self.uniform(&params, label)
         };
-        let min_h_buf = make_filter_u(r_patch, 0, "dehaze-min-h-u");
-        let min_v_buf = make_filter_u(r_patch, 1, "dehaze-min-v-u");
-        let box_h_buf = make_filter_u(r_gf, 0, "dehaze-box-h-u");
-        let box_v_buf = make_filter_u(r_gf, 1, "dehaze-box-v-u");
-
-        let lo_size_buf = self.uniform(
+        let min_h_buf = filter_u(grid.patch, 0, "dehaze-min-h-u");
+        let min_v_buf = filter_u(grid.patch, 1, "dehaze-min-v-u");
+        let box_h_buf = filter_u(grid.guided, 0, "dehaze-box-h-u");
+        let box_v_buf = filter_u(grid.guided, 1, "dehaze-box-v-u");
+        let size_buf = self.uniform(
             &DehazeSizeParams {
                 size: [lw, lh],
                 _pad: [0; 2],
             },
             "dehaze-lo-size-u",
         );
+        let lo_view = full_view(lo_src);
+        let a = full_view(&moments[0]);
+        let b = full_view(&moments[1]);
+        let p = &self.passes.dehaze;
+        let steps = [
+            (&p.norm_pipeline, &p.norm_layout, &norm_buf, None, &a),
+            (&p.min_pipeline, &p.min_layout, &min_h_buf, None, &b),
+            (&p.min_pipeline, &p.min_layout, &min_v_buf, None, &a),
+            (&p.pack_pipeline, &p.pack_layout, &size_buf, Some(&a), &b),
+            (&p.box_pipeline, &p.box_layout, &box_h_buf, None, &a),
+            (&p.box_pipeline, &p.box_layout, &box_v_buf, None, &b),
+            (&p.ab_pipeline, &p.ab_layout, &size_buf, None, &a),
+            (&p.box_pipeline, &p.box_layout, &box_h_buf, None, &b),
+            (&p.box_pipeline, &p.box_layout, &box_v_buf, None, &a),
+        ];
+        let mut input = &lo_view;
+        let binds: Vec<_> = steps
+            .iter()
+            .map(|&(pipeline, layout, uniform, extra, output)| {
+                let bind = match extra {
+                    Some(extra) => bind_group(
+                        device,
+                        "dehaze-grid-bg",
+                        layout,
+                        &[
+                            uniform.as_entire_binding(),
+                            tex(&lo_view),
+                            tex(extra),
+                            tex(output),
+                        ],
+                    ),
+                    None => bind_group(
+                        device,
+                        "dehaze-grid-bg",
+                        layout,
+                        &[uniform.as_entire_binding(), tex(input), tex(output)],
+                    ),
+                };
+                input = output;
+                (pipeline, bind)
+            })
+            .collect();
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("dehaze-grid-enc"),
+        });
+        {
+            let mut c = begin_pass(&mut encoder, "dehaze-grid-pass");
+            for (pipeline, bind) in &binds {
+                c.set_pipeline(pipeline);
+                c.set_bind_group(0, bind, &[]);
+                c.dispatch_workgroups(lw.div_ceil(16), lh.div_ceil(16), 1);
+            }
+        }
+        self.ctx.queue.submit(Some(encoder.finish()));
+        let [ab, _] = moments;
+        ab
+    }
 
-        let apply_buf = self.uniform(
+    pub(in crate::gpu::renderer) fn submit_dehaze_apply(
+        &self,
+        src: &Texture,
+        placed: Placed,
+        haze: &HazeGrid,
+        amount: f32,
+    ) -> PooledTexture {
+        let device = &self.ctx.device;
+        let Placed { extent, origin } = placed;
+        let (w, h) = extent.dims;
+        let scale = DehazeGrid::for_dims(extent.full).scale;
+        let lo = haze.ab.view.texture().size();
+        let atm = haze.atmosphere;
+        let uniform = self.uniform(
             &DehazeApplyParams {
                 size: [w, h],
-                lo_size: [lw, lh],
+                lo_size: [lo.width, lo.height],
+                origin: [origin.0, origin.1],
+                grid_origin: [haze.ab.origin.0, haze.ab.origin.1],
                 atmosphere: [atm[0], atm[1], atm[2], 1.0],
                 amount,
                 scale: scale as f32,
@@ -101,177 +219,33 @@ impl GpuRenderer {
             },
             "dehaze-apply-u",
         );
-
-        let src_view = full_view(src);
-        let lo_src_view = full_view(&lo_src);
-        let lo_src_store_view = mip_view(&lo_src, 0);
-        let dn_view = full_view(&dn);
-        let dn_h_view = full_view(&dn_h);
-        let dn_min_view = full_view(&dn_min);
-        let packed_view = full_view(&packed);
-        let packed_h_view = full_view(&packed_h);
-        let packed_v_view = full_view(&packed_v);
-        let ab_view = full_view(&ab);
-        let ab_h_view = full_view(&ab_h);
-        let ab_v_view = full_view(&ab_v);
-        let out_view = full_view(&out);
-
+        let out = self.texture_pool.acquire(
+            device,
+            TextureKey::new(self.ctx.linear_format, w, h, 1, STORAGE_SAMPLED),
+            "dehaze-out",
+        );
         let p = &self.passes.dehaze;
-        let bg_downsample = bind_group(
-            device,
-            "dehaze-downsample-bg",
-            &p.downsample_layout,
-            &[
-                downsample_buf.as_entire_binding(),
-                tex(&src_view),
-                samp(&p.linear_sampler),
-                tex(&lo_src_store_view),
-            ],
-        );
-        let bg_norm = bind_group(
-            device,
-            "dehaze-norm-bg",
-            &p.norm_layout,
-            &[
-                norm_buf.as_entire_binding(),
-                tex(&lo_src_view),
-                tex(&dn_view),
-            ],
-        );
-        let bg_min_h = bind_group(
-            device,
-            "dehaze-min-h-bg",
-            &p.min_layout,
-            &[
-                min_h_buf.as_entire_binding(),
-                tex(&dn_view),
-                tex(&dn_h_view),
-            ],
-        );
-        let bg_min_v = bind_group(
-            device,
-            "dehaze-min-v-bg",
-            &p.min_layout,
-            &[
-                min_v_buf.as_entire_binding(),
-                tex(&dn_h_view),
-                tex(&dn_min_view),
-            ],
-        );
-        let bg_pack = bind_group(
-            device,
-            "dehaze-pack-bg",
-            &p.pack_layout,
-            &[
-                lo_size_buf.as_entire_binding(),
-                tex(&lo_src_view),
-                tex(&dn_min_view),
-                tex(&packed_view),
-            ],
-        );
-        let bg_box_h_pack = bind_group(
-            device,
-            "dehaze-box-h-pack-bg",
-            &p.box_layout,
-            &[
-                box_h_buf.as_entire_binding(),
-                tex(&packed_view),
-                tex(&packed_h_view),
-            ],
-        );
-        let bg_box_v_pack = bind_group(
-            device,
-            "dehaze-box-v-pack-bg",
-            &p.box_layout,
-            &[
-                box_v_buf.as_entire_binding(),
-                tex(&packed_h_view),
-                tex(&packed_v_view),
-            ],
-        );
-        let bg_ab = bind_group(
-            device,
-            "dehaze-ab-bg",
-            &p.ab_layout,
-            &[
-                lo_size_buf.as_entire_binding(),
-                tex(&packed_v_view),
-                tex(&ab_view),
-            ],
-        );
-        let bg_box_h_ab = bind_group(
-            device,
-            "dehaze-box-h-ab-bg",
-            &p.box_layout,
-            &[
-                box_h_buf.as_entire_binding(),
-                tex(&ab_view),
-                tex(&ab_h_view),
-            ],
-        );
-        let bg_box_v_ab = bind_group(
-            device,
-            "dehaze-box-v-ab-bg",
-            &p.box_layout,
-            &[
-                box_v_buf.as_entire_binding(),
-                tex(&ab_h_view),
-                tex(&ab_v_view),
-            ],
-        );
-        let bg_apply = bind_group(
+        let bind = bind_group(
             device,
             "dehaze-apply-bg",
             &p.apply_layout,
             &[
-                apply_buf.as_entire_binding(),
-                tex(&src_view),
-                tex(&ab_v_view),
-                tex(&out_view),
+                uniform.as_entire_binding(),
+                tex(&full_view(src)),
+                tex(&haze.ab.view),
+                tex(&full_view(&out)),
             ],
         );
-
         let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("dehaze-enc"),
+            label: Some("dehaze-apply-enc"),
         });
-        let gx_lo = lw.div_ceil(16);
-        let gy_lo = lh.div_ceil(16);
-        let gx = w.div_ceil(16);
-        let gy = h.div_ceil(16);
         {
-            let mut c = begin_pass(&mut encoder, "dehaze-pass");
-            c.set_pipeline(&p.downsample_pipeline);
-            c.set_bind_group(0, &bg_downsample, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.norm_pipeline);
-            c.set_bind_group(0, &bg_norm, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.min_pipeline);
-            c.set_bind_group(0, &bg_min_h, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_bind_group(0, &bg_min_v, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.pack_pipeline);
-            c.set_bind_group(0, &bg_pack, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.box_pipeline);
-            c.set_bind_group(0, &bg_box_h_pack, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_bind_group(0, &bg_box_v_pack, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.ab_pipeline);
-            c.set_bind_group(0, &bg_ab, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_pipeline(&p.box_pipeline);
-            c.set_bind_group(0, &bg_box_h_ab, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
-            c.set_bind_group(0, &bg_box_v_ab, &[]);
-            c.dispatch_workgroups(gx_lo, gy_lo, 1);
+            let mut c = begin_pass(&mut encoder, "dehaze-apply-pass");
             c.set_pipeline(&p.apply_pipeline);
-            c.set_bind_group(0, &bg_apply, &[]);
-            c.dispatch_workgroups(gx, gy, 1);
+            c.set_bind_group(0, &bind, &[]);
+            c.dispatch_workgroups(w.div_ceil(16), h.div_ceil(16), 1);
         }
         self.ctx.queue.submit(Some(encoder.finish()));
-        Ok(out)
+        out
     }
 }
