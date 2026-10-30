@@ -75,7 +75,7 @@ mod working_set;
 use admission::Admission;
 pub use display::DisplayFrame;
 #[cfg(feature = "native")]
-use display::OutputShape;
+use display::{DisplayRequest, OutputShape};
 pub use options::GpuRendererOptions;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
@@ -344,8 +344,14 @@ impl GpuRenderer {
                 (RenderSource::Linear(linear), _) => linear,
             };
             let full = linear.extent().full;
-            let shape = OutputShape::new(&linear.meta, edits, options.max_edge, full);
-            let display = self.display_chain(linear, edits, options, shape, timings, cancel)?;
+            let request = DisplayRequest {
+                source: linear,
+                edits,
+                opts: options,
+                shape: OutputShape::new(&linear.meta, edits, options.max_edge, full),
+                context: None,
+            };
+            let display = self.display_chain(request, timings, cancel)?;
             self.read_display(display, cancel)?
                 .into_rendered(options, source.meta().is_raw, cancel)
         }))

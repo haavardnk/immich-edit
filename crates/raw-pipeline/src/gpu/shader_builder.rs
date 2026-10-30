@@ -13,7 +13,7 @@ const PROCESS_HEADER_FIELDS: &str = "    src_size: vec2<u32>,
     out_size: vec2<u32>,
     crop: vec4<f32>,
     flags: vec4<u32>,
-    geom_extra: vec4<f32>,
+    shadows_origin_level: vec4<u32>,
     active_mask: vec4<u32>,
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
@@ -149,27 +149,27 @@ pub fn build_for(
 @group(0) @binding(1) var src_tex: texture_2d<f32>;
 {display_store}
 @group(0) @binding(3) var linear_tex: texture_storage_2d<rgba16float, write>;
-@group(0) @binding(4) var shadows_blur_tex: texture_2d<f32>;
+@group(0) @binding(4) var shadows_luma_tex: texture_2d<f32>;
 @group(0) @binding(5) var dcp_base_tex: texture_3d<f32>;
+@group(0) @binding(6) var shadows_blur_tex: texture_2d<f32>;
 
 var<private> shadows_blur_l: f32 = 0.0;
 var<private> shadows_source_l: f32 = 0.0;
 
-fn shadows_luma_at(level: u32, x: i32, y: i32) -> f32 {{
-    let dim = vec2<i32>(textureDimensions(shadows_blur_tex, level));
+fn shadows_luma_at(tex: texture_2d<f32>, x: i32, y: i32) -> f32 {{
+    let dim = vec2<i32>(textureDimensions(tex));
     let at = clamp(vec2<i32>(x, y), vec2<i32>(0), dim - 1);
-    return textureLoad(shadows_blur_tex, at, i32(level)).r;
+    return textureLoad(tex, at, 0).r;
 }}
 
-fn sample_shadows_blur(px: vec2<f32>, window: vec2<u32>, mip: f32) -> f32 {{
-    let level = min(u32(mip), textureNumLevels(shadows_blur_tex) - 1u);
+fn sample_shadows(tex: texture_2d<f32>, px: vec2<f32>, window: vec2<u32>, origin: vec2<u32>, level: u32) -> f32 {{
     let pos = (px - vec2<f32>(window)) / f32(1u << level) - 0.5;
     let base = floor(pos);
     let t = pos - base;
-    let x0 = i32(base.x);
-    let y0 = i32(base.y);
-    let top = mix(shadows_luma_at(level, x0, y0), shadows_luma_at(level, x0 + 1, y0), t.x);
-    let bottom = mix(shadows_luma_at(level, x0, y0 + 1), shadows_luma_at(level, x0 + 1, y0 + 1), t.x);
+    let x0 = i32(base.x) - i32(origin.x);
+    let y0 = i32(base.y) - i32(origin.y);
+    let top = mix(shadows_luma_at(tex, x0, y0), shadows_luma_at(tex, x0 + 1, y0), t.x);
+    let bottom = mix(shadows_luma_at(tex, x0, y0 + 1), shadows_luma_at(tex, x0 + 1, y0 + 1), t.x);
     return mix(top, bottom, t.y);
 }}
 
@@ -271,8 +271,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let shadows_px = sensor_uv * vec2<f32>(p.shadows_window.zw);
 
     let rgb = sample_src_cubic(frame_px, p.src_window.xy);
-    shadows_blur_l = sample_shadows_blur(shadows_px, p.shadows_window.xy, p.geom_extra.y);
-    shadows_source_l = sample_shadows_blur(shadows_px, p.shadows_window.xy, 0.0);
+    shadows_blur_l = sample_shadows(shadows_blur_tex, shadows_px, p.shadows_window.xy, vec2<u32>(0u), p.shadows_origin_level.z);
+    shadows_source_l = sample_shadows(shadows_luma_tex, shadows_px, p.shadows_window.xy, p.shadows_origin_level.xy, 0u);
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);
     if (p.geom_extra3.z > 0.5 && (src_px.x < 0.0 || src_px.y < 0.0 || src_px.x > p.geom_extra3.x - 1.0 || src_px.y > p.geom_extra3.y - 1.0)) {{

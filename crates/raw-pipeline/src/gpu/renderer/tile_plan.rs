@@ -1,5 +1,5 @@
 use super::display_tiles::DisplayTiles;
-use super::{GpuRenderer, SensorShape, SourcePlan, presence_display};
+use super::{GpuRenderer, SensorShape, SourcePlan};
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
 use crate::frame::{PreviewMode, RawFrame, RenderOptions};
@@ -63,7 +63,7 @@ impl<'a> Tileable<'a> {
             out,
             chain_fits,
             fits_single_pass,
-            display: plan.displays() && display_tileable(edits, options),
+            display: plan.displays() && display_tileable(options),
         })
     }
 
@@ -93,19 +93,20 @@ impl<'a> Tileable<'a> {
 
     fn display_fits(&self, edge: u32) -> bool {
         let layout = DisplayTiles::new(self.frame, self.edits, self.options, &self.shape, edge);
-        layout.tiles.iter().all(|tile| {
-            let sensor = self.shape.chain.tile(tile.window);
-            tile.rect.w.max(tile.rect.h) <= self.limits.max_texture_dimension_2d
-                && self.shape.fits(self.frame, &sensor, &self.limits)
-        })
+        let limit = self.limits.max_texture_dimension_2d;
+        let fits_limit = |(w, h): (u32, u32)| w.max(h) <= limit;
+        let context = layout.context.is_none_or(|plan| plan.fits(limit));
+        context
+            && layout.tiles.iter().all(|tile| fits_limit(tile.rect.dims()))
+            && layout.windows().all(|window| {
+                let sensor = self.shape.chain.tile(window);
+                self.shape.fits(self.frame, &sensor, &self.limits)
+            })
     }
 }
 
-fn display_tileable(edits: &Edits, options: &RenderOptions) -> bool {
-    !presence_display(edits)
-        && !options.histogram
-        && !options.scopes
-        && options.preview_mode == PreviewMode::None
+fn display_tileable(options: &RenderOptions) -> bool {
+    !options.histogram && !options.scopes && options.preview_mode == PreviewMode::None
 }
 
 impl GpuRenderer {

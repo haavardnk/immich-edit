@@ -76,21 +76,51 @@ pub(super) fn copy_texture(
     encoder: &mut CommandEncoder,
     src: &Texture,
     dst: &Texture,
-    (width, height): (u32, u32),
+    dims: (u32, u32),
 ) {
-    encoder.copy_texture_to_texture(
-        TexelCopyTextureInfo {
-            texture: src,
-            mip_level: 0,
-            origin: Origin3d::ZERO,
-            aspect: TextureAspect::All,
-        },
-        TexelCopyTextureInfo {
-            texture: dst,
-            mip_level: 0,
-            origin: Origin3d::ZERO,
-            aspect: TextureAspect::All,
-        },
-        extent_2d((width, height)),
+    copy_region(
+        encoder,
+        Region::at(src, 0, (0, 0)),
+        Region::at(dst, 0, (0, 0)),
+        dims,
     );
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct Region<'t> {
+    texture: &'t Texture,
+    level: u32,
+    origin: (u32, u32),
+}
+
+impl<'t> Region<'t> {
+    pub fn at(texture: &'t Texture, level: u32, origin: (u32, u32)) -> Self {
+        Self {
+            texture,
+            level,
+            origin,
+        }
+    }
+
+    fn info(self) -> TexelCopyTextureInfo<'t> {
+        TexelCopyTextureInfo {
+            texture: self.texture,
+            mip_level: self.level,
+            origin: Origin3d {
+                x: self.origin.0,
+                y: self.origin.1,
+                z: 0,
+            },
+            aspect: TextureAspect::All,
+        }
+    }
+}
+
+pub(super) fn copy_region(
+    encoder: &mut CommandEncoder,
+    src: Region<'_>,
+    dst: Region<'_>,
+    dims: (u32, u32),
+) {
+    encoder.copy_texture_to_texture(src.info(), dst.info(), extent_2d(dims));
 }

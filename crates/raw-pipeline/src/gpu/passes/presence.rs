@@ -24,9 +24,10 @@ pub fn presence_adjust_wgsl() -> String {
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct PresenceParams {
     pub size: [u32; 2],
-    pub _pad0: [u32; 2],
+    pub origin: [u32; 2],
     pub amounts: [f32; 4],
     pub mips: [u32; 4],
+    pub anchors: [u32; 4],
 }
 
 #[repr(C)]

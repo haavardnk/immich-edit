@@ -18,6 +18,7 @@ use super::passes::denoise_blend::{DENOISE_BLEND_WGSL, DenoiseBlendParams};
 use super::passes::dng_warp::{DngWarpParams, dng_warp_wgsl};
 use super::passes::effects_tone::{EffectsToneParams, effects_tone_wgsl};
 use super::passes::lens_blur::{LensBlurParams, apply_wgsl, down_wgsl, gather_wgsl};
+use super::passes::luma_pyramid::{LUMA_EXTRACT_WGSL, LumaExtractParams};
 use super::passes::lut::{LutParams, lut_wgsl};
 use super::passes::mask_blend::{MASK_BLEND_WGSL, MaskBlendParams};
 use super::passes::mask_selector::{MaskSelectorParams, mask_selector_wgsl};
@@ -218,7 +219,7 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "dehaze_downsample",
-            layout!(DehazeDownsampleParams { size, scale } pad { _pad }),
+            layout!(DehazeDownsampleParams { size, read, write, scale } pad { _pad }),
             uniform_struct(DOWNSAMPLE_WGSL),
         ),
         (
@@ -232,7 +233,7 @@ fn uniform_structs_mirror_wgsl() {
         ("dehaze_ab", size_only(), uniform_struct(AB_WGSL)),
         (
             "dehaze_apply",
-            layout!(DehazeApplyParams { size, lo_size, atmosphere, amount, scale } pad { _pad }),
+            layout!(DehazeApplyParams { size, lo_size, origin, grid_origin, atmosphere, amount, scale } pad { _pad }),
             uniform_struct(APPLY_WGSL),
         ),
         ("lens_blur_down", lens_blur(), uniform_struct(&down_wgsl())),
@@ -245,6 +246,11 @@ fn uniform_structs_mirror_wgsl() {
             "lens_blur_apply",
             lens_blur(),
             uniform_struct(&apply_wgsl()),
+        ),
+        (
+            "luma_extract",
+            layout!(LumaExtractParams { offset } pad { _pad }),
+            uniform_struct(LUMA_EXTRACT_WGSL),
         ),
         (
             "demosaic",
@@ -374,7 +380,7 @@ fn uniform_structs_mirror_wgsl() {
         ),
         (
             "presence_adjust",
-            layout!(PresenceParams { size, amounts, mips } pad { _pad0 }),
+            layout!(PresenceParams { size, origin, amounts, mips, anchors } pad {}),
             uniform_struct(&presence_adjust_wgsl()),
         ),
         (
@@ -454,7 +460,7 @@ fn process_uniform_mirrors_header_and_op_slots() {
         out_size,
         crop,
         flags,
-        geom_extra,
+        shadows_origin_level,
         active_mask,
         geom_extra2,
         geom_extra3,

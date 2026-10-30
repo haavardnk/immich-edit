@@ -9,7 +9,7 @@ pub(super) struct ProcessHeader {
     pub out_size: [u32; 2],
     pub crop: [f32; 4],
     pub flags: [u32; 4],
-    pub geom_extra: [f32; 4],
+    pub shadows_origin_level: [u32; 4],
     pub active_mask: [u32; ACTIVE_MASK_WORDS],
     pub geom_extra2: [f32; 4],
     pub geom_extra3: [f32; 4],

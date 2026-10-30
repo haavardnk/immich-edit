@@ -61,7 +61,7 @@ impl GpuRenderer {
                 out_size: [w, h],
                 crop: [0.0, 0.0, 1.0, 1.0],
                 flags: [0, 0, 0, 0],
-                geom_extra: [0.0; 4],
+                shadows_origin_level: [0; 4],
                 active_mask: [0; 4],
                 geom_extra2: [0.0; 4],
                 geom_extra3: [0.0; 4],

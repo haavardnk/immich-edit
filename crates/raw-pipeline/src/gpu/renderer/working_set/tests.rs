@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
@@ -19,10 +19,23 @@ const SAMPLE_EVERY: Duration = Duration::from_micros(100);
 const MAX_OVERESTIMATE: f64 = 1.25;
 const DEPTH: &str = "depth";
 
-fn peak_render(frame: &RawFrame, edits: &Edits, opts: &RenderOptions) -> Option<(u64, u64)> {
+static MEASURING: Mutex<()> = Mutex::new(());
+
+fn peak_render(
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+    tiles: TilePlan,
+) -> Option<(u64, u64)> {
+    let display_tile_edge = match tiles {
+        TilePlan::DisplayTiled { edge } => Some(edge),
+        TilePlan::SinglePass | TilePlan::SensorTiled { .. } => None,
+    };
+    let _measuring = MEASURING.lock().unwrap_or_else(PoisonError::into_inner);
     let renderer = GpuRenderer::with_options(GpuRendererOptions {
         texture_cache_max_bytes: Some(u64::MAX / 2),
         memory_budget_bytes: Some(u64::MAX),
+        display_tile_edge,
         ..GpuRendererOptions::default()
     })
     .ok()?;
@@ -45,8 +58,7 @@ fn peak_render(frame: &RawFrame, edits: &Edits, opts: &RenderOptions) -> Option<
     if let Err(e) = rendered {
         panic!("the measured render failed: {e}");
     }
-    let estimate =
-        renderer.estimate_render(RenderSource::Raw(frame), edits, opts, TilePlan::SinglePass);
+    let estimate = renderer.estimate_render(RenderSource::Raw(frame), edits, opts, tiles);
     Some((peak.load(Ordering::Relaxed) - base, estimate))
 }
 
@@ -141,8 +153,8 @@ fn export_16() -> RenderOptions {
     }
 }
 
-fn check(name: &str, frame: &RawFrame, edits: &Edits, opts: &RenderOptions) {
-    let Some((measured, estimate)) = peak_render(frame, edits, opts) else {
+fn check(name: &str, frame: &RawFrame, edits: &Edits, opts: &RenderOptions, tiles: TilePlan) {
+    let Some((measured, estimate)) = peak_render(frame, edits, opts, tiles) else {
         return;
     };
     let ratio = estimate as f64 / measured as f64;
@@ -163,6 +175,20 @@ fn the_estimate_covers_the_measured_peak_of_a_24_mp_export() {
         &sharp_mosaic(6000, 4000),
         &full_edits(),
         &export_16(),
+        TilePlan::SinglePass,
+    );
+}
+
+#[test]
+fn the_estimate_covers_the_measured_peak_of_display_tiles_with_a_context() {
+    let mut edits = full_edits();
+    edits.retouch.clear();
+    check(
+        "24 MP display tiles",
+        &sharp_mosaic(6000, 4000),
+        &edits,
+        &export_16(),
+        TilePlan::DisplayTiled { edge: 512 },
     );
 }
 
@@ -174,5 +200,6 @@ fn the_estimate_covers_the_measured_peak_of_a_100_mp_export() {
         &sharp_mosaic(11648, 8736),
         &full_edits(),
         &export_16(),
+        TilePlan::SinglePass,
     );
 }

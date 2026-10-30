@@ -8,4 +8,5 @@ pub mod gpu;
 pub mod lut;
 pub mod parity;
 pub mod render;
+pub mod retouch;
 pub mod roundtrip;

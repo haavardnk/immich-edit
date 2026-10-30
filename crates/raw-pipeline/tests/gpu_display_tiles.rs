@@ -1,12 +1,13 @@
 use raw_pipeline::decode;
 use raw_pipeline::edits::{
-    CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
-    MaskedEdits, Vec2f,
+    BokehShape, CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer,
+    MaskSource, MaskedEdits, Vec2f,
 };
 use raw_pipeline::frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
 };
 use raw_pipeline::{GpuRenderer, GpuRendererOptions};
+use raw_pipeline_testkit::depth::{bokeh_frame, depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
@@ -197,7 +198,7 @@ fn magnified_and_roi_previews_with_a_range_mask_match_the_single_pass() {
     let (Some(single), Some(tiled)) = (try_renderer(), tiled_renderer()) else {
         return;
     };
-    let roi = RenderOptions {
+    let roi = || RenderOptions {
         roi: Some(CropRect {
             x: 0.3,
             y: 0.25,
@@ -208,7 +209,8 @@ fn magnified_and_roi_previews_with_a_range_mask_match_the_single_pass() {
     };
     let cases = [
         ("magnified preview", tight_crop_edits(), rgb8_opts(1600)),
-        ("roi preview", local_edits(), roi),
+        ("roi preview", local_edits(), roi()),
+        ("context roi preview", context_edits(), roi()),
     ];
     for name in FIXTURES {
         let frame = decoded(name);
@@ -220,27 +222,114 @@ fn magnified_and_roi_previews_with_a_range_mask_match_the_single_pass() {
     }
 }
 
-#[test]
-fn a_render_with_a_large_support_stage_never_display_tiles() {
-    let Some(tiled) = tiled_renderer() else {
-        return;
+fn masked_presence(id: &str, edits: MaskedEdits) -> MaskLayer {
+    let radial = MaskComponentKind::Radial {
+        center: Vec2f { x: 0.6, y: 0.4 },
+        radius_xy: Vec2f { x: 0.25, y: 0.3 },
+        feather: 0.5,
+        angle: 0.0,
     };
-    let frame = decoded("Canon_EOS_5D_3-2.cr2");
-    let mut edits = local_edits();
-    edits.tone.shadows = 40.0;
-    render(&tiled, &frame, &edits, &rgb8_opts(1600));
-    if tiled.display_tiles() != 0 {
-        panic!("a shadows render was cut into display tiles");
+    MaskLayer {
+        edits,
+        ..layer(id, radial, 0.0)
     }
 }
 
-fn budget_edits() -> [(&'static str, Edits); 2] {
+fn context_edits() -> Edits {
+    let mut edits = warped_edits();
+    edits.basic.dehaze = 35.0;
+    edits.basic.texture = 40.0;
+    edits.basic.clarity = 30.0;
+    edits.tone.shadows = 45.0;
+    edits.masks.push(masked_presence(
+        "detail",
+        MaskedEdits {
+            texture: Some(-50.0),
+            clarity: Some(60.0),
+            shadows: Some(-30.0),
+            ..Default::default()
+        },
+    ));
+    edits
+}
+
+fn base_level_edits() -> Edits {
+    let mut edits = local_edits();
+    edits.basic.dehaze = -25.0;
+    edits.tone.shadows = 40.0;
+    edits.masks.push(masked_presence(
+        "texture",
+        MaskedEdits {
+            texture: Some(70.0),
+            ..Default::default()
+        },
+    ));
+    edits
+}
+
+fn masked_shadows_edits() -> Edits {
+    let mut edits = local_edits();
+    edits.masks.push(masked_presence(
+        "shadows",
+        MaskedEdits {
+            shadows: Some(60.0),
+            ..Default::default()
+        },
+    ));
+    edits
+}
+
+#[test]
+fn display_tiles_with_a_shared_context_match_the_single_pass() {
+    let (Some(single), Some(tiled)) = (try_renderer(), tiled_renderer()) else {
+        return;
+    };
+    for name in FIXTURES {
+        require_tiled_parity(&single, &tiled, name, &context_edits());
+    }
+    for edits in [base_level_edits(), masked_shadows_edits()] {
+        require_tiled_parity(&single, &tiled, "Canon_EOS_5D_3-2.cr2", &edits);
+    }
+}
+
+#[test]
+fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
+    let (Some(single), Some(tiled)) = (try_renderer(), tiled_renderer()) else {
+        return;
+    };
+    let opts = RenderOptions {
+        rasters: depth_rasters(),
+        quality: true,
+        ..rgb8_opts(1800)
+    };
+    let mut edits = lens_blur_edits(80.0, BokehShape::Hexagon, 40.0);
+    edits.basic.dehaze = 30.0;
+    edits.basic.clarity = 40.0;
+    edits.tone.shadows = 35.0;
+    for orientation in [(false, false, false), (true, true, false)] {
+        let mut frame = bokeh_frame(1800, 1200);
+        frame.meta.orientation = orientation;
+        let before = tiled.display_tiles();
+        let reference = render(&single, &frame, &edits, &opts);
+        let got = render(&tiled, &frame, &edits, &opts);
+        if tiled.display_tiles() - before < 4 {
+            panic!("the lens blur render {orientation:?} did not use display tiles");
+        }
+        require_identical(&format!("lens blur {orientation:?}"), &reference, &got);
+    }
+}
+
+fn budget_edits() -> [(&'static str, Edits); 3] {
     let mut plain = Edits::default();
     plain.detail.luma_nr_amount = 40.0;
     let mut effects = plain.clone();
     effects.effects.grain_amount = 20.0;
     effects.effects.vignette_amount = -30.0;
-    [("plain", plain), ("effects", effects)]
+    let mut spatial = plain.clone();
+    spatial.basic.dehaze = 30.0;
+    spatial.basic.clarity = 30.0;
+    spatial.tone.shadows = 40.0;
+    [("plain", plain), ("effects", effects), ("spatial", spatial)]
 }
 
 #[test]

@@ -1,3 +1,4 @@
+mod context;
 mod finish;
 mod linear;
 mod shape;
@@ -24,10 +25,13 @@ use crate::gpu::texture::STORAGE_SAMPLED;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
 use crate::ops::GpuRoute;
-use crate::ops::presence::presence_blurs;
 use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
+pub(super) use context::{
+    ContextNeeds, GlobalContext, GridView, HazeGrid, LevelView, Placed, PresenceLevels,
+    ShadowLevels,
+};
 pub(super) use finish::FinishStage;
 #[cfg(feature = "native")]
 pub(super) use finish::final_pass_active;
@@ -41,6 +45,14 @@ pub(super) struct DisplayInput<'s> {
     pub edits: &'s Edits,
     pub opts: &'s RenderOptions,
     pub shape: OutputShape,
+}
+
+pub(super) struct DisplayRequest<'r> {
+    pub source: &'r LinearSource,
+    pub edits: &'r Edits,
+    pub opts: &'r RenderOptions,
+    pub shape: OutputShape,
+    pub context: Option<&'r GlobalContext>,
 }
 
 #[derive(Clone, Copy)]
@@ -57,25 +69,19 @@ pub(super) struct StageState {
     pub texture: Arc<Texture>,
     pub extent: SourceExtent,
     pub origin: (u32, u32),
-    pub shadows_mip: f32,
-    pub shadows: Option<Arc<Texture>>,
-    pub shadows_window: [u32; 4],
+    pub shadows: Option<ShadowLevels>,
     atmosphere: Option<[f32; 3]>,
     layers: HashMap<String, Arc<Texture>>,
     held: Vec<PooledTexture>,
 }
 
 impl StageState {
-    fn new(source: &LinearSource) -> Self {
-        let extent = source.extent();
-        let (full_w, full_h) = extent.full;
+    pub fn new(source: &LinearSource) -> Self {
         Self {
             texture: source.texture.clone(),
-            extent,
-            origin: source.window.map_or((0, 0), |w| w.origin),
-            shadows_mip: presence_blurs(full_w, full_h).shadows.level as f32,
+            extent: source.extent(),
+            origin: source.origin(),
             shadows: None,
-            shadows_window: [0; 4],
             atmosphere: source.atmosphere,
             layers: HashMap::new(),
             held: Vec::new(),
@@ -86,6 +92,13 @@ impl StageState {
         let (x, y) = self.origin;
         let (w, h) = self.extent.full;
         [x, y, w, h]
+    }
+
+    pub fn placed(&self) -> Placed {
+        Placed {
+            extent: self.extent,
+            origin: self.origin,
+        }
     }
 
     fn hold(&mut self, texture: PooledTexture) -> Arc<Texture> {
@@ -155,20 +168,29 @@ impl GpuRenderer {
             return Err(PipelineError::DeviceLost);
         }
         let edits = super::compose_edits(edits, opts);
-        let shape = OutputShape::new(&source.meta, &edits, opts.max_edge, source.extent().full);
-        let timings = RenderTimings::new(&self.ctx);
-        self.display_chain(source, &edits, opts, shape, timings, None)
+        let request = DisplayRequest {
+            source,
+            edits: &edits,
+            opts,
+            shape: OutputShape::new(&source.meta, &edits, opts.max_edge, source.extent().full),
+            context: None,
+        };
+        self.display_chain(request, RenderTimings::new(&self.ctx), None)
     }
 
     pub(super) fn display_chain<'a>(
         &'a self,
-        source: &LinearSource,
-        edits: &Edits,
-        opts: &RenderOptions,
-        shape: OutputShape,
+        request: DisplayRequest<'_>,
         timings: RenderTimings<'a>,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<DisplayFrame<'a>> {
+        let DisplayRequest {
+            source,
+            edits,
+            opts,
+            shape,
+            context,
+        } = request;
         let edits_c = edits.clamped();
         let meta = &source.meta;
         let depth = display_depth(opts);
@@ -198,12 +220,13 @@ impl GpuRenderer {
         }
 
         let t = &timings;
-        self.dehaze_stage(&mut state, &edits_c, t, cancel)?;
+        self.dehaze_stage(&mut state, &edits_c, context, t, cancel)?;
         self.lens_blur_stage(&mut state, meta, &edits_c, opts, t, cancel)?;
         let base = state.texture.clone();
-        self.presence_stage(&mut state, &edits_c, t, cancel)?;
-        self.layer_presence_stage(&mut state, &base, &edits_c, t, cancel)?;
-        self.shadows_stage(&mut state, &edits_c, t)?;
+        let levels = self.presence_levels(&mut state, &edits_c, context, t, cancel)?;
+        self.presence_stage(&mut state, &edits_c, &levels, t, cancel)?;
+        self.layer_presence_stage(&mut state, &base, &edits_c, &levels, t, cancel)?;
+        self.shadows_stage(&mut state, &edits_c, context, t)?;
         let input = DisplayInput {
             pass: passes.1,
             meta,

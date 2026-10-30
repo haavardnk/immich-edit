@@ -1,22 +1,24 @@
 struct PresenceParams {
     size: vec2<u32>,
+    origin: vec2<u32>,
     amounts: vec4<f32>,
     mips: vec4<u32>,
+    anchors: vec4<u32>,
 }
 
 @group(0) @binding(0) var<uniform> p: PresenceParams;
 @group(0) @binding(1) var base: texture_2d<f32>;
-@group(0) @binding(2) var pyramid: texture_2d<f32>;
+@group(0) @binding(2) var luma_level: texture_2d<f32>;
 @group(0) @binding(3) var dst: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(4) var guide: texture_2d<f32>;
 
 // TONE_WGSL_INJECT
 
-fn luma_at(level: u32, x: i32, y: i32) -> f32 {
-    let dim = textureDimensions(pyramid, level);
-    let ix = clamp(x, 0, i32(dim.x) - 1);
-    let iy = clamp(y, 0, i32(dim.y) - 1);
-    return textureLoad(pyramid, vec2<i32>(ix, iy), i32(level)).r;
+fn luma_at(x: i32, y: i32) -> f32 {
+    let dim = textureDimensions(luma_level);
+    let ix = clamp(x - i32(p.anchors.x), 0, i32(dim.x) - 1);
+    let iy = clamp(y - i32(p.anchors.y), 0, i32(dim.y) - 1);
+    return textureLoad(luma_level, vec2<i32>(ix, iy), 0).r;
 }
 
 fn sampled_luma(level: u32, fx: f32, fy: f32) -> f32 {
@@ -27,10 +29,10 @@ fn sampled_luma(level: u32, fx: f32, fy: f32) -> f32 {
     let y0 = i32(floor(ly));
     let tx = lx - f32(x0);
     let ty = ly - f32(y0);
-    let l00 = luma_at(level, x0, y0);
-    let l10 = luma_at(level, x0 + 1, y0);
-    let l01 = luma_at(level, x0, y0 + 1);
-    let l11 = luma_at(level, x0 + 1, y0 + 1);
+    let l00 = luma_at(x0, y0);
+    let l10 = luma_at(x0 + 1, y0);
+    let l01 = luma_at(x0, y0 + 1);
+    let l11 = luma_at(x0 + 1, y0 + 1);
     let lx0 = mix(l00, l10, tx);
     let lx1 = mix(l01, l11, tx);
     return mix(lx0, lx1, ty);
@@ -38,8 +40,8 @@ fn sampled_luma(level: u32, fx: f32, fy: f32) -> f32 {
 
 fn guide_at(x: i32, y: i32) -> vec2<f32> {
     let dim = textureDimensions(guide);
-    let ix = clamp(x, 0, i32(dim.x) - 1);
-    let iy = clamp(y, 0, i32(dim.y) - 1);
+    let ix = clamp(x - i32(p.anchors.z), 0, i32(dim.x) - 1);
+    let iy = clamp(y - i32(p.anchors.w), 0, i32(dim.y) - 1);
     return textureLoad(guide, vec2<i32>(ix, iy), 0).xy;
 }
 
@@ -66,8 +68,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let y0 = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
     let y0c = max(y0, 1e-5);
 
-    let fx = f32(gid.x) + 0.5;
-    let fy = f32(gid.y) + 0.5;
+    let fx = f32(gid.x + p.origin.x) + 0.5;
+    let fy = f32(gid.y + p.origin.y) + 0.5;
 
     var log_gain: f32 = 0.0;
     if (p.amounts.x != 0.0) {

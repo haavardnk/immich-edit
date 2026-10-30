@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use wgpu::{
-    CommandEncoderDescriptor, Extent3d, Origin3d, PollType, TexelCopyTextureInfo, Texture,
-    TextureAspect, TextureUsages,
-};
+use wgpu::{CommandEncoderDescriptor, PollType, Texture, TextureUsages};
 
 use super::{DetailJob, SensorJob};
+use crate::gpu::dispatch::{Region, copy_region};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::limits::check_texture;
 use crate::gpu::renderer::GpuRenderer;
@@ -60,10 +58,7 @@ impl GpuRenderer {
             self.encode_mipgen(&mut encoder, &working, w, h);
             self.ctx.queue.submit(Some(encoder.finish()));
         }
-        let atmosphere = match &job.detail {
-            Some(detail) => self.atmosphere(job, detail, &working)?,
-            None => None,
-        };
+        let atmosphere = self.atmosphere(job, &working)?;
         Ok(job.source(working, atmosphere))
     }
 
@@ -101,30 +96,17 @@ impl GpuRenderer {
     }
 
     fn place(&self, texture: &Texture, src: Rect, dst: Rect, working: &Texture) {
-        let at = |texture, rect: Rect| TexelCopyTextureInfo {
-            texture,
-            mip_level: 0,
-            origin: Origin3d {
-                x: rect.x,
-                y: rect.y,
-                z: 0,
-            },
-            aspect: TextureAspect::All,
-        };
         let mut encoder = self
             .ctx
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("sensor-tile-place"),
             });
-        encoder.copy_texture_to_texture(
-            at(texture, src),
-            at(working, dst),
-            Extent3d {
-                width: dst.w,
-                height: dst.h,
-                depth_or_array_layers: 1,
-            },
+        copy_region(
+            &mut encoder,
+            Region::at(texture, 0, (src.x, src.y)),
+            Region::at(working, 0, (dst.x, dst.y)),
+            dst.dims(),
         );
         self.ctx.queue.submit(Some(encoder.finish()));
     }

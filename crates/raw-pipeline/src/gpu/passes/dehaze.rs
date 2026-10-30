@@ -1,13 +1,12 @@
 // color-space: linear scene-referred Rgba16Float in/out
 use std::sync::Arc;
 
-use wgpu::{BindGroupLayout, ComputePipeline, Sampler, SamplerDescriptor, TextureFormat};
+use wgpu::{BindGroupLayout, ComputePipeline, TextureFormat};
 
 use crate::gpu::context::GpuContext;
 
 use super::common::{
-    make_layout, make_pipeline, sampler_entry, storage_entry, tex_entry, tex_entry_with,
-    uniform_entry,
+    make_layout, make_pipeline, storage_entry, tex_entry, tex_entry_with, uniform_entry,
 };
 
 pub const MOMENT_FORMAT: TextureFormat = TextureFormat::Rgba32Float;
@@ -32,6 +31,8 @@ pub const APPLY_UNIFORM_SIZE: u64 = size_of::<DehazeApplyParams>() as u64;
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DehazeDownsampleParams {
     pub size: [u32; 2],
+    pub read: [u32; 2],
+    pub write: [u32; 2],
     pub scale: u32,
     pub _pad: u32,
 }
@@ -64,6 +65,8 @@ pub struct DehazeFilterParams {
 pub struct DehazeApplyParams {
     pub size: [u32; 2],
     pub lo_size: [u32; 2],
+    pub origin: [u32; 2],
+    pub grid_origin: [u32; 2],
     pub atmosphere: [f32; 4],
     pub amount: f32,
     pub scale: f32,
@@ -107,8 +110,7 @@ fn make_layout_downsample(ctx: &Arc<GpuContext>, label: &str) -> BindGroupLayout
         &[
             uniform_entry(0, DOWNSAMPLE_UNIFORM_SIZE),
             tex_entry(1),
-            sampler_entry(2),
-            storage_entry(3, ctx.linear_format),
+            storage_entry(2, ctx.linear_format),
         ],
     )
 }
@@ -141,7 +143,6 @@ pub struct DehazePasses {
     pub ab_pipeline: ComputePipeline,
     pub apply_layout: BindGroupLayout,
     pub apply_pipeline: ComputePipeline,
-    pub linear_sampler: Sampler,
 }
 
 impl DehazePasses {
@@ -172,17 +173,6 @@ impl DehazePasses {
         let apply_layout = make_layout_apply(ctx, "dehaze-apply-bgl");
         let apply_pipeline = make_pipeline(ctx, &apply_layout, "dehaze_apply.wgsl", APPLY_WGSL);
 
-        let linear_sampler = ctx.device.create_sampler(&SamplerDescriptor {
-            label: Some("dehaze-linear-sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-            ..Default::default()
-        });
-
         Self {
             downsample_layout,
             downsample_pipeline,
@@ -198,7 +188,6 @@ impl DehazePasses {
             ab_pipeline,
             apply_layout,
             apply_pipeline,
-            linear_sampler,
         }
     }
 }

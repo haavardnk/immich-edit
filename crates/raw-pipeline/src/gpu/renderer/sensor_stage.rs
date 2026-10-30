@@ -128,6 +128,22 @@ impl<'a> SensorJob<'a> {
         &self.shape
     }
 
+    pub fn frame(&self) -> &'a RawFrame {
+        self.frame
+    }
+
+    pub fn edits(&self) -> &Edits {
+        &self.edits
+    }
+
+    pub fn timings(&self) -> &'a RenderTimings<'a> {
+        self.t
+    }
+
+    pub fn cancel(&self) -> Option<&'a CancelToken> {
+        self.cancel
+    }
+
     fn working_mips(&self) -> bool {
         !self.shape.resamples() || self.plan.atmosphere
     }
@@ -136,11 +152,16 @@ impl<'a> SensorJob<'a> {
         self.tiles == TilePlan::SinglePass
     }
 
+    pub fn atmosphere_key(&self) -> Option<u64> {
+        let detail = self.detail.as_ref().filter(|_| self.plan.atmosphere)?;
+        Some(detail.keys.spatial(self.shape.sigma, self.shape.working()))
+    }
+
     fn cache(&self, key: u64) -> Option<u64> {
         self.cached().then_some(key)
     }
 
-    fn check(&self) -> PipelineResult<()> {
+    pub fn check(&self) -> PipelineResult<()> {
         crate::cancel::check(self.cancel)
     }
 
@@ -306,23 +327,23 @@ impl GpuRenderer {
         };
         let wb = self.sensor_wb(job, detail, &base)?;
         let (texture, _) = self.sensor_detail(job, detail, &tile, &wb, None)?;
-        let atmosphere = self.atmosphere(job, detail, &texture)?;
+        let atmosphere = self.atmosphere(job, &texture)?;
         Ok(job.source(texture, atmosphere))
     }
 
     fn atmosphere(
         &self,
         job: &SensorJob<'_>,
-        detail: &DetailJob,
         texture: &Texture,
     ) -> PipelineResult<Option<[f32; 3]>> {
-        if !job.plan.atmosphere {
+        let Some(key) = job.atmosphere_key() else {
             return Ok(None);
-        }
+        };
         let working = job.shape.working();
-        let key = detail.keys.spatial(job.shape.sigma, working);
         let atmosphere = job.t.stage(timing::DEHAZE, || {
-            self.atmosphere_for(key, texture, working, job.cancel)
+            self.atmosphere_for(key, || {
+                self.estimate_atmosphere(texture, working, job.cancel)
+            })
         })?;
         job.check()?;
         Ok(Some(atmosphere))

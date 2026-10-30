@@ -231,9 +231,9 @@ The error after it names the cause:
   limit`: the photo or export is larger than the GPU accepts, such as a wide panorama, and uses an
   adjustment that cannot render in [tiles](rendering.md#the-server). It renders on the CPU.
 - `render needs ... of gpu memory, budget ...`: the render needs more GPU memory than the
-  [budget](rendering.md#gpu-memory) allows even in tiles, which happens with very large exports
-  that use Dehaze, Texture, Clarity, Shadows, lens blur or retouch strokes on GPUs with little
-  memory. It renders on the CPU.
+  [budget](rendering.md#gpu-memory) allows and no tile size fits either. This happens with very
+  large exports that use retouch strokes, which cannot render in tiles, on GPUs with little memory.
+  It renders on the CPU.
 - `gpu out of memory`: the GPU ran out of memory for this render. The server lowers its GPU memory
   budget and retries the render in tiles, then on the CPU. If it happens often, set
   `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower `GPU_TEXTURE_CACHE_MB`.

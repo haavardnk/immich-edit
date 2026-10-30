@@ -45,9 +45,12 @@ output renders from its own part of the photo, and the stitched result again mat
 render exactly. The next render uses the GPU again. Only a lost GPU device takes the GPU out of use
 until the server rebuilds it.
 
-Dehaze, Texture, Clarity, Shadows, lens blur and masks with Texture or Clarity read the whole
-image, and healing and clone strokes copy pixels across the whole photo. A render that uses any of
-them cannot be cut into output tiles, so it renders on the CPU when its image does not fit. Previews of photos whose
+Dehaze, Texture, Clarity, Shadows and masks with Texture, Clarity or Shadows depend on the whole
+image. Before it renders output tiles, the server measures them once over the whole photo, one
+section at a time, and every tile reads those shared measurements, so the stitched result still
+matches a single-pass render exactly. Lens blur widens each tile by the reach of its blur. Healing
+and clone strokes copy pixels across the whole photo, so a render with them cannot be cut into
+tiles and renders on the CPU when its image does not fit. Previews of photos whose
 long edge passes 32768 px (49152 px for X-Trans) average larger pixel blocks so the preview fits
 the GPU.
 

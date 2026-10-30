@@ -1,21 +1,29 @@
+mod context;
 mod stitch;
 
 use std::sync::atomic::Ordering;
 
 use super::GpuRenderer;
-use super::display::OutputShape;
+use super::display::{DisplayRequest, OutputShape};
 use super::sensor_stage::{SensorJob, SensorShape, SourcePlan};
 use crate::PipelineResult;
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions, RenderedImage};
 use crate::gpu::timer::RenderTimings;
-use crate::tile::{DisplayLayout, DisplayTile, TilePlan, support};
+use crate::ops::lens_blur::LensBlur;
+use crate::tile::{DisplayLayout, DisplayTile, Rect, TilePlan, support};
+use context::ContextJob;
+pub(super) use context::{Coarse, ContextPlan};
 use stitch::Stitch;
 
 pub(super) struct DisplayTiles {
     pub shape: OutputShape,
     pub tiles: Vec<DisplayTile>,
+    pub context: Option<ContextPlan>,
+    pub cores: Vec<Rect>,
+    reach: u32,
+    working: (u32, u32),
 }
 
 impl DisplayTiles {
@@ -29,6 +37,8 @@ impl DisplayTiles {
         let meta = &frame.meta;
         let working = sensor.working();
         let shape = OutputShape::new(meta, edits, options.max_edge, working);
+        let reach = LensBlur::resolve(edits, &options.rasters, working)
+            .map_or(0, |blur| blur.scale.margin());
         let layout = DisplayLayout {
             meta,
             edits,
@@ -36,12 +46,28 @@ impl DisplayTiles {
             working,
             target: shape.target(working),
             halo: support::display_halo(meta.width.max(meta.height) as u32),
+            reach,
             align: sensor.chain.align,
         };
+        let context = ContextPlan::new(&edits.clamped(), working, sensor.chain.align);
+        let core_edge = (edge as f32 * shape.ratio.max(1.0)).ceil() as u32;
         Self {
             shape,
             tiles: layout.tiles(edge),
+            cores: context.map_or_else(Vec::new, |plan| plan.cores(core_edge)),
+            context,
+            reach,
+            working,
         }
+    }
+
+    pub fn context_window(&self, core: Rect) -> Rect {
+        core.expand(self.reach, self.working)
+    }
+
+    pub fn windows(&self) -> impl Iterator<Item = Rect> + '_ {
+        let context = self.cores.iter().map(|&core| self.context_window(core));
+        context.chain(self.tiles.iter().map(|tile| tile.window))
     }
 }
 
@@ -61,11 +87,22 @@ impl GpuRenderer {
     ) -> PipelineResult<RenderedImage> {
         let plan = SourcePlan::for_render(edits, frame);
         let tiling = TilePlan::DisplayTiled { edge };
-        let (layout, profile) = {
+        let (layout, profile, context) = {
             let job = SensorJob::new(frame, edits, options, plan, tiling, &timings, cancel)?;
             let layout = DisplayTiles::new(frame, edits, options, job.shape(), edge);
             let partition = job.shape().chain.tiles(edge);
-            (layout, self.tiled_noise_profile(&job, &partition)?)
+            let profile = self.tiled_noise_profile(&job, &partition)?;
+            let context = match &layout.context {
+                Some(plan) => Some(self.build_context(&ContextJob {
+                    sensor: &job,
+                    options,
+                    profile,
+                    plan,
+                    layout: &layout,
+                })?),
+                None => None,
+            };
+            (layout, profile, context)
         };
         let pooled = self.texture_pool.bytes();
         let mut stitch = Stitch::new(layout.shape.full);
@@ -75,15 +112,26 @@ impl GpuRenderer {
                 let job = SensorJob::new(frame, edits, options, plan, tiling, &timings, cancel)?;
                 self.sensor_window(&job, tile.window, profile)?
             };
-            let shape = layout.shape.tile(tile.rect);
-            let display = self.display_chain(&linear, edits, options, shape, timings, cancel)?;
+            let request = DisplayRequest {
+                source: &linear,
+                edits,
+                opts: options,
+                shape: layout.shape.tile(tile.rect),
+                context: context.as_ref().map(|tiles| &tiles.context),
+            };
+            let display = self.display_chain(request, timings, cancel)?;
             timings = stitch.place(self.read_display(display, cancel)?, tile)?;
             self.wait_idle(pooled)?;
             crate::cancel::check(cancel)?;
         }
         self.display_tiles
             .fetch_add(layout.tiles.len() as u64, Ordering::Relaxed);
-        tracing::debug!(tiles = layout.tiles.len(), edge, "gpu display tiles");
+        tracing::debug!(
+            tiles = layout.tiles.len(),
+            context = layout.cores.len(),
+            edge,
+            "gpu display tiles"
+        );
         stitch
             .finish(timings)?
             .into_rendered(options, frame.meta.is_raw, cancel)
