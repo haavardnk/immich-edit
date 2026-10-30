@@ -76,6 +76,21 @@ impl Rect {
         }
     }
 
+    pub fn rescaled(self, from: (u32, u32), to: (u32, u32)) -> Self {
+        let floor = |v: u32, f: u32, t: u32| (u64::from(v) * u64::from(t) / u64::from(f)) as u32;
+        let ceil = |v: u32, f: u32, t: u32| {
+            (u64::from(v) * u64::from(t))
+                .div_ceil(u64::from(f))
+                .min(u64::from(t)) as u32
+        };
+        Self::bounds(
+            floor(self.x, from.0, to.0),
+            floor(self.y, from.1, to.1),
+            ceil(self.right(), from.0, to.0),
+            ceil(self.bottom(), from.1, to.1),
+        )
+    }
+
     pub fn grid((w, h): (u32, u32), edge: u32) -> impl Iterator<Item = Self> {
         let edge = edge.max(1);
         (0..h.div_ceil(edge)).flat_map(move |row| {

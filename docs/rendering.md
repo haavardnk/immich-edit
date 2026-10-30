@@ -38,10 +38,12 @@ CPU renderer. `IMMICH_EDIT_RENDERER` chooses between them; see [configuration](c
 
 A photo larger than the GPU's texture or buffer limits, or a render larger than its
 [memory budget](#gpu-memory), renders its sensor stage (demosaic, lens corrections, noise
-reduction and capture sharpening) in tiles, and the result matches a single-pass render exactly.
-When the rest of the render still does not fit, or the photo has healing or clone strokes, it
-renders on the CPU. The next render uses the GPU again. Only a lost GPU device takes the GPU out of
-use until the server rebuilds it.
+reduction and capture sharpening) in tiles. When the rest of the render still does not fit, it
+renders the output in tiles too. The stitched result matches a single-pass render exactly. Healing
+and clone strokes prevent tiling, and Dehaze, Texture, Clarity, Shadows, lens blur and masks with
+Texture or Clarity prevent output tiles, so such renders go to the CPU when they do not fit. The
+next render uses the GPU again. Only a lost GPU device takes the GPU out of use until the server
+rebuilds it.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).

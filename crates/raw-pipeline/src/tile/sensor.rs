@@ -95,7 +95,7 @@ impl SensorChain {
             .collect()
     }
 
-    fn tile(&self, core: Rect) -> SensorTile {
+    pub fn tile(&self, core: Rect) -> SensorTile {
         let hist = self.hist_cell(core);
         let needed = self.footprint(core).union(hist);
         let mut rects = vec![needed.expand(self.detail, self.sensor).align(self.align)];

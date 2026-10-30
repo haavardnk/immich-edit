@@ -1,7 +1,7 @@
 use wgpu::{CommandEncoder, Texture, TextureView};
 
 use super::GpuRenderer;
-use super::display::StageState;
+use super::display::{OutputShape, StageState};
 use super::geometry::ProcessGeom;
 use super::masks::Retained;
 use super::uniform::{build_process_uniform, header_uniform};
@@ -19,7 +19,7 @@ pub(super) struct ProcessPlan {
     pub ctx_op: OpContext,
     pub header: ProcessHeader,
     pub layer_header: ProcessHeader,
-    pub out_dims: (u32, u32),
+    pub shape: OutputShape,
 }
 
 impl ProcessPlan {
@@ -28,7 +28,7 @@ impl ProcessPlan {
         edits: &Edits,
         opts: &RenderOptions,
         state: &StageState,
-        out_dims: (u32, u32),
+        shape: &OutputShape,
     ) -> Self {
         let geom = ProcessGeom::new(meta, edits, state.extent.full);
         let setup = crate::dcp::setup::resolve(meta, edits, opts.dcp.as_deref());
@@ -42,32 +42,17 @@ impl ProcessPlan {
                 roi: opts.roi,
                 white: setup.white,
                 dcp: setup.resolved,
-                output_scale: crate::geom::output_scale(
-                    meta.orientation,
-                    edits,
-                    (meta.width as u32, meta.height as u32),
-                    out_dims,
-                ),
+                output_scale: shape.scale,
             },
             scratch: OpScratch::default(),
         };
-        let header = |warp: bool| {
-            header_uniform(
-                edits,
-                &geom,
-                state.extent.dims,
-                state.window,
-                out_dims,
-                state.shadows_mip,
-                warp,
-            )
-        };
+        let header = |warp: bool| header_uniform(edits, &geom, state, shape, warp);
         Self {
             header: header(true),
             layer_header: header(false),
             geom,
             ctx_op,
-            out_dims,
+            shape: *shape,
         }
     }
 }
@@ -137,8 +122,8 @@ impl GpuRenderer {
             "process-pass",
             &pass.pipeline,
             &bind,
-            plan.out_dims.0.div_ceil(16),
-            plan.out_dims.1.div_ceil(16),
+            plan.shape.rect.w.div_ceil(16),
+            plan.shape.rect.h.div_ceil(16),
         );
         retained.uniforms.push(uniform);
         retained.binds.push(bind);

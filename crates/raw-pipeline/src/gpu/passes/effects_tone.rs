@@ -20,13 +20,13 @@ pub const EFFECTS_TONE_UNIFORM_SIZE: u64 = size_of::<EffectsToneParams>() as u64
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct EffectsToneParams {
     pub size: [u32; 2],
-    pub _pad0: [u32; 2],
+    pub full: [u32; 2],
     pub vignette: [f32; 4],
     pub grain: [f32; 3],
     pub display_p3: u32,
     pub warn_flags: u32,
     pub output_scale: f32,
-    pub _pad1: [u32; 2],
+    pub origin: [u32; 2],
     pub roi: [f32; 4],
 }
 

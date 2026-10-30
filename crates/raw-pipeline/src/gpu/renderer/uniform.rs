@@ -1,4 +1,5 @@
 use super::GpuRenderer;
+use super::display::{OutputShape, StageState};
 use super::geometry::ProcessGeom;
 use crate::edits::Edits;
 use crate::gpu::shader_builder::BuiltProcessShader;
@@ -27,15 +28,14 @@ impl GpuRenderer {
 pub(super) fn header_uniform(
     edits: &Edits,
     geom: &ProcessGeom,
-    sensor: (u32, u32),
-    src_window: [f32; 4],
-    out: (u32, u32),
-    shadows_mip_f: f32,
+    state: &StageState,
+    shape: &OutputShape,
     warp: bool,
 ) -> ProcessHeader {
+    let (src_w, src_h) = state.extent.dims;
     ProcessHeader {
-        src_size: [sensor.0, sensor.1],
-        out_size: [out.0, out.1],
+        src_size: [src_w, src_h],
+        out_size: [shape.full.0, shape.full.1],
         crop: [geom.crop.x, geom.crop.y, geom.crop.w, geom.crop.h],
         flags: [
             edits.geometry.rotate as u32,
@@ -43,7 +43,7 @@ pub(super) fn header_uniform(
             edits.geometry.flip_v as u32,
             geom.orient_packed,
         ],
-        geom_extra: [0.0, shadows_mip_f, 0.0, 0.0],
+        geom_extra: [0.0, state.shadows_mip, 0.0, 0.0],
         active_mask: [0; 4],
         geom_extra2: [geom.cos_a, geom.sin_a, geom.bw, geom.bh],
         geom_extra3: [
@@ -52,9 +52,10 @@ pub(super) fn header_uniform(
             if warp && geom.geom_warps { 1.0 } else { 0.0 },
             0.0,
         ],
-        output: [0, 0, 0, 0],
+        output: shape.output(),
         perspective: geom.persp_rows,
-        src_window,
+        src_window: state.window(),
+        shadows_window: state.shadows_window,
     }
 }
 

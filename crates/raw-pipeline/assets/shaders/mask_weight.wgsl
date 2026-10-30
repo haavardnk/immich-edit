@@ -8,6 +8,7 @@ struct MaskParams {
     geom_extra3: vec4<f32>,
     lens: vec4<f32>,
     perspective: array<vec4<f32>, 3>,
+    tile: vec4<i32>,
 };
 
 struct Component {
@@ -168,11 +169,11 @@ fn component_weight(c: Component, u: f32, v: f32, display_rgb: vec3<f32>) -> f32
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.out_size.x || gid.y >= p.out_size.y) { return; }
+    if (i32(gid.x) >= p.tile.z || i32(gid.y) >= p.tile.w) { return; }
     let ow = f32(p.out_size.x);
     let oh = f32(p.out_size.y);
-    let du = (f32(gid.x) + 0.5) / ow;
-    let dv = (f32(gid.y) + 0.5) / oh;
+    let du = (f32(i32(gid.x) + p.tile.x) + 0.5) / ow;
+    let dv = (f32(i32(gid.y) + p.tile.y) + 0.5) / oh;
     let scene = display_to_scene(du, dv);
     let u = scene.x;
     let v = scene.y;

@@ -308,9 +308,12 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
     ];
     for (label, frame) in frames {
         let long = frame.meta.width.max(frame.meta.height) as u32;
-        for (case, edits) in tile_cases() {
+        let cases = tile_cases()
+            .into_iter()
+            .flat_map(|case| [(case.clone(), 4), (case, 10)]);
+        for ((case, edits), shrink) in cases {
             let sensor = edits.sensor_stage();
-            let tile = tile_opts(long / 4, roi);
+            let tile = tile_opts(long / shrink, roi);
             let sources = [
                 (
                     "gpu",
@@ -327,11 +330,11 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                 let windowed = source::decode(&wire(&windowed.unwrap().image)).unwrap();
                 let full = source::decode(&wire(&full.unwrap().image)).unwrap();
                 let Some(window) = windowed.header.window else {
-                    panic!("{label} {case} {kind}: a small tile was not windowed");
+                    panic!("{label} {case} 1/{shrink} {kind}: a small tile was not windowed");
                 };
                 if window.full != full.header.dims || windowed.header.dims.0 >= window.full.0 {
                     panic!(
-                        "{label} {case} {kind}: window {window:?} does not sit in the full source"
+                        "{label} {case} 1/{shrink} {kind}: window {window:?} does not sit in the full source"
                     );
                 }
                 let from_window = renderer
@@ -341,7 +344,7 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                     .render(&renderer.upload_source(&full).unwrap(), &edits, &tile)
                     .unwrap();
                 if (from_window.width, from_window.height) != (from_full.width, from_full.height) {
-                    panic!("{label} {case} {kind}: the tile rendered at different dims");
+                    panic!("{label} {case} 1/{shrink} {kind}: the tile rendered at different dims");
                 }
                 let delta = mean_abs_delta(&from_window.bytes, &from_full.bytes);
                 let worst = from_window
@@ -353,7 +356,7 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                     .unwrap_or(0);
                 if delta > 0.01 || worst > 2 {
                     panic!(
-                        "{label} {case} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
+                        "{label} {case} 1/{shrink} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
                     );
                 }
             }

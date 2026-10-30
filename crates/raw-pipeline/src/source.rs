@@ -6,6 +6,8 @@ pub(crate) mod wire;
 use crate::frame::FrameMeta;
 
 #[cfg(feature = "native")]
+pub(crate) use window::source_bounds;
+#[cfg(feature = "native")]
 pub use window::{WindowRect, crop_rgb, window_rect};
 pub use wire::decode;
 #[cfg(feature = "native")]
@@ -28,18 +30,6 @@ pub enum LinearKind {
 pub struct SourceWindow {
     pub origin: (u32, u32),
     pub full: (u32, u32),
-}
-
-impl SourceWindow {
-    pub fn uv_rect(&self, dims: (u32, u32)) -> [f32; 4] {
-        let (fw, fh) = (self.full.0 as f32, self.full.1 as f32);
-        [
-            self.origin.0 as f32 / fw,
-            self.origin.1 as f32 / fh,
-            dims.0 as f32 / fw,
-            dims.1 as f32 / fh,
-        ]
-    }
 }
 
 #[derive(Debug, Clone)]

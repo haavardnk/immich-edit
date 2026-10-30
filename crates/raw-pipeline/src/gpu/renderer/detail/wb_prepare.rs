@@ -11,7 +11,7 @@ use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::uniform::build_process_uniform;
 use crate::gpu::renderer::{GpuRenderer, SensorFrame};
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
-use crate::gpu::uniforms::{FULL_WINDOW, ProcessHeader};
+use crate::gpu::uniforms::ProcessHeader;
 use crate::ops::capture_sharpen::CaptureSigma;
 use crate::ops::{OpContext, OpScratch, RenderContext};
 
@@ -65,9 +65,10 @@ impl GpuRenderer {
                 active_mask: [0; 4],
                 geom_extra2: [0.0; 4],
                 geom_extra3: [0.0; 4],
-                output: [0, 0, 0, 0],
+                output: [0, 0, w as i32, h as i32],
                 perspective: crate::geom::perspective::IDENTITY_ROWS,
-                src_window: FULL_WINDOW,
+                src_window: [0, 0, w, h],
+                shadows_window: [0, 0, w, h],
             },
         );
 

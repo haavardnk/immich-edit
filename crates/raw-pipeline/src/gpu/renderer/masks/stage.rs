@@ -87,7 +87,7 @@ impl GpuRenderer {
         }
 
         let p = stage.target;
-        let out_dims = stage.plan.out_dims;
+        let out_dims = stage.plan.shape.dims();
         let aspect = mask_aspect(&stage.plan.geom);
         let evals: Vec<LayerEval> = effective_layers
             .iter()
@@ -151,7 +151,11 @@ impl GpuRenderer {
         let (atlas, slot_map) =
             self.prepare_mask_atlas(std::iter::once(layer), &stage.opts.rasters);
         let atlas_view = atlas_view(&atlas.texture);
-        let weight = self.mask_texture(TextureFormat::R32Float, stage.plan.out_dims, "mask-weight");
+        let weight = self.mask_texture(
+            TextureFormat::R32Float,
+            stage.plan.shape.dims(),
+            "mask-weight",
+        );
         let weight_view = full_view(&weight);
         let eval = build_layer_eval(layer, &stage.opts.rasters, mask_aspect(&stage.plan.geom));
         let selector_view =
@@ -169,7 +173,7 @@ impl GpuRenderer {
             job,
             stage.edits,
             &stage.plan.geom,
-            stage.plan.out_dims,
+            &stage.plan.shape,
             retained,
         );
         (atlas, weight)
@@ -197,10 +201,10 @@ impl GpuRenderer {
             weight,
             stage.edits,
             &stage.plan.geom,
-            stage.plan.out_dims,
+            &stage.plan.shape,
             retained,
         );
-        self.encode_mask_blend(encoder, stage.plan.out_dims, views, &job, retained);
+        self.encode_mask_blend(encoder, stage.plan.shape.dims(), views, &job, retained);
     }
 
     fn encode_layer_process(
@@ -212,7 +216,7 @@ impl GpuRenderer {
         retained: &mut Retained,
     ) {
         let device = &self.ctx.device;
-        let (out_w, out_h) = stage.plan.out_dims;
+        let (out_w, out_h) = stage.plan.shape.dims();
         let eff = effective_edits_for_layer(stage.edits, layer);
         let layer_src = stage.layers.get(&layer.id).map(|t| full_view(t));
         let bytes = build_process_uniform(
