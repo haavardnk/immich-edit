@@ -5,6 +5,7 @@ use wgpu::Texture;
 use crate::frame::FrameMeta;
 #[cfg(feature = "native")]
 use crate::frame::RawFrame;
+use crate::gpu::renderer::GlobalContext;
 use crate::source::{LinearKind, SourceHeader, SourceWindow};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -21,6 +22,7 @@ pub struct LinearSource {
     pub texture: Arc<Texture>,
     pub atmosphere: Option<[f32; 3]>,
     pub window: Option<SourceWindow>,
+    pub(in crate::gpu) context: Option<Arc<GlobalContext>>,
 }
 
 impl LinearSource {
@@ -31,6 +33,7 @@ impl LinearSource {
             dims: self.dims,
             atmosphere: self.atmosphere,
             window: self.window,
+            context: None,
         }
     }
 

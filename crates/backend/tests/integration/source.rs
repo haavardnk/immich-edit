@@ -147,6 +147,62 @@ async fn a_source_roi_windows_the_region() {
 }
 
 #[tokio::test]
+async fn a_tile_etag_follows_the_context_key() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    let app = test_app(&server).await;
+    let tile = |edits: serde_json::Value| {
+        serde_json::json!({
+            "max_edge": 256,
+            "roi": [0.1, 0.375, 0.25, 0.25],
+            "edits": edits
+        })
+    };
+    let shadows = serde_json::json!({"shadows": 40.0});
+    let first = app
+        .clone()
+        .oneshot(post_source(
+            id,
+            tile(serde_json::json!({"basic": {"dehaze": 20.0}, "tone": shadows})),
+            None,
+        ))
+        .await
+        .unwrap();
+    let etag = header_str(&first, "etag").expect("etag");
+    for (label, edits, status) in [
+        (
+            "exposure",
+            serde_json::json!({"basic": {"dehaze": 20.0, "exposure_ev": 1.0}, "tone": shadows}),
+            StatusCode::NOT_MODIFIED,
+        ),
+        (
+            "dehaze",
+            serde_json::json!({"basic": {"dehaze": 45.0}, "tone": shadows}),
+            StatusCode::OK,
+        ),
+        (
+            "flip",
+            serde_json::json!({
+                "basic": {"dehaze": 20.0},
+                "tone": shadows,
+                "geometry": {"flip_h": true}
+            }),
+            StatusCode::OK,
+        ),
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(post_source(id, tile(edits), Some(&etag)))
+            .await
+            .unwrap();
+        if resp.status() != status {
+            panic!("{label}: a tile answered {} not {status}", resp.status());
+        }
+    }
+}
+
+#[tokio::test]
 async fn source_etag_ignores_display_edits() {
     let server = MockServer::start().await;
     let id = asset_id();

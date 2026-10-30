@@ -5,7 +5,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RenderOptions;
-use raw_pipeline::source::SourceCoding;
+use raw_pipeline::source::{self, SourceCoding};
 use serde::Deserialize;
 
 use crate::asset_key::AssetKey;
@@ -38,13 +38,22 @@ pub async fn post_source(
 ) -> Result<Response, AppError> {
     let max_edge = clamp_max(state.config.preview_max_edge, body.max_edge)?;
     let roi = parse_roi(body.roi)?;
-    let edits = body.edits.clamped().sensor_stage();
+    let edits = body.edits.clamped();
+    let sensor = edits.sensor_stage();
     let render_revision = state
         .render
-        .asset_revision(RenderIdentity::from(&ctx), id.source(), &edits)
+        .asset_revision(RenderIdentity::from(&ctx), id.source(), &sensor)
         .await?;
     let region = roi.map_or(String::new(), |r| {
-        format!("-{}_{}_{}_{}", r.x, r.y, r.w, r.h)
+        format!(
+            "-{}_{}_{}_{}-{}-{}",
+            r.x,
+            r.y,
+            r.w,
+            r.h,
+            source::window_key(&edits),
+            source::context_key(&edits)
+        )
     });
     let coding = if headers::accepts_zstd(&request_headers) {
         SourceCoding::ZstdContent
@@ -53,7 +62,7 @@ pub async fn post_source(
     };
     let etag = headers::etag(&format!(
         "{}-{}-{}-{}{}-{coding:?}",
-        edits.stable_hash(),
+        sensor.stable_hash(),
         max_edge,
         ctx.server_epoch,
         render_revision,
@@ -78,7 +87,7 @@ pub async fn post_source(
     };
     let token = state.queue.tracker(key).await.next();
     let request = SourceRequest {
-        edits,
+        edits: if roi.is_some() { edits } else { sensor },
         options: RenderOptions {
             max_edge,
             roi,

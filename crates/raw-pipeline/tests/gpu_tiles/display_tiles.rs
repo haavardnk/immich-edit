@@ -1,6 +1,7 @@
 use raw_pipeline::edits::{BokehShape, CropRect, Edits, MaskComponentKind, MaskLayer, MaskedEdits};
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions};
-use raw_pipeline::{TilePlan, timing};
+use raw_pipeline::source::{self, SourceCoding};
+use raw_pipeline::{GpuRenderer, TilePlan, timing};
 use raw_pipeline_testkit::depth::{bokeh_frame, depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::masks::layer;
@@ -266,5 +267,76 @@ fn display_tiles_render_a_mosaic_over_the_sensor_tile_budget() {
         &frame,
         &budget_edits(),
         &export(6000),
+    );
+}
+
+fn tile_source(
+    renderer: &GpuRenderer,
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+) -> Vec<u8> {
+    match renderer.render_source(frame, edits, opts, None) {
+        Ok(rendered) => {
+            if !matches!(rendered.tiling.plan, TilePlan::DisplayTiled { .. }) {
+                panic!("the tile source rendered as {:?}", rendered.tiling);
+            }
+            source::encode(&rendered.image, SourceCoding::Framed).unwrap()
+        }
+        Err(e) => panic!("tile source failed: {e}"),
+    }
+}
+
+fn require_tile_source(
+    pair: &Pair,
+    label: &str,
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+) {
+    let reference = match pair.single.render_source(frame, edits, opts, None) {
+        Ok(rendered) => source::encode(&rendered.image, SourceCoding::Framed).unwrap(),
+        Err(e) => panic!("{label}: single pass source failed: {e}"),
+    };
+    if tile_source(&pair.tiled, frame, edits, opts) != reference {
+        panic!("{label}: the display-tiled tile source differs from the single pass");
+    }
+}
+
+#[test]
+fn display_tiles_render_tile_sources_like_the_single_pass() {
+    let Some(pair) = Pair::forced(TILES) else {
+        return;
+    };
+    let cases = [
+        (XT2, "context", context_edits()),
+        (CANON_5D, "local", local_edits()),
+    ];
+    for (name, label, edits) in cases {
+        let frame = decoded(name);
+        let label = format!("{name} {label}");
+        require_tile_source(&pair, &label, &frame, &edits, &roi(1600, ROI));
+    }
+}
+
+#[test]
+fn display_tiles_render_only_the_window_of_a_tile_source_over_the_budget() {
+    let Some(pair) = Pair::budgeted(BUDGET) else {
+        return;
+    };
+    let frame = synthetic_bayer_frame(6000, 4000, "RGGB");
+    let viewport = CropRect {
+        x: 0.55,
+        y: 0.4,
+        w: 0.2,
+        h: 0.25,
+    };
+    let opts = roi(6000, viewport);
+    require_tile_source(
+        &pair,
+        "tile source in 320 MiB",
+        &frame,
+        &budget_edits(),
+        &opts,
     );
 }

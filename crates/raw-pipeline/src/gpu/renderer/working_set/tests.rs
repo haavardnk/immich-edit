@@ -6,8 +6,8 @@ use std::time::Duration;
 use super::super::test_frame::checker_frame;
 use super::super::{GpuRenderer, GpuRendererOptions};
 use crate::edits::{
-    Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
-    RetouchMode, RetouchStroke, Vec2f,
+    CropRect, Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
+    MaskedEdits, RetouchMode, RetouchStroke, Vec2f,
 };
 use crate::frame::{BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions};
 use crate::gpu::memory::allocated_bytes;
@@ -22,11 +22,18 @@ const DEPTH: &str = "depth";
 
 static MEASURING: Mutex<()> = Mutex::new(());
 
+#[derive(Clone, Copy)]
+enum Output {
+    Image,
+    Source,
+}
+
 fn peak_render(
     frame: &RawFrame,
     edits: &Edits,
     opts: &RenderOptions,
     tiles: TilePlan,
+    output: Output,
 ) -> Option<(u64, u64)> {
     let _measuring = MEASURING.lock().unwrap_or_else(PoisonError::into_inner);
     let renderer = GpuRenderer::with_options(GpuRendererOptions {
@@ -49,13 +56,19 @@ fn peak_render(
             }
         })
     };
-    let rendered = renderer.render(frame, edits, opts);
+    let rendered = match output {
+        Output::Image => renderer.render(frame, edits, opts).map(drop),
+        Output::Source => renderer.render_source(frame, edits, opts, None).map(drop),
+    };
     done.store(true, Ordering::Relaxed);
     sampler.join().expect("sampler thread");
     if let Err(e) = rendered {
         panic!("the measured render failed: {e}");
     }
-    let estimate = renderer.estimate_render(RenderSource::Raw(frame), edits, opts, tiles);
+    let estimate = match output {
+        Output::Image => renderer.estimate_render(RenderSource::Raw(frame), edits, opts, tiles),
+        Output::Source => renderer.estimate_source(frame, edits, opts, tiles),
+    };
     Some((peak.load(Ordering::Relaxed) - base, estimate))
 }
 
@@ -150,8 +163,33 @@ fn export_16() -> RenderOptions {
     }
 }
 
+fn tile_source() -> RenderOptions {
+    RenderOptions {
+        rasters: depth_raster(),
+        max_edge: u32::MAX,
+        roi: Some(CropRect {
+            x: 0.55,
+            y: 0.4,
+            w: 0.3,
+            h: 0.3,
+        }),
+        ..RenderOptions::default()
+    }
+}
+
 fn check(name: &str, frame: &RawFrame, edits: &Edits, opts: &RenderOptions, tiles: TilePlan) {
-    let Some((measured, estimate)) = peak_render(frame, edits, opts, tiles) else {
+    measure(name, frame, edits, opts, tiles, Output::Image);
+}
+
+fn measure(
+    name: &str,
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+    tiles: TilePlan,
+    output: Output,
+) {
+    let Some((measured, estimate)) = peak_render(frame, edits, opts, tiles, output) else {
         return;
     };
     let ratio = estimate as f64 / measured as f64;
@@ -187,6 +225,22 @@ fn the_estimate_covers_the_measured_peak_of_display_tiles_with_a_context() {
         &export_16(),
         TilePlan::DisplayTiled { edge: 2048 },
     );
+}
+
+#[test]
+fn the_estimate_covers_the_measured_peak_of_a_tile_source() {
+    let mut edits = full_edits();
+    edits.retouch.clear();
+    for tiles in [TilePlan::SinglePass, TilePlan::DisplayTiled { edge: 2048 }] {
+        measure(
+            &format!("24 MP tile source {tiles:?}"),
+            &sharp_mosaic(6000, 4000),
+            &edits,
+            &tile_source(),
+            tiles,
+            Output::Source,
+        );
+    }
 }
 
 #[test]

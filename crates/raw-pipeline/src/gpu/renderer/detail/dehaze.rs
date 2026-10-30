@@ -7,7 +7,7 @@ use crate::gpu::passes::dehaze::{
 };
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::display::{GridView, HazeGrid, Placed};
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
+use crate::gpu::texture::{STORAGE_SAMPLED, STORAGE_SAMPLED_SRC, full_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::ops::dehaze::DehazeGrid;
 use crate::tile::Rect;
@@ -101,7 +101,7 @@ impl GpuRenderer {
         atm: [f32; 3],
     ) -> PooledTexture {
         let device = &self.ctx.device;
-        let moment_key = TextureKey::new(MOMENT_FORMAT, lw, lh, 1, STORAGE_SAMPLED);
+        let moment_key = TextureKey::new(MOMENT_FORMAT, lw, lh, 1, STORAGE_SAMPLED_SRC);
         let moments = [
             self.texture_pool
                 .acquire(device, moment_key, "dehaze-moments-a"),

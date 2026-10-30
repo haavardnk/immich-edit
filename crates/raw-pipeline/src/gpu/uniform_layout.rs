@@ -468,6 +468,7 @@ fn process_uniform_mirrors_header_and_op_slots() {
         perspective,
         src_window,
         shadows_window,
+        shadows_blur_origin,
     } pad {});
     let masks = [
         StageMask::fast(),

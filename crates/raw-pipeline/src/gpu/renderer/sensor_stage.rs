@@ -2,6 +2,7 @@ mod shape;
 mod tile;
 mod tiled;
 
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,7 +24,7 @@ use crate::gpu::budget::GpuBudget;
 use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
-use crate::source::{LinearKind, RenderedSource, SourceWindow};
+use crate::source::{ContextPlanes, LinearKind, RenderedSource, SourceWindow};
 use crate::tile::{Rect, TilePlan, TilingReport};
 use crate::timing;
 pub(super) use shape::SensorShape;
@@ -31,26 +32,39 @@ pub(super) use shape::SensorShape;
 const FRAME_CACHE_ITEMS: usize = 2;
 const ATMOSPHERE_CACHE_ITEMS: usize = 16;
 const NOISE_PROFILE_CACHE_ITEMS: usize = 16;
+const CONTEXT_CACHE_ITEMS: usize = 2;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SourceOutput {
+    Display,
+    Portable,
+    Window,
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct SourcePlan {
     render: RenderPlan,
     atmosphere: bool,
-    display: bool,
+    output: SourceOutput,
 }
 
 impl SourcePlan {
     const PORTABLE: Self = Self {
         render: RenderPlan::Presence,
         atmosphere: true,
-        display: false,
+        output: SourceOutput::Portable,
+    };
+
+    pub(super) const WINDOW: Self = Self {
+        output: SourceOutput::Window,
+        ..Self::PORTABLE
     };
 
     pub fn for_render(edits: &Edits, frame: &RawFrame) -> Self {
         Self {
             render: RenderPlan::select(edits, frame),
             atmosphere: edits.basic.dehaze != 0.0,
-            display: true,
+            output: SourceOutput::Display,
         }
     }
 
@@ -59,7 +73,11 @@ impl SourcePlan {
     }
 
     pub fn displays(&self) -> bool {
-        self.display
+        self.output == SourceOutput::Display
+    }
+
+    pub fn windows(&self) -> bool {
+        self.output == SourceOutput::Window
     }
 }
 
@@ -165,6 +183,13 @@ impl<'a> SensorJob<'a> {
         Some(detail.keys.spatial(self.shape.sigma, self.shape.working()))
     }
 
+    pub fn context_key(&self) -> Option<u64> {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.atmosphere_key()?.hash(&mut hasher);
+        crate::source::context_key(&self.edits).hash(&mut hasher);
+        Some(hasher.finish())
+    }
+
     fn cache(&self, key: u64) -> Option<u64> {
         self.cached.then_some(key)
     }
@@ -191,6 +216,7 @@ impl<'a> SensorJob<'a> {
             texture,
             atmosphere,
             window: None,
+            context: None,
         }
     }
 
@@ -214,6 +240,7 @@ pub(super) struct SensorCaches {
     pub atmosphere_estimates: AtomicU64,
     pub noise_profiles: Mutex<lru::LruCache<u64, NoiseProfile>>,
     pub noise_estimates: AtomicU64,
+    pub contexts: Mutex<lru::LruCache<u64, Arc<ContextPlanes>>>,
     pub stages: StageCache,
 }
 
@@ -222,6 +249,7 @@ impl SensorCaches {
         let frames = NonZeroUsize::new(FRAME_CACHE_ITEMS).expect("nonzero");
         let atmospheres = NonZeroUsize::new(ATMOSPHERE_CACHE_ITEMS).expect("nonzero");
         let noise_profiles = NonZeroUsize::new(NOISE_PROFILE_CACHE_ITEMS).expect("nonzero");
+        let contexts = NonZeroUsize::new(CONTEXT_CACHE_ITEMS).expect("nonzero");
         Self {
             frames: Mutex::new(lru::LruCache::new(frames)),
             superpixels: Mutex::new(lru::LruCache::new(frames)),
@@ -230,6 +258,7 @@ impl SensorCaches {
             atmosphere_estimates: AtomicU64::new(0),
             noise_profiles: Mutex::new(lru::LruCache::new(noise_profiles)),
             noise_estimates: AtomicU64::new(0),
+            contexts: Mutex::new(lru::LruCache::new(contexts)),
             stages: StageCache::new(budget, texture_pool),
         }
     }
@@ -239,6 +268,7 @@ impl SensorCaches {
         self.superpixels.lock().clear();
         self.atmospheres.lock().clear();
         self.noise_profiles.lock().clear();
+        self.contexts.lock().clear();
         self.stages.clear();
     }
 }
@@ -275,12 +305,24 @@ impl GpuRenderer {
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<RenderedSource> {
         let composed = super::compose_edits(edits, options);
+        let windowed = options.roi.is_some();
+        let plan = if windowed {
+            SourcePlan::WINDOW
+        } else {
+            SourcePlan::PORTABLE
+        };
         self.run_planned(
-            Some((frame, SourcePlan::PORTABLE)),
+            Some((frame, plan)),
             &composed,
             options,
             |tiles| self.estimate_source(frame, edits, options, tiles),
-            |tiles| self.render_source_planned(frame, &composed, options, tiles, cancel),
+            |tiles| {
+                if windowed {
+                    self.render_window_source(frame, &composed, options, tiles, cancel)
+                } else {
+                    self.render_source_planned(frame, &composed, options, tiles, cancel)
+                }
+            },
             cancel,
         )
     }
@@ -300,10 +342,7 @@ impl GpuRenderer {
             let linear = self.sensor_stage(&job)?;
             let tiling = job.tiling();
             let started = std::time::Instant::now();
-            let window = options
-                .roi
-                .and_then(|_| crate::source::window_rect(&linear.meta, edits, linear.dims));
-            let image = self.read_source(&linear, window, cancel)?;
+            let image = self.read_source(&linear, None, cancel)?;
             timings
                 .clock()
                 .add_wall(timing::READBACK, started.elapsed());

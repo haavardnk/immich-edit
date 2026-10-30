@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use wgpu::{CommandEncoderDescriptor, PollType, Texture, TextureUsages};
+use wgpu::{CommandEncoderDescriptor, PollType, TextureUsages};
 
 use super::{DetailJob, SensorJob};
-use crate::gpu::dispatch::{Region, copy_region};
+use crate::gpu::dispatch::{Region, submit_copy};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::limits::check_texture;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::{NoiseHistogram, NoiseProfile};
 use crate::gpu::source::LinearSource;
 use crate::gpu::texture::{STORAGE_SAMPLED, texture_2d};
-use crate::tile::{Rect, SensorTile};
+use crate::tile::SensorTile;
 use crate::{PipelineError, PipelineResult};
 
 impl GpuRenderer {
@@ -39,7 +39,14 @@ impl GpuRenderer {
         let profile = self.tiled_noise_profile(job, &tiles)?;
         for tile in &tiles {
             let (texture, extent) = self.sensor_tile(job, tile, profile)?;
-            self.place(&texture, tile.core.within(extent), tile.core, &working);
+            let src = tile.core.within(extent);
+            submit_copy(
+                &self.ctx,
+                "sensor-tile-place",
+                Region::at(&texture, 0, (src.x, src.y)),
+                Region::at(&working, 0, (tile.core.x, tile.core.y)),
+                tile.core.dims(),
+            );
             self.wait_idle(pooled)?;
             job.check()?;
         }
@@ -89,22 +96,6 @@ impl GpuRenderer {
             job.check()?;
         }
         histogram.read(job.cancel)
-    }
-
-    fn place(&self, texture: &Texture, src: Rect, dst: Rect, working: &Texture) {
-        let mut encoder = self
-            .ctx
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("sensor-tile-place"),
-            });
-        copy_region(
-            &mut encoder,
-            Region::at(texture, 0, (src.x, src.y)),
-            Region::at(working, 0, (dst.x, dst.y)),
-            dst.dims(),
-        );
-        self.ctx.queue.submit(Some(encoder.finish()));
     }
 
     pub(in crate::gpu::renderer) fn wait_idle(&self, pooled: u64) -> PipelineResult<()> {

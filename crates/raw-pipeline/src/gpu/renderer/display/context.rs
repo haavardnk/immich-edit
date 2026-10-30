@@ -1,12 +1,7 @@
-use std::iter::once;
-
 use wgpu::TextureView;
 
-use super::linear::layer_presence;
-use crate::PipelineError;
-use crate::edits::Edits;
 use crate::gpu::source::SourceExtent;
-use crate::ops::presence::{has_shadows, presence_amounts};
+use crate::source::ContextNeeds;
 
 #[derive(Clone, Copy)]
 pub(in crate::gpu::renderer) struct Placed {
@@ -15,7 +10,7 @@ pub(in crate::gpu::renderer) struct Placed {
 }
 
 #[derive(Clone)]
-pub(in crate::gpu::renderer) struct GridView {
+pub(in crate::gpu) struct GridView {
     pub view: TextureView,
     pub origin: (u32, u32),
 }
@@ -38,21 +33,27 @@ impl GridView {
 }
 
 #[derive(Clone)]
-pub(in crate::gpu::renderer) struct LevelView {
+pub(in crate::gpu) struct LevelView {
     pub grid: GridView,
     pub level: u32,
 }
 
 #[derive(Clone)]
-pub(in crate::gpu::renderer) struct HazeGrid {
+pub(in crate::gpu) struct HazeGrid {
     pub atmosphere: [f32; 3],
     pub ab: GridView,
 }
 
 #[derive(Clone, Default)]
-pub(in crate::gpu::renderer) struct PresenceLevels {
+pub(in crate::gpu) struct PresenceLevels {
     pub texture: Option<LevelView>,
     pub guide: Option<LevelView>,
+}
+
+impl PresenceLevels {
+    pub fn covers(&self, needs: ContextNeeds) -> bool {
+        (!needs.texture || self.texture.is_some()) && (!needs.clarity || self.guide.is_some())
+    }
 }
 
 pub(in crate::gpu::renderer) struct ShadowLevels {
@@ -60,59 +61,13 @@ pub(in crate::gpu::renderer) struct ShadowLevels {
     pub blur: TextureView,
     pub window: [u32; 4],
     pub origin: (u32, u32),
+    pub blur_origin: (u32, u32),
     pub level: u32,
 }
 
 #[derive(Default)]
-pub(in crate::gpu::renderer) struct GlobalContext {
+pub(in crate::gpu) struct GlobalContext {
     pub haze: Option<HazeGrid>,
     pub presence: PresenceLevels,
     pub shadows: Option<LevelView>,
-}
-
-impl GlobalContext {
-    pub fn haze(&self) -> Result<&HazeGrid, PipelineError> {
-        self.haze.as_ref().ok_or_else(|| missing("dehaze"))
-    }
-
-    pub fn shadows(&self) -> Result<&LevelView, PipelineError> {
-        self.shadows.as_ref().ok_or_else(|| missing("shadows"))
-    }
-}
-
-fn missing(stage: &str) -> PipelineError {
-    PipelineError::Render(format!("display tile context has no {stage} levels"))
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(in crate::gpu::renderer) struct ContextNeeds {
-    pub dehaze: bool,
-    pub texture: bool,
-    pub clarity: bool,
-    pub shadows: bool,
-    pub presence: bool,
-}
-
-impl ContextNeeds {
-    pub fn new(edits: &Edits) -> Self {
-        let global = presence_amounts(edits);
-        let layers = layer_presence(edits);
-        let adjusting = once(global)
-            .chain(layers.into_iter().map(|(_, _, amounts)| amounts))
-            .filter(|amounts| amounts.adjusts());
-        let (texture, clarity) = adjusting.fold((false, false), |(t, c), amounts| {
-            (t || amounts.texture != 0.0, c || amounts.clarity != 0.0)
-        });
-        Self {
-            dehaze: edits.basic.dehaze != 0.0,
-            texture,
-            clarity,
-            shadows: has_shadows(edits),
-            presence: global.adjusts(),
-        }
-    }
-
-    pub fn levels(&self) -> bool {
-        self.texture || self.clarity
-    }
 }

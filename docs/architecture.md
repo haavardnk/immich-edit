@@ -93,14 +93,16 @@ preview.
 `POST /api/assets/{key}/source` returns the portable linear source a client renders locally. Its
 ETag covers only the sensor-stage edits, the requested edge, the server epoch, the profile
 revision, and the `roi` if one is sent, so a display-only change revalidates with `304`. With a
-`roi` the server renders the sensor stage for the whole frame at the tile's resolution, then sends
-only a window around the region: the header records the window's origin and the full source size,
-so the renderer computes texture, clarity, shadows and dehaze radii from the full frame and
-samples the window through its position in the frame. The window carries a margin as wide as
-those filters reach and starts on the coarsest pyramid level's grid, so a tile renders like the
-same region of the full source. The response names the DCP profile it was built with in
-`x-source-dcp`. `GET /api/dcp/{id}/raw` and `GET /api/luts/{id}/cube` return the profile and LUT
-files with immutable cache headers; mask rasters come from `GET /api/rasters/{id}`.
+`roi` the source is a window around the region: the header records the window's origin and the
+full source size, and the renderer samples the window through its position in the frame. A GPU
+server pads the window by its local filter reach only and attaches a context section, the whole
+frame's dehaze grid and blurred texture, clarity and shadows levels cropped to the window, so a
+tile renders byte for byte like the server's render of the region; the `roi` ETag also covers
+`source::context_key`. When the frame does not fit the GPU, the server builds the context section
+by section and runs the sensor stage for the window only. A CPU server pads the window as far as
+dehaze and presence reach and sends no context. The response names the DCP profile it was built
+with in `x-source-dcp`. `GET /api/dcp/{id}/raw` and `GET /api/luts/{id}/cube` return the profile
+and LUT files with immutable cache headers; mask rasters come from `GET /api/rasters/{id}`.
 
 The viewer measures its visible frame, device-pixel ratio, and source limit. It requests the exact
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.
@@ -113,9 +115,11 @@ the last one keeps rendering, so only sensor-stage edits (noise reduction, captu
 lens, retouch, profile, crop and rotation) reach the server. Frames return as `ImageBitmap`s drawn
 into a canvas that replaces the base `<img>`, and their histogram and scopes feed the same panels.
 The browser base renders at the fit size. Zoomed past it, the viewer asks for a windowed source for
-the visible region and renders that tile locally too, so a slider at 1:1 posts nothing and a pan
-posts one tile request. Split view's original still comes from the server. A worker or GPU failure
-switches the session to server previews; a failed source request switches that asset.
+the visible region and renders that tile locally too, so a pan posts one tile request. A tile with
+a context section is also keyed on the wasm renderer's context key; a changed key fetches a new
+tile while the loaded one keeps drawing. Split view's original still comes from the server. A
+worker or GPU failure switches the session to server previews; a failed source request switches
+that asset.
 Each `/preview` response carries a `Server-Timing` header with `render` and `encode` durations,
 which **Fastest** adds to the download and decode time it measures to time the server.
 

@@ -425,11 +425,14 @@ function fakeClient(render: () => Promise<RenderedFrame>) {
     frame_width: 6000,
     frame_height: 4000,
     is_raw: true,
-    model: 'x'
+    model: 'x',
+    context: false
   };
   const client = {
     inputs: async (edits: Edits) => ({
       sensor_key: String(edits.detail.luma_nr_amount),
+      window_key: '',
+      context_key: '',
       rasters: [],
       lut: null
     }),
