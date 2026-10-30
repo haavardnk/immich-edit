@@ -123,6 +123,16 @@ export interface StageStats {
   gpu: LatencyStats | null;
 }
 
+export type PlanKind = 'single_pass' | 'sensor_tiled' | 'display_tiled';
+
+export interface PlanStats {
+  renderer: 'cpu' | 'gpu';
+  plan: PlanKind;
+  edge: number | null;
+  renders: number;
+  last_tiles: number;
+}
+
 export interface FrameStats {
   fetch: LatencyStats;
   decode: LatencyStats;
@@ -135,6 +145,7 @@ export interface DebugTimings {
   gpu_timestamps: boolean;
   render_latency: { cpu: LatencyStats; gpu: LatencyStats };
   stages: StageStats[];
+  plans: PlanStats[];
   frames: FrameStats;
   request_timeouts: number;
   gpu_pool_bytes: GpuPoolBytes | null;

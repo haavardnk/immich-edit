@@ -228,7 +228,7 @@ test('jobs drawer stays bounded and restores focus', async ({ page }) => {
   await expect(trigger).toBeFocused();
 });
 
-test('diagnostics break render time down by stage', async ({ page }) => {
+test('diagnostics break render time down by stage and plan', async ({ page }) => {
   const stats = (p50: number, p95: number) => ({
     count: 3,
     p50_us: p50,
@@ -283,6 +283,10 @@ test('diagnostics break render time down by stage', async ({ page }) => {
             { renderer: 'gpu', stage: 'demosaic', wall: stats(300, 500), gpu: stats(2_100, 2_600) },
             { renderer: 'gpu', stage: 'encode', wall: stats(9_400, 12_000), gpu: null }
           ],
+          plans: [
+            { renderer: 'gpu', plan: 'single_pass', edge: null, renders: 14, last_tiles: 1 },
+            { renderer: 'gpu', plan: 'display_tiled', edge: 2048, renders: 2, last_tiles: 24 }
+          ],
           frames: {
             fetch: stats(180_000, 240_000),
             decode: stats(95_000, 130_000),
@@ -316,6 +320,9 @@ test('diagnostics break render time down by stage', async ({ page }) => {
   ).toBeVisible();
   await expect(table.getByRole('row', { name: /encode 9\.4ms 12\.0ms — —/ })).toBeVisible();
   await expect(page.getByRole('table', { name: 'CPU render stages' })).toHaveCount(0);
+  const plans = page.getByRole('table', { name: 'Render plans' });
+  await expect(plans.getByRole('row', { name: /GPU Single pass 14 1/ })).toBeVisible();
+  await expect(plans.getByRole('row', { name: /GPU Display tiles 2048px 2 24/ })).toBeVisible();
   await expect(page.getByText('75% (3 / 4)')).toBeVisible();
   await expect(page.getByText('GPU stage times are off')).toHaveCount(0);
 

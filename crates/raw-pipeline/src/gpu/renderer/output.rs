@@ -9,6 +9,7 @@ use crate::gpu::readback::{
     copy_texture_to_buffer, make_readback_buffer_wide, read_rgba8, read_rgba16uint_as_rgb,
 };
 use crate::gpu::timer::RenderTimings;
+use crate::tile::TilingReport;
 use crate::timing;
 
 pub(super) enum DisplayBuf {
@@ -84,21 +85,22 @@ pub(super) struct ReadbackImage<'a> {
 impl<'a> ReadbackImage<'a> {
     pub(super) fn stitched(
         display: DisplayBuf,
+        counts: MetaCounts,
         dims: (u32, u32),
         source_dims: (u32, u32),
         timings: RenderTimings<'a>,
     ) -> Self {
         Self {
             display,
-            counts: MetaCounts::default(),
+            counts,
             dims,
             source_dims,
             timings,
         }
     }
 
-    pub(super) fn into_tile(self) -> (DisplayBuf, (u32, u32), RenderTimings<'a>) {
-        (self.display, self.source_dims, self.timings)
+    pub(super) fn into_tile(self) -> (DisplayBuf, MetaCounts, (u32, u32), RenderTimings<'a>) {
+        (self.display, self.counts, self.source_dims, self.timings)
     }
 }
 
@@ -107,6 +109,7 @@ impl ReadbackImage<'_> {
         self,
         opts: &RenderOptions,
         is_raw: bool,
+        tiling: TilingReport,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<RenderedImage> {
         let ReadbackImage {
@@ -194,6 +197,7 @@ impl ReadbackImage<'_> {
             renderer: "gpu".into(),
             is_raw,
             timings: timings.finish(cancel),
+            tiling,
             metadata_warnings,
         })
     }

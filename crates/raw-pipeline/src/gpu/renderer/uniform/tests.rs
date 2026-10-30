@@ -6,6 +6,7 @@ use crate::frame::{OutputFormat, RawFrame, RenderOptions};
 use crate::gpu::passes::effects_tone::EffectsToneParams;
 use crate::gpu::passes::sharpen::{SharpenBlurParams, SharpenParams};
 use crate::gpu::uniform_pool::PooledUniform;
+use crate::tile::TilingReport;
 
 fn contend(renderer: &GpuRenderer) -> Vec<PooledUniform> {
     let sizes = [
@@ -47,7 +48,7 @@ fn render(renderer: &GpuRenderer, raw: &RawFrame, edits: &Edits, contended: bool
     };
     let image = renderer
         .read_display(display, None)
-        .and_then(|readback| readback.into_rendered(&opts, false, None));
+        .and_then(|readback| readback.into_rendered(&opts, false, TilingReport::SINGLE_PASS, None));
     drop(held);
     match image {
         Ok(image) => image.bytes,

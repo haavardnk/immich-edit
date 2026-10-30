@@ -278,5 +278,6 @@ pub struct RenderedImage {
     pub renderer: String,
     pub is_raw: bool,
     pub timings: Vec<crate::timing::StageTiming>,
+    pub tiling: crate::tile::TilingReport,
     pub metadata_warnings: Vec<String>,
 }

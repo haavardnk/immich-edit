@@ -25,7 +25,7 @@ use super::texture_pool::TexturePool;
 use super::timer::RenderTimings;
 use super::uniform_pool::UniformPool;
 #[cfg(feature = "native")]
-use crate::tile::TilePlan;
+use crate::tile::{TilePlan, TilingReport};
 
 #[cfg(feature = "native")]
 mod admission;
@@ -164,8 +164,6 @@ pub struct GpuRenderer {
     admission: Admission,
     #[cfg(feature = "native")]
     tiles: Option<TilePlan>,
-    #[cfg(feature = "native")]
-    display_tiles: std::sync::atomic::AtomicU64,
 }
 
 const LUT_TEX_CACHE_ITEMS: usize = 4;
@@ -238,8 +236,6 @@ impl GpuRenderer {
             admission: Admission::new(budget_bytes),
             #[cfg(feature = "native")]
             tiles: options.tiles,
-            #[cfg(feature = "native")]
-            display_tiles: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -327,7 +323,7 @@ impl GpuRenderer {
             crate::cancel::check(cancel)?;
             let timings = RenderTimings::new(&self.ctx);
             let sensed;
-            let linear = match (source, tiles) {
+            let (linear, tiling) = match (source, tiles) {
                 (RenderSource::Raw(frame), TilePlan::DisplayTiled { edge }) => {
                     return self.render_display_tiled(frame, edits, options, edge, timings, cancel);
                 }
@@ -335,9 +331,9 @@ impl GpuRenderer {
                     let plan = SourcePlan::for_render(edits, frame);
                     let job = SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
                     sensed = self.sensor_stage(&job)?;
-                    &sensed
+                    (&sensed, job.tiling())
                 }
-                (RenderSource::Linear(linear), _) => linear,
+                (RenderSource::Linear(linear), _) => (linear, TilingReport::SINGLE_PASS),
             };
             let full = linear.extent().full;
             let request = DisplayRequest {
@@ -348,8 +344,12 @@ impl GpuRenderer {
                 context: None,
             };
             let display = self.display_chain(request, timings, cancel)?;
-            self.read_display(display, cancel)?
-                .into_rendered(options, source.meta().is_raw, cancel)
+            self.read_display(display, cancel)?.into_rendered(
+                options,
+                source.meta().is_raw,
+                tiling,
+                cancel,
+            )
         }))
     }
 }

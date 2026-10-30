@@ -1,5 +1,11 @@
-import type { DebugTimings, HealthInfo, LatencyStats, StageStats } from '$lib/api/diagnostics';
-import { codecLabel, formatBytes, formatUs, gpuMemoryRows, hitRate } from './format';
+import type {
+  DebugTimings,
+  HealthInfo,
+  LatencyStats,
+  PlanStats,
+  StageStats
+} from '$lib/api/diagnostics';
+import { codecLabel, formatBytes, formatUs, gpuMemoryRows, hitRate, planLabel } from './format';
 
 function latencyRow(name: string, s: LatencyStats): string {
   return `| ${name} | ${s.count} | ${formatUs(s.p50_us)} | ${formatUs(s.p95_us)} | ${formatUs(s.p99_us)} | ${formatUs(s.max_us)} |`;
@@ -15,6 +21,14 @@ function stageRows(stages: StageStats[], withGpu: boolean): string[] {
     return `${base} ${s.gpu ? formatUs(s.gpu.p50_us) : '—'} | ${s.gpu ? formatUs(s.gpu.p95_us) : '—'} |`;
   });
   return [...header, ...rows];
+}
+
+function planRows(plans: PlanStats[]): string[] {
+  return [
+    '| Renderer | Plan | Renders | Last tiles |',
+    '|---|---|---|---|',
+    ...plans.map((p) => `| ${p.renderer} | ${planLabel(p)} | ${p.renders} | ${p.last_tiles} |`)
+  ];
 }
 
 function timingLines(t: DebugTimings): string[] {
@@ -37,6 +51,14 @@ function timingLines(t: DebugTimings): string[] {
         t.stages.some((s) => s.gpu !== null)
       )
     );
+  }
+  lines.push('');
+  lines.push('### Render plans');
+  lines.push('');
+  if (t.plans.length === 0) {
+    lines.push('No renders recorded yet.');
+  } else {
+    lines.push(...planRows(t.plans));
   }
   lines.push('');
   lines.push(`- GPU timestamps: ${t.gpu_timestamps ? 'on' : 'off'}`);

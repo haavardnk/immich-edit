@@ -50,7 +50,6 @@ fn texel_origin(linear: &LinearSource, rect: Rect) -> (u32, u32) {
 
 impl GpuRenderer {
     pub(super) fn build_context(&self, job: &ContextJob<'_>) -> PipelineResult<TileContext> {
-        let started = std::time::Instant::now();
         let plan = job.plan;
         let mut held = Vec::new();
         let mut context = GlobalContext::default();
@@ -67,11 +66,6 @@ impl GpuRenderer {
             let levels = self.collect_levels(job, &context, adjusted, &coarse)?;
             held.extend(self.finish_levels(&mut context, plan, coarse.into_iter().zip(levels)));
         }
-        tracing::debug!(
-            tiles = job.layout.cores.len(),
-            ms = started.elapsed().as_millis() as u64,
-            "gpu display tile context"
-        );
         Ok(TileContext {
             context,
             _held: held,

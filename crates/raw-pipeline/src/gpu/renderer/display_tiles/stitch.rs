@@ -1,3 +1,4 @@
+use crate::gpu::renderer::meta::MetaCounts;
 use crate::gpu::renderer::output::{DisplayBuf, ReadbackImage};
 use crate::gpu::timer::RenderTimings;
 use crate::tile::{DisplayTile, Rect};
@@ -6,6 +7,7 @@ use crate::{PipelineError, PipelineResult};
 pub(super) struct Stitch {
     full: (u32, u32),
     display: Option<DisplayBuf>,
+    counts: MetaCounts,
     source_dims: (u32, u32),
 }
 
@@ -14,6 +16,7 @@ impl Stitch {
         Self {
             full,
             display: None,
+            counts: MetaCounts::default(),
             source_dims: full,
         }
     }
@@ -23,7 +26,8 @@ impl Stitch {
         readback: ReadbackImage<'a>,
         tile: &DisplayTile,
     ) -> PipelineResult<RenderTimings<'a>> {
-        let (part, source_dims, timings) = readback.into_tile();
+        let (part, counts, source_dims, timings) = readback.into_tile();
+        self.counts.add(counts);
         self.source_dims = source_dims;
         let full = self.full;
         let display = self.display.get_or_insert_with(|| part.blank(full));
@@ -50,6 +54,7 @@ impl Stitch {
             .ok_or_else(|| PipelineError::Render("display tiles produced no output".into()))?;
         Ok(ReadbackImage::stitched(
             display,
+            self.counts,
             self.full,
             self.source_dims,
             timings,

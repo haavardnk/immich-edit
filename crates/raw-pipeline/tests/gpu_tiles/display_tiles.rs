@@ -1,6 +1,6 @@
-use raw_pipeline::TilePlan;
 use raw_pipeline::edits::{BokehShape, CropRect, Edits, MaskComponentKind, MaskLayer, MaskedEdits};
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions};
+use raw_pipeline::{TilePlan, timing};
 use raw_pipeline_testkit::depth::{bokeh_frame, depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::masks::layer;
@@ -141,6 +141,14 @@ fn export(max_edge: u32) -> RenderOptions {
     }
 }
 
+fn binned(opts: RenderOptions) -> RenderOptions {
+    RenderOptions {
+        histogram: true,
+        scopes: true,
+        ..opts
+    }
+}
+
 fn roi(max_edge: u32, roi: CropRect) -> RenderOptions {
     RenderOptions {
         roi: Some(roi),
@@ -158,8 +166,8 @@ fn modes(frame: &RawFrame) -> [Mode; 2] {
         ..export(half)
     };
     [
-        ("preview", rgb8_opts(1600)),
-        ("16-bit half export", sixteen),
+        ("preview", binned(rgb8_opts(1600))),
+        ("16-bit half export", binned(sixteen)),
     ]
 }
 
@@ -173,7 +181,7 @@ fn display_tiles_match_the_single_pass_on_real_raws() {
         pair.require_modes(name, &frame, &warped_edits(), &modes(&frame));
     }
     let frame = decoded(CANON_5D);
-    let preview = rgb8_opts(1600);
+    let preview = binned(rgb8_opts(1600));
     pair.require("5D unwarped preview", &frame, &local_edits(), &preview);
     let frame = decoded(XT2);
     let opts = export(frame.meta.width as u32);
@@ -240,7 +248,10 @@ fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
     for orientation in [(false, false, false), (true, true, false)] {
         let mut frame = bokeh_frame(1800, 1200);
         frame.meta.orientation = orientation;
-        pair.require(&format!("lens blur {orientation:?}"), &frame, &edits, &opts);
+        let got = pair.require(&format!("lens blur {orientation:?}"), &frame, &edits, &opts);
+        if !got.timings.iter().any(|t| t.stage == timing::TILE_CONTEXT) {
+            panic!("the lens blur render {orientation:?} timed no tile context");
+        }
     }
 }
 

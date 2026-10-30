@@ -44,6 +44,7 @@ function timings(overrides: Partial<DebugTimings>): DebugTimings {
     gpu_timestamps: false,
     render_latency: { cpu: stats(0, 0), gpu: stats(40_000, 60_000) },
     stages: [],
+    plans: [],
     frames: { fetch: stats(0, 0), decode: stats(0, 0), cache_hits: 3, cache_misses: 1 },
     request_timeouts: 2,
     gpu_pool_bytes: null,
@@ -84,6 +85,21 @@ describe('buildSupportBundle', () => {
         '| gpu | demosaic | 200µs | 300µs | 900µs | 1.2ms |',
         '| gpu | encode | 4.0ms | 5.0ms | — | — |',
         '- GPU timestamps: on'
+      ]
+    },
+    {
+      name: 'render plans',
+      t: timings({
+        plans: [
+          { renderer: 'gpu', plan: 'single_pass', edge: null, renders: 14, last_tiles: 1 },
+          { renderer: 'gpu', plan: 'display_tiled', edge: 2048, renders: 2, last_tiles: 24 }
+        ]
+      }),
+      expected: [
+        '### Render plans',
+        '| Renderer | Plan | Renders | Last tiles |',
+        '| gpu | Single pass | 14 | 1 |',
+        '| gpu | Display tiles 2048px | 2 | 24 |'
       ]
     },
     {

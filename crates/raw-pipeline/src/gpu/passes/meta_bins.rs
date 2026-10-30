@@ -19,9 +19,11 @@ pub const SCOPES_GROUP: u32 = 16;
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BinParams {
-    pub size: [u32; 2],
+    pub core: [u32; 4],
+    pub origin: [u32; 2],
+    pub full: [u32; 2],
     pub step: u32,
-    pub _pad: u32,
+    pub _pad: [u32; 3],
 }
 
 pub fn histogram_wgsl(depth: DisplayDepth) -> String {

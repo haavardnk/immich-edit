@@ -313,11 +313,9 @@ impl RenderService {
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
         let wall = start.elapsed();
-        self.telemetry.record(
-            RendererKind::from_label(&result.renderer),
-            wall,
-            &result.timings,
-        );
+        let kind = RendererKind::from_label(&result.renderer);
+        self.telemetry
+            .record(kind, wall, &result.timings, result.tiling);
         Ok(TimedRender {
             image: result,
             wall,
@@ -347,7 +345,7 @@ impl RenderService {
         options.dcp = dcp.map(|selection| selection.profile);
         let device = self.device.clone();
         let start = Instant::now();
-        let (bytes, renderer, timings) = tokio::task::spawn_blocking(move || {
+        let (bytes, renderer, timings, tiling) = tokio::task::spawn_blocking(move || {
             let rendered = device.source_blocking(&frame, &edits, &options, cancel.as_ref())?;
             let encode_start = Instant::now();
             let bytes = raw_pipeline::source::encode(&rendered.image, coding)?;
@@ -357,15 +355,13 @@ impl RenderService {
                 wall: encode_start.elapsed(),
                 gpu: None,
             });
-            Ok::<_, PipelineError>((bytes, rendered.renderer, timings))
+            Ok::<_, PipelineError>((bytes, rendered.renderer, timings, rendered.tiling))
         })
         .await
         .map_err(|e| RenderError::Pipeline(PipelineError::Render(format!("join: {e}"))))??;
-        self.telemetry.record(
-            RendererKind::from_label(&renderer),
-            start.elapsed(),
-            &timings,
-        );
+        let kind = RendererKind::from_label(&renderer);
+        self.telemetry
+            .record(kind, start.elapsed(), &timings, tiling);
         Ok(EncodedSource { bytes, dcp_id })
     }
 }
