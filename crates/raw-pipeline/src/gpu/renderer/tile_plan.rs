@@ -34,6 +34,7 @@ struct Tileable<'a> {
     chain_fits: bool,
     fits_single_pass: bool,
     display: bool,
+    window: bool,
 }
 
 impl<'a> Tileable<'a> {
@@ -63,8 +64,19 @@ impl<'a> Tileable<'a> {
             out,
             chain_fits,
             fits_single_pass,
-            display: plan.displays() && options.preview_mode == PreviewMode::None,
+            display: (plan.displays() || plan.windows())
+                && options.preview_mode == PreviewMode::None,
+            window: plan.windows(),
         })
+    }
+
+    fn layout(&self, edge: u32) -> DisplayTiles {
+        let (frame, edits, options, shape) = (self.frame, self.edits, self.options, &self.shape);
+        if self.window {
+            DisplayTiles::source(frame, edits, options, shape, Some(edge))
+        } else {
+            DisplayTiles::new(frame, edits, options, shape, edge)
+        }
     }
 
     fn candidates(&self) -> impl Iterator<Item = TilePlan> + '_ {
@@ -75,10 +87,15 @@ impl<'a> Tileable<'a> {
             .filter(move |&edge| !self.fits_single_pass || edge < w.max(h))
             .filter(|&edge| self.sensor_fits(edge))
             .map(|edge| TilePlan::SensorTiled { edge });
+        let span = if self.window {
+            w.max(h)
+        } else {
+            self.out.0.max(self.out.1)
+        };
         let display = TILE_EDGES
             .into_iter()
             .filter(|_| self.display)
-            .filter(|&edge| edge < self.out.0.max(self.out.1))
+            .filter(move |&edge| edge < span)
             .filter(|&edge| self.display_fits(edge))
             .map(|edge| TilePlan::DisplayTiled { edge });
         sensor.chain(display)
@@ -92,7 +109,7 @@ impl<'a> Tileable<'a> {
     }
 
     fn display_fits(&self, edge: u32) -> bool {
-        let layout = DisplayTiles::new(self.frame, self.edits, self.options, &self.shape, edge);
+        let layout = self.layout(edge);
         let limit = self.limits.max_texture_dimension_2d;
         let fits_limit = |(w, h): (u32, u32)| w.max(h) <= limit;
         let context = layout.context.is_none_or(|plan| plan.fits(limit));

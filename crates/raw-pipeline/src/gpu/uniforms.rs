@@ -17,6 +17,7 @@ pub(super) struct ProcessHeader {
     pub perspective: [f32; 12],
     pub src_window: [u32; 4],
     pub shadows_window: [u32; 4],
+    pub shadows_blur_origin: [u32; 4],
 }
 
 pub(super) fn write_header(dst: &mut [u8], header: &ProcessHeader) {

@@ -6,7 +6,8 @@ use raw_pipeline::edits::{
 use raw_pipeline::frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
 };
-use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, timing};
+use raw_pipeline::source::{self, SourceCoding};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, TilingReport, timing};
 use raw_pipeline_testkit::depth::{bokeh_frame, depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
@@ -373,5 +374,87 @@ fn a_render_over_the_sensor_tile_budget_renders_in_display_tiles() {
             );
         }
         require_identical(label, &reference, &got);
+    }
+}
+
+fn tile_source(
+    renderer: &GpuRenderer,
+    frame: &RawFrame,
+    edits: &Edits,
+    opts: &RenderOptions,
+) -> (Vec<u8>, TilingReport) {
+    match renderer.render_source(frame, edits, opts, None) {
+        Ok(rendered) => (
+            source::encode(&rendered.image, SourceCoding::Framed).unwrap(),
+            rendered.tiling,
+        ),
+        Err(e) => panic!("tile source failed: {e}"),
+    }
+}
+
+fn roi_opts(max_edge: u32, roi: CropRect) -> RenderOptions {
+    RenderOptions {
+        roi: Some(roi),
+        ..rgb8_opts(max_edge)
+    }
+}
+
+#[test]
+fn a_tile_source_rendered_through_display_tiles_matches_the_single_pass() {
+    let (Some(single), Some(tiled)) = (try_renderer(), tiled_renderer()) else {
+        return;
+    };
+    for name in FIXTURES {
+        let frame = decoded(name);
+        for (label, edits) in [("context", context_edits()), ("local", local_edits())] {
+            let opts = roi_opts(
+                1600,
+                CropRect {
+                    x: 0.3,
+                    y: 0.25,
+                    w: 0.4,
+                    h: 0.45,
+                },
+            );
+            let (reference, _) = tile_source(&single, &frame, &edits, &opts);
+            let (got, tiling) = tile_source(&tiled, &frame, &edits, &opts);
+            if !matches!(tiling.plan, TilePlan::DisplayTiled { .. }) {
+                panic!("{name} {label}: the tile source rendered as {tiling:?}");
+            }
+            if got != reference {
+                panic!("{name} {label}: the display-tiled tile source differs");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_tile_source_over_the_budget_renders_only_its_window() {
+    let (Some(single), Some(budgeted)) = (
+        try_renderer(),
+        try_renderer_with(GpuRendererOptions {
+            memory_budget_bytes: Some(320 << 20),
+            ..GpuRendererOptions::default()
+        }),
+    ) else {
+        return;
+    };
+    let frame = synthetic_bayer_frame(6000, 4000, "RGGB");
+    let viewport = CropRect {
+        x: 0.55,
+        y: 0.4,
+        w: 0.2,
+        h: 0.25,
+    };
+    let opts = roi_opts(6000, viewport);
+    for (label, edits) in budget_edits() {
+        let (reference, _) = tile_source(&single, &frame, &edits, &opts);
+        let (got, tiling) = tile_source(&budgeted, &frame, &edits, &opts);
+        if !matches!(tiling.plan, TilePlan::DisplayTiled { .. }) {
+            panic!("a {label} tile source in 320 MiB rendered as {tiling:?}");
+        }
+        if got != reference {
+            panic!("{label}: the budgeted tile source differs from the single pass");
+        }
     }
 }

@@ -1,5 +1,5 @@
 import type { ClientRenderer } from '$lib/render/clientRenderer';
-import type { RenderView, RenderedFrame, SourceInfo } from '$lib/render/protocol';
+import type { RenderInputs, RenderView, RenderedFrame, SourceInfo } from '$lib/render/protocol';
 import type { Edits } from '$lib/types/edits';
 import type { RenderRequest } from '$lib/utils/viewGeometry';
 
@@ -20,13 +20,15 @@ export interface ClientLaneHooks {
 
 interface SourceWant {
   key: string;
+  window: string;
   assetId: string;
   job: ClientJob;
 }
 
 export interface SourceSlot {
   stale: boolean;
-  key(assetId: string, sensorKey: string, view: RenderView): string;
+  key(assetId: string, source: string, view: RenderView, inputs: RenderInputs): string;
+  context(inputs: RenderInputs): string | null;
   load(
     renderer: ClientRenderer,
     assetId: string,
@@ -38,7 +40,8 @@ export interface SourceSlot {
 
 export const BASE_SLOT: SourceSlot = {
   stale: true,
-  key: (assetId, sensorKey) => `${assetId}:${sensorKey}`,
+  key: (assetId, source) => `${assetId}:${source}`,
+  context: () => null,
   load: (renderer, assetId, job, signal) =>
     renderer.loadSource(assetId, job.edits, job.view.max_edge, signal),
   view: (view) => view
@@ -46,7 +49,9 @@ export const BASE_SLOT: SourceSlot = {
 
 export const TILE_SLOT: SourceSlot = {
   stale: false,
-  key: (assetId, sensorKey, view) => `${assetId}:${sensorKey}:${view.roi?.join(',')}`,
+  key: (assetId, source, view, inputs) =>
+    `${assetId}:${source}:${inputs.window_key}:${view.roi?.join(',')}`,
+  context: (inputs) => inputs.context_key,
   load: (renderer, assetId, job, signal) => {
     const roi = job.view.roi;
     if (!roi) throw new Error('a tile needs a roi');
@@ -65,8 +70,9 @@ export class ClientLane {
   private generation = 0;
   private frames = 0;
   private sourceKey: string | null = null;
+  private loadedKey: string | null = null;
   private source: SourceInfo | null = null;
-  private fetching: string | null = null;
+  private fetching: SourceWant | null = null;
   private wanted: SourceWant | null = null;
   private controller: AbortController | null = null;
 
@@ -77,7 +83,7 @@ export class ClientLane {
   }
 
   get busy(): boolean {
-    return this.running || (this.fetching !== null && !this.drawable(this.fetching));
+    return this.running || (this.fetching !== null && !this.drawable(this.fetching.window));
   }
 
   submit(job: ClientJob): void {
@@ -95,6 +101,7 @@ export class ClientLane {
     this.generation++;
     this.cancel();
     this.sourceKey = null;
+    this.loadedKey = null;
     this.source = null;
     this.wanted = null;
     this.controller?.abort();
@@ -131,13 +138,17 @@ export class ClientLane {
     const assetId = this.hooks.assetId();
     if (!assetId) return null;
     const inputs = await this.renderer.inputs(job.edits, job.view.max_edge);
-    const key = this.slot.key(
+    const window = this.slot.key(
       assetId,
       `${inputs.sensor_key}:${this.hooks.sourceRevision()}`,
-      job.view
+      job.view,
+      inputs
     );
-    if (key !== this.sourceKey) this.want({ key, assetId, job });
-    if (!this.drawable(key)) return null;
+    const key = `${window}|${this.slot.context(inputs)}`;
+    const stale = window !== this.sourceKey || (this.source?.context && key !== this.loadedKey);
+    if (stale) this.want({ key, window, assetId, job });
+    else this.settle();
+    if (!this.drawable(window)) return null;
     await this.renderer.prepare(inputs);
     const started = performance.now();
     const frame = await this.renderer.render(job.edits, this.slot.view(job.view));
@@ -148,8 +159,13 @@ export class ClientLane {
     return this.sourceKey !== null && (this.slot.stale || key === this.sourceKey);
   }
 
+  private settle(): void {
+    this.wanted = null;
+    if (this.fetching) this.controller?.abort();
+  }
+
   private want(next: SourceWant): void {
-    if (next.key === this.fetching) {
+    if (next.key === this.fetching?.key) {
       this.wanted = null;
       return;
     }
@@ -164,7 +180,7 @@ export class ClientLane {
       const generation = this.generation;
       const controller = new AbortController();
       this.controller = controller;
-      this.fetching = want.key;
+      this.fetching = want;
       try {
         const source = await this.slot.load(
           this.renderer,
@@ -173,7 +189,8 @@ export class ClientLane {
           controller.signal
         );
         if (generation !== this.generation) continue;
-        this.sourceKey = want.key;
+        this.sourceKey = want.window;
+        this.loadedKey = want.key;
         this.source = source;
         if (this.last && !this.pending) this.submit(this.last);
       } catch (err) {

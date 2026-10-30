@@ -1,9 +1,8 @@
-use crate::edits::Edits;
 use crate::gpu::helpers::mip_count;
 use crate::gpu::renderer::detail::{atmosphere_level, haze_dims, level_dims};
-use crate::gpu::renderer::display::ContextNeeds;
 use crate::ops::dehaze::DehazeGrid;
 use crate::ops::presence::{PresenceBlurs, presence_blurs};
+use crate::source::ContextNeeds;
 use crate::tile::{Rect, support};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,9 +26,8 @@ pub(in crate::gpu::renderer) struct ContextPlan {
 }
 
 impl ContextPlan {
-    pub fn new(edits: &Edits, working: (u32, u32), align: u32) -> Option<Self> {
-        let needs = ContextNeeds::new(edits);
-        if !needs.dehaze && !needs.levels() && !needs.shadows {
+    pub fn new(needs: ContextNeeds, working: (u32, u32), align: u32) -> Option<Self> {
+        if !needs.dehaze && !needs.coarse() {
             return None;
         }
         let blurs = presence_blurs(working.0, working.1);

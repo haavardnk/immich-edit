@@ -74,6 +74,7 @@ mod working_set;
 #[cfg(feature = "native")]
 use admission::Admission;
 pub use display::DisplayFrame;
+pub(crate) use display::GlobalContext;
 #[cfg(feature = "native")]
 use display::{DisplayRequest, OutputShape};
 pub use options::GpuRendererOptions;
@@ -345,7 +346,7 @@ impl GpuRenderer {
                 edits,
                 opts: options,
                 shape: OutputShape::new(&linear.meta, edits, options.max_edge, full),
-                context: None,
+                context: linear.context.as_deref(),
             };
             let display = self.display_chain(request, timings, cancel)?;
             self.read_display(display, cancel)?.into_rendered(

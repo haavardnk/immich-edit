@@ -28,10 +28,8 @@ use crate::ops::GpuRoute;
 use crate::source::LinearKind;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
-pub(super) use context::{
-    ContextNeeds, GlobalContext, GridView, HazeGrid, LevelView, Placed, PresenceLevels,
-    ShadowLevels,
-};
+pub(crate) use context::GlobalContext;
+pub(super) use context::{GridView, HazeGrid, LevelView, Placed, PresenceLevels, ShadowLevels};
 pub(super) use finish::FinishStage;
 #[cfg(feature = "native")]
 pub(super) use finish::final_pass_active;
@@ -173,7 +171,7 @@ impl GpuRenderer {
             edits: &edits,
             opts,
             shape: OutputShape::new(&source.meta, &edits, opts.max_edge, source.extent().full),
-            context: None,
+            context: source.context.as_deref(),
         };
         self.display_chain(request, RenderTimings::new(&self.ctx), None)
     }

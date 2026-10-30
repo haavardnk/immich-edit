@@ -5,6 +5,8 @@ use wgpu::{
 
 pub(super) const STORAGE_SAMPLED: TextureUsages =
     TextureUsages::STORAGE_BINDING.union(TextureUsages::TEXTURE_BINDING);
+pub(super) const STORAGE_SAMPLED_SRC: TextureUsages =
+    STORAGE_SAMPLED.union(TextureUsages::COPY_SRC);
 
 pub(super) fn extent_2d((width, height): (u32, u32)) -> Extent3d {
     Extent3d {

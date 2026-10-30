@@ -4,7 +4,15 @@ import type { RenderView, RenderedFrame } from '$lib/render/protocol';
 import { neutralEdits, type Edits } from '$lib/types/edits';
 import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob } from './clientLane';
 
-const SOURCE = { width: 8, height: 4, frame_width: 8, frame_height: 4, is_raw: false, model: '' };
+const SOURCE = {
+  width: 8,
+  height: 4,
+  frame_width: 8,
+  frame_height: 4,
+  is_raw: false,
+  model: '',
+  context: false
+};
 
 function frame(label: number, close: () => void = () => {}): RenderedFrame {
   return {
@@ -26,6 +34,8 @@ function held() {
   const client = {
     inputs: async (_edits: Edits, maxEdge: number) => ({
       sensor_key: String(maxEdge > 0),
+      window_key: '',
+      context_key: '',
       rasters: [],
       lut: null
     }),
@@ -105,7 +115,13 @@ describe('client lane', () => {
     const loads: Array<{ roi: string; land: () => void }> = [];
     const views: RenderView[] = [];
     const client = {
-      inputs: async () => ({ sensor_key: 'k', rasters: [], lut: null }),
+      inputs: async () => ({
+        sensor_key: 'k',
+        window_key: '',
+        context_key: '',
+        rasters: [],
+        lut: null
+      }),
       loadTile: (_a: string, _e: Edits, _m: number, roi: number[]) =>
         new Promise((resolve) => loads.push({ roi: roi.join(','), land: () => resolve(SOURCE) })),
       prepare: async () => {},
@@ -145,7 +161,13 @@ describe('client lane', () => {
     let revision = '';
     const loadSource = vi.fn(async () => SOURCE);
     const client = {
-      inputs: async () => ({ sensor_key: 'k', rasters: [], lut: null }),
+      inputs: async () => ({
+        sensor_key: 'k',
+        window_key: '',
+        context_key: '',
+        rasters: [],
+        lut: null
+      }),
       loadSource,
       prepare: async () => {},
       render: async () => frame(1)
@@ -169,5 +191,109 @@ describe('client lane', () => {
     lane.submit(job(256));
     await flush();
     expect(loadSource).toHaveBeenCalledTimes(2);
+  });
+
+  it('draws from a stale tile context while it refetches one for the new key', async () => {
+    let context = 'a';
+    const loads: Array<() => void> = [];
+    const views: RenderView[] = [];
+    const tileSource = (withContext: boolean) => {
+      const client = {
+        inputs: async () => ({
+          sensor_key: 'k',
+          window_key: '',
+          context_key: context,
+          rasters: [],
+          lut: null
+        }),
+        loadTile: () =>
+          new Promise((resolve) => loads.push(() => resolve({ ...SOURCE, context: withContext }))),
+        prepare: async () => {},
+        render: async (_edits: Edits, view: RenderView) => {
+          views.push(view);
+          return frame(1);
+        }
+      } as unknown as ClientRenderer;
+      return new ClientLane(client, TILE_SLOT, {
+        assetId: () => 'a',
+        sourceRevision: () => '',
+        onFrame: () => {},
+        onError: (err) => {
+          throw err;
+        },
+        onIdle: () => {}
+      });
+    };
+    const tile: ClientJob = {
+      edits: neutralEdits(),
+      view: { max_edge: 512, roi: [0, 0, 0.5, 0.5] }
+    };
+
+    for (const [withContext, refetches] of [
+      [true, 2],
+      [false, 1]
+    ] as const) {
+      context = 'a';
+      loads.length = 0;
+      views.length = 0;
+      const lane = tileSource(withContext);
+      lane.submit(tile);
+      await flush();
+      loads[0]?.();
+      await flush();
+      context = 'b';
+      lane.submit(tile);
+      await flush();
+
+      expect(loads).toHaveLength(refetches);
+      expect(views).toHaveLength(2);
+    }
+  });
+
+  it('drops a refetch for another context once the edits return to the loaded one', async () => {
+    let context = 'a';
+    const loads: Array<{ signal: AbortSignal; land: () => void }> = [];
+    const client = {
+      inputs: async () => ({
+        sensor_key: 'k',
+        window_key: '',
+        context_key: context,
+        rasters: [],
+        lut: null
+      }),
+      loadTile: (_a: string, _e: Edits, _m: number, _r: number[], signal: AbortSignal) =>
+        new Promise((resolve) =>
+          loads.push({ signal, land: () => resolve({ ...SOURCE, context: true }) })
+        ),
+      prepare: async () => {},
+      render: async () => frame(1)
+    } as unknown as ClientRenderer;
+    const lane = new ClientLane(client, TILE_SLOT, {
+      assetId: () => 'a',
+      sourceRevision: () => '',
+      onFrame: () => {},
+      onError: (err) => {
+        throw err;
+      },
+      onIdle: () => {}
+    });
+    const tile: ClientJob = {
+      edits: neutralEdits(),
+      view: { max_edge: 512, roi: [0, 0, 0.5, 0.5] }
+    };
+
+    lane.submit(tile);
+    await flush();
+    loads[0]?.land();
+    await flush();
+    context = 'b';
+    lane.submit(tile);
+    await flush();
+    context = 'a';
+    lane.submit(tile);
+    await flush();
+
+    expect(loads).toHaveLength(2);
+    expect(loads[1]?.signal.aborted).toBe(true);
   });
 });

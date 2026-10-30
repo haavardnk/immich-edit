@@ -31,6 +31,14 @@ so dragging exposure, white balance, tone, color, mask or effect sliders sends n
 server. Changing a source setting asks the server for a new copy, and the preview keeps using the
 old one until it arrives.
 
+Zoomed past the fit size, the browser asks for the visible region only. A GPU server sends it with
+a small margin and the whole-photo measurements that Dehaze, Texture, Clarity and Shadows need, so
+the zoomed view renders exactly like the server would. While Texture, Clarity or Shadows are in
+use, the zoomed view asks for a new copy of the region when Dehaze or Lens Blur change, when one
+of the three turns on or off, and when Texture, Clarity or, with Clarity on, Exposure change while
+Shadows is on. It keeps drawing from the copy it has until the new one arrives. A server without
+a GPU sends a wider region instead and never needs a new copy for these sliders.
+
 ## The server
 
 The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls back to a built-in
@@ -50,7 +58,10 @@ image. Before it renders output tiles, the server measures them once over the wh
 section at a time, and every tile reads those shared measurements, so the stitched result still
 matches a single-pass render exactly. Lens blur widens each tile by the reach of its blur. Healing
 and clone strokes copy pixels across the whole photo, so a render with them cannot be cut into
-tiles and renders on the CPU when its image does not fit. Previews of photos whose
+tiles and renders on the CPU when its image does not fit. For a zoomed browser view of a photo
+that does not fit, the server builds those measurements section by section and renders only the
+visible region, and it keeps the last two sets of measurements so panning reuses them. Previews of
+photos whose
 long edge passes 32768 px (49152 px for X-Trans) average larger pixel blocks so the preview fits
 the GPU.
 

@@ -16,6 +16,7 @@ pub fn source(header: &SourceHeader) -> JsValue {
         ("frame_height", (meta.height as u32).into()),
         ("is_raw", meta.is_raw.into()),
         ("model", meta.model.as_str().into()),
+        ("context", header.context.is_some().into()),
     ])
 }
 
@@ -32,6 +33,8 @@ pub fn limits(limits: &wgpu::Limits) -> JsValue {
 pub fn inputs(inputs: &EditInputs) -> JsValue {
     object(&[
         ("sensor_key", inputs.sensor_key.as_str().into()),
+        ("window_key", inputs.window_key.as_str().into()),
+        ("context_key", inputs.context_key.as_str().into()),
         (
             "rasters",
             inputs

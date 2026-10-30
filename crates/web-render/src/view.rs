@@ -5,12 +5,15 @@ use raw_pipeline::edits::{CropRect, Edits};
 use raw_pipeline::frame::{OutputColorSpace, OutputFormat, PreviewMode, RenderOptions};
 use raw_pipeline::lut::LutMap;
 use raw_pipeline::mask_raster::RasterMap;
+use raw_pipeline::source::{context_key, window_key};
 use serde::Deserialize;
 use wgpu::SurfaceColorSpace;
 
 #[derive(Debug, PartialEq)]
 pub struct EditInputs {
     pub sensor_key: String,
+    pub window_key: String,
+    pub context_key: String,
     pub rasters: Vec<String>,
     pub lut: Option<String>,
 }
@@ -20,6 +23,8 @@ impl EditInputs {
         let edits = serde_json::from_str::<Edits>(edits)?.clamped();
         Ok(Self {
             sensor_key: format!("{}-{max_edge}", edits.sensor_stage().stable_hash()),
+            window_key: window_key(&edits),
+            context_key: context_key(&edits),
             rasters: edits.referenced_raster_ids(),
             lut: edits.referenced_lut_id(),
         })
@@ -180,6 +185,33 @@ mod tests {
                 "{edits} @ {max_edge}"
             );
         }
+    }
+
+    #[test]
+    fn context_key_tracks_the_tile_context_not_the_sensor() {
+        let key = |edits: &str| {
+            EditInputs::parse(edits, 1)
+                .expect("valid edits")
+                .context_key
+        };
+        let clarity = r#"{"basic":{"clarity":20.0},"tone":{"shadows":30.0}}"#;
+        assert_eq!(
+            key(clarity),
+            key(r#"{"basic":{"clarity":20.0,"contrast":10.0},"tone":{"shadows":30.0}}"#)
+        );
+        assert_ne!(
+            key(clarity),
+            key(r#"{"basic":{"clarity":20.0,"dehaze":15.0},"tone":{"shadows":30.0}}"#)
+        );
+        assert_eq!(key("{}"), key(r#"{"detail":{"luma_nr_amount":30.0}}"#));
+    }
+
+    #[test]
+    fn window_key_tracks_flips_that_the_sensor_key_drops() {
+        let inputs = |edits: &str| EditInputs::parse(edits, 1).expect("valid edits");
+        let (plain, flipped) = (inputs("{}"), inputs(r#"{"geometry":{"flip_h":true}}"#));
+        assert_eq!(plain.sensor_key, flipped.sensor_key);
+        assert_ne!(plain.window_key, flipped.window_key);
     }
 
     #[test]

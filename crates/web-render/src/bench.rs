@@ -38,8 +38,10 @@ pub fn synthetic_source(edge: u32) -> SourceImage {
             dims: (width, height),
             atmosphere: None,
             window: None,
+            context: None,
         },
         rgb_f16,
+        context: Vec::new(),
     }
 }
 

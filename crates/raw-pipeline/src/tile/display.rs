@@ -30,6 +30,10 @@ impl DisplayLayout<'_> {
             .collect()
     }
 
+    pub fn whole(&self) -> DisplayTile {
+        self.tile(Rect::full(self.out))
+    }
+
     fn tile(&self, core: Rect) -> DisplayTile {
         let rect = core.expand(self.halo, self.out);
         let bounds = source_bounds(
