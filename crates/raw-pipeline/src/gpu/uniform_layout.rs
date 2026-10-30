@@ -262,13 +262,15 @@ fn uniform_structs_mirror_wgsl() {
             "effects_tone",
             layout!(EffectsToneParams {
                 size,
+                full,
                 vignette,
                 grain,
                 display_p3,
                 warn_flags,
                 output_scale,
+                origin,
                 roi,
-            } pad { _pad0, _pad1 }),
+            } pad {}),
             uniform_struct(&effects_tone_wgsl(depth)),
         ),
         (
@@ -314,6 +316,7 @@ fn uniform_structs_mirror_wgsl() {
                 geom_extra3,
                 lens,
                 perspective,
+                tile,
             } pad {}),
             uniform_struct(&mask_weight_wgsl()),
         ),
@@ -458,6 +461,7 @@ fn process_uniform_mirrors_header_and_op_slots() {
         output,
         perspective,
         src_window,
+        shadows_window,
     } pad {});
     let masks = [
         StageMask::fast(),

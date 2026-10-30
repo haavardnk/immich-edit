@@ -2,13 +2,13 @@ use std::collections::HashSet;
 
 use wgpu::TextureFormat;
 
-use super::display::{final_pass_active, layer_presence, scaled_dims};
+use super::display::{OutputShape, final_pass_active, layer_presence};
+use super::display_tiles::DisplayTiles;
 use super::{GpuRenderer, RenderPlan, SensorShape, compose_edits, display_depth};
 use crate::cpu::demosaic::parse_xtrans;
 use crate::cpu::masked::{SelectorTaps, build_layer_eval};
 use crate::edits::{Edits, MaskLayer, RetouchMode};
 use crate::frame::{FrameMeta, PreviewMode, RawFrame, RenderOptions};
-use crate::geom;
 use crate::gpu::display_depth::DisplayDepth;
 use crate::gpu::helpers::{mip_count, round_up_256};
 use crate::gpu::readback::readback_size;
@@ -21,7 +21,7 @@ use crate::ops::lens_blur::kernel::BlurScale;
 use crate::ops::presence::has_shadows;
 use crate::ops::retouch::stroke_geometry;
 use crate::source::LinearKind;
-use crate::tile::{Rect, SensorTile, TilePlan};
+use crate::tile::{DisplayTile, Rect, SensorTile, TilePlan};
 
 #[cfg(all(test, target_vendor = "apple"))]
 mod tests;
@@ -70,7 +70,7 @@ impl WorkingSet {
         let shape = SensorShape::new(frame, &edits, options, presence);
         let working = shape.working();
         match tiles {
-            TilePlan::SinglePass => {
+            TilePlan::SinglePass | TilePlan::DisplayTiled { .. } => {
                 let tile = shape.chain.whole();
                 self.sensor_tile(frame, &edits, options, &shape, &tile, presence);
             }
@@ -81,10 +81,7 @@ impl WorkingSet {
                     .tiles(edge)
                     .iter()
                     .map(|tile| {
-                        let mut set = WorkingSet {
-                            linear: self.linear,
-                            bytes: 0,
-                        };
+                        let mut set = self.empty();
                         set.sensor_tile(frame, &edits, options, &shape, tile, presence);
                         set.bytes
                     })
@@ -186,12 +183,59 @@ impl WorkingSet {
         luma_planes
     }
 
+    fn display_tiles(
+        &mut self,
+        frame: &RawFrame,
+        edits: &Edits,
+        options: &RenderOptions,
+        kind: LinearKind,
+        edge: u32,
+    ) {
+        let edits = edits.clamped();
+        let presence = kind == LinearKind::PostWb;
+        let shape = SensorShape::new(frame, &edits, options, presence);
+        let layout = DisplayTiles::new(frame, &edits, options, &shape, edge);
+        let sensor_bytes = |tile: &SensorTile| {
+            let mut set = self.empty();
+            set.sensor_tile(frame, &edits, options, &shape, tile, presence);
+            set.bytes
+        };
+        let tile_bytes = |tile: &DisplayTile| {
+            let sensor = shape.chain.tile(tile.window);
+            let extent = if shape.resamples() {
+                sensor.core
+            } else {
+                sensor.detail()
+            };
+            let mut set = self.empty();
+            set.bytes = sensor_bytes(&sensor);
+            let source = SourceExtent {
+                dims: extent.dims(),
+                full: shape.working(),
+            };
+            let output = layout.shape.tile(tile.rect);
+            set.display(&frame.meta, (source, kind), &edits, options, output);
+            set.bytes
+        };
+        let partition = shape.chain.tiles(edge).iter().map(sensor_bytes).max();
+        let tiles = layout.tiles.iter().map(tile_bytes).max();
+        self.bytes += partition.max(tiles).unwrap_or(0);
+    }
+
+    fn empty(&self) -> Self {
+        WorkingSet {
+            linear: self.linear,
+            bytes: 0,
+        }
+    }
+
     fn display(
         &mut self,
         meta: &FrameMeta,
         source: (SourceExtent, LinearKind),
         edits: &Edits,
         opts: &RenderOptions,
+        shape: OutputShape,
     ) {
         let edits = edits.clamped();
         let (extent, kind) = source;
@@ -202,11 +246,9 @@ impl WorkingSet {
         };
         let dims = extent.dims;
         let full = (meta.width as u32, meta.height as u32);
-        let out = geom::display_out_dims(meta.orientation, &edits, full, opts.max_edge);
-        let (crop_w, crop_h) = geom::display_crop_px(meta.orientation, &edits, extent.full);
-        let ratio = (crop_w as f32 / out.0 as f32).max(crop_h as f32 / out.1 as f32);
-        if let Some(target) = geom::resample_target(extent.full, ratio) {
-            let work = scaled_dims(dims, extent.full, target);
+        let out = shape.dims();
+        if let Some(target) = shape.target(extent.full) {
+            let work = Rect::full(dims).rescaled(extent.full, target).dims();
             for _ in 0..=layers {
                 self.linear((work.0, dims.1), false);
                 self.linear(work, false);
@@ -341,11 +383,16 @@ impl GpuRenderer {
                 } else {
                     LinearKind::PreWb
                 };
+                if let TilePlan::DisplayTiled { edge } = tiles {
+                    set.display_tiles(frame, &edits, options, kind, edge);
+                    return set.bytes;
+                }
                 (set.sensor(frame, &edits, options, presence, tiles), kind)
             }
             RenderSource::Linear(linear) => (linear.extent(), linear.kind),
         };
-        set.display(source.meta(), linear, &edits, options);
+        let shape = OutputShape::new(source.meta(), &edits, options.max_edge, linear.0.full);
+        set.display(source.meta(), linear, &edits, options, shape);
         set.bytes
     }
 

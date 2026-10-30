@@ -7,10 +7,38 @@ use crate::PipelineResult;
 use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::{NoiseHistogram, NoiseProfile};
 use crate::gpu::renderer::resample::Resample;
+use crate::gpu::source::LinearSource;
 use crate::tile::{Rect, SensorTile, Warp};
 use crate::timing;
 
 impl GpuRenderer {
+    pub(in crate::gpu::renderer) fn sensor_window(
+        &self,
+        job: &SensorJob<'_>,
+        window: Rect,
+        profile: Option<NoiseProfile>,
+    ) -> PipelineResult<LinearSource> {
+        let tile = job.shape.chain.tile(window);
+        let (texture, extent) = self.sensor_tile(job, &tile, profile)?;
+        Ok(job.window_source(texture, extent))
+    }
+
+    pub(super) fn sensor_tile(
+        &self,
+        job: &SensorJob<'_>,
+        tile: &SensorTile,
+        profile: Option<NoiseProfile>,
+    ) -> PipelineResult<(Arc<Texture>, Rect)> {
+        let base = self.sensor_base(job, tile)?;
+        match &job.detail {
+            Some(detail) => {
+                let wb = self.sensor_wb(job, detail, &base)?;
+                self.sensor_detail(job, detail, tile, &wb, profile)
+            }
+            None => Ok((base.texture.clone(), base.rect)),
+        }
+    }
+
     pub(super) fn sensor_base(
         &self,
         job: &SensorJob<'_>,

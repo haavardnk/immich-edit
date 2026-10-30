@@ -1,3 +1,5 @@
+#[cfg(feature = "native")]
+mod display;
 mod rect;
 #[cfg(feature = "native")]
 mod sensor;
@@ -7,6 +9,8 @@ pub(crate) mod support;
 #[cfg(all(test, feature = "native"))]
 mod tests;
 
+#[cfg(feature = "native")]
+pub use display::{DisplayLayout, DisplayTile};
 pub use rect::Rect;
 #[cfg(feature = "native")]
 pub use sensor::{SensorChain, SensorTile, Warp};
@@ -16,4 +20,5 @@ pub use sensor::{SensorChain, SensorTile, Warp};
 pub enum TilePlan {
     SinglePass,
     SensorTiled { edge: u32 },
+    DisplayTiled { edge: u32 },
 }

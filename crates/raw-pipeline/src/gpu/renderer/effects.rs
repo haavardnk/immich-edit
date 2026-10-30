@@ -192,7 +192,7 @@ impl GpuRenderer {
         let r = opts.roi.unwrap_or(crate::edits::CropRect::full());
         let params = EffectsToneParams {
             size: [w, h],
-            _pad0: [0; 2],
+            full: [display.full.0, display.full.1],
             vignette: [
                 (e.vignette_amount / 100.0) as f32,
                 (e.vignette_midpoint / 100.0) as f32,
@@ -207,7 +207,7 @@ impl GpuRenderer {
             display_p3: matches!(opts.output_color_space, OutputColorSpace::DisplayP3) as u32,
             warn_flags: opts.gamut_warn as u32 | ((opts.clip_warn as u32) << 1),
             output_scale: display.scale,
-            _pad1: [0; 2],
+            origin: [display.origin.0, display.origin.1],
             roi: [r.x, r.y, r.w, r.h],
         };
         let ub = self.uniform(&params, "effects-tone-uniform");

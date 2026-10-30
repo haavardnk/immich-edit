@@ -1,7 +1,9 @@
-use super::{GpuRenderer, SensorShape, SourcePlan};
+use super::display_tiles::DisplayTiles;
+use super::{GpuRenderer, SensorShape, SourcePlan, presence_display};
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
-use crate::frame::{RawFrame, RenderOptions};
+use crate::frame::{PreviewMode, RawFrame, RenderOptions};
+use crate::geom;
 use crate::tile::TilePlan;
 use crate::{PipelineError, PipelineResult};
 
@@ -22,38 +24,88 @@ impl Planned {
     }
 }
 
-struct Tileable {
+struct Tileable<'a> {
+    frame: &'a RawFrame,
+    edits: &'a Edits,
+    options: &'a RenderOptions,
+    limits: wgpu::Limits,
+    shape: SensorShape,
+    out: (u32, u32),
+    chain_fits: bool,
     fits_single_pass: bool,
-    edges: Vec<u32>,
+    display: bool,
 }
 
-impl Tileable {
+impl<'a> Tileable<'a> {
     fn new(
-        frame: &RawFrame,
-        edits: &Edits,
-        options: &RenderOptions,
+        frame: &'a RawFrame,
+        edits: &'a Edits,
+        options: &'a RenderOptions,
         plan: SourcePlan,
-        limits: &wgpu::Limits,
+        limits: wgpu::Limits,
     ) -> Option<Self> {
         if plan.presence() && edits.retouch_active() {
             return None;
         }
         let shape = SensorShape::new(frame, &edits.clamped(), options, plan.presence());
-        let fits_single_pass = shape.fits(frame, &shape.chain.whole(), limits);
-        let (w, h) = shape.working();
-        let edges = TILE_EDGES
-            .into_iter()
-            .filter(|&edge| !fits_single_pass || edge < w.max(h))
-            .filter(|&edge| {
-                let tiles = shape.chain.tiles(edge);
-                tiles.iter().all(|tile| shape.fits(frame, tile, limits))
-            })
-            .collect();
+        let meta = &frame.meta;
+        let dims = (meta.width as u32, meta.height as u32);
+        let out = geom::display_out_dims(meta.orientation, edits, dims, options.max_edge);
+        let edge = |(w, h): (u32, u32)| w.max(h) <= limits.max_texture_dimension_2d;
+        let chain_fits = (!plan.displays() || edge(out)) && edge(shape.working());
+        let fits_single_pass = chain_fits && shape.fits(frame, &shape.chain.whole(), &limits);
         Some(Self {
+            frame,
+            edits,
+            options,
+            limits,
+            shape,
+            out,
+            chain_fits,
             fits_single_pass,
-            edges,
+            display: plan.displays() && display_tileable(edits, options),
         })
     }
+
+    fn candidates(&self) -> impl Iterator<Item = TilePlan> + '_ {
+        let (w, h) = self.shape.working();
+        let sensor = TILE_EDGES
+            .into_iter()
+            .filter(|_| self.chain_fits)
+            .filter(move |&edge| !self.fits_single_pass || edge < w.max(h))
+            .filter(|&edge| self.sensor_fits(edge))
+            .map(|edge| TilePlan::SensorTiled { edge });
+        let display = TILE_EDGES
+            .into_iter()
+            .filter(|_| self.display)
+            .filter(|&edge| edge < self.out.0.max(self.out.1))
+            .filter(|&edge| self.display_fits(edge))
+            .map(|edge| TilePlan::DisplayTiled { edge });
+        sensor.chain(display)
+    }
+
+    fn sensor_fits(&self, edge: u32) -> bool {
+        let tiles = self.shape.chain.tiles(edge);
+        tiles
+            .iter()
+            .all(|tile| self.shape.fits(self.frame, tile, &self.limits))
+    }
+
+    fn display_fits(&self, edge: u32) -> bool {
+        let layout = DisplayTiles::new(self.frame, self.edits, self.options, &self.shape, edge);
+        layout.tiles.iter().all(|tile| {
+            let sensor = self.shape.chain.tile(tile.window);
+            tile.rect.w.max(tile.rect.h) <= self.limits.max_texture_dimension_2d
+                && self.shape.fits(self.frame, &sensor, &self.limits)
+        })
+    }
+}
+
+fn display_tileable(edits: &Edits, options: &RenderOptions) -> bool {
+    !presence_display(edits)
+        && !options.histogram
+        && !options.scopes
+        && options.preview_mode == PreviewMode::None
 }
 
 impl GpuRenderer {
@@ -68,7 +120,7 @@ impl GpuRenderer {
     ) -> PipelineResult<T> {
         let limits = self.ctx.device.limits();
         let tileable =
-            raw.and_then(|(frame, plan)| Tileable::new(frame, edits, options, plan, &limits));
+            raw.and_then(|(frame, plan)| Tileable::new(frame, edits, options, plan, limits));
         let planned = self.plan(tileable.as_ref(), &estimate);
         let run = |planned: Planned| {
             let _admitted = self.admit(planned.bytes, cancel)?;
@@ -89,6 +141,9 @@ impl GpuRenderer {
         let Some(tileable) = tileable else {
             return Planned::new(TilePlan::SinglePass, estimate);
         };
+        if let Some(edge) = self.display_tile_edge.filter(|_| tileable.display) {
+            return Planned::new(TilePlan::DisplayTiled { edge }, estimate);
+        }
         if let Some(edge) = self.tile_edge {
             return Planned::new(TilePlan::SensorTiled { edge }, estimate);
         }
@@ -101,9 +156,8 @@ impl GpuRenderer {
 
     fn tiled(&self, tileable: &Tileable, estimate: &impl Fn(TilePlan) -> u64) -> Option<Planned> {
         tileable
-            .edges
-            .iter()
-            .map(|&edge| Planned::new(TilePlan::SensorTiled { edge }, estimate))
+            .candidates()
+            .map(|tiles| Planned::new(tiles, estimate))
             .find(|planned| self.within_budget(planned.bytes))
     }
 

@@ -81,6 +81,27 @@ pub(super) struct ReadbackImage<'a> {
     timings: RenderTimings<'a>,
 }
 
+impl<'a> ReadbackImage<'a> {
+    pub(super) fn stitched(
+        display: DisplayBuf,
+        dims: (u32, u32),
+        source_dims: (u32, u32),
+        timings: RenderTimings<'a>,
+    ) -> Self {
+        Self {
+            display,
+            counts: MetaCounts::default(),
+            dims,
+            source_dims,
+            timings,
+        }
+    }
+
+    pub(super) fn into_tile(self) -> (DisplayBuf, (u32, u32), RenderTimings<'a>) {
+        (self.display, self.source_dims, self.timings)
+    }
+}
+
 impl ReadbackImage<'_> {
     pub(super) fn into_rendered(
         self,

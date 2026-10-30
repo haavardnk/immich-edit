@@ -1,5 +1,6 @@
 mod finish;
 mod linear;
+mod shape;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,7 +23,6 @@ use crate::gpu::source::{LinearSource, SourceExtent};
 use crate::gpu::texture::STORAGE_SAMPLED;
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::timer::RenderTimings;
-use crate::gpu::uniforms::FULL_WINDOW;
 use crate::ops::GpuRoute;
 use crate::ops::presence::presence_blurs;
 use crate::source::LinearKind;
@@ -32,14 +32,15 @@ pub(super) use finish::FinishStage;
 #[cfg(feature = "native")]
 pub(super) use finish::final_pass_active;
 #[cfg(feature = "native")]
-pub(super) use linear::{layer_presence, scaled_dims};
+pub(super) use linear::layer_presence;
+pub(super) use shape::OutputShape;
 
 pub(super) struct DisplayInput<'s> {
     pub pass: &'s ProcessFastPass,
     pub meta: &'s FrameMeta,
     pub edits: &'s Edits,
     pub opts: &'s RenderOptions,
-    pub out_dims: (u32, u32),
+    pub shape: OutputShape,
 }
 
 #[derive(Clone, Copy)]
@@ -47,16 +48,18 @@ pub(super) struct DisplayTarget<'t> {
     pub texture: &'t Texture,
     pub depth: DisplayDepth,
     pub dims: (u32, u32),
+    pub full: (u32, u32),
+    pub origin: (u32, u32),
     pub scale: f32,
 }
 
 pub(super) struct StageState {
     pub texture: Arc<Texture>,
     pub extent: SourceExtent,
-    pub window: [f32; 4],
     pub origin: (u32, u32),
     pub shadows_mip: f32,
     pub shadows: Option<Arc<Texture>>,
+    pub shadows_window: [u32; 4],
     atmosphere: Option<[f32; 3]>,
     layers: HashMap<String, Arc<Texture>>,
     held: Vec<PooledTexture>,
@@ -69,16 +72,20 @@ impl StageState {
         Self {
             texture: source.texture.clone(),
             extent,
-            window: source
-                .window
-                .map_or(FULL_WINDOW, |w| w.uv_rect(source.dims)),
             origin: source.window.map_or((0, 0), |w| w.origin),
             shadows_mip: presence_blurs(full_w, full_h).shadows.level as f32,
             shadows: None,
+            shadows_window: [0; 4],
             atmosphere: source.atmosphere,
             layers: HashMap::new(),
             held: Vec::new(),
         }
+    }
+
+    pub fn window(&self) -> [u32; 4] {
+        let (x, y) = self.origin;
+        let (w, h) = self.extent.full;
+        [x, y, w, h]
     }
 
     fn hold(&mut self, texture: PooledTexture) -> Arc<Texture> {
@@ -148,7 +155,9 @@ impl GpuRenderer {
             return Err(PipelineError::DeviceLost);
         }
         let edits = super::compose_edits(edits, opts);
-        self.display_chain(source, &edits, opts, RenderTimings::new(&self.ctx), None)
+        let shape = OutputShape::new(&source.meta, &edits, opts.max_edge, source.extent().full);
+        let timings = RenderTimings::new(&self.ctx);
+        self.display_chain(source, &edits, opts, shape, timings, None)
     }
 
     pub(super) fn display_chain<'a>(
@@ -156,16 +165,14 @@ impl GpuRenderer {
         source: &LinearSource,
         edits: &Edits,
         opts: &RenderOptions,
+        shape: OutputShape,
         timings: RenderTimings<'a>,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<DisplayFrame<'a>> {
         let edits_c = edits.clamped();
         let meta = &source.meta;
-        let full_dims = (meta.width as u32, meta.height as u32);
-        let out_dims =
-            crate::geom::display_out_dims(meta.orientation, &edits_c, full_dims, opts.max_edge);
         let depth = display_depth(opts);
-        OutputTargets::check_limits(&self.ctx.device.limits(), out_dims, depth)?;
+        OutputTargets::check_limits(&self.ctx.device.limits(), shape.dims(), depth)?;
         let passes = match depth {
             DisplayDepth::Eight => (&self.passes.process_fast, &self.passes.process_post_wb),
             DisplayDepth::Sixteen => {
@@ -185,7 +192,7 @@ impl GpuRenderer {
                 meta,
                 edits,
                 opts,
-                out_dims,
+                shape,
             };
             return self.encode_display(input, state, timings, cancel);
         }
@@ -202,7 +209,7 @@ impl GpuRenderer {
             meta,
             edits,
             opts,
-            out_dims,
+            shape,
         };
         self.encode_display(input, state, timings, cancel)
     }
@@ -219,17 +226,18 @@ impl GpuRenderer {
             meta,
             edits,
             opts,
-            out_dims,
+            shape,
         } = input;
         let t = &timings;
         let mut edits = edits.clamped();
         edits.detail.sharpen_amount = Some(edits.detail.sharpen_amount_for(meta.is_raw));
         let edits = edits;
         self.check_fused_ops(&edits)?;
-        self.resample_stage(&mut state, meta, &edits, out_dims, t)?;
+        self.resample_stage(&mut state, &shape, t)?;
         crate::cancel::check(cancel)?;
 
-        let plan = ProcessPlan::new(meta, &edits, opts, &state, out_dims);
+        let out_dims = shape.dims();
+        let plan = ProcessPlan::new(meta, &edits, opts, &state, &shape);
         let targets = pools::acquire_target(&self.output_pool, &self.ctx, out_dims.0, out_dims.1)?;
         let p = &targets[0];
         let depth = display_depth(opts);
@@ -238,7 +246,9 @@ impl GpuRenderer {
             texture: sixteen.as_deref().unwrap_or(&p.texture),
             depth,
             dims: out_dims,
-            scale: plan.ctx_op.render.output_scale,
+            full: shape.full,
+            origin: shape.origin(),
+            scale: shape.scale,
         };
         let dcp_base = self.dcp_base_table_view(plan.ctx_op.render.dcp.as_deref());
         let views = ProcessViews::new(&state, p, display.texture, &self.dummy_texture, dcp_base);

@@ -17,9 +17,10 @@ const PROCESS_HEADER_FIELDS: &str = "    src_size: vec2<u32>,
     active_mask: vec4<u32>,
     geom_extra2: vec4<f32>,
     geom_extra3: vec4<f32>,
-    output: vec4<u32>,
+    output: vec4<i32>,
     perspective: array<vec4<f32>, 3>,
-    src_window: vec4<f32>,
+    src_window: vec4<u32>,
+    shadows_window: vec4<u32>,
 ";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -160,22 +161,20 @@ fn shadows_luma_at(level: u32, x: i32, y: i32) -> f32 {{
     return textureLoad(shadows_blur_tex, at, i32(level)).r;
 }}
 
-fn sample_shadows_blur(uv: vec2<f32>, mip: f32) -> f32 {{
+fn sample_shadows_blur(px: vec2<f32>, window: vec2<u32>, mip: f32) -> f32 {{
     let level = min(u32(mip), textureNumLevels(shadows_blur_tex) - 1u);
-    let base = vec2<f32>(textureDimensions(shadows_blur_tex, 0u));
-    let pos = uv * base / f32(1u << level) - 0.5;
-    let origin = floor(pos);
-    let t = pos - origin;
-    let x0 = i32(origin.x);
-    let y0 = i32(origin.y);
+    let pos = (px - vec2<f32>(window)) / f32(1u << level) - 0.5;
+    let base = floor(pos);
+    let t = pos - base;
+    let x0 = i32(base.x);
+    let y0 = i32(base.y);
     let top = mix(shadows_luma_at(level, x0, y0), shadows_luma_at(level, x0 + 1, y0), t.x);
     let bottom = mix(shadows_luma_at(level, x0, y0 + 1), shadows_luma_at(level, x0 + 1, y0 + 1), t.x);
     return mix(top, bottom, t.y);
 }}
 
-fn sample_src_cubic(uv: vec2<f32>) -> vec3<f32> {{
-    let dims = vec2<f32>(f32(p.src_size.x), f32(p.src_size.y));
-    let pos = uv * dims - 0.5;
+fn sample_src_cubic(px: vec2<f32>, window: vec2<u32>) -> vec3<f32> {{
+    let pos = px - 0.5;
     let base = floor(pos);
     let f = pos - base;
     let f2 = f * f;
@@ -194,11 +193,13 @@ fn sample_src_cubic(uv: vec2<f32>) -> vec3<f32> {{
     );
     let maxx = i32(p.src_size.x) - 1;
     let maxy = i32(p.src_size.y) - 1;
+    let x0 = i32(base.x) - i32(window.x);
+    let y0 = i32(base.y) - i32(window.y);
     var acc = vec3<f32>(0.0);
     for (var j = 0; j < 4; j = j + 1) {{
-        let sy = clamp(i32(base.y) + j - 1, 0, maxy);
+        let sy = clamp(y0 + j - 1, 0, maxy);
         for (var i = 0; i < 4; i = i + 1) {{
-            let sx = clamp(i32(base.x) + i - 1, 0, maxx);
+            let sx = clamp(x0 + i - 1, 0, maxx);
             acc = acc + textureLoad(src_tex, vec2<i32>(sx, sy), 0).rgb * (wx[i] * wy[j]);
         }}
     }}
@@ -238,11 +239,12 @@ fn process_color(c0: vec3<f32>) -> vec3<f32> {{
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
-    if (gid.x >= p.out_size.x || gid.y >= p.out_size.y) {{ return; }}
+    if (i32(gid.x) >= p.output.z || i32(gid.y) >= p.output.w) {{ return; }}
 
     let ow = f32(p.out_size.x);
     let oh = f32(p.out_size.y);
-    let disp_uv = vec2<f32>((f32(gid.x) + 0.5) / ow, (f32(gid.y) + 0.5) / oh);
+    let out_px = vec2<i32>(gid.xy) + p.output.xy;
+    let disp_uv = vec2<f32>((f32(out_px.x) + 0.5) / ow, (f32(out_px.y) + 0.5) / oh);
 
     let oriented_uv = geom_display_to_oriented(
         p.crop,
@@ -264,12 +266,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     if (oh_t) {{ let tmp = su; su = sv; sv = tmp; }}
     if (oh_v) {{ sv = 1.0 - sv; }}
     if (oh_h) {{ su = 1.0 - su; }}
-    su = (su - p.src_window.x) / p.src_window.z;
-    sv = (sv - p.src_window.y) / p.src_window.w;
+    let sensor_uv = vec2<f32>(su, sv);
+    let frame_px = sensor_uv * vec2<f32>(p.src_window.zw);
+    let shadows_px = sensor_uv * vec2<f32>(p.shadows_window.zw);
 
-    let rgb = sample_src_cubic(vec2<f32>(su, sv));
-    shadows_blur_l = sample_shadows_blur(vec2<f32>(su, sv), p.geom_extra.y);
-    shadows_source_l = sample_shadows_blur(vec2<f32>(su, sv), 0.0);
+    let rgb = sample_src_cubic(frame_px, p.src_window.xy);
+    shadows_blur_l = sample_shadows_blur(shadows_px, p.shadows_window.xy, p.geom_extra.y);
+    shadows_source_l = sample_shadows_blur(shadows_px, p.shadows_window.xy, 0.0);
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);
     if (p.geom_extra3.z > 0.5 && (src_px.x < 0.0 || src_px.y < 0.0 || src_px.x > p.geom_extra3.x - 1.0 || src_px.y > p.geom_extra3.y - 1.0)) {{
@@ -277,7 +280,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     }}
     textureStore(linear_tex, vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_lin, 1.0));
     let outc = tone_apply_rgb(outc_lin);
-    let outc_d = tone_dither_u8(outc, gid.x, gid.y);
+    let outc_d = tone_dither_u8(outc, u32(out_px.x), u32(out_px.y));
     store_display(vec2<i32>(i32(gid.x), i32(gid.y)), vec4<f32>(outc_d, 1.0));
 }}
 "#

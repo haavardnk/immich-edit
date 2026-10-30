@@ -56,6 +56,7 @@ impl RenderCacheOptions {
                 .memory_bytes()
                 .map(|bytes| bytes.saturating_sub(frame_caches)),
             tile_edge: self.gpu_tile_edge,
+            display_tile_edge: None,
             timestamps,
         }
     }

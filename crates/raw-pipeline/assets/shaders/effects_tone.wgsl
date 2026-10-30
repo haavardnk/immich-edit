@@ -1,10 +1,12 @@
 struct EffectsToneParams {
     size: vec2<u32>,
+    full: vec2<u32>,
     vignette: vec4<f32>,
     grain: vec3<f32>,
     display_p3: u32,
     warn_flags: u32,
     output_scale: f32,
+    origin: vec2<u32>,
     roi: vec4<f32>,
 };
 
@@ -137,8 +139,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     var lin = textureLoad(src_lin, vec2<i32>(x, y), 0).rgb;
 
-    let full_w = f32(width) / p.roi.z;
-    let full_h = f32(height) / p.roi.w;
+    let full_w = f32(p.full.x) / p.roi.z;
+    let full_h = f32(p.full.y) / p.roi.w;
+    let gx = x + i32(p.origin.x);
+    let gy = y + i32(p.origin.y);
 
     let vig_amount = p.vignette.x;
     if (vig_amount != 0.0) {
@@ -148,10 +152,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let inner = mix(0.10, 0.90, midpoint);
         let band = mix(0.02, max(0.02, 1.25 - inner), feather);
         let aspect = full_w / full_h;
-        let inv_w = 1.0 / f32(width);
-        let inv_h = 1.0 / f32(height);
-        let u_p = ((p.roi.x + (f32(x) + 0.5) * inv_w * p.roi.z) - 0.5) * 2.0;
-        let v_p = ((p.roi.y + (f32(y) + 0.5) * inv_h * p.roi.w) - 0.5) * 2.0;
+        let inv_w = 1.0 / f32(p.full.x);
+        let inv_h = 1.0 / f32(p.full.y);
+        let u_p = ((p.roi.x + (f32(gx) + 0.5) * inv_w * p.roi.z) - 0.5) * 2.0;
+        let v_p = ((p.roi.y + (f32(gy) + 0.5) * inv_h * p.roi.w) - 0.5) * 2.0;
         var cx: f32;
         var cy: f32;
         if (aspect >= 1.0) {
@@ -176,8 +180,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let cell = mix(1.0, 8.0, size);
         let fine_cell = max(1.0, cell * 0.5);
         let step = 1.0 / p.output_scale;
-        let xf = p.roi.x * full_w + f32(x);
-        let yf = p.roi.y * full_h + f32(y);
+        let xf = p.roi.x * full_w + f32(gx);
+        let yf = p.roi.y * full_h + f32(gy);
         let wx = vec2<f32>(xf, xf + 1.0) * step;
         let wy = vec2<f32>(yf, yf + 1.0) * step;
         let base = box_noise(wx, wy, cell, GRAIN_SEED);
@@ -194,7 +198,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     textureStore(out_lin, vec2<i32>(x, y), vec4<f32>(lin, 1.0));
     let outc = display_curves_apply(tone_rgb_cs(lin, p.display_p3));
-    let outc_d = tone_dither_u8(outc, gid.x, gid.y);
+    let outc_d = tone_dither_u8(outc, u32(gx), u32(gy));
     var alpha = 1.0;
     if ((p.warn_flags & 1u) != 0u && tone_is_out_of_gamut(lin, p.display_p3)) {
         alpha = 0.0;

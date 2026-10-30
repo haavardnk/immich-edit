@@ -39,23 +39,9 @@ impl GpuRenderer {
             STORAGE_SAMPLED | TextureUsages::COPY_DST | TextureUsages::COPY_SRC,
         ));
         let pooled = self.texture_pool.bytes();
-        let profile = match &job.detail {
-            Some(detail) if job.nr_active() => {
-                Some(self.noise_profile_for(detail.keys.nr_source, || {
-                    self.measure_tiled_noise(job, detail, &tiles)
-                })?)
-            }
-            _ => None,
-        };
+        let profile = self.tiled_noise_profile(job, &tiles)?;
         for tile in &tiles {
-            let base = self.sensor_base(job, tile)?;
-            let (texture, extent) = match &job.detail {
-                Some(detail) => {
-                    let wb = self.sensor_wb(job, detail, &base)?;
-                    self.sensor_detail(job, detail, tile, &wb, profile)?
-                }
-                None => (base.texture.clone(), base.rect),
-            };
+            let (texture, extent) = self.sensor_tile(job, tile, profile)?;
             self.place(&texture, tile.core.within(extent), tile.core, &working);
             self.wait_idle(pooled)?;
             job.check()?;
@@ -79,6 +65,21 @@ impl GpuRenderer {
             None => None,
         };
         Ok(job.source(working, atmosphere))
+    }
+
+    pub(in crate::gpu::renderer) fn tiled_noise_profile(
+        &self,
+        job: &SensorJob<'_>,
+        tiles: &[SensorTile],
+    ) -> PipelineResult<Option<NoiseProfile>> {
+        match &job.detail {
+            Some(detail) if job.nr_active() => self
+                .noise_profile_for(detail.keys.nr_source, || {
+                    self.measure_tiled_noise(job, detail, tiles)
+                })
+                .map(Some),
+            _ => Ok(None),
+        }
     }
 
     fn measure_tiled_noise(
@@ -128,7 +129,7 @@ impl GpuRenderer {
         self.ctx.queue.submit(Some(encoder.finish()));
     }
 
-    fn wait_idle(&self, pooled: u64) -> PipelineResult<()> {
+    pub(in crate::gpu::renderer) fn wait_idle(&self, pooled: u64) -> PipelineResult<()> {
         self.ctx
             .device
             .poll(PollType::wait_indefinitely())

@@ -275,7 +275,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_render_over_the_gpu_memory_budget_runs_on_the_cpu() {
+    fn an_untileable_render_over_the_gpu_memory_budget_runs_on_the_cpu() {
         let options = GpuRendererOptions {
             memory_budget_bytes: Some(64 << 20),
             ..GpuRendererOptions::default()
@@ -289,10 +289,10 @@ mod tests {
             output: OutputFormat::Rgb8,
             ..RenderOptions::default()
         };
+        let mut edits = Edits::default();
+        edits.tone.shadows = 40.0;
         let frame = rgb_frame(4000, 3000, vec![0.4; 4000 * 3000 * 3]);
-        let rendered = device
-            .render_blocking(&frame, &Edits::default(), &opts, None)
-            .unwrap();
+        let rendered = device.render_blocking(&frame, &edits, &opts, None).unwrap();
         if rendered.renderer != "cpu" || device.active() != RendererKind::Gpu {
             panic!(
                 "an over-budget render ran on {} and left the device {:?}",

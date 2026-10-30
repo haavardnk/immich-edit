@@ -46,6 +46,7 @@ pub struct MaskWeightParams {
     pub geom_extra3: [f32; 4],
     pub lens: [f32; 4],
     pub perspective: [f32; 12],
+    pub tile: [i32; 4],
 }
 
 pub fn mask_weight_wgsl() -> String {

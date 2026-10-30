@@ -23,7 +23,7 @@ use crate::gpu::budget::GpuBudget;
 use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
-use crate::source::{LinearKind, RenderedSource};
+use crate::source::{LinearKind, RenderedSource, SourceWindow};
 use crate::tile::{Rect, TilePlan};
 use crate::timing;
 pub(super) use shape::SensorShape;
@@ -36,23 +36,30 @@ const NOISE_PROFILE_CACHE_ITEMS: usize = 16;
 pub(super) struct SourcePlan {
     render: RenderPlan,
     atmosphere: bool,
+    display: bool,
 }
 
 impl SourcePlan {
     const PORTABLE: Self = Self {
         render: RenderPlan::Presence,
         atmosphere: true,
+        display: false,
     };
 
     pub fn for_render(edits: &Edits, frame: &RawFrame) -> Self {
         Self {
             render: RenderPlan::select(edits, frame),
             atmosphere: edits.basic.dehaze != 0.0,
+            display: true,
         }
     }
 
     pub fn presence(&self) -> bool {
         self.render == RenderPlan::Presence
+    }
+
+    pub fn displays(&self) -> bool {
+        self.display
     }
 }
 
@@ -117,6 +124,10 @@ impl<'a> SensorJob<'a> {
         })
     }
 
+    pub fn shape(&self) -> &SensorShape {
+        &self.shape
+    }
+
     fn working_mips(&self) -> bool {
         !self.shape.resamples() || self.plan.atmosphere
     }
@@ -151,6 +162,17 @@ impl<'a> SensorJob<'a> {
             texture,
             atmosphere,
             window: None,
+        }
+    }
+
+    fn window_source(&self, texture: Arc<Texture>, rect: Rect) -> LinearSource {
+        LinearSource {
+            dims: rect.dims(),
+            window: Some(SourceWindow {
+                origin: (rect.x, rect.y),
+                full: self.shape.working(),
+            }),
+            ..self.source(texture, None)
         }
     }
 }
@@ -271,8 +293,8 @@ impl GpuRenderer {
 
     pub(super) fn sensor_stage(&self, job: &SensorJob<'_>) -> PipelineResult<LinearSource> {
         match job.tiles {
-            TilePlan::SinglePass => self.sensor_single(job),
             TilePlan::SensorTiled { edge } => self.sensor_tiled(job, edge),
+            TilePlan::SinglePass | TilePlan::DisplayTiled { .. } => self.sensor_single(job),
         }
     }
 

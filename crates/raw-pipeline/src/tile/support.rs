@@ -2,6 +2,8 @@ use std::iter::once;
 
 use super::Rect;
 use crate::cpu::demosaic::parse_xtrans;
+use crate::cpu::masked::SelectorTaps;
+use crate::gpu::passes::sharpen::SHARPEN_KERNEL_HALF;
 use crate::ops::capture_sharpen::ITERATIONS;
 use crate::ops::denoise::{CHROMA_LEVELS, LUMA_LEVELS};
 
@@ -16,6 +18,7 @@ const BICUBIC_BEFORE: f32 = 1.0;
 const BICUBIC_AFTER: f32 = 3.0;
 const WARP_SLACK: f32 = 2.0;
 const WARP_STEP: usize = 4;
+const DISPLAY_SLACK: u32 = 2;
 
 fn gcd(a: u32, b: u32) -> u32 {
     if b == 0 { a } else { gcd(b, a % b) }
@@ -62,6 +65,11 @@ pub fn noise_reduction(luma: bool, chroma: bool) -> u32 {
 
 pub fn capture_sharpen(radius: u32) -> u32 {
     (2 * ITERATIONS as u32 + 1) * radius + 1
+}
+
+pub fn display_halo(long_edge: u32) -> u32 {
+    let selector = SelectorTaps::for_long_edge(long_edge as f32).reach();
+    SHARPEN_KERNEL_HALF as u32 + 2 * selector + DISPLAY_SLACK
 }
 
 pub fn lanczos((start, end): (u32, u32), scale: f32, src_len: u32) -> (u32, u32) {

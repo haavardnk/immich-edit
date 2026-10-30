@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use wgpu::Texture;
 
-use super::StageState;
+use super::{OutputShape, StageState};
 use crate::cancel::CancelToken;
 use crate::cpu::masked::effective_edits_for_layer;
 use crate::edits::{Edits, MaskLayer};
@@ -15,6 +15,7 @@ use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
 use crate::ops::presence::{PresenceAmounts, presence_amounts};
+use crate::tile::Rect;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
 
@@ -129,26 +130,34 @@ impl GpuRenderer {
             self.submit_luma_pyramid(&state.texture, state.extent)
         })?;
         state.shadows = Some(state.hold(pyramid));
+        state.shadows_window = state.window();
         Ok(())
     }
 
     pub(super) fn resample_stage(
         &self,
         state: &mut StageState,
-        meta: &FrameMeta,
-        edits: &Edits,
-        out_dims: (u32, u32),
+        shape: &OutputShape,
         t: &RenderTimings,
     ) -> PipelineResult<()> {
         let SourceExtent { dims, full } = state.extent;
-        let (crop_w, crop_h) = crate::geom::display_crop_px(meta.orientation, edits, full);
-        let ratio = (crop_w as f32 / out_dims.0 as f32).max(crop_h as f32 / out_dims.1 as f32);
         t.stage(timing::RESAMPLE, || {
-            let Some(target) = crate::geom::resample_target(full, ratio) else {
+            let Some(target) = shape.target(full) else {
                 return Ok(());
             };
-            let work_dims = scaled_dims(dims, full, target);
-            let geometry = Resample::whole(dims, work_dims);
+            let src = Rect {
+                x: state.origin.0,
+                y: state.origin.1,
+                w: dims.0,
+                h: dims.1,
+            };
+            let dst = src.rescaled(full, target);
+            let geometry = Resample {
+                src,
+                dst,
+                src_frame: full,
+                dst_frame: target,
+            };
             let texture =
                 self.resample_lanczos(&state.texture, geometry, "process-downscale", false)?;
             let layers = state
@@ -162,9 +171,10 @@ impl GpuRenderer {
             state.texture = texture;
             state.layers = layers;
             state.extent = SourceExtent {
-                dims: work_dims,
+                dims: dst.dims(),
                 full: target,
             };
+            state.origin = (dst.x, dst.y);
             PipelineResult::Ok(())
         })
     }
@@ -184,21 +194,4 @@ pub(in crate::gpu::renderer) fn layer_presence(
             (amts != global).then_some((layer, eff, amts))
         })
         .collect()
-}
-
-pub(in crate::gpu::renderer) fn scaled_dims(
-    dims: (u32, u32),
-    full: (u32, u32),
-    target: (u32, u32),
-) -> (u32, u32) {
-    if dims == full {
-        return target;
-    }
-    let scale = |d: u32, f: u32, t: u32| {
-        ((u64::from(d) * u64::from(t) + u64::from(f) / 2) / u64::from(f)).max(1) as u32
-    };
-    (
-        scale(dims.0, full.0, target.0),
-        scale(dims.1, full.1, target.1),
-    )
 }

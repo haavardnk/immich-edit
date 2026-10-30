@@ -1,4 +1,4 @@
-use crate::edits::Edits;
+use crate::edits::{CropRect, Edits};
 use crate::frame::FrameMeta;
 use crate::geom::display_uv_to_mask_uv;
 use crate::ops::dehaze::DehazeGrid;
@@ -6,7 +6,6 @@ use crate::ops::presence::presence_blurs;
 use crate::sensor_sample::geometry_transform;
 
 const CUBIC_SUPPORT: u32 = 2;
-const DISPLAY_CORNERS: [[f32; 2]; 4] = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WindowRect {
@@ -14,12 +13,29 @@ pub struct WindowRect {
     pub dims: (u32, u32),
 }
 
-pub fn window_rect(meta: &FrameMeta, edits: &Edits, full: (u32, u32)) -> Option<WindowRect> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct SourceBounds {
+    pub u: (f32, f32),
+    pub v: (f32, f32),
+}
+
+pub(crate) fn source_bounds(
+    meta: &FrameMeta,
+    edits: &Edits,
+    full: (u32, u32),
+    display: CropRect,
+) -> SourceBounds {
     let (fw, fh) = full;
     let transpose = meta.orientation.0;
     let oriented = if transpose { (fh, fw) } else { (fw, fh) };
     let transform = geometry_transform(edits, oriented.0, oriented.1);
-    let sensor = DISPLAY_CORNERS.map(|uv| {
+    let corners = [
+        [display.x, display.y],
+        [display.x + display.w, display.y],
+        [display.x, display.y + display.h],
+        [display.x + display.w, display.y + display.h],
+    ];
+    let sensor = corners.map(|uv| {
         let [mu, mv] = match &transform {
             Some(t) => display_uv_to_mask_uv(t, uv),
             None => uv,
@@ -33,8 +49,18 @@ pub fn window_rect(meta: &FrameMeta, edits: &Edits, full: (u32, u32)) -> Option<
         }
         (su.clamp(0.0, 1.0), sv.clamp(0.0, 1.0))
     });
-    let (u0, u1) = bounds(sensor.map(|p| p.0));
-    let (v0, v1) = bounds(sensor.map(|p| p.1));
+    SourceBounds {
+        u: bounds(sensor.map(|p| p.0)),
+        v: bounds(sensor.map(|p| p.1)),
+    }
+}
+
+pub fn window_rect(meta: &FrameMeta, edits: &Edits, full: (u32, u32)) -> Option<WindowRect> {
+    let (fw, fh) = full;
+    let SourceBounds {
+        u: (u0, u1),
+        v: (v0, v1),
+    } = source_bounds(meta, edits, full, CropRect::full());
     let (align, margin) = spatial_support(full);
     let margin = margin + crate::ops::lens_blur::window_margin(edits, full);
     let start = |t: f32, n: u32| {

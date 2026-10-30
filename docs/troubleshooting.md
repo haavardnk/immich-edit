@@ -228,11 +228,12 @@ The server log shows `gpu render failed; falling back to cpu` for each render th
 The error after it names the cause:
 
 - `outside the gpu texture limit`, `over the gpu buffer limit` or `over the gpu storage binding
-  limit`: the photo or export is larger than the GPU accepts, such as a wide panorama. It renders
-  on the CPU.
+  limit`: the photo or export is larger than the GPU accepts, such as a wide panorama, and uses an
+  adjustment that cannot render in [tiles](rendering.md#the-server). It renders on the CPU.
 - `render needs ... of gpu memory, budget ...`: the render needs more GPU memory than the
-  [budget](rendering.md#gpu-memory) allows, which happens with very large exports on GPUs with
-  little memory. It renders on the CPU.
+  [budget](rendering.md#gpu-memory) allows even in tiles, which happens with very large exports
+  that use Dehaze, Texture, Clarity, Shadows, lens blur or retouch strokes on GPUs with little
+  memory. It renders on the CPU.
 - `gpu out of memory`: the GPU ran out of memory for this render. The server lowers its GPU memory
   budget and retries the render in tiles, then on the CPU. If it happens often, set
   `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower `GPU_TEXTURE_CACHE_MB`.
