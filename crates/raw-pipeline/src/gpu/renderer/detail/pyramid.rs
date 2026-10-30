@@ -7,7 +7,7 @@ use crate::gpu::passes::presence::{
 };
 use crate::gpu::passes::sharpen::{SHARPEN_KERNEL_HALF, SharpenBlurParams};
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
+use crate::gpu::texture::{STORAGE_SAMPLED, STORAGE_SAMPLED_SRC, full_view, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::gpu::uniform_pool::PooledUniform;
 use crate::ops::blur::gaussian_kernel;
@@ -208,7 +208,7 @@ impl GpuRenderer {
         let device = &self.ctx.device;
         let pass = &self.passes.presence;
         let size = [w, h];
-        let key = TextureKey::new(CLARITY_GUIDE_FORMAT, w, h, 1, STORAGE_SAMPLED);
+        let key = TextureKey::new(CLARITY_GUIDE_FORMAT, w, h, 1, STORAGE_SAMPLED_SRC);
         let scratch = self
             .texture_pool
             .acquire(device, key, "clarity-guide-scratch");

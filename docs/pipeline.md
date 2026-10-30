@@ -168,8 +168,9 @@ metadata carries identity orientation and oriented dimensions.
 
 `source::encode` writes an `IESR` stream: a versioned binary header that keeps every float bit for
 bit, then the half-float samples as per-channel planes of high and low bytes, each row delta
-coded against its left neighbour, compressed with zstd level 1. `source::decode` reads it on the
-server and in the browser with a pure Rust decoder.
+coded against its left neighbour, then any context grids as raw `f32` samples, all compressed with
+zstd level 1. The header records each context grid's level, origin and size. `source::decode`
+reads it on the server and in the browser with a pure Rust decoder.
 
 When the request's `Accept-Encoding` lists `zstd`, the source endpoint sends the same planes
 uncompressed inside an `IESP` stream, compresses the whole body as one zstd frame, and sets

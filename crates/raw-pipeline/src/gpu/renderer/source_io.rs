@@ -1,3 +1,5 @@
+mod context;
+
 use std::sync::Arc;
 
 use half::f16;
@@ -16,6 +18,8 @@ use crate::gpu::texture::{texture_2d, write_texture_2d};
 use crate::source::SourceImage;
 #[cfg(feature = "native")]
 use crate::source::{SourceHeader, SourceWindow, WindowRect};
+#[cfg(feature = "native")]
+use crate::tile::Rect;
 use crate::{PipelineError, PipelineResult};
 
 impl GpuRenderer {
@@ -28,6 +32,7 @@ impl GpuRenderer {
                 image.rgb_f16.len()
             )));
         }
+        let context = self.upload_context(&image.header, &image.context)?;
         let format = self.ctx.linear_format;
         let texels = texel_bytes(&image.rgb_f16, format);
         let texture = texture_2d(
@@ -52,6 +57,7 @@ impl GpuRenderer {
             texture: Arc::new(texture),
             atmosphere: image.header.atmosphere,
             window: image.header.window,
+            context,
         })
     }
 
@@ -62,32 +68,63 @@ impl GpuRenderer {
         window: Option<WindowRect>,
         cancel: Option<&crate::cancel::CancelToken>,
     ) -> PipelineResult<SourceImage> {
-        let (origin, (w, h)) = match window {
-            Some(rect) => (rect.origin, rect.dims),
-            None => ((0, 0), source.dims),
-        };
+        let rect = window.map_or(Rect::full(source.dims), |rect| Rect {
+            x: rect.origin.0,
+            y: rect.origin.1,
+            w: rect.dims.0,
+            h: rect.dims.1,
+        });
         let format = source.texture.format();
-        let bpp = texel_size(format);
-        let padded = padded_row(w, bpp);
-        let size = readback_size(w, h, bpp);
-        check_buffer(&self.ctx.device.limits(), "linear source readback", size)?;
+        let mut rgb_f16 = Vec::with_capacity(rect.w as usize * rect.h as usize * 3);
+        self.read_texels(&source.texture, rect, cancel, |row| {
+            extend_rgb(&mut rgb_f16, row, format)
+        })?;
+        let (x, y) = source.origin();
+        let windowed = window.is_some() || source.window.is_some();
+        let header = SourceHeader {
+            dims: rect.dims(),
+            window: windowed.then(|| SourceWindow {
+                origin: (x + rect.x, y + rect.y),
+                full: source.extent().full,
+            }),
+            ..source.header()
+        };
+        Ok(SourceImage {
+            header,
+            rgb_f16,
+            context: Vec::new(),
+        })
+    }
+
+    #[cfg(feature = "native")]
+    fn read_texels(
+        &self,
+        texture: &wgpu::Texture,
+        rect: Rect,
+        cancel: Option<&crate::cancel::CancelToken>,
+        mut row: impl FnMut(&[u8]),
+    ) -> PipelineResult<()> {
+        let bpp = texel_size(texture.format());
+        let padded = padded_row(rect.w, bpp);
+        let size = readback_size(rect.w, rect.h, bpp);
+        check_buffer(&self.ctx.device.limits(), "texel readback", size)?;
         let device = &self.ctx.device;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("linear-source-readback"),
+            label: Some("texel-readback"),
             size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("linear-source-readback-enc"),
+            label: Some("texel-readback-enc"),
         });
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: &source.texture,
+                texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d {
-                    x: origin.0,
-                    y: origin.1,
+                    x: rect.x,
+                    y: rect.y,
                     z: 0,
                 },
                 aspect: wgpu::TextureAspect::All,
@@ -97,31 +134,22 @@ impl GpuRenderer {
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(padded),
-                    rows_per_image: Some(h),
+                    rows_per_image: Some(rect.h),
                 },
             },
-            extent_2d((w, h)),
+            extent_2d(rect.dims()),
         );
         self.ctx.queue.submit(Some(encoder.finish()));
         crate::gpu::readback::map_buffer_cancellable(&self.ctx, &buffer, cancel)?;
         let slice = buffer.slice(..);
         let data = crate::gpu::readback::mapped_range(&slice)?;
-        let row_bytes = (w * bpp) as usize;
-        let mut rgb_f16 = Vec::with_capacity(w as usize * h as usize * 3);
-        for row in data.chunks_exact(padded as usize) {
-            extend_rgb(&mut rgb_f16, &row[..row_bytes], format);
+        let row_bytes = (rect.w * bpp) as usize;
+        for padded_row in data.chunks_exact(padded as usize) {
+            row(&padded_row[..row_bytes]);
         }
         drop(data);
         buffer.unmap();
-        let header = SourceHeader {
-            dims: (w, h),
-            window: window.map(|rect| SourceWindow {
-                origin: rect.origin,
-                full: source.dims,
-            }),
-            ..source.header()
-        };
-        Ok(SourceImage { header, rgb_f16 })
+        Ok(())
     }
 }
 

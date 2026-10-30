@@ -69,6 +69,7 @@ impl GpuRenderer {
                 perspective: crate::geom::perspective::IDENTITY_ROWS,
                 src_window: [0, 0, w, h],
                 shadows_window: [0, 0, w, h],
+                shadows_blur_origin: [0; 4],
             },
         );
 

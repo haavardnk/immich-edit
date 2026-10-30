@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use wgpu::Texture;
 
-use super::{ContextNeeds, GlobalContext, OutputShape, PresenceLevels, StageState};
+use super::{GlobalContext, OutputShape, PresenceLevels, StageState};
 use crate::cancel::CancelToken;
 use crate::cpu::masked::effective_edits_for_layer;
 use crate::edits::{Edits, MaskLayer};
@@ -15,6 +15,7 @@ use crate::gpu::source::SourceExtent;
 use crate::gpu::timer::RenderTimings;
 use crate::ops::lens_blur::LensBlur;
 use crate::ops::presence::{PresenceAmounts, has_shadows, presence_amounts};
+use crate::source::ContextNeeds;
 use crate::tile::Rect;
 use crate::timing;
 use crate::{PipelineError, PipelineResult};
@@ -35,8 +36,8 @@ impl GpuRenderer {
         let (dims, placed) = (state.extent.dims, state.placed());
         let (out, ab) = t.stage(timing::DEHAZE, || {
             let _span = tracing::debug_span!("gpu_dehaze", w = dims.0, h = dims.1).entered();
-            let (haze, ab) = match context {
-                Some(context) => (context.haze()?.clone(), None),
+            let (haze, ab) = match context.and_then(|context| context.haze.clone()) {
+                Some(haze) => (haze, None),
                 None => {
                     let atmosphere = state.atmosphere.ok_or_else(|| {
                         PipelineError::Unsupported(
@@ -95,8 +96,11 @@ impl GpuRenderer {
         if !needs.levels() {
             return Ok(PresenceLevels::default());
         }
-        if let Some(context) = context {
-            return Ok(context.presence.clone());
+        if let Some(levels) = context
+            .map(|context| &context.presence)
+            .filter(|levels| levels.covers(needs))
+        {
+            return Ok(levels.clone());
         }
         let (levels, held) = t.stage(timing::PRESENCE, || {
             PipelineResult::Ok(self.submit_presence_levels(&state.texture, state.placed(), needs))
@@ -165,7 +169,7 @@ impl GpuRenderer {
         if !has_shadows(edits) {
             return Ok(());
         }
-        let blur = context.map(GlobalContext::shadows).transpose()?;
+        let blur = context.and_then(|context| context.shadows.as_ref());
         let (shadows, pyramid) = t.stage(timing::SHADOWS, || {
             PipelineResult::Ok(self.submit_shadows_luma(&state.texture, state.placed(), blur))
         })?;

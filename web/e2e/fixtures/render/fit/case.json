@@ -1,5 +1,5 @@
 {
-  "adapter": "Apple M1 (IntegratedGpu, Metal)",
+  "adapter": "Apple M4 Max (IntegratedGpu, Metal)",
   "dcp": "Canon EOS 5D.dcp",
   "edits": {
     "basic": {

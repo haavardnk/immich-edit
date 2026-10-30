@@ -1,5 +1,7 @@
 mod plan;
 
+use std::sync::Arc;
+
 use wgpu::{CommandEncoderDescriptor, TextureUsages};
 
 use super::super::GpuRenderer;
@@ -8,17 +10,17 @@ use super::super::display::{GlobalContext, GridView, HazeGrid, LevelView, StageS
 use super::super::sensor_stage::SensorJob;
 use super::DisplayTiles;
 use crate::frame::RenderOptions;
-use crate::gpu::dispatch::{Region, copy_region};
+use crate::gpu::dispatch::{Region, copy_region, submit_copy};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::source::LinearSource;
-use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
+use crate::gpu::texture::{STORAGE_SAMPLED, STORAGE_SAMPLED_SRC, full_view, texture_2d};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
+use crate::source::SourceWindow;
 use crate::tile::Rect;
 use crate::{PipelineError, PipelineResult, timing};
 pub(in crate::gpu::renderer) use plan::{Coarse, ContextPlan};
 
-const LEVEL_USAGE: TextureUsages = STORAGE_SAMPLED.union(TextureUsages::COPY_DST);
-const CORE_USAGE: TextureUsages = LEVEL_USAGE.union(TextureUsages::COPY_SRC);
+const CONTEXT_USAGE: TextureUsages = STORAGE_SAMPLED_SRC.union(TextureUsages::COPY_DST);
 
 pub(super) struct TileContext {
     pub context: GlobalContext,
@@ -31,6 +33,7 @@ pub(super) struct ContextJob<'j> {
     pub profile: Option<NoiseProfile>,
     pub plan: &'j ContextPlan,
     pub layout: &'j DisplayTiles,
+    pub whole: Option<&'j LinearSource>,
 }
 
 fn level_range(core: Rect, level: u32) -> Option<Rect> {
@@ -72,6 +75,40 @@ impl GpuRenderer {
         })
     }
 
+    fn core_source(&self, job: &ContextJob<'_>, window: Rect) -> PipelineResult<LinearSource> {
+        match job.whole {
+            Some(whole) => Ok(self.copy_window(whole, window)),
+            None => self.sensor_window(job.sensor, window, job.profile),
+        }
+    }
+
+    fn copy_window(&self, whole: &LinearSource, window: Rect) -> LinearSource {
+        let texture = texture_2d(
+            &self.ctx.device,
+            "tile-context-core",
+            whole.texture.format(),
+            window.dims(),
+            1,
+            CONTEXT_USAGE,
+        );
+        submit_copy(
+            &self.ctx,
+            "tile-context-core",
+            Region::at(&whole.texture, 0, (window.x, window.y)),
+            Region::at(&texture, 0, (0, 0)),
+            window.dims(),
+        );
+        LinearSource {
+            dims: window.dims(),
+            texture: Arc::new(texture),
+            window: Some(SourceWindow {
+                origin: (window.x, window.y),
+                full: whole.dims,
+            }),
+            ..whole.clone()
+        }
+    }
+
     fn acquire_context(
         &self,
         dims: (u32, u32),
@@ -96,7 +133,7 @@ impl GpuRenderer {
             }
             None => {
                 let dims = plan.level_dims(plan.atmosphere);
-                let levels = self.acquire_context(dims, 1, CORE_USAGE);
+                let levels = self.acquire_context(dims, 1, CONTEXT_USAGE);
                 self.collect_haze(job, &lo_src, Some(&levels))?;
                 sensor.timings().stage(timing::DEHAZE, || {
                     self.atmosphere_for(key, || {
@@ -123,7 +160,7 @@ impl GpuRenderer {
         let scale = plan.haze.scale;
         let pooled = self.texture_pool.bytes();
         for &core in &job.layout.cores {
-            let linear = self.sensor_window(sensor, core, job.profile)?;
+            let linear = self.core_source(job, core)?;
             if let Some(levels) = levels {
                 self.place_atmosphere(&linear, core, plan.atmosphere, levels);
             }
@@ -148,7 +185,7 @@ impl GpuRenderer {
         let Some(range) = level_range(core, level) else {
             return;
         };
-        let rgb = self.acquire_context(core.dims(), mip_count(core.w, core.h), CORE_USAGE);
+        let rgb = self.acquire_context(core.dims(), mip_count(core.w, core.h), CONTEXT_USAGE);
         let mut encoder = self
             .ctx
             .device
@@ -182,14 +219,13 @@ impl GpuRenderer {
         let levels: Vec<u32> = coarse.iter().map(|&c| plan.level(c)).collect();
         let targets: Vec<PooledTexture> = levels
             .iter()
-            .map(|&level| self.acquire_context(plan.level_dims(level), 1, LEVEL_USAGE))
+            .map(|&level| self.acquire_context(plan.level_dims(level), 1, CONTEXT_USAGE))
             .collect();
         let (edits, t, cancel) = (sensor.edits(), sensor.timings(), sensor.cancel());
         let meta = &sensor.frame().meta;
         let pooled = self.texture_pool.bytes();
         for &core in &job.layout.cores {
-            let window = job.layout.context_window(core);
-            let linear = self.sensor_window(sensor, window, job.profile)?;
+            let linear = self.core_source(job, job.layout.context_window(core))?;
             let mut state = StageState::new(&linear);
             self.dehaze_stage(&mut state, edits, Some(context), t, cancel)?;
             self.lens_blur_stage(&mut state, meta, edits, job.options, t, cancel)?;
@@ -213,7 +249,7 @@ impl GpuRenderer {
     ) {
         let top = levels.iter().max().map_or(1, |level| level + 1);
         let count = top.min(mip_count(core.w, core.h));
-        let pyramid = self.acquire_context(core.dims(), count, CORE_USAGE);
+        let pyramid = self.acquire_context(core.dims(), count, CONTEXT_USAGE);
         let mut encoder = self
             .ctx
             .device

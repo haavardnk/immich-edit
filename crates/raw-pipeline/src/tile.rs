@@ -28,6 +28,15 @@ pub struct TilingReport {
     pub tiles: u32,
 }
 
+impl TilePlan {
+    pub fn display_edge(self) -> Option<u32> {
+        match self {
+            Self::DisplayTiled { edge } => Some(edge),
+            Self::SinglePass | Self::SensorTiled { .. } => None,
+        }
+    }
+}
+
 impl TilingReport {
     pub const SINGLE_PASS: Self = Self {
         plan: TilePlan::SinglePass,

@@ -31,6 +31,12 @@ so dragging exposure, white balance, tone, color, mask or effect sliders sends n
 server. Changing a source setting asks the server for a new copy, and the preview keeps using the
 old one until it arrives.
 
+Zoomed past the fit size, the browser asks for the visible region only. A GPU server adds the
+whole-photo measurements that Dehaze, Texture, Clarity and Shadows need, even for photos too large
+for the GPU, so the zoomed view matches the server's render. Changing Dehaze, Lens Blur, Exposure,
+Texture, Clarity or Shadows can fetch a new copy of the region, and the view keeps drawing the old
+one until it arrives. A server without a GPU sends a wider region instead.
+
 ## The server
 
 The server renders on a GPU through Vulkan on Linux or Metal on macOS, and falls back to a built-in

@@ -22,6 +22,7 @@ export interface SourceInfo {
   frame_height: number;
   is_raw: boolean;
   model: string;
+  context: boolean;
 }
 
 export interface GpuLimits {
@@ -41,6 +42,8 @@ export interface TickSample {
 
 export interface RenderInputs {
   sensor_key: string;
+  window_key: string;
+  context_key: string;
   rasters: string[];
   lut: string | null;
 }

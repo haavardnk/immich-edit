@@ -7,12 +7,11 @@ use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::luma_pyramid::LumaPyramidPass;
 use crate::gpu::passes::presence::PresenceParams;
 use crate::gpu::renderer::GpuRenderer;
-use crate::gpu::renderer::display::{
-    ContextNeeds, GridView, LevelView, Placed, PresenceLevels, ShadowLevels,
-};
+use crate::gpu::renderer::display::{GridView, LevelView, Placed, PresenceLevels, ShadowLevels};
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
 use crate::ops::presence::{presence_amounts, presence_blurs};
+use crate::source::ContextNeeds;
 use crate::{PipelineError, PipelineResult};
 
 impl GpuRenderer {
@@ -194,6 +193,7 @@ impl GpuRenderer {
                 blur: blur.grid.view.clone(),
                 window: [0, 0, full.0, full.1],
                 origin,
+                blur_origin: blur.grid.origin,
                 level: blur.level,
             },
             None => ShadowLevels {
@@ -201,6 +201,7 @@ impl GpuRenderer {
                 blur: mip_view(&pyramid, level),
                 window: [origin.0, origin.1, full.0, full.1],
                 origin: (0, 0),
+                blur_origin: (0, 0),
                 level,
             },
         };

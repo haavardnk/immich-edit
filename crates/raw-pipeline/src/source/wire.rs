@@ -13,7 +13,7 @@ use crate::{PipelineError, PipelineResult};
 
 const MAGIC: &[u8; 4] = b"IESR";
 const PLAIN_MAGIC: &[u8; 4] = b"IESP";
-const VERSION: u32 = 2;
+const VERSION: u32 = 3;
 const PREFIX_BYTES: usize = 12;
 const MAX_HEADER_BYTES: usize = 4096;
 pub(crate) const MAX_PIXELS: u64 = 128 * 1024 * 1024;
@@ -39,12 +39,22 @@ pub fn encode(image: &SourceImage, coding: SourceCoding) -> PipelineResult<Vec<u
             image.rgb_f16.len()
         )));
     }
+    let context = image.header.context.map_or(0, |c| c.samples());
+    if image.context.len() as u64 != context {
+        return Err(PipelineError::Encode(format!(
+            "source context holds {} samples, expected {context}",
+            image.context.len()
+        )));
+    }
     let mut head = Vec::new();
     header::write(&image.header, &mut head)?;
     let planes = to_planes(&image.rgb_f16, w as usize, h as usize);
+    let grids: Vec<u8> = image.context.iter().flat_map(|v| v.to_le_bytes()).collect();
     match coding {
-        SourceCoding::Framed => Ok(assemble(MAGIC, &head, &compress(&[&planes])?)),
-        SourceCoding::ZstdContent => compress(&[&prefix(PLAIN_MAGIC, head.len()), &head, &planes]),
+        SourceCoding::Framed => Ok(assemble(MAGIC, &head, &compress(&[&planes, &grids])?)),
+        SourceCoding::ZstdContent => {
+            compress(&[&prefix(PLAIN_MAGIC, head.len()), &head, &planes, &grids])
+        }
     }
 }
 
@@ -104,23 +114,35 @@ pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
         return Err(invalid(&format!("dims {w}x{h} out of range")));
     };
     let expected = pixels * 6;
-    let planes = if compressed {
-        let mut planes = Vec::with_capacity(expected);
+    let context = header.context.map_or(0, |c| c.samples());
+    if context > MAX_PIXELS {
+        return Err(invalid(&format!(
+            "context of {context} samples out of range"
+        )));
+    }
+    let payload_len = expected + context as usize * 4;
+    let payload = if compressed {
+        let mut plain = Vec::with_capacity(payload_len);
         ruzstd::decoding::StreamingDecoder::new(payload)
             .map_err(|e| invalid(&format!("payload: {e}")))?
-            .take(expected as u64 + 1)
-            .read_to_end(&mut planes)
+            .take(payload_len as u64 + 1)
+            .read_to_end(&mut plain)
             .map_err(|e| invalid(&format!("payload: {e}")))?;
-        Cow::Owned(planes)
+        Cow::Owned(plain)
     } else {
         Cow::Borrowed(payload)
     };
-    if planes.len() != expected {
+    if payload.len() != payload_len {
         return Err(invalid("payload size does not match dims"));
     }
+    let (planes, grids) = payload.split_at(expected);
     Ok(SourceImage {
         header,
-        rgb_f16: from_planes(&planes, w as usize, h as usize),
+        rgb_f16: from_planes(planes, w as usize, h as usize),
+        context: grids
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect(),
     })
 }
 
@@ -169,9 +191,33 @@ pub(crate) fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
 mod tests {
     use super::*;
     use crate::frame::FrameMeta;
-    use crate::source::{LinearKind, SourceHeader, SourceWindow};
+    use crate::source::{
+        ContextGrid, ContextPart, LinearKind, SourceContext, SourceHeader, SourceWindow,
+    };
+
+    fn context() -> SourceContext {
+        let mut context = SourceContext::default();
+        context.set(
+            ContextPart::Haze,
+            ContextGrid {
+                level: 2,
+                origin: (30, 60),
+                dims: (12, 5),
+            },
+        );
+        context.set(
+            ContextPart::Shadows,
+            ContextGrid {
+                level: 5,
+                origin: (3, 7),
+                dims: (4, 3),
+            },
+        );
+        context
+    }
 
     fn image(w: u32, h: u32) -> SourceImage {
+        let context = context();
         SourceImage {
             header: SourceHeader {
                 meta: FrameMeta {
@@ -192,9 +238,13 @@ mod tests {
                     origin: (128, 256),
                     full: (6000, 4000),
                 }),
+                context: Some(context),
             },
             rgb_f16: (0..w * h * 3)
                 .map(|i| half::f16::from_f32((i as f32 * 0.37).sin() * 4.0).to_bits())
+                .collect(),
+            context: (0..context.samples())
+                .map(|i| (i as f32 * 0.11).cos())
                 .collect(),
         }
     }
@@ -205,6 +255,12 @@ mod tests {
         let bytes = encode(&original, SourceCoding::Framed).unwrap();
         let decoded = decode(&bytes).unwrap();
         if decoded.rgb_f16 != original.rgb_f16
+            || decoded.header.context != original.header.context
+            || decoded
+                .context
+                .iter()
+                .map(|v| v.to_bits())
+                .ne(original.context.iter().map(|v| v.to_bits()))
             || encode(&decoded, SourceCoding::Framed).unwrap() != bytes
         {
             panic!("source changed across the wire");
@@ -234,7 +290,10 @@ mod tests {
             .read_to_end(&mut plain)
             .unwrap();
         let decoded = decode(&plain).unwrap();
-        if decoded.rgb_f16 != original.rgb_f16 || decoded.header.dims != original.header.dims {
+        if decoded.rgb_f16 != original.rgb_f16
+            || decoded.header.dims != original.header.dims
+            || decoded.context != original.context
+        {
             panic!("zstd content changed the source");
         }
         if decode(&plain[..plain.len() - 1]).is_ok() {
@@ -244,26 +303,24 @@ mod tests {
 
     #[test]
     fn malformed_streams_are_rejected() {
-        let source = image(8, 4);
+        let source = image(48, 24);
         let good = encode(&source, SourceCoding::Framed).unwrap();
+        if let Err(e) = decode(&good) {
+            panic!("the unaltered stream must decode: {e}");
+        }
         let head_len = u32::from_le_bytes([good[8], good[9], good[10], good[11]]) as usize;
         let payload = &good[PREFIX_BYTES + head_len..];
-        let restamp = |dims: (u32, u32)| {
+        let restamp = |change: &dyn Fn(&mut SourceHeader)| {
             let mut header = source.header.clone();
-            header.dims = dims;
+            change(&mut header);
             let mut head = Vec::new();
             header::write(&header, &mut head).unwrap();
             assemble(MAGIC, &head, payload)
         };
-        let outside = {
-            let mut header = source.header.clone();
-            header.window = Some(SourceWindow {
-                origin: (5995, 0),
-                full: (6000, 4000),
-            });
-            let mut head = Vec::new();
-            header::write(&header, &mut head).unwrap();
-            assemble(MAGIC, &head, payload)
+        let grid = |level, origin| ContextGrid {
+            level,
+            origin,
+            dims: (4, 3),
         };
         let mut bad_magic = good.clone();
         bad_magic[0] = b'X';
@@ -280,9 +337,65 @@ mod tests {
             ("header length", huge_header),
             ("short header", short_header),
             ("truncated payload", good[..good.len() - 4].to_vec()),
-            ("taller than the payload", restamp((8, 5))),
-            ("zero dims", restamp((0, 4))),
-            ("window outside the frame", outside),
+            ("taller than the payload", restamp(&|h| h.dims = (48, 25))),
+            ("zero dims", restamp(&|h| h.dims = (0, 4))),
+            (
+                "window outside the frame",
+                restamp(&|h| {
+                    h.window = Some(SourceWindow {
+                        origin: (5995, 0),
+                        full: (6000, 4000),
+                    })
+                }),
+            ),
+            ("context without a window", restamp(&|h| h.window = None)),
+            (
+                "context grid wider than its window",
+                restamp(&|h| {
+                    let mut context = context();
+                    context.set(
+                        ContextPart::Haze,
+                        ContextGrid {
+                            level: 2,
+                            origin: (0, 0),
+                            dims: (40, 5),
+                        },
+                    );
+                    h.context = Some(context);
+                }),
+            ),
+            (
+                "context grid outside its level",
+                restamp(&|h| {
+                    let mut context = context();
+                    context.set(ContextPart::Shadows, grid(5, (185, 7)));
+                    h.context = Some(context);
+                }),
+            ),
+            (
+                "haze without an atmosphere",
+                restamp(&|h| h.atmosphere = None),
+            ),
+            (
+                "context past the sample limit",
+                restamp(&|h| {
+                    let mut context = SourceContext::default();
+                    context.set(
+                        ContextPart::Haze,
+                        ContextGrid {
+                            level: 0,
+                            origin: (0, 0),
+                            dims: (11000, 11000),
+                        },
+                    );
+                    h.dims = (11000, 11000);
+                    h.window = Some(SourceWindow {
+                        origin: (0, 0),
+                        full: (11000, 11000),
+                    });
+                    h.context = Some(context);
+                }),
+            ),
         ] {
             if decode(&bytes).is_ok() {
                 panic!("{label}: a malformed stream decoded");
@@ -314,6 +427,7 @@ mod tests {
             let mut header = source.header.clone();
             header.dims = dims;
             header.window = None;
+            header.context = None;
             let mut head = Vec::new();
             header::write(&header, &mut head).unwrap();
             assemble(MAGIC, &head, payload)

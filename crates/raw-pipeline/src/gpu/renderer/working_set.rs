@@ -247,18 +247,7 @@ impl WorkingSet {
             self.linear(low, false);
             self.texels(low, DEHAZE_MOMENTS * RGBA32);
         }
-        let blur = &edits.lens_blur;
-        if blur.active()
-            && let Some(depth) = opts.rasters.get(&blur.depth_raster_id)
-        {
-            let ds = BlurScale::new(blur.amount as f32, extent.full).ds;
-            self.linear(dims, false);
-            self.texels(
-                (dims.0.div_ceil(ds) + 1, dims.1.div_ceil(ds) + 1),
-                LENS_BLUR_GRIDS * RGBA32,
-            );
-            self.texels((depth.width, depth.height), R8);
-        }
+        self.lens_blur(extent, edits, opts);
         let layers = layer_presence(edits);
         let layer_passes: HashSet<[u32; 3]> = layers
             .iter()
@@ -277,6 +266,24 @@ impl WorkingSet {
             self.linear(dims, local);
         }
         layers.len()
+    }
+
+    fn lens_blur(&mut self, extent: SourceExtent, edits: &Edits, opts: &RenderOptions) {
+        let blur = &edits.lens_blur;
+        if !blur.active() {
+            return;
+        }
+        let Some(depth) = opts.rasters.get(&blur.depth_raster_id) else {
+            return;
+        };
+        let dims = extent.dims;
+        let ds = BlurScale::new(blur.amount as f32, extent.full).ds;
+        self.linear(dims, false);
+        self.texels(
+            (dims.0.div_ceil(ds) + 1, dims.1.div_ceil(ds) + 1),
+            LENS_BLUR_GRIDS * RGBA32,
+        );
+        self.texels((depth.width, depth.height), R8);
     }
 
     fn output(
@@ -388,6 +395,10 @@ impl GpuRenderer {
     ) -> u64 {
         let edits = compose_edits(edits, options);
         let mut set = self.working_set();
+        if options.roi.is_some() {
+            set.source_window(frame, &edits, options, tiles);
+            return set.bytes;
+        }
         let extent = set.sensor(frame, &edits, options, true, tiles);
         set.bytes += readback_size(extent.dims.0, extent.dims.1, RGBA16 as u32);
         set.bytes

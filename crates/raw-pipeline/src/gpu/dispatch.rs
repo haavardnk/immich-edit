@@ -4,6 +4,8 @@ use wgpu::{
     TexelCopyTextureInfo, Texture, TextureAspect, TextureView,
 };
 
+#[cfg(feature = "native")]
+use super::context::GpuContext;
 use super::texture::extent_2d;
 use super::timer::with_pass_timestamps;
 
@@ -123,4 +125,19 @@ pub(super) fn copy_region(
     dims: (u32, u32),
 ) {
     encoder.copy_texture_to_texture(src.info(), dst.info(), extent_2d(dims));
+}
+
+#[cfg(feature = "native")]
+pub(super) fn submit_copy(
+    ctx: &GpuContext,
+    label: &str,
+    src: Region<'_>,
+    dst: Region<'_>,
+    dims: (u32, u32),
+) {
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some(label) });
+    copy_region(&mut encoder, src, dst, dims);
+    ctx.queue.submit(Some(encoder.finish()));
 }

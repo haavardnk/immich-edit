@@ -21,6 +21,7 @@ const PROCESS_HEADER_FIELDS: &str = "    src_size: vec2<u32>,
     perspective: array<vec4<f32>, 3>,
     src_window: vec4<u32>,
     shadows_window: vec4<u32>,
+    shadows_blur_origin: vec4<u32>,
 ";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -271,7 +272,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let shadows_px = sensor_uv * vec2<f32>(p.shadows_window.zw);
 
     let rgb = sample_src_cubic(frame_px, p.src_window.xy);
-    shadows_blur_l = sample_shadows(shadows_blur_tex, shadows_px, p.shadows_window.xy, vec2<u32>(0u), p.shadows_origin_level.z);
+    shadows_blur_l = sample_shadows(shadows_blur_tex, shadows_px, p.shadows_window.xy, p.shadows_blur_origin.xy, p.shadows_origin_level.z);
     shadows_source_l = sample_shadows(shadows_luma_tex, shadows_px, p.shadows_window.xy, p.shadows_origin_level.xy, 0u);
     var outc_lin = process_color(rgb);
     let src_px = vec2<f32>(oriented_uv.x * p.geom_extra3.x - 0.5, oriented_uv.y * p.geom_extra3.y - 0.5);

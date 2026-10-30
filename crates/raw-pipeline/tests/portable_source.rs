@@ -279,10 +279,17 @@ fn tile_cases() -> Vec<(&'static str, Edits)> {
         lens_blur: lens_blur_edits(100.0, BokehShape::Hexagon, 60.0).lens_blur,
         ..display_edits()
     };
+    let mut ranged = display_edits();
+    ranged.masks[0].components[0].kind = MaskComponentKind::LumaRange {
+        min: 0.3,
+        max: 0.8,
+        softness: 0.1,
+    };
     vec![
         ("display", display_edits()),
         ("tilted", tilted),
         ("lens blur", blurred),
+        ("range mask", ranged),
     ]
 }
 
@@ -294,12 +301,13 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
     let cpu = CpuRenderer::new();
     let mut turned = haze_frame(800, 1200);
     turned.meta.orientation = (true, false, true);
-    let roi = CropRect {
-        x: 0.4,
-        y: 0.35,
-        w: 0.2,
-        h: 0.25,
-    };
+    let rois = [
+        tile_roi(),
+        CropRect {
+            x: 0.4,
+            ..tile_roi()
+        },
+    ];
     let frames = [
         ("haze", haze_frame(1200, 800)),
         ("odd", haze_frame(1203, 805)),
@@ -308,35 +316,43 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
     ];
     for (label, frame) in frames {
         let long = frame.meta.width.max(frame.meta.height) as u32;
-        let cases = tile_cases()
-            .into_iter()
-            .flat_map(|case| [(case.clone(), 4), (case, 10)]);
-        for ((case, edits), shrink) in cases {
+        let cases = tile_cases().into_iter().flat_map(|case| {
+            rois.into_iter()
+                .flat_map(move |roi| [4, 10].map(|shrink| (case.clone(), roi, shrink)))
+        });
+        for ((case, edits), roi, shrink) in cases {
+            let at = roi.x;
             let sensor = edits.sensor_stage();
             let tile = tile_opts(long / shrink, roi);
             let sources = [
                 (
                     "gpu",
-                    renderer.render_source(&frame, &sensor, &tile, None),
+                    renderer.render_source(&frame, &edits, &tile, None),
                     renderer.render_source(&frame, &sensor, &rgb8_opts(long), None),
                 ),
                 (
                     "cpu",
-                    cpu.render_source(&frame, &sensor, &tile, None),
+                    cpu.render_source(&frame, &edits, &tile, None),
                     cpu.render_source(&frame, &sensor, &rgb8_opts(long), None),
                 ),
             ];
+            let mut areas = Vec::new();
             for (kind, windowed, full) in sources {
                 let windowed = source::decode(&wire(&windowed.unwrap().image)).unwrap();
                 let full = source::decode(&wire(&full.unwrap().image)).unwrap();
                 let Some(window) = windowed.header.window else {
-                    panic!("{label} {case} 1/{shrink} {kind}: a small tile was not windowed");
+                    panic!("{label} {case} {at} 1/{shrink} {kind}: a small tile was not windowed");
                 };
                 if window.full != full.header.dims || windowed.header.dims.0 >= window.full.0 {
                     panic!(
-                        "{label} {case} 1/{shrink} {kind}: window {window:?} does not sit in the full source"
+                        "{label} {case} {at} 1/{shrink} {kind}: window {window:?} does not sit in the full source"
                     );
                 }
+                let exact = kind == "gpu";
+                if windowed.header.context.is_some() != exact {
+                    panic!("{label} {case} {at} 1/{shrink} {kind}: only gpu tiles carry a context");
+                }
+                areas.push(windowed.header.dims.0 * windowed.header.dims.1);
                 let from_window = renderer
                     .render(&renderer.upload_source(&windowed).unwrap(), &edits, &tile)
                     .unwrap();
@@ -344,7 +360,9 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                     .render(&renderer.upload_source(&full).unwrap(), &edits, &tile)
                     .unwrap();
                 if (from_window.width, from_window.height) != (from_full.width, from_full.height) {
-                    panic!("{label} {case} 1/{shrink} {kind}: the tile rendered at different dims");
+                    panic!(
+                        "{label} {case} {at} 1/{shrink} {kind}: the tile rendered at different dims"
+                    );
                 }
                 let delta = mean_abs_delta(&from_window.bytes, &from_full.bytes);
                 let worst = from_window
@@ -354,12 +372,187 @@ fn a_windowed_source_renders_the_tile_of_the_full_source() {
                     .map(|(a, b)| a.abs_diff(*b))
                     .max()
                     .unwrap_or(0);
-                if delta > 0.01 || worst > 2 {
+                if (exact && worst > 0) || delta > 0.01 || worst > 2 {
                     panic!(
-                        "{label} {case} 1/{shrink} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
+                        "{label} {case} {at} 1/{shrink} {kind}: the windowed tile drifted {delta:.4}, worst {worst}"
                     );
                 }
             }
+            if areas[0] * 2 > areas[1] {
+                panic!(
+                    "{label} {case} {at} 1/{shrink}: a context window of {} px is not far below the spatial {}",
+                    areas[0], areas[1]
+                );
+            }
         }
+    }
+}
+
+fn tile_roi() -> CropRect {
+    CropRect {
+        x: 0.15,
+        y: 0.35,
+        w: 0.2,
+        h: 0.25,
+    }
+}
+
+#[test]
+fn a_tile_source_follows_its_context_key() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = speckled_haze(1203, 805);
+    let tile = tile_opts(1203, tile_roi());
+    let base = display_edits();
+    let mut outside = base.clone();
+    outside.basic.contrast = -15.0;
+    outside.basic.vibrance = 40.0;
+    outside.effects.grain_amount = 0.0;
+    outside.detail.sharpen_amount = Some(10.0);
+    outside.masks[0].edits.exposure_ev = Some(-0.5);
+    let mut inside = base.clone();
+    inside.basic.dehaze = 50.0;
+    let bytes = |edits: &Edits| {
+        let rendered = renderer.render_source(&frame, edits, &tile, None).unwrap();
+        wire(&rendered.image)
+    };
+    let key = source::context_key(&base);
+    if source::context_key(&outside) != key || bytes(&outside) != bytes(&base) {
+        panic!("an edit outside the context key changed the tile source");
+    }
+    if source::context_key(&inside) == key || bytes(&inside) == bytes(&base) {
+        panic!("a dehaze change left the tile source or its key unchanged");
+    }
+}
+
+#[test]
+fn a_stale_tile_context_still_renders() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = split_tone_frame(1203, 805);
+    let tile = tile_opts(1203, tile_roi());
+    let mut haze = Edits::default();
+    haze.basic.dehaze = 30.0;
+    let mut moved = display_edits();
+    moved.basic.dehaze = -40.0;
+    moved.basic.clarity = 35.0;
+    for (label, built, drawn) in [
+        ("moved sliders", display_edits(), moved),
+        ("new needs", haze, display_edits()),
+    ] {
+        let image = renderer
+            .render_source(&frame, &built, &tile, None)
+            .unwrap()
+            .image;
+        let uploaded = renderer
+            .upload_source(&source::decode(&wire(&image)).unwrap())
+            .unwrap();
+        let fresh = renderer.render(&frame, &drawn, &tile).unwrap();
+        match renderer.render(&uploaded, &drawn, &tile) {
+            Ok(stale) if (stale.width, stale.height) == (fresh.width, fresh.height) => {}
+            Ok(stale) => panic!(
+                "{label}: a stale tile rendered {}x{}",
+                stale.width, stale.height
+            ),
+            Err(e) => panic!("{label}: a stale tile failed to render: {e}"),
+        }
+    }
+}
+
+#[test]
+fn a_pan_reuses_the_tile_context_until_its_key_changes() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = split_tone_frame(1203, 805);
+    let builds = |edits: &Edits, x: f32| {
+        let tile = tile_opts(1203, CropRect { x, ..tile_roi() });
+        let rendered = renderer.render_source(&frame, edits, &tile, None).unwrap();
+        rendered
+            .timings
+            .iter()
+            .any(|t| t.stage == raw_pipeline::timing::TILE_CONTEXT)
+    };
+    let edits = display_edits();
+    let mut moved = edits.clone();
+    moved.basic.dehaze = 45.0;
+    for (label, edits, x, expected) in [
+        ("first tile", &edits, 0.4, true),
+        ("pan", &edits, 0.1, false),
+        ("dehaze change", &moved, 0.1, true),
+    ] {
+        if builds(edits, x) != expected {
+            panic!("{label}: built a context is {}", !expected);
+        }
+    }
+}
+
+#[test]
+fn a_dehaze_change_draws_exactly_from_the_tile_already_loaded() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = speckled_haze(1203, 805);
+    let tile = tile_opts(1203, tile_roi());
+    let mut dehazed = Edits::default();
+    dehazed.basic.dehaze = 35.0;
+    if source::context_key(&dehazed) != source::context_key(&Edits::default()) {
+        panic!("a dehaze change without levels must keep the tile's key");
+    }
+    let uploaded = |edits: &Edits| {
+        let image = renderer
+            .render_source(&frame, edits, &tile, None)
+            .unwrap()
+            .image;
+        let haze = image
+            .header
+            .context
+            .and_then(|c| c.get(source::ContextPart::Haze));
+        if haze.is_none() {
+            panic!("a tile source must always carry the haze grid");
+        }
+        renderer
+            .upload_source(&source::decode(&wire(&image)).unwrap())
+            .unwrap()
+    };
+    let loaded = renderer
+        .render(&uploaded(&Edits::default()), &dehazed, &tile)
+        .unwrap();
+    let fresh = renderer
+        .render(&uploaded(&dehazed), &dehazed, &tile)
+        .unwrap();
+    if loaded.bytes != fresh.bytes {
+        panic!(
+            "the loaded tile drew dehaze {:.4} away from a fresh one",
+            mean_abs_delta(&loaded.bytes, &fresh.bytes)
+        );
+    }
+}
+
+#[test]
+fn a_full_size_rotated_range_mask_tile_renders_like_the_server_tile() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = speckled_haze(6000, 4000);
+    let tile = tile_opts(6000, tile_roi());
+    let (_, mut ranged) = tile_cases().pop().unwrap();
+    ranged.geometry.rotate_angle = 3.0;
+    let image = renderer
+        .render_source(&frame, &ranged, &tile, None)
+        .unwrap()
+        .image;
+    let uploaded = renderer
+        .upload_source(&source::decode(&wire(&image)).unwrap())
+        .unwrap();
+    let from_tile = renderer.render(&uploaded, &ranged, &tile).unwrap();
+    let from_frame = renderer.render(&frame, &ranged, &tile).unwrap();
+    if from_tile.bytes != from_frame.bytes {
+        panic!(
+            "the range mask tile drifted {:.4} from the server tile",
+            mean_abs_delta(&from_tile.bytes, &from_frame.bytes)
+        );
     }
 }

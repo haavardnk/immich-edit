@@ -58,6 +58,7 @@ pub(super) fn header_uniform(
         perspective: geom.persp_rows,
         src_window: state.window(),
         shadows_window: shadows.map_or([0; 4], |s| s.window),
+        shadows_blur_origin: shadows.map_or([0; 4], |s| [s.blur_origin.0, s.blur_origin.1, 0, 0]),
     }
 }
 

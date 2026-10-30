@@ -108,10 +108,12 @@ fn bake_web_parity_fixture() {
             ..Default::default()
         };
         let image = renderer
-            .render_source(&frame, &edits.sensor_stage(), &opts, None)
+            .render_source(&frame, &edits, &opts, None)
             .unwrap()
             .image;
-        if case.roi.is_some() != image.header.window.is_some() {
+        if case.roi.is_some() != image.header.window.is_some()
+            || case.roi.is_some() != image.header.context.is_some()
+        {
             panic!("{}: the source window does not follow the roi", case.name);
         }
         let rendered = renderer.render(&frame, &edits, &opts).unwrap();

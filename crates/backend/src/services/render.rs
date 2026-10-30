@@ -340,6 +340,9 @@ impl RenderService {
             .auto_lens(identity, &immich, source, &frame, edits.lens)
             .await;
         options.denoise = self.denoise.plane(identity, source, &edits, &frame).await;
+        if options.roi.is_some() {
+            options.rasters = self.inputs.rasters_for(identity, &edits).await;
+        }
         let dcp = self.inputs.dcp_for(&edits, &frame).await?;
         let dcp_id = dcp.as_ref().map(|selection| selection.id.clone());
         options.dcp = dcp.map(|selection| selection.profile);

@@ -1,4 +1,4 @@
-use super::{LinearKind, SourceHeader, SourceWindow};
+use super::{ContextGrid, ContextPart, LinearKind, SourceContext, SourceHeader, SourceWindow};
 use crate::frame::FrameMeta;
 use crate::{PipelineError, PipelineResult};
 
@@ -45,6 +45,24 @@ pub(super) fn write(header: &SourceHeader, out: &mut Vec<u8>) -> PipelineResult<
             put_u32(out, v);
         }
     }
+    out.push(u8::from(header.context.is_some()));
+    if let Some(context) = &header.context {
+        for part in ContextPart::ALL {
+            let grid = context.get(part);
+            out.push(u8::from(grid.is_some()));
+            if let Some(grid) = grid {
+                for v in [
+                    grid.level,
+                    grid.origin.0,
+                    grid.origin.1,
+                    grid.dims.0,
+                    grid.dims.1,
+                ] {
+                    put_u32(out, v);
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -89,6 +107,24 @@ pub(super) fn read(bytes: &[u8]) -> PipelineResult<SourceHeader> {
             return Err(invalid("window lies outside the full source"));
         }
     }
+    let context = match r.flag()? {
+        true => Some(r.context()?),
+        false => None,
+    };
+    if let Some(context) = &context {
+        let Some(window) = window else {
+            return Err(invalid("a context needs a window"));
+        };
+        if context
+            .grids()
+            .any(|(_, grid)| !grid.fits(window.full, dims))
+        {
+            return Err(invalid("context grid lies outside its level"));
+        }
+        if context.get(ContextPart::Haze).is_some() && atmosphere.is_none() {
+            return Err(invalid("a haze grid needs an atmosphere"));
+        }
+    }
     if r.pos != bytes.len() {
         return Err(invalid("trailing header bytes"));
     }
@@ -108,6 +144,7 @@ pub(super) fn read(bytes: &[u8]) -> PipelineResult<SourceHeader> {
         dims,
         atmosphere,
         window,
+        context,
     })
 }
 
@@ -184,5 +221,20 @@ impl<'a> Reader<'a> {
             true => self.f32s::<N>().map(Some),
             false => Ok(None),
         }
+    }
+
+    fn context(&mut self) -> PipelineResult<SourceContext> {
+        let mut context = SourceContext::default();
+        for part in ContextPart::ALL {
+            if self.flag()? {
+                let grid = ContextGrid {
+                    level: self.u32()?,
+                    origin: (self.u32()?, self.u32()?),
+                    dims: (self.u32()?, self.u32()?),
+                };
+                context.set(part, grid);
+            }
+        }
+        Ok(context)
     }
 }
