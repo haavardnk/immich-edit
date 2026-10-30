@@ -329,7 +329,7 @@ impl GpuRenderer {
         let sources = MetaSources {
             display: display_src,
             linear: linear_src,
-            dims: out_dims,
+            shape,
         };
         self.encode_meta_bins(&mut encoder, p, sources, bins, t);
         let slot = DisplaySlot::select([overlay, lut, sixteen], &mut scratch);

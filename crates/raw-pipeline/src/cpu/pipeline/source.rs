@@ -7,6 +7,7 @@ use crate::cpu::renderer::CpuRenderer;
 use crate::edits::Edits;
 use crate::frame::{FrameMeta, RawFrame, RenderOptions};
 use crate::source::{LinearKind, RenderedSource, SourceHeader, SourceImage, SourceWindow};
+use crate::tile::TilingReport;
 use crate::timing::{self, StageClock};
 
 pub(crate) fn render_source(
@@ -58,5 +59,6 @@ pub(crate) fn render_source(
         },
         renderer: "cpu".into(),
         timings: clock.finish(),
+        tiling: TilingReport::SINGLE_PASS,
     })
 }

@@ -52,4 +52,5 @@ pub struct RenderedSource {
     pub image: SourceImage,
     pub renderer: String,
     pub timings: Vec<crate::timing::StageTiming>,
+    pub tiling: crate::tile::TilingReport,
 }

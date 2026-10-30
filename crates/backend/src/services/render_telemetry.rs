@@ -1,11 +1,15 @@
+mod plans;
+
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use raw_pipeline::TilingReport;
 use raw_pipeline::timing::StageTiming;
 
 use crate::services::render::RendererKind;
+use plans::{PlanStats, Plans};
 
 const SAMPLE_CAP: usize = 256;
 
@@ -19,6 +23,7 @@ struct Inner {
     cpu: RwLock<Samples>,
     gpu: RwLock<Samples>,
     stages: RwLock<Vec<StageSamples>>,
+    plans: RwLock<Plans>,
     fetch: RwLock<Samples>,
     decode: RwLock<Samples>,
     frame_hits: AtomicU64,
@@ -55,12 +60,19 @@ impl RenderTelemetry {
         Self::default()
     }
 
-    pub fn record(&self, kind: RendererKind, total: Duration, stages: &[StageTiming]) {
+    pub fn record(
+        &self,
+        kind: RendererKind,
+        total: Duration,
+        stages: &[StageTiming],
+        tiling: TilingReport,
+    ) {
         let buf = match kind {
             RendererKind::Cpu => &self.inner.cpu,
             RendererKind::Gpu => &self.inner.gpu,
         };
         buf.write().unwrap().push(total);
+        self.inner.plans.write().unwrap().record(kind, tiling);
         let mut stages_buf = self.inner.stages.write().unwrap();
         for s in stages {
             let index = match stages_buf
@@ -123,6 +135,7 @@ impl RenderTelemetry {
                 gpu: self.inner.gpu.read().unwrap().stats(),
             },
             stages,
+            plans: self.inner.plans.read().unwrap().snapshot(),
             frames: FrameStats {
                 fetch: self.inner.fetch.read().unwrap().stats(),
                 decode: self.inner.decode.read().unwrap().stats(),
@@ -169,6 +182,7 @@ pub struct FrameStats {
 pub struct TelemetrySnapshot {
     pub render_latency: RenderLatency,
     pub stages: Vec<StageStats>,
+    pub plans: Vec<PlanStats>,
     pub frames: FrameStats,
     pub request_timeouts: u64,
 }
@@ -223,12 +237,14 @@ mod tests {
                     stage("demosaic", ms, Some(ms / 2)),
                     stage("encode", 3, None),
                 ],
+                TilingReport::SINGLE_PASS,
             );
         }
         t.record(
             RendererKind::Cpu,
             Duration::from_millis(90),
             &[stage("demosaic", 60, None)],
+            TilingReport::SINGLE_PASS,
         );
 
         let snap = t.snapshot();
@@ -307,7 +323,12 @@ mod tests {
     fn samples_keep_only_the_most_recent_window() {
         let t = RenderTelemetry::new();
         for ms in 0..(SAMPLE_CAP as u64 + 10) {
-            t.record(RendererKind::Cpu, Duration::from_millis(ms), &[]);
+            t.record(
+                RendererKind::Cpu,
+                Duration::from_millis(ms),
+                &[],
+                TilingReport::SINGLE_PASS,
+            );
         }
         let cpu = t.snapshot().render_latency.cpu;
         if cpu.count != SAMPLE_CAP || cpu.max_us != (SAMPLE_CAP as u64 + 9) * 1_000 {

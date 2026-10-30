@@ -8,6 +8,7 @@
     type LatencyStats
   } from '$lib/api/diagnostics';
   import Notice from '$lib/components/Notice.svelte';
+  import RenderPlans from '$lib/components/settings/RenderPlans.svelte';
   import RenderStages from '$lib/components/settings/RenderStages.svelte';
   import {
     codecLabel,
@@ -265,6 +266,7 @@
     </section>
 
     <RenderStages {timings} />
+    <RenderPlans plans={timings.plans} />
 
     <section class="space-y-2 pt-5">
       <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Cache usage</Heading>

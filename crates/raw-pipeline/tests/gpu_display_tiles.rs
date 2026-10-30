@@ -6,7 +6,7 @@ use raw_pipeline::edits::{
 use raw_pipeline::frame::{
     BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions, RenderedImage,
 };
-use raw_pipeline::{GpuRenderer, GpuRendererOptions};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, timing};
 use raw_pipeline_testkit::depth::{bokeh_frame, depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
@@ -115,19 +115,24 @@ fn modes(frame: &RawFrame) -> [(&'static str, RenderOptions); 4] {
         quality: true,
         ..rgb8_opts(max_edge)
     };
+    let binned = |opts| RenderOptions {
+        histogram: true,
+        scopes: true,
+        ..opts
+    };
     [
         ("export", export(long_edge)),
         ("half export", export(long_edge / 2)),
-        ("preview", rgb8_opts(1600)),
+        ("preview", binned(rgb8_opts(1600))),
         (
             "16-bit export",
-            RenderOptions {
+            binned(RenderOptions {
                 output: OutputFormat::Png {
                     bit_depth: BitDepth::Sixteen,
                     compression: PngCompression::Fast,
                 },
                 ..export(long_edge)
-            },
+            }),
         ),
     ]
 }
@@ -160,17 +165,22 @@ fn require_identical(label: &str, single: &RenderedImage, tiled: &RenderedImage)
     if differing > 0 || single.bytes.len() != tiled.bytes.len() {
         panic!("{label}: {differing} tiled bytes differ from the single pass");
     }
+    if single.histogram != tiled.histogram || single.linear_histogram != tiled.linear_histogram {
+        panic!("{label}: tiled histograms differ from the single pass");
+    }
+    if single.scopes != tiled.scopes {
+        panic!("{label}: tiled scopes differ from the single pass");
+    }
 }
 
 fn require_tiled_parity(single: &GpuRenderer, tiled: &GpuRenderer, name: &str, edits: &Edits) {
     let frame = decoded(name);
     for (mode, opts) in modes(&frame) {
-        let before = tiled.display_tiles();
         let reference = render(single, &frame, edits, &opts);
         let got = render(tiled, &frame, edits, &opts);
         require_identical(&format!("{name} {mode}"), &reference, &got);
-        if tiled.display_tiles() - before < 4 {
-            panic!("{name} {mode} rendered without display tiles");
+        if !matches!(got.tiling.plan, TilePlan::DisplayTiled { .. }) || got.tiling.tiles < 4 {
+            panic!("{name} {mode} rendered as {:?}", got.tiling);
         }
     }
 }
@@ -309,11 +319,16 @@ fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
     for orientation in [(false, false, false), (true, true, false)] {
         let mut frame = bokeh_frame(1800, 1200);
         frame.meta.orientation = orientation;
-        let before = tiled.display_tiles();
         let reference = render(&single, &frame, &edits, &opts);
         let got = render(&tiled, &frame, &edits, &opts);
-        if tiled.display_tiles() - before < 4 {
-            panic!("the lens blur render {orientation:?} did not use display tiles");
+        if !matches!(got.tiling.plan, TilePlan::DisplayTiled { .. }) || got.tiling.tiles < 4 {
+            panic!(
+                "the lens blur render {orientation:?} rendered as {:?}",
+                got.tiling
+            );
+        }
+        if !got.timings.iter().any(|t| t.stage == timing::TILE_CONTEXT) {
+            panic!("the lens blur render {orientation:?} timed no tile context");
         }
         require_identical(&format!("lens blur {orientation:?}"), &reference, &got);
     }
@@ -349,11 +364,13 @@ fn a_render_over_the_sensor_tile_budget_renders_in_display_tiles() {
         ..rgb8_opts(6000)
     };
     for (label, edits) in budget_edits() {
-        let before = budgeted.display_tiles();
         let reference = render(&single, &frame, &edits, &opts);
         let got = render(&budgeted, &frame, &edits, &opts);
-        if budgeted.display_tiles() == before || budgeted.sensor_tiles() != 0 {
-            panic!("a {label} 6000x4000 render in 320 MiB did not use display tiles alone");
+        if !matches!(got.tiling.plan, TilePlan::DisplayTiled { .. }) {
+            panic!(
+                "a {label} 6000x4000 render in 320 MiB rendered as {:?}",
+                got.tiling
+            );
         }
         require_identical(label, &reference, &got);
     }

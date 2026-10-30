@@ -4,7 +4,7 @@ use raw_pipeline::edits::{
     Vec2f,
 };
 use raw_pipeline::frame::{RawFrame, RenderOptions, RenderedImage};
-use raw_pipeline::{GpuRenderer, GpuRendererOptions};
+use raw_pipeline::{GpuRenderer, GpuRendererOptions, TilePlan, TilingReport};
 use raw_pipeline_testkit::denoise::denoise_plane;
 use raw_pipeline_testkit::fixtures::fixture_path;
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
@@ -144,12 +144,11 @@ fn without_dehaze() -> Edits {
 fn require_tiled_parity(single: &GpuRenderer, tiled: &GpuRenderer, name: &str, edits: &Edits) {
     let frame = decoded(name);
     for (mode, opts) in modes(&frame) {
-        let before = tiled.sensor_tiles();
         let reference = render(single, &frame, edits, &opts);
         let got = render(tiled, &frame, edits, &opts);
         require_identical(&format!("{name} {mode}"), &reference, &got);
-        if tiled.sensor_tiles() - before < 4 {
-            panic!("{name} {mode} rendered without sensor tiles");
+        if !matches!(got.tiling.plan, TilePlan::SensorTiled { .. }) || got.tiling.tiles < 4 {
+            panic!("{name} {mode} rendered as {:?}", got.tiling);
         }
     }
 }
@@ -216,8 +215,11 @@ fn render_over_budget(width: usize, height: usize, budget: u64) {
     if (img.width as usize, img.height as usize) != (width, height) {
         panic!("{width}x{height} rendered {}x{}", img.width, img.height);
     }
-    if renderer.sensor_tiles() == 0 {
-        panic!("a {width}x{height} render inside a {budget} byte budget ran as a single pass");
+    if !matches!(img.tiling.plan, TilePlan::SensorTiled { .. }) {
+        panic!(
+            "a {width}x{height} render inside a {budget} byte budget rendered as {:?}",
+            img.tiling
+        );
     }
 }
 
@@ -230,4 +232,30 @@ fn a_mosaic_over_the_single_pass_budget_renders_in_tiles() {
 #[ignore = "renders a 100 MP frame; run by hand on a GPU with 8 GiB to spare"]
 fn a_100_mp_mosaic_over_the_single_pass_budget_renders_in_tiles() {
     render_over_budget(11648, 8736, 6 << 30);
+}
+
+#[test]
+fn a_source_rendered_in_sensor_tiles_reports_them() {
+    let (Some(single), Some(tiled)) = (try_renderer(), tiled_renderer()) else {
+        return;
+    };
+    let frame = decoded("Canon_EOS_5D_3-2.cr2");
+    let opts = rgb8_opts(1200);
+    let edits = lens_only();
+    let source = |renderer: &GpuRenderer| match renderer.render_source(&frame, &edits, &opts, None)
+    {
+        Ok(source) => source,
+        Err(e) => panic!("source render failed: {e}"),
+    };
+    let reference = source(&single);
+    let got = source(&tiled);
+    if reference.tiling != TilingReport::SINGLE_PASS {
+        panic!("the single pass source reported {:?}", reference.tiling);
+    }
+    if !matches!(got.tiling.plan, TilePlan::SensorTiled { .. }) || got.tiling.tiles < 4 {
+        panic!("the tiled source reported {:?}", got.tiling);
+    }
+    if got.image.rgb_f16 != reference.image.rgb_f16 {
+        panic!("the tiled source differs from the single pass");
+    }
 }

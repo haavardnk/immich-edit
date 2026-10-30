@@ -24,7 +24,7 @@ use crate::gpu::source::LinearSource;
 use crate::gpu::texture_pool::TexturePool;
 use crate::gpu::timer::RenderTimings;
 use crate::source::{LinearKind, RenderedSource, SourceWindow};
-use crate::tile::{Rect, TilePlan};
+use crate::tile::{Rect, TilePlan, TilingReport};
 use crate::timing;
 pub(super) use shape::SensorShape;
 
@@ -144,6 +144,16 @@ impl<'a> SensorJob<'a> {
         self.cancel
     }
 
+    pub fn tiling(&self) -> TilingReport {
+        match self.tiles {
+            TilePlan::SensorTiled { edge } => TilingReport {
+                plan: self.tiles,
+                tiles: self.shape.chain.tiles(edge).len() as u32,
+            },
+            TilePlan::SinglePass | TilePlan::DisplayTiled { .. } => TilingReport::SINGLE_PASS,
+        }
+    }
+
     fn working_mips(&self) -> bool {
         !self.shape.resamples() || self.plan.atmosphere
     }
@@ -206,7 +216,6 @@ pub(super) struct SensorCaches {
     pub atmosphere_estimates: AtomicU64,
     pub noise_profiles: Mutex<lru::LruCache<u64, NoiseProfile>>,
     pub noise_estimates: AtomicU64,
-    pub tiles: AtomicU64,
     pub stages: StageCache,
 }
 
@@ -223,7 +232,6 @@ impl SensorCaches {
             atmosphere_estimates: AtomicU64::new(0),
             noise_profiles: Mutex::new(lru::LruCache::new(noise_profiles)),
             noise_estimates: AtomicU64::new(0),
-            tiles: AtomicU64::new(0),
             stages: StageCache::new(budget, texture_pool),
         }
     }
@@ -244,10 +252,6 @@ impl GpuRenderer {
 
     pub fn noise_estimates(&self) -> u64 {
         self.sensor.noise_estimates.load(Ordering::Relaxed)
-    }
-
-    pub fn sensor_tiles(&self) -> u64 {
-        self.sensor.tiles.load(Ordering::Relaxed)
     }
 
     pub fn linear_source(
@@ -296,6 +300,7 @@ impl GpuRenderer {
             let plan = SourcePlan::PORTABLE;
             let job = SensorJob::new(frame, edits, options, plan, tiles, &timings, cancel)?;
             let linear = self.sensor_stage(&job)?;
+            let tiling = job.tiling();
             let started = std::time::Instant::now();
             let window = options
                 .roi
@@ -308,6 +313,7 @@ impl GpuRenderer {
                 image,
                 renderer: "gpu".into(),
                 timings: timings.finish(cancel),
+                tiling,
             })
         }))
     }

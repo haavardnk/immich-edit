@@ -63,7 +63,7 @@ impl<'a> Tileable<'a> {
             out,
             chain_fits,
             fits_single_pass,
-            display: plan.displays() && display_tileable(options),
+            display: plan.displays() && options.preview_mode == PreviewMode::None,
         })
     }
 
@@ -103,10 +103,6 @@ impl<'a> Tileable<'a> {
                 self.shape.fits(self.frame, &sensor, &self.limits)
             })
     }
-}
-
-fn display_tileable(options: &RenderOptions) -> bool {
-    !options.histogram && !options.scopes && options.preview_mode == PreviewMode::None
 }
 
 impl GpuRenderer {

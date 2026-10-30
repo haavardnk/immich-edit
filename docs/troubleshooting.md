@@ -301,6 +301,12 @@ the device runs it later, and that wait shows up under `readback`. Set `GPU_TIME
 add a GPU column with the device time of each stage. On the GPU renderer `histogram`, `scopes`,
 and `encode` run in parallel, so their times overlap rather than add up.
 
+**Render plans** shows whether large photos rendered in one pass or in tiles. A photo past the GPU
+memory budget or texture limit renders in tiles, which is slower but produces the same image. On
+tiled renders, `tile_context` is the time spent on the shared pass over the whole photo that tiles
+need for dehaze, clarity, texture and shadows. It includes the stages that pass runs, so it overlaps
+them.
+
 Use **Settings** > **Diagnostics** before changing budgets. For a constrained CPU-only host, start
 with:
 

@@ -73,3 +73,4 @@ pub use gpu::GpuRendererOptions;
 pub use gpu::context::GpuContext;
 pub use lut::{CubeLut, LutMap, empty_luts};
 pub use mask_raster::{MaskRaster, RasterMap, empty_rasters};
+pub use tile::{TilePlan, TilingReport};

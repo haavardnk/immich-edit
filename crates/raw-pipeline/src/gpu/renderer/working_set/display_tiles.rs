@@ -46,7 +46,7 @@ impl WorkingSet {
             let sensor = shape.chain.tile(tile.window);
             let mut set = self.empty();
             set.bytes = sensor_bytes(&sensor);
-            let output = (layout.shape.tile(tile.rect), levels);
+            let output = (layout.shape.tile(tile), levels);
             set.display(
                 &frame.meta,
                 (extent(&sensor), kind),

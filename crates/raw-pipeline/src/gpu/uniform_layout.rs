@@ -159,7 +159,7 @@ fn uniform_structs_mirror_wgsl() {
     let filter = || layout!(DehazeFilterParams { size, radius, axis } pad {});
     let size_only = || layout!(DehazeSizeParams { size } pad { _pad });
     let xtrans = || layout!(XtransParams { size, pattern } pad { _pad });
-    let bins = || layout!(BinParams { size, step } pad { _pad });
+    let bins = || layout!(BinParams { core, origin, full, step } pad { _pad });
     let nr_size = || layout!(NrSizeParams { size } pad { _pad });
     let lens_blur = || {
         layout!(LensBlurParams {

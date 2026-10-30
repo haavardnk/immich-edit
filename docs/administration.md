@@ -106,6 +106,7 @@ All users can browse and apply them. The files live under `DATA_DIR/luts`, `DATA
 | **HEIF codecs** | HEIC and AVIF decode and export support |
 | **Render latency** | Typical and slow CPU and GPU render times |
 | **Render stages**, **Source frames** | Time per pipeline stage, original download and decode times, frame cache hit rate, and requests cut off by the timeout |
+| **Render plans** | How many renders ran in one pass, in sensor tiles, or in display tiles, with the tile edge and the tile count of the last one |
 | **Cache usage**, **GPU memory pools** | Frame, raster, and GPU memory use against their limits |
 | **Configuration** | The effective configuration, with secrets redacted |
 
