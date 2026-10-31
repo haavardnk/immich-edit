@@ -1,12 +1,12 @@
-import { listEditedAssets } from '$lib/api/edits';
-import { folderAssets } from '$lib/api/folders';
-import { BROWSE_PAGE_SIZE, searchMetadata, searchSmart } from '$lib/api/search';
-import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
-import { toasts } from '$lib/stores/toasts.svelte';
-import type { BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
+import { listEditedAssets } from '#lib/api/edits.ts';
+import { folderAssets } from '#lib/api/folders.ts';
+import { BROWSE_PAGE_SIZE, searchMetadata, searchSmart } from '#lib/api/search.ts';
+import { loadCullTags, stampCullTags } from '#lib/stores/cullTags.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import type { BrowseFeedOptions } from '#lib/stores/browseFeed.svelte.ts';
 import type { SearchMode } from './searchMode';
-import type { AssetSummary } from '$lib/types/album';
-import type { BrowseFilter, SearchPage } from '$lib/types/search';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { BrowseFilter, SearchPage } from '#lib/types/search.ts';
 
 export async function runSearch(
   text: string,

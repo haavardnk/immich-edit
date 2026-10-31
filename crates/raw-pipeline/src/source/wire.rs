@@ -140,7 +140,9 @@ pub fn decode(bytes: &[u8]) -> PipelineResult<SourceImage> {
         header,
         rgb_f16: from_planes(planes, w as usize, h as usize),
         context: grids
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
             .collect(),
     })
@@ -159,7 +161,7 @@ pub(crate) fn to_planes(rgb: &[u16], w: usize, h: usize) -> Vec<u8> {
             let y = i % h;
             let row = &rgb[y * w * 3..(y + 1) * w * 3];
             let mut prev = 0u16;
-            for ((px, high), low) in row.chunks_exact(3).zip(hi_row).zip(lo_row) {
+            for ((px, high), low) in row.as_chunks::<3>().0.iter().zip(hi_row).zip(lo_row) {
                 [*high, *low] = px[c].wrapping_sub(prev).to_be_bytes();
                 prev = px[c];
             }
@@ -177,7 +179,7 @@ pub(crate) fn from_planes(planes: &[u8], w: usize, h: usize) -> Vec<u16> {
             (&hi[start..start + w], &lo[start..start + w])
         });
         let mut prev = [0u16; 3];
-        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+        for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             prev = std::array::from_fn(|c| {
                 prev[c].wrapping_add(u16::from_be_bytes([rows[c].0[x], rows[c].1[x]]))
             });

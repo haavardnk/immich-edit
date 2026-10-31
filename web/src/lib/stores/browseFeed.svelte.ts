@@ -1,11 +1,11 @@
-import { BROWSE_PAGE_SIZE, searchMetadata, searchStatistics } from '$lib/api/search';
-import type { BrowseFilter, SearchPage } from '$lib/types/search';
+import { BROWSE_PAGE_SIZE, searchMetadata, searchStatistics } from '#lib/api/search.ts';
+import type { BrowseFilter, SearchPage } from '#lib/types/search.ts';
 import { browsing, type BrowsePager } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import { loadCullTags, stampCullTags } from './cullTags';
 import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
-import type { AssetSummary } from '$lib/types/album';
+import type { AssetSummary } from '#lib/types/album.ts';
 
 export interface BrowseFeedOptions {
   baseFilter: () => BrowseFilter;

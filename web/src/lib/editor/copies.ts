@@ -1,9 +1,9 @@
 import { goto } from '$app/navigation';
-import { createCopy } from '$lib/api/copies';
-import { sourceId } from '$lib/browse/assetKey';
+import { createCopy } from '#lib/api/copies.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
 import { editorHref } from './navigation';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export async function createVirtualCopy(
   assetId: string,

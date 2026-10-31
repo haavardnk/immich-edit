@@ -163,13 +163,17 @@ fn grid_bytes(samples: &[f32], channels: usize, format: TextureFormat) -> Vec<u8
 #[cfg(feature = "native")]
 fn extend_channels(out: &mut Vec<f32>, row: &[u8], format: TextureFormat, channels: usize) {
     match format {
-        TextureFormat::Rgba32Float => out.extend(row.chunks_exact(16).flat_map(|px| {
-            px.chunks_exact(4)
+        TextureFormat::Rgba32Float => out.extend(row.as_chunks::<16>().0.iter().flat_map(|px| {
+            px.as_chunks::<4>()
+                .0
+                .iter()
                 .take(channels)
                 .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         })),
-        _ => out.extend(row.chunks_exact(8).flat_map(|px| {
-            px.chunks_exact(2)
+        _ => out.extend(row.as_chunks::<8>().0.iter().flat_map(|px| {
+            px.as_chunks::<2>()
+                .0
+                .iter()
                 .take(channels)
                 .map(|b| f16::from_bits(u16::from_le_bytes([b[0], b[1]])).to_f32())
         })),

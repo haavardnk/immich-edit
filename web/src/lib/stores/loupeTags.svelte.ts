@@ -1,9 +1,9 @@
-import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
-import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import type { TagRef } from '$lib/types/asset';
-import { getAsset } from '$lib/api/assets';
-import { putBounded } from '$lib/utils/boundedRecord';
+import { addTagToAsset, removeTagFromAsset, upsertTags } from '#lib/api/tags.ts';
+import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import type { TagRef } from '#lib/types/asset.ts';
+import { getAsset } from '#lib/api/assets.ts';
+import { putBounded } from '#lib/utils/boundedRecord.ts';
 
 const MAX_CACHED = 50;
 

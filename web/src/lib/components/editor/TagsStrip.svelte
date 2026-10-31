@@ -1,7 +1,7 @@
 <script lang="ts">
-  import TagPicker from '$lib/components/TagPicker.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import TagPicker from '#lib/components/TagPicker.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
 
   const tags = $derived(editor.asset?.tags ?? []);
 

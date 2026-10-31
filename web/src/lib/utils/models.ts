@@ -1,4 +1,4 @@
-import type { Model } from '$lib/api/models';
+import type { Model } from '#lib/api/models.ts';
 
 const KIND_LABELS: Record<string, string> = {
   subject: 'Subject',

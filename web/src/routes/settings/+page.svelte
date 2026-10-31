@@ -1,15 +1,15 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { session } from '$lib/stores/session.svelte';
-  import SettingsGroup from '$lib/components/settings/SettingsGroup.svelte';
-  import AccountSection from '$lib/components/settings/AccountSection.svelte';
-  import SessionsSection from '$lib/components/settings/SessionsSection.svelte';
-  import UsersSection from '$lib/components/settings/UsersSection.svelte';
-  import ModelsSection from '$lib/components/settings/ModelsSection.svelte';
-  import InstanceSection from '$lib/components/settings/InstanceSection.svelte';
-  import RenderDefaultsSection from '$lib/components/settings/RenderDefaultsSection.svelte';
-  import PreviewRenderingSection from '$lib/components/settings/PreviewRenderingSection.svelte';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import SettingsGroup from '#lib/components/settings/SettingsGroup.svelte';
+  import AccountSection from '#lib/components/settings/AccountSection.svelte';
+  import SessionsSection from '#lib/components/settings/SessionsSection.svelte';
+  import UsersSection from '#lib/components/settings/UsersSection.svelte';
+  import ModelsSection from '#lib/components/settings/ModelsSection.svelte';
+  import InstanceSection from '#lib/components/settings/InstanceSection.svelte';
+  import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
+  import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
   import { mdiAccountCircleOutline, mdiCogOutline, mdiMonitorShimmer } from '@mdi/js';
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
@@ -36,7 +36,7 @@
       return;
     }
     adminSection = section;
-    void goto(`/settings#${section}`, { replaceState: true, noScroll: true, keepFocus: true });
+    void goto(`/settings#${section}`, { replace: true, reset: false });
   }
 
   $effect(() => {

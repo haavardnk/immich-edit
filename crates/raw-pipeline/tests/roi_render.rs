@@ -47,8 +47,10 @@ fn render_rgb(
 
 fn mean_abs_luma_delta(a: &[u8], b: &[u8]) -> f64 {
     let n = (a.len() / 3) as f64;
-    a.chunks_exact(3)
-        .zip(b.chunks_exact(3))
+    a.as_chunks::<3>()
+        .0
+        .iter()
+        .zip(b.as_chunks::<3>().0)
         .map(|(p, q)| (luma(p) - luma(q)).abs())
         .sum::<f64>()
         / n
@@ -223,8 +225,10 @@ fn gpu_roi_range_mask_matches_full_render_at_tile_edges() {
     );
     let worst = tile
         .bytes
-        .chunks_exact(3)
-        .zip(region.chunks_exact(3))
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(region.as_chunks::<3>().0)
         .map(|(p, q)| (luma(p) - luma(q)).abs())
         .fold(0.0, f64::max);
     if worst > 3.0 {

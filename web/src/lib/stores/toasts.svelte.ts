@@ -1,4 +1,4 @@
-import { errorMessage } from '$lib/utils/errors';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export type ToastKind = 'error' | 'warn' | 'info' | 'success';
 

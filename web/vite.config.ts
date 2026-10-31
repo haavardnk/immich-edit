@@ -1,3 +1,4 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
@@ -5,7 +6,16 @@ import { defineConfig } from 'vitest/config';
 const backend = process.env.IMMICH_EDIT_BACKEND ?? 'http://127.0.0.1:8088';
 
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()],
+  plugins: [
+    tailwindcss(),
+    sveltekit({
+      compilerOptions: {
+        runes: ({ filename }) =>
+          filename.split(/[/\\]/).includes('node_modules') ? undefined : true
+      },
+      adapter: adapter({ fallback: '200.html' })
+    })
+  ],
   worker: {
     format: 'es'
   },

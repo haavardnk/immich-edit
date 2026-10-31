@@ -1,4 +1,4 @@
-import { library } from '$lib/stores/library.svelte';
+import { library } from '#lib/stores/library.svelte.ts';
 import { isManagedTag, toTagRef } from './managedTags';
 import type { IdFilterKey } from './idFilters';
 

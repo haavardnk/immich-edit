@@ -1,9 +1,9 @@
-import { updateAsset } from '$lib/api/assets';
-import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-import { rejected } from '$lib/stores/rejected.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { updateAsset } from '#lib/api/assets.ts';
+import { addTagToAsset, removeTagFromAsset } from '#lib/api/tags.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+import { rejected } from '#lib/stores/rejected.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { ensureRejectTag, isRejected, setRejectedTags } from './reject';
 import { ownsAsset } from './ownership';
 import {
@@ -13,10 +13,10 @@ import {
   withLabel,
   writeLabel,
   type LabelColor
-} from '$lib/stores/labels';
-import { assignLabel } from '$lib/stores/labels.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
+} from '#lib/stores/labels.ts';
+import { assignLabel } from '#lib/stores/labels.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 function withRating(asset: AssetSummary, rating: number | null): ExifInfo {
   if (asset.exifInfo) return { ...asset.exifInfo, rating };

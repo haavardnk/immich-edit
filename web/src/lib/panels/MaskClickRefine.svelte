@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button } from '@immich/ui';
   import { refineWith, stopClickTool } from './maskTools';
 

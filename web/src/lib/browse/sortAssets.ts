@@ -1,5 +1,5 @@
-import type { AssetSummary } from '$lib/types/album';
-import type { SortDir, SortField } from '$lib/types/search';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { SortDir, SortField } from '#lib/types/search.ts';
 
 export type SortKey = (asset: AssetSummary) => number | null;
 

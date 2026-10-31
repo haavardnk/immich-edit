@@ -1,7 +1,7 @@
-import type { Job } from '$lib/api/jobs';
-import { selection } from '$lib/stores/selection.svelte';
-import { jobs } from '$lib/stores/jobs.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import type { Job } from '#lib/api/jobs.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { jobs } from '#lib/stores/jobs.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export async function runBulkJob(
   create: (assetIds: string[]) => Promise<Job>,

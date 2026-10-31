@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { exifDetailRows, type Dated } from '$lib/utils/exif';
+  import { exifDetailRows, type Dated } from '#lib/utils/exif.ts';
 
   let { asset }: { asset: Dated | null } = $props();
 

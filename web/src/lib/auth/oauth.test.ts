@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { AuthProviders } from '$lib/api/auth';
+import type { AuthProviders } from '#lib/api/auth.ts';
 import { callbackError, isOAuthCallback, redirectUri, safeNext, shouldAutoLaunch } from './oauth';
 
 function providers(overrides: Partial<AuthProviders> = {}): AuthProviders {

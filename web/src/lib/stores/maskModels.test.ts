@@ -1,9 +1,9 @@
-import type { Model, ModelsResponse } from '$lib/api/models';
+import type { Model, ModelsResponse } from '#lib/api/models.ts';
 import { describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({ list: vi.fn<() => Promise<ModelsResponse>>() }));
 
-vi.mock('$lib/api/models', () => ({ listModels: api.list }));
+vi.mock('#lib/api/models.ts', () => ({ listModels: api.list }));
 
 const { maskModels } = await import('./maskModels.svelte');
 

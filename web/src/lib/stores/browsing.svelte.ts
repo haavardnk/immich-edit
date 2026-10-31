@@ -1,6 +1,6 @@
-import { hides } from '$lib/browse/loadedFilter';
-import { browseControls } from '$lib/stores/browseControls.svelte';
-import type { AssetSummary } from '$lib/types/album';
+import { hides } from '#lib/browse/loadedFilter.ts';
+import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
 
 const PREFETCH_WINDOW = 10;
 

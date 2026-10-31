@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import type { FolderNode } from '$lib/stores/library.svelte';
+  import type { FolderNode } from '#lib/stores/library.svelte.ts';
   import FolderTree from './FolderTree.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiFolderOutline, mdiChevronDown, mdiChevronRight } from '@mdi/js';

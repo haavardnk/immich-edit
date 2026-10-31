@@ -1,13 +1,13 @@
 <script lang="ts">
-  import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
-  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
-  import FilterPanel from '$lib/components/browse/filters/FilterPanel.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { hides } from '$lib/browse/loadedFilter';
-  import { trash } from '$lib/stores/trash.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import type { AssetSummary } from '$lib/types/album';
+  import AssetGrid from '#lib/components/browse/AssetGrid.svelte';
+  import BrowseHeader from '#lib/components/browse/BrowseHeader.svelte';
+  import FilterPanel from '#lib/components/browse/filters/FilterPanel.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { hides } from '#lib/browse/loadedFilter.ts';
+  import { trash } from '#lib/stores/trash.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import type { AssetSummary } from '#lib/types/album.ts';
   import { Button, LoadingSpinner } from '@immich/ui';
 
   let {

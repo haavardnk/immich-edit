@@ -1,11 +1,11 @@
 <script lang="ts">
-  import ZoomPopover from '$lib/components/ZoomPopover.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
-  import DisabledReason from '$lib/components/DisabledReason.svelte';
+  import ZoomPopover from '#lib/components/ZoomPopover.svelte';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
+  import DisabledReason from '#lib/components/DisabledReason.svelte';
   import RatingControl from './RatingControl.svelte';
   import TagsStrip from './TagsStrip.svelte';
   import SaveStatus from './SaveStatus.svelte';

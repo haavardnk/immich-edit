@@ -114,7 +114,7 @@ mod tests {
             *k /= sum;
         }
         let step = |x: usize, y: usize| -> f32 {
-            if (x / 17 + y / 23) % 2 == 0 {
+            if (x / 17 + y / 23).is_multiple_of(2) {
                 bright
             } else {
                 dark

@@ -1,4 +1,4 @@
-import { readStored, writeStored } from '$lib/utils/storage';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 
 const STORAGE_KEY = 'immich-edit:settings';
 

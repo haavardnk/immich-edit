@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { observeSize } from '$lib/actions/observeSize';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui, type CropGrid } from '$lib/stores/ui.svelte';
+  import { observeSize } from '#lib/actions/observeSize.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui, type CropGrid } from '#lib/stores/ui.svelte.ts';
   import {
     rotatedBbox,
     aspectRatioFor,
@@ -10,12 +10,12 @@
     scaleCropAboutCentre,
     type CropHandle,
     type Point
-  } from '$lib/utils/geom';
-  import { neutralPerspective, perspectiveCssMatrix } from '$lib/utils/perspective';
-  import { stageFrame } from '$lib/editor/geometryStage';
+  } from '#lib/utils/geom.ts';
+  import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
+  import { stageFrame } from '#lib/editor/geometryStage.ts';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
-  import type { CropRect } from '$lib/types/edits';
+  import type { CropRect } from '#lib/types/edits.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);

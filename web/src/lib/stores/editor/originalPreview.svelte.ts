@@ -1,7 +1,7 @@
-import { livePreview, type ProofOptions } from '$lib/api/preview';
-import { originalPreviewEdits, type Edits } from '$lib/types/edits';
-import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
-import { SingleFlight } from '$lib/utils/singleFlight';
+import { livePreview, type ProofOptions } from '#lib/api/preview.ts';
+import { originalPreviewEdits, type Edits } from '#lib/types/edits.ts';
+import { makeObjectUrl, revoke } from '#lib/utils/objectUrl.ts';
+import { SingleFlight } from '#lib/utils/singleFlight.ts';
 
 export interface OriginalCtx {
   assetId: string | null;

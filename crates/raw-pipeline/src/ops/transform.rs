@@ -113,16 +113,16 @@ impl Op for TransformOp {
             let h = c.get("h").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
             edits.geometry.crop = Some(CropRect { x, y, w, h });
         }
-        if let Some(a) = value.get("aspect") {
-            if let Ok(v) = serde_json::from_value::<AspectLock>(a.clone()) {
-                edits.geometry.aspect = v;
-            }
+        if let Some(a) = value.get("aspect")
+            && let Ok(v) = serde_json::from_value::<AspectLock>(a.clone())
+        {
+            edits.geometry.aspect = v;
         }
-        if let Some(p) = value.get("perspective") {
-            if let Ok(v) = serde_json::from_value::<PerspectiveEdits>(p.clone()) {
-                let clamped = v.clamped();
-                edits.geometry.perspective = (!clamped.is_identity()).then_some(clamped);
-            }
+        if let Some(p) = value.get("perspective")
+            && let Ok(v) = serde_json::from_value::<PerspectiveEdits>(p.clone())
+        {
+            let clamped = v.clamped();
+            edits.geometry.perspective = (!clamped.is_identity()).then_some(clamped);
         }
     }
     fn apply_cpu(

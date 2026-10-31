@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { hint } from '$lib/shortcuts/labels';
-  import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
-  import { countOf } from '$lib/utils/plural';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { nextRatingFromKey } from '#lib/browse/ratingShortcuts.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';

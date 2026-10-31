@@ -1,17 +1,17 @@
 <script lang="ts">
-  import EditableLabel from '$lib/components/EditableLabel.svelte';
-  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
-  import MenuItem from '$lib/components/MenuItem.svelte';
+  import EditableLabel from '#lib/components/EditableLabel.svelte';
+  import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import MenuItem from '#lib/components/MenuItem.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { mdiCheck, mdiClose, mdiContentDuplicate, mdiPencil } from '@mdi/js';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { deleteCopy, listCopies, renameCopy, type CopyRecord } from '$lib/api/copies';
-  import { isCopy, sourceId } from '$lib/browse/assetKey';
-  import { createVirtualCopy } from '$lib/editor/copies';
-  import { editorHref } from '$lib/editor/navigation';
-  import { keysFor } from '$lib/shortcuts/labels';
-  import { browsing } from '$lib/stores/browsing.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { deleteCopy, listCopies, renameCopy, type CopyRecord } from '#lib/api/copies.ts';
+  import { isCopy, sourceId } from '#lib/browse/assetKey.ts';
+  import { createVirtualCopy } from '#lib/editor/copies.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { IconButton } from '@immich/ui';
 
   let { onnavigate }: { onnavigate: () => void } = $props();

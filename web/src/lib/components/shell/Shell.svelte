@@ -7,19 +7,19 @@
   import SettingsSidebar from './SettingsSidebar.svelte';
   import RightSidebar from './RightSidebar.svelte';
   import Filmstrip from './Filmstrip.svelte';
-  import PresetStrip from '$lib/components/preset/PresetStrip.svelte';
+  import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
   import TrashDialog from './TrashDialog.svelte';
-  import JobsDrawer from '$lib/components/jobs/JobsDrawer.svelte';
-  import EditorToolRail from '$lib/components/editor/EditorToolRail.svelte';
-  import Loupe from '$lib/components/browse/Loupe.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
+  import JobsDrawer from '#lib/components/jobs/JobsDrawer.svelte';
+  import EditorToolRail from '#lib/components/editor/EditorToolRail.svelte';
+  import Loupe from '#lib/components/browse/Loupe.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { AppShell, AppShellBar, AppShellSidebar } from '@immich/ui';
   import { MediaQuery } from 'svelte/reactivity';
 

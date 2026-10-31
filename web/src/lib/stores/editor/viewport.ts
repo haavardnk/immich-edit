@@ -1,17 +1,17 @@
-import { ui } from '$lib/stores/ui.svelte';
-import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
-import type { Edits } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
-import { viewTransform } from '$lib/utils/canvasCoords';
-import { nudgePan, type PanStep } from '$lib/utils/imageViewport';
-import type { PreviewSurface } from '$lib/utils/previewSurface';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { cachedFaceData, loadFaceData } from '#lib/stores/zoomTargets.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
+import { viewTransform } from '#lib/utils/canvasCoords.ts';
+import { nudgePan, type PanStep } from '#lib/utils/imageViewport.ts';
+import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 import {
   faceTargets,
   nextTargetIndex,
   panForTarget,
   sharpestPoint,
   type ZoomTarget
-} from '$lib/utils/zoomTarget';
+} from '#lib/utils/zoomTarget.ts';
 import type { ViewSnapshot } from './previewEdge';
 
 export interface ViewportCtx {

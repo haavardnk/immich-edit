@@ -2,7 +2,7 @@
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
   import type { Destination } from './settings';
   import { RadioGroup } from 'bits-ui';
 

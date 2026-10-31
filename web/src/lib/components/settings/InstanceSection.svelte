@@ -1,13 +1,13 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import { onMount } from 'svelte';
-  import { session } from '$lib/stores/session.svelte';
-  import { getInstance, rebindInstance, type InstanceInfo } from '$lib/api/admin';
-  import { formatWhen } from '$lib/utils/datetime';
-  import { errorMessage } from '$lib/utils/errors';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { getInstance, rebindInstance, type InstanceInfo } from '#lib/api/admin.ts';
+  import { formatWhen } from '#lib/utils/datetime.ts';
+  import { errorMessage } from '#lib/utils/errors.ts';
   import { mdiServerNetworkOutline, mdiSwapHorizontal } from '@mdi/js';
   import { Button, Icon, IconButton, Select } from '@immich/ui';
-  import Notice from '$lib/components/Notice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
 
   let instance = $state<InstanceInfo | null>(null);
   let showRebind = $state(false);

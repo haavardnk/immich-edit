@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { browsing } from '$lib/stores/browsing.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { AssetType } from '$lib/types/asset';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { AssetType } from '#lib/types/asset.ts';
 import { warmNeighbours } from './neighbours';
 
 function asset(id: string, type: AssetType = 'IMAGE'): AssetSummary {

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { WhiteBalanceSample } from '$lib/api/edits';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { WhiteBalanceProbe } from '$lib/stores/editor/whiteBalanceProbe.svelte';
-  import type { Edits } from '$lib/types/edits';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
-  import { clamp01 } from '$lib/utils/geom';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
+  import type { WhiteBalanceSample } from '#lib/api/edits.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { WhiteBalanceProbe } from '#lib/stores/editor/whiteBalanceProbe.svelte.ts';
+  import type { Edits } from '#lib/types/edits.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { clamp01 } from '#lib/utils/geom.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
 
   type Spot = { u: number; v: number; x: number; y: number; id: number };
 

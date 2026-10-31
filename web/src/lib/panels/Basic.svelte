@@ -1,7 +1,7 @@
 <script lang="ts">
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import WhiteBalanceSection from './basic/WhiteBalanceSection.svelte';
 
   const toneModified = $derived(

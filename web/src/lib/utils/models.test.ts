@@ -1,4 +1,4 @@
-import type { Model } from '$lib/api/models';
+import type { Model } from '#lib/api/models.ts';
 import { describe, expect, it } from 'vitest';
 import { formatMb, formatSeconds, installPercent, kindLabel } from './models';
 

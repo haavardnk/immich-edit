@@ -1,5 +1,5 @@
-import type { BrushBuffer } from '$lib/utils/brush';
-import type { BrushTool } from '$lib/stores/ui.svelte';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
+import type { BrushTool } from '#lib/stores/ui.svelte.ts';
 import {
   cloneLayerWithNewIds,
   defaultLinear,
@@ -9,7 +9,7 @@ import {
   MAX_POLYGON_POINTS,
   nextLayerName,
   setMaskedEdit
-} from '$lib/types/masks';
+} from '#lib/types/masks.ts';
 import type {
   Edits,
   MaskComponent,
@@ -18,7 +18,7 @@ import type {
   MaskLayer,
   MaskedEditKey,
   Vec2f
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 export interface MaskLayersCtx {
   edits: Edits;

@@ -1,5 +1,5 @@
-import type { BrowseFilters } from '$lib/stores/browseControls.svelte';
-import type { BrowseFilter } from '$lib/types/search';
+import type { BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
+import type { BrowseFilter } from '#lib/types/search.ts';
 import { isRange, ratingMatch } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF } from './exifFilters';
 import { toBytes } from './fileSize';

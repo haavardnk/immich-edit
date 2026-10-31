@@ -1,14 +1,14 @@
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Loupe from './Loupe.svelte';
-import ComponentHost from '$lib/testing/ComponentHost.svelte';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { compare } from '$lib/stores/compare.svelte';
-import { selection } from '$lib/stores/selection.svelte';
-import { ui } from '$lib/stores/ui.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { compare } from '#lib/stores/compare.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},

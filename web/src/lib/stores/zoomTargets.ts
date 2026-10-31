@@ -1,7 +1,7 @@
-import { getEdits } from '$lib/api/edits';
-import { getFaces, type FaceBox } from '$lib/api/faces';
-import { manifestToEdits } from '$lib/edits/manifest';
-import { viewTransform, type ViewTransform } from '$lib/utils/canvasCoords';
+import { getEdits } from '#lib/api/edits.ts';
+import { getFaces, type FaceBox } from '#lib/api/faces.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import { viewTransform, type ViewTransform } from '#lib/utils/canvasCoords.ts';
 
 export interface FaceData {
   faces: FaceBox[];

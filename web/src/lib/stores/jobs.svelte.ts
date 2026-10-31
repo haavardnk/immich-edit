@@ -7,13 +7,13 @@ import {
   listJobs,
   type Job,
   type JobItem
-} from '$lib/api/jobs';
-import { ApiError, url } from '$lib/api/client';
-import { sourceId } from '$lib/browse/assetKey';
-import { countOf } from '$lib/utils/plural';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { trash } from '$lib/stores/trash.svelte';
+} from '#lib/api/jobs.ts';
+import { ApiError, url } from '#lib/api/client.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
+import { countOf } from '#lib/utils/plural.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { trash } from '#lib/stores/trash.svelte.ts';
 
 const POLL_BASE_MS = 4000;
 const MAX_BACKOFF_STEPS = 4;

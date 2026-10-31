@@ -6,20 +6,20 @@
     type HealthInfo,
     type DebugTimings,
     type LatencyStats
-  } from '$lib/api/diagnostics';
-  import Notice from '$lib/components/Notice.svelte';
-  import RenderPlans from '$lib/components/settings/RenderPlans.svelte';
-  import RenderStages from '$lib/components/settings/RenderStages.svelte';
+  } from '#lib/api/diagnostics.ts';
+  import Notice from '#lib/components/Notice.svelte';
+  import RenderPlans from '#lib/components/settings/RenderPlans.svelte';
+  import RenderStages from '#lib/components/settings/RenderStages.svelte';
   import {
     codecLabel,
     formatBytes,
     formatUs,
     gpuMemoryRows,
     perMegapixel
-  } from '$lib/diagnostics/format';
-  import { buildSupportBundle } from '$lib/diagnostics/supportBundle';
-  import { renderer } from '$lib/stores/renderer.svelte';
-  import { errorMessage } from '$lib/utils/errors';
+  } from '#lib/diagnostics/format.ts';
+  import { buildSupportBundle } from '#lib/diagnostics/supportBundle.ts';
+  import { renderer } from '#lib/stores/renderer.svelte.ts';
+  import { errorMessage } from '#lib/utils/errors.ts';
   import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
 
   let health = $state<HealthInfo | null>(null);

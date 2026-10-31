@@ -1,12 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import Dialog from '$lib/components/Dialog.svelte';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
-  import type { Preset } from '$lib/api/presets';
-  import { editsToManifest } from '$lib/edits/manifest';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { presets } from '$lib/stores/presets.svelte';
+  import Dialog from '#lib/components/Dialog.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import type { Preset } from '#lib/api/presets.ts';
+  import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { presets } from '#lib/stores/presets.svelte.ts';
   import { Button } from '@immich/ui';
 
   let { preset, onClose }: { preset?: Preset; onClose: () => void } = $props();

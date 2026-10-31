@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { compare, type CompareMode } from '$lib/stores/compare.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import MenuItem from '$lib/components/MenuItem.svelte';
-  import { hint, keysFor } from '$lib/shortcuts/labels';
-  import { trashLabel } from '$lib/browse/trash';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { compare, type CompareMode } from '#lib/stores/compare.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import Popover from '#lib/components/Popover.svelte';
+  import MenuItem from '#lib/components/MenuItem.svelte';
+  import { hint, keysFor } from '#lib/shortcuts/labels.ts';
+  import { trashLabel } from '#lib/browse/trash.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,

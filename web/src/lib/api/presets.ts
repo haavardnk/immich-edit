@@ -1,5 +1,5 @@
 import { getJson, sendJson, url } from './client';
-import type { EditManifest } from '$lib/types/edits';
+import type { EditManifest } from '#lib/types/edits.ts';
 
 const PRESET_THUMB_EDGE = 160;
 

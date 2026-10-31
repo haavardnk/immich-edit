@@ -25,7 +25,10 @@ pub fn display_curves_uniform(curves: &CurvesEdits) -> Vec<f32> {
     out[0] = 1.0;
     let luts = CurveLuts::from_edits(curves);
     let blocks = [&luts.composite, &luts.r, &luts.g, &luts.b, &luts.luma];
-    for (block, dst) in blocks.iter().zip(out[4..].chunks_exact_mut(CURVE_LUT_SIZE)) {
+    for (block, dst) in blocks
+        .iter()
+        .zip(out[4..].as_chunks_mut::<CURVE_LUT_SIZE>().0)
+    {
         dst.copy_from_slice(*block);
     }
     out
@@ -196,10 +199,10 @@ impl Op for CurvesOp {
             return;
         }
         let read = |key: &str, dst: &mut CurvePoints| {
-            if let Some(arr) = value.get(key).and_then(|v| v.as_array()) {
-                if let Some(pts) = decode_points(arr) {
-                    *dst = CurvePoints { points: pts };
-                }
+            if let Some(arr) = value.get(key).and_then(|v| v.as_array())
+                && let Some(pts) = decode_points(arr)
+            {
+                *dst = CurvePoints { points: pts };
             }
         };
         read("composite", &mut edits.basic.curves.composite);

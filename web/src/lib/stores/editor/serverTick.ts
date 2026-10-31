@@ -1,5 +1,5 @@
-import type { ServerTiming } from '$lib/api/serverTiming';
-import type { TickSample } from '$lib/render/protocol';
+import type { ServerTiming } from '#lib/api/serverTiming.ts';
+import type { TickSample } from '#lib/render/protocol.ts';
 
 export async function measureServerTick(
   blob: Blob,

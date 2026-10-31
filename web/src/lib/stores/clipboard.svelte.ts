@@ -1,5 +1,5 @@
-import type { Edits } from '$lib/types/edits';
-import { ALL_COPY_SECTIONS, type CopySections } from '$lib/editor/copyPaste';
+import type { Edits } from '#lib/types/edits.ts';
+import { ALL_COPY_SECTIONS, type CopySections } from '#lib/editor/copyPaste.ts';
 
 export interface ClipboardPayload {
   edits: Edits;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '$lib/stores/ui.svelte';
+  import { MAX_FILMSTRIP_HEIGHT, MIN_FILMSTRIP_HEIGHT, ui } from '#lib/stores/ui.svelte.ts';
   import ResizeHandle from './ResizeHandle.svelte';
 
   let { label }: { label: string } = $props();

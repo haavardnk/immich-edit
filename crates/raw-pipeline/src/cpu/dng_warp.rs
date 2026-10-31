@@ -14,7 +14,7 @@ pub fn apply_dng_warp(image: &mut LinearImage, warp: &DngWarp) {
     let src = &image.rgb;
     let mut out = vec![0.0f32; src.len()];
     out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
-        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+        for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             if !split {
                 let [sx, sy] = frame.source_px(&warp.planes[0], x as f32, y as f32);
                 let rgb = sample_rgb_bicubic(src, w, h, sx, sy);

@@ -1,12 +1,12 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { untrack } from 'svelte';
-import { browseControls, FILTER_DEFAULTS } from '$lib/stores/browseControls.svelte';
+import { browseControls, FILTER_DEFAULTS } from '#lib/stores/browseControls.svelte.ts';
 import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams';
 import { matchBrowseRoute } from './browseRoutes';
 
-function navigate(url: URL, replaceState: boolean): void {
-  void goto(url, { replaceState, keepFocus: true, noScroll: true });
+function navigate(url: URL, replace: boolean): void {
+  void goto(url, { replace, reset: false });
 }
 
 export function syncFilterUrl(ready: () => boolean): void {

@@ -1,21 +1,21 @@
 <script lang="ts">
-  import type { AssetSummary } from '$lib/types/album';
-  import type { AssetDetail } from '$lib/types/asset';
+  import type { AssetSummary } from '#lib/types/album.ts';
+  import type { AssetDetail } from '#lib/types/asset.ts';
   import { page } from '$app/state';
-  import { hint } from '$lib/shortcuts/labels';
-  import { editorHref } from '$lib/editor/navigation';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { addTagToAsset, removeTagFromAsset } from '$lib/api/tags';
-  import { updateAsset } from '$lib/api/assets';
-  import { createVirtualCopy } from '$lib/editor/copies';
-  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-  import { rejected } from '$lib/stores/rejected.svelte';
-  import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
-  import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
-  import { NOT_OWNER_TRASH } from '$lib/browse/trash';
-  import { isCopy } from '$lib/browse/assetKey';
-  import { trash } from '$lib/stores/trash.svelte';
-  import DisabledReason from '$lib/components/DisabledReason.svelte';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { addTagToAsset, removeTagFromAsset } from '#lib/api/tags.ts';
+  import { updateAsset } from '#lib/api/assets.ts';
+  import { createVirtualCopy } from '#lib/editor/copies.ts';
+  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+  import { rejected } from '#lib/stores/rejected.svelte.ts';
+  import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
+  import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
+  import { NOT_OWNER_TRASH } from '#lib/browse/trash.ts';
+  import { isCopy } from '#lib/browse/assetKey.ts';
+  import { trash } from '#lib/stores/trash.svelte.ts';
+  import DisabledReason from '#lib/components/DisabledReason.svelte';
   import {
     LABEL_NAMES,
     labelOf,
@@ -23,15 +23,15 @@
     withLabel,
     writeLabel,
     type LabelColor
-  } from '$lib/stores/labels';
-  import { assignLabel } from '$lib/stores/labels.svelte';
-  import LabelPicker from '$lib/components/LabelPicker.svelte';
-  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
-  import RejectButton from '$lib/components/RejectButton.svelte';
-  import StarRating from '$lib/components/StarRating.svelte';
-  import { commonValue, coverage } from '$lib/utils/selectionState';
-  import { countOf } from '$lib/utils/plural';
-  import { toasts } from '$lib/stores/toasts.svelte';
+  } from '#lib/stores/labels.ts';
+  import { assignLabel } from '#lib/stores/labels.svelte.ts';
+  import LabelPicker from '#lib/components/LabelPicker.svelte';
+  import FavoriteButton from '#lib/components/FavoriteButton.svelte';
+  import RejectButton from '#lib/components/RejectButton.svelte';
+  import StarRating from '#lib/components/StarRating.svelte';
+  import { commonValue, coverage } from '#lib/utils/selectionState.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
   import BulkAlbumBand from './BulkAlbumBand.svelte';
@@ -43,8 +43,8 @@
     ControlBarOverflow,
     IconButton
   } from '@immich/ui';
-  import type { MultiMode } from '$lib/browse/compareEntry';
-  import { MAX_PANES } from '$lib/stores/compare.svelte';
+  import type { MultiMode } from '#lib/browse/compareEntry.ts';
+  import { MAX_PANES } from '#lib/stores/compare.svelte.ts';
   import {
     mdiClose,
     mdiImageAlbum,

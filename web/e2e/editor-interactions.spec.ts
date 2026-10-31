@@ -28,7 +28,7 @@ function lastExposure(requests: PreviewRequest[]): number | null {
 }
 
 async function pickScope(page: import('@playwright/test').Page, label: string): Promise<void> {
-  await page.getByRole('button', { name: 'Scope', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Scope', exact: true }).click();
   await page.getByRole('option', { name: label, exact: true }).click();
 }
 
@@ -185,7 +185,9 @@ test('scope modes draw from the cached grids and survive a reload', async ({ pag
 
   await page.reload();
   await expect(page.getByRole('img', { name: 'Vectorscope' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Scope', exact: true })).toHaveText('Vectorscope');
+  await expect(page.getByRole('combobox', { name: 'Scope', exact: true })).toHaveText(
+    'Vectorscope'
+  );
 });
 
 test('pinned scopes stay above the scrolling panels across a reload', async ({ page }) => {
@@ -229,7 +231,7 @@ test('pinned scopes stay expanded when the panel was saved collapsed', async ({ 
     'aria-pressed',
     'true'
   );
-  await expect(page.getByRole('button', { name: 'Scope', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Scope', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Scopes', exact: true })).toHaveCount(0);
 });
 
@@ -1139,15 +1141,15 @@ test('aspect presets, the orientation button and a custom ratio drive the output
   await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-output-size')).toHaveText('6000 × 4000 px');
 
-  await page.getByRole('button', { name: 'Aspect Ratio' }).click();
+  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
   await page.getByRole('option', { name: '5:4', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(5 / 4, 2);
 
   await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
-  await expect(page.getByRole('button', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
+  await expect(page.getByRole('combobox', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
 
-  await page.getByRole('button', { name: 'Aspect Ratio' }).click();
+  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
   await page.getByRole('option', { name: 'Custom…', exact: true }).click();
   const widthBox = await page.getByRole('textbox', { name: 'Width' }).boundingBox();
   const heightBox = await page.getByRole('textbox', { name: 'Height' }).boundingBox();

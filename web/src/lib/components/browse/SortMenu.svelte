@@ -1,8 +1,12 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
-  import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '$lib/components/browse/segmented';
-  import { browseControls, type SortDir, type SortField } from '$lib/stores/browseControls.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '#lib/components/browse/segmented.ts';
+  import {
+    browseControls,
+    type SortDir,
+    type SortField
+  } from '#lib/stores/browseControls.svelte.ts';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { IconButton, Label } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {

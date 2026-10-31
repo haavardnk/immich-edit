@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { PlanStats } from '$lib/api/diagnostics';
-  import { planLabel } from '$lib/diagnostics/format';
+  import type { PlanStats } from '#lib/api/diagnostics.ts';
+  import { planLabel } from '#lib/diagnostics/format.ts';
   import { Heading, Text } from '@immich/ui';
 
   let { plans }: { plans: PlanStats[] } = $props();

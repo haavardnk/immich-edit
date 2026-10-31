@@ -1,8 +1,8 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
   import MaskedEditSlider from './MaskedEditSlider.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
 
   let { layerId }: { layerId: string } = $props();
 

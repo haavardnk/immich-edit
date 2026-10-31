@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import Dialog from '$lib/components/Dialog.svelte';
-  import { copyDialog } from '$lib/stores/copyDialog.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import Dialog from '#lib/components/Dialog.svelte';
+  import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
   import { Button } from '@immich/ui';
   import {
     DEVELOP_KEYS,
@@ -10,7 +10,7 @@
     allSelected,
     hasSelectedSections,
     type SectionKey
-  } from '$lib/editor/copyPaste';
+  } from '#lib/editor/copyPaste.ts';
 
   function set(key: SectionKey, value: boolean): void {
     copyDialog.sections = { ...copyDialog.sections, [key]: value };

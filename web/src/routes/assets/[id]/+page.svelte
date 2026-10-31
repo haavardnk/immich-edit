@@ -1,17 +1,17 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { restoreBrowse } from '$lib/browse/restore';
-  import { editorKeydown, editorKeyup } from '$lib/shortcuts/editorKeymap';
-  import { warmNeighbours } from '$lib/editor/neighbours';
-  import Viewer from '$lib/components/editor/Viewer.svelte';
-  import ImageToolbar from '$lib/components/editor/ImageToolbar.svelte';
-  import BottomBar from '$lib/components/editor/BottomBar.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/shortcuts/labels';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { restoreBrowse } from '#lib/browse/restore.ts';
+  import { editorKeydown, editorKeyup } from '#lib/shortcuts/editorKeymap.ts';
+  import { warmNeighbours } from '#lib/editor/neighbours.ts';
+  import Viewer from '#lib/components/editor/Viewer.svelte';
+  import ImageToolbar from '#lib/components/editor/ImageToolbar.svelte';
+  import BottomBar from '#lib/components/editor/BottomBar.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
   import { innerWidth } from 'svelte/reactivity/window';

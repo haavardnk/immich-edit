@@ -1,4 +1,4 @@
-import { request, sendBytes, url } from '$lib/api/client';
+import { request, sendBytes, url } from '#lib/api/client.ts';
 
 export interface RasterMeta {
   raster_id: string;

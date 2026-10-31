@@ -3,15 +3,15 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { setupStatus } from '$lib/api/auth';
-  import { isBackendDown } from '$lib/api/client';
-  import { session } from '$lib/stores/session.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-  import { syncFilterUrl } from '$lib/browse/filterUrl.svelte';
-  import { installFocusPolicy } from '$lib/utils/pointerFocus';
-  import BackendUnavailable from '$lib/components/shell/BackendUnavailable.svelte';
-  import Shell from '$lib/components/shell/Shell.svelte';
-  import Toasts from '$lib/components/shell/Toasts.svelte';
+  import { setupStatus } from '#lib/api/auth.ts';
+  import { isBackendDown } from '#lib/api/client.ts';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+  import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
+  import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
+  import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
+  import Shell from '#lib/components/shell/Shell.svelte';
+  import Toasts from '#lib/components/shell/Toasts.svelte';
   import { setLocale, TooltipProvider } from '@immich/ui';
 
   let { children } = $props();
@@ -42,16 +42,16 @@
     if (bootState !== 'ready') return;
     const path = page.url.pathname;
     if (session.user) {
-      if (path === '/login' || path === '/setup') void goto('/', { replaceState: true });
+      if (path === '/login' || path === '/setup') void goto('/', { replace: true });
       return;
     }
     if (!configured) {
-      if (path !== '/setup') void goto('/setup', { replaceState: true });
+      if (path !== '/setup') void goto('/setup', { replace: true });
       return;
     }
     if (path !== '/login') {
       const next = encodeURIComponent(path + page.url.search);
-      void goto(`/login?next=${next}`, { replaceState: true });
+      void goto(`/login?next=${next}`, { replace: true });
     }
   });
 

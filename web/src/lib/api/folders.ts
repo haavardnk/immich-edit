@@ -1,5 +1,5 @@
 import { getJson, url } from './client';
-import type { AssetDetail } from '$lib/types/asset';
+import type { AssetDetail } from '#lib/types/asset.ts';
 
 export function folderPaths(): Promise<string[]> {
   return getJson('/api/folders/paths');

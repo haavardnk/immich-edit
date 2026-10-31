@@ -1,11 +1,11 @@
-import type { Edits, LensEdits } from '$lib/types/edits';
+import type { Edits, LensEdits } from '#lib/types/edits.ts';
 import {
   lensWarpActive,
   lensWarpFromEdits,
   maskUvToSceneUv,
   sceneUvToMaskUv,
   type LensWarpParams
-} from '$lib/utils/lensWarp';
+} from '#lib/utils/lensWarp.ts';
 import {
   displayUvToMaskUv,
   geometryIsIdentity,
@@ -13,7 +13,7 @@ import {
   maskUvToDisplayUv,
   type GeometryTransform,
   type SourceDims
-} from '$lib/utils/geomTransform';
+} from '#lib/utils/geomTransform.ts';
 
 export interface ViewTransform {
   geom: GeometryTransform;

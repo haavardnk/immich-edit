@@ -1,3 +1,4 @@
+import type { ReadonlyURL } from '$app/state';
 import { loadEditedAssets, loadFolderAssets, searchFeed } from './sources';
 import { resolveSearchMode } from './searchMode';
 import { fieldKey, timeOf, type SortKey } from './sortAssets';
@@ -6,11 +7,11 @@ import {
   browseControls,
   type BrowseFilters,
   type SortFamily
-} from '$lib/stores/browseControls.svelte';
-import type { BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { SearchScope } from '$lib/types/search';
+} from '#lib/stores/browseControls.svelte.ts';
+import type { BrowseFeedOptions } from '#lib/stores/browseFeed.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { SearchScope } from '#lib/types/search.ts';
 
 interface RouteBase {
   family: SortFamily | null;
@@ -30,7 +31,7 @@ function segment(pathname: string, prefix: string): string | null {
   return decodeURIComponent(rest);
 }
 
-export function matchBrowseRoute(url: URL): BrowseRoute | null {
+export function matchBrowseRoute(url: ReadonlyURL): BrowseRoute | null {
   const pathname = url.pathname;
 
   if (pathname === '/photos') {
@@ -109,18 +110,18 @@ const SCOPE_EXCLUSIONS: Partial<Record<keyof BrowseFilters, string>> = {
 
 const STRUCTURED_ONLY: (keyof BrowseFilters)[] = ['noPeople', 'minSize', 'maxSize'];
 
-export function structuredRoute(url: URL): boolean {
+export function structuredRoute(url: ReadonlyURL): boolean {
   if (!immichCapabilities.structuredSearch) return false;
   const route = matchBrowseRoute(url);
   return !route || !('feed' in route) || !route.feed.flatOnly?.();
 }
 
-export function routeScope(url: URL): SearchScope | undefined {
+export function routeScope(url: ReadonlyURL): SearchScope | undefined {
   const route = matchBrowseRoute(url);
   return route && 'feed' in route ? route.feed.baseFilter().scope : undefined;
 }
 
-export function supportsFilter(url: URL, key: keyof BrowseFilters): boolean {
+export function supportsFilter(url: ReadonlyURL, key: keyof BrowseFilters): boolean {
   if (key === 'filename' && url.pathname === '/search') return false;
   const route = matchBrowseRoute(url);
   if (route && !('feed' in route)) return LOADED_FILTERS.includes(key);

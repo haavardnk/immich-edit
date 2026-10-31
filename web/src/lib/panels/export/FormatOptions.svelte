@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import { Field, Select } from '@immich/ui';
-  import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
+  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
   import {
     BIT_DEPTHS,
     changeFormat,

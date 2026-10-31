@@ -145,7 +145,12 @@ mod tests {
         };
         assert!(rgb.iter().all(|&v| (64..=192).contains(&v)));
         assert_eq!(&rgb[..3], &[64, 64, 64]);
-        assert!(rgb.chunks_exact(3).all(|p| p[0] == p[1] && p[1] == p[2]));
+        assert!(
+            rgb.as_chunks::<3>()
+                .0
+                .iter()
+                .all(|p| p[0] == p[1] && p[1] == p[2])
+        );
     }
 
     #[test]

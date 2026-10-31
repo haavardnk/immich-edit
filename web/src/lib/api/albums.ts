@@ -1,5 +1,5 @@
 import { getJson, sendJson, url } from './client';
-import type { AlbumDetail, AlbumSummary } from '$lib/types/album';
+import type { AlbumDetail, AlbumSummary } from '#lib/types/album.ts';
 
 export function listAlbums(): Promise<AlbumSummary[]> {
   return getJson('/api/albums');

@@ -62,7 +62,9 @@ fn enlarge(image: FinalImage, dims: (u32, u32)) -> crate::PipelineResult<FinalIm
             let out = resize(bytes, image.width, image.height, dims, PixelType::U16x3)
                 .ok_or_else(failed)?;
             FinalPixels::Rgb16(
-                out.chunks_exact(2)
+                out.as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|b| u16::from_ne_bytes([b[0], b[1]]))
                     .collect(),
             )

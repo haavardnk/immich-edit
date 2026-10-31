@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { withLookAmount } from './lookAmount';
 
 interface AmountCase {

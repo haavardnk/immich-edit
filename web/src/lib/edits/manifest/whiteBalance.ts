@@ -1,4 +1,4 @@
-import { whiteBalanceIsAsShot, type Edits, type WhiteBalance } from '$lib/types/edits';
+import { whiteBalanceIsAsShot, type Edits, type WhiteBalance } from '#lib/types/edits.ts';
 
 const WHITE_BALANCE_OP = 'white_balance';
 

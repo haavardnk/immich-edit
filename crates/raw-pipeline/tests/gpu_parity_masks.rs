@@ -192,7 +192,9 @@ fn gpu_mask_weight_image_matches_cpu_as_gray_weight() {
     require_same_dims("weight image", &cpu, &gpu);
     for (label, bytes) in [("cpu", &cpu.bytes), ("gpu", &gpu.bytes)] {
         if bytes
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .any(|px| px[0].abs_diff(px[1]) > 2 || px[0].abs_diff(px[2]) > 2)
         {
             panic!("{label}: the weight image is not gray");

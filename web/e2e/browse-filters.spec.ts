@@ -141,7 +141,7 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   await page.reload();
   await expect(panel.getByLabel('Filename')).toBeVisible();
   await expect(panel.getByRole('radiogroup', { name: 'Rating', exact: true })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Visibility', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('combobox', { name: 'Visibility', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Close filter panel' }).click();
   await expect(panel).toHaveCount(0);
@@ -245,7 +245,7 @@ test('the count names photos hidden by the reject filter', async ({ page }) => {
   await page.goto('/photos');
 
   await openFilters(page, 'Library');
-  await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Hide', exact: true }).click();
 
   await expect(page.getByText('2 photos, 1 hidden', { exact: true })).toBeVisible();
@@ -266,7 +266,7 @@ for (const [structuredSearch, choice, sent] of [
     await page.goto('/photos');
 
     await openFilters(page, 'Library');
-    await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Rejected', exact: true }).click();
     await page.getByRole('option', { name: choice, exact: true }).click();
 
     await expect(

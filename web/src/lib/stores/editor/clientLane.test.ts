@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClientRenderer } from '$lib/render/clientRenderer';
-import type { RenderView, RenderedFrame } from '$lib/render/protocol';
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import type { ClientRenderer } from '#lib/render/clientRenderer.ts';
+import type { RenderView, RenderedFrame } from '#lib/render/protocol.ts';
+import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob } from './clientLane';
 
 const SOURCE = {

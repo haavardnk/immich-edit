@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { MaskComponentKind, Vec2f } from '$lib/types/edits';
-  import { MAX_POLYGON_POINTS } from '$lib/types/masks';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import type { DragKind } from '$lib/utils/maskDrag';
+  import type { MaskComponentKind, Vec2f } from '#lib/types/edits.ts';
+  import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import type { DragKind } from '#lib/utils/maskDrag.ts';
 
   let {
     kind,

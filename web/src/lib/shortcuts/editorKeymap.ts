@@ -1,21 +1,21 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { editor } from '$lib/stores/editor.svelte';
-import { ui } from '$lib/stores/ui.svelte';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { backToGrid } from '$lib/browse/backToGrid';
-import { createVirtualCopy } from '$lib/editor/copies';
-import { nextRatingFromKey } from '$lib/browse/ratingShortcuts';
-import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
+import { editor } from '#lib/stores/editor.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { backToGrid } from '#lib/browse/backToGrid.ts';
+import { createVirtualCopy } from '#lib/editor/copies.ts';
+import { nextRatingFromKey } from '#lib/browse/ratingShortcuts.ts';
+import { labelOf, nextLabelFromKey } from '#lib/stores/labels.ts';
 import { isKeybind, matchKeybind } from './match';
 import { hasTextSelection, isRadioGroupTarget, isTypingTarget, yieldsToControl } from './targets';
 import { isModalOpen } from '@immich/ui';
 import { activeContexts } from './context';
-import { editorHref } from '$lib/editor/navigation';
-import { defaultLinear, defaultRadial } from '$lib/types/masks';
-import { nudgeable } from '$lib/utils/maskDrag';
-import { panStep } from '$lib/utils/imageViewport';
-import { BRUSH_SIZE, HARDNESS, RETOUCH_SIZE, stepBrush } from '$lib/utils/brushSize';
+import { editorHref } from '#lib/editor/navigation.ts';
+import { defaultLinear, defaultRadial } from '#lib/types/masks.ts';
+import { nudgeable } from '#lib/utils/maskDrag.ts';
+import { panStep } from '#lib/utils/imageViewport.ts';
+import { BRUSH_SIZE, HARDNESS, RETOUCH_SIZE, stepBrush } from '#lib/utils/brushSize.ts';
 
 let heldOriginalCode: string | null = null;
 
@@ -27,7 +27,7 @@ function selectedShapeNudges(): boolean {
 }
 
 function openInEditor(id: string): void {
-  void goto(editorHref(id, page.url.searchParams.get('from')), { replaceState: true });
+  void goto(editorHref(id, page.url.searchParams.get('from')), { replace: true });
 }
 
 function navigate(id: string, delta: number): void {

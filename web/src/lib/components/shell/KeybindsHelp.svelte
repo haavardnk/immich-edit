@@ -1,11 +1,11 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { KEYBINDS, type KeybindContext } from '$lib/shortcuts/table';
-  import { isKeybind } from '$lib/shortcuts/match';
-  import { keysFor } from '$lib/shortcuts/labels';
-  import { activeContexts } from '$lib/shortcuts/context';
-  import Dialog from '$lib/components/Dialog.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { KEYBINDS, type KeybindContext } from '#lib/shortcuts/table.ts';
+  import { isKeybind } from '#lib/shortcuts/match.ts';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { activeContexts } from '#lib/shortcuts/context.ts';
+  import Dialog from '#lib/components/Dialog.svelte';
   import { Icon } from '@immich/ui';
   import { mdiMagnify } from '@mdi/js';
 

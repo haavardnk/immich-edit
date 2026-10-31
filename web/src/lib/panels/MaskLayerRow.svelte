@@ -1,9 +1,9 @@
 <script lang="ts">
-  import EditableLabel from '$lib/components/EditableLabel.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { maskedEditsIsZero, type MaskLayer } from '$lib/types/edits';
-  import type { MaskCapacity } from '$lib/types/masks';
-  import { countOf } from '$lib/utils/plural';
+  import EditableLabel from '#lib/components/EditableLabel.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskedEditsIsZero, type MaskLayer } from '#lib/types/edits.ts';
+  import type { MaskCapacity } from '#lib/types/masks.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import { Button, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {

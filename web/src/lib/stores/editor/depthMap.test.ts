@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DepthMapState } from './depthMap.svelte';
 
 const { generateDepth } = vi.hoisted(() => ({ generateDepth: vi.fn() }));
-vi.mock('$lib/api/depth', () => ({ generateDepth }));
+vi.mock('#lib/api/depth.ts', () => ({ generateDepth }));
 
 describe('depth map generation', () => {
   beforeEach(() => {

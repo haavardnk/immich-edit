@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            container: rust:1.98-trixie
+            container: rust:1.99-trixie
           - os: macos-latest
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -68,7 +68,7 @@ jobs:
 
   wasm:
     runs-on: ubuntu-latest
-    container: rust:1.98-trixie
+    container: rust:1.99-trixie
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2

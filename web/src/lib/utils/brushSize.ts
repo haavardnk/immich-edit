@@ -1,4 +1,4 @@
-import type { PreviewMeta } from '$lib/types/preview';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 
 export type BrushRange = { step: number; min: number; max: number };
 

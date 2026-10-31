@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AssetSummary } from '$lib/types/album';
-import { browsing, type BrowsePager } from '$lib/stores/browsing.svelte';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { compare } from '$lib/stores/compare.svelte';
-import { selection } from '$lib/stores/selection.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import type { AssetSummary } from '#lib/types/album.ts';
+import { browsing, type BrowsePager } from '#lib/stores/browsing.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { compare } from '#lib/stores/compare.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
   advanceFocused,
   enterMulti,

@@ -2,20 +2,20 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { readFilterParams } from '$lib/browse/filterParams';
-  import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
-  import { searchFeed } from '$lib/browse/sources';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { readFilterParams } from '#lib/browse/filterParams.ts';
+  import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { searchFeed } from '#lib/browse/sources.ts';
   import {
     resolveSearchMode,
     SEARCH_MODES,
     searchModeAvailable,
     type SearchMode
-  } from '$lib/browse/searchMode';
-  import AssetGrid from '$lib/components/browse/AssetGrid.svelte';
-  import BrowseHeader from '$lib/components/browse/BrowseHeader.svelte';
-  import FilterPanel from '$lib/components/browse/filters/FilterPanel.svelte';
+  } from '#lib/browse/searchMode.ts';
+  import AssetGrid from '#lib/components/browse/AssetGrid.svelte';
+  import BrowseHeader from '#lib/components/browse/BrowseHeader.svelte';
+  import FilterPanel from '#lib/components/browse/filters/FilterPanel.svelte';
   import { Button, LoadingSpinner } from '@immich/ui';
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
@@ -31,9 +31,9 @@
 
   function setMode(next: SearchMode): void {
     if (next === mode) return;
-    const url = new URL(page.url);
+    const url = new URL(page.url.href);
     url.searchParams.set('mode', next);
-    void goto(`${url.pathname}${url.search}`, { replaceState: true, keepFocus: true });
+    void goto(`${url.pathname}${url.search}`, { replace: true, reset: false });
   }
 
   $effect(() => {

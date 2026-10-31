@@ -1,4 +1,4 @@
-import type { AssetSummary } from '$lib/types/album';
+import type { AssetSummary } from '#lib/types/album.ts';
 import { labelMembers } from './labels.svelte';
 import { rejected } from './rejected.svelte';
 

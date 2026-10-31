@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { live } from '$lib/api/health';
-  import Wordmark from '$lib/components/Wordmark.svelte';
+  import { live } from '#lib/api/health.ts';
+  import Wordmark from '#lib/components/Wordmark.svelte';
   import { Button, Card, CardBody, Container, Heading, Text } from '@immich/ui';
 
   let { retry }: { retry: () => void } = $props();

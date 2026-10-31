@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GpuLimits, TickSample } from '$lib/render/protocol';
+import type { GpuLimits, TickSample } from '#lib/render/protocol.ts';
 
 const storageKey = 'immich-edit:renderer';
 const NEED = { benchmarkEdge: 1600, maxEdge: 2560 };
@@ -10,8 +10,8 @@ const gpu = vi.hoisted(() => ({
   dispose: vi.fn()
 }));
 
-vi.mock('$lib/api/clientLog', () => ({ reportClientError: vi.fn() }));
-vi.mock('$lib/render/clientRenderer', () => ({ ClientRenderer: { start: gpu.start } }));
+vi.mock('#lib/api/clientLog.ts', () => ({ reportClientError: vi.fn() }));
+vi.mock('#lib/render/clientRenderer.ts', () => ({ ClientRenderer: { start: gpu.start } }));
 
 function fakeClient(benchmark: TickSample | null, limits: GpuLimits = ROOMY) {
   return { adapter: 'Fake GPU', limits, initMs: 120, benchmark, dispose: gpu.dispose };

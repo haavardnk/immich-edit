@@ -1,13 +1,13 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
+  import Popover from '#lib/components/Popover.svelte';
   import {
     LABEL_COLORS,
     LABEL_NAMES,
     LABEL_TEXT,
     labelKey,
     type LabelColor
-  } from '$lib/stores/labels';
-  import { hint } from '$lib/shortcuts/labels';
+  } from '#lib/stores/labels.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiCircle, mdiCircleOffOutline, mdiCircleOutline } from '@mdi/js';
 

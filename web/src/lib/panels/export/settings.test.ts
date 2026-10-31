@@ -9,7 +9,7 @@ import {
   restoreExportForm,
   type ExportForm
 } from './settings';
-import type { ExportFormat } from '$lib/api/export';
+import type { ExportFormat } from '#lib/api/export.ts';
 
 function form(patch: Partial<ExportForm> = {}): ExportForm {
   return { ...defaultExportForm(), ...patch };

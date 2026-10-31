@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind } from '$lib/shortcuts/match';
-  import { keyLabel } from '$lib/shortcuts/chord';
-  import { yieldsToControl } from '$lib/shortcuts/targets';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { isKeybind } from '#lib/shortcuts/match.ts';
+  import { keyLabel } from '#lib/shortcuts/chord.ts';
+  import { yieldsToControl } from '#lib/shortcuts/targets.ts';
   import { isModalOpen } from '@immich/ui';
-  import type { Vec2f } from '$lib/types/edits';
-  import { MAX_POLYGON_POINTS } from '$lib/types/masks';
+  import type { Vec2f } from '#lib/types/edits.ts';
+  import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
 
   let {
     draft,

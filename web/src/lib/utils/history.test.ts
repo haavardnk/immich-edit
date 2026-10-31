@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { historyDetails, historyLabel } from './history';
-import { neutralEdits } from '$lib/types/edits';
-import type { EditHistoryEntry } from '$lib/api/edits';
-import type { MaskLayer, WhiteBalance } from '$lib/types/edits';
+import { neutralEdits } from '#lib/types/edits.ts';
+import type { EditHistoryEntry } from '#lib/api/edits.ts';
+import type { MaskLayer, WhiteBalance } from '#lib/types/edits.ts';
 
 function entry(over: Partial<EditHistoryEntry>): EditHistoryEntry {
   return {

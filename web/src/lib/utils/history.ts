@@ -1,4 +1,4 @@
-import type { EditHistoryEntry } from '$lib/api/edits';
+import type { EditHistoryEntry } from '#lib/api/edits.ts';
 import type {
   CurveChannel,
   Edits,
@@ -7,7 +7,7 @@ import type {
   LensEdits,
   MaskLayer,
   WhiteBalance
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 import {
   BW_CHANNELS,
   CURVE_CHANNELS,
@@ -16,9 +16,9 @@ import {
   neutralEdits,
   neutralSharpenAmount,
   whiteBalanceIsAsShot
-} from '$lib/types/edits';
-import { percentRange } from '$lib/utils/percent';
-import { neutralPerspective } from '$lib/utils/perspective';
+} from '#lib/types/edits.ts';
+import { percentRange } from '#lib/utils/percent.ts';
+import { neutralPerspective } from '#lib/utils/perspective.ts';
 
 type NumberFieldDef = {
   kind: 'number';

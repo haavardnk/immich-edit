@@ -1,14 +1,14 @@
 <script lang="ts">
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
-  import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
   import {
     segmentedControlClass,
     segmentedTabItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import Disclosure from '$lib/components/Disclosure.svelte';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import Disclosure from '#lib/components/Disclosure.svelte';
   import { RadioGroup, Tabs } from 'bits-ui';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
 
   type RegionKey = 'shadows' | 'midtones' | 'highlights' | 'global';
   type Mode = 'three_way' | 'global';

@@ -11,7 +11,7 @@ import {
   captureTime,
   exifDetailRows
 } from './exif';
-import type { ExifInfo } from '$lib/types/asset';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 describe('fmtAperture', () => {
   it.each([

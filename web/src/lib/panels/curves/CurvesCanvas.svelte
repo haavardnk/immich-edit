@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     CURVE_CHANNELS,
     curvesAreIdentity,
     type CurveChannel,
     type CurvePoint
-  } from '$lib/types/edits';
+  } from '#lib/types/edits.ts';
   import {
     CHANNEL_LABELS,
     CURVE_INNER,

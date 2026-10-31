@@ -1,12 +1,12 @@
-import { readStored, writeStored } from '$lib/utils/storage';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 import {
   clampZoom,
   isFitZoom,
   nextStop,
   readZoomLevel,
   writeZoomLevel
-} from '$lib/utils/zoomLevel';
-import type { RetouchMode } from '$lib/types/edits';
+} from '#lib/utils/zoomLevel.ts';
+import type { RetouchMode } from '#lib/types/edits.ts';
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 

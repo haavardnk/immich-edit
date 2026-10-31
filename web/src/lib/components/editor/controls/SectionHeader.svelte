@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { DevelopSection } from '$lib/types/edits';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { DevelopSection } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
   import ResetButton from './ResetButton.svelte';
 

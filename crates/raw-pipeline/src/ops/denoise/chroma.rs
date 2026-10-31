@@ -36,7 +36,7 @@ pub(crate) fn from_chroma(y: f32, pb: f32, pr: f32) -> [f32; 3] {
 #[inline(always)]
 fn taps(x: usize, n: usize) -> ([usize; 2], [f32; 2]) {
     let half = x / 2;
-    if x % 2 == 0 {
+    if x.is_multiple_of(2) {
         ([half.saturating_sub(1), half.min(n - 1)], [0.25, 0.75])
     } else {
         ([half.min(n - 1), (half + 1).min(n - 1)], [0.75, 0.25])
@@ -161,7 +161,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; CHROMA_LEVE
             },
             |y, buf| buf.copy_from_slice(&reference[y * lw..(y + 1) * lw]),
             |_, row, [dpb, dpr]| {
-                for ((o, a), b) in row.chunks_exact_mut(2).zip(dpb).zip(dpr) {
+                for ((o, a), b) in row.as_chunks_mut::<2>().0.iter_mut().zip(dpb).zip(dpr) {
                     o[0] += a;
                     o[1] += b;
                 }
@@ -184,7 +184,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; CHROMA_LEVE
             .into_par_iter()
             .enumerate()
             .for_each(|(y, (fb, fr, rgb))| {
-                for (x, px) in rgb.chunks_exact(3).enumerate() {
+                for (x, px) in rgb.as_chunks::<3>().0.iter().enumerate() {
                     let [_, pb, pr] = to_chroma(px[0], px[1], px[2]);
                     fb[x] = pb - up_at(&base[0], lw, lh, 1, 0, x, y);
                     fr[x] = pr - up_at(&base[1], lw, lh, 1, 0, x, y);
@@ -217,7 +217,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; CHROMA_LEVE
             }
         },
         |y, row, [dpb, dpr]| {
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let i = y * w + x;
                 let yv = luma(px[0], px[1], px[2]);
                 let pb = up_at(den, lw, lh, 2, 0, x, y) + fine_planes[0][i] + dpb[x];

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { neutralEdits, type WhiteBalance } from '$lib/types/edits';
+import { neutralEdits, type WhiteBalance } from '#lib/types/edits.ts';
 
 const mocks = vi.hoisted(() => ({ sampleWhiteBalance: vi.fn() }));
 
-vi.mock('$lib/api/edits', () => ({ sampleWhiteBalance: mocks.sampleWhiteBalance }));
+vi.mock('#lib/api/edits.ts', () => ({ sampleWhiteBalance: mocks.sampleWhiteBalance }));
 
 import { WhiteBalanceProbe } from './whiteBalanceProbe.svelte';
 

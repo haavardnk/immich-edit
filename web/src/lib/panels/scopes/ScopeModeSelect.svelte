@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Select } from '@immich/ui';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { scopes, type ScopeMode } from '$lib/stores/scopes.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { scopes, type ScopeMode } from '#lib/stores/scopes.svelte.ts';
 
   const MODES: { value: ScopeMode; label: string }[] = [
     { value: 'histogram', label: 'Histogram' },

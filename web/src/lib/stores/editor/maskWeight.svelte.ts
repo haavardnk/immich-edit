@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
-import { livePreview, maskWeightPreview } from '$lib/api/preview';
-import type { Edits } from '$lib/types/edits';
-import { SingleFlight } from '$lib/utils/singleFlight';
+import { livePreview, maskWeightPreview } from '#lib/api/preview.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import { SingleFlight } from '#lib/utils/singleFlight.ts';
 
 export type MaskStroke = 'idle' | 'painting' | 'awaiting';
 

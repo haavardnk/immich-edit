@@ -1,9 +1,9 @@
-import { request, sendJson, url } from '$lib/api/client';
-import type { ExportResize } from '$lib/panels/export/resize';
-import { isPrintMedia, type ExportSharpen } from '$lib/panels/export/sharpen';
-import type { ExportWatermark } from '$lib/panels/export/watermark';
-import type { Edits } from '$lib/types/edits';
-import { isIdentity } from '$lib/types/edits';
+import { request, sendJson, url } from '#lib/api/client.ts';
+import type { ExportResize } from '#lib/panels/export/resize.ts';
+import { isPrintMedia, type ExportSharpen } from '#lib/panels/export/sharpen.ts';
+import type { ExportWatermark } from '#lib/panels/export/watermark.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import { isIdentity } from '#lib/types/edits.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ExportFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'heic' | 'tiff' | 'jxl';

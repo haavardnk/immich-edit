@@ -1,7 +1,7 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { megabytes } from '$lib/browse/fileSize';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { megabytes } from '#lib/browse/fileSize.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 
   let { key, label }: { key: 'minSize' | 'maxSize'; label: string } = $props();
 

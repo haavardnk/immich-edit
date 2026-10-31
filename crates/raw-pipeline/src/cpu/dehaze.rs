@@ -25,7 +25,7 @@ fn mip_halve(rgb: &[f32], w: usize, h: usize) -> (Vec<f32>, usize, usize) {
         .enumerate()
         .for_each(|(ly, row)| {
             let sy = ly * 2;
-            for (lx, px) in row.chunks_exact_mut(3).enumerate() {
+            for (lx, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let sx = lx * 2;
                 for (c, v) in px.iter_mut().enumerate() {
                     let mut acc = rgb[(sy * w + sx) * 3 + c];
@@ -59,7 +59,7 @@ fn bilinear_downsample(rgb: &[f32], w: usize, h: usize, scale: usize) -> Vec<f32
             let fy = sy - by;
             let ya = (by as isize).clamp(0, maxy) as usize;
             let yb = (by as isize + 1).clamp(0, maxy) as usize;
-            for (lx, px) in row.chunks_exact_mut(3).enumerate() {
+            for (lx, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let sx = (lx as f32 + 0.5) * scale as f32 - 0.5;
                 let bx = sx.floor();
                 let fx = sx - bx;
@@ -289,7 +289,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
             .par_chunks_exact_mut(w * 3)
             .enumerate()
             .for_each(|(y, row)| {
-                for (x, px) in row.chunks_exact_mut(3).enumerate() {
+                for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                     let ti = transmission(x, y, px).max(0.16);
                     let jr = (px[0] - atm[0]) / ti + atm[0];
                     let jg = (px[1] - atm[1]) / ti + atm[1];
@@ -306,7 +306,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
             .par_chunks_exact_mut(w * 3)
             .enumerate()
             .for_each(|(y, row)| {
-                for (x, px) in row.chunks_exact_mut(3).enumerate() {
+                for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                     let keep = transmission(x, y, px).max(0.16).powf(extinction);
                     px[0] = atm[0] + (px[0] - atm[0]) * keep;
                     px[1] = atm[1] + (px[1] - atm[1]) * keep;

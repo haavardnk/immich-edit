@@ -1,19 +1,19 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
-  import StarRating from '$lib/components/StarRating.svelte';
-  import DisabledReason from '$lib/components/DisabledReason.svelte';
-  import { NOT_OWNER, ownsAsset } from '$lib/browse/ownership';
-  import type { AssetSummary } from '$lib/types/album';
-  import { hint } from '$lib/shortcuts/labels';
-  import { assetThumbUrl } from '$lib/api/assets';
-  import { copyIndex, isCopy } from '$lib/browse/assetKey';
-  import { isRejected } from '$lib/browse/reject';
-  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '$lib/stores/labels';
-  import { editorHref } from '$lib/editor/navigation';
-  import { captureTime, fmtDay } from '$lib/utils/exif';
-  import { countOf } from '$lib/utils/plural';
-  import type { TileInfo } from '$lib/stores/browseView.svelte';
+  import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import StarRating from '#lib/components/StarRating.svelte';
+  import DisabledReason from '#lib/components/DisabledReason.svelte';
+  import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
+  import type { AssetSummary } from '#lib/types/album.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
+  import { captureTime, fmtDay } from '#lib/utils/exif.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+  import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,

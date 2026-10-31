@@ -1,6 +1,6 @@
-import { upsertTags, type TagSummary } from '$lib/api/tags';
-import { library } from '$lib/stores/library.svelte';
-import type { TagRef } from '$lib/types/asset';
+import { upsertTags, type TagSummary } from '#lib/api/tags.ts';
+import { library } from '#lib/stores/library.svelte.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 
 export const MANAGED_TAG_PREFIX = 'immich-edit';
 

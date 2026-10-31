@@ -1,5 +1,5 @@
-import { generateDepth } from '$lib/api/depth';
-import { errorMessage } from '$lib/utils/errors';
+import { generateDepth } from '#lib/api/depth.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 type Apply = (rasterId: string) => Promise<boolean>;

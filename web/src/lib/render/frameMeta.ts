@@ -1,5 +1,5 @@
 import type { HistogramBins, RenderedFrame } from './protocol';
-import type { Histogram, PreviewMeta } from '$lib/types/preview';
+import type { Histogram, PreviewMeta } from '#lib/types/preview.ts';
 
 const EMPTY_BINS: Histogram = { r: [], g: [], b: [], l: [] };
 

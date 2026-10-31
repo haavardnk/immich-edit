@@ -1,4 +1,4 @@
-import { solveUpright, withGuide, type UprightGuide } from '$lib/utils/upright';
+import { solveUpright, withGuide, type UprightGuide } from '#lib/utils/upright.ts';
 import { commit, ready, refitDraftCrop, sourceDims, type GeometryCtx } from './geometry.svelte';
 
 const UPRIGHT_ACTION = 'Guided upright';

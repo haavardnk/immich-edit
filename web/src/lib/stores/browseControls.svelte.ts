@@ -1,11 +1,17 @@
-import type { BrowseFilter, SearchSort, SortDir, SortField, Visibility } from '$lib/types/search';
-import type { LabelColor } from '$lib/stores/labels';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import { readStored, writeStored } from '$lib/utils/storage';
-import type { RatingFilter } from '$lib/browse/rating';
-import type { ExifFilterKey } from '$lib/browse/exifFilters';
-import { NO_IDS, idFilter, type IdFilter, type IdFilterKey } from '$lib/browse/idFilters';
-import { serverFilter } from '$lib/browse/serverFilter';
+import type {
+  BrowseFilter,
+  SearchSort,
+  SortDir,
+  SortField,
+  Visibility
+} from '#lib/types/search.ts';
+import type { LabelColor } from '#lib/stores/labels.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
+import type { RatingFilter } from '#lib/browse/rating.ts';
+import type { ExifFilterKey } from '#lib/browse/exifFilters.ts';
+import { NO_IDS, idFilter, type IdFilter, type IdFilterKey } from '#lib/browse/idFilters.ts';
+import { serverFilter } from '#lib/browse/serverFilter.ts';
 
 export type { SortDir, SortField, Visibility };
 export type LabelFilter = 'any' | 'none' | LabelColor;

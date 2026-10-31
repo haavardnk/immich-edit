@@ -1,4 +1,4 @@
-import { trashPeriod } from '$lib/browse/trash';
+import { trashPeriod } from '#lib/browse/trash.ts';
 
 export const REPLACE_NOT_OWNER =
   'Shared by another Immich user. Only the owner can replace the original.';
