@@ -534,7 +534,7 @@ test('the scope mode dropdown is slim and only shows while expanded', async ({ p
   await installMocks(page);
   await gotoAsset(page);
 
-  const mode = page.getByRole('button', { name: 'Scope', exact: true });
+  const mode = page.getByRole('combobox', { name: 'Scope', exact: true });
   await expect(mode).toHaveText('Histogram');
   expect((await metricsOf(mode.locator('div').first())).height).toBe(20);
 
@@ -769,7 +769,7 @@ test('dense panel fields and selects share package sizing and states', async ({ 
     await expect.poll(async () => (await metricsOf(field)).background).toBe(neutralHover);
   }
 
-  const trigger = page.getByRole('button', { name: 'Format' });
+  const trigger = page.getByRole('combobox', { name: 'Format' });
   await expect(trigger).toBeVisible();
   const triggerMetrics = await metricsOf(trigger.locator('div').first());
   expect(triggerMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
@@ -832,7 +832,7 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Geometry' }).click();
 
-  const aspect = page.getByRole('button', { name: 'Aspect Ratio' });
+  const aspect = page.getByRole('combobox', { name: 'Aspect Ratio' });
   const orientation = page.getByRole('button', { name: /^Switch to/ });
   const neutral = await resolvedColor(page, '--color-neutral-800');
 
@@ -872,11 +872,11 @@ test('browse filter panel controls share the dense inspector row', async ({ page
   await page.goto('/photos');
 
   const panel = await openFilters(page, 'Library', 'Date', 'Camera', 'Place', 'File');
-  const visibility = panel.getByRole('button', { name: 'Visibility', exact: true });
+  const visibility = panel.getByRole('combobox', { name: 'Visibility', exact: true });
   const takenAfter = panel.getByRole('group', { name: 'Taken after' });
   const controls = [
     visibility,
-    panel.getByRole('button', { name: 'Rejected', exact: true }),
+    panel.getByRole('combobox', { name: 'Rejected', exact: true }),
     takenAfter,
     panel.getByRole('group', { name: 'Taken before' }),
     panel.getByLabel('Filename'),

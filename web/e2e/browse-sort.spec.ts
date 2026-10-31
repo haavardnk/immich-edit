@@ -249,8 +249,8 @@ test('edited view filters the loaded photos', async ({ page }) => {
   await expect(page).not.toHaveURL(/visibility/);
 
   const panel = await openFilters(page, 'Library', 'File');
-  await expect(panel.getByRole('button', { name: 'Rejected', exact: true })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Visibility', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('combobox', { name: 'Rejected', exact: true })).toBeVisible();
+  await expect(panel.getByRole('combobox', { name: 'Visibility', exact: true })).toHaveCount(0);
   await expect(panel.getByLabel('Min size (MB)')).toHaveValue('15');
   await panel.getByLabel('Filename').fill('0003');
   await expectOrder(page, [NEW_ID]);

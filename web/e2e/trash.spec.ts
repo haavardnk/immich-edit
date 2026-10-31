@@ -162,7 +162,7 @@ test('a finished cull moves every reject to the trash', async ({ page }) => {
   });
   await page.goto('/photos');
   await openFilters(page, 'Library');
-  await page.getByRole('button', { name: 'Rejected', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Rejected', exact: true }).click();
   await page.getByRole('option', { name: 'Only', exact: true }).click();
   await page.keyboard.press('Escape');
 
