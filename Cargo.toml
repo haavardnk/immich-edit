@@ -39,6 +39,7 @@ lto = "off"
 inherits = "release"
 lto = "fat"
 codegen-units = 1
+strip = false
 
 [profile.dev]
 opt-level = 1
