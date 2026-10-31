@@ -1,26 +1,21 @@
 mod plan;
 
-use std::sync::Arc;
-
 use wgpu::{CommandEncoderDescriptor, TextureUsages};
 
 use super::super::GpuRenderer;
 use super::super::detail::{HazeSample, NoiseProfile, PRESENCE_PYRAMID, PyramidSource, level_dims};
 use super::super::display::{GlobalContext, GridView, HazeGrid, LevelView, StageState};
 use super::super::sensor_stage::SensorJob;
-use super::DisplayTiles;
+use super::{CONTEXT_USAGE, DisplayTiles};
 use crate::frame::RenderOptions;
-use crate::gpu::dispatch::{Region, copy_region, submit_copy};
+use crate::gpu::dispatch::{Region, copy_region};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::source::LinearSource;
-use crate::gpu::texture::{STORAGE_SAMPLED, STORAGE_SAMPLED_SRC, full_view, texture_2d};
+use crate::gpu::texture::{STORAGE_SAMPLED, full_view};
 use crate::gpu::texture_pool::{PooledTexture, TextureKey};
-use crate::source::SourceWindow;
 use crate::tile::Rect;
 use crate::{PipelineError, PipelineResult, timing};
 pub(in crate::gpu::renderer) use plan::{Coarse, ContextPlan};
-
-const CONTEXT_USAGE: TextureUsages = STORAGE_SAMPLED_SRC.union(TextureUsages::COPY_DST);
 
 pub(super) struct TileContext {
     pub context: GlobalContext,
@@ -79,33 +74,6 @@ impl GpuRenderer {
         match job.whole {
             Some(whole) => Ok(self.copy_window(whole, window)),
             None => self.sensor_window(job.sensor, window, job.profile),
-        }
-    }
-
-    fn copy_window(&self, whole: &LinearSource, window: Rect) -> LinearSource {
-        let texture = texture_2d(
-            &self.ctx.device,
-            "tile-context-core",
-            whole.texture.format(),
-            window.dims(),
-            1,
-            CONTEXT_USAGE,
-        );
-        submit_copy(
-            &self.ctx,
-            "tile-context-core",
-            Region::at(&whole.texture, 0, (window.x, window.y)),
-            Region::at(&texture, 0, (0, 0)),
-            window.dims(),
-        );
-        LinearSource {
-            dims: window.dims(),
-            texture: Arc::new(texture),
-            window: Some(SourceWindow {
-                origin: (window.x, window.y),
-                full: whole.dims,
-            }),
-            ..whole.clone()
         }
     }
 

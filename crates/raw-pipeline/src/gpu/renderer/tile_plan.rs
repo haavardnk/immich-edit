@@ -31,6 +31,7 @@ struct Tileable<'a> {
     limits: wgpu::Limits,
     shape: SensorShape,
     out: (u32, u32),
+    working_fits: bool,
     chain_fits: bool,
     fits_single_pass: bool,
     display: bool,
@@ -50,7 +51,8 @@ impl<'a> Tileable<'a> {
         let dims = (meta.width as u32, meta.height as u32);
         let out = geom::display_out_dims(meta.orientation, edits, dims, options.max_edge);
         let edge = |(w, h): (u32, u32)| w.max(h) <= limits.max_texture_dimension_2d;
-        let chain_fits = (!plan.displays() || edge(out)) && edge(shape.working());
+        let working_fits = edge(shape.working());
+        let chain_fits = (!plan.displays() || edge(out)) && working_fits;
         let fits_single_pass = chain_fits && shape.fits(frame, &shape.chain.whole(), &limits);
         Self {
             frame,
@@ -59,6 +61,7 @@ impl<'a> Tileable<'a> {
             limits,
             shape,
             out,
+            working_fits,
             chain_fits,
             fits_single_pass,
             display: (plan.displays() || plan.windows())
@@ -89,13 +92,19 @@ impl<'a> Tileable<'a> {
         } else {
             self.out.0.max(self.out.1)
         };
-        let display = TILE_EDGES
+        let held = TILE_EDGES
+            .into_iter()
+            .filter(|_| self.display && !self.window && self.working_fits)
+            .filter(move |&edge| edge < span)
+            .filter(|&edge| self.sensor_fits(edge) && self.display_fits(edge, true))
+            .map(|edge| TilePlan::DisplayTiled { edge, held: true });
+        let streamed = TILE_EDGES
             .into_iter()
             .filter(|_| self.display)
             .filter(move |&edge| edge < span)
-            .filter(|&edge| self.display_fits(edge))
-            .map(|edge| TilePlan::DisplayTiled { edge });
-        sensor.chain(display)
+            .filter(|&edge| self.display_fits(edge, false))
+            .map(|edge| TilePlan::DisplayTiled { edge, held: false });
+        sensor.chain(held).chain(streamed)
     }
 
     fn sensor_fits(&self, edge: u32) -> bool {
@@ -105,17 +114,18 @@ impl<'a> Tileable<'a> {
             .all(|tile| self.shape.fits(self.frame, tile, &self.limits))
     }
 
-    fn display_fits(&self, edge: u32) -> bool {
+    fn display_fits(&self, edge: u32, held: bool) -> bool {
         let layout = self.layout(edge);
         let limit = self.limits.max_texture_dimension_2d;
         let fits_limit = |(w, h): (u32, u32)| w.max(h) <= limit;
         let context = layout.context.is_none_or(|plan| plan.fits(limit));
         context
             && layout.tiles.iter().all(|tile| fits_limit(tile.rect.dims()))
-            && layout.windows().all(|window| {
-                let sensor = self.shape.chain.tile(window);
-                self.shape.fits(self.frame, &sensor, &self.limits)
-            })
+            && (held
+                || layout.windows().all(|window| {
+                    let sensor = self.shape.chain.tile(window);
+                    self.shape.fits(self.frame, &sensor, &self.limits)
+                }))
     }
 }
 

@@ -25,7 +25,7 @@ pub use sensor::{SensorChain, SensorTile, Warp};
 pub enum TilePlan {
     SinglePass,
     SensorTiled { edge: u32 },
-    DisplayTiled { edge: u32 },
+    DisplayTiled { edge: u32, held: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,7 +37,7 @@ pub struct TilingReport {
 impl TilePlan {
     pub fn display_edge(self) -> Option<u32> {
         match self {
-            Self::DisplayTiled { edge } => Some(edge),
+            Self::DisplayTiled { edge, .. } => Some(edge),
             Self::SinglePass | Self::SensorTiled { .. } => None,
         }
     }

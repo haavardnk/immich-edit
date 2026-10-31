@@ -347,8 +347,10 @@ impl GpuRenderer {
             let timings = RenderTimings::new(&self.ctx);
             let sensed;
             let (linear, tiling) = match (source, tiles) {
-                (RenderSource::Raw(frame), TilePlan::DisplayTiled { edge }) => {
-                    return self.render_display_tiled(frame, edits, options, edge, timings, cancel);
+                (RenderSource::Raw(frame), TilePlan::DisplayTiled { edge, held }) => {
+                    let tiles = (edge, held);
+                    return self
+                        .render_display_tiled(frame, edits, options, tiles, timings, cancel);
                 }
                 (RenderSource::Raw(frame), _) => {
                     let plan = SourcePlan::for_render(edits, frame);
