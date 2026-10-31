@@ -60,7 +60,7 @@ test('export settings survive a reload', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Format' }).click();
+  await page.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'AVIF' }).click();
   await expect(page.getByRole('button', { name: /Export AVIF/ })).toBeVisible();
 
@@ -128,7 +128,7 @@ test('a download carries the resize settings', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Dimensions' }).click();
   const width = page.getByRole('spinbutton', { name: 'Width' });
   const height = page.getByRole('spinbutton', { name: 'Height' });
@@ -157,7 +157,7 @@ test('a download carries the resize settings', async ({ page }) => {
     )
   ).toEqual(['dimensions', '750', '500', 'true']);
 
-  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Megapixels' }).click();
   await page.getByRole('spinbutton', { name: 'Megapixels' }).fill('6');
   await expect(page.getByText('3000 × 2000 px')).toBeVisible();
@@ -183,7 +183,7 @@ test('a download carries the metadata choice', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Metadata' }).click();
+  await page.getByRole('combobox', { name: 'Metadata' }).click();
   await page.getByRole('option', { name: 'All but location' }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
@@ -212,9 +212,9 @@ test('a download carries the output sharpening settings', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Matte paper' }).click();
-  await page.getByRole('button', { name: 'Amount', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Amount', exact: true }).click();
   await page.getByRole('option', { name: 'High' }).click();
   const ppi = page.getByLabel('Print PPI');
   await expect(ppi).toHaveValue('300');
@@ -234,7 +234,7 @@ test('a download carries the output sharpening settings', async ({ page }) => {
     )
   ).toEqual(['matte', 'high', '240']);
 
-  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Screen' }).click();
   await expect(ppi).toBeHidden();
   const second = page.waitForEvent('download');
@@ -252,9 +252,9 @@ test('every export option label fits on one line', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
-  await page.getByRole('button', { name: 'Resize' }).click();
+  await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Dimensions' }).click();
-  await page.getByRole('button', { name: 'Sharpen', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Matte paper' }).click();
   await expect(page.getByLabel('Print PPI')).toBeVisible();
 
@@ -315,7 +315,7 @@ test('a download carries the chosen watermark', async ({ page }) => {
   const exportButton = page.getByRole('button', { name: /Export JPEG/ });
   const picker = page
     .getByRole('region', { name: 'Watermark' })
-    .getByRole('button', { name: 'Image', exact: true });
+    .getByRole('combobox', { name: 'Image', exact: true });
 
   await picker.click();
   await page.getByRole('option', { name: 'Signature' }).click();
@@ -346,8 +346,8 @@ test('a download carries the chosen watermark', async ({ page }) => {
   const region = page.getByRole('region', { name: 'Watermark' });
   const rowButtons = region.locator('.panel-row').first().getByRole('button');
   const boxes = await Promise.all(
-    [region.getByText('Image', { exact: true }), ...(await rowButtons.all())].map((locator) =>
-      locator.boundingBox()
+    [region.getByText('Image', { exact: true }), picker, ...(await rowButtons.all())].map(
+      (locator) => locator.boundingBox()
     )
   );
   const edges = boxes.map((box) => {
@@ -369,7 +369,7 @@ test('export warns when it will not match the soft proof', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
-  await page.getByRole('button', { name: 'Color space' }).click();
+  await page.getByRole('combobox', { name: 'Color space' }).click();
   await page.getByRole('option', { name: 'Display P3' }).click();
 
   await page.getByRole('button', { name: 'More editor actions' }).click();
@@ -380,7 +380,7 @@ test('export warns when it will not match the soft proof', async ({ page }) => {
   await expect(warning).toBeVisible();
   await page.getByRole('button', { name: 'Export sRGB' }).click();
   await expect(warning).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Color space' })).toHaveText('sRGB');
+  await expect(page.getByRole('combobox', { name: 'Color space' })).toHaveText('sRGB');
 });
 
 test('export options sit in the same sections in the editor and the bulk dialog', async ({
@@ -413,7 +413,7 @@ test('an export preset saves and restores the export settings', async ({ page })
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Format' }).click();
+  await page.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'AVIF' }).click();
   await page.getByRole('button', { name: 'Export presets' }).click();
   await page.getByRole('textbox', { name: 'Export preset name' }).fill('Web AVIF');
@@ -421,7 +421,7 @@ test('an export preset saves and restores the export settings', async ({ page })
   await expect(page.getByRole('button', { name: 'Web AVIF', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('button', { name: 'Format' }).click();
+  await page.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'PNG' }).click();
   await expect(page.getByRole('button', { name: /Export PNG/ })).toBeVisible();
 
