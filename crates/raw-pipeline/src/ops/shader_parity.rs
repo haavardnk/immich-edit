@@ -318,7 +318,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {{
     let slice = read_buf.slice(..);
     let data = crate::gpu::readback::mapped_range(&slice).map_err(|e| e.to_string())?;
     let floats: &[f32] = bytemuck::cast_slice(&data);
-    let out = floats.chunks_exact(4).map(|c| [c[0], c[1], c[2]]).collect();
+    let out = floats
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| [c[0], c[1], c[2]])
+        .collect();
     drop(data);
     read_buf.unmap();
     Ok(out)
@@ -330,7 +335,9 @@ fn run_on_cpu(op: &dyn Op, edits: &Edits, ctx: &OpContext, colors: &[[f32; 3]]) 
     op.apply_cpu(&mut image, ctx, edits).unwrap();
     image
         .rgb
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|c| [c[0], c[1], c[2]])
         .collect()
 }

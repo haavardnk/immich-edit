@@ -146,7 +146,7 @@ pub fn encode_from_rgba8(
         );
     }
     let mut rgb: Vec<u8> = Vec::with_capacity((width as usize) * (height as usize) * 3);
-    for chunk in rgba.chunks_exact(4) {
+    for chunk in rgba.as_chunks::<4>().0 {
         rgb.extend_from_slice(&chunk[..3]);
     }
     encode_from_rgb8(&rgb, width, height, format, cs, exif)

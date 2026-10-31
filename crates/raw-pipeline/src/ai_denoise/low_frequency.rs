@@ -90,7 +90,7 @@ pub fn restore_low_frequencies(reference: &[f32], denoised: &mut [f32], width: u
         .par_chunks_exact_mut(width * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let lost = grid.sample(x, y);
                 px.iter_mut().zip(lost).for_each(|(v, d)| *v += d);
             }

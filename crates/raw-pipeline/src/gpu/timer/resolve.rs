@@ -81,8 +81,10 @@ impl RenderTimings<'_> {
         let ticks: Vec<u64> = {
             let slice = slot.readback.slice(..size);
             let data = mapped_range(&slice)?;
-            data.chunks_exact(QUERY_SIZE as usize)
-                .map(|b| u64::from_le_bytes(b.try_into().unwrap_or_default()))
+            data.as_chunks::<{ QUERY_SIZE as usize }>()
+                .0
+                .iter()
+                .map(|b| u64::from_le_bytes(*b))
                 .collect()
         };
         slot.readback.unmap();

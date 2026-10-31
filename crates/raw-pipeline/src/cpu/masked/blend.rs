@@ -32,7 +32,7 @@ pub fn blend_layer_images(
         .for_each(|(y, row)| {
             let row_base = y * row_floats;
             let v = (y as f32 + 0.5) * inv_h;
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let u = (x as f32 + 0.5) * inv_w;
                 let (su, sv) = if warp_active {
                     let s = mask_uv_to_scene_uv(lens_warp, [u, v]);
@@ -147,7 +147,7 @@ pub fn render_mask_weight_image(
         .enumerate()
         .for_each(|(y, row)| {
             let v = (y as f32 + 0.5) * inv_h;
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let u = (x as f32 + 0.5) * inv_w;
                 let (su, sv) = if warp_active {
                     let s = mask_uv_to_scene_uv(lens_warp, [u, v]);

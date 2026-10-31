@@ -109,8 +109,8 @@ impl GainMap {
         };
         (a.top..a.bottom).contains(&y)
             && (a.left..a.right).contains(&x)
-            && (y - a.top) % self.pitch[0] == 0
-            && (x - a.left) % self.pitch[1] == 0
+            && (y - a.top).is_multiple_of(self.pitch[0])
+            && (x - a.left).is_multiple_of(self.pitch[1])
     }
 
     fn map_plane(&self, plane: usize) -> Option<usize> {

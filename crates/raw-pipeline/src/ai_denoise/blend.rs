@@ -94,7 +94,7 @@ pub(crate) fn blend(
     rgb.par_chunks_exact_mut(width * 3)
         .enumerate()
         .for_each(|(y, row)| {
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let denoised = plane.binned_pixel(x, y, block);
                 let mixed = mix.apply([px[0], px[1], px[2]], denoised);
                 px.copy_from_slice(&mixed);

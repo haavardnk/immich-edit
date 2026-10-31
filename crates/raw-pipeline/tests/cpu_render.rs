@@ -165,7 +165,7 @@ const GREY_SPREAD_CEIL: f64 = 25.0;
 
 fn mean_luma(jpeg: &[u8]) -> f64 {
     let (rgb, w, h) = decode_jpeg_rgb(jpeg);
-    rgb.chunks_exact(3).map(luma).sum::<f64>() / (w * h) as f64
+    rgb.as_chunks::<3>().0.iter().map(luma).sum::<f64>() / (w * h) as f64
 }
 
 fn with_dcp_mode(mode: raw_pipeline::edits::DcpMode) -> Edits {
@@ -438,13 +438,18 @@ fn flat_display(rgb: [f32; 3], edits: &Edits) -> [f64; 3] {
     let frame = rgb_frame(16, 16, rgb.repeat(256));
     let out = cpu::render(&frame, edits, &rgb8_opts(64)).unwrap();
     let px = out.bytes.len() / 3;
-    let sum = out.bytes.chunks_exact(3).fold([0.0f64; 3], |acc, p| {
-        [
-            acc[0] + p[0] as f64,
-            acc[1] + p[1] as f64,
-            acc[2] + p[2] as f64,
-        ]
-    });
+    let sum = out
+        .bytes
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .fold([0.0f64; 3], |acc, p| {
+            [
+                acc[0] + p[0] as f64,
+                acc[1] + p[1] as f64,
+                acc[2] + p[2] as f64,
+            ]
+        });
     sum.map(|v| v / px as f64 / 255.0)
 }
 

@@ -27,10 +27,10 @@ pub fn reject_removed_keys(file: &toml::Table) -> Result<(), ConfigError> {
 }
 
 pub fn pick(env_key: &str, file_value: Option<String>) -> Option<String> {
-    if let Ok(v) = std::env::var(env_key) {
-        if !v.is_empty() {
-            return Some(v);
-        }
+    if let Ok(v) = std::env::var(env_key)
+        && !v.is_empty()
+    {
+        return Some(v);
     }
     file_value.filter(|s| !s.is_empty())
 }

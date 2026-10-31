@@ -50,7 +50,7 @@ fn psnr(a: &[u8], b: &[u8]) -> f64 {
 }
 
 fn ssim_luma(a: &[u8], b: &[u8]) -> f64 {
-    let to_l = |s: &[u8]| -> Vec<f64> { s.chunks_exact(3).map(luma).collect() };
+    let to_l = |s: &[u8]| -> Vec<f64> { s.as_chunks::<3>().0.iter().map(luma).collect() };
     let la = to_l(a);
     let lb = to_l(b);
     let n = la.len() as f64;
@@ -76,7 +76,9 @@ fn ssim_luma(a: &[u8], b: &[u8]) -> f64 {
 }
 
 fn srgb_bytes_to_lab(rgb: &[u8]) -> Vec<[f64; 3]> {
-    rgb.chunks_exact(3)
+    rgb.as_chunks::<3>()
+        .0
+        .iter()
         .map(|c| {
             linear_rgb_to_lab([
                 srgb_to_linear(c[0]),

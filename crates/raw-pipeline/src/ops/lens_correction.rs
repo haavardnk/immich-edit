@@ -93,7 +93,7 @@ pub fn apply_lens_correction(image: &mut LinearImage, lens: &LensCorrection) {
             .enumerate()
             .for_each(|(y, row)| {
                 let dy = y as f32 + 0.5 - cy;
-                for (x, px) in row.chunks_exact_mut(3).enumerate() {
+                for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                     let dx = x as f32 + 0.5 - cx;
                     let gain = geo.gain((dx * dx + dy * dy).sqrt() * geo.inv_diag);
                     for v in px {
@@ -109,7 +109,7 @@ pub fn apply_lens_correction(image: &mut LinearImage, lens: &LensCorrection) {
     let mut out = vec![0.0f32; src.len()];
     out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
         let dy = (y as f32 + 0.5 - cy) * zoom;
-        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+        for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let dx = (x as f32 + 0.5 - cx) * zoom;
             let (gx, gy, gr) = geo.source(dx, dy);
             let g_gain = geo.gain(gr);

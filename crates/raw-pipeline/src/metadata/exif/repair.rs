@@ -199,7 +199,7 @@ impl Tiff {
                     Endian::Little => 1,
                     Endian::Big => 0,
                 };
-                data.chunks_exact(2).all(|pair| pair[high] == 0)
+                data.as_chunks::<2>().0.iter().all(|pair| pair[high] == 0)
             }
             (ExifTagFormat::INT8U, ExifTagFormat::STRING) => {
                 *group == ExifTagGroup::GPS

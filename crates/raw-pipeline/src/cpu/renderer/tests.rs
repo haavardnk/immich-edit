@@ -13,7 +13,7 @@ use crate::frame::{FrameId, FrameMeta, OutputFormat, RawFrame, RenderOptions};
 fn mosaic(width: usize, height: usize) -> RawFrame {
     let data = (0..width * height)
         .map(|i| {
-            if (i % width / 4 + i / width / 4) % 2 == 0 {
+            if (i % width / 4 + i / width / 4).is_multiple_of(2) {
                 0.2
             } else {
                 0.8

@@ -16,10 +16,8 @@ fn mean_abs_laplacian(rgb: &[u8], w: usize, h: usize) -> f64 {
     if w < 3 || h < 3 {
         panic!("image too small for laplacian: {w}x{h}");
     }
-    let at = |x: usize, y: usize| {
-        let i = (y * w + x) * 3;
-        luma(&rgb[i..i + 3])
-    };
+    let px = rgb.as_chunks::<3>().0;
+    let at = |x: usize, y: usize| luma(&px[y * w + x]);
     let sum: f64 = (1..h - 1)
         .flat_map(|y| (1..w - 1).map(move |x| (x, y)))
         .map(|(x, y)| {
@@ -30,7 +28,9 @@ fn mean_abs_laplacian(rgb: &[u8], w: usize, h: usize) -> f64 {
 }
 
 fn warn_pixels(rgb: &[u8], color: [u8; 3]) -> Vec<usize> {
-    rgb.chunks_exact(3)
+    rgb.as_chunks::<3>()
+        .0
+        .iter()
         .enumerate()
         .filter(|(_, p)| p[0] == color[0] && p[1] == color[1] && p[2] == color[2])
         .map(|(i, _)| i)
@@ -41,7 +41,9 @@ fn ramp_red_u16(png: &[u8]) -> Vec<u16> {
     let frame = decode::decode(png).unwrap();
     frame
         .data
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|px| (px[0].clamp(0.0, 1.0) * 65535.0).round() as u16)
         .collect()
 }

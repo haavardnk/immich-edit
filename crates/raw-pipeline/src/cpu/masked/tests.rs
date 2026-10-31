@@ -241,7 +241,9 @@ fn render_mask_weight_image_writes_the_layer_weight_as_gray() {
     render_mask_weight_image(&mut image, &eval, &warp, None);
     if image
         .rgb
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .any(|px| px[0] != px[1] || px[0] != px[2])
     {
         panic!("expected a gray weight image, got {:?}", &image.rgb[..12]);
