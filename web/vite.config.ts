@@ -13,8 +13,7 @@ export default defineConfig({
         runes: ({ filename }) =>
           filename.split(/[/\\]/).includes('node_modules') ? undefined : true
       },
-      adapter: adapter({ fallback: '200.html' }),
-      alias: { $lib: 'src/lib' }
+      adapter: adapter({ fallback: '200.html' })
     })
   ],
   worker: {

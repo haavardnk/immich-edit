@@ -4,19 +4,19 @@
     MAX_INSPECTOR_WIDTH,
     MIN_INSPECTOR_WIDTH,
     type EditorTab
-  } from '$lib/stores/ui.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { scopes } from '$lib/stores/scopes.svelte';
-  import { openDevelopPanels, SCOPES_PANEL } from '$lib/panels/registry';
-  import { setDevelopPanel } from '$lib/panels/developPanels';
-  import DevelopActions from '$lib/panels/DevelopActions.svelte';
-  import DevelopPanels from '$lib/panels/DevelopPanels.svelte';
-  import GeometryActions from '$lib/panels/GeometryActions.svelte';
-  import ScopesSection from '$lib/panels/scopes/ScopesSection.svelte';
-  import TransformPanel from '$lib/panels/Transform.svelte';
-  import ExportPanel from '$lib/panels/Export.svelte';
-  import MasksPanel from '$lib/panels/Masks.svelte';
-  import RetouchPanel from '$lib/panels/Retouch.svelte';
+  } from '#lib/stores/ui.svelte.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { scopes } from '#lib/stores/scopes.svelte.ts';
+  import { openDevelopPanels, SCOPES_PANEL } from '#lib/panels/registry.ts';
+  import { setDevelopPanel } from '#lib/panels/developPanels.ts';
+  import DevelopActions from '#lib/panels/DevelopActions.svelte';
+  import DevelopPanels from '#lib/panels/DevelopPanels.svelte';
+  import GeometryActions from '#lib/panels/GeometryActions.svelte';
+  import ScopesSection from '#lib/panels/scopes/ScopesSection.svelte';
+  import TransformPanel from '#lib/panels/Transform.svelte';
+  import ExportPanel from '#lib/panels/Export.svelte';
+  import MasksPanel from '#lib/panels/Masks.svelte';
+  import RetouchPanel from '#lib/panels/Retouch.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
   const editorTabs: { id: EditorTab; label: string }[] = [

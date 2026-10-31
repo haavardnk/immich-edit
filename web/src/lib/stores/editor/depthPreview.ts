@@ -1,8 +1,8 @@
-import type { MaskRange } from '$lib/api/masks';
-import { fetchRaster } from '$lib/api/rasters';
-import type { BrushBuffer } from '$lib/utils/brush';
-import { windowLevels } from '$lib/utils/depthWindow';
-import type { MaskStroke } from '$lib/stores/editor/maskWeight.svelte';
+import type { MaskRange } from '#lib/api/masks.ts';
+import { fetchRaster } from '#lib/api/rasters.ts';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
+import { windowLevels } from '#lib/utils/depthWindow.ts';
+import type { MaskStroke } from '#lib/stores/editor/maskWeight.svelte.ts';
 
 export interface DepthPreviewCtx {
   brushBuffers: Record<string, BrushBuffer>;

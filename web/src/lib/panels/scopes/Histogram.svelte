@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Histogram } from '$lib/types/preview';
+  import type { Histogram } from '#lib/types/preview.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
 

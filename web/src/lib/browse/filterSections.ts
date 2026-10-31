@@ -3,9 +3,9 @@ import {
   isDefaultFilter,
   type BrowseFilters,
   type FilterKey
-} from '$lib/stores/browseControls.svelte';
-import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
-import { ID_EXCLUSIONS, ID_FILTERS } from '$lib/browse/idFilters';
+} from '#lib/stores/browseControls.svelte.ts';
+import { CAMERA_FILTERS, PLACE_FILTERS } from '#lib/browse/exifFilters.ts';
+import { ID_EXCLUSIONS, ID_FILTERS } from '#lib/browse/idFilters.ts';
 
 export type FilterSectionId =
   'library' | 'collections' | 'rating' | 'date' | 'camera' | 'place' | 'file';

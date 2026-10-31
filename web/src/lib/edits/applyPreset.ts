@@ -1,7 +1,7 @@
-import type { ApplyPresetOptions } from '$lib/api/jobs';
-import { withLookAmount } from '$lib/edits/lookAmount';
-import { manifestToEdits } from '$lib/edits/manifest';
-import type { EditManifest, Edits } from '$lib/types/edits';
+import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+import { withLookAmount } from '#lib/edits/lookAmount.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import type { EditManifest, Edits } from '#lib/types/edits.ts';
 
 export interface PresetPreview {
   manifest: EditManifest;

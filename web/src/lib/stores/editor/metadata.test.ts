@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { AssetDetail, TagRef } from '$lib/types/asset';
+import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
 
 const tag: TagRef = { id: 't1', name: 'sunset', value: 'sunset' };
 const h = vi.hoisted(() => ({
@@ -7,18 +7,18 @@ const h = vi.hoisted(() => ({
   addTagToAsset: vi.fn(() => Promise.resolve())
 }));
 
-vi.mock('$lib/api/assets', () => ({ updateAsset: h.updateAsset, getAsset: vi.fn() }));
-vi.mock('$lib/api/tags', () => ({
+vi.mock('#lib/api/assets.ts', () => ({ updateAsset: h.updateAsset, getAsset: vi.fn() }));
+vi.mock('#lib/api/tags.ts', () => ({
   addTagToAsset: h.addTagToAsset,
   removeTagFromAsset: vi.fn(() => Promise.resolve()),
   upsertTags: vi.fn(() => Promise.resolve([]))
 }));
-vi.mock('$lib/stores/metadataConsent.svelte', () => ({
+vi.mock('#lib/stores/metadataConsent.svelte.ts', () => ({
   metadataConsent: { gate: () => Promise.resolve(true) }
 }));
 
-import { editor } from '$lib/stores/editor.svelte';
-import { session } from '$lib/stores/session.svelte';
+import { editor } from '#lib/stores/editor.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
 
 function baseAsset(): AssetDetail {
   return {

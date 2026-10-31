@@ -1,5 +1,5 @@
-import type { CurveChannel, CurvePoint } from '$lib/types/edits';
-import type { Histogram } from '$lib/types/preview';
+import type { CurveChannel, CurvePoint } from '#lib/types/edits.ts';
+import type { Histogram } from '#lib/types/preview.ts';
 
 export const CURVE_SIZE = 232;
 export const CURVE_PAD = 16;

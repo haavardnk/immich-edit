@@ -1,5 +1,5 @@
-import { getLensProfile, type LensProfileMatch } from '$lib/api/lensProfile';
-import { errorMessage } from '$lib/utils/errors';
+import { getLensProfile, type LensProfileMatch } from '#lib/api/lensProfile.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface LensProfileCtx {
   assetId: string | null;

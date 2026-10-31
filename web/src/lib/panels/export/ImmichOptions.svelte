@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { library } from '$lib/stores/library.svelte';
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import DisabledReason from '$lib/components/DisabledReason.svelte';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import DisabledReason from '#lib/components/DisabledReason.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import type { AlbumSummary } from '$lib/types/album';
-  import type { TagSummary } from '$lib/api/tags';
-  import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
-  import { NOT_OWNER_STACK } from '$lib/browse/ownership';
-  import Notice from '$lib/components/Notice.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import type { AlbumSummary } from '#lib/types/album.ts';
+  import type { TagSummary } from '#lib/api/tags.ts';
+  import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
+  import { NOT_OWNER_STACK } from '#lib/browse/ownership.ts';
+  import Notice from '#lib/components/Notice.svelte';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { REPLACE_STACKS, replaceWarning } from './replace';
   import type { ExportForm } from './settings';
-  import type { StackPrimary } from '$lib/api/export';
+  import type { StackPrimary } from '#lib/api/export.ts';
   import { IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { RadioGroup } from 'bits-ui';

@@ -1,4 +1,4 @@
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 
 export type TextField = 'filename' | 'description' | 'path' | 'ocr';
 export type SearchMode = 'context' | TextField;

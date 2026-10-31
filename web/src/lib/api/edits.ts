@@ -1,7 +1,13 @@
 import { getJson, sendJson, url, ApiError, ConflictError } from './client';
-import { editsToManifest, manifestToEdits } from '$lib/edits/manifest';
-import type { AssetDetail } from '$lib/types/asset';
-import type { AsShotWhite, EditManifest, Edits, EditRecord, WhiteBalance } from '$lib/types/edits';
+import { editsToManifest, manifestToEdits } from '#lib/edits/manifest.ts';
+import type { AssetDetail } from '#lib/types/asset.ts';
+import type {
+  AsShotWhite,
+  EditManifest,
+  Edits,
+  EditRecord,
+  WhiteBalance
+} from '#lib/types/edits.ts';
 
 export interface EditedAssetEntry {
   id: string;

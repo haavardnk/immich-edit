@@ -1,11 +1,11 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { ColorSpaceOpt } from '$lib/api/export';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { ColorSpaceOpt } from '#lib/api/export.ts';
   import { RadioGroup } from 'bits-ui';
   import { MediaQuery } from 'svelte/reactivity';
   const wideGamut = new MediaQuery('color-gamut: p3');

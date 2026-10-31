@@ -1,4 +1,4 @@
-import type { MaskRange } from '$lib/api/masks';
+import type { MaskRange } from '#lib/api/masks.ts';
 
 const LEVELS = 256;
 

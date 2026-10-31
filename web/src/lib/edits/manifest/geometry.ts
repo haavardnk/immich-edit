@@ -4,13 +4,13 @@ import {
   type CropRect,
   type Edits,
   type GeometryEdits
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 import {
   clampPerspective,
   neutralPerspective,
   perspectiveIsIdentity,
   type PerspectiveEdits
-} from '$lib/utils/perspective';
+} from '#lib/utils/perspective.ts';
 
 export function encodeTransform(edits: Edits, ops: Record<string, unknown>): void {
   const geometry = edits.geometry;

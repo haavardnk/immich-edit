@@ -1,14 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { untrack } from 'svelte';
-  import { loadFolderAssets } from '$lib/browse/sources';
-  import { readFilterParams } from '$lib/browse/filterParams';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { fieldKey } from '$lib/browse/sortAssets';
-  import { arrangeLoaded } from '$lib/browse/loadedFilter';
-  import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
-  import type { AssetSummary } from '$lib/types/album';
+  import { loadFolderAssets } from '#lib/browse/sources.ts';
+  import { readFilterParams } from '#lib/browse/filterParams.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { fieldKey } from '#lib/browse/sortAssets.ts';
+  import { arrangeLoaded } from '#lib/browse/loadedFilter.ts';
+  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import type { AssetSummary } from '#lib/types/album.ts';
 
   let loaded = $state<AssetSummary[]>([]);
   let loading = $state(false);

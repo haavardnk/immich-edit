@@ -6,10 +6,10 @@ import {
   type MaskBox,
   type MaskKind,
   type MaskRange
-} from '$lib/api/masks';
-import { fetchRaster, uploadRaster } from '$lib/api/rasters';
-import { blankBuffer, type BrushBuffer } from '$lib/utils/brush';
-import { errorMessage } from '$lib/utils/errors';
+} from '#lib/api/masks.ts';
+import { fetchRaster, uploadRaster } from '#lib/api/rasters.ts';
+import { blankBuffer, type BrushBuffer } from '#lib/utils/brush.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 import {
   defaultBrush,
   makeComponent,
@@ -17,9 +17,9 @@ import {
   makeLayer,
   maskCapacity,
   nextLayerName
-} from '$lib/types/masks';
-import type { Edits, MaskComponent, MaskComponentMode, MaskLayer } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
+} from '#lib/types/masks.ts';
+import type { Edits, MaskComponent, MaskComponentMode, MaskLayer } from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 
 export interface MaskGenCtx {
   assetId: string | null;

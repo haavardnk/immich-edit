@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { formatBrushSize } from '$lib/utils/brushSize';
+  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { formatBrushSize } from '#lib/utils/brushSize.ts';
   import { Button } from '@immich/ui';
 
   const size = $derived(editor.brushTool.size);

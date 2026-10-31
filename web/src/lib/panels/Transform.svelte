@@ -1,13 +1,13 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui, type GeometryTool } from '$lib/stores/ui.svelte';
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui, type GeometryTool } from '#lib/stores/ui.svelte.ts';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import CropSection from './geometry/CropSection.svelte';
-  import type { Edits, GeometryEdits } from '$lib/types/edits';
-  import { perspectiveIsIdentity, type PerspectiveEdits } from '$lib/utils/perspective';
+  import type { Edits, GeometryEdits } from '#lib/types/edits.ts';
+  import { perspectiveIsIdentity, type PerspectiveEdits } from '#lib/utils/perspective.ts';
   import { IconButton } from '@immich/ui';
   import { mdiVectorSquare, mdiAngleAcute, mdiRulerSquare } from '@mdi/js';
 

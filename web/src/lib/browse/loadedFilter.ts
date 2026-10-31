@@ -1,7 +1,7 @@
-import { browseControls, type BrowseFilters } from '$lib/stores/browseControls.svelte';
-import { labelOf } from '$lib/stores/labels';
-import type { AssetSummary } from '$lib/types/album';
-import type { BrowseFilter } from '$lib/types/search';
+import { browseControls, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
+import { labelOf } from '#lib/stores/labels.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { BrowseFilter } from '#lib/types/search.ts';
 import { EXIF_FILTERS } from './exifFilters';
 import { ratingHides } from './rating';
 import { isRejected } from './reject';

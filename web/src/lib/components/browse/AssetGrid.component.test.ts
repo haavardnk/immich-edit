@@ -1,12 +1,12 @@
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
-import ComponentHost from '$lib/testing/ComponentHost.svelte';
-import { selection } from '$lib/stores/selection.svelte';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { browseControls } from '$lib/stores/browseControls.svelte';
-import { session } from '$lib/stores/session.svelte';
-import type { AssetSummary } from '$lib/types/album';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -20,10 +20,10 @@ vi.mock('$app/state', () => ({
 const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
 const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.fn() }));
 
-vi.mock('$lib/browse/copyPaste', () => clipboard);
+vi.mock('#lib/browse/copyPaste.ts', () => clipboard);
 
-vi.mock('$lib/browse/cull', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/browse/cull')>()),
+vi.mock('#lib/browse/cull.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/browse/cull.ts')>()),
   rateAsset
 }));
 

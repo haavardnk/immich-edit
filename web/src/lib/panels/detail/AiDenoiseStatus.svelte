@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { DenoiseStatus } from '$lib/api/denoise';
-  import ModelMissingNotice from '$lib/components/ModelMissingNotice.svelte';
-  import Notice from '$lib/components/Notice.svelte';
+  import type { DenoiseStatus } from '#lib/api/denoise.ts';
+  import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
   import { Button, ProgressBar } from '@immich/ui';
 
   let {

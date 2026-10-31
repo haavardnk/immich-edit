@@ -1,12 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { routeScope, structuredRoute } from '$lib/browse/browseRoutes';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { routeScope, structuredRoute } from '#lib/browse/browseRoutes.ts';
   import {
     ID_EXCLUSIONS,
     ID_LABELS,
@@ -17,9 +17,9 @@
     idSummary,
     type IdFilterKey,
     type IdMatch
-  } from '$lib/browse/idFilters';
-  import { idName, idOptions } from '$lib/browse/idOptions';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
+  } from '#lib/browse/idFilters.ts';
+  import { idName, idOptions } from '#lib/browse/idOptions.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { RadioGroup } from 'bits-ui';
 
   let { key, excludable }: { key: IdFilterKey; excludable: boolean } = $props();

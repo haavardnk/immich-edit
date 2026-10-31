@@ -1,4 +1,4 @@
-import { listEditedAssets, type EditedAssetEntry } from '$lib/api/edits';
+import { listEditedAssets, type EditedAssetEntry } from '#lib/api/edits.ts';
 
 class EditedThumbsStore {
   entries = $state<EditedAssetEntry[]>([]);

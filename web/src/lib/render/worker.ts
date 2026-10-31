@@ -1,5 +1,5 @@
-import init, { WebRenderer, render_inputs } from '$lib/wasm/web_render';
-import { errorMessage } from '$lib/utils/errors';
+import init, { WebRenderer, render_inputs } from '#lib/wasm/web_render.js';
+import { errorMessage } from '#lib/utils/errors.ts';
 import { createDispatcher } from './dispatch';
 import type { Reply, Request } from './protocol';
 

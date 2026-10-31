@@ -6,10 +6,10 @@ import {
   type SortFamily
 } from './browseControls.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';
-import { hides } from '$lib/browse/loadedFilter';
-import { REJECT_TAG_VALUE } from '$lib/browse/reject';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
+import { hides } from '#lib/browse/loadedFilter.ts';
+import { REJECT_TAG_VALUE } from '#lib/browse/reject.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 const SORT_KEY = 'immich-edit:browseSort';
 

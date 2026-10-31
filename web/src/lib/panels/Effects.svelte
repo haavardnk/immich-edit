@@ -1,8 +1,8 @@
 <script lang="ts">
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { NEUTRAL_EFFECTS } from '$lib/types/edits';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { NEUTRAL_EFFECTS } from '#lib/types/edits.ts';
 
   const vignetteInactive = $derived(editor.edits.effects.vignette_amount === 0);
   const grainInactive = $derived(editor.edits.effects.grain_amount === 0);

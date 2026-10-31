@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { rejected } from './rejected.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { TagRef } from '$lib/types/asset';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 
 const rejectTag: TagRef = { id: 'r', name: 'reject', value: 'immich-edit/reject' };
 

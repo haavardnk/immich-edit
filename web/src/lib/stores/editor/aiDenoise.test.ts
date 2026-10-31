@@ -1,4 +1,4 @@
-import type { DenoiseStatus } from '$lib/api/denoise';
+import type { DenoiseStatus } from '#lib/api/denoise.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({
@@ -6,7 +6,7 @@ const api = vi.hoisted(() => ({
   status: vi.fn<(id: string) => Promise<DenoiseStatus>>()
 }));
 
-vi.mock('$lib/api/denoise', () => ({
+vi.mock('#lib/api/denoise.ts', () => ({
   startDenoise: api.start,
   getDenoiseStatus: api.status
 }));

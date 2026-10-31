@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { editsToManifest } from '$lib/edits/manifest';
-import { neutralEdits, type Edits } from '$lib/types/edits';
-import { defaultLinear, makeLayer } from '$lib/types/masks';
+import { editsToManifest } from '#lib/edits/manifest.ts';
+import { neutralEdits, type Edits } from '#lib/types/edits.ts';
+import { defaultLinear, makeLayer } from '#lib/types/masks.ts';
 import { presetEdits } from './applyPreset';
 
 function look(): Edits {

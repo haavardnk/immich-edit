@@ -1,4 +1,4 @@
-import type { Edits } from '$lib/types/edits';
+import type { Edits } from '#lib/types/edits.ts';
 
 const MAX_HISTORY = 50;
 

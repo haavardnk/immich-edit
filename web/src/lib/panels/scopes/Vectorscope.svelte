@@ -1,7 +1,7 @@
 <script lang="ts">
   import ScopeCanvas from './ScopeCanvas.svelte';
   import { rasterizeVector } from './rasterize';
-  import type { ScopeGrid } from '$lib/types/preview';
+  import type { ScopeGrid } from '#lib/types/preview.ts';
 
   let { grid, gain, zoom, size }: { grid: ScopeGrid; gain: number; zoom: number; size: number } =
     $props();

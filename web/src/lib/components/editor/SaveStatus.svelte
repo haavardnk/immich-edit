@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiAlertCircleOutline, mdiCheck, mdiLoading } from '@mdi/js';
 </script>

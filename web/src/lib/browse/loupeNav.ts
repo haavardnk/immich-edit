@@ -1,10 +1,10 @@
-import { browsing } from '$lib/stores/browsing.svelte';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { compare, type CompareMode } from '$lib/stores/compare.svelte';
-import { selection } from '$lib/stores/selection.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { neighbourMembers, type MultiMode } from '$lib/browse/compareEntry';
-import { switchMembers } from '$lib/browse/loupeLayout';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { compare, type CompareMode } from '#lib/stores/compare.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { neighbourMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
+import { switchMembers } from '#lib/browse/loupeLayout.ts';
 
 function isMulti(): boolean {
   return compare.mode !== 'single';

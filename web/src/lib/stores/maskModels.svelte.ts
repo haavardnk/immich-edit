@@ -1,5 +1,5 @@
-import type { MaskKind, SemanticClass } from '$lib/api/masks';
-import { listModels, type ModelKind } from '$lib/api/models';
+import type { MaskKind, SemanticClass } from '#lib/api/masks.ts';
+import { listModels, type ModelKind } from '#lib/api/models.ts';
 
 function isMaskKind(kind: ModelKind): kind is MaskKind {
   return kind !== 'denoise';

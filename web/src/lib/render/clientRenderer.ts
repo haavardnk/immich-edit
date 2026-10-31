@@ -1,8 +1,8 @@
-import { reportClientError } from '$lib/api/clientLog';
-import type { Roi } from '$lib/api/preview';
-import { fetchRaster } from '$lib/api/rasters';
-import { fetchDcpBytes, fetchLutCube, fetchSource } from '$lib/api/source';
-import type { Edits } from '$lib/types/edits';
+import { reportClientError } from '#lib/api/clientLog.ts';
+import type { Roi } from '#lib/api/preview.ts';
+import { fetchRaster } from '#lib/api/rasters.ts';
+import { fetchDcpBytes, fetchLutCube, fetchSource } from '#lib/api/source.ts';
+import type { Edits } from '#lib/types/edits.ts';
 import { RenderHost } from './host';
 import type {
   GpuLimits,

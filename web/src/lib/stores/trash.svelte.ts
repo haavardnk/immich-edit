@@ -1,7 +1,7 @@
-import { deleteCopy } from '$lib/api/copies';
-import { restoreAssets, trashAssets } from '$lib/api/trash';
-import { sourceId } from '$lib/browse/assetKey';
-import { countOf } from '$lib/utils/plural';
+import { deleteCopy } from '#lib/api/copies.ts';
+import { restoreAssets, trashAssets } from '#lib/api/trash.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
+import { countOf } from '#lib/utils/plural.ts';
 import {
   chunked,
   planTrash,
@@ -9,7 +9,7 @@ import {
   trashedMessage,
   type TrashPlan,
   type TrashTarget
-} from '$lib/browse/trash';
+} from '#lib/browse/trash.ts';
 import { browseView } from './browseView.svelte';
 import { browsing, type Removal } from './browsing.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';

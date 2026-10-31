@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { selection } from '$lib/stores/selection.svelte';
-  import { presets } from '$lib/stores/presets.svelte';
-  import { createApplyPresetJob, type ApplyPresetOptions } from '$lib/api/jobs';
-  import { runBulkJob } from '$lib/api/bulkJob';
-  import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
-  import { countOf } from '$lib/utils/plural';
-  import PresetApplyOptions from '$lib/components/preset/ApplyOptions.svelte';
-  import PresetPicker from '$lib/components/preset/PresetPicker.svelte';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { presets } from '#lib/stores/presets.svelte.ts';
+  import { createApplyPresetJob, type ApplyPresetOptions } from '#lib/api/jobs.ts';
+  import { runBulkJob } from '#lib/api/bulkJob.ts';
+  import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+  import PresetApplyOptions from '#lib/components/preset/ApplyOptions.svelte';
+  import PresetPicker from '#lib/components/preset/PresetPicker.svelte';
   import { Button } from '@immich/ui';
   import { mdiAutoFix } from '@mdi/js';
 

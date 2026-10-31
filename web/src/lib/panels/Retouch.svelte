@@ -1,14 +1,14 @@
 <script lang="ts">
-  import Notice from '$lib/components/Notice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { hint } from '$lib/shortcuts/labels';
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '$lib/types/edits';
-  import { formatBrushSize } from '$lib/utils/brushSize';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '#lib/types/edits.ts';
+  import { formatBrushSize } from '#lib/utils/brushSize.ts';
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mdiBandage, mdiClose, mdiEye, mdiEyeOff, mdiRestore, mdiStamper } from '@mdi/js';
   import { RadioGroup } from 'bits-ui';

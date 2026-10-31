@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { untrack } from 'svelte';
-import { browseControls, FILTER_DEFAULTS } from '$lib/stores/browseControls.svelte';
+import { browseControls, FILTER_DEFAULTS } from '#lib/stores/browseControls.svelte.ts';
 import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams';
 import { matchBrowseRoute } from './browseRoutes';
 

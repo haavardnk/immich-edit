@@ -1,4 +1,4 @@
-import type { ExifInfo } from '$lib/types/asset';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 export function fmtAperture(v: number | null): string | null {
   if (v == null) return null;

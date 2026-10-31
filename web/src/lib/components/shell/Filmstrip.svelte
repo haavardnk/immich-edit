@@ -1,16 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { untrack } from 'svelte';
-  import { observeSize } from '$lib/actions/observeSize';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { assetThumbUrl } from '$lib/api/assets';
-  import { createFilmstripLayout, visibleFilmstripRange } from '$lib/browse/filmstripLayout';
-  import { isRejected } from '$lib/browse/reject';
-  import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '$lib/stores/labels';
-  import { editorHref } from '$lib/editor/navigation';
+  import { observeSize } from '#lib/actions/observeSize.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { createFilmstripLayout, visibleFilmstripRange } from '#lib/browse/filmstripLayout.ts';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '#lib/stores/labels.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
   import BottomPanelResizeHandle from './BottomPanelResizeHandle.svelte';
-  import ContextMenu from '$lib/components/ContextMenu.svelte';
+  import ContextMenu from '#lib/components/ContextMenu.svelte';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
   import { mergeProps } from 'bits-ui';

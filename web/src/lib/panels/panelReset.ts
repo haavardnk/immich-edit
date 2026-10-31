@@ -1,4 +1,4 @@
-import { neutralEdits, resetLensBlur, type Edits } from '$lib/types/edits';
+import { neutralEdits, resetLensBlur, type Edits } from '#lib/types/edits.ts';
 
 type PanelReset = (edits: Edits, neutral: Edits) => Edits;
 

@@ -1,4 +1,4 @@
-import { readStored, writeStored } from '$lib/utils/storage';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 
 export type SidebarSectionId = 'people' | 'albums' | 'tags' | 'folders';
 

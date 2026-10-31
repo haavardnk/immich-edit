@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { MaskComponent, MaskComponentKind, Vec2f } from '$lib/types/edits';
-  import type { DragKind } from '$lib/utils/maskDrag';
-  import { smoothRamp } from '$lib/utils/maskRamp';
+  import type { MaskComponent, MaskComponentKind, Vec2f } from '#lib/types/edits.ts';
+  import type { DragKind } from '#lib/utils/maskDrag.ts';
+  import { smoothRamp } from '#lib/utils/maskRamp.ts';
 
   let {
     comp,

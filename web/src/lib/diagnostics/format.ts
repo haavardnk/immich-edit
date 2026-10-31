@@ -1,4 +1,4 @@
-import type { GpuMemory, PlanKind, PlanStats } from '$lib/api/diagnostics';
+import type { GpuMemory, PlanKind, PlanStats } from '#lib/api/diagnostics.ts';
 
 export function formatUs(us: number): string {
   if (us === 0) return '—';

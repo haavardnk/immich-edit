@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rasterizeLuma, rasterizeOverlay, rasterizeParade, rasterizeVector } from './rasterize';
-import type { ScopeGrid, ScopeKind } from '$lib/types/preview';
+import type { ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
 
 function grid(kind: ScopeKind, width: number, height: number, channels: number): ScopeGrid {
   const data = new Uint8Array(width * height * channels);

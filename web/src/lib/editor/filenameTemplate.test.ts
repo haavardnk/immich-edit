@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { captureDate, renderTemplate, templateError } from './filenameTemplate';
-import type { ExifInfo } from '$lib/types/asset';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 interface NamingCase {
   template: string | null;

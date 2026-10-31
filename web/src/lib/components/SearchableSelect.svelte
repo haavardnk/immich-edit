@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import TextInput from '$lib/components/TextInput.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mdiCheck, mdiChevronDown, mdiClose, mdiMagnify, mdiPlus } from '@mdi/js';
   import { Combobox } from 'bits-ui';

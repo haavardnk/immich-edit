@@ -1,11 +1,11 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import HueWheel from '$lib/components/editor/controls/HueWheel.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { editsToManifest } from '$lib/edits/manifest';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { BW_CHANNELS, neutralBw, type BwChannel } from '$lib/types/edits';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { BW_CHANNELS, neutralBw, type BwChannel } from '#lib/types/edits.ts';
 
   const CHANNEL_HUES: Record<BwChannel, number> = {
     red: 0,

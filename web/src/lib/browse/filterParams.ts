@@ -6,10 +6,10 @@ import {
   REJECTED_FILTERS,
   type BrowseFilters,
   type LabelFilter
-} from '$lib/stores/browseControls.svelte';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import { LABEL_COLORS } from '$lib/stores/labels';
-import type { Visibility } from '$lib/types/search';
+} from '#lib/stores/browseControls.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import { LABEL_COLORS } from '#lib/stores/labels.ts';
+import type { Visibility } from '#lib/types/search.ts';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { UNKNOWN_EXIF, type ExifFilterKey } from './exifFilters';
 import { megabytes } from './fileSize';

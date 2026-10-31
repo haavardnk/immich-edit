@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { session } from '$lib/stores/session.svelte';
-  import { logout } from '$lib/api/auth';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { logout } from '#lib/api/auth.ts';
   import { mdiAccountCircleOutline, mdiLogoutVariant } from '@mdi/js';
   import { Badge, Icon, IconButton } from '@immich/ui';
 

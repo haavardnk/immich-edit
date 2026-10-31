@@ -1,9 +1,9 @@
 <script lang="ts">
-  import MaskToolPicker from '$lib/components/editor/MaskToolPicker.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import type { MaskKind } from '$lib/api/masks';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { maskModels } from '$lib/stores/maskModels.svelte';
+  import MaskToolPicker from '#lib/components/editor/MaskToolPicker.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import type { MaskKind } from '#lib/api/masks.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskModels } from '#lib/stores/maskModels.svelte.ts';
   import {
     addAiTool,
     addBackground,
@@ -12,7 +12,7 @@
     modeVerb,
     type MaskTarget
   } from './maskTools';
-  import type { ManualTool } from '$lib/types/masks';
+  import type { ManualTool } from '#lib/types/masks.ts';
   import type { Snippet } from 'svelte';
 
   let {

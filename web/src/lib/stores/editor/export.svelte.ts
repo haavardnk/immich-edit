@@ -1,18 +1,18 @@
-import { getAsset } from '$lib/api/assets';
+import { getAsset } from '#lib/api/assets.ts';
 import {
   downloadExport,
   EXTENSION_BY_FORMAT,
   uploadToImmich,
   type ExportOptions,
   type ImmichExportOptions
-} from '$lib/api/export';
-import { sourceId } from '$lib/browse/assetKey';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { trash } from '$lib/stores/trash.svelte';
-import type { AssetDetail } from '$lib/types/asset';
-import type { Edits } from '$lib/types/edits';
-import { downloadBlob } from '$lib/utils/download';
-import { errorMessage } from '$lib/utils/errors';
+} from '#lib/api/export.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { trash } from '#lib/stores/trash.svelte.ts';
+import type { AssetDetail } from '#lib/types/asset.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import { downloadBlob } from '#lib/utils/download.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface ExportResult {
   kind: 'success' | 'duplicate' | 'error';

@@ -1,5 +1,5 @@
-import { getDenoiseStatus, startDenoise, type DenoiseStatus } from '$lib/api/denoise';
-import { errorMessage } from '$lib/utils/errors';
+import { getDenoiseStatus, startDenoise, type DenoiseStatus } from '#lib/api/denoise.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 const POLL_MS = 1500;
 

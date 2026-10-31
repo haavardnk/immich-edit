@@ -1,4 +1,4 @@
-import { session } from '$lib/stores/session.svelte';
+import { session } from '#lib/stores/session.svelte.ts';
 
 export const NOT_OWNER =
   'Shared by another Immich user. Only the owner can rate, flag, label or tag it.';

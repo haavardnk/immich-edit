@@ -1,6 +1,6 @@
 import { compare } from './compare.svelte';
-import { readStored, writeStored } from '$lib/utils/storage';
-import { isFilterSectionId, type FilterSectionId } from '$lib/browse/filterSections';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
+import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 export type TileInfo = 'none' | 'badges' | 'full';

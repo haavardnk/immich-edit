@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { assetThumbUrl } from '$lib/api/assets';
-import { listEditedAssets } from '$lib/api/edits';
+import { assetThumbUrl } from '#lib/api/assets.ts';
+import { listEditedAssets } from '#lib/api/edits.ts';
 import { editedThumbs } from './editedThumbs.svelte';
 
-vi.mock('$lib/api/edits', () => ({ listEditedAssets: vi.fn() }));
+vi.mock('#lib/api/edits.ts', () => ({ listEditedAssets: vi.fn() }));
 
 const mockedList = vi.mocked(listEditedAssets);
 

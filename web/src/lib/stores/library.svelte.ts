@@ -1,12 +1,12 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { listAlbums } from '$lib/api/albums';
-import { listPeople, type PersonSummary } from '$lib/api/people';
-import { listTags, type TagSummary } from '$lib/api/tags';
-import { folderPaths } from '$lib/api/folders';
-import { searchStatistics } from '$lib/api/search';
-import type { AlbumSummary } from '$lib/types/album';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-import { errorMessage } from '$lib/utils/errors';
+import { listAlbums } from '#lib/api/albums.ts';
+import { listPeople, type PersonSummary } from '#lib/api/people.ts';
+import { listTags, type TagSummary } from '#lib/api/tags.ts';
+import { folderPaths } from '#lib/api/folders.ts';
+import { searchStatistics } from '#lib/api/search.ts';
+import type { AlbumSummary } from '#lib/types/album.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
 

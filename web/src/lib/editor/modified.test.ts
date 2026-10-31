@@ -1,4 +1,4 @@
-import { AI_DENOISE_STRENGTH, neutralEdits } from '$lib/types/edits';
+import { AI_DENOISE_STRENGTH, neutralEdits } from '#lib/types/edits.ts';
 import { describe, expect, it } from 'vitest';
 import { modifiedDevelopPanels, modifiedTabCount } from './modified';
 

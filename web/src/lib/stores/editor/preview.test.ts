@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PreviewMode, RenderLane } from '$lib/api/preview';
-import type { RenderView, RenderedFrame } from '$lib/render/protocol';
+import type { PreviewMode, RenderLane } from '#lib/api/preview.ts';
+import type { RenderView, RenderedFrame } from '#lib/render/protocol.ts';
 import {
   neutraliseSection,
   neutralEdits,
   originalPreviewEdits,
   type Edits,
   type MaskLayer
-} from '$lib/types/edits';
-import { makeLayer, defaultLinear } from '$lib/types/masks';
-import { presetEdits, type PresetPreview } from '$lib/edits/applyPreset';
-import { editsToManifest } from '$lib/edits/manifest';
-import type { Roi } from '$lib/utils/viewGeometry';
+} from '#lib/types/edits.ts';
+import { makeLayer, defaultLinear } from '#lib/types/masks.ts';
+import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
+import { editsToManifest } from '#lib/edits/manifest.ts';
+import type { Roi } from '#lib/utils/viewGeometry.ts';
 
 type Render = {
   lane: RenderLane;
@@ -25,8 +25,8 @@ type Render = {
 
 const renders = vi.hoisted((): Render[] => []);
 
-vi.mock('$lib/api/preview', async (original) => ({
-  ...(await original<typeof import('$lib/api/preview')>()),
+vi.mock('#lib/api/preview.ts', async (original) => ({
+  ...(await original<typeof import('#lib/api/preview.ts')>()),
   livePreview: vi.fn(
     (
       _assetId: string,
@@ -59,7 +59,10 @@ vi.mock('$lib/api/preview', async (original) => ({
       })
   )
 }));
-vi.mock('$lib/utils/objectUrl', () => ({ makeObjectUrl: () => 'blob:render', revoke: () => {} }));
+vi.mock('#lib/utils/objectUrl.ts', () => ({
+  makeObjectUrl: () => 'blob:render',
+  revoke: () => {}
+}));
 
 const browser = vi.hoisted(() => ({
   current: null as ClientRenderer | null,
@@ -68,7 +71,7 @@ const browser = vi.hoisted(() => ({
   bind: vi.fn()
 }));
 
-vi.mock('$lib/stores/renderer.svelte', () => ({
+vi.mock('#lib/stores/renderer.svelte.ts', () => ({
   renderer: {
     get current() {
       return browser.current;
@@ -85,7 +88,7 @@ vi.mock('$lib/stores/renderer.svelte', () => ({
   }
 }));
 
-import type { ClientRenderer } from '$lib/render/clientRenderer';
+import type { ClientRenderer } from '#lib/render/clientRenderer.ts';
 import { PreviewEngine, type PreviewCtx } from './preview.svelte';
 import type { ViewSnapshot } from './previewEdge';
 

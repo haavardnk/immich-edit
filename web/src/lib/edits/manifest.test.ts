@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isIdentity, neutralEdits, type Edits } from '$lib/types/edits';
+import { isIdentity, neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { editsToManifest, manifestToEdits } from './manifest';
 
 function roundTrip(edits: Edits): Edits {

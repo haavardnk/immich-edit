@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { observeSize } from '$lib/actions/observeSize';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { observeSize } from '#lib/actions/observeSize.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import CropOverlay from './CropOverlay.svelte';
   import MaskWeight from './MaskWeight.svelte';
   import MaskOverlay from './MaskOverlay.svelte';
@@ -10,12 +10,12 @@
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
   import PreviewImage from './PreviewImage.svelte';
-  import Notice from '$lib/components/Notice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
-  import { fitScale, frameBox, nativeScale, placement } from '$lib/utils/viewGeometry';
-  import { splitPosition, viewportTransform, zoomAtAnchor } from '$lib/utils/imageViewport';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
+  import { fitScale, frameBox, nativeScale, placement } from '#lib/utils/viewGeometry.ts';
+  import { splitPosition, viewportTransform, zoomAtAnchor } from '#lib/utils/imageViewport.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
 
   const WHEEL_STEP = 1.1;

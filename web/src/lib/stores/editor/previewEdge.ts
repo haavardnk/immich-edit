@@ -1,4 +1,4 @@
-import type { Rect } from '$lib/utils/viewGeometry';
+import type { Rect } from '#lib/utils/viewGeometry.ts';
 
 export const LIVE_EDGE = 1600;
 export const MAX_EDGE = 4096;

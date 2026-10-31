@@ -3,10 +3,10 @@ import {
   getAsShotWhite,
   sampleWhiteBalance,
   type WhiteBalanceSample
-} from '$lib/api/edits';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { errorMessage } from '$lib/utils/errors';
-import type { AsShotWhite, Edits, WhiteBalance } from '$lib/types/edits';
+} from '#lib/api/edits.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import type { AsShotWhite, Edits, WhiteBalance } from '#lib/types/edits.ts';
 
 export interface WhiteBalanceCtx {
   assetId: string | null;

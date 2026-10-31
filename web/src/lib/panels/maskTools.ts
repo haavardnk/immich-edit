@@ -1,12 +1,12 @@
 import { goto } from '$app/navigation';
-import type { MaskKind } from '$lib/api/masks';
-import { keyLabel } from '$lib/shortcuts/chord';
-import { editor } from '$lib/stores/editor.svelte';
-import { maskModels } from '$lib/stores/maskModels.svelte';
-import { session } from '$lib/stores/session.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import type { MaskComponentKind, MaskComponentMode } from '$lib/types/edits';
-import { generatedLabel, manualKind, type ManualTool } from '$lib/types/masks';
+import type { MaskKind } from '#lib/api/masks.ts';
+import { keyLabel } from '#lib/shortcuts/chord.ts';
+import { editor } from '#lib/stores/editor.svelte.ts';
+import { maskModels } from '#lib/stores/maskModels.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import type { MaskComponentKind, MaskComponentMode } from '#lib/types/edits.ts';
+import { generatedLabel, manualKind, type ManualTool } from '#lib/types/masks.ts';
 import {
   mdiBrightness6,
   mdiBrush,

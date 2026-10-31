@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fieldKey, sortAssets } from './sortAssets';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 function asset(id: string, at: string | null, copyOf?: string): AssetSummary {
   return {

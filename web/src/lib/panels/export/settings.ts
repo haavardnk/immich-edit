@@ -1,8 +1,8 @@
-import { library } from '$lib/stores/library.svelte';
-import { listAlbums } from '$lib/api/albums';
-import { listTags } from '$lib/api/tags';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { DEFAULT_FILENAME_TEMPLATE, templateError } from '$lib/editor/filenameTemplate';
+import { library } from '#lib/stores/library.svelte.ts';
+import { listAlbums } from '#lib/api/albums.ts';
+import { listTags } from '#lib/api/tags.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { DEFAULT_FILENAME_TEMPLATE, templateError } from '#lib/editor/filenameTemplate.ts';
 import {
   DEFAULT_RESIZE_BOX,
   DEFAULT_RESIZE_MEGAPIXELS,
@@ -36,7 +36,7 @@ import type {
   PngCompressionOpt,
   StackPrimary,
   TiffCompressionOpt
-} from '$lib/api/export';
+} from '#lib/api/export.ts';
 
 export type Destination = 'download' | 'immich';
 

@@ -1,6 +1,6 @@
-import type { SessionUser } from '$lib/api/auth';
-import { me } from '$lib/api/auth';
-import { ApiError } from '$lib/api/client';
+import type { SessionUser } from '#lib/api/auth.ts';
+import { me } from '#lib/api/auth.ts';
+import { ApiError } from '#lib/api/client.ts';
 
 class SessionStore {
   user = $state<SessionUser | null>(null);

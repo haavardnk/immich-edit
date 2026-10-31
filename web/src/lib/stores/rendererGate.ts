@@ -1,5 +1,5 @@
-import { formatBytes, perMegapixel } from '$lib/diagnostics/format';
-import type { GpuLimits, TickSample } from '$lib/render/protocol';
+import { formatBytes, perMegapixel } from '#lib/diagnostics/format.ts';
+import type { GpuLimits, TickSample } from '#lib/render/protocol.ts';
 
 export const SPEED_MARGIN = 0.8;
 const AVERAGE_WEIGHT = 0.3;

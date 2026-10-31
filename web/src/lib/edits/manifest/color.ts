@@ -12,7 +12,7 @@ import {
   type DcpEdits,
   type Edits,
   type HslBand
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 export function encodeColor(edits: Edits, ops: Record<string, unknown>): void {
   if (!bandsAllZero(edits.color.hsl.bands))

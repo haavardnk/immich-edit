@@ -1,5 +1,5 @@
 import type { AssetSummary } from './album';
-import type { LabelColor } from '$lib/stores/labels';
+import type { LabelColor } from '#lib/stores/labels.ts';
 
 export type SortDir = 'asc' | 'desc';
 export type SortField = 'taken' | 'added' | 'rating' | 'size';

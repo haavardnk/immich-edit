@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getRenderDefaults, setRenderDefaults, type RenderDefaults } from '$lib/api/admin';
-  import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { errorMessage } from '$lib/utils/errors';
-  import Notice from '$lib/components/Notice.svelte';
+  import { getRenderDefaults, setRenderDefaults, type RenderDefaults } from '#lib/api/admin.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { errorMessage } from '#lib/utils/errors.ts';
+  import Notice from '#lib/components/Notice.svelte';
   import { Switch } from '@immich/ui';
 
   let defaults = $state<RenderDefaults | null>(null);

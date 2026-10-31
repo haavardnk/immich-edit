@@ -1,4 +1,4 @@
-import { toasts } from '$lib/stores/toasts.svelte';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { parseServerTiming, type ServerTiming } from './serverTiming';
 
 export class ApiError extends Error {

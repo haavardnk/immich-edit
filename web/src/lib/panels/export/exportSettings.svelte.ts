@@ -1,4 +1,4 @@
-import { readStored, writeStored } from '$lib/utils/storage';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 import { restoreExportForm, type Destination, type ExportForm } from './settings';
 
 const STORAGE_KEY = 'immich-edit:exportSettings';

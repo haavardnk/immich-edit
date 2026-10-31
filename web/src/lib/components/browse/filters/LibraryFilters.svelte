@@ -1,11 +1,11 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import {
     browseControls,
     type FilterKey,
     type RejectedFilter,
     type Visibility
-  } from '$lib/stores/browseControls.svelte';
+  } from '#lib/stores/browseControls.svelte.ts';
   import { Field, Select } from '@immich/ui';
 
   let {

@@ -1,7 +1,7 @@
 import { page } from '$app/state';
-import { ui } from '$lib/stores/ui.svelte';
-import { compare } from '$lib/stores/compare.svelte';
-import { browseView } from '$lib/stores/browseView.svelte';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { compare } from '#lib/stores/compare.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
 import type { KeybindContext } from './table';
 
 export const CONTEXT_STACKS = {

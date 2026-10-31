@@ -1,34 +1,34 @@
 <script lang="ts">
-  import { selection } from '$lib/stores/selection.svelte';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { EXTENSION_BY_FORMAT } from '$lib/api/export';
-  import { createImmichExportJob, createZipExportJob } from '$lib/api/jobs';
-  import { runBulkJob } from '$lib/api/bulkJob';
-  import { captureDate } from '$lib/editor/filenameTemplate';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { EXTENSION_BY_FORMAT } from '#lib/api/export.ts';
+  import { createImmichExportJob, createZipExportJob } from '#lib/api/jobs.ts';
+  import { runBulkJob } from '#lib/api/bulkJob.ts';
+  import { captureDate } from '#lib/editor/filenameTemplate.ts';
   import { Button } from '@immich/ui';
   import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
-  import DestinationToggle from '$lib/panels/export/DestinationToggle.svelte';
-  import ExportPresetMenu from '$lib/panels/export/ExportPresetMenu.svelte';
-  import ExportSection from '$lib/panels/export/ExportSection.svelte';
-  import FilenameTemplateField from '$lib/panels/export/FilenameTemplateField.svelte';
-  import FormatOptions from '$lib/panels/export/FormatOptions.svelte';
-  import ResizeOptions from '$lib/panels/export/ResizeOptions.svelte';
-  import SharpenOptions from '$lib/panels/export/SharpenOptions.svelte';
-  import WatermarkOptions from '$lib/panels/export/WatermarkOptions.svelte';
-  import ImmichOptions from '$lib/panels/export/ImmichOptions.svelte';
-  import { exportSettings } from '$lib/panels/export/exportSettings.svelte';
-  import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '$lib/browse/ownership';
-  import { sourceId } from '$lib/browse/assetKey';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-  import { replaceBlocked } from '$lib/panels/export/replace';
-  import { countOf } from '$lib/utils/plural';
+  import DestinationToggle from '#lib/panels/export/DestinationToggle.svelte';
+  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
+  import ExportSection from '#lib/panels/export/ExportSection.svelte';
+  import FilenameTemplateField from '#lib/panels/export/FilenameTemplateField.svelte';
+  import FormatOptions from '#lib/panels/export/FormatOptions.svelte';
+  import ResizeOptions from '#lib/panels/export/ResizeOptions.svelte';
+  import SharpenOptions from '#lib/panels/export/SharpenOptions.svelte';
+  import WatermarkOptions from '#lib/panels/export/WatermarkOptions.svelte';
+  import ImmichOptions from '#lib/panels/export/ImmichOptions.svelte';
+  import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
+  import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '#lib/browse/ownership.ts';
+  import { sourceId } from '#lib/browse/assetKey.ts';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+  import { replaceBlocked } from '#lib/panels/export/replace.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import {
     baseOptions,
     ensureLibraryLoaded,
     formatLabel,
     formInvalid,
     immichOptions
-  } from '$lib/panels/export/settings';
+  } from '#lib/panels/export/settings.ts';
 
   const form = $derived(exportSettings.form);
   const destination = $derived(exportSettings.destination);

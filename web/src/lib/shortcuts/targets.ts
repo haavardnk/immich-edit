@@ -1,4 +1,4 @@
-import { CONTROL, isPointerFocused } from '$lib/utils/pointerFocus';
+import { CONTROL, isPointerFocused } from '#lib/utils/pointerFocus.ts';
 
 export function isTypingTarget(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;

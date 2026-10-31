@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Dialog from '$lib/components/Dialog.svelte';
-  import Disclosure from '$lib/components/Disclosure.svelte';
+  import Dialog from '#lib/components/Dialog.svelte';
+  import Disclosure from '#lib/components/Disclosure.svelte';
   import BulkApplyPresetPanel from './BulkApplyPreset.svelte';
   import BulkCopyPastePanel from './BulkCopyPaste.svelte';
   import BulkExportPanel from './BulkExport.svelte';

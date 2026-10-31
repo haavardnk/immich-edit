@@ -1,5 +1,5 @@
 import { labelTagValue, type LabelColor } from './labels';
-import type { TagRef } from '$lib/types/asset';
+import type { TagRef } from '#lib/types/asset.ts';
 import { TagMembers } from './tagMembers.svelte';
 
 export const labelMembers: Record<LabelColor, TagMembers> = {

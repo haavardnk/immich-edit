@@ -1,9 +1,9 @@
-import { ConflictError } from '$lib/api/client';
-import { deleteEdits, putEdits, restoreEdits } from '$lib/api/edits';
-import { manifestToEdits } from '$lib/edits/manifest';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { isIdentity, neutralEdits, type EditRecord, type Edits } from '$lib/types/edits';
-import { errorMessage } from '$lib/utils/errors';
+import { ConflictError } from '#lib/api/client.ts';
+import { deleteEdits, putEdits, restoreEdits } from '#lib/api/edits.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { isIdentity, neutralEdits, type EditRecord, type Edits } from '#lib/types/edits.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 interface SaveSession {
   assetId: string;

@@ -1,12 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { untrack } from 'svelte';
-  import { album } from '$lib/stores/album.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { readFilterParams } from '$lib/browse/filterParams';
-  import { BrowseFeed } from '$lib/stores/browseFeed.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
-  import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
+  import { album } from '#lib/stores/album.svelte.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { readFilterParams } from '#lib/browse/filterParams.ts';
+  import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: id } }) });

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { NEUTRAL_DETAIL, neutralSharpenAmount } from '$lib/types/edits';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { NEUTRAL_DETAIL, neutralSharpenAmount } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import NoiseReductionSection from './detail/NoiseReductionSection.svelte';

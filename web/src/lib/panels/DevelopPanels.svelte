@@ -1,17 +1,17 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { scopes } from '$lib/stores/scopes.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { scopes } from '#lib/stores/scopes.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     developPanels,
     openDevelopPanels,
     SCOPES_PANEL,
     type PanelDef
-  } from '$lib/panels/registry';
-  import { setDevelopPanel } from '$lib/panels/developPanels';
-  import { resetDevelopPanel } from '$lib/panels/panelReset';
-  import { modifiedDevelopPanels } from '$lib/editor/modified';
-  import Disclosure from '$lib/components/Disclosure.svelte';
+  } from '#lib/panels/registry.ts';
+  import { setDevelopPanel } from '#lib/panels/developPanels.ts';
+  import { resetDevelopPanel } from '#lib/panels/panelReset.ts';
+  import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
+  import Disclosure from '#lib/components/Disclosure.svelte';
   import ScopesSection from './scopes/ScopesSection.svelte';
 
   const openPanels = $derived(openDevelopPanels(ui.developOpenPanels));

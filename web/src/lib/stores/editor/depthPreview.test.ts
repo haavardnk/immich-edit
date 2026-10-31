@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BrushBuffer } from '$lib/utils/brush';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
 
 const mocks = vi.hoisted(() => ({
   fetchRaster: vi.fn(() =>
@@ -7,9 +7,9 @@ const mocks = vi.hoisted(() => ({
   )
 }));
 
-vi.mock('$lib/api/rasters', () => ({ fetchRaster: mocks.fetchRaster }));
+vi.mock('#lib/api/rasters.ts', () => ({ fetchRaster: mocks.fetchRaster }));
 
-import { DepthPreview, type DepthPreviewCtx } from '$lib/stores/editor/depthPreview';
+import { DepthPreview, type DepthPreviewCtx } from '#lib/stores/editor/depthPreview.ts';
 
 const original: BrushBuffer = { width: 4, height: 1, bytes: new Uint8Array(4) };
 const rebaked: BrushBuffer = { width: 4, height: 1, bytes: new Uint8Array(4).fill(9) };

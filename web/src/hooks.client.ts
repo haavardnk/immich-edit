@@ -1,7 +1,7 @@
 import type { ClientInit, HandleClientError } from '@sveltejs/kit/hooks';
-import { installClientLog, reportClientError } from '$lib/api/clientLog';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { errorMessage } from '$lib/utils/errors';
+import { installClientLog, reportClientError } from '#lib/api/clientLog.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export const init: ClientInit = () => {
   installClientLog();

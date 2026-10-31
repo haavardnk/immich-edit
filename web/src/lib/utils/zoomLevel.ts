@@ -1,4 +1,4 @@
-import { readStored, writeStored } from '$lib/utils/storage';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 
 export const MAX_ZOOM = 800;
 export const ZOOM_STOPS = [25, 33, 50, 66, 100, 200, 300, 400, MAX_ZOOM];

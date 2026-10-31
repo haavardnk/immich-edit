@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generatedLabel, kindLabel, manualKind, numberRepeats, visibleSceneClasses } from './masks';
-import type { MaskKind } from '$lib/api/masks';
+import type { MaskKind } from '#lib/api/masks.ts';
 import type { ManualTool } from './masks';
 
 const CLASSES = [

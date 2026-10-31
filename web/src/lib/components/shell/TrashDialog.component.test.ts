@@ -1,6 +1,6 @@
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import { trash } from '$lib/stores/trash.svelte';
-import ComponentHost from '$lib/testing/ComponentHost.svelte';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import { trash } from '#lib/stores/trash.svelte.ts';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { flushSync, mount, unmount, type Component } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TrashDialog from './TrashDialog.svelte';

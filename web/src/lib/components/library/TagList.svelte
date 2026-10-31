@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { library } from '$lib/stores/library.svelte';
-  import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
   import { Icon } from '@immich/ui';
   import { mdiTagOutline } from '@mdi/js';
 

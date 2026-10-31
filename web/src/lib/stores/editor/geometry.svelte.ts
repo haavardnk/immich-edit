@@ -5,13 +5,13 @@ import {
   type CropRect,
   type Edits,
   type GeometryEdits
-} from '$lib/types/edits';
-import { livePreview } from '$lib/api/preview';
-import { keysFor } from '$lib/shortcuts/labels';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { geometryIsIdentity } from '$lib/types/edits';
-import { errorMessage } from '$lib/utils/errors';
-import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
+} from '#lib/types/edits.ts';
+import { livePreview } from '#lib/api/preview.ts';
+import { keysFor } from '#lib/shortcuts/labels.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { geometryIsIdentity } from '#lib/types/edits.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import { makeObjectUrl, revoke } from '#lib/utils/objectUrl.ts';
 import {
   aspectRatioFor,
   clampStraighten,
@@ -19,7 +19,7 @@ import {
   largestInscribedRect,
   quarterTurnCrop,
   refitCropAtAspect
-} from '$lib/utils/geom';
+} from '#lib/utils/geom.ts';
 import {
   clampPerspective,
   limitPerspective,
@@ -28,9 +28,9 @@ import {
   perspectiveIsIdentity,
   type Mat3,
   type PerspectiveEdits
-} from '$lib/utils/perspective';
+} from '#lib/utils/perspective.ts';
 import { LIVE_EDGE } from './previewEdge';
-import type { UprightGuide } from '$lib/utils/upright';
+import type { UprightGuide } from '#lib/utils/upright.ts';
 
 export interface GeometrySession {
   frameUrl: string | null;

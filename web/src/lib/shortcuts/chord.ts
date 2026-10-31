@@ -1,4 +1,4 @@
-import { isMac } from '$lib/utils/platform';
+import { isMac } from '#lib/utils/platform.ts';
 
 export interface Chord {
   key: string;

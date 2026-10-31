@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { DatePicker, Field } from '@immich/ui';
   import { DateTime } from 'luxon';
 

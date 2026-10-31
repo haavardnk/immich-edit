@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { DebugTimings, HealthInfo, LatencyStats } from '$lib/api/diagnostics';
+import type { DebugTimings, HealthInfo, LatencyStats } from '#lib/api/diagnostics.ts';
 import { buildSupportBundle } from './supportBundle';
 import { formatBytes, hitRate } from './format';
 

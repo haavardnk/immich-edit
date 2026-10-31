@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { livePreview } from '$lib/api/preview';
-import { neutralEdits, neutralGeometry, type Edits } from '$lib/types/edits';
+import { livePreview } from '#lib/api/preview.ts';
+import { neutralEdits, neutralGeometry, type Edits } from '#lib/types/edits.ts';
 
-vi.mock('$lib/api/preview', () => ({
+vi.mock('#lib/api/preview.ts', () => ({
   livePreview: vi.fn(() => new Promise<never>(() => undefined))
 }));
 

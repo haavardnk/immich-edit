@@ -1,5 +1,5 @@
 import { sendJson } from './client';
-import type { AssetSummary } from '$lib/types/album';
+import type { AssetSummary } from '#lib/types/album.ts';
 import type {
   BrowseFilter,
   PageQuery,
@@ -7,7 +7,7 @@ import type {
   SearchSort,
   SmartQuery,
   SuggestionQuery
-} from '$lib/types/search';
+} from '#lib/types/search.ts';
 
 export const BROWSE_PAGE_SIZE = 500;
 
