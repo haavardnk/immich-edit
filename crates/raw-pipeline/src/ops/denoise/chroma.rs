@@ -1,6 +1,5 @@
 use super::shrink::{self, Level, LevelParams};
 use super::{CHROMA_LEVELS, PB_DEN, PR_DEN, atrous, estimate};
-use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::tone::shared::{LUMA_B, LUMA_G, LUMA_R};
@@ -100,18 +99,18 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; CHROMA_LEVE
     let lw = w.div_ceil(2);
     let lh = h.div_ceil(2);
     let ln = lw * lh;
-    let mut y_cur = Scratch::zeroed(ln);
-    let mut base = [Scratch::zeroed(ln), Scratch::zeroed(ln)];
+    let mut y_cur = vec![0.0; ln];
+    let mut base = [vec![0.0; ln], vec![0.0; ln]];
     {
         let [pb, pr] = &mut base;
         downsample(image, lw, &mut y_cur, [pb, pr]);
     }
-    let mut y_next = Scratch::zeroed(ln);
-    let mut cur = [Scratch::zeroed(ln), Scratch::zeroed(ln)];
-    let mut next = [Scratch::zeroed(ln), Scratch::zeroed(ln)];
-    let mut tmp = Scratch::zeroed(ln);
-    let mut yref = Scratch::zeroed(ln);
-    let mut den = Scratch::zeroed(2 * ln);
+    let mut y_next = vec![0.0; ln];
+    let mut cur = [vec![0.0; ln], vec![0.0; ln]];
+    let mut next = [vec![0.0; ln], vec![0.0; ln]];
+    let mut tmp = vec![0.0; ln];
+    let mut yref = vec![0.0; ln];
+    let mut den = vec![0.0; 2 * ln];
     for c in 0..2 {
         cur[c].copy_from_slice(&base[c]);
     }
@@ -174,7 +173,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; CHROMA_LEVE
     drop((y_cur, y_next, cur, next, tmp));
 
     let n = w * h;
-    let mut fine = [Scratch::zeroed(n), Scratch::zeroed(n)];
+    let mut fine = [vec![0.0; n], vec![0.0; n]];
     {
         let [fpb, fpr] = &mut fine;
         (

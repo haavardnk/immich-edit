@@ -47,8 +47,9 @@ A photo larger than the GPU's texture or buffer limits, or a render larger than 
 reduction and capture sharpening) in tiles. When the rest of the render still does not fit, it
 renders the output in tiles too. Tiles share one whole-photo measurement for Dehaze, Texture,
 Clarity and Shadows, so the stitched result matches a single-pass render exactly. Healing and clone
-strokes cannot be tiled, so renders with them go to the CPU when they do not fit. The next render
-uses the GPU again. Only a lost GPU device takes the GPU out of use until the server rebuilds it.
+strokes cannot be tiled, so renders with them go to the CPU, within its
+[memory budget](#cpu-memory), when they do not fit. The next render uses the GPU again. Only a lost
+GPU device takes the GPU out of use until the server rebuilds it.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See
 [GPU passthrough](gpu-passthrough.md).
@@ -73,8 +74,8 @@ photo, changing a source setting, and exporting.
 ### GPU memory
 
 Server renders share one GPU memory budget, 90% of the memory the GPU reports. A GPU that shares
-system memory, such as Apple silicon or an integrated GPU, is also capped at the server's RAM, or
-its container limit, minus `RAW_FRAME_CACHE_MB` and `QUALITY_FRAME_CACHE_MB`. Set
+system memory, such as Apple silicon or an integrated GPU, is also capped at the
+[host budget](#cpu-memory), and its renders count against that budget in full. Set
 `GPU_MEMORY_BUDGET_MB` to override it, for example when other programs use the same GPU. A GPU that
 reports no memory size has no budget unless you set one.
 
@@ -83,6 +84,14 @@ whole budget renders in tiles, or on the CPU when no tile size fits. If the GPU 
 anyway, the server lowers the budget until it restarts and retries the render in tiles.
 
 **Settings** > **Diagnostics** shows the GPU memory, the budgets and the texture cache size.
+
+### CPU memory
+
+CPU renders, and the system memory that GPU renders use for uploads, readback and encoding, share
+one host budget: the server's RAM, or its container limit, minus `RAW_FRAME_CACHE_MB` and
+`QUALITY_FRAME_CACHE_MB`. A render waits until it fits, and the server frees cached render stages
+first. The CPU renderer cannot tile, so a render or decoded photo larger than the whole budget
+fails with `This photo is too large for the server's memory`.
 
 ## The browser
 

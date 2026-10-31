@@ -54,24 +54,101 @@ pub(super) fn sniff_format(data: &[u8]) -> Option<InputFormat> {
     None
 }
 
+enum Pixels {
+    Rgb8(Vec<u8>),
+    Rgb16(Vec<u16>),
+}
+
+pub(super) struct Bitmap {
+    pixels: Pixels,
+    width: usize,
+    height: usize,
+    oriented: bool,
+}
+
+impl Bitmap {
+    pub(super) fn rgb8(rgb: Vec<u8>, width: usize, height: usize) -> Self {
+        Self {
+            pixels: Pixels::Rgb8(rgb),
+            width,
+            height,
+            oriented: false,
+        }
+    }
+
+    fn rgb16(rgb: Vec<u16>, width: usize, height: usize) -> Self {
+        Self {
+            pixels: Pixels::Rgb16(rgb),
+            width,
+            height,
+            oriented: false,
+        }
+    }
+
+    fn oriented(self) -> Self {
+        Self {
+            oriented: true,
+            ..self
+        }
+    }
+
+    fn frame_bytes(&self) -> u64 {
+        (self.width * self.height * 3 * size_of::<f32>()) as u64
+    }
+
+    pub(super) fn into_frame(self, exif: Option<little_exif::metadata::Metadata>) -> RawFrame {
+        let (data, bps) = match self.pixels {
+            Pixels::Rgb8(rgb) => (linear_from_rgb8(&rgb), 8),
+            Pixels::Rgb16(rgb) => (linear_from_rgb16(&rgb), 16),
+        };
+        let orientation = exif
+            .as_ref()
+            .filter(|_| !self.oriented)
+            .and_then(crate::metadata::exif::orientation)
+            .unwrap_or((false, false, false));
+        RawFrame {
+            meta: FrameMeta {
+                width: self.width,
+                height: self.height,
+                wb_coeffs: [1.0, 1.0, 1.0, 1.0],
+                xyz_to_cam: identity_xyz_to_cam(),
+                color_matrices: Vec::new(),
+                orientation,
+                is_raw: false,
+                capture_sigma: None,
+                model: String::new(),
+            },
+            cfa_pattern: String::new(),
+            bps,
+            data,
+            cpp: 3,
+            exif,
+            embedded_lens: Default::default(),
+            id: FrameId::fresh(),
+        }
+    }
+}
+
 pub(super) fn decode_image(
     data: &[u8],
     exif: Option<little_exif::metadata::Metadata>,
+    budget: Option<u64>,
 ) -> crate::PipelineResult<RawFrame> {
-    match sniff_format(data) {
-        Some(InputFormat::Jpeg) => decode_jpeg(data, exif),
-        Some(InputFormat::Png) => decode_png(data, exif),
-        Some(InputFormat::Tiff) => decode_tiff(data, exif),
-        Some(InputFormat::Webp) => decode_webp(data, exif),
-        Some(InputFormat::Heif) => decode_heif(data, exif),
-        Some(InputFormat::Jxl) => decode_jxl(data, exif),
-        Some(InputFormat::Gif) => decode_via_image_crate(data, exif),
-        Some(InputFormat::Bmp) => decode_via_image_crate(data, exif),
+    let bitmap = match sniff_format(data) {
+        Some(InputFormat::Jpeg) => decode_jpeg(data),
+        Some(InputFormat::Png) => decode_png(data),
+        Some(InputFormat::Tiff) => decode_tiff(data),
+        Some(InputFormat::Webp) => decode_webp(data),
+        Some(InputFormat::Heif) => decode_heif(data),
+        Some(InputFormat::Jxl) => decode_jxl(data),
+        Some(InputFormat::Gif | InputFormat::Bmp) => decode_via_image_crate(data),
         None => Err(PipelineError::Unsupported(format!(
             "unknown image format ({})",
             format_hint(data)
         ))),
-    }
+    }?;
+    super::admit_frame(bitmap.frame_bytes(), budget)?;
+    Ok(bitmap.into_frame(exif))
 }
 
 #[inline(always)]
@@ -87,77 +164,17 @@ fn dither_tpdf(i: u32) -> f32 {
     low - high
 }
 
-pub(super) fn frame_from_rgb8(
-    rgb: Vec<u8>,
-    width: usize,
-    height: usize,
-    exif: Option<little_exif::metadata::Metadata>,
-) -> RawFrame {
-    let linear: Vec<f32> = rgb
-        .par_iter()
+fn linear_from_rgb8(rgb: &[u8]) -> Vec<f32> {
+    rgb.par_iter()
         .enumerate()
         .map(|(i, &v)| srgb_to_linear(((v as f32 + dither_tpdf(i as u32)) / 255.0).clamp(0.0, 1.0)))
-        .collect();
-    let orientation = exif
-        .as_ref()
-        .and_then(crate::metadata::exif::orientation)
-        .unwrap_or((false, false, false));
-    RawFrame {
-        meta: FrameMeta {
-            width,
-            height,
-            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            xyz_to_cam: identity_xyz_to_cam(),
-            color_matrices: Vec::new(),
-            orientation,
-            is_raw: false,
-            capture_sigma: None,
-            model: String::new(),
-        },
-        cfa_pattern: String::new(),
-        bps: 8,
-        data: linear,
-        cpp: 3,
-        exif,
-        embedded_lens: Default::default(),
-        id: FrameId::fresh(),
-    }
+        .collect()
 }
 
-fn frame_from_rgb16(
-    rgb: Vec<u16>,
-    width: usize,
-    height: usize,
-    exif: Option<little_exif::metadata::Metadata>,
-) -> RawFrame {
-    let linear: Vec<f32> = rgb
-        .iter()
+fn linear_from_rgb16(rgb: &[u16]) -> Vec<f32> {
+    rgb.iter()
         .map(|&v| srgb_to_linear(v as f32 / 65535.0))
-        .collect();
-    let orientation = exif
-        .as_ref()
-        .and_then(crate::metadata::exif::orientation)
-        .unwrap_or((false, false, false));
-    RawFrame {
-        meta: FrameMeta {
-            width,
-            height,
-            wb_coeffs: [1.0, 1.0, 1.0, 1.0],
-            xyz_to_cam: identity_xyz_to_cam(),
-            color_matrices: Vec::new(),
-            orientation,
-            is_raw: false,
-            capture_sigma: None,
-            model: String::new(),
-        },
-        cfa_pattern: String::new(),
-        bps: 16,
-        data: linear,
-        cpp: 3,
-        exif,
-        embedded_lens: Default::default(),
-        id: FrameId::fresh(),
-    }
+        .collect()
 }
 
 fn identity_xyz_to_cam() -> [[f32; 3]; 4] {
@@ -169,10 +186,7 @@ fn identity_xyz_to_cam() -> [[f32; 3]; 4] {
     ]
 }
 
-fn decode_jpeg(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_jpeg(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     let mut decompressor = turbojpeg::Decompressor::new()
         .map_err(|e| PipelineError::Decode(format!("jpeg init: {e}")))?;
     let header = decompressor
@@ -191,13 +205,10 @@ fn decode_jpeg(
     decompressor
         .decompress(data, image)
         .map_err(|e| PipelineError::Decode(format!("jpeg decompress: {e}")))?;
-    Ok(frame_from_rgb8(rgb_buf, width, height, exif))
+    Ok(Bitmap::rgb8(rgb_buf, width, height))
 }
 
-fn decode_png(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_png(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(data));
     decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder
@@ -214,36 +225,36 @@ fn decode_png(
     let bytes = &buf[..frame.buffer_size()];
     match (color_type, bit_depth) {
         (png::ColorType::Rgb, png::BitDepth::Eight) => {
-            Ok(frame_from_rgb8(bytes.to_vec(), width, height, exif))
+            Ok(Bitmap::rgb8(bytes.to_vec(), width, height))
         }
         (png::ColorType::Rgba, png::BitDepth::Eight) => {
             let rgb = rgba8_to_rgb8(bytes);
-            Ok(frame_from_rgb8(rgb, width, height, exif))
+            Ok(Bitmap::rgb8(rgb, width, height))
         }
         (png::ColorType::Rgb, png::BitDepth::Sixteen) => {
             let rgb = be_bytes_to_u16(bytes);
-            Ok(frame_from_rgb16(rgb, width, height, exif))
+            Ok(Bitmap::rgb16(rgb, width, height))
         }
         (png::ColorType::Rgba, png::BitDepth::Sixteen) => {
             let rgba = be_bytes_to_u16(bytes);
             let rgb = rgba16_to_rgb16(&rgba);
-            Ok(frame_from_rgb16(rgb, width, height, exif))
+            Ok(Bitmap::rgb16(rgb, width, height))
         }
         (png::ColorType::Grayscale, png::BitDepth::Eight) => {
             let rgb = gray8_to_rgb8(bytes);
-            Ok(frame_from_rgb8(rgb, width, height, exif))
+            Ok(Bitmap::rgb8(rgb, width, height))
         }
         (png::ColorType::Grayscale, png::BitDepth::Sixteen) => {
             let g = be_bytes_to_u16(bytes);
             let rgb: Vec<u16> = g.iter().flat_map(|&v| [v, v, v]).collect();
-            Ok(frame_from_rgb16(rgb, width, height, exif))
+            Ok(Bitmap::rgb16(rgb, width, height))
         }
         (png::ColorType::GrayscaleAlpha, png::BitDepth::Eight) => {
             let rgb: Vec<u8> = bytes
                 .chunks_exact(2)
                 .flat_map(|p| [p[0], p[0], p[0]])
                 .collect();
-            Ok(frame_from_rgb8(rgb, width, height, exif))
+            Ok(Bitmap::rgb8(rgb, width, height))
         }
         (png::ColorType::GrayscaleAlpha, png::BitDepth::Sixteen) => {
             let ga = be_bytes_to_u16(bytes);
@@ -251,7 +262,7 @@ fn decode_png(
                 .chunks_exact(2)
                 .flat_map(|p| [p[0], p[0], p[0]])
                 .collect();
-            Ok(frame_from_rgb16(rgb, width, height, exif))
+            Ok(Bitmap::rgb16(rgb, width, height))
         }
         (ct, bd) => Err(PipelineError::Unsupported(format!(
             "png: unsupported color {ct:?} depth {bd:?}"
@@ -259,10 +270,7 @@ fn decode_png(
     }
 }
 
-fn decode_tiff(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_tiff(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     use tiff::decoder::DecodingResult;
     let mut decoder = tiff::decoder::Decoder::new(std::io::Cursor::new(data))
         .map_err(|e| PipelineError::Decode(format!("tiff: {e}")))?;
@@ -278,24 +286,20 @@ fn decode_tiff(
         .read_image()
         .map_err(|e| PipelineError::Decode(format!("tiff read: {e}")))?;
     match (colortype, result) {
-        (tiff::ColorType::RGB(8), DecodingResult::U8(v)) => {
-            Ok(frame_from_rgb8(v, width, height, exif))
-        }
+        (tiff::ColorType::RGB(8), DecodingResult::U8(v)) => Ok(Bitmap::rgb8(v, width, height)),
         (tiff::ColorType::RGBA(8), DecodingResult::U8(v)) => {
-            Ok(frame_from_rgb8(rgba8_to_rgb8(&v), width, height, exif))
+            Ok(Bitmap::rgb8(rgba8_to_rgb8(&v), width, height))
         }
-        (tiff::ColorType::RGB(16), DecodingResult::U16(v)) => {
-            Ok(frame_from_rgb16(v, width, height, exif))
-        }
+        (tiff::ColorType::RGB(16), DecodingResult::U16(v)) => Ok(Bitmap::rgb16(v, width, height)),
         (tiff::ColorType::RGBA(16), DecodingResult::U16(v)) => {
-            Ok(frame_from_rgb16(rgba16_to_rgb16(&v), width, height, exif))
+            Ok(Bitmap::rgb16(rgba16_to_rgb16(&v), width, height))
         }
         (tiff::ColorType::Gray(8), DecodingResult::U8(v)) => {
-            Ok(frame_from_rgb8(gray8_to_rgb8(&v), width, height, exif))
+            Ok(Bitmap::rgb8(gray8_to_rgb8(&v), width, height))
         }
         (tiff::ColorType::Gray(16), DecodingResult::U16(v)) => {
             let rgb: Vec<u16> = v.iter().flat_map(|&g| [g, g, g]).collect();
-            Ok(frame_from_rgb16(rgb, width, height, exif))
+            Ok(Bitmap::rgb16(rgb, width, height))
         }
         (ct, _) => Err(PipelineError::Unsupported(format!(
             "tiff: unsupported colortype {ct:?}"
@@ -303,10 +307,7 @@ fn decode_tiff(
     }
 }
 
-fn decode_webp(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_webp(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     let decoder = webp::Decoder::new(data);
     let webp_image = decoder
         .decode()
@@ -319,13 +320,10 @@ fn decode_webp(
     } else {
         bytes
     };
-    Ok(frame_from_rgb8(rgb, width, height, exif))
+    Ok(Bitmap::rgb8(rgb, width, height))
 }
 
-fn decode_heif(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_heif(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     use libheif_rs::{ColorSpace, HeifContext, HeifErrorCode, LibHeif, RgbChroma};
     let lib_heif = LibHeif::new();
     let ctx = HeifContext::read_from_bytes(data)
@@ -359,15 +357,10 @@ fn decode_heif(
         let off = y * stride;
         rgb.extend_from_slice(&plane.data[off..off + row_bytes]);
     }
-    let mut frame = frame_from_rgb8(rgb, width, height, exif);
-    frame.meta.orientation = (false, false, false);
-    Ok(frame)
+    Ok(Bitmap::rgb8(rgb, width, height).oriented())
 }
 
-fn decode_jxl(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_jxl(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     use jpegxl_rs::decode::PixelFormat;
     let decoder = jpegxl_rs::decoder_builder()
         .pixel_format(PixelFormat {
@@ -381,21 +374,16 @@ fn decode_jxl(
         .map_err(|e| PipelineError::Decode(format!("jxl decode: {e}")))?;
     let width = meta.width as usize;
     let height = meta.height as usize;
-    let mut frame = frame_from_rgb8(pixels, width, height, exif);
-    frame.meta.orientation = (false, false, false);
-    Ok(frame)
+    Ok(Bitmap::rgb8(pixels, width, height).oriented())
 }
 
-fn decode_via_image_crate(
-    data: &[u8],
-    exif: Option<little_exif::metadata::Metadata>,
-) -> crate::PipelineResult<RawFrame> {
+fn decode_via_image_crate(data: &[u8]) -> crate::PipelineResult<Bitmap> {
     let img =
         image::load_from_memory(data).map_err(|e| PipelineError::Decode(format!("image: {e}")))?;
     let rgb = img.to_rgb8();
     let width = rgb.width() as usize;
     let height = rgb.height() as usize;
-    Ok(frame_from_rgb8(rgb.into_raw(), width, height, exif))
+    Ok(Bitmap::rgb8(rgb.into_raw(), width, height))
 }
 
 fn rgba8_to_rgb8(rgba: &[u8]) -> Vec<u8> {

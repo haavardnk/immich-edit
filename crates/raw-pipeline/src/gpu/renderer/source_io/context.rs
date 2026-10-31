@@ -124,7 +124,8 @@ impl GpuRenderer {
                 let size = texture.size();
                 let dims = (size.width, size.height);
                 let format = texture.format();
-                let mut samples = Vec::new();
+                let texels = dims.0 as usize * dims.1 as usize;
+                let mut samples = Vec::with_capacity(texels * part.channels());
                 self.read_texels(texture, Rect::full(dims), cancel, |row| {
                     extend_channels(&mut samples, row, format, part.channels())
                 })?;

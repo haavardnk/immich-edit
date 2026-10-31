@@ -1,9 +1,9 @@
-use super::{DEHAZE_MOMENTS, Levels, RGBA16, RGBA32, WorkingSet};
+use super::{DEHAZE_MOMENTS, Levels, RGBA16, RGBA32, WorkingSet, host};
 use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::gpu::readback::readback_size;
-use crate::gpu::renderer::SensorShape;
 use crate::gpu::renderer::display_tiles::{Coarse, ContextPlan, DisplayTiles};
+use crate::gpu::renderer::{SensorShape, display_depth};
 use crate::gpu::source::SourceExtent;
 use crate::source::{ContextNeeds, LinearKind};
 use crate::tile::{DisplayTile, Rect, SensorTile, TilePlan};
@@ -104,6 +104,9 @@ impl WorkingSet {
             self.context(plan);
         }
         self.bytes += partition.max(tiles).max(cores).unwrap_or(0);
+        let (out, depth) = (layout.shape.dims(), display_depth(options));
+        let stitched = host::held(out, depth) + self.upload.get();
+        self.host = host::display(out, depth, options).max(stitched);
     }
 
     pub(super) fn source_window(
@@ -155,10 +158,12 @@ impl WorkingSet {
                 cores.chain([sensor.bytes]).max().unwrap_or(0)
             }
         };
+        self.host = host::source(window.dims());
         if let Some(plan) = &layout.context {
             self.context(plan);
             let lo = plan.lo();
             self.bytes += readback_size(lo.0, lo.1, RGBA32 as u32);
+            self.host += host::context(plan);
         }
         self.bytes += work + readback_size(window.w, window.h, RGBA16 as u32);
     }

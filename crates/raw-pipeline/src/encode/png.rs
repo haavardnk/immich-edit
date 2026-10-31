@@ -1,9 +1,21 @@
 use std::borrow::Cow;
+use std::io::Write;
 
 use super::ImageRgb8;
 use crate::PipelineError;
 use crate::frame::{OutputColorSpace, PngCompression};
 use crate::metadata::exif::ExifBlock;
+
+const IDAT_BYTES: usize = 256 * 1024;
+
+struct Header<'a> {
+    width: u32,
+    height: u32,
+    depth: png::BitDepth,
+    compression: PngCompression,
+    cs: OutputColorSpace,
+    exif: Option<&'a ExifBlock>,
+}
 
 pub fn encode_png8(
     img: ImageRgb8<'_>,
@@ -11,15 +23,15 @@ pub fn encode_png8(
     cs: OutputColorSpace,
     exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
-    write(
-        img.width,
-        img.height,
-        png::BitDepth::Eight,
-        img.rgb,
+    let header = Header {
+        width: img.width,
+        height: img.height,
+        depth: png::BitDepth::Eight,
         compression,
         cs,
         exif,
-    )
+    };
+    write(header, img.rgb.len(), |out| out.write_all(img.rgb))
 }
 
 pub fn encode_png16(
@@ -30,50 +42,54 @@ pub fn encode_png16(
     cs: OutputColorSpace,
     exif: Option<&ExifBlock>,
 ) -> crate::PipelineResult<Vec<u8>> {
-    let be: Vec<u8> = rgb16.iter().flat_map(|v| v.to_be_bytes()).collect();
-    write(
+    let header = Header {
         width,
         height,
-        png::BitDepth::Sixteen,
-        &be,
+        depth: png::BitDepth::Sixteen,
         compression,
         cs,
         exif,
-    )
+    };
+    let samples = width as usize * 3;
+    write(header, size_of_val(rgb16), |out| {
+        let mut row = vec![0u8; samples * 2];
+        for line in rgb16.chunks_exact(samples) {
+            for (dst, v) in row.chunks_exact_mut(2).zip(line) {
+                dst.copy_from_slice(&v.to_be_bytes());
+            }
+            out.write_all(&row)?;
+        }
+        Ok(())
+    })
 }
 
 fn write(
-    width: u32,
-    height: u32,
-    depth: png::BitDepth,
-    data: &[u8],
-    compression: PngCompression,
-    cs: OutputColorSpace,
-    exif: Option<&ExifBlock>,
+    header: Header<'_>,
+    pixel_bytes: usize,
+    pixels: impl FnOnce(&mut dyn Write) -> std::io::Result<()>,
 ) -> crate::PipelineResult<Vec<u8>> {
-    let mut info = png::Info::with_size(width, height);
+    let failed = |e: &dyn std::fmt::Display| PipelineError::Encode(format!("png: {e}"));
+    let mut info = png::Info::with_size(header.width, header.height);
     info.color_type = png::ColorType::Rgb;
-    info.bit_depth = depth;
-    info.exif_metadata = exif.map(|e| Cow::Borrowed(e.tiff.as_slice()));
-    if cs != OutputColorSpace::SRgb {
-        info.icc_profile = Some(Cow::Borrowed(cs.icc_profile()));
+    info.bit_depth = header.depth;
+    info.exif_metadata = header.exif.map(|e| Cow::Borrowed(e.tiff.as_slice()));
+    if header.cs != OutputColorSpace::SRgb {
+        info.icc_profile = Some(Cow::Borrowed(header.cs.icc_profile()));
     }
-    let mut buf: Vec<u8> = Vec::new();
-    let mut enc = png::Encoder::with_info(&mut buf, info)
-        .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-    enc.set_compression(map_png_compression(compression));
-    if cs == OutputColorSpace::SRgb {
+    let expands = header.compression == PngCompression::Fast;
+    let mut buf = Vec::with_capacity(super::output_capacity(pixel_bytes, expands));
+    let mut enc = png::Encoder::with_info(&mut buf, info).map_err(|e| failed(&e))?;
+    enc.set_compression(map_png_compression(header.compression));
+    if header.cs == OutputColorSpace::SRgb {
         enc.set_source_srgb(png::SrgbRenderingIntent::Perceptual);
     }
-    let mut writer = enc
-        .write_header()
-        .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-    writer
-        .write_image_data(data)
-        .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
-    writer
-        .finish()
-        .map_err(|e| PipelineError::Encode(format!("png: {e}")))?;
+    let mut writer = enc.write_header().map_err(|e| failed(&e))?;
+    let mut stream = writer
+        .stream_writer_with_size(IDAT_BYTES)
+        .map_err(|e| failed(&e))?;
+    pixels(&mut stream).map_err(|e| failed(&e))?;
+    stream.finish().map_err(|e| failed(&e))?;
+    writer.finish().map_err(|e| failed(&e))?;
     Ok(buf)
 }
 

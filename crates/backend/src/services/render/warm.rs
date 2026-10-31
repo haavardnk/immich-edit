@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use crate::immich::ImmichClient;
 
+use super::RenderIdentity;
 use super::frames::FrameStore;
-use super::{RenderIdentity, decode_blocking};
 
 pub const WARM_NEIGHBOURS: usize = 2;
 const WARM_SLOTS: u64 = WARM_NEIGHBOURS as u64 + 1;
@@ -56,9 +56,7 @@ impl FrameWarmer {
             if self.has_pending() || !frames.holds_frames_like_largest(WARM_SLOTS).await {
                 return;
             }
-            let loaded = frames
-                .get_or_load(job.identity, &job.immich, source, decode_blocking)
-                .await;
+            let loaded = frames.get_or_load(job.identity, &job.immich, source).await;
             if let Err(e) = loaded {
                 tracing::debug!(%source, error = %e, "frame warm failed");
             }

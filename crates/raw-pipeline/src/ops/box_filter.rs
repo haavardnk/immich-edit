@@ -1,4 +1,3 @@
-use crate::cpu::scratch::Scratch;
 use rayon::prelude::*;
 use std::collections::VecDeque;
 
@@ -85,14 +84,14 @@ fn min_filter_rows(src: &[f32], dst: &mut [f32], w: usize, r: usize) {
         });
 }
 
-fn separable(src: &[f32], w: usize, h: usize, r: usize, rows: RowPass) -> Scratch {
+fn separable(src: &[f32], w: usize, h: usize, r: usize, rows: RowPass) -> Vec<f32> {
     let n = w * h;
-    let mut out = Scratch::zeroed(n);
+    let mut out = vec![0.0; n];
     if n == 0 {
         return out;
     }
-    let mut pass = Scratch::zeroed(n);
-    let mut flipped = Scratch::zeroed(n);
+    let mut pass = vec![0.0; n];
+    let mut flipped = vec![0.0; n];
     rows(src, &mut pass, w, r);
     transpose(&pass, &mut flipped, w, h);
     rows(&flipped, &mut pass, h, r);
@@ -100,11 +99,11 @@ fn separable(src: &[f32], w: usize, h: usize, r: usize, rows: RowPass) -> Scratc
     out
 }
 
-pub(crate) fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
+pub(crate) fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
     separable(src, w, h, r, box_mean_rows)
 }
 
-pub(crate) fn min_filter(src: &[f32], w: usize, h: usize, r: usize) -> Scratch {
+pub(crate) fn min_filter(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
     separable(src, w, h, r, min_filter_rows)
 }
 

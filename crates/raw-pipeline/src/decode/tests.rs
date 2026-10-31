@@ -1,6 +1,11 @@
-use super::bitmap::{InputFormat, frame_from_rgb8, sniff_format};
+use super::Develop;
+use super::bitmap::{Bitmap, InputFormat, sniff_format};
 use super::raw::scaled_mosaic;
+use crate::PipelineError;
+use crate::encode::{ImageRgb8, encode_png8};
+use crate::frame::{OutputColorSpace, PngCompression};
 use crate::math::srgb_to_linear;
+use raw_pipeline_testkit::fixtures::fixture_path;
 use rawler::cfa::CFA;
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
 
@@ -121,7 +126,7 @@ fn png_decodes_every_colour_type() {
             .unwrap()
             .write_image_data(pixels)
             .unwrap();
-        let frame = match super::decode_image(&bytes, None) {
+        let frame = match super::decode_image(&bytes, None, None) {
             Ok(frame) => frame,
             Err(e) => panic!("{color:?} {depth:?}: {e}"),
         };
@@ -142,8 +147,8 @@ fn png_decodes_every_colour_type() {
 #[test]
 fn rgb8_decode_dithers_deterministically() {
     let flat = vec![128u8; 64 * 64 * 3];
-    let first = frame_from_rgb8(flat.clone(), 64, 64, None);
-    let second = frame_from_rgb8(flat, 64, 64, None);
+    let first = Bitmap::rgb8(flat.clone(), 64, 64).into_frame(None);
+    let second = Bitmap::rgb8(flat, 64, 64).into_frame(None);
     if first.data != second.data {
         panic!("dither must be deterministic across decodes");
     }
@@ -188,4 +193,41 @@ fn cfa_shift_offsets_by_x_then_y() {
             );
         }
     }
+}
+
+fn admits_exactly(name: &str, data: &[u8], develop: Develop) {
+    let frame = match super::decode_within(data, develop, None) {
+        Ok(frame) => frame,
+        Err(e) => panic!("{name} {develop:?}: {e}"),
+    };
+    let frame_bytes = size_of_val(frame.data.as_slice()) as u64;
+    match super::decode_within(data, develop, Some(frame_bytes - 1)) {
+        Err(PipelineError::OverBudget(message)) if message.contains("decoding this photo") => {}
+        Err(e) => panic!("{name} {develop:?}: refused with the wrong error: {e}"),
+        Ok(_) => panic!("{name} {develop:?}: a frame over the budget was decoded"),
+    }
+    if let Err(e) = super::decode_within(data, develop, Some(frame_bytes)) {
+        panic!("{name} {develop:?}: a frame at the budget was refused: {e}");
+    }
+}
+
+#[test]
+fn a_frame_over_the_memory_budget_is_refused_before_it_is_built() {
+    for name in [
+        "Canon_EOS_5D_3-2.cr2",
+        "Fujifilm_X-T2_14bit_14bit_compressed_3-2.raf",
+    ] {
+        let bytes = std::fs::read(fixture_path(name)).unwrap();
+        for develop in [Develop::Fast, Develop::Quality] {
+            admits_exactly(name, &bytes, develop);
+        }
+    }
+    let rgb = vec![100u8; 64 * 48 * 3];
+    let image = ImageRgb8 {
+        rgb: &rgb,
+        width: 64,
+        height: 48,
+    };
+    let png = encode_png8(image, PngCompression::Fast, OutputColorSpace::SRgb, None).unwrap();
+    admits_exactly("png", &png, Develop::Fast);
 }

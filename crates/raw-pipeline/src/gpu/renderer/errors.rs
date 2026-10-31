@@ -22,7 +22,7 @@ impl GpuRenderer {
         let exhausted = out_of_memory.pop().await;
         #[cfg(feature = "native")]
         if exhausted.is_some() {
-            self.admission.lower(self.retained_bytes());
+            self.admission.lower(self.retention.device_bytes());
         }
         let Some(error) = exhausted.or(invalid) else {
             return result;

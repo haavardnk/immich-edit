@@ -1,7 +1,9 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
+
+use raw_pipeline_testkit::memory::{check, finish};
 
 use super::super::test_frame::checker_frame;
 use super::super::{GpuRenderer, GpuRendererOptions};
@@ -15,12 +17,9 @@ use crate::gpu::source::RenderSource;
 use crate::mask_raster::{MaskRaster, RasterMap};
 use crate::tile::TilePlan;
 
-const SAMPLE_EVERY: Duration = Duration::from_micros(100);
-const MIN_COVERAGE: f64 = 0.95;
-const MAX_OVERESTIMATE: f64 = 2.0;
 const DEPTH: &str = "depth";
-
-static MEASURING: Mutex<()> = Mutex::new(());
+const SAMPLE_EVERY: Duration = Duration::from_micros(100);
+const DISPLAY_TILES: TilePlan = TilePlan::DisplayTiled { edge: 2048 };
 
 #[derive(Clone, Copy)]
 enum Output {
@@ -28,48 +27,64 @@ enum Output {
     Source,
 }
 
-fn peak_render(
-    frame: &RawFrame,
-    edits: &Edits,
-    opts: &RenderOptions,
+struct Case {
+    name: &'static str,
+    edits: Edits,
+    options: RenderOptions,
     tiles: TilePlan,
     output: Output,
-) -> Option<(u64, u64)> {
-    let _measuring = MEASURING.lock().unwrap_or_else(PoisonError::into_inner);
-    let renderer = GpuRenderer::with_options(GpuRendererOptions {
-        texture_cache_max_bytes: Some(u64::MAX / 2),
-        memory_budget_bytes: Some(u64::MAX),
-        tiles: Some(tiles),
-        ..GpuRendererOptions::default()
-    })
-    .ok()?;
-    let device = renderer.ctx.device.clone();
-    let base = allocated_bytes(&device)?;
-    let peak = Arc::new(AtomicU64::new(base));
-    let done = Arc::new(AtomicBool::new(false));
-    let sampler = {
-        let (peak, done, device) = (peak.clone(), done.clone(), device.clone());
-        thread::spawn(move || {
+}
+
+fn sampled_peak(sample: impl Fn() -> u64 + Sync, work: impl FnOnce()) -> u64 {
+    let base = sample();
+    let peak = AtomicU64::new(base);
+    let done = AtomicBool::new(false);
+    thread::scope(|scope| {
+        scope.spawn(|| {
             while !done.load(Ordering::Relaxed) {
-                peak.fetch_max(allocated_bytes(&device).unwrap_or(0), Ordering::Relaxed);
+                peak.fetch_max(sample(), Ordering::Relaxed);
                 thread::sleep(SAMPLE_EVERY);
             }
-        })
+        });
+        work();
+        done.store(true, Ordering::Relaxed);
+    });
+    peak.load(Ordering::SeqCst).saturating_sub(base)
+}
+
+fn measure(frame: &RawFrame, case: &Case, failures: &mut Vec<String>) {
+    let Ok(renderer) = GpuRenderer::with_options(GpuRendererOptions {
+        texture_cache_max_bytes: Some(u64::MAX / 2),
+        memory_budget_bytes: Some(u64::MAX),
+        tiles: Some(case.tiles),
+        ..GpuRendererOptions::default()
+    }) else {
+        return;
     };
-    let rendered = match output {
-        Output::Image => renderer.render(frame, edits, opts).map(drop),
-        Output::Source => renderer.render_source(frame, edits, opts, None).map(drop),
-    };
-    done.store(true, Ordering::Relaxed);
-    sampler.join().expect("sampler thread");
-    if let Err(e) = rendered {
-        panic!("the measured render failed: {e}");
+    let device = renderer.ctx.device.clone();
+    if allocated_bytes(&device).is_none() {
+        return;
     }
-    let estimate = match output {
-        Output::Image => renderer.estimate_render(RenderSource::Raw(frame), edits, opts, tiles),
-        Output::Source => renderer.estimate_source(frame, edits, opts, tiles),
+    let (edits, opts) = (&case.edits, &case.options);
+    let measured = sampled_peak(
+        || allocated_bytes(&device).unwrap_or(0),
+        || {
+            let rendered = match case.output {
+                Output::Image => renderer.render(frame, edits, opts).map(drop),
+                Output::Source => renderer.render_source(frame, edits, opts, None).map(drop),
+            };
+            if let Err(e) = rendered {
+                failures.push(format!("{}: the measured render failed: {e}", case.name));
+            }
+        },
+    );
+    let estimate = match case.output {
+        Output::Image => {
+            renderer.estimate_render(RenderSource::Raw(frame), edits, opts, case.tiles)
+        }
+        Output::Source => renderer.estimate_source(frame, edits, opts, case.tiles),
     };
-    Some((peak.load(Ordering::Relaxed) - base, estimate))
+    check(case.name, measured, estimate.device, failures);
 }
 
 fn full_edits() -> Edits {
@@ -177,80 +192,66 @@ fn tile_source() -> RenderOptions {
     }
 }
 
-fn check(name: &str, frame: &RawFrame, edits: &Edits, opts: &RenderOptions, tiles: TilePlan) {
-    measure(name, frame, edits, opts, tiles, Output::Image);
-}
-
-fn measure(
-    name: &str,
-    frame: &RawFrame,
-    edits: &Edits,
-    opts: &RenderOptions,
-    tiles: TilePlan,
-    output: Output,
-) {
-    let Some((measured, estimate)) = peak_render(frame, edits, opts, tiles, output) else {
-        return;
-    };
-    let ratio = estimate as f64 / measured as f64;
-    eprintln!(
-        "{name}: measured {} MiB, estimate {} MiB, ratio {ratio:.3}",
-        measured >> 20,
-        estimate >> 20
-    );
-    if !(MIN_COVERAGE..=MAX_OVERESTIMATE).contains(&ratio) {
-        panic!("{name}: estimate {estimate} against a measured peak of {measured} is {ratio:.3}x");
+fn without_retouch() -> Edits {
+    Edits {
+        retouch: Vec::new(),
+        ..full_edits()
     }
 }
 
-#[test]
-fn the_estimate_covers_the_measured_peak_of_a_24_mp_export() {
-    check(
-        "24 MP export",
-        &sharp_mosaic(6000, 4000),
-        &full_edits(),
-        &export_16(),
-        TilePlan::SinglePass,
-    );
-}
-
-#[test]
-fn the_estimate_covers_the_measured_peak_of_display_tiles_with_a_context() {
-    let mut edits = full_edits();
-    edits.retouch.clear();
-    check(
-        "24 MP display tiles",
-        &sharp_mosaic(6000, 4000),
-        &edits,
-        &export_16(),
-        TilePlan::DisplayTiled { edge: 2048 },
-    );
-}
-
-#[test]
-fn the_estimate_covers_the_measured_peak_of_a_tile_source() {
-    let mut edits = full_edits();
-    edits.retouch.clear();
-    for tiles in [TilePlan::SinglePass, TilePlan::DisplayTiled { edge: 2048 }] {
-        measure(
-            &format!("24 MP tile source {tiles:?}"),
-            &sharp_mosaic(6000, 4000),
-            &edits,
-            &tile_source(),
-            tiles,
-            Output::Source,
-        );
+fn case(name: &'static str, edits: Edits, options: RenderOptions, tiles: TilePlan) -> Case {
+    Case {
+        name,
+        edits,
+        options,
+        tiles,
+        output: Output::Image,
     }
+}
+
+fn source(name: &'static str, tiles: TilePlan) -> Case {
+    Case {
+        output: Output::Source,
+        ..case(name, without_retouch(), tile_source(), tiles)
+    }
+}
+
+fn require_covered(frame: &RawFrame, cases: &[Case]) {
+    let mut failures = Vec::new();
+    for case in cases {
+        measure(frame, case, &mut failures);
+    }
+    finish(failures);
+}
+
+#[test]
+fn the_estimate_covers_the_measured_peak_of_24_mp_renders() {
+    require_covered(
+        &sharp_mosaic(6000, 4000),
+        &[
+            case("export", full_edits(), export_16(), TilePlan::SinglePass),
+            case(
+                "display tiles",
+                without_retouch(),
+                export_16(),
+                DISPLAY_TILES,
+            ),
+            source("tile source", TilePlan::SinglePass),
+            source("display-tiled tile source", DISPLAY_TILES),
+        ],
+    );
 }
 
 #[test]
 #[ignore = "allocates about 28 GiB of gpu memory"]
 fn the_estimate_covers_the_measured_peak_of_a_100_mp_export() {
-    check(
-        "100 MP export",
+    require_covered(
         &sharp_mosaic(11648, 8736),
-        &full_edits(),
-        &export_16(),
-        TilePlan::SinglePass,
+        &[case(
+            "100 MP export",
+            full_edits(),
+            export_16(),
+            TilePlan::SinglePass,
+        )],
     );
 }

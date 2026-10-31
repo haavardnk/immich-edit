@@ -6,6 +6,7 @@ mod jxl;
 mod png;
 mod tiff;
 mod webp;
+mod working_set;
 
 use crate::frame::{BitDepth, OutputColorSpace, OutputFormat};
 use crate::metadata::ExportMetadata;
@@ -17,6 +18,19 @@ pub use self::jxl::{encode_jxl8, encode_jxl16};
 pub use self::png::{encode_png8, encode_png16};
 pub use self::tiff::{encode_tiff8, encode_tiff16};
 pub use self::webp::encode_webp_rgb;
+pub use self::working_set::working_bytes;
+pub(crate) use self::working_set::{EncodeInput, RGB8, RGB16, RGBA8, encode_bytes, pixel_bytes};
+
+const OUTPUT_HEADROOM: usize = 1 << 20;
+
+fn output_capacity(pixel_bytes: usize, expands: bool) -> usize {
+    let encoded = if expands {
+        pixel_bytes + pixel_bytes / 2
+    } else {
+        pixel_bytes + pixel_bytes / 64
+    };
+    encoded + OUTPUT_HEADROOM
+}
 
 pub struct ImageRgb8<'a> {
     pub rgb: &'a [u8],

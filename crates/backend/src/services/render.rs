@@ -1,14 +1,14 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use bytes::Bytes;
 use raw_pipeline::CancelToken;
+use raw_pipeline::decode::Develop;
 use raw_pipeline::edits::{Edits, LensEdits};
 use raw_pipeline::frame::{RawFrame, RenderOptions};
 use raw_pipeline::gpu::memory::GpuMemory;
 use raw_pipeline::source::SourceCoding;
 use raw_pipeline::timing::StageTiming;
-use raw_pipeline::{GpuRendererOptions, PipelineError, RenderedImage};
+use raw_pipeline::{GpuRendererOptions, HostMemory, PipelineError, RenderedImage};
 use uuid::Uuid;
 
 use crate::config::RendererMode;
@@ -29,7 +29,7 @@ pub use device::RendererKind;
 pub use warm::WARM_NEIGHBOURS;
 
 use device::RenderDevice;
-use frames::FrameStore;
+use frames::{FrameDecoder, FrameStore};
 use inputs::RenderInputs;
 use lens::LensProfiles;
 use warm::{FrameWarmer, WarmJob};
@@ -45,15 +45,19 @@ pub struct RenderCacheOptions {
 }
 
 impl RenderCacheOptions {
-    fn gpu(&self, timestamps: bool) -> GpuRendererOptions {
+    fn host_budget(&self) -> Option<u64> {
         let frame_caches =
             (self.raw_frame_cache_mb + self.quality_frame_cache_mb).saturating_mul(MB);
+        host_info()
+            .memory_bytes()
+            .map(|bytes| bytes.saturating_sub(frame_caches))
+    }
+
+    fn gpu(&self, timestamps: bool) -> GpuRendererOptions {
         GpuRendererOptions {
             texture_cache_max_bytes: self.gpu_texture_cache_mb.map(|mb| mb.saturating_mul(MB)),
             memory_budget_bytes: self.gpu_memory_budget_mb.map(|mb| mb.saturating_mul(MB)),
-            host_budget_bytes: host_info()
-                .memory_bytes()
-                .map(|bytes| bytes.saturating_sub(frame_caches)),
+            host: HostMemory::new(self.host_budget()),
             timestamps,
             ..GpuRendererOptions::default()
         }
@@ -141,13 +145,16 @@ impl RenderService {
         denoise: DenoiseInputs,
     ) -> Self {
         let telemetry = RenderTelemetry::new();
+        let budget = cache.host_budget();
         Self {
             frames: FrameStore::new(
                 cache.raw_frame_cache_mb.saturating_mul(MB),
+                FrameDecoder::new(Develop::Fast, budget),
                 telemetry.clone(),
             ),
             quality_frames: FrameStore::new(
                 cache.quality_frame_cache_mb.saturating_mul(MB),
+                FrameDecoder::new(Develop::Quality, budget),
                 telemetry.clone(),
             ),
             warmer: FrameWarmer::default(),
@@ -207,9 +214,7 @@ impl RenderService {
         immich: &ImmichClient,
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
-        self.frames
-            .get_or_load(identity, immich, source, decode_blocking)
-            .await
+        self.frames.get_or_load(identity, immich, source).await
     }
 
     pub async fn dcp_profile(
@@ -245,7 +250,7 @@ impl RenderService {
         source: Uuid,
     ) -> Result<Arc<RawFrame>, RenderError> {
         self.quality_frames
-            .get_or_load(identity, immich, source, decode_quality_blocking)
+            .get_or_load(identity, immich, source)
             .await
     }
 
@@ -383,18 +388,4 @@ pub struct SourceRequest {
 pub struct EncodedSource {
     pub bytes: Vec<u8>,
     pub dcp_id: Option<String>,
-}
-
-async fn decode_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
-    let frame = tokio::task::spawn_blocking(move || raw_pipeline::decode::decode(&bytes))
-        .await
-        .map_err(|e| PipelineError::Decode(format!("join: {e}")))?;
-    Ok(Arc::new(frame?))
-}
-
-async fn decode_quality_blocking(bytes: Bytes) -> Result<Arc<RawFrame>, PipelineError> {
-    let frame = tokio::task::spawn_blocking(move || raw_pipeline::decode::decode_quality(&bytes))
-        .await
-        .map_err(|e| PipelineError::Decode(format!("join: {e}")))?;
-    Ok(Arc::new(frame?))
 }

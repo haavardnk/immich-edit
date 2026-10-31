@@ -126,8 +126,10 @@ which **Fastest** adds to the download and decode time it measures to time the s
 ## Render services and caches
 
 `RenderService` owns one long-lived CPU renderer and an optional GPU renderer. Both cache
-source-dependent stages. The service also caches decoded preview and quality frames within byte
-budgets.
+source-dependent stages and admit renders against one shared host memory budget, evicting idle
+cached stages of either renderer first; the GPU renderer also admits against its GPU memory budget.
+The service also caches decoded preview and quality frames within byte budgets and refuses to
+decode a frame larger than the host budget.
 
 Other caches include edited thumbnails, click-model embeddings, AI Denoise results, preview
 metadata, reusable GPU textures, and generated mask rasters. Diagnostics reports current use and

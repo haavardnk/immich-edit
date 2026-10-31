@@ -7,7 +7,6 @@ use std::hash::{Hash, Hasher};
 use super::LinearImage;
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::cpu::scratch::Scratch;
 use crate::edits::Edits;
 use crate::frame::RawFrame;
 use crate::math::{luma, smoothstep};
@@ -141,8 +140,8 @@ pub fn context_sigma(ctx: &OpContext, edits: &Edits) -> Option<CaptureSigma> {
     ctx.render.capture_sigma?.active()
 }
 
-fn build_blend(image: &LinearImage, luma: &[f32], light: &[f32], w: usize, h: usize) -> Scratch {
-    let mut blend = Scratch::zeroed(w * h);
+fn build_blend(image: &LinearImage, luma: &[f32], light: &[f32], w: usize, h: usize) -> Vec<f32> {
+    let mut blend = vec![0.0; w * h];
     blend.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
         let up = y.saturating_sub(1) * w;
         let down = (y + 1).min(h - 1) * w;
@@ -171,7 +170,7 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: CaptureSigma) {
         return;
     }
     let n = w * h;
-    let mut lum = Scratch::zeroed(n);
+    let mut lum = vec![0.0; n];
     lum.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(lrow, prow)| {
@@ -179,7 +178,7 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: CaptureSigma) {
                 lrow[x] = luma(prow[x * 3], prow[x * 3 + 1], prow[x * 3 + 2]).max(0.0);
             }
         });
-    let mut conv = Scratch::zeroed(n);
+    let mut conv = vec![0.0; n];
     conv.par_iter_mut()
         .zip(lum.par_iter())
         .for_each(|(c, l)| *c = l.cbrt());
@@ -188,9 +187,9 @@ pub fn apply_capture_sharpen(image: &mut LinearImage, sigma: CaptureSigma) {
         return;
     }
     let psf = Psf::new(sigma, w, h);
-    let mut est = Scratch::zeroed(n);
+    let mut est = vec![0.0; n];
     est.copy_from_slice(&lum);
-    let mut corr = Scratch::zeroed(n);
+    let mut corr = vec![0.0; n];
     for _ in 0..ITERATIONS {
         convolve_with(&est, &mut conv, w, h, &psf, |y, acc, row| {
             for ((c, a), l) in row.iter_mut().zip(acc).zip(&lum[y * w..y * w + w]) {

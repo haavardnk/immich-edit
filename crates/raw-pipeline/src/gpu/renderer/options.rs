@@ -1,3 +1,5 @@
+#[cfg(feature = "native")]
+use crate::admission::HostMemory;
 use crate::gpu::context::RESOURCE_CREATION_BUDGET_PERCENT;
 use crate::gpu::memory::DeviceMemory;
 #[cfg(feature = "native")]
@@ -9,24 +11,35 @@ const MIN_TEXTURE_CACHE_BYTES: u64 = 256 * MB;
 const MAX_TEXTURE_CACHE_BYTES: u64 = 4096 * MB;
 const TEXTURE_CACHE_SHARE: u64 = 8;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct GpuRendererOptions {
     pub texture_cache_max_bytes: Option<u64>,
     pub memory_budget_bytes: Option<u64>,
-    pub host_budget_bytes: Option<u64>,
+    #[cfg(feature = "native")]
+    pub host: HostMemory,
     #[cfg(feature = "native")]
     pub tiles: Option<TilePlan>,
     pub timestamps: bool,
 }
 
 impl GpuRendererOptions {
+    #[cfg(feature = "native")]
+    pub(super) fn host_budget(&self) -> Option<u64> {
+        self.host.budget()
+    }
+
+    #[cfg(not(feature = "native"))]
+    pub(super) fn host_budget(&self) -> Option<u64> {
+        None
+    }
+
     pub(super) fn memory_budget(&self, device: Option<DeviceMemory>) -> Option<u64> {
         if self.memory_budget_bytes.is_some() {
             return self.memory_budget_bytes;
         }
         let device = device?;
         let usable = device.bytes * u64::from(RESOURCE_CREATION_BUDGET_PERCENT) / 100;
-        Some(match self.host_budget_bytes {
+        Some(match self.host_budget() {
             Some(host) if device.unified => usable.min(host),
             _ => usable,
         })
@@ -52,9 +65,9 @@ mod tests {
         Some(DeviceMemory { bytes, unified })
     }
 
-    fn host(host_budget_bytes: u64) -> GpuRendererOptions {
+    fn host(budget: u64) -> GpuRendererOptions {
         GpuRendererOptions {
-            host_budget_bytes: Some(host_budget_bytes),
+            host: HostMemory::new(Some(budget)),
             ..GpuRendererOptions::default()
         }
     }

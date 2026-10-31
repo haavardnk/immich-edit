@@ -1,4 +1,3 @@
-use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::box_filter::{box_mean, min_filter};
@@ -7,8 +6,8 @@ use rayon::prelude::*;
 
 const HAZE_EXTINCTION: f32 = 3.0;
 
-fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Scratch {
-    let mut out = Scratch::zeroed(w * h);
+fn dark_channel_per_pixel(rgb: &[f32], w: usize, h: usize) -> Vec<f32> {
+    let mut out = vec![0.0; w * h];
     out.par_iter_mut().enumerate().for_each(|(i, v)| {
         let r = rgb[i * 3].clamp(0.0, 1.0);
         let g = rgb[i * 3 + 1].clamp(0.0, 1.0);
@@ -149,15 +148,15 @@ fn guided_coeffs(
     h: usize,
     r: usize,
     eps: f32,
-) -> (Scratch, Scratch) {
+) -> (Vec<f32>, Vec<f32>) {
     let n = w * h;
     let mean_i = box_mean(guide, w, h, r);
     let mean_p = box_mean(p, w, h, r);
-    let mut ii = Scratch::zeroed(n);
+    let mut ii = vec![0.0; n];
     ii.par_iter_mut()
         .zip(guide.par_iter())
         .for_each(|(d, x)| *d = x * x);
-    let mut ip = Scratch::zeroed(n);
+    let mut ip = vec![0.0; n];
     ip.par_iter_mut()
         .zip(guide.par_iter().zip(p.par_iter()))
         .for_each(|(d, (a, b))| *d = a * b);
@@ -165,7 +164,7 @@ fn guided_coeffs(
     drop(ii);
     let corr_ip = box_mean(&ip, w, h, r);
     drop(ip);
-    let mut a_coef = Scratch::zeroed(n);
+    let mut a_coef = vec![0.0; n];
     a_coef
         .par_iter_mut()
         .zip(
@@ -181,7 +180,7 @@ fn guided_coeffs(
         });
     drop(corr_i);
     drop(corr_ip);
-    let mut b_coef = Scratch::zeroed(n);
+    let mut b_coef = vec![0.0; n];
     b_coef
         .par_iter_mut()
         .zip(
@@ -246,7 +245,7 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
         bilinear_downsample(&image.rgb, w, h, scale)
     };
     let n = lw * lh;
-    let mut dn = Scratch::zeroed(n);
+    let mut dn = vec![0.0; n];
     dn.par_iter_mut().enumerate().for_each(|(i, v)| {
         let r = (lo[i * 3] / atm[0]).clamp(0.0, 1.0);
         let g = (lo[i * 3 + 1] / atm[1]).clamp(0.0, 1.0);
@@ -255,13 +254,13 @@ pub fn apply_dehaze(image: &mut LinearImage, amount: f32) {
     });
     let dn_patch = min_filter(&dn, lw, lh, r_patch);
     drop(dn);
-    let mut t_raw = Scratch::zeroed(n);
+    let mut t_raw = vec![0.0; n];
     t_raw
         .par_iter_mut()
         .zip(dn_patch.par_iter())
         .for_each(|(d, s)| *d = (1.0 - 0.95 * s).clamp(0.0, 1.0));
     drop(dn_patch);
-    let mut guide = Scratch::zeroed(n);
+    let mut guide = vec![0.0; n];
     guide.par_iter_mut().enumerate().for_each(|(i, v)| {
         *v = luma(
             lo[i * 3].clamp(0.0, 1.0),

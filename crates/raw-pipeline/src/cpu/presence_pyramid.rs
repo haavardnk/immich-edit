@@ -1,4 +1,3 @@
-use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use crate::ops::blur::{gaussian_blur, gaussian_kernel};
@@ -7,17 +6,17 @@ use rayon::prelude::*;
 
 #[derive(Debug)]
 pub struct LumaPyramid {
-    pub levels: Vec<Scratch>,
+    pub levels: Vec<Vec<f32>>,
     pub dims: Vec<(usize, usize)>,
 }
 
 impl LumaPyramid {
     pub fn build(image: &LinearImage, num_levels: usize) -> Self {
         let n = num_levels.max(1);
-        let mut levels: Vec<Scratch> = Vec::with_capacity(n);
+        let mut levels: Vec<Vec<f32>> = Vec::with_capacity(n);
         let mut dims: Vec<(usize, usize)> = Vec::with_capacity(n);
         let n0 = image.width * image.height;
-        let mut l0 = Scratch::zeroed(n0);
+        let mut l0 = vec![0.0; n0];
         l0.par_iter_mut()
             .zip(image.rgb.par_chunks_exact(3))
             .for_each(|(slot, p)| {
@@ -30,7 +29,7 @@ impl LumaPyramid {
             let (pw, ph) = dims[last_idx];
             let nw = (pw / 2).max(1);
             let nh = (ph / 2).max(1);
-            let mut next = Scratch::zeroed(nw * nh);
+            let mut next = vec![0.0; nw * nh];
             {
                 let prev = &levels[last_idx];
                 let interior_w = if pw >= 2 { nw.min(pw / 2) } else { 0 };
@@ -80,12 +79,12 @@ impl LumaPyramid {
         let level = (blur.level as usize).min(self.levels.len() - 1);
         let (w, h) = self.dims[level];
         let kernel = gaussian_kernel(blur.sigma);
-        let mut logs = Scratch::zeroed(w * h);
+        let mut logs = vec![0.0; w * h];
         logs.par_iter_mut()
             .zip(self.levels[level].par_iter())
             .for_each(|(g, &l)| *g = l.max(1e-5).log2());
         let smooth = gaussian_blur::<1>(&logs, w, h, &gaussian_kernel(blur.prefilter));
-        let mut moments = Scratch::zeroed(w * h * 2);
+        let mut moments = vec![0.0; w * h * 2];
         moments
             .par_chunks_exact_mut(2)
             .zip(smooth.par_iter())
@@ -111,7 +110,7 @@ impl LumaPyramid {
 
 #[derive(Debug)]
 pub struct LevelBase<const C: usize> {
-    buf: Scratch,
+    buf: Vec<f32>,
     w: usize,
     h: usize,
     level: usize,
@@ -153,7 +152,7 @@ impl<const C: usize> LevelBase<C> {
         let mip = &self.buf;
         let mw_i = mw as i32;
         let mh_i = mh as i32;
-        let mut out = Scratch::zeroed(w * h * C);
+        let mut out = vec![0.0; w * h * C];
         out.par_chunks_exact_mut(w * C)
             .enumerate()
             .for_each(|(y, row)| {
@@ -181,6 +180,6 @@ impl<const C: usize> LevelBase<C> {
                     }
                 }
             });
-        out.into_vec()
+        out
     }
 }

@@ -52,7 +52,8 @@ fn write<C: ColorType>(
 where
     [C::Inner]: TiffValue,
 {
-    let mut buf: Vec<u8> = Vec::new();
+    let expands = compression == TiffCompression::Lzw;
+    let mut buf = Vec::with_capacity(super::output_capacity(size_of_val(data), expands));
     let mut enc = TiffEncoder::new(Cursor::new(&mut buf))
         .map_err(tiff_err)?
         .with_compression(match compression {

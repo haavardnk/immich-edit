@@ -1,4 +1,3 @@
-use crate::cpu::scratch::Scratch;
 use rayon::prelude::*;
 
 pub(crate) fn gaussian_kernel(sigma: f32) -> Vec<f32> {
@@ -51,9 +50,9 @@ pub(crate) fn gaussian_blur<const C: usize>(
     w: usize,
     h: usize,
     kernel: &[f32],
-) -> Scratch {
+) -> Vec<f32> {
     let radius = kernel.len() / 2;
-    let mut tmp = Scratch::zeroed(src.len());
+    let mut tmp = vec![0.0; src.len()];
     tmp.par_chunks_mut(w * C)
         .zip(src.par_chunks(w * C))
         .for_each(|(dst_row, src_row)| {
@@ -70,7 +69,7 @@ pub(crate) fn gaussian_blur<const C: usize>(
                 dst_row[x * C..x * C + C].copy_from_slice(&acc);
             }
         });
-    let mut out = Scratch::zeroed(src.len());
+    let mut out = vec![0.0; src.len()];
     out.par_chunks_mut(w * C)
         .enumerate()
         .for_each(|(y, dst_row)| {

@@ -4,11 +4,17 @@ use super::LinearImage;
 use super::{GpuOp, Op, OpContext, Stage};
 use crate::PipelineResult;
 use crate::cpu::transform;
-use crate::edits::{AspectLock, CropRect, Edits};
+use crate::edits::{AspectLock, CropRect, Edits, GeometryEdits};
 use crate::geom;
 use crate::geom::perspective::PerspectiveEdits;
 
 pub struct TransformOp;
+
+pub(crate) fn resamples(g: &GeometryEdits) -> bool {
+    let crop_active = g.crop.is_some_and(|c| !c.is_full());
+    let angle_active = g.rotate_angle.abs() > 1e-4;
+    crop_active || angle_active || g.perspective_inverse() != crate::geom::perspective::IDENTITY
+}
 
 fn catmull_rom_weights(f: f32) -> [f32; 4] {
     let f2 = f * f;
@@ -141,13 +147,10 @@ impl Op for TransformOp {
             transform::flip_vertical(&mut image.rgb, image.width, image.height);
         }
 
-        let crop_active = g.crop.map(|c| !c.is_full()).unwrap_or(false);
-        let angle_active = g.rotate_angle.abs() > 1e-4;
-        let persp_inv = g.perspective_inverse();
-        let persp_active = persp_inv != crate::geom::perspective::IDENTITY;
-        if !crop_active && !angle_active && !persp_active {
+        if !resamples(g) {
             return Ok(());
         }
+        let persp_inv = g.perspective_inverse();
 
         let sw = image.width as f32;
         let sh = image.height as f32;

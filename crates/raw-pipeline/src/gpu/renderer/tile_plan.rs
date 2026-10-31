@@ -1,5 +1,5 @@
 use super::display_tiles::DisplayTiles;
-use super::{GpuRenderer, SensorShape, SourcePlan};
+use super::{GpuRenderer, SensorShape, SourcePlan, WorkingBytes};
 use crate::cancel::CancelToken;
 use crate::edits::Edits;
 use crate::frame::{PreviewMode, RawFrame, RenderOptions};
@@ -12,11 +12,11 @@ const TILE_EDGES: [u32; 4] = [4096, 2048, 1024, 512];
 #[derive(Clone, Copy)]
 struct Planned {
     tiles: TilePlan,
-    bytes: u64,
+    bytes: WorkingBytes,
 }
 
 impl Planned {
-    fn new(tiles: TilePlan, estimate: &impl Fn(TilePlan) -> u64) -> Self {
+    fn new(tiles: TilePlan, estimate: &impl Fn(TilePlan) -> WorkingBytes) -> Self {
         Self {
             tiles,
             bytes: estimate(tiles),
@@ -128,7 +128,7 @@ impl GpuRenderer {
         raw: Option<(&RawFrame, SourcePlan)>,
         edits: &Edits,
         options: &RenderOptions,
-        estimate: impl Fn(TilePlan) -> u64,
+        estimate: impl Fn(TilePlan) -> WorkingBytes,
         render: impl Fn(TilePlan) -> PipelineResult<T>,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<T> {
@@ -137,7 +137,8 @@ impl GpuRenderer {
             raw.and_then(|(frame, plan)| Tileable::new(frame, edits, options, plan, limits));
         let planned = self.plan(tileable.as_ref(), &estimate);
         let run = |planned: Planned| {
-            let _admitted = self.admit(planned.bytes, cancel)?;
+            let _device = self.admit(planned.bytes.device, cancel)?;
+            let _host = self.admit_host(planned.bytes, cancel)?;
             render(planned.tiles)
         };
         match run(planned) {
@@ -151,7 +152,11 @@ impl GpuRenderer {
         }
     }
 
-    fn plan(&self, tileable: Option<&Tileable>, estimate: &impl Fn(TilePlan) -> u64) -> Planned {
+    fn plan(
+        &self,
+        tileable: Option<&Tileable>,
+        estimate: &impl Fn(TilePlan) -> WorkingBytes,
+    ) -> Planned {
         let Some(tileable) = tileable else {
             return Planned::new(TilePlan::SinglePass, estimate);
         };
@@ -168,14 +173,20 @@ impl GpuRenderer {
         self.tiled(tileable, estimate).unwrap_or(single)
     }
 
-    fn tiled(&self, tileable: &Tileable, estimate: &impl Fn(TilePlan) -> u64) -> Option<Planned> {
+    fn tiled(
+        &self,
+        tileable: &Tileable,
+        estimate: &impl Fn(TilePlan) -> WorkingBytes,
+    ) -> Option<Planned> {
         tileable
             .candidates()
             .map(|tiles| Planned::new(tiles, estimate))
             .find(|planned| self.within_budget(planned.bytes))
     }
 
-    fn within_budget(&self, bytes: u64) -> bool {
-        self.admission.budget().is_none_or(|budget| bytes <= budget)
+    fn within_budget(&self, bytes: WorkingBytes) -> bool {
+        let fits = |budget: Option<u64>, need: u64| budget.is_none_or(|budget| need <= budget);
+        fits(self.admission.budget(), bytes.device)
+            && fits(self.host.budget(), self.host_bytes(bytes))
     }
 }

@@ -1,6 +1,8 @@
 mod ops;
 mod output;
+mod sensor_lookup;
 mod source;
+mod working_set;
 
 use crate::cancel::{self, CancelToken};
 use crate::cpu::renderer::{self, CpuRenderer};
@@ -16,6 +18,7 @@ use crate::tile::TilingReport;
 use crate::timing::{self, StageClock};
 use ops::{OpInputs, OpRange, run_pipeline_ops_inner};
 use output::{FinishOptions, finish_output, resolve_lut};
+use sensor_lookup::SensorLookup;
 use std::sync::Arc;
 
 pub use ops::{run_output_ops, run_pipeline_ops, run_sensor_ops};
@@ -38,6 +41,24 @@ pub fn render_with_cancel(
     render_cached(frame, edits, options, cancel, None)
 }
 
+pub fn estimate_render(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+) -> crate::PipelineResult<u64> {
+    let prep = prepare(frame, edits, options)?;
+    Ok(working_set::render(frame, &prep, options, None))
+}
+
+pub fn estimate_source(
+    frame: &RawFrame,
+    edits: &Edits,
+    options: &RenderOptions,
+) -> crate::PipelineResult<u64> {
+    let prep = prepare(frame, edits, options)?;
+    Ok(working_set::source(frame, &prep, options, None))
+}
+
 pub(super) struct Prepared {
     pub edits: Edits,
     pub ctx: OpContext,
@@ -52,6 +73,13 @@ pub(super) struct Prepared {
 }
 
 impl Prepared {
+    pub(super) fn preview_dims(&self, (w, h): (usize, usize)) -> Option<(u32, u32)> {
+        let block_scale = self.block.unwrap_or(1) as f32;
+        self.preview_ratio.and_then(|ratio| {
+            crate::geom::resample_target((w as u32, h as u32), ratio / block_scale)
+        })
+    }
+
     fn op_inputs<'a>(&'a self, options: &'a RenderOptions) -> OpInputs<'a> {
         OpInputs {
             ctx: &self.ctx,
@@ -125,46 +153,6 @@ pub(super) fn prepare(
     })
 }
 
-pub(super) fn cached_sensor_stage(
-    frame: &RawFrame,
-    prep: &Prepared,
-    options: &RenderOptions,
-    renderer: &CpuRenderer,
-    clock: &StageClock,
-    cancel: Option<&CancelToken>,
-) -> crate::PipelineResult<Arc<renderer::SensorStage>> {
-    let key = renderer::sensor_cache_key(
-        frame,
-        &prep.edits,
-        &prep.setup,
-        options,
-        prep.preview_ratio,
-        prep.block,
-        prep.denoise.as_ref().map(|(plane, _)| plane.as_ref()),
-    );
-    if let Some(stage) = renderer.get(key) {
-        return Ok(stage);
-    }
-    let (mut image, oriented, preview_dims) = oriented_sensor(frame, prep, clock, cancel)?;
-    run_pipeline_ops_inner(
-        &mut image,
-        prep.op_inputs(options),
-        OpRange::BelowBoundary,
-        preview_dims,
-        clock,
-        cancel,
-    )?;
-    let stage = Arc::new(renderer::SensorStage {
-        rgb: image.rgb,
-        width: image.width,
-        height: image.height,
-        oriented_w: oriented.0,
-        oriented_h: oriented.1,
-    });
-    renderer.put(key, stage.clone());
-    Ok(stage)
-}
-
 type OrientedSensor = (LinearImage, (usize, usize), Option<(u32, u32)>);
 
 fn oriented_sensor(
@@ -215,14 +203,10 @@ fn oriented_sensor(
         frame.meta.orientation,
     );
 
-    let block_scale = prep.block.unwrap_or(1) as f32;
-    let preview_dims = prep
-        .preview_ratio
-        .and_then(|ratio| crate::geom::resample_target((w as u32, h as u32), ratio / block_scale));
     Ok((
         LinearImage::new(rgb, w, h),
         oriented_frame_dims(frame),
-        preview_dims,
+        prep.preview_dims((w, h)),
     ))
 }
 
@@ -242,8 +226,15 @@ pub(crate) fn render_cached(
     renderer: Option<&CpuRenderer>,
 ) -> crate::PipelineResult<RenderedImage> {
     let prep = prepare(frame, edits, options)?;
+    let lookup = renderer
+        .filter(|_| renderer::sensor_cacheable(options))
+        .map(|renderer| SensorLookup::new(renderer, frame, &prep, options));
+    let cached = lookup.as_ref().and_then(SensorLookup::dims);
+    let _admitted = renderer
+        .map(|renderer| renderer.admit(working_set::render(frame, &prep, options, cached), cancel))
+        .transpose()?;
     let clock = StageClock::default();
-    let Some(renderer) = renderer.filter(|_| renderer::sensor_cacheable(options)) else {
+    let Some(lookup) = lookup else {
         let (mut image, oriented, preview_dims) = oriented_sensor(frame, &prep, &clock, cancel)?;
         let sharpen_delta = run_pipeline_ops_inner(
             &mut image,
@@ -260,7 +251,7 @@ pub(crate) fn render_cached(
         };
         return finish_render(frame, &prep, options, scene, clock, cancel);
     };
-    let stage = cached_sensor_stage(frame, &prep, options, renderer, &clock, cancel)?;
+    let stage = lookup.stage(&clock, cancel)?;
     let mut image = LinearImage::new(stage.rgb.clone(), stage.width, stage.height);
     let sharpen_delta = run_pipeline_ops_inner(
         &mut image,

@@ -2,7 +2,6 @@ use super::LinearImage;
 use super::blur::{discrete_gaussian_kernel, gaussian_blur};
 use super::{GpuRoute, Op, OpContext, Stage};
 use crate::PipelineResult;
-use crate::cpu::scratch::Scratch;
 use crate::edits::{DetailEdits, Edits};
 use crate::math::luma;
 use rayon::prelude::*;
@@ -96,8 +95,7 @@ fn apply_sharpen(
         return;
     }
     let strength = amount * detail_weight;
-    let mut src = Scratch::zeroed(w * h * 3);
-    src.copy_from_slice(&image.rgb);
+    let src = image.rgb.clone();
     image
         .rgb
         .par_chunks_mut(w * 3)
@@ -149,8 +147,8 @@ fn neighborhood_extrema(
     (lo, hi)
 }
 
-fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
-    let mut lum = Scratch::zeroed(w * h);
+fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Vec<f32> {
+    let mut lum = vec![0.0; w * h];
     lum.par_chunks_mut(w)
         .zip(blur.par_chunks(w * 3))
         .for_each(|(lrow, brow)| {
@@ -159,7 +157,7 @@ fn edge_mask(blur: &[f32], w: usize, h: usize, masking: f32) -> Scratch {
                 *slot = luma(brow[i], brow[i + 1], brow[i + 2]);
             }
         });
-    let mut mag = Scratch::zeroed(w * h);
+    let mut mag = vec![0.0; w * h];
     mag.par_chunks_mut(w).enumerate().for_each(|(y, mrow)| {
         let ym1 = y.saturating_sub(1);
         let yp1 = (y + 1).min(h - 1);

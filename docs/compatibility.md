@@ -87,6 +87,11 @@ The Docker image supports Linux `amd64` and `arm64`. Metal cannot pass through t
 machine used by Docker on macOS. The software rasterizer is Mesa's llvmpipe, which runs the GPU
 code on CPU cores; [rendering](rendering.md#the-server) explains when it is used.
 
+Photos and exports up to 65535 px on the long edge are supported. The GPU renderer, including the
+software rasterizer, tiles photos past its memory or texture limits. The CPU renderer needs the
+whole render in [memory](rendering.md#cpu-memory): about 4 GB for a 100 MP export, plus about
+1.2 GB per mask.
+
 ## Browser and viewport
 
 The editor requires a desktop-width viewport and has no full mobile layout. Browsers with WebGPU

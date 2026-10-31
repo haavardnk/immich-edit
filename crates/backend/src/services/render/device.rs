@@ -42,10 +42,10 @@ pub struct RenderDevice {
 
 impl RenderDevice {
     pub fn new(mode: RendererMode, options: GpuRendererOptions) -> Self {
-        let init = init_gpu(mode, options);
+        let init = init_gpu(mode, options.clone());
         Self {
             gpu: Arc::new(RwLock::new(init.renderer)),
-            cpu: Arc::new(CpuRenderer::new()),
+            cpu: Arc::new(CpuRenderer::with_host(options.host.clone())),
             mode,
             options,
             active: Arc::new(RwLock::new(init.active)),
@@ -158,7 +158,7 @@ impl RenderDevice {
         }
         *last = Some(now);
         drop(last);
-        match GpuRenderer::with_options(self.options) {
+        match GpuRenderer::with_options(self.options.clone()) {
             Ok(r) => {
                 let label = r.adapter_label();
                 tracing::info!(adapter = %label, "gpu renderer rebuilt after device loss");
@@ -269,6 +269,7 @@ fn init_gpu(mode: RendererMode, options: GpuRendererOptions) -> GpuInit {
 
 #[cfg(test)]
 mod tests {
+    use raw_pipeline::HostMemory;
     use raw_pipeline::frame::OutputFormat;
     use raw_pipeline_testkit::frames::rgb_frame;
     use raw_pipeline_testkit::retouch::untileable_edits;
@@ -300,6 +301,36 @@ mod tests {
                 rendered.renderer,
                 device.active()
             );
+        }
+    }
+
+    #[test]
+    fn both_renderers_admit_against_the_configured_host_memory() {
+        const BUDGET: u64 = 1 << 20;
+        let options = GpuRendererOptions {
+            host: HostMemory::new(Some(BUDGET)),
+            ..GpuRendererOptions::default()
+        };
+        let device = RenderDevice::new(RendererMode::Auto, options);
+        let opts = RenderOptions {
+            max_edge: 2000,
+            output: OutputFormat::Rgb8,
+            ..RenderOptions::default()
+        };
+        let frame = rgb_frame(2000, 1500, vec![0.4; 2000 * 1500 * 3]);
+        let edits = Edits::default();
+        let refused = |result: Result<RenderedImage, PipelineError>| {
+            matches!(result, Err(PipelineError::OverBudget(_)))
+        };
+        if !refused(device.cpu.render(&frame, &edits, &opts)) {
+            panic!("the cpu renderer ignored the host budget");
+        }
+        let gpu = device.gpu.read().unwrap().clone();
+        if let Some(gpu) = gpu
+            && (!refused(gpu.render(&frame, &edits, &opts))
+                || gpu.memory().host_budget_bytes != Some(BUDGET))
+        {
+            panic!("the gpu renderer ignored the host budget");
         }
     }
 
@@ -346,6 +377,11 @@ mod tests {
             ),
             (
                 failed(PipelineError::Unsupported("16385x16".into())),
+                false,
+                "failed",
+            ),
+            (
+                failed(PipelineError::OverBudget("render needs 900 MiB".into())),
                 false,
                 "failed",
             ),

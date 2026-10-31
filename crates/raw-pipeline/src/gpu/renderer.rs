@@ -28,8 +28,6 @@ use super::uniform_pool::UniformPool;
 use crate::tile::{TilePlan, TilingReport};
 
 #[cfg(feature = "native")]
-mod admission;
-#[cfg(feature = "native")]
 mod cache_keys;
 mod dcp;
 mod detail;
@@ -72,7 +70,7 @@ mod web;
 mod working_set;
 
 #[cfg(feature = "native")]
-use admission::Admission;
+use crate::admission::{Admission, HostMemory};
 pub use display::DisplayFrame;
 pub(in crate::gpu) use display::GlobalContext;
 #[cfg(feature = "native")]
@@ -80,11 +78,15 @@ use display::{DisplayRequest, OutputShape};
 pub use options::GpuRendererOptions;
 pub use pools::GpuPoolStats;
 #[cfg(feature = "native")]
+use retained::GpuRetention;
+#[cfg(feature = "native")]
 use sensor_stage::{SensorCaches, SensorFrame, SensorJob, SensorShape, SourcePlan};
 #[cfg(feature = "native")]
 use stage_cache::Stage;
 #[cfg(feature = "web")]
 pub use web::DisplayMeta;
+#[cfg(feature = "native")]
+pub use working_set::WorkingBytes;
 
 fn display_depth(opts: &RenderOptions) -> DisplayDepth {
     if opts.gamut_warn
@@ -147,7 +149,7 @@ pub struct GpuRenderer {
     ctx: Arc<GpuContext>,
     passes: Arc<GpuPasses>,
     #[cfg(feature = "native")]
-    sensor: SensorCaches,
+    sensor: Arc<SensorCaches>,
     lut_tex_cache: Mutex<lru::LruCache<u64, Arc<lut::LutTextures>>>,
     huesat_tex_cache: Mutex<lru::LruCache<u64, Arc<Texture>>>,
     atlas_cache: Mutex<lru::LruCache<String, Arc<Vec<u8>>>>,
@@ -157,12 +159,16 @@ pub struct GpuRenderer {
     atlas_uploads: std::sync::atomic::AtomicU64,
     texture_pool: Arc<TexturePool>,
     uniform_pool: Arc<UniformPool>,
-    output_pool: Mutex<Vec<OutputTargets>>,
-    sharpen_pool: Mutex<Vec<SharpenTargets>>,
+    output_pool: Arc<Mutex<Vec<OutputTargets>>>,
+    sharpen_pool: Arc<Mutex<Vec<SharpenTargets>>>,
     dummy_texture: Texture,
     memory: GpuMemory,
     #[cfg(feature = "native")]
     admission: Admission,
+    #[cfg(feature = "native")]
+    host: HostMemory,
+    #[cfg(feature = "native")]
+    retention: Arc<GpuRetention>,
     #[cfg(feature = "native")]
     tiles: Option<TilePlan>,
 }
@@ -201,17 +207,29 @@ impl GpuRenderer {
         let budget_bytes = options.memory_budget(ctx.memory);
         let memory = GpuMemory {
             device: ctx.memory,
-            host_budget_bytes: options.host_budget_bytes,
+            host_budget_bytes: options.host_budget(),
             budget_bytes,
             texture_cache_bytes: options.texture_cache_bytes(budget_bytes),
         };
         let budget = GpuBudget::new(memory.texture_cache_bytes);
         let texture_pool = TexturePool::new(TEXTURE_POOL_CAP_PER_KEY, budget.clone());
+        let output_pool = Arc::default();
+        let sharpen_pool = Arc::default();
+        #[cfg(feature = "native")]
+        let retention = Arc::new(GpuRetention {
+            texture_pool: texture_pool.clone(),
+            sensor: Arc::new(SensorCaches::new(budget, texture_pool.clone())),
+            output_pool: Arc::clone(&output_pool),
+            sharpen_pool: Arc::clone(&sharpen_pool),
+            unified: ctx.memory.is_some_and(|memory| memory.unified),
+        });
+        #[cfg(feature = "native")]
+        options.host.register(retention.clone());
         Ok(Self {
             ctx,
             passes,
             #[cfg(feature = "native")]
-            sensor: SensorCaches::new(budget, texture_pool.clone()),
+            sensor: retention.sensor.clone(),
             lut_tex_cache: Mutex::new(lru::LruCache::new(
                 NonZeroUsize::new(LUT_TEX_CACHE_ITEMS).expect("nonzero"),
             )),
@@ -229,12 +247,16 @@ impl GpuRenderer {
             atlas_uploads: std::sync::atomic::AtomicU64::new(0),
             texture_pool,
             uniform_pool: UniformPool::new(UNIFORM_POOL_CAP_PER_SIZE),
-            output_pool: Mutex::new(Vec::new()),
-            sharpen_pool: Mutex::new(Vec::new()),
+            output_pool,
+            sharpen_pool,
             dummy_texture,
             memory,
             #[cfg(feature = "native")]
-            admission: Admission::new(budget_bytes),
+            admission: Admission::new("gpu memory", budget_bytes),
+            #[cfg(feature = "native")]
+            host: options.host,
+            #[cfg(feature = "native")]
+            retention,
             #[cfg(feature = "native")]
             tiles: options.tiles,
         })

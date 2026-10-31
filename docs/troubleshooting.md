@@ -234,11 +234,22 @@ The error after it names the cause:
 - `render needs ... of gpu memory, budget ...`: the render does not fit the
   [GPU memory budget](rendering.md#gpu-memory) and no tile size fits, usually a large export with
   healing or clone strokes. It renders on the CPU.
+- `render needs ... MiB of memory, budget ...`: the render's system memory does not fit the
+  [host budget](rendering.md#cpu-memory). It tries the CPU next.
 - `gpu out of memory`: the server lowers its GPU memory budget and retries the render in tiles,
   then on the CPU. If it happens often, set `GPU_MEMORY_BUDGET_MB` below the GPU's memory or lower
   `GPU_TEXTURE_CACHE_MB`.
 
 The GPU stays in use for other photos in every case.
+
+## A photo is too large for the server's memory
+
+An export or preview fails with `This photo is too large for the server's memory`: the CPU renderer
+needs more than the [host budget](rendering.md#cpu-memory). Raise the container's memory limit,
+lower `RAW_FRAME_CACHE_MB` and `QUALITY_FRAME_CACHE_MB`, export at a
+[smaller size](export.md#resize), or render on a GPU or the
+[software rasterizer](rendering.md#the-server), which tiles renders without healing or clone
+strokes.
 
 ## The GPU device is lost
 

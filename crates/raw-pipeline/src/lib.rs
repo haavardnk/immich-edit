@@ -1,3 +1,5 @@
+#[cfg(feature = "native")]
+mod admission;
 pub mod ai_denoise;
 #[cfg(feature = "native")]
 pub mod auto;
@@ -51,6 +53,8 @@ pub enum PipelineError {
     DeviceLost,
     #[error("gpu out of memory: {0}")]
     OutOfMemory(String),
+    #[error("over memory budget: {0}")]
+    OverBudget(String),
 }
 
 pub type PipelineResult<T> = Result<T, PipelineError>;
@@ -59,6 +63,8 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+#[cfg(feature = "native")]
+pub use admission::HostMemory;
 pub use cancel::{CancelToken, CancelTracker};
 #[cfg(feature = "native")]
 pub use cpu::CpuRenderer;
