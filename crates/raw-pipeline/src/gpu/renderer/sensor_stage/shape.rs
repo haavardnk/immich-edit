@@ -5,7 +5,7 @@ use crate::edits::Edits;
 use crate::frame::{RawFrame, RenderOptions};
 use crate::geom;
 use crate::ops::capture_sharpen::{CaptureSigma, frame_sigma};
-use crate::tile::{Rect, SensorChain, SensorTile, Warp, support};
+use crate::tile::{Rect, SensorChain, SensorTile, StrokeReach, Warp, support};
 
 const MOSAIC_TEXEL: u64 = 4;
 
@@ -52,6 +52,11 @@ impl SensorShape {
             .into_iter()
             .chain(edits.lens.any_active().then_some(Warp::Lens(edits.lens)))
             .collect();
+        let strokes = if presence {
+            StrokeReach::all(edits, sensor, frame.meta.orientation)
+        } else {
+            Vec::new()
+        };
         Self {
             block,
             sigma,
@@ -62,6 +67,7 @@ impl SensorShape {
                 demosaic: support::demosaic(&frame.cfa_pattern, frame.cpp, scale),
                 warps,
                 detail,
+                strokes,
             },
         }
     }

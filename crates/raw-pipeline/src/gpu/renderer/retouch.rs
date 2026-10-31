@@ -7,19 +7,26 @@ use wgpu::{
 
 use crate::PipelineResult;
 use crate::edits::{Edits, RetouchMode, RetouchStroke};
-use crate::frame::RawFrame;
-use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
+use crate::frame::OrientFlips;
+use crate::gpu::dispatch::{Region, bind_group, copy_region, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::retouch::RetouchParams;
 use crate::gpu::texture::{STORAGE_SAMPLED, full_view, mip_view, texture_2d};
-use crate::ops::retouch::{StrokeGeom, stroke_geometry};
+use crate::ops::retouch::StrokeGeom;
+use crate::tile::{Rect, SensorTile, tile_strokes};
 
 use super::GpuRenderer;
 
-fn retouch_params(geom: &StrokeGeom, stroke: &RetouchStroke, dims: (u32, u32)) -> RetouchParams {
+fn retouch_params(
+    geom: &StrokeGeom,
+    stroke: &RetouchStroke,
+    sensor: (u32, u32),
+    window: Rect,
+) -> RetouchParams {
     let heal = matches!(stroke.mode, RetouchMode::Heal);
     RetouchParams {
-        dims: [dims.0, dims.1],
+        dims: [sensor.0, sensor.1],
+        origin: [window.x, window.y],
         bbox_origin: [geom.bbox.x0 as u32, geom.bbox.y0 as u32],
         bbox_size: [
             (geom.bbox.x1 - geom.bbox.x0) as u32,
@@ -31,7 +38,7 @@ fn retouch_params(geom: &StrokeGeom, stroke: &RetouchStroke, dims: (u32, u32)) -
         radius_px: geom.radius_px,
         hardness: stroke.hardness,
         opacity: stroke.opacity,
-        _pad: [0.0; 3],
+        _pad: 0.0,
     }
 }
 
@@ -39,22 +46,20 @@ impl GpuRenderer {
     pub(super) fn submit_retouch(
         &self,
         src: Arc<Texture>,
-        dims: (u32, u32),
-        frame: &RawFrame,
+        tile: &SensorTile,
+        sensor: (u32, u32),
+        orientation: OrientFlips,
         edits: &Edits,
     ) -> PipelineResult<Arc<Texture>> {
         let device = &self.ctx.device;
         let queue = &self.ctx.queue;
-        let (w, h) = dims;
+        let window = tile.window();
+        let (w, h) = window.dims();
         let p = &self.passes.sensor_stage.retouch;
+        let strokes = tile_strokes(edits, tile, sensor, orientation);
         let mut current = src;
 
-        for stroke in edits.retouch.iter().filter(|s| s.is_effective()) {
-            let Some(geom) =
-                stroke_geometry(stroke, w as usize, h as usize, frame.meta.orientation)
-            else {
-                continue;
-            };
+        for (i, (stroke, geom)) in strokes.iter().enumerate() {
             let bw = (geom.bbox.x1 - geom.bbox.x0) as u32;
             let bh = (geom.bbox.y1 - geom.bbox.y0) as u32;
             let heal = matches!(stroke.mode, RetouchMode::Heal);
@@ -85,18 +90,23 @@ impl GpuRenderer {
                 (0..levels).map(|l| mip_view(&pyramid, l)).collect();
             let fill_views: Vec<TextureView> = (0..levels).map(|l| mip_view(&fill, l)).collect();
 
+            let out_levels = if i + 1 == strokes.len() && !tile.grown() {
+                mip_count(w, h)
+            } else {
+                1
+            };
             let dst = texture_2d(
                 device,
                 "retouch-out",
                 self.ctx.linear_format,
                 (w, h),
-                mip_count(w, h),
+                out_levels,
                 STORAGE_SAMPLED | TextureUsages::COPY_SRC,
             );
             let src_view = full_view(&current);
             let dst_mip0 = mip_view(&dst, 0);
 
-            let params = self.uniform(&retouch_params(&geom, stroke, dims), "retouch-u");
+            let params = self.uniform(&retouch_params(geom, stroke, sensor, window), "retouch-u");
 
             let prep_bind = bind_group(
                 device,
@@ -146,12 +156,44 @@ impl GpuRenderer {
                 w.div_ceil(16),
                 h.div_ceil(16),
             );
-            self.encode_mipgen(&mut encoder, &dst, w, h);
+            if out_levels > 1 {
+                self.encode_mipgen(&mut encoder, &dst, w, h);
+            }
             queue.submit(Some(encoder.finish()));
             current = Arc::new(dst);
         }
 
-        Ok(current)
+        if !tile.grown() {
+            return Ok(current);
+        }
+        Ok(self.submit_crop(&current, tile.detail.within(window)))
+    }
+
+    fn submit_crop(&self, src: &Texture, rect: Rect) -> Arc<Texture> {
+        let (w, h) = rect.dims();
+        let out = texture_2d(
+            &self.ctx.device,
+            "retouch-crop",
+            self.ctx.linear_format,
+            (w, h),
+            mip_count(w, h),
+            STORAGE_SAMPLED | TextureUsages::COPY_DST | TextureUsages::COPY_SRC,
+        );
+        let mut encoder = self
+            .ctx
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("retouch-crop"),
+            });
+        copy_region(
+            &mut encoder,
+            Region::at(src, 0, (rect.x, rect.y)),
+            Region::at(&out, 0, (0, 0)),
+            (w, h),
+        );
+        self.encode_mipgen(&mut encoder, &out, w, h);
+        self.ctx.queue.submit(Some(encoder.finish()));
+        Arc::new(out)
     }
 
     fn encode_heal_fill(

@@ -32,7 +32,7 @@ impl GpuRenderer {
         let base = self.sensor_base(job, tile)?;
         match &job.detail {
             Some(detail) => {
-                let wb = self.sensor_wb(job, detail, &base)?;
+                let wb = self.sensor_wb(job, detail, &base, tile)?;
                 self.sensor_detail(job, detail, tile, &wb, profile)
             }
             None => Ok((base.texture.clone(), base.rect)),
@@ -74,6 +74,7 @@ impl GpuRenderer {
         job: &SensorJob<'_>,
         detail: &DetailJob,
         base: &SensorFrame,
+        tile: &SensorTile,
     ) -> PipelineResult<Arc<Texture>> {
         let (frame, edits) = (job.frame, &job.edits);
         let wb = job.t.stage(timing::WB_PREPARE, || {
@@ -85,7 +86,8 @@ impl GpuRenderer {
             return Ok(wb);
         }
         let retouched = job.t.stage(timing::RETOUCH, || {
-            self.submit_retouch(wb, base.rect.dims(), frame, edits)
+            let sensor = job.shape.sensor();
+            self.submit_retouch(wb, tile, sensor, frame.meta.orientation, edits)
         })?;
         job.check()?;
         Ok(retouched)
@@ -100,7 +102,7 @@ impl GpuRenderer {
         profile: Option<NoiseProfile>,
     ) -> PipelineResult<(Arc<Texture>, Rect)> {
         let (shape, edits, t) = (&job.shape, &job.edits, job.t);
-        let rect = tile.detail();
+        let rect = tile.detail;
         let src = if job.nr_active() {
             let measure = || match profile {
                 Some(profile) => Ok(profile),

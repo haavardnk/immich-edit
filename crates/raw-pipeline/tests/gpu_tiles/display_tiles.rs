@@ -1,4 +1,6 @@
-use raw_pipeline::edits::{BokehShape, CropRect, Edits, MaskComponentKind, MaskLayer, MaskedEdits};
+use raw_pipeline::edits::{
+    BokehShape, CropRect, Edits, LensEdits, MaskComponentKind, MaskLayer, MaskedEdits,
+};
 use raw_pipeline::frame::{BitDepth, OutputFormat, PngCompression, RawFrame, RenderOptions};
 use raw_pipeline::source::{self, SourceCoding};
 use raw_pipeline::{GpuRenderer, TilePlan, timing};
@@ -7,7 +9,7 @@ use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::render::rgb8_opts;
 
-use super::{CANON_5D, Mode, Pair, XT2, decoded, radial};
+use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, strokes};
 
 const TILES: TilePlan = TilePlan::DisplayTiled { edge: 1024 };
 const FIXTURES: [&str; 2] = [XT2, CANON_5D];
@@ -52,6 +54,13 @@ fn local_edits() -> Edits {
     edits.lens.vk1 = -0.4;
     edits.lens.ca_red_scale_x10000 = 6.0;
     edits.masks = masks();
+    edits
+}
+
+fn retouched() -> Edits {
+    let mut edits = local_edits();
+    edits.lens = LensEdits::default();
+    edits.retouch = strokes();
     edits
 }
 
@@ -183,7 +192,7 @@ fn display_tiles_match_the_single_pass_on_real_raws() {
     }
     let frame = decoded(CANON_5D);
     let preview = binned(rgb8_opts(1600));
-    pair.require("5D unwarped preview", &frame, &local_edits(), &preview);
+    pair.require("5D retouched preview", &frame, &retouched(), &preview);
     let frame = decoded(XT2);
     let opts = export(frame.meta.width as u32);
     pair.require("X-T2 context export", &frame, &context_edits(), &opts);
@@ -246,6 +255,7 @@ fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
     edits.basic.dehaze = 30.0;
     edits.basic.clarity = 40.0;
     edits.tone.shadows = 35.0;
+    edits.retouch = strokes();
     for orientation in [(false, false, false), (true, true, false)] {
         let mut frame = bokeh_frame(1800, 1200);
         frame.meta.orientation = orientation;
@@ -310,7 +320,7 @@ fn display_tiles_render_tile_sources_like_the_single_pass() {
     };
     let cases = [
         (XT2, "context", context_edits()),
-        (CANON_5D, "local", local_edits()),
+        (CANON_5D, "retouched", retouched()),
     ];
     for (name, label, edits) in cases {
         let frame = decoded(name);

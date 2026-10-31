@@ -36,7 +36,7 @@ impl Tiled<'_> {
         let rect = if self.shape.resamples() {
             sensor.core
         } else {
-            sensor.detail()
+            sensor.detail
         };
         SourceExtent {
             dims: rect.dims(),

@@ -229,11 +229,11 @@ The error after it names the cause:
 
 - `outside the gpu texture limit`, `over the gpu buffer limit` or `over the gpu storage binding
   limit`: the photo or export is larger than the GPU accepts, such as a wide panorama, and has
-  healing or clone strokes, which cannot render in [tiles](rendering.md#the-server). It renders on
-  the CPU.
+  healing or clone strokes that span most of it, so no [tile](rendering.md#the-server) fits. It
+  renders on the CPU.
 - `render needs ... of gpu memory, budget ...`: the render does not fit the
   [GPU memory budget](rendering.md#gpu-memory) and no tile size fits, usually a large export with
-  healing or clone strokes. It renders on the CPU.
+  healing or clone strokes that span most of the photo. It renders on the CPU.
 - `render needs ... MiB of memory, budget ...`: the render's system memory does not fit the
   [host budget](rendering.md#cpu-memory). It tries the CPU next.
 - `gpu out of memory`: the server lowers its GPU memory budget and retries the render in tiles,
@@ -248,8 +248,7 @@ An export or preview fails with `This photo is too large for the server's memory
 needs more than the [host budget](rendering.md#cpu-memory). Raise the container's memory limit,
 lower `RAW_FRAME_CACHE_MB` and `QUALITY_FRAME_CACHE_MB`, export at a
 [smaller size](export.md#resize), or render on a GPU or the
-[software rasterizer](rendering.md#the-server), which tiles renders without healing or clone
-strokes.
+[software rasterizer](rendering.md#the-server), which renders in tiles.
 
 ## The GPU device is lost
 

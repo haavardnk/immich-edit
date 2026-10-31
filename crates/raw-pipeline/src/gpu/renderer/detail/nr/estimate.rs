@@ -31,7 +31,7 @@ impl<'r> NoiseHistogram<'r> {
     }
 
     pub fn add(&self, src: &Texture, tile: &SensorTile) {
-        let rect = tile.detail();
+        let rect = tile.detail;
         let (dims, core) = (rect.dims(), tile.hist.within(rect));
         let p = &self.renderer.passes.sensor_stage.nr;
         let mut sweep = NrSweep::new(self.renderer, "nr-estimate");

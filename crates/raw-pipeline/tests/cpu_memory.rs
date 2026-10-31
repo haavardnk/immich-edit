@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use raw_pipeline::CpuRenderer;
 use raw_pipeline::cpu::{estimate_render, estimate_source};
-use raw_pipeline::edits::{CropRect, Edits, MaskComponentKind, MaskLayer, MaskedEdits, Vec2f};
+use raw_pipeline::edits::{
+    CropRect, Edits, MaskComponentKind, MaskLayer, MaskedEdits, RetouchMode, Vec2f,
+};
 use raw_pipeline::encode::{encode_from_rgb8, encode_from_rgb16, working_bytes};
 use raw_pipeline::frame::OutputColorSpace::SRgb;
 use raw_pipeline::frame::{
@@ -16,7 +18,7 @@ use raw_pipeline_testkit::depth::{depth_rasters, lens_blur_edits};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::memory::{Counting, check, finish, heap_peak, measuring};
-use raw_pipeline_testkit::retouch::untileable_edits;
+use raw_pipeline_testkit::retouch::stroke;
 
 const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
@@ -84,7 +86,16 @@ fn masked() -> Edits {
 }
 
 fn retouched() -> Edits {
-    let mut edits = untileable_edits();
+    let heal = stroke(
+        RetouchMode::Heal,
+        &[(0.3, 0.4), (0.35, 0.45)],
+        0.05,
+        (0.6, 0.4),
+    );
+    let mut edits = Edits {
+        retouch: vec![heal],
+        ..Edits::default()
+    };
     edits.basic.texture = 20.0;
     edits.detail.luma_nr_amount = 40.0;
     edits

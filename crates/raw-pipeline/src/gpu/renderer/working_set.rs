@@ -20,9 +20,8 @@ use crate::ops::ResolvedDcp;
 use crate::ops::dehaze::DehazeGrid;
 use crate::ops::lens_blur::kernel::BlurScale;
 use crate::ops::presence::has_shadows;
-use crate::ops::retouch::stroke_geometry;
 use crate::source::LinearKind;
-use crate::tile::{Rect, SensorTile, TilePlan};
+use crate::tile::{Rect, SensorTile, TilePlan, tile_strokes};
 
 mod display_tiles;
 mod host;
@@ -146,9 +145,9 @@ impl WorkingSet {
         if !presence {
             return;
         }
-        let detail = tile.detail().dims();
-        self.linear(detail, true);
-        self.retouch(frame, edits, detail);
+        let detail = tile.detail.dims();
+        self.linear(tile.window().dims(), true);
+        self.retouch(frame, edits, shape, tile);
         let luma_planes = self.noise_reduction(edits, detail);
         if shape.sigma.is_some() {
             self.texels(detail, CAPTURE_PLANES.saturating_sub(luma_planes) * R32);
@@ -176,12 +175,10 @@ impl WorkingSet {
         self.linear(input.dims(), true);
     }
 
-    fn retouch(&mut self, frame: &RawFrame, edits: &Edits, dims: (u32, u32)) {
-        let (w, h) = (dims.0 as usize, dims.1 as usize);
-        for stroke in edits.retouch.iter().filter(|s| s.is_effective()) {
-            let Some(geom) = stroke_geometry(stroke, w, h, frame.meta.orientation) else {
-                continue;
-            };
+    fn retouch(&mut self, frame: &RawFrame, edits: &Edits, shape: &SensorShape, tile: &SensorTile) {
+        let window = tile.window();
+        let strokes = tile_strokes(edits, tile, shape.sensor(), frame.meta.orientation);
+        for (i, (stroke, geom)) in strokes.iter().enumerate() {
             let patch = (
                 (geom.bbox.x1 - geom.bbox.x0) as u32,
                 (geom.bbox.y1 - geom.bbox.y0) as u32,
@@ -190,7 +187,10 @@ impl WorkingSet {
             self.linear(patch, false);
             self.linear(patch, heal);
             self.linear(patch, heal);
-            self.linear(dims, true);
+            self.linear(window.dims(), i + 1 == strokes.len() && !tile.grown());
+        }
+        if tile.grown() {
+            self.linear(tile.detail.dims(), true);
         }
     }
 

@@ -2,6 +2,8 @@
 mod display;
 mod rect;
 #[cfg(feature = "native")]
+mod retouch;
+#[cfg(feature = "native")]
 mod sensor;
 #[cfg(feature = "native")]
 pub(crate) mod support;
@@ -12,6 +14,10 @@ mod tests;
 #[cfg(feature = "native")]
 pub use display::{DisplayLayout, DisplayTile};
 pub use rect::Rect;
+#[cfg(feature = "native")]
+pub use retouch::StrokeReach;
+#[cfg(feature = "native")]
+pub(crate) use retouch::tile_strokes;
 #[cfg(feature = "native")]
 pub use sensor::{SensorChain, SensorTile, Warp};
 

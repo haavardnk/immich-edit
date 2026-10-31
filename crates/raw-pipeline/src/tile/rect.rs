@@ -59,6 +59,20 @@ impl Rect {
         )
     }
 
+    pub fn contains(self, inner: Self) -> bool {
+        inner.x >= self.x
+            && inner.y >= self.y
+            && inner.right() <= self.right()
+            && inner.bottom() <= self.bottom()
+    }
+
+    pub fn meets(self, other: Self) -> bool {
+        self.x < other.right()
+            && other.x < self.right()
+            && self.y < other.bottom()
+            && other.y < self.bottom()
+    }
+
     pub fn scaled(self, factor: u32) -> Self {
         Self {
             x: self.x * factor,
