@@ -141,7 +141,12 @@ fn read_huesat(
     if expected > DCP_MAX_TABLE_ENTRIES {
         return None;
     }
-    let file: Vec<[f32; 3]> = raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
+    let file: Vec<[f32; 3]> = raw
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .map(|c| [c[0], c[1], c[2]])
+        .collect();
     if file.len() != expected {
         return None;
     }
@@ -171,7 +176,12 @@ fn read_tone_curve(tiff: &Tiff, e: Option<&Entry>) -> Option<ToneCurve> {
     if raw.len() < 4 || raw.len() % 2 != 0 || raw.iter().any(|x| !x.is_finite()) {
         return None;
     }
-    let points: Vec<[f32; 2]> = raw.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+    let points: Vec<[f32; 2]> = raw
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|c| [c[0], c[1]])
+        .collect();
     if points.windows(2).any(|w| w[1][0] < w[0][0]) {
         return None;
     }

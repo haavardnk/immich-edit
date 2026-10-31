@@ -8,7 +8,11 @@ pub(super) fn checker_frame() -> RawFrame {
         .flat_map(|i| {
             let x = i % W;
             let y = i / W;
-            let checker = if (x / 3 + y / 3) % 2 == 0 { 0.7 } else { 0.2 };
+            let checker = if (x / 3 + y / 3).is_multiple_of(2) {
+                0.7
+            } else {
+                0.2
+            };
             [checker, x as f32 / W as f32, y as f32 / H as f32]
         })
         .collect();

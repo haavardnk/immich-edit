@@ -1,4 +1,4 @@
-pub fn luma(rgb: &[u8]) -> f64 {
+pub fn luma(rgb: &[u8; 3]) -> f64 {
     0.2126 * rgb[0] as f64 + 0.7152 * rgb[1] as f64 + 0.0722 * rgb[2] as f64
 }
 

@@ -1,6 +1,6 @@
 ARG TESTS=run
 
-FROM rust:1.98-trixie AS wasm
+FROM rust:1.99-trixie AS wasm
 WORKDIR /build
 COPY rust-toolchain.toml Cargo.lock ./
 RUN rustup target add wasm32-unknown-unknown && \
@@ -23,7 +23,7 @@ COPY --from=wasm /build/web/src/lib/wasm/ src/lib/wasm/
 RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
     npm run build
 
-FROM rust:1.98-trixie AS chef
+FROM rust:1.99-trixie AS chef
 RUN cargo install cargo-chef cargo-edit --locked
 WORKDIR /build
 COPY .cargo/ .cargo/

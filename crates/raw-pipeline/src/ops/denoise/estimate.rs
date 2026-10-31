@@ -67,7 +67,9 @@ where
 
 pub(crate) fn fit(hist: &[u32], coarser_than: Option<NoiseCurve>) -> NoiseCurve {
     let points: Vec<[f32; 3]> = hist
-        .chunks_exact(MAG_BINS)
+        .as_chunks::<MAG_BINS>()
+        .0
+        .iter()
         .enumerate()
         .filter_map(|(i, bins)| {
             let n: u32 = bins.iter().sum();

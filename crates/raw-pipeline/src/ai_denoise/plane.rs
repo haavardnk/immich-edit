@@ -42,7 +42,7 @@ impl DenoisePlane {
             .chunks_exact(self.width * 3)
             .skip(y * block)
             .take(block)
-            .flat_map(|row| row[span.clone()].chunks_exact(3))
+            .flat_map(|row| row[span.clone()].as_chunks::<3>().0)
             .fold([0.0f32; 3], |acc, px| {
                 std::array::from_fn(|c| acc[c] + half::f16::from_bits(px[c]).to_f32())
             });

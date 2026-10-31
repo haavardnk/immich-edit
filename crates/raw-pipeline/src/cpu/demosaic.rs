@@ -160,7 +160,12 @@ fn mhc_row(
         )
     };
     let classes = [class(0), class(1)];
-    for (i, px) in row[6..(w - 2) * 3].chunks_exact_mut(3).enumerate() {
+    for (i, px) in row[6..(w - 2) * 3]
+        .as_chunks_mut::<3>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
         let (own, row_ch, col_ch) = classes[i & 1];
         if own == 1 {
             px[row_ch] = kh[i];
@@ -272,7 +277,7 @@ impl XtransMosaic<'_> {
             ..
         } = self;
         let interior_y = y >= 2 && y + 2 < h;
-        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+        for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let i = y * w + x;
             let own = xtrans_channel(pattern, x, y);
             px[1] = green[i];
@@ -443,7 +448,7 @@ fn superpixel_with(
     out.par_chunks_exact_mut(out_w * 3)
         .enumerate()
         .for_each(|(by, row)| {
-            for (bx, px) in row.chunks_exact_mut(3).enumerate() {
+            for (bx, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let (sum, count) =
                     (0..block * block).fold(([0.0f32; 3], [0u32; 3]), |(mut sum, mut count), i| {
                         let x = bx * block + i % block;
@@ -592,7 +597,7 @@ mod tests {
             })
             .collect();
         let mut out = vec![0.0; w * h * 3];
-        for (i, px) in out.chunks_exact_mut(3).enumerate() {
+        for (i, px) in out.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let x = i % w;
             let y = i / w;
             let own = xtrans_channel(pattern, x, y);

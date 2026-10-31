@@ -164,22 +164,26 @@ pub(super) fn texel_bytes(rgb_f16: &[u16], format: TextureFormat) -> Vec<u8> {
     let one = f16::ONE.to_bits();
     let texel = texel_size(format) as usize;
     let mut out = vec![0u8; rgb_f16.len() / 3 * texel];
-    let pixels = rgb_f16.chunks_exact(3).zip(out.chunks_exact_mut(texel));
+    let pixels = rgb_f16
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(out.chunks_exact_mut(texel));
     match format {
         TextureFormat::Rgba32Float => pixels.for_each(|(px, dst)| {
             for (bits, d) in [px[0], px[1], px[2], one]
                 .into_iter()
-                .zip(dst.chunks_exact_mut(4))
+                .zip(dst.as_chunks_mut::<4>().0)
             {
-                d.copy_from_slice(&f16::from_bits(bits).to_f32().to_le_bytes());
+                *d = f16::from_bits(bits).to_f32().to_le_bytes();
             }
         }),
         _ => pixels.for_each(|(px, dst)| {
             for (bits, d) in [px[0], px[1], px[2], one]
                 .into_iter()
-                .zip(dst.chunks_exact_mut(2))
+                .zip(dst.as_chunks_mut::<2>().0)
             {
-                d.copy_from_slice(&bits.to_le_bytes());
+                *d = bits.to_le_bytes();
             }
         }),
     }
@@ -189,14 +193,14 @@ pub(super) fn texel_bytes(rgb_f16: &[u16], format: TextureFormat) -> Vec<u8> {
 #[cfg(feature = "native")]
 fn extend_rgb(out: &mut Vec<u16>, row: &[u8], format: TextureFormat) {
     match format {
-        TextureFormat::Rgba32Float => out.extend(row.chunks_exact(16).flat_map(|px| {
+        TextureFormat::Rgba32Float => out.extend(row.as_chunks::<16>().0.iter().flat_map(|px| {
             let channel = |i: usize| {
                 let bytes = [px[i * 4], px[i * 4 + 1], px[i * 4 + 2], px[i * 4 + 3]];
                 f16::from_f32(f32::from_le_bytes(bytes)).to_bits()
             };
             [channel(0), channel(1), channel(2)]
         })),
-        _ => out.extend(row.chunks_exact(8).flat_map(|px| {
+        _ => out.extend(row.as_chunks::<8>().0.iter().flat_map(|px| {
             [
                 u16::from_le_bytes([px[0], px[1]]),
                 u16::from_le_bytes([px[2], px[3]]),

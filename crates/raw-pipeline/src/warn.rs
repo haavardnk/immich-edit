@@ -26,7 +26,7 @@ pub fn classify(display: [f32; 3], out_of_gamut: bool, clip_warn: bool) -> Optio
 }
 
 pub fn paint_rgba8(rgba: &mut [u8], gamut_warn: bool, clip_warn: bool) {
-    for px in rgba.chunks_exact_mut(4) {
+    for px in rgba.as_chunks_mut::<4>().0 {
         let code = px[3];
         px[3] = 255;
         let paint = match code {

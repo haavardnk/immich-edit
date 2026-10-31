@@ -421,10 +421,11 @@ impl Edits {
         let mut out: Vec<String> = Vec::new();
         for layer in &self.masks {
             for comp in &layer.components {
-                if let MaskComponentKind::Brush { raster_id } = &comp.kind {
-                    if !raster_id.is_empty() && !out.iter().any(|s| s == raster_id) {
-                        out.push(raster_id.clone());
-                    }
+                if let MaskComponentKind::Brush { raster_id } = &comp.kind
+                    && !raster_id.is_empty()
+                    && !out.iter().any(|s| s == raster_id)
+                {
+                    out.push(raster_id.clone());
                 }
             }
         }

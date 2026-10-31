@@ -115,11 +115,13 @@ fn chroma_denoise_preserves_pixel_luma() {
     let mut image = noisy_image(128, 96, 0.05);
     let before: Vec<f32> = image
         .rgb
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|p| math::luma(p[0], p[1], p[2]))
         .collect();
     chroma::denoise(&mut image, chroma::level_params(100.0, 50.0, 50.0));
-    for (i, (p, y)) in image.rgb.chunks_exact(3).zip(before).enumerate() {
+    for (i, (p, y)) in image.rgb.as_chunks::<3>().0.iter().zip(before).enumerate() {
         let after = math::luma(p[0], p[1], p[2]);
         assert!((after - y).abs() < 1e-5, "pixel {i}: {y} -> {after}");
     }
@@ -141,7 +143,13 @@ fn luma_denoise_keeps_chroma_direction() {
         .filter(|(a, b)| (*a - *b).abs() > 1e-4)
         .count();
     assert!(changed > image.rgb.len() / 2);
-    for (a, b) in image.rgb.chunks_exact(3).zip(before.chunks_exact(3)) {
+    for (a, b) in image
+        .rgb
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(before.as_chunks::<3>().0)
+    {
         let da = offsets(a);
         let db = offsets(b);
         assert!(

@@ -56,7 +56,9 @@ impl ModelSpace {
 
     pub fn exposed_for(self, cam: &[f32]) -> Option<Self> {
         let mut lumas: Vec<f32> = cam
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .step_by(EXPOSURE_SAMPLE_STRIDE)
             .map(|px| {
                 let [r, g, b] = mat3_vec(&self.forward, [px[0], px[1], px[2]]);

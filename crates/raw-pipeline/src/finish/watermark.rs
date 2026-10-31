@@ -41,11 +41,15 @@ pub fn decode_watermark(bytes: &[u8]) -> crate::PipelineResult<WatermarkImage> {
     let rgba = match frame.color_type {
         png::ColorType::Rgba => data.to_vec(),
         png::ColorType::Rgb => data
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .flat_map(|p| [p[0], p[1], p[2], 255])
             .collect(),
         png::ColorType::GrayscaleAlpha => data
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .flat_map(|p| [p[0], p[0], p[0], p[1]])
             .collect(),
         png::ColorType::Grayscale => data.iter().flat_map(|&g| [g, g, g, 255]).collect(),
@@ -141,7 +145,9 @@ where
         .zip(overlay.pixels.par_chunks(overlay.width))
         .for_each(|(row, src)| {
             row[span.clone()]
-                .chunks_exact_mut(3)
+                .as_chunks_mut::<3>()
+                .0
+                .iter_mut()
                 .zip(src)
                 .filter(|(_, s)| s[3] > 0.0)
                 .for_each(|(px, s)| {

@@ -167,7 +167,13 @@ fn finish_chunk(
     mut u16c: Option<&mut [u16]>,
     acc: &mut (Bins, Bins),
 ) {
-    for (p, (px_in, px_out)) in s.chunks_exact(3).zip(u8c.chunks_exact_mut(3)).enumerate() {
+    for (p, (px_in, px_out)) in s
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(u8c.as_chunks_mut::<3>().0)
+        .enumerate()
+    {
         let i = p * 3;
         let lr = px_in[0];
         let lg = px_in[1];
@@ -187,7 +193,7 @@ fn finish_chunk(
             dst[i + 1] = (tg.clamp(0.0, 1.0) * 65535.0).round() as u16;
             dst[i + 2] = (tb.clamp(0.0, 1.0) * 65535.0).round() as u16;
         }
-        if f.opts.histogram && abs_px % f.step == 0 {
+        if f.opts.histogram && abs_px.is_multiple_of(f.step) {
             acc.0.add_linear(lr, lg, lb);
             acc.1.add_display(ru, gu, bu);
         }

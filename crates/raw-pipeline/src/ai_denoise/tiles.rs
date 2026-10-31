@@ -254,7 +254,7 @@ mod tests {
             |_, _| {},
         )
         .unwrap();
-        let reds: Vec<f32> = out.chunks_exact(3).map(|p| p[0]).collect();
+        let reds: Vec<f32> = out.as_chunks::<3>().0.iter().map(|p| p[0]).collect();
         assert_eq!(reds[0], 1.0);
         assert_eq!(reds[width - 1], calls as f32);
         let blended = reds.iter().filter(|v| v.fract() != 0.0).count();

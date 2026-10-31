@@ -166,7 +166,7 @@ fn composite(image: &mut LinearImage, coc: &[f32], grid: &Grid, blurred: &[[f32;
                 (y0 as i32).clamp(0, gh - 1),
                 (y0 as i32 + 1).clamp(0, gh - 1),
             ];
-            for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            for (x, px) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let pixel = coc[y * w + x];
                 let fx = (x as f32 + 0.5) / ds - 0.5;
                 let x0 = fx.floor();
