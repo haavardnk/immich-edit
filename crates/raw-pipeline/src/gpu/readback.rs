@@ -193,7 +193,7 @@ pub fn read_rgba16uint_as_rgb(
     for row in 0..height as usize {
         let start = row * padded;
         let row_u16: &[u16] = bytemuck::cast_slice(&data[start..start + unpadded_bytes]);
-        for px in row_u16.chunks_exact(4) {
+        for px in row_u16.as_chunks::<4>().0 {
             out.extend_from_slice(&px[..3]);
         }
     }

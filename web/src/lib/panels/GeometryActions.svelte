@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { geometryIsIdentity } from '$lib/types/edits';
-  import { hint } from '$lib/shortcuts/labels';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { geometryIsIdentity } from '#lib/types/edits.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { Button, IconButton } from '@immich/ui';
   import {
     mdiFlipHorizontal,

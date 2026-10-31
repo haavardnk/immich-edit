@@ -1,11 +1,11 @@
-import { getEdits } from '$lib/api/edits';
-import { createPasteEditsJob } from '$lib/api/jobs';
-import { runBulkJob } from '$lib/api/bulkJob';
-import { manifestToEdits, editsToManifest } from '$lib/edits/manifest';
-import { clipboard } from '$lib/stores/clipboard.svelte';
-import { copyDialog } from '$lib/stores/copyDialog.svelte';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { getEdits } from '#lib/api/edits.ts';
+import { createPasteEditsJob } from '#lib/api/jobs.ts';
+import { runBulkJob } from '#lib/api/bulkJob.ts';
+import { manifestToEdits, editsToManifest } from '#lib/edits/manifest.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export async function copyEditsFrom(assetId: string): Promise<void> {
   if (editedThumbs.getHash(assetId) === undefined) {

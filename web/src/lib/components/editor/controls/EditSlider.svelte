@@ -1,8 +1,8 @@
 <script lang="ts">
   import SliderRow from './SliderRow.svelte';
   import type { SliderScale } from './sliderScale';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewMode } from '$lib/api/preview';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { PreviewMode } from '#lib/api/preview.ts';
 
   let {
     label,

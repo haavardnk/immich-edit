@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Preset } from '$lib/api/presets';
+import type { Preset } from '#lib/api/presets.ts';
 import {
   importSummary,
   newPresets,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Dialog from '$lib/components/Dialog.svelte';
+  import Dialog from '#lib/components/Dialog.svelte';
   import { Button } from '@immich/ui';
   import type { Snippet } from 'svelte';
 

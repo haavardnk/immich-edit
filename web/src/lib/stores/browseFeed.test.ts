@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowseFeed } from './browseFeed.svelte';
-import type { BrowseFilter, SearchPage } from '$lib/types/search';
-import type { AssetSummary } from '$lib/types/album';
+import type { BrowseFilter, SearchPage } from '#lib/types/search.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
 import { browseControls } from './browseControls.svelte';
 import { selection } from './selection.svelte';
 import { browsing } from './browsing.svelte';

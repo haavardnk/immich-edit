@@ -1,6 +1,6 @@
 <script lang="ts">
-  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
+  import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
+  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
 </script>
 
 {#if metadataConsent.open}

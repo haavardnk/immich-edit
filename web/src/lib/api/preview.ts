@@ -1,6 +1,6 @@
 import { getJson, postForBlob, request, url } from './client';
-import type { Edits } from '$lib/types/edits';
-import type { PreviewMeta, ScopeGrid, ScopeKind } from '$lib/types/preview';
+import type { Edits } from '#lib/types/edits.ts';
+import type { PreviewMeta, ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
 import type { ColorSpaceOpt } from './export';
 import type { ServerTiming } from './serverTiming';
 

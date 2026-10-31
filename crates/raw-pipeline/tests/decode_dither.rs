@@ -45,7 +45,9 @@ fn stretched_row() -> Vec<u16> {
     let decoded = decode::decode(&out.bytes).unwrap();
     decoded
         .data
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .take(WIDTH as usize)
         .map(|px| (px[0].clamp(0.0, 1.0) * 65535.0).round() as u16)
         .collect()

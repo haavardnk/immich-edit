@@ -1,7 +1,7 @@
-import type { ClientRenderer } from '$lib/render/clientRenderer';
-import type { RenderInputs, RenderView, RenderedFrame, SourceInfo } from '$lib/render/protocol';
-import type { Edits } from '$lib/types/edits';
-import type { RenderRequest } from '$lib/utils/viewGeometry';
+import type { ClientRenderer } from '#lib/render/clientRenderer.ts';
+import type { RenderInputs, RenderView, RenderedFrame, SourceInfo } from '#lib/render/protocol.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import type { RenderRequest } from '#lib/utils/viewGeometry.ts';
 
 export interface ClientJob {
   edits: Edits;

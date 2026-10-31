@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { hint } from '$lib/shortcuts/labels';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import {
     isFitZoom,
     nextStop,
     sliderToZoom,
     SLIDER_STEPS,
     zoomToSlider
-  } from '$lib/utils/zoomLevel';
+  } from '#lib/utils/zoomLevel.ts';
   import { Button, IconButton } from '@immich/ui';
   import { mdiFitToScreenOutline, mdiMagnifyMinusOutline, mdiMagnifyPlusOutline } from '@mdi/js';
   import Popover from './Popover.svelte';

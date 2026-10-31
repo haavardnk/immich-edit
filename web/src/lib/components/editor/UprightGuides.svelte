@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { sourceToStage, stageToSource, type StageFrame } from '$lib/editor/geometryStage';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { Point } from '$lib/utils/perspective';
-  import { classifyGuide, type UprightGuide } from '$lib/utils/upright';
+  import { sourceToStage, stageToSource, type StageFrame } from '#lib/editor/geometryStage.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { Point } from '#lib/utils/perspective.ts';
+  import { classifyGuide, type UprightGuide } from '#lib/utils/upright.ts';
   import { Icon } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
 

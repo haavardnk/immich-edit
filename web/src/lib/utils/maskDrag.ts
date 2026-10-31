@@ -1,5 +1,5 @@
-import type { MaskComponentKind, Vec2f } from '$lib/types/edits';
-import { clamp01, degToRad } from '$lib/utils/geom';
+import type { MaskComponentKind, Vec2f } from '#lib/types/edits.ts';
+import { clamp01, degToRad } from '#lib/utils/geom.ts';
 
 type RadialKind = Extract<MaskComponentKind, { kind: 'radial' }>;
 

@@ -1,4 +1,4 @@
-import { neutralPerspective } from '$lib/utils/perspective';
+import { neutralPerspective } from '#lib/utils/perspective.ts';
 import { describe, expect, it } from 'vitest';
 import {
   outputToStage,

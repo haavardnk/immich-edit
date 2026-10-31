@@ -1,8 +1,8 @@
 <script lang="ts">
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import { searchSuggestions } from '$lib/api/search';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
+  import { searchSuggestions } from '#lib/api/search.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import {
     EXIF_LABELS,
     UNKNOWN_EXIF,
@@ -11,7 +11,7 @@
     exifSummary,
     suggestionQuery,
     type ExifFilterKey
-  } from '$lib/browse/exifFilters';
+  } from '#lib/browse/exifFilters.ts';
 
   let { key }: { key: ExifFilterKey } = $props();
 

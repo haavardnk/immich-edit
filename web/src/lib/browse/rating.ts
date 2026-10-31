@@ -1,4 +1,4 @@
-import type { RatingMatch } from '$lib/types/search';
+import type { RatingMatch } from '#lib/types/search.ts';
 
 export type Star = 1 | 2 | 3 | 4 | 5;
 export type RatingOp = 'eq' | 'gte' | 'lte';

@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
-  import { isKeybind } from '$lib/shortcuts/match';
-  import { keyLabel } from '$lib/shortcuts/chord';
-  import type { MaskComponent, MaskLayer } from '$lib/types/edits';
-  import { lensWarpFromEdits, maskUvToSceneUv, type LensWarpParams } from '$lib/utils/lensWarp';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { isKeybind } from '#lib/shortcuts/match.ts';
+  import { keyLabel } from '#lib/shortcuts/chord.ts';
+  import type { MaskComponent, MaskLayer } from '#lib/types/edits.ts';
+  import { lensWarpFromEdits, maskUvToSceneUv, type LensWarpParams } from '#lib/utils/lensWarp.ts';
   import {
     displayUvToMaskUv,
     geometryTransformFrom,
     type GeometryTransform
-  } from '$lib/utils/geomTransform';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
+  } from '#lib/utils/geomTransform.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
 

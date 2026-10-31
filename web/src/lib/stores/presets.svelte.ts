@@ -5,7 +5,7 @@ import {
   updatePreset,
   type Preset,
   type PresetInput
-} from '$lib/api/presets';
+} from '#lib/api/presets.ts';
 import {
   PRESET_LIBRARY_FILE,
   importSummary,
@@ -13,10 +13,10 @@ import {
   parsePresetFile,
   presetFileJson,
   presetFileName
-} from '$lib/editor/presetFile';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { downloadBlob } from '$lib/utils/download';
-import { errorMessage } from '$lib/utils/errors';
+} from '#lib/editor/presetFile.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { downloadBlob } from '#lib/utils/download.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 class PresetsStore {
   presets = $state<Preset[]>([]);

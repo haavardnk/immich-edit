@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import type { DcpMeta } from '$lib/api/dcp';
-  import type { DcpMode } from '$lib/types/edits';
+  import Popover from '#lib/components/Popover.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
+  import type { DcpMeta } from '#lib/api/dcp.ts';
+  import type { DcpMode } from '#lib/types/edits.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiCheck, mdiChevronDown } from '@mdi/js';
 

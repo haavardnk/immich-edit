@@ -4,7 +4,7 @@
   import { Collapsible } from 'bits-ui';
   import ScopesPanel from '../Scopes.svelte';
   import ScopeModeSelect from './ScopeModeSelect.svelte';
-  import { scopes } from '$lib/stores/scopes.svelte';
+  import { scopes } from '#lib/stores/scopes.svelte.ts';
 
   let { open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void } = $props();
 </script>

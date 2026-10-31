@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect } from 'vitest';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { looksLikeFilename, resolveSearchMode } from './searchMode';
 
 describe('looksLikeFilename', () => {

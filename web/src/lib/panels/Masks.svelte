@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Notice from '$lib/components/Notice.svelte';
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import MaskAdjustments from './MaskAdjustments.svelte';
   import MaskBrushControls from './MaskBrushControls.svelte';
   import MaskGeneratedControls from './MaskGeneratedControls.svelte';
@@ -10,9 +10,9 @@
   import MaskComponentRow from './MaskComponentRow.svelte';
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { maskModels } from '$lib/stores/maskModels.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { maskModels } from '#lib/stores/maskModels.svelte.ts';
   import {
     N_MAX_MASK_LAYERS,
     N_MAX_COMPONENTS_PER_LAYER,
@@ -20,8 +20,8 @@
     type MaskComponent,
     type MaskComponentMode,
     type MaskLayer
-  } from '$lib/types/edits';
-  import { generatedLabel, kindLabel, numberRepeats } from '$lib/types/masks';
+  } from '#lib/types/edits.ts';
+  import { generatedLabel, kindLabel, numberRepeats } from '#lib/types/masks.ts';
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {

@@ -1,7 +1,7 @@
-import { sampleWhiteBalance, type WhiteBalanceSample } from '$lib/api/edits';
-import type { Edits, WhiteBalance } from '$lib/types/edits';
-import { errorMessage } from '$lib/utils/errors';
-import { SingleFlight } from '$lib/utils/singleFlight';
+import { sampleWhiteBalance, type WhiteBalanceSample } from '#lib/api/edits.ts';
+import type { Edits, WhiteBalance } from '#lib/types/edits.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import { SingleFlight } from '#lib/utils/singleFlight.ts';
 
 export type WhiteBalanceReading = { wb: WhiteBalance; error: null } | { wb: null; error: string };
 

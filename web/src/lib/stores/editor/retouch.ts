@@ -1,5 +1,5 @@
-import type { Edits, RetouchMode, RetouchStroke, Vec2f } from '$lib/types/edits';
-import type { RetouchTool } from '$lib/stores/ui.svelte';
+import type { Edits, RetouchMode, RetouchStroke, Vec2f } from '#lib/types/edits.ts';
+import type { RetouchTool } from '#lib/stores/ui.svelte.ts';
 
 export interface RetouchCtx {
   edits: Edits;

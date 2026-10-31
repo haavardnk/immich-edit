@@ -1,4 +1,4 @@
-import { getImmichCapabilities } from '$lib/api/immich';
+import { getImmichCapabilities } from '#lib/api/immich.ts';
 
 class ImmichCapabilitiesStore {
   structuredSearch = $state(false);

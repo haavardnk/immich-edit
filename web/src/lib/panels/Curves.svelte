@@ -1,8 +1,8 @@
 <script lang="ts">
-  import ResetButton from '$lib/components/editor/controls/ResetButton.svelte';
-  import { compactSegmentedSwatchItemClass } from '$lib/components/editor/controls/segmentedControl';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { keyLabel } from '$lib/shortcuts/chord';
+  import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import {
@@ -10,7 +10,7 @@
     identityCurve,
     neutralCurves,
     type CurveChannel
-  } from '$lib/types/edits';
+  } from '#lib/types/edits.ts';
   import CurvesCanvas from './curves/CurvesCanvas.svelte';
   import { CHANNEL_LABELS } from './curves/curves';
 

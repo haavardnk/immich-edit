@@ -20,51 +20,55 @@ import {
   type RetouchMode,
   type RetouchStroke,
   type Vec2f
-} from '$lib/types/edits';
-import { manifestToEdits } from '$lib/edits/manifest';
-import type { PresetPreview } from '$lib/edits/applyPreset';
-import type { ApplyPresetOptions } from '$lib/api/jobs';
-import { defaultLinear, maskCapacity } from '$lib/types/masks';
-import type { BrushBuffer } from '$lib/utils/brush';
-import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '$lib/api/masks';
-import * as develop from '$lib/stores/editor/develop.svelte';
-import * as exportActions from '$lib/stores/editor/export.svelte';
-import * as maskLayers from '$lib/stores/editor/maskLayers.svelte';
-import * as maskGen from '$lib/stores/editor/maskGen';
-import * as metadata from '$lib/stores/editor/metadata';
-import * as retouch from '$lib/stores/editor/retouch';
-import * as geometry from '$lib/stores/editor/geometry.svelte';
-import * as upright from '$lib/stores/editor/upright';
-import * as whiteBalance from '$lib/stores/editor/whiteBalance.svelte';
-import type { GeometrySession } from '$lib/stores/editor/geometry.svelte';
-import { AiDenoiseTracker } from '$lib/stores/editor/aiDenoise.svelte';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-import { DepthPreview, type DepthTarget } from '$lib/stores/editor/depthPreview';
-import { EditHistory } from '$lib/stores/editor/history.svelte';
-import { fetchLensProfile } from '$lib/stores/editor/lensProfile';
-import { SaveQueue } from '$lib/stores/editor/save.svelte';
-import type { MaskWeightFrame, MaskStroke } from '$lib/stores/editor/maskWeight.svelte';
-import { PreviewEngine, type PreviewFrame } from '$lib/stores/editor/preview.svelte';
-import type { ViewSnapshot } from '$lib/stores/editor/previewEdge';
-import { ViewportNav } from '$lib/stores/editor/viewport';
-import type { PreviewMeta } from '$lib/types/preview';
-import type { AssetDetail, TagRef } from '$lib/types/asset';
-import { getEdits, type WhiteBalanceSample } from '$lib/api/edits';
-import { type PreviewMode } from '$lib/api/preview';
-import { type ColorSpaceOpt, type ExportOptions, type ImmichExportOptions } from '$lib/api/export';
-import { getAsset } from '$lib/api/assets';
-import type { LensProfileMatch } from '$lib/api/lensProfile';
-import type { LabelColor } from '$lib/stores/labels';
-import { clipboard } from '$lib/stores/clipboard.svelte';
-import { ui, type BrushTool, type RetouchTool } from '$lib/stores/ui.svelte';
-import { scopes } from '$lib/stores/scopes.svelte';
-import type { Roi } from '$lib/utils/viewGeometry';
-import { errorMessage } from '$lib/utils/errors';
-import { loadFaceData } from '$lib/stores/zoomTargets';
-import type { PanStep } from '$lib/utils/imageViewport';
-import type { PerspectiveEdits } from '$lib/utils/perspective';
-import type { UprightGuide } from '$lib/utils/upright';
-import type { PreviewSurface } from '$lib/utils/previewSurface';
+} from '#lib/types/edits.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import type { PresetPreview } from '#lib/edits/applyPreset.ts';
+import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+import { defaultLinear, maskCapacity } from '#lib/types/masks.ts';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
+import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
+import * as develop from '#lib/stores/editor/develop.svelte.ts';
+import * as exportActions from '#lib/stores/editor/export.svelte.ts';
+import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
+import * as maskGen from '#lib/stores/editor/maskGen.ts';
+import * as metadata from '#lib/stores/editor/metadata.ts';
+import * as retouch from '#lib/stores/editor/retouch.ts';
+import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
+import * as upright from '#lib/stores/editor/upright.ts';
+import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
+import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
+import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
+import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
+import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
+import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
+import type { MaskWeightFrame, MaskStroke } from '#lib/stores/editor/maskWeight.svelte.ts';
+import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
+import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
+import { ViewportNav } from '#lib/stores/editor/viewport.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
+import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
+import { getEdits, type WhiteBalanceSample } from '#lib/api/edits.ts';
+import { type PreviewMode } from '#lib/api/preview.ts';
+import {
+  type ColorSpaceOpt,
+  type ExportOptions,
+  type ImmichExportOptions
+} from '#lib/api/export.ts';
+import { getAsset } from '#lib/api/assets.ts';
+import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
+import type { LabelColor } from '#lib/stores/labels.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { ui, type BrushTool, type RetouchTool } from '#lib/stores/ui.svelte.ts';
+import { scopes } from '#lib/stores/scopes.svelte.ts';
+import type { Roi } from '#lib/utils/viewGeometry.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import { loadFaceData } from '#lib/stores/zoomTargets.ts';
+import type { PanStep } from '#lib/utils/imageViewport.ts';
+import type { PerspectiveEdits } from '#lib/utils/perspective.ts';
+import type { UprightGuide } from '#lib/utils/upright.ts';
+import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);

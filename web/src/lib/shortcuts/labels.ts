@@ -1,4 +1,4 @@
-import { isMac } from '$lib/utils/platform';
+import { isMac } from '#lib/utils/platform.ts';
 import { formatChord } from './chord';
 import { KEYBINDS, type Keybind, type KeybindId } from './table';
 

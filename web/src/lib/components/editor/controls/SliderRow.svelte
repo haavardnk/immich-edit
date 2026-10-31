@@ -1,7 +1,7 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { keysFor } from '$lib/shortcuts/labels';
-  import { editor } from '$lib/stores/editor.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
   import { SCALE_POSITIONS, type SliderScale } from './sliderScale';

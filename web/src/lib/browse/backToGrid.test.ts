@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AssetSummary } from '$lib/types/album';
+import type { AssetSummary } from '#lib/types/album.ts';
 
 const h = vi.hoisted(() => ({ goto: vi.fn(() => Promise.resolve()) }));
 vi.mock('$app/navigation', () => ({ goto: h.goto }));
 
 import { backToGrid } from './backToGrid';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { browsing } from '$lib/stores/browsing.svelte';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
 
 function summary(id: string): AssetSummary {
   return { id, originalFileName: `${id}.arw` } as AssetSummary;

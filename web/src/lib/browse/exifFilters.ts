@@ -1,4 +1,4 @@
-import type { SuggestionField, SuggestionQuery } from '$lib/types/search';
+import type { SuggestionField, SuggestionQuery } from '#lib/types/search.ts';
 import { listSummary } from './listSummary';
 
 export type ExifFilterKey = SuggestionField;

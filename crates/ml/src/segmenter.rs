@@ -125,7 +125,7 @@ fn plane_dims(dims: &[i64], len: usize) -> (usize, usize) {
     }
     if dims.len() >= 3 {
         let classes = dims[dims.len() - 3];
-        if classes > 0 && len % (classes as usize) == 0 {
+        if classes > 0 && len.is_multiple_of(classes as usize) {
             let plane = len / (classes as usize);
             let edge = (plane as f64).sqrt() as usize;
             if edge * edge == plane {

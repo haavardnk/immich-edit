@@ -8,18 +8,18 @@
     loginPassword,
     startOAuthLogin,
     type AuthProviders
-  } from '$lib/api/auth';
-  import { ApiError, isBackendDown } from '$lib/api/client';
+  } from '#lib/api/auth.ts';
+  import { ApiError, isBackendDown } from '#lib/api/client.ts';
   import {
     callbackError,
     isOAuthCallback,
     redirectUri,
     safeNext,
     shouldAutoLaunch
-  } from '$lib/auth/oauth';
-  import Wordmark from '$lib/components/Wordmark.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
+  } from '#lib/auth/oauth.ts';
+  import Wordmark from '#lib/components/Wordmark.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import { Button } from '@immich/ui';
 
   let method = $state<'password' | 'apikey'>('password');

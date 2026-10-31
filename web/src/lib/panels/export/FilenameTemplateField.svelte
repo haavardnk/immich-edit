@@ -1,12 +1,12 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import {
     DEFAULT_FILENAME_TEMPLATE,
     FILENAME_TOKENS,
     renderTemplate,
     templateError,
     type NameContext
-  } from '$lib/editor/filenameTemplate';
+  } from '#lib/editor/filenameTemplate.ts';
 
   let {
     value = $bindable(),

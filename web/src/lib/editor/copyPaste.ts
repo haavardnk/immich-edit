@@ -1,4 +1,4 @@
-import type { Edits } from '$lib/types/edits';
+import type { Edits } from '#lib/types/edits.ts';
 
 export interface CopySections {
   basic: boolean;

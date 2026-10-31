@@ -2,18 +2,24 @@
   import { onDestroy, untrack } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { trash } from '$lib/stores/trash.svelte';
-  import { compare, CENTERED, type PaneView } from '$lib/stores/compare.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
-  import { labelOf, nextLabelFromKey, type LabelColor } from '$lib/stores/labels';
-  import { persistedPreviewUrl } from '$lib/api/preview';
-  import { isRejected } from '$lib/browse/reject';
-  import { ownsAsset } from '$lib/browse/ownership';
-  import { copyIndex, isCopy } from '$lib/browse/assetKey';
-  import { paneColumns, paneGridStyle } from '$lib/browse/loupeLayout';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { trash } from '#lib/stores/trash.svelte.ts';
+  import { compare, CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import {
+    rateAsset,
+    toggleFavorite,
+    toggleReject,
+    clearFlags,
+    setLabel
+  } from '#lib/browse/cull.ts';
+  import { labelOf, nextLabelFromKey, type LabelColor } from '#lib/stores/labels.ts';
+  import { persistedPreviewUrl } from '#lib/api/preview.ts';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
+  import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
+  import { paneColumns, paneGridStyle } from '#lib/browse/loupeLayout.ts';
   import {
     advanceFocused,
     enterMulti,
@@ -22,33 +28,33 @@
     pickFromStrip,
     selectViewMode,
     stepLoupe
-  } from '$lib/browse/loupeNav';
-  import { loupeTags } from '$lib/stores/loupeTags.svelte';
-  import { putBounded } from '$lib/utils/boundedRecord';
-  import { cachedFaceData, loadFaceData } from '$lib/stores/zoomTargets';
+  } from '#lib/browse/loupeNav.ts';
+  import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+  import { putBounded } from '#lib/utils/boundedRecord.ts';
+  import { cachedFaceData, loadFaceData } from '#lib/stores/zoomTargets.ts';
   import {
     faceTargets,
     nextTargetIndex,
     sharpestPoint,
     type ZoomTarget
-  } from '$lib/utils/zoomTarget';
-  import { editorHref } from '$lib/editor/navigation';
-  import type { TagRef } from '$lib/types/asset';
-  import Filmstrip from '$lib/components/shell/Filmstrip.svelte';
-  import LoupeActionRail from '$lib/components/browse/LoupeActionRail.svelte';
-  import LoupePaneGrid from '$lib/components/browse/LoupePaneGrid.svelte';
-  import LoupeToolbar from '$lib/components/browse/LoupeToolbar.svelte';
-  import ExifRows from '$lib/components/ExifRows.svelte';
-  import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
-  import { hint } from '$lib/shortcuts/labels';
-  import { matchKeybind } from '$lib/shortcuts/match';
-  import { hasTextSelection, isRadioGroupTarget, yieldsToControl } from '$lib/shortcuts/targets';
-  import { CONTEXT_STACKS } from '$lib/shortcuts/context';
-  import { clampZoom, writeZoomLevel } from '$lib/utils/zoomLevel';
-  import { panStep } from '$lib/utils/imageViewport';
+  } from '#lib/utils/zoomTarget.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
+  import type { TagRef } from '#lib/types/asset.ts';
+  import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
+  import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
+  import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
+  import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
+  import ExifRows from '#lib/components/ExifRows.svelte';
+  import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
+  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { matchKeybind } from '#lib/shortcuts/match.ts';
+  import { hasTextSelection, isRadioGroupTarget, yieldsToControl } from '#lib/shortcuts/targets.ts';
+  import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
+  import { clampZoom, writeZoomLevel } from '#lib/utils/zoomLevel.ts';
+  import { panStep } from '#lib/utils/imageViewport.ts';
   import { IconButton, isModalOpen } from '@immich/ui';
-  import ContextMenuItem from '$lib/components/ContextMenuItem.svelte';
+  import ContextMenuItem from '#lib/components/ContextMenuItem.svelte';
   import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;

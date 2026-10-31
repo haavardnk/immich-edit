@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
-  import ExifRows from '$lib/components/ExifRows.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import ExifRows from '#lib/components/ExifRows.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
 
   let { anchor }: { anchor: HTMLElement | null } = $props();
 </script>

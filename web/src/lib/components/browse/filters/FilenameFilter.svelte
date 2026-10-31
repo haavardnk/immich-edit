@@ -1,6 +1,6 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 
   let filenameLocal = $state(browseControls.filters.filename);
   let filenameTimer: ReturnType<typeof setTimeout> | null = null;

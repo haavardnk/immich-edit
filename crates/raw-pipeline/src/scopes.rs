@@ -97,7 +97,7 @@ impl Counts {
     }
 
     fn add_row(&mut self, row: &[u8], width: usize) {
-        for (x, px) in row.chunks_exact(3).enumerate() {
+        for (x, px) in row.as_chunks::<3>().0.iter().enumerate() {
             self.add_pixel(x, width, px[0], px[1], px[2]);
         }
     }

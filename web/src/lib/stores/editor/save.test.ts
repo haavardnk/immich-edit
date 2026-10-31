@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConflictError } from '$lib/api/client';
-import { editsToManifest } from '$lib/edits/manifest';
-import type { AssetDetail } from '$lib/types/asset';
-import { neutralEdits, type EditRecord } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
+import { ConflictError } from '#lib/api/client.ts';
+import { editsToManifest } from '#lib/edits/manifest.ts';
+import type { AssetDetail } from '#lib/types/asset.ts';
+import { neutralEdits, type EditRecord } from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 
 const mocks = vi.hoisted(() => ({
   getAsset: vi.fn(),
@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
   listEditedAssets: vi.fn()
 }));
 
-vi.mock('$lib/api/assets', () => ({ getAsset: mocks.getAsset }));
-vi.mock('$lib/api/edits', () => ({
+vi.mock('#lib/api/assets.ts', () => ({ getAsset: mocks.getAsset }));
+vi.mock('#lib/api/edits.ts', () => ({
   getEdits: mocks.getEdits,
   putEdits: mocks.putEdits,
   deleteEdits: mocks.deleteEdits,
@@ -27,18 +27,18 @@ vi.mock('$lib/api/edits', () => ({
   listEditedAssets: mocks.listEditedAssets,
   autoEdits: vi.fn()
 }));
-vi.mock('$lib/api/lensProfile', () => ({ getLensProfile: mocks.getLensProfile }));
-vi.mock('$lib/api/denoise', () => ({
+vi.mock('#lib/api/lensProfile.ts', () => ({ getLensProfile: mocks.getLensProfile }));
+vi.mock('#lib/api/denoise.ts', () => ({
   startDenoise: mocks.startDenoise,
   getDenoiseStatus: mocks.getDenoiseStatus
 }));
-vi.mock('$lib/api/preview', async (original) => ({
-  ...(await original<typeof import('$lib/api/preview')>()),
+vi.mock('#lib/api/preview.ts', async (original) => ({
+  ...(await original<typeof import('#lib/api/preview.ts')>()),
   livePreview: mocks.livePreview
 }));
 
-import { editor } from '$lib/stores/editor.svelte';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
+import { editor } from '#lib/stores/editor.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 
 function asset(): AssetDetail {
   return {

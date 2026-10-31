@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
+  import Popover from '#lib/components/Popover.svelte';
   import { Button, IconButton } from '@immich/ui';
   import { mdiHistory, mdiClose, mdiChevronDown, mdiChevronRight } from '@mdi/js';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { listEditHistory, type EditHistoryEntry } from '$lib/api/edits';
-  import { historyDetails, historyLabel } from '$lib/utils/history';
-  import { formatWhen } from '$lib/utils/datetime';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { listEditHistory, type EditHistoryEntry } from '#lib/api/edits.ts';
+  import { historyDetails, historyLabel } from '#lib/utils/history.ts';
+  import { formatWhen } from '#lib/utils/datetime.ts';
 
   let open = $state(false);
   let entries = $state<EditHistoryEntry[]>([]);

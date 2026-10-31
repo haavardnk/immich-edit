@@ -113,10 +113,10 @@ pub async fn build_auth_ctx(
 }
 
 pub fn extract_token(headers: &HeaderMap) -> Option<String> {
-    if let Some(auth) = headers.get(AUTHORIZATION).and_then(|v| v.to_str().ok()) {
-        if let Some(rest) = auth.strip_prefix("Bearer ") {
-            return Some(rest.to_string());
-        }
+    if let Some(auth) = headers.get(AUTHORIZATION).and_then(|v| v.to_str().ok())
+        && let Some(rest) = auth.strip_prefix("Bearer ")
+    {
+        return Some(rest.to_string());
     }
     CookieJar::from_headers(headers)
         .get(AUTH_COOKIE)

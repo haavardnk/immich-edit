@@ -1,23 +1,23 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '$lib/types/edits';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '#lib/types/edits.ts';
   import {
     displayUvToSceneUv,
     scenePerDisplayAt,
     sceneUvToDisplayUv,
     steppedSegment,
     viewTransform
-  } from '$lib/utils/canvasCoords';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
+  } from '#lib/utils/canvasCoords.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import {
     HARDNESS,
     RETOUCH_SIZE,
     wheelHardness,
     wheelNotches,
     wheelSize
-  } from '$lib/utils/brushSize';
+  } from '#lib/utils/brushSize.ts';
   import { v4 as uuidv4 } from 'uuid';
 
   let {

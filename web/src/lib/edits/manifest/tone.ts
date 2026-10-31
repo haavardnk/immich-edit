@@ -3,7 +3,7 @@ import {
   curvesEditsIsIdentity,
   type CurvePoint,
   type Edits
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 export function encodeCurves(edits: Edits, ops: Record<string, unknown>): void {
   const curves = edits.basic.curves;

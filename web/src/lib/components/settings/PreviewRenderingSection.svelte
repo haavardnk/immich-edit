@@ -3,9 +3,9 @@
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { renderer, type RendererChoice } from '$lib/stores/renderer.svelte';
-  import { rendererStatus } from '$lib/stores/rendererStatus';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { renderer, type RendererChoice } from '#lib/stores/renderer.svelte.ts';
+  import { rendererStatus } from '#lib/stores/rendererStatus.ts';
 
   const OPTIONS: { value: RendererChoice; label: string }[] = [
     { value: 'auto', label: 'Fastest' },

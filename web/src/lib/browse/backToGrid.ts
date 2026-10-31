@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
-import { browseView } from '$lib/stores/browseView.svelte';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { validReturnPath } from '$lib/editor/navigation';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { validReturnPath } from '#lib/editor/navigation.ts';
 
 export async function backToGrid(
   assetId: string | null,

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { AlbumSummary } from '$lib/types/album';
-  import { assetThumbUrl } from '$lib/api/assets';
+  import type { AlbumSummary } from '#lib/types/album.ts';
+  import { assetThumbUrl } from '#lib/api/assets.ts';
 
   let { album, active = false }: { album: AlbumSummary; active?: boolean } = $props();
 </script>

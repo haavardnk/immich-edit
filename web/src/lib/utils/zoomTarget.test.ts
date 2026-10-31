@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { FaceBox } from '$lib/api/faces';
-import type { Edits, GeometryEdits } from '$lib/types/edits';
-import { neutralEdits } from '$lib/types/edits';
+import type { FaceBox } from '#lib/api/faces.ts';
+import type { Edits, GeometryEdits } from '#lib/types/edits.ts';
+import { neutralEdits } from '#lib/types/edits.ts';
 import { viewTransform } from './canvasCoords';
 import { faceTargets, nextTargetIndex, panForTarget, sharpestCell } from './zoomTarget';
 

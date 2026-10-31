@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { neutralEdits } from '$lib/types/edits';
+import { neutralEdits } from '#lib/types/edits.ts';
 import {
   displayUvToSceneUv,
   sceneUvToDisplayUv,

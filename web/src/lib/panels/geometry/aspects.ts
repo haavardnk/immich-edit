@@ -1,4 +1,4 @@
-import type { AspectLock } from '$lib/types/edits';
+import type { AspectLock } from '#lib/types/edits.ts';
 
 export const PRESET_RATIOS: ReadonlyArray<readonly [number, number]> = [
   [1, 1],

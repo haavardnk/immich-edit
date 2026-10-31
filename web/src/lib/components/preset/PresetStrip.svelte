@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import FileImportButton from '$lib/components/FileImportButton.svelte';
-  import BottomPanelResizeHandle from '$lib/components/shell/BottomPanelResizeHandle.svelte';
+  import FileImportButton from '#lib/components/FileImportButton.svelte';
+  import BottomPanelResizeHandle from '#lib/components/shell/BottomPanelResizeHandle.svelte';
   import PresetApplyOptions from './ApplyOptions.svelte';
   import PresetTile from './PresetTile.svelte';
   import SavePresetDialog from './SavePresetDialog.svelte';
-  import { presetThumbUrl, type Preset } from '$lib/api/presets';
-  import type { ApplyPresetOptions } from '$lib/api/jobs';
-  import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { presets } from '$lib/stores/presets.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { presetThumbUrl, type Preset } from '#lib/api/presets.ts';
+  import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+  import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { presets } from '#lib/stores/presets.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import { Icon } from '@immich/ui';
   import { mdiPlus, mdiUpload } from '@mdi/js';
 

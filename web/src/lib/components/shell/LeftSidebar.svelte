@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { page } from '$app/state';
-  import { library } from '$lib/stores/library.svelte';
-  import { sidebar, type SidebarSectionId } from '$lib/stores/sidebar.svelte';
-  import AlbumList from '$lib/components/library/AlbumList.svelte';
-  import PeopleList from '$lib/components/library/PeopleList.svelte';
-  import TagList from '$lib/components/library/TagList.svelte';
-  import FolderTree from '$lib/components/library/FolderTree.svelte';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import { sidebar, type SidebarSectionId } from '#lib/stores/sidebar.svelte.ts';
+  import AlbumList from '#lib/components/library/AlbumList.svelte';
+  import PeopleList from '#lib/components/library/PeopleList.svelte';
+  import TagList from '#lib/components/library/TagList.svelte';
+  import FolderTree from '#lib/components/library/FolderTree.svelte';
   import SidebarLink from './SidebarLink.svelte';
   import SidebarSection from './SidebarSection.svelte';
   import {

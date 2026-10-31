@@ -1,15 +1,15 @@
 <script lang="ts">
-  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
-  import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
-  import { ApiError } from '$lib/api/client';
+  import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
+  import { ApiError } from '#lib/api/client.ts';
   import {
     deleteWatermark,
     importWatermark,
     listWatermarks,
     type WatermarkMeta
-  } from '$lib/api/watermarks';
-  import { session } from '$lib/stores/session.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
+  } from '#lib/api/watermarks.ts';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { IconButton, Select, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiUpload } from '@mdi/js';

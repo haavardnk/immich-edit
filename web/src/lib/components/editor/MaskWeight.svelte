@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { maskOverlayRgb } from '$lib/utils/brush';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskOverlayRgb } from '#lib/utils/brush.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
   let {
     img

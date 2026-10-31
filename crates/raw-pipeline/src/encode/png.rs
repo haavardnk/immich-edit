@@ -54,7 +54,7 @@ pub fn encode_png16(
     write(header, size_of_val(rgb16), |out| {
         let mut row = vec![0u8; samples * 2];
         for line in rgb16.chunks_exact(samples) {
-            for (dst, v) in row.chunks_exact_mut(2).zip(line) {
+            for (dst, v) in row.as_chunks_mut::<2>().0.iter_mut().zip(line) {
                 dst.copy_from_slice(&v.to_be_bytes());
             }
             out.write_all(&row)?;

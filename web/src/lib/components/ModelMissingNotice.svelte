@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Notice from '$lib/components/Notice.svelte';
-  import { session } from '$lib/stores/session.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { session } from '#lib/stores/session.svelte.ts';
   import { Link } from '@immich/ui';
 
   let { message, askAdmin }: { message: string; askAdmin: string } = $props();

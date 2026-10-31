@@ -1,10 +1,10 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import { onMount } from 'svelte';
-  import { session } from '$lib/stores/session.svelte';
-  import { listUsers, setUserAccess, purgeUserData, type AdminUser } from '$lib/api/admin';
-  import { errorMessage } from '$lib/utils/errors';
-  import Notice from '$lib/components/Notice.svelte';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { listUsers, setUserAccess, purgeUserData, type AdminUser } from '#lib/api/admin.ts';
+  import { errorMessage } from '#lib/utils/errors.ts';
+  import Notice from '#lib/components/Notice.svelte';
   import { mdiAccountCircleOutline, mdiDeleteOutline } from '@mdi/js';
   import { Badge, Button, Icon, IconButton, LoadingSpinner, Switch, Text } from '@immich/ui';
 

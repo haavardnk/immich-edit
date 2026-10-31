@@ -251,7 +251,9 @@ fn decode_png(data: &[u8]) -> crate::PipelineResult<Bitmap> {
         }
         (png::ColorType::GrayscaleAlpha, png::BitDepth::Eight) => {
             let rgb: Vec<u8> = bytes
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .flat_map(|p| [p[0], p[0], p[0]])
                 .collect();
             Ok(Bitmap::rgb8(rgb, width, height))
@@ -259,7 +261,9 @@ fn decode_png(data: &[u8]) -> crate::PipelineResult<Bitmap> {
         (png::ColorType::GrayscaleAlpha, png::BitDepth::Sixteen) => {
             let ga = be_bytes_to_u16(bytes);
             let rgb: Vec<u16> = ga
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .flat_map(|p| [p[0], p[0], p[0]])
                 .collect();
             Ok(Bitmap::rgb16(rgb, width, height))
@@ -388,7 +392,7 @@ fn decode_via_image_crate(data: &[u8]) -> crate::PipelineResult<Bitmap> {
 
 fn rgba8_to_rgb8(rgba: &[u8]) -> Vec<u8> {
     let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
-    for chunk in rgba.chunks_exact(4) {
+    for chunk in rgba.as_chunks::<4>().0 {
         rgb.extend_from_slice(&chunk[..3]);
     }
     rgb
@@ -396,7 +400,7 @@ fn rgba8_to_rgb8(rgba: &[u8]) -> Vec<u8> {
 
 fn rgba16_to_rgb16(rgba: &[u16]) -> Vec<u16> {
     let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
-    for chunk in rgba.chunks_exact(4) {
+    for chunk in rgba.as_chunks::<4>().0 {
         rgb.extend_from_slice(&chunk[..3]);
     }
     rgb
@@ -412,7 +416,9 @@ fn gray8_to_rgb8(g: &[u8]) -> Vec<u8> {
 
 fn be_bytes_to_u16(bytes: &[u8]) -> Vec<u16> {
     bytes
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|c| u16::from_be_bytes([c[0], c[1]]))
         .collect()
 }

@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { compare } from '$lib/stores/compare.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import type { TagRef } from '$lib/types/asset';
-  import TagPicker from '$lib/components/TagPicker.svelte';
-  import ZoomPopover from '$lib/components/ZoomPopover.svelte';
-  import StarRating from '$lib/components/StarRating.svelte';
-  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
-  import RejectButton from '$lib/components/RejectButton.svelte';
-  import LabelPicker from '$lib/components/LabelPicker.svelte';
-  import DisabledReason from '$lib/components/DisabledReason.svelte';
-  import { NOT_OWNER } from '$lib/browse/ownership';
-  import type { LabelColor } from '$lib/stores/labels';
-  import { hint } from '$lib/shortcuts/labels';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import type { TagRef } from '#lib/types/asset.ts';
+  import TagPicker from '#lib/components/TagPicker.svelte';
+  import ZoomPopover from '#lib/components/ZoomPopover.svelte';
+  import StarRating from '#lib/components/StarRating.svelte';
+  import FavoriteButton from '#lib/components/FavoriteButton.svelte';
+  import RejectButton from '#lib/components/RejectButton.svelte';
+  import LabelPicker from '#lib/components/LabelPicker.svelte';
+  import DisabledReason from '#lib/components/DisabledReason.svelte';
+  import { NOT_OWNER } from '#lib/browse/ownership.ts';
+  import type { LabelColor } from '#lib/stores/labels.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiArrowCollapseLeft,

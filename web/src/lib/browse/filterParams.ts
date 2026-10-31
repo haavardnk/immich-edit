@@ -1,3 +1,4 @@
+import type { ReadonlyURL, ReadonlyURLSearchParams } from '$app/state';
 import { DateTime } from 'luxon';
 import {
   FILTER_DEFAULTS,
@@ -5,10 +6,10 @@ import {
   REJECTED_FILTERS,
   type BrowseFilters,
   type LabelFilter
-} from '$lib/stores/browseControls.svelte';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import { LABEL_COLORS } from '$lib/stores/labels';
-import type { Visibility } from '$lib/types/search';
+} from '#lib/stores/browseControls.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import { LABEL_COLORS } from '#lib/stores/labels.ts';
+import type { Visibility } from '#lib/types/search.ts';
 import { EXACT_RATINGS, RANGE_RATINGS, type RatingFilter } from './rating';
 import { UNKNOWN_EXIF, type ExifFilterKey } from './exifFilters';
 import { megabytes } from './fileSize';
@@ -73,20 +74,20 @@ function day(value: string | null): string {
   return DateTime.fromISO(value).isValid ? value : '';
 }
 
-function values(params: URLSearchParams, key: ExifFilterKey): string[] {
+function values(params: ReadonlyURLSearchParams, key: ExifFilterKey): string[] {
   const all = [...new Set(params.getAll(PARAMS[key]))];
   const known = all.filter((value) => value !== UNKNOWN_EXIF);
   const read = known.length > 0 ? known : all;
   return read.length <= 1 || immichCapabilities.structuredSearch ? read : [];
 }
 
-function ids(params: URLSearchParams, key: IdFilterKey, structured: boolean): IdFilter {
+function ids(params: ReadonlyURLSearchParams, key: IdFilterKey, structured: boolean): IdFilter {
   const read = [...new Set(params.getAll(PARAMS[key]).filter(Boolean))];
   const match = ID_MATCHES.find((m) => m === params.get(MATCH_PARAMS[key])) ?? 'all';
   return structured || match === 'all' ? idFilter(read, match) : NO_IDS;
 }
 
-export function readFilterParams(url: URL): BrowseFilters {
+export function readFilterParams(url: ReadonlyURL): BrowseFilters {
   const params = url.searchParams;
   const get = (key: keyof BrowseFilters): string | null => params.get(PARAMS[key]);
   const structured = structuredRoute(url);
@@ -123,8 +124,8 @@ export function readFilterParams(url: URL): BrowseFilters {
   return { ...filters, ...Object.fromEntries(unsupported) };
 }
 
-export function withFilterParams(url: URL, filters: BrowseFilters): URL {
-  const next = new URL(url);
+export function withFilterParams(url: ReadonlyURL, filters: BrowseFilters): URL {
+  const next = new URL(url.href);
   for (const name of [...Object.values(PARAMS), ...Object.values(MATCH_PARAMS)]) {
     next.searchParams.delete(name);
   }

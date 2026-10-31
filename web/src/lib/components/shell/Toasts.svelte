@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { toasts, type ToastAction, type ToastKind } from '$lib/stores/toasts.svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
-  import JobToast from '$lib/components/jobs/JobToast.svelte';
+  import { toasts, type ToastAction, type ToastKind } from '#lib/stores/toasts.svelte.ts';
+  import { jobs } from '#lib/stores/jobs.svelte.ts';
+  import JobToast from '#lib/components/jobs/JobToast.svelte';
   import { Toast, type Color, type ToastButton } from '@immich/ui';
 
   const colors: Record<ToastKind, Color> = {

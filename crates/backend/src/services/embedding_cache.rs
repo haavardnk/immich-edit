@@ -219,7 +219,9 @@ fn decode(bytes: &[u8]) -> Result<Embedding, EmbeddingCacheError> {
         let len = r.u64()? as usize;
         let raw = r.take(len.checked_mul(4).ok_or(EmbeddingCacheError::Corrupt)?)?;
         let values = raw
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
             .collect();
         tensors.push(EmbeddingTensor { name, dims, values });

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import DualRangeSlider from '$lib/components/editor/controls/DualRangeSlider.svelte';
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { MaskComponent } from '$lib/types/edits';
+  import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { MaskComponent } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { onDestroy } from 'svelte';

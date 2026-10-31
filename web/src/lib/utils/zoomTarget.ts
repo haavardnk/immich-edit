@@ -1,7 +1,7 @@
-import type { FaceBox } from '$lib/api/faces';
-import { sceneUvToDisplayUv, type ViewTransform } from '$lib/utils/canvasCoords';
-import type { Pan } from '$lib/utils/imageViewport';
-import { surfaceSize, type PreviewSurface } from '$lib/utils/previewSurface';
+import type { FaceBox } from '#lib/api/faces.ts';
+import { sceneUvToDisplayUv, type ViewTransform } from '#lib/utils/canvasCoords.ts';
+import type { Pan } from '#lib/utils/imageViewport.ts';
+import { surfaceSize, type PreviewSurface } from '#lib/utils/previewSurface.ts';
 
 export interface ZoomTarget {
   u: number;

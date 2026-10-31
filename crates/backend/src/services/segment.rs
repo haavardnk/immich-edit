@@ -57,7 +57,9 @@ fn unit_bytes(values: &[f32]) -> Vec<u8> {
 }
 
 fn luma_guide(rgb8: &[u8]) -> Vec<f32> {
-    rgb8.chunks_exact(3)
+    rgb8.as_chunks::<3>()
+        .0
+        .iter()
         .map(|p| (0.2126 * p[0] as f32 + 0.7152 * p[1] as f32 + 0.0722 * p[2] as f32) / 255.0)
         .collect()
 }

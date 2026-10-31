@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { hint } from '$lib/shortcuts/labels';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import { library } from '$lib/stores/library.svelte';
-  import type { TagSummary } from '$lib/api/tags';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import type { TagRef } from '$lib/types/asset';
-  import { isManagedTag } from '$lib/browse/managedTags';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import type { TagSummary } from '#lib/api/tags.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import type { TagRef } from '#lib/types/asset.ts';
+  import { isManagedTag } from '#lib/browse/managedTags.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
   import { onMount } from 'svelte';

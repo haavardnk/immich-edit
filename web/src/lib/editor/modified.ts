@@ -1,6 +1,6 @@
-import { editsToManifest } from '$lib/edits/manifest';
-import type { EditorTab } from '$lib/stores/ui.svelte';
-import { lensBlurActive, type Edits } from '$lib/types/edits';
+import { editsToManifest } from '#lib/edits/manifest.ts';
+import type { EditorTab } from '#lib/stores/ui.svelte.ts';
+import { lensBlurActive, type Edits } from '#lib/types/edits.ts';
 
 const DEVELOP_PANEL_OPS: Record<string, readonly string[]> = {
   dcp: ['dcp_hue_sat'],

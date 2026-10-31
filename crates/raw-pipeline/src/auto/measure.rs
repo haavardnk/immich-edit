@@ -46,7 +46,7 @@ impl Image {
         let mut blue_yellow = Vec::with_capacity(n);
         let mut peak = Vec::with_capacity(n);
         let mut dark = Vec::with_capacity(n);
-        for px in bytes.chunks_exact(3).take(n) {
+        for px in bytes.as_chunks::<3>().0.iter().take(n) {
             let rgb = [
                 decode[usize::from(px[0])],
                 decode[usize::from(px[1])],

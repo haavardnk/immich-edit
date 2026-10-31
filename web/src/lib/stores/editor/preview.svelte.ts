@@ -1,4 +1,4 @@
-import { ApiError } from '$lib/api/client';
+import { ApiError } from '#lib/api/client.ts';
 import {
   getPreviewMeta,
   livePreview,
@@ -6,24 +6,24 @@ import {
   previewModeIsNone,
   type PreviewMode,
   type ProofOptions
-} from '$lib/api/preview';
-import type { ColorSpaceOpt } from '$lib/api/export';
-import { presetEdits, type PresetPreview } from '$lib/edits/applyPreset';
-import { renderer } from '$lib/stores/renderer.svelte';
-import { scopes } from '$lib/stores/scopes.svelte';
-import { ui } from '$lib/stores/ui.svelte';
+} from '#lib/api/preview.ts';
+import type { ColorSpaceOpt } from '#lib/api/export.ts';
+import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
+import { renderer } from '#lib/stores/renderer.svelte.ts';
+import { scopes } from '#lib/stores/scopes.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
 import {
   neutraliseSection,
   originalPreviewEdits,
   type DevelopSection,
   type Edits
-} from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
-import { displayGamutIsWide, previewColorSpace } from '$lib/utils/colorGamut';
-import { errorMessage } from '$lib/utils/errors';
-import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
-import { SingleFlight } from '$lib/utils/singleFlight';
-import type { Roi } from '$lib/utils/viewGeometry';
+} from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
+import { displayGamutIsWide, previewColorSpace } from '#lib/utils/colorGamut.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import { makeObjectUrl, revoke } from '#lib/utils/objectUrl.ts';
+import { SingleFlight } from '#lib/utils/singleFlight.ts';
+import type { Roi } from '#lib/utils/viewGeometry.ts';
 import type { GeometrySession } from './geometry.svelte';
 import { ClientPreview } from './clientPreview';
 import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';

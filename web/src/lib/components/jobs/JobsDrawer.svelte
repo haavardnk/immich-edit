@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { jobs } from '$lib/stores/jobs.svelte';
+  import { jobs } from '#lib/stores/jobs.svelte.ts';
   import {
     isJobActive,
     jobDownloadUrl,
     type Job,
     type JobItem,
     type JobItemStatus
-  } from '$lib/api/jobs';
+  } from '#lib/api/jobs.ts';
   import { jobKindLabel, jobProgress } from './jobFormat';
-  import Notice from '$lib/components/Notice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
   import {
     mdiClose,
     mdiChevronDown,

@@ -3,14 +3,14 @@
   import Histogram from './scopes/Histogram.svelte';
   import Waveform from './scopes/Waveform.svelte';
   import Vectorscope from './scopes/Vectorscope.svelte';
-  import ResizeHandle from '$lib/components/shell/ResizeHandle.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     scopes,
     MAX_SCOPE_HEIGHT,
     MIN_SCOPE_HEIGHT,
     type WaveformChannels
-  } from '$lib/stores/scopes.svelte';
+  } from '#lib/stores/scopes.svelte.ts';
 
   const GAINS = [1, 2, 4, 8];
 

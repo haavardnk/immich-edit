@@ -25,7 +25,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; LUMA_LEVELS
     cur.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(out, rgb)| {
-            for (o, px) in out.iter_mut().zip(rgb.chunks_exact(3)) {
+            for (o, px) in out.iter_mut().zip(rgb.as_chunks::<3>().0) {
                 *o = luma(px[0], px[1], px[2]);
             }
         });
@@ -72,7 +72,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; LUMA_LEVELS
         .par_chunks_mut(w * 3)
         .zip(acc.par_chunks(w))
         .for_each(|(rgb, deltas)| {
-            for (px, d) in rgb.chunks_exact_mut(3).zip(deltas) {
+            for (px, d) in rgb.as_chunks_mut::<3>().0.iter_mut().zip(deltas) {
                 let y0 = luma(px[0], px[1], px[2]);
                 let y1 = y0 + d;
                 let r = chroma_scale(y0, y1);

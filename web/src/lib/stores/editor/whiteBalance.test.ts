@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { editsToManifest } from '$lib/edits/manifest';
-import type { AssetDetail } from '$lib/types/asset';
+import { editsToManifest } from '#lib/edits/manifest.ts';
+import type { AssetDetail } from '#lib/types/asset.ts';
 import {
   asShotWhiteBalance,
   neutralEdits,
   type AsShotWhite,
   type EditRecord
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 const mocks = vi.hoisted(() => ({
   getAsset: vi.fn(),
@@ -19,8 +19,8 @@ const mocks = vi.hoisted(() => ({
   livePreview: vi.fn(() => new Promise<never>(() => undefined))
 }));
 
-vi.mock('$lib/api/assets', () => ({ getAsset: mocks.getAsset }));
-vi.mock('$lib/api/edits', () => ({
+vi.mock('#lib/api/assets.ts', () => ({ getAsset: mocks.getAsset }));
+vi.mock('#lib/api/edits.ts', () => ({
   getEdits: mocks.getEdits,
   putEdits: mocks.putEdits,
   deleteEdits: vi.fn(() => Promise.resolve()),
@@ -30,14 +30,14 @@ vi.mock('$lib/api/edits', () => ({
   autoWhiteBalance: mocks.autoWhiteBalance,
   getAsShotWhite: mocks.getAsShotWhite
 }));
-vi.mock('$lib/api/lensProfile', () => ({ getLensProfile: mocks.getLensProfile }));
-vi.mock('$lib/api/preview', async (original) => ({
-  ...(await original<typeof import('$lib/api/preview')>()),
+vi.mock('#lib/api/lensProfile.ts', () => ({ getLensProfile: mocks.getLensProfile }));
+vi.mock('#lib/api/preview.ts', async (original) => ({
+  ...(await original<typeof import('#lib/api/preview.ts')>()),
   livePreview: mocks.livePreview
 }));
 
-import { editor } from '$lib/stores/editor.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { editor } from '#lib/stores/editor.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 function asset(): AssetDetail {
   return {

@@ -1,13 +1,13 @@
-import { ApiError, NetworkError } from '$lib/api/client';
-import { previewModeIsNone, type ProofOptions } from '$lib/api/preview';
-import type { ClientRenderer } from '$lib/render/clientRenderer';
-import { frameMeta } from '$lib/render/frameMeta';
-import type { RenderView, RenderedFrame, SourceInfo } from '$lib/render/protocol';
-import { renderer } from '$lib/stores/renderer.svelte';
-import { scopes } from '$lib/stores/scopes.svelte';
-import type { Edits } from '$lib/types/edits';
-import { revoke } from '$lib/utils/objectUrl';
-import type { RenderRequest } from '$lib/utils/viewGeometry';
+import { ApiError, NetworkError } from '#lib/api/client.ts';
+import { previewModeIsNone, type ProofOptions } from '#lib/api/preview.ts';
+import type { ClientRenderer } from '#lib/render/clientRenderer.ts';
+import { frameMeta } from '#lib/render/frameMeta.ts';
+import type { RenderView, RenderedFrame, SourceInfo } from '#lib/render/protocol.ts';
+import { renderer } from '#lib/stores/renderer.svelte.ts';
+import { scopes } from '#lib/stores/scopes.svelte.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import { revoke } from '#lib/utils/objectUrl.ts';
+import type { RenderRequest } from '#lib/utils/viewGeometry.ts';
 import { BASE_SLOT, ClientLane, TILE_SLOT, type ClientJob, type SourceSlot } from './clientLane';
 import type { BaseArgs, PreviewCtx, PreviewFrame } from './preview.svelte';
 

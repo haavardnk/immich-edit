@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Popover from '$lib/components/Popover.svelte';
+  import Popover from '#lib/components/Popover.svelte';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiChevronDown, mdiContentSaveOutline, mdiDeleteOutline } from '@mdi/js';

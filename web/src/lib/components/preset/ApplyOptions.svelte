@@ -1,8 +1,8 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import RangeSlider from '$lib/components/editor/controls/RangeSlider.svelte';
-  import type { ApplyPresetOptions } from '$lib/api/jobs';
-  import { LOOK_AMOUNT_FULL, LOOK_AMOUNT_MAX } from '$lib/edits/lookAmount';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
+  import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+  import { LOOK_AMOUNT_FULL, LOOK_AMOUNT_MAX } from '#lib/edits/lookAmount.ts';
 
   let {
     options = $bindable(),

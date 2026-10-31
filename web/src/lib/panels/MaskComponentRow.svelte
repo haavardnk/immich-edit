@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '$lib/components/editor/controls/segmentedControl';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { MaskComponent, MaskComponentMode } from '$lib/types/edits';
+  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
   import { kindIcon, MODES } from './maskTools';
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';

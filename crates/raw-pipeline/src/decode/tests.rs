@@ -133,7 +133,9 @@ fn png_decodes_every_colour_type() {
         let grey = frame.data.len() == 6
             && frame
                 .data
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .all(|p| (p[0] - p[1]).abs() < 0.01 && (p[0] - p[2]).abs() < 0.01);
         if !grey || frame.data[3] - frame.data[0] < 0.3 {
             panic!(

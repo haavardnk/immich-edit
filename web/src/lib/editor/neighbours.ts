@@ -1,5 +1,5 @@
-import { warmFrames } from '$lib/api/assets';
-import { browsing } from '$lib/stores/browsing.svelte';
+import { warmFrames } from '#lib/api/assets.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
 
 export function warmNeighbours(id: string): boolean {
   const ids: string[] = [];

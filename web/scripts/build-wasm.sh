@@ -16,4 +16,5 @@ target_dir="${CARGO_TARGET_DIR:-target}"
 profile="${WASM_PROFILE:-wasm}"
 cargo build --locked --profile "$profile" -p web-render --target wasm32-unknown-unknown
 wasm-bindgen --target web --out-name web_render --out-dir web/src/lib/wasm \
+  --remove-name-section --remove-producers-section \
   "$target_dir/wasm32-unknown-unknown/$profile/web_render.wasm"

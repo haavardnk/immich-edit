@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { browsing } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 const A = '11111111-1111-1111-1111-111111111111';
 const B = '22222222-2222-2222-2222-222222222222';

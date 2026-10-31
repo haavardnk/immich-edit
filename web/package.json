@@ -23,15 +23,15 @@
     "@axe-core/playwright": "4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/adapter-static": "^4.0.1",
+    "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/justified-layout": "^4.1.4",
     "@types/luxon": "^3.7.6",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.0.5",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.23.1",
     "globals": "^17.13.0",
@@ -48,16 +48,19 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
-    "@immich/ui": "0.91.0",
+    "@immich/ui": "0.91.1",
     "@mdi/js": "^7.4.47",
-    "bits-ui": "2.19.5",
+    "bits-ui": "2.20.2",
     "justified-layout": "^4.1.0",
     "luxon": "^3.7.2",
     "uuid": "^14.0.3"
   },
   "overrides": {
-    "cookie": "^1.0.2",
     "brace-expansion": "^5.0.8",
-    "compression": "^1.8.2"
+    "compression": "^1.8.2",
+    "runed": "^0.38.0"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
   }
 }

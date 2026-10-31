@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FILTER_SECTIONS, sectionModified, withoutSection } from './filterSections';
-import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 
 const section = (id: string) => {
   const found = FILTER_SECTIONS.find((s) => s.id === id);

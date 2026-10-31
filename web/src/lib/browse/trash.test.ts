@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { session } from '$lib/stores/session.svelte';
+import { session } from '#lib/stores/session.svelte.ts';
 import {
   NOT_OWNER_TRASH,
   TRASH_OFF,

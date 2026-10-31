@@ -1,15 +1,15 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { readFilterParams } from '$lib/browse/filterParams';
-  import { loadEditedAssets } from '$lib/browse/sources';
-  import { timeOf } from '$lib/browse/sortAssets';
-  import { arrangeLoaded } from '$lib/browse/loadedFilter';
-  import BrowseShell from '$lib/components/browse/BrowseShell.svelte';
-  import type { AssetSummary } from '$lib/types/album';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { readFilterParams } from '#lib/browse/filterParams.ts';
+  import { loadEditedAssets } from '#lib/browse/sources.ts';
+  import { timeOf } from '#lib/browse/sortAssets.ts';
+  import { arrangeLoaded } from '#lib/browse/loadedFilter.ts';
+  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import type { AssetSummary } from '#lib/types/album.ts';
 
   let loading = $state(true);
   let hydrated = $state<AssetSummary[]>([]);

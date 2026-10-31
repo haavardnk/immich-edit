@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobs } from './jobs.svelte';
 import { toasts } from './toasts.svelte';
-import { getJob, listJobs, type Job, type JobItem } from '$lib/api/jobs';
-import { ApiError } from '$lib/api/client';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-import { trash } from '$lib/stores/trash.svelte';
+import { getJob, listJobs, type Job, type JobItem } from '#lib/api/jobs.ts';
+import { ApiError } from '#lib/api/client.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { trash } from '#lib/stores/trash.svelte.ts';
 
-vi.mock('$lib/stores/trash.svelte', () => ({ trash: { removeTrashed: vi.fn() } }));
+vi.mock('#lib/stores/trash.svelte.ts', () => ({ trash: { removeTrashed: vi.fn() } }));
 
-vi.mock('$lib/stores/editedThumbs.svelte', () => ({
+vi.mock('#lib/stores/editedThumbs.svelte.ts', () => ({
   editedThumbs: { refresh: vi.fn().mockResolvedValue(undefined) }
 }));
 
-vi.mock('$lib/api/jobs', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/api/jobs')>()),
+vi.mock('#lib/api/jobs.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/api/jobs.ts')>()),
   listJobs: vi.fn(),
   getJob: vi.fn(),
   cancelJob: vi.fn(),

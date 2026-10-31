@@ -105,7 +105,7 @@ impl GpuRenderer {
         for row in 0..hl as usize {
             let start = row * padded_bytes;
             let row_u16: &[u16] = bytemuck::cast_slice(&data[start..start + unpadded_bytes]);
-            for px in row_u16.chunks_exact(4) {
+            for px in row_u16.as_chunks::<4>().0 {
                 rgb.push(half::f16::from_bits(px[0]).to_f32());
                 rgb.push(half::f16::from_bits(px[1]).to_f32());
                 rgb.push(half::f16::from_bits(px[2]).to_f32());

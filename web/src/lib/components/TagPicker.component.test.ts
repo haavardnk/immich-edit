@@ -1,4 +1,4 @@
-import ComponentHost from '$lib/testing/ComponentHost.svelte';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TagPicker from './TagPicker.svelte';

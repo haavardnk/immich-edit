@@ -1,35 +1,41 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { afterNavigate, goto } from '$app/navigation';
-  import { observeSize } from '$lib/actions/observeSize';
-  import type { AssetSummary } from '$lib/types/album';
+  import { observeSize } from '#lib/actions/observeSize.ts';
+  import type { AssetSummary } from '#lib/types/album.ts';
   import AssetTile from './AssetTile.svelte';
   import BulkActionBar from './bulk/BulkActionBar.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { hides } from '$lib/browse/loadedFilter';
-  import { compare } from '$lib/stores/compare.svelte';
-  import { multiMembers, type MultiMode } from '$lib/browse/compareEntry';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { trash } from '$lib/stores/trash.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { isCopy } from '$lib/browse/assetKey';
-  import { rateAsset, toggleFavorite, toggleReject, clearFlags, setLabel } from '$lib/browse/cull';
-  import { labelOf, nextLabelFromKey } from '$lib/stores/labels';
-  import { nextRatingFromKey, ratingFromCode } from '$lib/browse/ratingShortcuts';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
-  import { editorHref } from '$lib/editor/navigation';
-  import { matchKeybind } from '$lib/shortcuts/match';
-  import { hasTextSelection, yieldsToControl } from '$lib/shortcuts/targets';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { hides } from '#lib/browse/loadedFilter.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
+  import { multiMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { trash } from '#lib/stores/trash.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { isCopy } from '#lib/browse/assetKey.ts';
+  import {
+    rateAsset,
+    toggleFavorite,
+    toggleReject,
+    clearFlags,
+    setLabel
+  } from '#lib/browse/cull.ts';
+  import { labelOf, nextLabelFromKey } from '#lib/stores/labels.ts';
+  import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
+  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+  import { editorHref } from '#lib/editor/navigation.ts';
+  import { matchKeybind } from '#lib/shortcuts/match.ts';
+  import { hasTextSelection, yieldsToControl } from '#lib/shortcuts/targets.ts';
   import { isModalOpen } from '@immich/ui';
-  import { CONTEXT_STACKS } from '$lib/shortcuts/context';
+  import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
   import {
     createAssetGridLayout,
     verticalAssetIndex,
     visibleAssetRange,
     type AssetGridBox
-  } from '$lib/browse/assetGridLayout';
+  } from '#lib/browse/assetGridLayout.ts';
 
   let {
     assets,
@@ -174,6 +180,7 @@
     const el = document.activeElement;
     if (!el) return false;
     const tag = el.tagName;
+
     return (
       tag === 'INPUT' ||
       tag === 'TEXTAREA' ||

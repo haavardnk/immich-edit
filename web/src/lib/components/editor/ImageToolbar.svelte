@@ -1,17 +1,17 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import ExifSummary from './ExifSummary.svelte';
   import SoftProofControl from './SoftProofControl.svelte';
   import VersionsList from './VersionsList.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import MenuItem from '$lib/components/MenuItem.svelte';
-  import { hint, keysFor } from '$lib/shortcuts/labels';
-  import { copyIndex, isCopy } from '$lib/browse/assetKey';
-  import { backToGrid } from '$lib/browse/backToGrid';
-  import { trashLabel } from '$lib/browse/trash';
-  import { trash } from '$lib/stores/trash.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import MenuItem from '#lib/components/MenuItem.svelte';
+  import { hint, keysFor } from '#lib/shortcuts/labels.ts';
+  import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
+  import { backToGrid } from '#lib/browse/backToGrid.ts';
+  import { trashLabel } from '#lib/browse/trash.ts';
+  import { trash } from '#lib/stores/trash.svelte.ts';
   import { IconButton } from '@immich/ui';
   import {
     mdiArrowLeft,

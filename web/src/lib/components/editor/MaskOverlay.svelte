@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { surfaceSize, type PreviewSurface } from '$lib/utils/previewSurface';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { isKeybind } from '$lib/shortcuts/match';
-  import { isRadioGroupTarget, isTypingTarget } from '$lib/shortcuts/targets';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { surfaceSize, type PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { isKeybind } from '#lib/shortcuts/match.ts';
+  import { isRadioGroupTarget, isTypingTarget } from '#lib/shortcuts/targets.ts';
   import { isModalOpen } from '@immich/ui';
-  import { keysFor } from '$lib/shortcuts/labels';
-  import { type Vec2f } from '$lib/types/edits';
-  import { displayUvToSceneUv, sceneUvToDisplayUv, viewTransform } from '$lib/utils/canvasCoords';
-  import { clamp01 } from '$lib/utils/geom';
-  import { draggedKind, nudgedKind, type DragKind } from '$lib/utils/maskDrag';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { type Vec2f } from '#lib/types/edits.ts';
+  import {
+    displayUvToSceneUv,
+    sceneUvToDisplayUv,
+    viewTransform
+  } from '#lib/utils/canvasCoords.ts';
+  import { clamp01 } from '#lib/utils/geom.ts';
+  import { draggedKind, nudgedKind, type DragKind } from '#lib/utils/maskDrag.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import MaskLinearHandles from './MaskLinearHandles.svelte';
   import MaskRadialHandles from './MaskRadialHandles.svelte';
   import MaskPolygonHandles from './MaskPolygonHandles.svelte';

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { AssetSummary } from '$lib/types/album';
-import type { TagRef } from '$lib/types/asset';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 
 const rejectTag: TagRef = { id: 'r', name: 'reject', value: 'immich-edit/reject' };
 const h = vi.hoisted(() => ({
@@ -13,19 +13,19 @@ const h = vi.hoisted(() => ({
 const addTagToAsset = h.addTagToAsset;
 const removeTagFromAsset = h.removeTagFromAsset;
 
-vi.mock('$lib/api/tags', () => ({
+vi.mock('#lib/api/tags.ts', () => ({
   addTagToAsset: h.addTagToAsset,
   removeTagFromAsset: h.removeTagFromAsset
 }));
-vi.mock('$lib/api/assets', () => ({ updateAsset: h.updateAsset }));
-vi.mock('$lib/stores/metadataConsent.svelte', () => ({
+vi.mock('#lib/api/assets.ts', () => ({ updateAsset: h.updateAsset }));
+vi.mock('#lib/stores/metadataConsent.svelte.ts', () => ({
   metadataConsent: { gate: () => Promise.resolve(h.consent.value) }
 }));
-vi.mock('$lib/browse/reject', async (orig) => {
+vi.mock('#lib/browse/reject.ts', async (orig) => {
   const actual = await orig<typeof import('./reject')>();
   return { ...actual, ensureRejectTag: () => Promise.resolve(h.rejectTag) };
 });
-vi.mock('$lib/browse/managedTags', async (orig) => {
+vi.mock('#lib/browse/managedTags.ts', async (orig) => {
   const actual = await orig<typeof import('./managedTags')>();
   return {
     ...actual,
@@ -35,11 +35,11 @@ vi.mock('$lib/browse/managedTags', async (orig) => {
 });
 
 import { rateAsset, setLabel, toggleFavorite, toggleReject } from './cull';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { session } from '$lib/stores/session.svelte';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
 import { isRejected } from './reject';
-import { labelOf } from '$lib/stores/labels';
-import { labelMembers } from '$lib/stores/labels.svelte';
+import { labelOf } from '#lib/stores/labels.ts';
+import { labelMembers } from '#lib/stores/labels.svelte.ts';
 
 function asset(id: string, tags: TagRef[] = []): AssetSummary {
   return {

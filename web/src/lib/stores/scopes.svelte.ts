@@ -1,6 +1,6 @@
-import { getPreviewScope } from '$lib/api/preview';
-import type { ScopeGrid, ScopeKind } from '$lib/types/preview';
-import { readStored, writeStored } from '$lib/utils/storage';
+import { getPreviewScope } from '#lib/api/preview.ts';
+import type { ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 
 export type ScopeMode = 'histogram' | ScopeKind;
 export type WaveformChannels = 'luma' | 'rgb';

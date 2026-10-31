@@ -4,7 +4,7 @@ import {
   neutralEdits,
   type EditManifest,
   type Edits
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 import { decodeColor, encodeColor } from './manifest/color';
 import { decodeTransform, encodeTransform } from './manifest/geometry';
 import { decodeLensBlur, encodeLensBlur } from './manifest/lensBlur';

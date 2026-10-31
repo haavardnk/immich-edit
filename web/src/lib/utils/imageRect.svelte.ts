@@ -1,4 +1,4 @@
-import { ui } from '$lib/stores/ui.svelte';
+import { ui } from '#lib/stores/ui.svelte.ts';
 import type { PreviewSurface } from './previewSurface';
 
 export type ImageRect = { x: number; y: number; w: number; h: number };

@@ -1,16 +1,16 @@
 <script lang="ts">
   import { mergeProps } from 'bits-ui';
   import { Tooltip } from '@immich/ui';
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     AI_DENOISE_STRENGTH,
     aiDenoiseActive,
     NEUTRAL_DETAIL,
     neutraliseSection
-  } from '$lib/types/edits';
+  } from '#lib/types/edits.ts';
   import AiDenoiseStatus from './AiDenoiseStatus.svelte';
 
   const isRaw = $derived(editor.meta?.is_raw ?? false);

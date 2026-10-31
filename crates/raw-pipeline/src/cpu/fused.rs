@@ -318,7 +318,9 @@ impl Planes {
 fn apply_row(ops: &[CpuFusedOp], base: usize, row: &mut [f32], planes: &mut Planes) {
     let Planes { r, g, b } = planes;
     for (px, ((r, g), b)) in row
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .zip(r.iter_mut().zip(g.iter_mut()).zip(b.iter_mut()))
     {
         *r = px[0];
@@ -329,7 +331,9 @@ fn apply_row(ops: &[CpuFusedOp], base: usize, row: &mut [f32], planes: &mut Plan
         apply_op_row(op, base, r, g, b);
     }
     for (px, ((r, g), b)) in row
-        .chunks_exact_mut(3)
+        .as_chunks_mut::<3>()
+        .0
+        .iter_mut()
         .zip(r.iter().zip(g.iter()).zip(b.iter()))
     {
         px[0] = *r;

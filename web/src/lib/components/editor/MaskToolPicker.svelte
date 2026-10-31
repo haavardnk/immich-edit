@@ -15,10 +15,10 @@
     mdiChevronUp,
     mdiDownloadOutline
   } from '@mdi/js';
-  import type { MaskKind, SemanticClass } from '$lib/api/masks';
-  import { generatedLabel, visibleSceneClasses, type ManualTool } from '$lib/types/masks';
-  import { keysFor } from '$lib/shortcuts/labels';
-  import type { KeybindId } from '$lib/shortcuts/table';
+  import type { MaskKind, SemanticClass } from '#lib/api/masks.ts';
+  import { generatedLabel, visibleSceneClasses, type ManualTool } from '#lib/types/masks.ts';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import type { KeybindId } from '#lib/shortcuts/table.ts';
 
   let {
     aiKinds,

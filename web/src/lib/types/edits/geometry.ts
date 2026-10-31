@@ -1,4 +1,4 @@
-import { perspectiveIsIdentity, type PerspectiveEdits } from '$lib/utils/perspective';
+import { perspectiveIsIdentity, type PerspectiveEdits } from '#lib/utils/perspective.ts';
 
 export interface CropRect {
   x: number;

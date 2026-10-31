@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { hint } from '$lib/shortcuts/labels';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiHeart, mdiHeartOutline } from '@mdi/js';
 

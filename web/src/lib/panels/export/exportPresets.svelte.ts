@@ -4,8 +4,8 @@ import {
   listExportPresets,
   updateExportPreset,
   type ExportPreset
-} from '$lib/api/exportPresets';
-import { toasts } from '$lib/stores/toasts.svelte';
+} from '#lib/api/exportPresets.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { exportSettings } from './exportSettings.svelte';
 import { pruneLibraryIds, restoreExportForm } from './settings';
 

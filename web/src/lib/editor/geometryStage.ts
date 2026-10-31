@@ -1,4 +1,4 @@
-import { degToRad } from '$lib/utils/geom';
+import { degToRad } from '#lib/utils/geom.ts';
 import {
   mat3Apply,
   perspectiveForward,
@@ -6,7 +6,7 @@ import {
   type Mat3,
   type PerspectiveEdits,
   type Point
-} from '$lib/utils/perspective';
+} from '#lib/utils/perspective.ts';
 
 interface StageBox {
   bboxW: number;

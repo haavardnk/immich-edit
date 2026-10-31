@@ -163,7 +163,7 @@ impl<const C: usize> LevelBase<C> {
                 let yb = (y0 + 1).clamp(0, mh_i - 1) as usize;
                 let ra = ya * mw;
                 let rb = yb * mw;
-                for (x, slot) in row.chunks_exact_mut(C).enumerate() {
+                for (x, slot) in row.as_chunks_mut::<C>().0.iter_mut().enumerate() {
                     let lx = (x as f32 + 0.5) * scale - 0.5;
                     let x0 = lx.floor() as i32;
                     let tx = lx - x0 as f32;

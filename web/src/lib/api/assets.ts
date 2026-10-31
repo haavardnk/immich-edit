@@ -1,7 +1,7 @@
 import { getJson, request, sendJson, url } from './client';
-import type { AssetDetail } from '$lib/types/asset';
-import { sourceId } from '$lib/browse/assetKey';
-import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
+import type { AssetDetail } from '#lib/types/asset.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 
 export function getAsset(id: string): Promise<AssetDetail> {
   return getJson(url`/api/assets/${id}`);

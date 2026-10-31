@@ -140,7 +140,9 @@ impl ReadbackImage<'_> {
             let pixels = match display {
                 DisplayBuf::Rgb16(rgb) => FinalPixels::Rgb16(rgb),
                 DisplayBuf::Rgba8(rgba) => FinalPixels::Rgb8(
-                    rgba.chunks_exact(4)
+                    rgba.as_chunks::<4>()
+                        .0
+                        .iter()
                         .flat_map(|px| [px[0], px[1], px[2]])
                         .collect(),
                 ),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isManagedTag, tagHasValue, toTagRef } from './managedTags';
-import type { TagRef } from '$lib/types/asset';
+import type { TagRef } from '#lib/types/asset.ts';
 
 const keep: TagRef = { id: 'k', name: 'Keep', value: 'Keep' };
 
