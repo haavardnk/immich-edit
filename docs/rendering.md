@@ -46,9 +46,9 @@ A photo larger than the GPU's texture or buffer limits, or a render larger than 
 [memory budget](#gpu-memory), renders its sensor stage (demosaic, lens corrections, noise
 reduction and capture sharpening) in tiles. When the rest of the render still does not fit, it
 renders the output in tiles too. Tiles share one whole-photo measurement for Dehaze, Texture,
-Clarity and Shadows, so the stitched result matches a single-pass render exactly. Healing and clone
-strokes cannot be tiled, so renders with them go to the CPU, within its
-[memory budget](#cpu-memory), when they do not fit. The next render uses the GPU again. Only a lost
+Clarity and Shadows, so the stitched result matches a single-pass render exactly. A render that no
+tile size fits goes to the CPU, within its [memory budget](#cpu-memory), such as one whose healing
+or clone strokes span most of the photo. The next render uses the GPU again. Only a lost
 GPU device takes the GPU out of use until the server rebuilds it.
 
 Inside Docker, the server can only use a GPU that is passed through to the container. See

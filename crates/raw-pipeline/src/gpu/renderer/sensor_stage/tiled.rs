@@ -90,7 +90,7 @@ impl GpuRenderer {
         let histogram = NoiseHistogram::new(self);
         for tile in tiles {
             let base = self.sensor_base(job, tile)?;
-            let wb = self.sensor_wb(job, detail, &base)?;
+            let wb = self.sensor_wb(job, detail, &base, tile)?;
             histogram.add(&wb, tile);
             self.wait_idle(pooled)?;
             job.check()?;

@@ -1,6 +1,8 @@
-use super::{Rect, SensorChain, SensorTile, Warp, support};
-use crate::edits::LensEdits;
+use super::retouch::closure;
+use super::{Rect, SensorChain, SensorTile, StrokeReach, Warp, support};
+use crate::edits::{LensEdits, RetouchMode, RetouchStroke, Vec2f};
 use crate::geom::dng_warp::{DngWarp, WarpPlane};
+use crate::ops::retouch::stroke_geometry;
 
 const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
@@ -14,13 +16,6 @@ fn covered(rects: impl Iterator<Item = Rect>, (w, h): (u32, u32)) -> Vec<u32> {
         }
     }
     hits
-}
-
-fn contains(outer: &Rect, inner: &Rect) -> bool {
-    inner.x >= outer.x
-        && inner.y >= outer.y
-        && inner.right() <= outer.right()
-        && inner.bottom() <= outer.bottom()
 }
 
 fn partitions(rects: impl Iterator<Item = Rect>, dims: (u32, u32)) -> bool {
@@ -59,6 +54,7 @@ fn chain(sensor: (u32, u32), working: (u32, u32), warps: Vec<Warp>) -> SensorCha
         demosaic: support::demosaic(XTRANS, 1, 1),
         warps,
         detail: 40,
+        strokes: Vec::new(),
     }
 }
 
@@ -158,7 +154,7 @@ fn warp_bounds_hold_every_bicubic_tap_of_the_rect() {
                             w: 1,
                             h: 1,
                         };
-                        if !contains(&bounds, &at) {
+                        if !bounds.contains(at) {
                             panic!(
                                 "{warp:?} pixel ({x}, {y}) of {rect:?} taps {at:?} outside {bounds:?}"
                             );
@@ -194,10 +190,10 @@ fn check_tiles(chain: &SensorChain, tiles: &[SensorTile]) {
         panic!("noise histogram cells do not partition the sensor");
     }
     for tile in tiles {
-        let detail = tile.detail();
+        let detail = tile.detail;
         let input = tile.input();
         let exact = tile.hist.expand(chain.detail, chain.sensor);
-        if !contains(&detail, &exact) {
+        if !detail.contains(exact) {
             panic!("detail {detail:?} misses the histogram margin {exact:?}");
         }
         if detail.x % chain.align != 0 || detail.y % chain.align != 0 {
@@ -234,5 +230,114 @@ fn sensor_tiles_partition_cores_and_histogram_cells_with_aligned_margins() {
         {
             panic!("the whole-frame tile is not the full frame: {whole:?}");
         }
+    }
+}
+
+fn heal(points: &[(f32, f32)], radius: f32, source: (f32, f32)) -> RetouchStroke {
+    RetouchStroke {
+        id: String::new(),
+        mode: RetouchMode::Heal,
+        points: points.iter().map(|&(x, y)| Vec2f { x, y }).collect(),
+        radius,
+        hardness: 0.5,
+        opacity: 1.0,
+        source: Vec2f {
+            x: source.0,
+            y: source.1,
+        },
+        enabled: true,
+    }
+}
+
+#[test]
+fn a_stroke_reach_holds_every_tap_the_retouch_prep_reads() {
+    let frame = (600, 400);
+    let strokes = [
+        heal(&[(0.3, 0.4), (0.5, 0.45)], 0.05, (0.6, 0.7)),
+        heal(&[(0.9, 0.1)], 0.04, (0.999, 0.001)),
+        heal(&[(0.7, 0.6)], 0.03, (0.2137, 0.3311)),
+    ];
+    let tap = |s: f32, d: f32, n: u32| (s.floor() + d).clamp(0.0, n as f32 - 1.0) as u32;
+    for orientation in [(false, false, false), (true, true, false)] {
+        for stroke in &strokes {
+            let geom = stroke_geometry(stroke, 600, 400, orientation).unwrap();
+            let reach = StrokeReach::new(0, &geom, frame);
+            let b = &geom.bbox;
+            for (x, y) in (b.y0..b.y1).flat_map(|y| (b.x0..b.x1).map(move |x| (x, y))) {
+                let (sx, sy) = (x as f32 + geom.off_x, y as f32 + geom.off_y);
+                for d in [-1.0, 2.0] {
+                    let at = Rect::bounds(
+                        tap(sx, d, frame.0),
+                        tap(sy, d, frame.1),
+                        tap(sx, d, frame.0) + 1,
+                        tap(sy, d, frame.1) + 1,
+                    );
+                    if !reach.read.contains(at) {
+                        panic!("{orientation:?} ({x}, {y}) taps {at:?} outside {reach:?}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_stroke_that_reaches_a_tile_reads_only_demosaic_exact_pixels() {
+    let mut chain = chain((1203, 805), (1203, 805), Vec::new());
+    let core = Rect::bounds(0, 0, 256, 256);
+    let edge = chain.tile(core).detail.right();
+    let stroke = StrokeReach {
+        index: 0,
+        write: Rect::bounds(edge - 20, 100, edge - 10, 110),
+        read: Rect::bounds(edge - 20, 100, edge - 1, 110),
+    };
+    chain.strokes = vec![stroke];
+    let tile = chain.tile(core);
+    let input = tile.input();
+    let exact = Rect::bounds(
+        input.x,
+        input.y,
+        input.right() - chain.demosaic,
+        input.bottom(),
+    );
+    if tile.strokes != [0] || !exact.contains(stroke.read) {
+        panic!(
+            "{stroke:?} runs as {:?} outside the demosaic-exact {exact:?}",
+            tile.strokes
+        );
+    }
+}
+
+#[test]
+fn the_retouch_closure_follows_earlier_strokes_under_a_source_in_stroke_order() {
+    let reaches = [
+        (Rect::bounds(50, 50, 60, 60), Rect::bounds(80, 80, 90, 90)),
+        (
+            Rect::bounds(100, 0, 110, 10),
+            Rect::bounds(100, 20, 110, 30),
+        ),
+        (Rect::bounds(5, 5, 15, 15), Rect::bounds(55, 55, 65, 65)),
+        (
+            Rect::bounds(60, 60, 70, 70),
+            Rect::bounds(120, 120, 130, 130),
+        ),
+        (Rect::bounds(200, 200, 210, 210), Rect::bounds(0, 0, 5, 5)),
+    ];
+    let strokes: Vec<StrokeReach> = reaches
+        .iter()
+        .enumerate()
+        .map(|(index, &(write, source))| StrokeReach {
+            index,
+            write,
+            read: write.union(source),
+        })
+        .collect();
+    let detail = Rect::bounds(0, 0, 10, 10);
+    let got = closure(&strokes, detail);
+    if got != (Rect::bounds(0, 0, 90, 90), vec![0, 2]) {
+        panic!("closure {got:?}");
+    }
+    if closure(&strokes[3..], detail) != (detail, Vec::new()) {
+        panic!("strokes that cannot reach the detail rect joined the closure");
     }
 }

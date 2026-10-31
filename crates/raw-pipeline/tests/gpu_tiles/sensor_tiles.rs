@@ -7,7 +7,7 @@ use raw_pipeline_testkit::gpu::try_renderer_with;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::render::rgb8_opts;
 
-use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, render, require_tiles};
+use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, render, require_tiles, strokes};
 
 const TILES: TilePlan = TilePlan::SensorTiled { edge: 1024 };
 const DJI: &str = "DJI_FC7303_16-9.dng";
@@ -37,6 +37,7 @@ fn heavy_edits() -> Edits {
         ..Default::default()
     };
     edits.masks = vec![layer("radial", radial((0.4, 0.55), (0.3, 0.25)), clarity)];
+    edits.retouch = strokes();
     edits
 }
 

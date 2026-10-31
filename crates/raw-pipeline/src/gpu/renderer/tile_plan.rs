@@ -44,10 +44,7 @@ impl<'a> Tileable<'a> {
         options: &'a RenderOptions,
         plan: SourcePlan,
         limits: wgpu::Limits,
-    ) -> Option<Self> {
-        if plan.presence() && edits.retouch_active() {
-            return None;
-        }
+    ) -> Self {
         let shape = SensorShape::new(frame, &edits.clamped(), options, plan.presence());
         let meta = &frame.meta;
         let dims = (meta.width as u32, meta.height as u32);
@@ -55,7 +52,7 @@ impl<'a> Tileable<'a> {
         let edge = |(w, h): (u32, u32)| w.max(h) <= limits.max_texture_dimension_2d;
         let chain_fits = (!plan.displays() || edge(out)) && edge(shape.working());
         let fits_single_pass = chain_fits && shape.fits(frame, &shape.chain.whole(), &limits);
-        Some(Self {
+        Self {
             frame,
             edits,
             options,
@@ -67,7 +64,7 @@ impl<'a> Tileable<'a> {
             display: (plan.displays() || plan.windows())
                 && options.preview_mode == PreviewMode::None,
             window: plan.windows(),
-        })
+        }
     }
 
     fn layout(&self, edge: u32) -> DisplayTiles {
@@ -133,8 +130,7 @@ impl GpuRenderer {
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<T> {
         let limits = self.ctx.device.limits();
-        let tileable =
-            raw.and_then(|(frame, plan)| Tileable::new(frame, edits, options, plan, limits));
+        let tileable = raw.map(|(frame, plan)| Tileable::new(frame, edits, options, plan, limits));
         let planned = self.plan(tileable.as_ref(), &estimate);
         let run = |planned: Planned| {
             let _device = self.admit(planned.bytes.device, cancel)?;

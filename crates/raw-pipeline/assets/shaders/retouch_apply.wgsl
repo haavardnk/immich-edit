@@ -1,6 +1,7 @@
 // color-space: linear scene-referred Rgba16Float in/out; composites one stroke into the image
 struct Params {
     dims: vec2<u32>,
+    origin: vec2<u32>,
     bbox_origin: vec2<u32>,
     bbox_size: vec2<u32>,
     point_count: u32,
@@ -40,13 +41,15 @@ fn coverage(dist: f32) -> f32 {
 
 @compute @workgroup_size(16, 16, 1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    if (gid.x >= p.dims.x || gid.y >= p.dims.y) { return; }
+    let size = textureDimensions(out_tex);
+    if (gid.x >= size.x || gid.y >= size.y) { return; }
     let c = vec2<i32>(i32(gid.x), i32(gid.y));
+    let g = gid.xy + p.origin;
     var col = textureLoad(src_tex, c, 0).rgb;
-    let inside = gid.x >= p.bbox_origin.x && gid.x < p.bbox_origin.x + p.bbox_size.x
-        && gid.y >= p.bbox_origin.y && gid.y < p.bbox_origin.y + p.bbox_size.y;
+    let inside = g.x >= p.bbox_origin.x && g.x < p.bbox_origin.x + p.bbox_size.x
+        && g.y >= p.bbox_origin.y && g.y < p.bbox_origin.y + p.bbox_size.y;
     if (inside) {
-        let pt = vec2<f32>(f32(gid.x) + 0.5, f32(gid.y) + 0.5);
+        let pt = vec2<f32>(f32(g.x) + 0.5, f32(g.y) + 0.5);
         var best = 3.4e38;
         if (p.point_count == 1u) {
             best = length(pt - pts[0]);
@@ -57,7 +60,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         }
         let cov = coverage(best) * p.opacity;
         if (cov > 0.0) {
-            let lc = vec2<i32>(i32(gid.x - p.bbox_origin.x), i32(gid.y - p.bbox_origin.y));
+            let lc = vec2<i32>(i32(g.x - p.bbox_origin.x), i32(g.y - p.bbox_origin.y));
             var s = textureLoad(patch_src, lc, 0).rgb;
             if (p.clone_mode == 0u) {
                 s = max(s + textureLoad(patch_res, lc, 0).rgb, vec3<f32>(0.0));

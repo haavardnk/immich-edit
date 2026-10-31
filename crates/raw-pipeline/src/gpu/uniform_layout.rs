@@ -181,6 +181,7 @@ fn uniform_structs_mirror_wgsl() {
     let retouch = || {
         layout!(RetouchParams {
             dims,
+            origin,
             bbox_origin,
             bbox_size,
             point_count,

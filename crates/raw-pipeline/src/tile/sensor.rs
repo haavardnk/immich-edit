@@ -1,4 +1,4 @@
-use super::{Rect, support};
+use super::{Rect, StrokeReach, retouch, support};
 use crate::edits::LensEdits;
 use crate::geom::dng_warp::DngWarp;
 use crate::ops::lens_ca::ca_scales;
@@ -60,13 +60,16 @@ pub struct SensorChain {
     pub demosaic: u32,
     pub warps: Vec<Warp>,
     pub detail: u32,
+    pub strokes: Vec<StrokeReach>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SensorTile {
     pub core: Rect,
     pub hist: Rect,
+    pub detail: Rect,
     pub rects: Vec<Rect>,
+    pub strokes: Vec<usize>,
 }
 
 impl SensorTile {
@@ -74,8 +77,12 @@ impl SensorTile {
         self.rects[0]
     }
 
-    pub fn detail(&self) -> Rect {
+    pub fn window(&self) -> Rect {
         self.rects[self.rects.len() - 1]
+    }
+
+    pub fn grown(&self) -> bool {
+        self.detail != self.window()
     }
 }
 
@@ -84,7 +91,9 @@ impl SensorChain {
         SensorTile {
             core: Rect::full(self.working),
             hist: Rect::full(self.sensor),
+            detail: Rect::full(self.sensor),
             rects: vec![Rect::full(self.sensor); self.warps.len() + 1],
+            strokes: self.strokes.iter().map(|stroke| stroke.index).collect(),
         }
     }
 
@@ -98,14 +107,34 @@ impl SensorChain {
     pub fn tile(&self, core: Rect) -> SensorTile {
         let hist = self.hist_cell(core);
         let needed = self.footprint(core).union(hist);
-        let mut rects = vec![needed.expand(self.detail, self.sensor).align(self.align)];
+        let exact = needed.expand(self.detail, self.sensor).align(self.align);
+        let plain = self.rects(exact);
+        let detail = plain[plain.len() - 1];
+        let (window, strokes) = retouch::closure(&self.strokes, exact);
+        let window = window.align(self.align);
+        let rects = if window == exact {
+            plain
+        } else {
+            self.rects(window)
+        };
+        SensorTile {
+            core,
+            hist,
+            detail,
+            rects,
+            strokes,
+        }
+    }
+
+    fn rects(&self, window: Rect) -> Vec<Rect> {
+        let mut rects = vec![window];
         for warp in self.warps.iter().rev() {
             rects.insert(0, warp.source(rects[0], self.sensor));
         }
         rects[0] = rects[0]
             .expand(self.demosaic, self.sensor)
             .align(self.align);
-        SensorTile { core, hist, rects }
+        rects
     }
 
     fn scale(&self) -> (f32, f32) {

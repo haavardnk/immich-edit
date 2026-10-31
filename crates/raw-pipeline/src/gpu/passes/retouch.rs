@@ -19,6 +19,7 @@ pub const RETOUCH_APPLY_WGSL: &str = include_str!("../../../assets/shaders/retou
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct RetouchParams {
     pub dims: [u32; 2],
+    pub origin: [u32; 2],
     pub bbox_origin: [u32; 2],
     pub bbox_size: [u32; 2],
     pub point_count: u32,
@@ -27,7 +28,7 @@ pub struct RetouchParams {
     pub radius_px: f32,
     pub hardness: f32,
     pub opacity: f32,
-    pub _pad: [f32; 3],
+    pub _pad: f32,
 }
 
 pub struct RetouchPasses {

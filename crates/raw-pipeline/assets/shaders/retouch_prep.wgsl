@@ -1,6 +1,7 @@
 // color-space: linear scene-referred Rgba16Float in/out; patch-local source and residual known outside the stroke
 struct Params {
     dims: vec2<u32>,
+    origin: vec2<u32>,
     bbox_origin: vec2<u32>,
     bbox_size: vec2<u32>,
     point_count: u32,
@@ -50,8 +51,8 @@ fn cr_weights(t: f32) -> vec4<f32> {
 }
 
 fn load_clamped(x: i32, y: i32) -> vec3<f32> {
-    let cx = clamp(x, 0, i32(p.dims.x) - 1);
-    let cy = clamp(y, 0, i32(p.dims.y) - 1);
+    let cx = clamp(x, 0, i32(p.dims.x) - 1) - i32(p.origin.x);
+    let cy = clamp(y, 0, i32(p.dims.y) - 1) - i32(p.origin.y);
     return textureLoad(src_tex, vec2<i32>(cx, cy), 0).rgb;
 }
 

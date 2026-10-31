@@ -368,7 +368,7 @@ impl GpuRenderer {
         let Some(detail) = &job.detail else {
             return Ok(job.source(base.texture.clone(), None));
         };
-        let wb = self.sensor_wb(job, detail, &base)?;
+        let wb = self.sensor_wb(job, detail, &base, &tile)?;
         let (texture, _) = self.sensor_detail(job, detail, &tile, &wb, None)?;
         let atmosphere = self.atmosphere(job, &texture)?;
         Ok(job.source(texture, atmosphere))
