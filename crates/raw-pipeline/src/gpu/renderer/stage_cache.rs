@@ -5,6 +5,7 @@ use parking_lot::Mutex;
 use wgpu::Texture;
 
 use super::pools::texture_bytes;
+use crate::admission::{evict_idle, idle_bytes};
 use crate::gpu::budget::GpuBudget;
 use crate::gpu::texture_pool::TexturePool;
 
@@ -81,32 +82,17 @@ impl StageCache {
     }
 
     pub fn idle_bytes(&self) -> u64 {
-        self.entries
-            .lock()
-            .iter()
-            .filter(|(_, e)| e.is_idle())
-            .map(|(_, e)| e.bytes)
-            .sum()
+        idle_bytes(&self.entries.lock(), Entry::is_idle, |entry| entry.bytes)
     }
 
     pub fn trim(&self, bytes: u64) {
-        let mut entries = self.entries.lock();
-        let idle: Vec<(Stage, u64)> = entries
-            .iter()
-            .rev()
-            .filter(|(_, e)| e.is_idle())
-            .map(|(key, _)| *key)
-            .collect();
-        let mut freed = 0;
-        for key in idle {
-            if freed >= bytes {
-                return;
-            }
-            if let Some(evicted) = entries.pop(&key) {
-                self.budget.release(evicted.bytes);
-                freed += evicted.bytes;
-            }
-        }
+        let freed = evict_idle(
+            &mut self.entries.lock(),
+            Entry::is_idle,
+            |entry| entry.bytes,
+            bytes,
+        );
+        self.budget.release(freed);
     }
 
     pub fn clear(&self) {

@@ -76,6 +76,12 @@ fn offset(align: Align, outer: u32, inner: u32, inset: u32) -> u32 {
     }
 }
 
+pub(super) fn overlay_dims(watermark: &Watermark, (width, height): (u32, u32)) -> (u32, u32) {
+    let short = width.min(height);
+    let edge = ((short as f32 * watermark.size).round() as u32).clamp(1, short);
+    scale_to_edge(watermark.image.width, watermark.image.height, edge)
+}
+
 fn overlay(
     watermark: &Watermark,
     width: u32,
@@ -83,9 +89,8 @@ fn overlay(
     space: OutputColorSpace,
 ) -> crate::PipelineResult<Overlay> {
     let short = width.min(height) as f32;
-    let edge = ((short * watermark.size).round() as u32).clamp(1, width.min(height));
     let source = &watermark.image;
-    let dims = scale_to_edge(source.width, source.height, edge);
+    let dims = overlay_dims(watermark, (width, height));
     let rgba = if dims == (source.width, source.height) {
         source.rgba.clone()
     } else {

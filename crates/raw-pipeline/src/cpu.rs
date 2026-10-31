@@ -12,10 +12,11 @@ pub mod presence;
 pub mod presence_pyramid;
 #[cfg(feature = "native")]
 pub mod renderer;
-pub mod scratch;
 pub mod transform;
 
 #[cfg(feature = "native")]
-pub use pipeline::{render, render_with_cancel, run_pipeline_ops};
+pub use pipeline::{
+    estimate_render, estimate_source, render, render_with_cancel, run_pipeline_ops,
+};
 #[cfg(feature = "native")]
 pub use renderer::CpuRenderer;

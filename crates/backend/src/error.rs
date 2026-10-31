@@ -37,6 +37,8 @@ pub enum AppError {
     UnsupportedFormat(String),
     #[error("unprocessable: {0}")]
     Unprocessable(String),
+    #[error("insufficient memory: {0}")]
+    InsufficientMemory(String),
     #[error("internal error")]
     Internal,
     #[error("conflict: {0}")]
@@ -109,6 +111,11 @@ impl AppError {
             Self::Unprocessable(m) => {
                 (StatusCode::UNPROCESSABLE_ENTITY, "unprocessable", m.clone())
             }
+            Self::InsufficientMemory(m) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "insufficient_memory",
+                format!("This photo is too large for the server's memory: {m}"),
+            ),
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal",
@@ -176,6 +183,7 @@ impl From<RenderError> for AppError {
         match err {
             RenderError::Upstream(e) => e.into(),
             RenderError::Pipeline(PipelineError::Unsupported(msg)) => Self::UnsupportedFormat(msg),
+            RenderError::Pipeline(PipelineError::OverBudget(msg)) => Self::InsufficientMemory(msg),
             RenderError::Pipeline(PipelineError::Cancelled) => Self::Superseded,
             RenderError::Pipeline(e) => Self::internal("render pipeline", &e),
             RenderError::Lut(m) | RenderError::Dcp(m) => Self::BadRequest(m),
@@ -200,6 +208,7 @@ impl From<crate::services::denoise::DenoiseError> for AppError {
         match err {
             E::Upstream(e) => e.into(),
             E::Unsupported(m) => Self::UnsupportedFormat(m),
+            E::TooLarge(m) => Self::InsufficientMemory(m),
             E::Internal { context, cause } => Self::internal(context, &*cause),
             E::Busy => Self::RateLimited(Some(BUSY_RETRY_SECS)),
             e @ (E::Purged | E::StillRunning) => Self::Conflict(e.user_message().into()),
@@ -345,6 +354,17 @@ mod tests {
         ];
         for (err, expected) in cases {
             assert_eq!(status_of(err.into()), expected);
+        }
+    }
+
+    #[test]
+    fn an_over_budget_render_explains_the_memory_it_needs() {
+        let refused = PipelineError::OverBudget("render needs 9000 MiB of memory".into());
+        let (status, code, message) = AppError::from(RenderError::Pipeline(refused)).parts();
+        if (status, code) != (StatusCode::UNPROCESSABLE_ENTITY, "insufficient_memory")
+            || !message.contains("needs 9000 MiB of memory")
+        {
+            panic!("an over-budget render answered {status} {code}: {message}");
         }
     }
 

@@ -1,5 +1,11 @@
+use raw_pipeline::cpu::estimate_render;
 use raw_pipeline::edits::Edits;
-use raw_pipeline::{GpuRenderer, GpuRendererOptions, PipelineError, TilePlan};
+use raw_pipeline::encode::working_bytes;
+use raw_pipeline::frame::{OutputFormat, RenderOptions};
+use raw_pipeline::gpu::RenderSource;
+use raw_pipeline::{
+    CpuRenderer, GpuRenderer, GpuRendererOptions, HostMemory, PipelineError, TilePlan,
+};
 use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::gpu::{try_renderer, try_renderer_with};
 use raw_pipeline_testkit::render::rgb8_opts;
@@ -15,9 +21,10 @@ fn require_refused(
     renderer: &GpuRenderer,
     what: &str,
     result: raw_pipeline::PipelineResult<raw_pipeline::frame::RenderedImage>,
+    expected: fn(&PipelineError) -> bool,
 ) {
     match result {
-        Err(PipelineError::Unsupported(_)) if !renderer.is_lost() => {}
+        Err(e) if expected(&e) && !renderer.is_lost() => {}
         Err(e) => panic!("{what} failed with {e}"),
         Ok(img) => panic!("{what} rendered at {}x{}", img.width, img.height),
     }
@@ -36,6 +43,7 @@ fn the_adapter_texture_limit_is_the_largest_frame_the_gpu_renders() {
         &renderer,
         "an untileable frame one pixel past the limit",
         result,
+        |e| matches!(e, PipelineError::Unsupported(_)),
     );
     match renderer.render(&oversized, &shadows(), &opts) {
         Ok(img)
@@ -121,6 +129,7 @@ fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
         &renderer,
         "an untileable frame over the memory budget",
         result,
+        |e| matches!(e, PipelineError::OverBudget(_)),
     );
     let small = synthetic_bayer_frame(256, 256, "RGGB");
     if let Err(e) = renderer.render(&small, &Edits::default(), &rgb8_opts(256)) {
@@ -128,5 +137,95 @@ fn a_frame_over_the_memory_budget_is_refused_and_a_small_one_renders() {
     }
     if renderer.memory().budget_bytes != Some(BUDGET) {
         panic!("the budget became {:?}", renderer.memory().budget_bytes);
+    }
+}
+
+#[test]
+fn a_gpu_render_admits_its_readback_and_encode_against_host_memory() {
+    let frame = synthetic_bayer_frame(4000, 3000, "RGGB");
+    let edits = Edits::default();
+    let options = RenderOptions {
+        max_edge: 4000,
+        output: OutputFormat::Webp {
+            quality: 90,
+            lossless: true,
+        },
+        ..RenderOptions::default()
+    };
+    let with_host = |budget: u64| {
+        try_renderer_with(GpuRendererOptions {
+            memory_budget_bytes: Some(u64::MAX),
+            host: HostMemory::new(Some(budget)),
+            ..GpuRendererOptions::default()
+        })
+    };
+    let Some(probe) = with_host(u64::MAX) else {
+        return;
+    };
+    let need = probe.estimate_render(
+        RenderSource::Raw(&frame),
+        &edits,
+        &options,
+        TilePlan::SinglePass,
+    );
+    if need.host < working_bytes(&options.output, (4000, 3000)) {
+        panic!("the host estimate {} leaves out the encoder", need.host);
+    }
+    let unified = probe.memory().device.is_some_and(|device| device.unified);
+    let single = need.host + if unified { need.device } else { 0 };
+    let tight = with_host(single - 1).unwrap();
+    match tight.render(&frame, &edits, &options) {
+        Ok(img) if unified && img.tiling.plan != TilePlan::SinglePass => {}
+        Err(PipelineError::OverBudget(message))
+            if !unified && message.contains("MiB of memory") => {}
+        Ok(img) => panic!("a render past the host budget ran as {:?}", img.tiling),
+        Err(e) => panic!("a render past the host budget failed with {e}"),
+    }
+    match with_host(single).unwrap().render(&frame, &edits, &options) {
+        Ok(img) if img.tiling.plan == TilePlan::SinglePass => {}
+        Ok(img) => panic!("a render at the host budget ran as {:?}", img.tiling),
+        Err(e) => panic!("a render at the host budget failed with {e}"),
+    }
+    let starved = with_host(1 << 20).unwrap();
+    require_refused(
+        &starved,
+        "a render past any plan's host memory",
+        starved.render(&frame, &edits, &options),
+        |e| matches!(e, PipelineError::OverBudget(message) if message.contains("MiB of memory")),
+    );
+}
+
+#[test]
+fn a_cpu_render_trims_idle_gpu_caches_only_on_unified_memory() {
+    let frame = synthetic_bayer_frame(2000, 1500, "RGGB");
+    let (edits, options) = (shadows(), rgb8_opts(2000));
+    let budget = estimate_render(&frame, &edits, &options).unwrap();
+    let host = HostMemory::new(Some(budget));
+    let Some(gpu) = try_renderer_with(GpuRendererOptions {
+        memory_budget_bytes: Some(u64::MAX),
+        host: host.clone(),
+        ..GpuRendererOptions::default()
+    }) else {
+        return;
+    };
+    gpu.render(&frame, &edits, &options).unwrap();
+    let cached = |gpu: &GpuRenderer| {
+        let stats = gpu.pool_stats();
+        stats.texture_pool + stats.output_targets
+    };
+    let before = cached(&gpu);
+    if before == 0 {
+        panic!("the gpu render left nothing in its pools");
+    }
+    CpuRenderer::with_host(host)
+        .render(&frame, &edits, &options)
+        .unwrap();
+    let unified = gpu.memory().device.is_some_and(|device| device.unified);
+    let expected = if unified { 0 } else { before };
+    if cached(&gpu) != expected {
+        panic!(
+            "a cpu render left {} of {before} gpu pool bytes, unified={unified}",
+            cached(&gpu)
+        );
     }
 }

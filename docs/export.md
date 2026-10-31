@@ -216,7 +216,9 @@ These also run as jobs.
 
 A full-resolution export decodes, renders and encodes the original in one request. On a server
 without a GPU a large RAW file can take minutes. If exports stop with `408 Request Timeout`, see
-[an export returns 408](troubleshooting.md#an-export-returns-408-request-timeout).
+[an export returns 408](troubleshooting.md#an-export-returns-408-request-timeout). If they stop
+with `This photo is too large for the server's memory`, see
+[a photo is too large](troubleshooting.md#a-photo-is-too-large-for-the-servers-memory).
 
 A photo with **AI Denoise** on waits for its full-resolution result before it exports. If the result
 is not ready within `EXPORT_TIMEOUT_SECS`, the export stops with `409 Conflict`; export again once

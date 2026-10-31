@@ -1,3 +1,4 @@
+use super::Develop;
 use super::bad_pixels;
 use super::dng::DngCorrections;
 use super::highlights::{reconstruct_mosaic, reconstruct_rgb};
@@ -121,6 +122,27 @@ fn populate_xyz_to_cam_from_color_matrix(raw_image: &mut rawler::RawImage) {
         }
     }
     raw_image.xyz_to_cam = xyz_to_cam;
+}
+
+fn keeps_mosaic(raw_image: &rawler::RawImage, develop: Develop) -> bool {
+    let RawPhotometricInterpretation::Cfa(config) = &raw_image.photometric else {
+        return false;
+    };
+    let mosaic = match config.sensor {
+        SensorType::Xtrans => true,
+        SensorType::Bayer => develop == Develop::Fast && config.cfa.is_rgb(),
+    };
+    raw_image.cpp == 1 && mosaic
+}
+
+pub(super) fn frame_bytes(raw_image: &rawler::RawImage, develop: Develop) -> u64 {
+    let channels = if keeps_mosaic(raw_image, develop) {
+        1
+    } else {
+        3
+    };
+    let ActiveArea { size: [w, h], .. } = ActiveArea::of(raw_image);
+    (w * h * channels * size_of::<f32>()) as u64
 }
 
 pub(super) fn decode_raw_fast(
@@ -291,8 +313,7 @@ pub(super) fn decode_raw_quality(
         Intermediate::ThreeColor(pixels) => {
             let w = pixels.width;
             let h = pixels.height;
-            let flat: Vec<f32> = pixels.into_inner().into_iter().flatten().collect();
-            (flat, w, h)
+            (pixels.into_inner().into_flattened(), w, h)
         }
         Intermediate::FourColor(pixels) => {
             let w = pixels.width;

@@ -30,6 +30,13 @@ pub(crate) struct ContextPlanes {
 }
 
 impl ContextPlanes {
+    pub fn bytes(&self) -> u64 {
+        self.planes
+            .iter()
+            .map(|plane| std::mem::size_of_val(plane.samples.as_slice()) as u64)
+            .sum()
+    }
+
     pub fn crop(&self, window: Rect) -> (SourceContext, Vec<f32>) {
         let mut shape = SourceContext::default();
         let mut samples = Vec::new();

@@ -7,6 +7,7 @@ pub mod frames;
 pub mod gpu;
 pub mod lut;
 pub mod masks;
+pub mod memory;
 pub mod parity;
 pub mod render;
 pub mod retouch;

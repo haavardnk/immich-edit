@@ -22,6 +22,8 @@ mod uniforms;
 #[cfg(feature = "web")]
 pub use renderer::DisplayMeta;
 pub use renderer::GpuPoolStats;
+#[cfg(feature = "native")]
+pub use renderer::WorkingBytes;
 pub use renderer::{DisplayFrame, GpuRenderer, GpuRendererOptions, RenderPlan};
 pub use source::LinearSource;
 #[cfg(feature = "native")]

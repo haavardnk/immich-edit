@@ -13,6 +13,8 @@ pub const BUSY_RETRY_SECS: u64 = 30;
 pub enum DenoiseError {
     #[error("unsupported: {0}")]
     Unsupported(String),
+    #[error("too large: {0}")]
+    TooLarge(String),
     #[error("upstream: {0}")]
     Upstream(#[from] ImmichError),
     #[error("{context}")]
@@ -44,6 +46,7 @@ impl DenoiseError {
     pub fn user_message(&self) -> &'static str {
         match self {
             Self::Unsupported(_) => "AI denoise needs a RAW photo with usable color data.",
+            Self::TooLarge(_) => "This photo is too large for the server's memory.",
             Self::Upstream(_) => "The photo could not be downloaded from Immich.",
             Self::Internal { .. } => "Denoising failed. Check the server log.",
             Self::Purged => "The AI denoise cache was cleared. Try again.",
@@ -57,6 +60,7 @@ impl From<PipelineError> for DenoiseError {
     fn from(err: PipelineError) -> Self {
         match err {
             PipelineError::Unsupported(reason) => Self::Unsupported(reason),
+            PipelineError::OverBudget(reason) => Self::TooLarge(reason),
             other => Self::internal("baking the denoise plane", other),
         }
     }
@@ -98,5 +102,14 @@ mod tests {
         let unsupported: DenoiseError =
             RenderError::Pipeline(PipelineError::Unsupported("jpeg".into())).into();
         assert!(matches!(unsupported, DenoiseError::Unsupported(_)));
+    }
+
+    #[test]
+    fn a_photo_over_the_memory_budget_is_too_large_not_internal() {
+        let refused = PipelineError::OverBudget("decoding this photo needs 9000 MiB".into());
+        let error: DenoiseError = RenderError::Pipeline(refused).into();
+        if !matches!(&error, DenoiseError::TooLarge(reason) if reason.contains("9000 MiB")) {
+            panic!("an over-budget photo became {error:?}");
+        }
     }
 }

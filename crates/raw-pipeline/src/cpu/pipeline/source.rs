@@ -1,7 +1,8 @@
 use half::f16;
 use rayon::prelude::*;
 
-use super::{cached_sensor_stage, oriented_frame_dims, prepare};
+use super::sensor_lookup::SensorLookup;
+use super::{oriented_frame_dims, prepare, working_set};
 use crate::cancel::{self, CancelToken};
 use crate::cpu::renderer::CpuRenderer;
 use crate::edits::Edits;
@@ -18,8 +19,11 @@ pub(crate) fn render_source(
     renderer: &CpuRenderer,
 ) -> crate::PipelineResult<RenderedSource> {
     let prep = prepare(frame, edits, options)?;
+    let lookup = SensorLookup::new(renderer, frame, &prep, options);
+    let estimate = working_set::source(frame, &prep, options, lookup.dims());
+    let _admitted = renderer.admit(estimate, cancel)?;
     let clock = StageClock::default();
-    let stage = cached_sensor_stage(frame, &prep, options, renderer, &clock, cancel)?;
+    let stage = lookup.stage(&clock, cancel)?;
     cancel::check(cancel)?;
     let atmosphere = clock.time(timing::DEHAZE, || {
         crate::cpu::dehaze::atmosphere_for_render(&stage.rgb, stage.width, stage.height)

@@ -7,6 +7,7 @@ use crate::metadata::exif::ExifBlock;
 
 mod sharpen;
 mod watermark;
+pub(crate) mod working_set;
 
 pub use watermark::{WATERMARK_MAX_EDGE, WATERMARK_MAX_SOURCE_BYTES, decode_watermark};
 

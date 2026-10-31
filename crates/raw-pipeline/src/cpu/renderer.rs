@@ -1,28 +1,24 @@
 use std::hash::{Hash, Hasher};
-use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-use lru::LruCache;
-use parking_lot::Mutex;
-
+use crate::PipelineResult;
+use crate::admission::{Admitted, HostMemory};
 use crate::ai_denoise::DenoisePlane;
 use crate::cancel::CancelToken;
 use crate::dcp::setup::DcpSetup;
 use crate::edits::Edits;
 use crate::frame::{PreviewMode, RawFrame, RenderOptions, RenderedImage};
 
-const SENSOR_CACHE_ITEMS: usize = 2;
+mod sensor_cache;
+#[cfg(test)]
+mod tests;
 
-pub(crate) struct SensorStage {
-    pub rgb: Vec<f32>,
-    pub width: usize,
-    pub height: usize,
-    pub oriented_w: usize,
-    pub oriented_h: usize,
-}
+use sensor_cache::SensorCache;
+pub(crate) use sensor_cache::SensorStage;
 
 pub struct CpuRenderer {
-    sensor_cache: Mutex<LruCache<u64, Arc<SensorStage>>>,
+    sensor_cache: Arc<SensorCache>,
+    host: HostMemory,
 }
 
 impl Default for CpuRenderer {
@@ -33,11 +29,13 @@ impl Default for CpuRenderer {
 
 impl CpuRenderer {
     pub fn new() -> Self {
-        Self {
-            sensor_cache: Mutex::new(LruCache::new(
-                NonZeroUsize::new(SENSOR_CACHE_ITEMS).unwrap(),
-            )),
-        }
+        Self::with_host(HostMemory::default())
+    }
+
+    pub fn with_host(host: HostMemory) -> Self {
+        let sensor_cache = Arc::new(SensorCache::default());
+        host.register(sensor_cache.clone());
+        Self { sensor_cache, host }
     }
 
     pub fn render(
@@ -69,12 +67,20 @@ impl CpuRenderer {
         crate::cpu::pipeline::render_source(frame, edits, options, cancel, self)
     }
 
+    pub(crate) fn admit(
+        &self,
+        bytes: u64,
+        cancel: Option<&CancelToken>,
+    ) -> PipelineResult<Admitted<'_>> {
+        self.host.admit(bytes, cancel)
+    }
+
     pub(crate) fn get(&self, key: u64) -> Option<Arc<SensorStage>> {
-        self.sensor_cache.lock().get(&key).cloned()
+        self.sensor_cache.get(key)
     }
 
     pub(crate) fn put(&self, key: u64, stage: Arc<SensorStage>) {
-        self.sensor_cache.lock().put(key, stage);
+        self.sensor_cache.put(key, stage);
     }
 }
 

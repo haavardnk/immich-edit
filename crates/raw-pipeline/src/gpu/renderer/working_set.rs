@@ -1,4 +1,6 @@
+use std::cell::Cell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 use wgpu::TextureFormat;
 
@@ -23,10 +25,12 @@ use crate::source::LinearKind;
 use crate::tile::{Rect, SensorTile, TilePlan};
 
 mod display_tiles;
+mod host;
 #[cfg(all(test, target_vendor = "apple"))]
 mod tests;
 
 const SMALL_RESOURCES: u64 = 32 << 20;
+const SMALL_HOST: u64 = 4 << 20;
 const R8: u64 = 1;
 const R32: u64 = 4;
 const RGBA8: u64 = 4;
@@ -49,12 +53,31 @@ enum Levels {
     Context,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WorkingBytes {
+    pub device: u64,
+    pub host: u64,
+}
+
 struct WorkingSet {
     linear: TextureFormat,
     bytes: u64,
+    host: u64,
+    upload: Rc<Cell<u64>>,
 }
 
 impl WorkingSet {
+    fn total(&self) -> WorkingBytes {
+        WorkingBytes {
+            device: self.bytes,
+            host: SMALL_HOST + self.host.max(self.upload.get()),
+        }
+    }
+
+    fn host_upload(&self, bytes: u64) {
+        self.upload.set(self.upload.get().max(bytes));
+    }
+
     fn texels(&mut self, (w, h): (u32, u32), texel: u64) {
         self.bytes += u64::from(w) * u64::from(h) * texel;
     }
@@ -113,6 +136,7 @@ impl WorkingSet {
         let input = tile.input().dims();
         self.upload(frame, shape, tile.input());
         if let Ok(Some(_)) = crate::ai_denoise::active_plane(frame, edits, options) {
+            self.host_upload(host::denoise_plane(input));
             self.texels(input, RGBA16);
             self.linear(input, true);
         }
@@ -137,9 +161,10 @@ impl WorkingSet {
     }
 
     fn upload(&mut self, frame: &RawFrame, shape: &SensorShape, input: Rect) {
+        let window = shape.mosaic_window(frame, input);
+        self.host_upload(host::upload(frame, window, shape.block.is_none()));
         let single_plane = shape.block.is_some() || frame.cpp != 3;
         if single_plane {
-            let window = shape.mosaic_window(frame, input);
             let samples = u64::from(window.w) * u64::from(window.h) * frame.cpp as u64;
             self.bytes += MOSAIC_COPIES * samples * R32;
         } else {
@@ -193,6 +218,8 @@ impl WorkingSet {
         WorkingSet {
             linear: self.linear,
             bytes: 0,
+            host: 0,
+            upload: self.upload.clone(),
         }
     }
 
@@ -347,16 +374,18 @@ impl GpuRenderer {
         WorkingSet {
             linear: self.ctx.linear_format,
             bytes: SMALL_RESOURCES,
+            host: 0,
+            upload: Rc::default(),
         }
     }
 
-    pub(super) fn estimate_render(
+    pub fn estimate_render(
         &self,
         source: RenderSource<'_>,
         edits: &Edits,
         options: &RenderOptions,
         tiles: TilePlan,
-    ) -> u64 {
+    ) -> WorkingBytes {
         let edits = compose_edits(edits, options);
         let mut set = self.working_set();
         let linear = match source {
@@ -369,13 +398,14 @@ impl GpuRenderer {
                 };
                 if let TilePlan::DisplayTiled { edge } = tiles {
                     set.display_tiles(frame, &edits, options, kind, edge);
-                    return set.bytes;
+                    return set.total();
                 }
                 (set.sensor(frame, &edits, options, presence, tiles), kind)
             }
             RenderSource::Linear(linear) => (linear.extent(), linear.kind),
         };
         let shape = OutputShape::new(source.meta(), &edits, options.max_edge, linear.0.full);
+        set.host = host::display(shape.dims(), display_depth(options), options);
         set.display(
             source.meta(),
             linear,
@@ -383,24 +413,25 @@ impl GpuRenderer {
             options,
             (shape, Levels::Local),
         );
-        set.bytes
+        set.total()
     }
 
-    pub(super) fn estimate_source(
+    pub fn estimate_source(
         &self,
         frame: &RawFrame,
         edits: &Edits,
         options: &RenderOptions,
         tiles: TilePlan,
-    ) -> u64 {
+    ) -> WorkingBytes {
         let edits = compose_edits(edits, options);
         let mut set = self.working_set();
         if options.roi.is_some() {
             set.source_window(frame, &edits, options, tiles);
-            return set.bytes;
+            return set.total();
         }
         let extent = set.sensor(frame, &edits, options, true, tiles);
         set.bytes += readback_size(extent.dims.0, extent.dims.1, RGBA16 as u32);
-        set.bytes
+        set.host = host::source(extent.dims);
+        set.total()
     }
 }

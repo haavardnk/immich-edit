@@ -2,18 +2,23 @@ use std::time::Duration;
 
 use parking_lot::{Condvar, Mutex};
 
-use super::GpuRenderer;
 use crate::cancel::CancelToken;
 use crate::{PipelineError, PipelineResult};
 
+mod host;
+mod idle;
 #[cfg(test)]
 mod tests;
+
+pub use host::HostMemory;
+pub(crate) use idle::{evict_idle, idle_bytes, unshared};
 
 const CANCEL_POLL: Duration = Duration::from_millis(20);
 const LEARNED_PERCENT: u64 = 90;
 const MIB: u64 = 1024 * 1024;
 
-pub(super) struct Admission {
+pub(crate) struct Admission {
+    memory: &'static str,
     state: Mutex<State>,
     released: Condvar,
 }
@@ -23,19 +28,28 @@ struct State {
     in_flight: u64,
 }
 
-struct Retention<'a> {
-    bytes: &'a dyn Fn() -> u64,
-    trim: &'a dyn Fn(u64),
+pub(crate) trait Retained: Send + Sync {
+    fn retained_bytes(&self) -> u64;
+    fn trim(&self, excess: u64);
 }
 
-pub(super) struct Admitted<'a> {
+pub(crate) struct Admitted<'a> {
     admission: &'a Admission,
     bytes: u64,
 }
 
+pub(crate) fn over_budget(task: &str, bytes: u64, memory: &str, budget: u64) -> PipelineError {
+    PipelineError::OverBudget(format!(
+        "{task} needs {} MiB of {memory}, budget {} MiB",
+        bytes.div_ceil(MIB),
+        budget / MIB
+    ))
+}
+
 impl Admission {
-    pub fn new(budget: Option<u64>) -> Self {
+    pub fn new(memory: &'static str, budget: Option<u64>) -> Self {
         Self {
+            memory,
             state: Mutex::new(State {
                 budget,
                 in_flight: 0,
@@ -48,27 +62,25 @@ impl Admission {
         self.state.lock().budget
     }
 
-    fn admit(
+    pub fn admit(
         &self,
         bytes: u64,
-        retention: Retention<'_>,
+        retained: &dyn Retained,
         cancel: Option<&CancelToken>,
     ) -> PipelineResult<Admitted<'_>> {
         let mut state = self.state.lock();
         while let Some(budget) = state.budget {
             crate::cancel::check(cancel)?;
             if bytes > budget {
-                return Err(PipelineError::Unsupported(format!(
-                    "render needs {} MiB of gpu memory, budget {} MiB",
-                    bytes.div_ceil(MIB),
-                    budget / MIB
-                )));
+                return Err(over_budget("render", bytes, self.memory, budget));
             }
-            let excess = (state.in_flight + (retention.bytes)() + bytes).saturating_sub(budget);
+            let excess =
+                (state.in_flight + retained.retained_bytes() + bytes).saturating_sub(budget);
             if excess > 0 {
-                (retention.trim)(excess);
+                retained.trim(excess);
             }
-            if state.in_flight == 0 || state.in_flight + (retention.bytes)() + bytes <= budget {
+            if state.in_flight == 0 || state.in_flight + retained.retained_bytes() + bytes <= budget
+            {
                 break;
             }
             self.released.wait_for(&mut state, CANCEL_POLL);
@@ -84,20 +96,6 @@ impl Admission {
         let mut state = self.state.lock();
         let learned = (state.in_flight + retained) * LEARNED_PERCENT / 100;
         state.budget = Some(state.budget.map_or(learned, |budget| budget.min(learned)));
-    }
-}
-
-impl GpuRenderer {
-    pub(super) fn admit(
-        &self,
-        bytes: u64,
-        cancel: Option<&CancelToken>,
-    ) -> PipelineResult<Admitted<'_>> {
-        let retention = Retention {
-            bytes: &|| self.retained_bytes(),
-            trim: &|excess| self.trim_retained(excess),
-        };
-        self.admission.admit(bytes, retention, cancel)
     }
 }
 

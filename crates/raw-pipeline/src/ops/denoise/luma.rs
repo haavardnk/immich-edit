@@ -1,6 +1,5 @@
 use super::shrink::{self, Level, LevelParams};
 use super::{LUMA_LEVELS, atrous, estimate};
-use crate::cpu::scratch::Scratch;
 use crate::math::luma;
 use crate::ops::LinearImage;
 use rayon::prelude::*;
@@ -22,7 +21,7 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; LUMA_LEVELS
         return;
     }
     let n = w * h;
-    let mut cur = Scratch::zeroed(n);
+    let mut cur = vec![0.0; n];
     cur.par_chunks_mut(w)
         .zip(image.rgb.par_chunks(w * 3))
         .for_each(|(out, rgb)| {
@@ -30,9 +29,9 @@ pub(crate) fn denoise(image: &mut LinearImage, params: [LevelParams; LUMA_LEVELS
                 *o = luma(px[0], px[1], px[2]);
             }
         });
-    let mut next = Scratch::zeroed(n);
-    let mut tmp = Scratch::zeroed(n);
-    let mut acc = Scratch::zeroed(n);
+    let mut next = vec![0.0; n];
+    let mut tmp = vec![0.0; n];
+    let mut acc = vec![0.0; n];
     let mut coarser_than = None;
     for (s, p) in params.into_iter().enumerate() {
         let step = 1 << s;
