@@ -9,7 +9,7 @@ import {
   type MaskedEdits,
   type RangeMeta,
   type Vec2f
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 export function decodeMasks(ops: Record<string, unknown>, edits: Edits): void {
   const masks = ops.masks as { layers?: unknown[] } | undefined;

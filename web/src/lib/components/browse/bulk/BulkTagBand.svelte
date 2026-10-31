@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button } from '@immich/ui';
-  import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '$lib/api/tags';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+  import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '#lib/api/tags.ts';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
-  import { isManagedTag, toTagRef } from '$lib/browse/managedTags';
-  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import { countOf } from '$lib/utils/plural';
+  import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
+  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { countOf } from '#lib/utils/plural.ts';
 
   type RunPool = <T>(items: T[], limit: number, fn: (item: T) => Promise<void>) => Promise<void>;
 

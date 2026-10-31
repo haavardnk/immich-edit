@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { DebugTimings } from '$lib/api/diagnostics';
-  import { formatUs, hitRate } from '$lib/diagnostics/format';
+  import type { DebugTimings } from '#lib/api/diagnostics.ts';
+  import { formatUs, hitRate } from '#lib/diagnostics/format.ts';
   import { Heading, Text } from '@immich/ui';
 
   let { timings }: { timings: DebugTimings } = $props();

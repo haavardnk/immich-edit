@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { keepsLoaded } from './loadedFilter';
-import type { AssetSummary } from '$lib/types/album';
-import type { ExifInfo } from '$lib/types/asset';
-import type { BrowseFilter } from '$lib/types/search';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { ExifInfo } from '#lib/types/asset.ts';
+import type { BrowseFilter } from '#lib/types/search.ts';
 
 const photo: AssetSummary = {
   id: 'a',

@@ -1,28 +1,28 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { PreviewSurface } from '$lib/utils/previewSurface';
-  import { type MaskComponent, type MaskLayer } from '$lib/types/edits';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { type MaskComponent, type MaskLayer } from '#lib/types/edits.ts';
   import {
     bufferToImageData,
     maskOverlayRgb,
     stampBuffer,
     type BrushBuffer
-  } from '$lib/utils/brush';
+  } from '#lib/utils/brush.ts';
   import {
     displayUvToSceneUv as toSceneUv,
     scenePerDisplayAt as scenePerDisplay,
     steppedSegment,
     viewIsIdentity,
     viewTransform
-  } from '$lib/utils/canvasCoords';
-  import { imageRect } from '$lib/utils/imageRect.svelte';
+  } from '#lib/utils/canvasCoords.ts';
+  import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import {
     BRUSH_SIZE,
     HARDNESS,
     wheelHardness,
     wheelNotches,
     wheelSize
-  } from '$lib/utils/brushSize';
+  } from '#lib/utils/brushSize.ts';
 
   let {
     img

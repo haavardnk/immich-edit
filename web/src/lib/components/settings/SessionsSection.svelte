@@ -5,9 +5,9 @@
     revokeSession,
     revokeAllSessions,
     type SessionInfo
-  } from '$lib/api/account';
-  import { formatWhen } from '$lib/utils/datetime';
-  import { countOf } from '$lib/utils/plural';
+  } from '#lib/api/account.ts';
+  import { formatWhen } from '#lib/utils/datetime.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import { mdiLaptop, mdiLogoutVariant } from '@mdi/js';
   import { Badge, Icon, IconButton, LoadingSpinner, Text } from '@immich/ui';
 

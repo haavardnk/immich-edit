@@ -1,4 +1,4 @@
-import type { ScopeGrid } from '$lib/types/preview';
+import type { ScopeGrid } from '#lib/types/preview.ts';
 
 export type Raster = {
   width: number;

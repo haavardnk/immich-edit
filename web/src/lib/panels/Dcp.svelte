@@ -1,20 +1,20 @@
 <script lang="ts">
   import DcpPicker from './dcp/DcpPicker.svelte';
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import DeleteConfirmation from '$lib/components/DeleteConfirmation.svelte';
-  import FileImportButton from '$lib/components/FileImportButton.svelte';
-  import Notice from '$lib/components/Notice.svelte';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import FileImportButton from '#lib/components/FileImportButton.svelte';
+  import Notice from '#lib/components/Notice.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
   import { mdiChevronDown, mdiClose, mdiTuneVariant } from '@mdi/js';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { session } from '$lib/stores/session.svelte';
-  import { listDcps, matchDcp, importDcp, deleteDcp, type DcpMeta } from '$lib/api/dcp';
-  import { ApiError } from '$lib/api/client';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import type { DcpIlluminant, DcpMode } from '$lib/types/edits';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { session } from '#lib/stores/session.svelte.ts';
+  import { listDcps, matchDcp, importDcp, deleteDcp, type DcpMeta } from '#lib/api/dcp.ts';
+  import { ApiError } from '#lib/api/client.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import type { DcpIlluminant, DcpMode } from '#lib/types/edits.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { Collapsible, RadioGroup } from 'bits-ui';
 

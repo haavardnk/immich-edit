@@ -1,7 +1,7 @@
 <script lang="ts">
-  import SliderRow from '$lib/components/editor/controls/SliderRow.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import type { MaskedEditKey } from '$lib/types/edits';
+  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import type { MaskedEditKey } from '#lib/types/edits.ts';
 
   let {
     layerId,

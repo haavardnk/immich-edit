@@ -1,16 +1,16 @@
 <script lang="ts">
-  import DualRangeSlider from '$lib/components/editor/controls/DualRangeSlider.svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
+  import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import ModelMissingNotice from '$lib/components/ModelMissingNotice.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { depthMap } from '$lib/stores/editor/depthMap.svelte';
-  import { maskModels } from '$lib/stores/maskModels.svelte';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { depthMap } from '#lib/stores/editor/depthMap.svelte.ts';
+  import { maskModels } from '#lib/stores/maskModels.svelte.ts';
   import {
     BOKEH_SHAPES,
     LENS_BLUR_AMOUNT,
@@ -18,7 +18,7 @@
     lensBlurActive,
     resetLensBlur,
     type BokehShape
-  } from '$lib/types/edits';
+  } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
 

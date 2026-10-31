@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { miredScale } from '$lib/components/editor/controls/sliderScale';
+import { miredScale } from '#lib/components/editor/controls/sliderScale.ts';
 import {
   absoluteWhiteBalance,
   asShotWhiteBalance,

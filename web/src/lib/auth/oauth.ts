@@ -1,5 +1,5 @@
 import type { ReadonlyURL } from '$app/state';
-import type { AuthProviders } from '$lib/api/auth';
+import type { AuthProviders } from '#lib/api/auth.ts';
 
 // Resolving against an unreachable origin catches escapes the browser would make itself.
 const NEXT_BASE = 'https://next.invalid';

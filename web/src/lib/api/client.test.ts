@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, ConflictError, NetworkError, isBackendDown, request, url } from './client';
-import { toasts } from '$lib/stores/toasts.svelte';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 describe('isBackendDown', () => {
   it.each([0, 500, 502, 503, 504])('treats status %i as down', (status) => {

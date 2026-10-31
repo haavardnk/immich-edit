@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { library } from '$lib/stores/library.svelte';
-  import { personThumbUrl } from '$lib/api/people';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import { personThumbUrl } from '#lib/api/people.ts';
 
   const activeId = $derived(
     page.url.pathname.startsWith('/people/') ? (page.params.id ?? null) : null

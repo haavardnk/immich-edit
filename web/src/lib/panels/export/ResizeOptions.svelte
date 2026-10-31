@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { fmtDim } from '$lib/utils/exif';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { fmtDim } from '#lib/utils/exif.ts';
   import { Field, Select } from '@immich/ui';
   import {
     EXPORT_MAX_EDGE,

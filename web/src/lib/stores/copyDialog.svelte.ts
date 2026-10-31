@@ -1,10 +1,10 @@
-import type { Edits } from '$lib/types/edits';
-import { clipboard } from '$lib/stores/clipboard.svelte';
+import type { Edits } from '#lib/types/edits.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import {
   DEFAULT_COPY_SECTIONS,
   hasSelectedSections,
   type CopySections
-} from '$lib/editor/copyPaste';
+} from '#lib/editor/copyPaste.ts';
 
 class CopyDialogStore {
   open = $state(false);

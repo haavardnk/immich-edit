@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { DEFAULT_COPY_SECTIONS } from '$lib/editor/copyPaste';
-import { keysFor } from '$lib/shortcuts/labels';
-import { clipboard } from '$lib/stores/clipboard.svelte';
-import { copyDialog } from '$lib/stores/copyDialog.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import { DEFAULT_COPY_SECTIONS } from '#lib/editor/copyPaste.ts';
+import { keysFor } from '#lib/shortcuts/labels.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { copyEdits, pasteEdits, resetDevelop, type DevelopCtx } from './develop.svelte';
 
 function edited(): Edits {

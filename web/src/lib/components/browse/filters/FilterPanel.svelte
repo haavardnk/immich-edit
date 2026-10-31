@@ -1,27 +1,27 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import Disclosure from '$lib/components/Disclosure.svelte';
-  import DateFilters from '$lib/components/browse/filters/DateFilters.svelte';
-  import ExifFilter from '$lib/components/browse/filters/ExifFilter.svelte';
-  import IdPicker from '$lib/components/browse/filters/IdPicker.svelte';
-  import FilenameFilter from '$lib/components/browse/filters/FilenameFilter.svelte';
-  import LabelFilter from '$lib/components/browse/filters/LabelFilter.svelte';
-  import LibraryFilters from '$lib/components/browse/filters/LibraryFilters.svelte';
-  import RatingFilter from '$lib/components/browse/filters/RatingFilter.svelte';
-  import SizeFilter from '$lib/components/browse/filters/SizeFilter.svelte';
-  import { CAMERA_FILTERS, PLACE_FILTERS } from '$lib/browse/exifFilters';
-  import { ID_EXCLUSIONS, ID_FILTERS } from '$lib/browse/idFilters';
-  import { supportsFilter } from '$lib/browse/browseRoutes';
-  import { FILTER_SECTIONS, sectionModified, withoutSection } from '$lib/browse/filterSections';
+  import Disclosure from '#lib/components/Disclosure.svelte';
+  import DateFilters from '#lib/components/browse/filters/DateFilters.svelte';
+  import ExifFilter from '#lib/components/browse/filters/ExifFilter.svelte';
+  import IdPicker from '#lib/components/browse/filters/IdPicker.svelte';
+  import FilenameFilter from '#lib/components/browse/filters/FilenameFilter.svelte';
+  import LabelFilter from '#lib/components/browse/filters/LabelFilter.svelte';
+  import LibraryFilters from '#lib/components/browse/filters/LibraryFilters.svelte';
+  import RatingFilter from '#lib/components/browse/filters/RatingFilter.svelte';
+  import SizeFilter from '#lib/components/browse/filters/SizeFilter.svelte';
+  import { CAMERA_FILTERS, PLACE_FILTERS } from '#lib/browse/exifFilters.ts';
+  import { ID_EXCLUSIONS, ID_FILTERS } from '#lib/browse/idFilters.ts';
+  import { supportsFilter } from '#lib/browse/browseRoutes.ts';
+  import { FILTER_SECTIONS, sectionModified, withoutSection } from '#lib/browse/filterSections.ts';
   import {
     browseControls,
     FILTER_DEFAULTS,
     type FilterKey
-  } from '$lib/stores/browseControls.svelte';
-  import { browseView } from '$lib/stores/browseView.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { matchKeybind } from '$lib/shortcuts/match';
-  import { isTypingTarget } from '$lib/shortcuts/targets';
+  } from '#lib/stores/browseControls.svelte.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { matchKeybind } from '#lib/shortcuts/match.ts';
+  import { isTypingTarget } from '#lib/shortcuts/targets.ts';
   import { Button, IconButton, isModalOpen } from '@immich/ui';
   import { mdiClose, mdiRestore } from '@mdi/js';
   import { tick } from 'svelte';

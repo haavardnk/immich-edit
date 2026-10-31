@@ -2,12 +2,12 @@ import {
   FILTER_DEFAULTS,
   type BrowseFilters,
   type FilterKey
-} from '$lib/stores/browseControls.svelte';
-import { LABEL_NAMES, type LabelColor } from '$lib/stores/labels';
-import { ratingOp, ratingStars } from '$lib/browse/rating';
-import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '$lib/browse/exifFilters';
-import { ID_FILTERS, idChipLabel, type IdFilterKey } from '$lib/browse/idFilters';
-import { countOf } from '$lib/utils/plural';
+} from '#lib/stores/browseControls.svelte.ts';
+import { LABEL_NAMES, type LabelColor } from '#lib/stores/labels.ts';
+import { ratingOp, ratingStars } from '#lib/browse/rating.ts';
+import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '#lib/browse/exifFilters.ts';
+import { ID_FILTERS, idChipLabel, type IdFilterKey } from '#lib/browse/idFilters.ts';
+import { countOf } from '#lib/utils/plural.ts';
 
 export interface FilterChip {
   key: FilterKey;

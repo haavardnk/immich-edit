@@ -1,4 +1,4 @@
-import type { IdSet } from '$lib/types/search';
+import type { IdSet } from '#lib/types/search.ts';
 import { listSummary } from './listSummary';
 
 export type IdMatch = 'all' | 'any' | 'none';

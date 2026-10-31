@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { jobDownloadUrl, isJobActive, jobNeedsAttention, type Job } from '$lib/api/jobs';
-  import { jobs } from '$lib/stores/jobs.svelte';
+  import { jobDownloadUrl, isJobActive, jobNeedsAttention, type Job } from '#lib/api/jobs.ts';
+  import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { jobKindLabel, jobOutcome, jobProgress } from './jobFormat';
   import { Button, IconButton, ProgressBar, ToastContainer, type Color } from '@immich/ui';
   import { mdiClose } from '@mdi/js';

@@ -8,7 +8,7 @@ import {
   DEVELOP_KEYS,
   type CopySections
 } from './copyPaste';
-import { neutralEdits, type RetouchStroke } from '$lib/types/edits';
+import { neutralEdits, type RetouchStroke } from '#lib/types/edits.ts';
 
 function stroke(id: string): RetouchStroke {
   return {

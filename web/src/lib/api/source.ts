@@ -1,6 +1,6 @@
 import { request, url } from './client';
 import type { Roi } from './preview';
-import type { Edits } from '$lib/types/edits';
+import type { Edits } from '#lib/types/edits.ts';
 
 export interface SourcePayload {
   bytes: ArrayBuffer;

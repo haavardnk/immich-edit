@@ -4,7 +4,7 @@ import {
   type BokehShape,
   type Edits,
   type LensBlurEdits
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 const LENS_BLUR_KEYS = Object.keys(NEUTRAL_LENS_BLUR) as (keyof LensBlurEdits)[];
 

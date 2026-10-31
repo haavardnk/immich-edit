@@ -59,5 +59,8 @@
     "brace-expansion": "^5.0.8",
     "compression": "^1.8.2",
     "runed": "^0.38.0"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
   }
 }

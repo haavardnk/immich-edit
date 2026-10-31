@@ -8,10 +8,10 @@
     type Model,
     type ModelKind,
     type ModelsResponse
-  } from '$lib/api/models';
-  import Notice from '$lib/components/Notice.svelte';
-  import { errorMessage } from '$lib/utils/errors';
-  import { formatMb, formatSeconds, installPercent, kindLabel } from '$lib/utils/models';
+  } from '#lib/api/models.ts';
+  import Notice from '#lib/components/Notice.svelte';
+  import { errorMessage } from '#lib/utils/errors.ts';
+  import { formatMb, formatSeconds, installPercent, kindLabel } from '#lib/utils/models.ts';
   import { Badge, IconButton, LoadingSpinner, ProgressBar, Select, Text } from '@immich/ui';
   import { mdiClose, mdiDeleteOutline, mdiDownloadOutline } from '@mdi/js';
   import { onMount } from 'svelte';

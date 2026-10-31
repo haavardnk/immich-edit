@@ -1,12 +1,12 @@
 <script lang="ts">
-  import StarRating from '$lib/components/StarRating.svelte';
-  import FavoriteButton from '$lib/components/FavoriteButton.svelte';
-  import RejectButton from '$lib/components/RejectButton.svelte';
-  import LabelPicker from '$lib/components/LabelPicker.svelte';
-  import { isRejected } from '$lib/browse/reject';
-  import { ownsAsset } from '$lib/browse/ownership';
-  import { labelOf } from '$lib/stores/labels';
-  import { editor } from '$lib/stores/editor.svelte';
+  import StarRating from '#lib/components/StarRating.svelte';
+  import FavoriteButton from '#lib/components/FavoriteButton.svelte';
+  import RejectButton from '#lib/components/RejectButton.svelte';
+  import LabelPicker from '#lib/components/LabelPicker.svelte';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
+  import { labelOf } from '#lib/stores/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
 
   const rating = $derived(editor.asset?.exifInfo?.rating ?? 0);
   const isFav = $derived(editor.asset?.isFavorite ?? false);

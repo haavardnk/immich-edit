@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { openDevelopPanels } from '$lib/panels/registry';
-  import { isDevelopIdentity } from '$lib/types/edits';
-  import { modifiedDevelopPanels } from '$lib/editor/modified';
-  import HistoryPopover from '$lib/components/editor/HistoryPopover.svelte';
-  import { hint } from '$lib/shortcuts/labels';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { openDevelopPanels } from '#lib/panels/registry.ts';
+  import { isDevelopIdentity } from '#lib/types/edits.ts';
+  import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
+  import HistoryPopover from '#lib/components/editor/HistoryPopover.svelte';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { Button, IconButton } from '@immich/ui';
   import {
     mdiAutoFix,

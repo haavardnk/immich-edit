@@ -7,11 +7,11 @@ import {
   browseControls,
   type BrowseFilters,
   type SortFamily
-} from '$lib/stores/browseControls.svelte';
-import type { BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { SearchScope } from '$lib/types/search';
+} from '#lib/stores/browseControls.svelte.ts';
+import type { BrowseFeedOptions } from '#lib/stores/browseFeed.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { SearchScope } from '#lib/types/search.ts';
 
 interface RouteBase {
   family: SortFamily | null;

@@ -1,14 +1,14 @@
-import { livePreview, type ProofOptions } from '$lib/api/preview';
-import type { Edits } from '$lib/types/edits';
-import { makeObjectUrl, revoke } from '$lib/utils/objectUrl';
-import { SingleFlight } from '$lib/utils/singleFlight';
+import { livePreview, type ProofOptions } from '#lib/api/preview.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import { makeObjectUrl, revoke } from '#lib/utils/objectUrl.ts';
+import { SingleFlight } from '#lib/utils/singleFlight.ts';
 import {
   isFullFrame,
   renderRequest,
   visibleRegion,
   type RenderRequest,
   type Roi
-} from '$lib/utils/viewGeometry';
+} from '#lib/utils/viewGeometry.ts';
 import type { PreviewFrame } from './preview.svelte';
 import type { ViewSnapshot } from './previewEdge';
 

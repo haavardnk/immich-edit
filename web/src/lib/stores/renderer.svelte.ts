@@ -1,8 +1,8 @@
-import { reportClientError } from '$lib/api/clientLog';
-import { ClientRenderer } from '$lib/render/clientRenderer';
-import type { GpuLimits, TickSample } from '$lib/render/protocol';
-import { errorMessage } from '$lib/utils/errors';
-import { readStored, writeStored } from '$lib/utils/storage';
+import { reportClientError } from '#lib/api/clientLog.ts';
+import { ClientRenderer } from '#lib/render/clientRenderer.ts';
+import type { GpuLimits, TickSample } from '#lib/render/protocol.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import { readStored, writeStored } from '#lib/utils/storage.ts';
 import { blend, decide, msPerMegapixel, type Verdict } from './rendererGate';
 
 export type RendererChoice = 'auto' | 'browser' | 'server';

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { selection } from '$lib/stores/selection.svelte';
-  import { clipboard } from '$lib/stores/clipboard.svelte';
-  import { editedThumbs } from '$lib/stores/editedThumbs.svelte';
-  import { createResetEditsJob } from '$lib/api/jobs';
-  import { runBulkJob } from '$lib/api/bulkJob';
-  import { copyEditsFrom, pasteEditsTo } from '$lib/browse/copyPaste';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { createResetEditsJob } from '#lib/api/jobs.ts';
+  import { runBulkJob } from '#lib/api/bulkJob.ts';
+  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
   import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 

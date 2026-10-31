@@ -4,7 +4,7 @@ import {
   type Edits,
   type RetouchStroke,
   type Vec2f
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 import { parseVec2f } from './masks';
 
 export function decodeRetouch(ops: Record<string, unknown>, edits: Edits): void {

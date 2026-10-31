@@ -1,8 +1,8 @@
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LoupePane from './LoupePane.svelte';
-import ComponentHost from '$lib/testing/ComponentHost.svelte';
-import { CENTERED } from '$lib/stores/compare.svelte';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { CENTERED } from '#lib/stores/compare.svelte.ts';
 
 type PaneProps = ComponentProps<typeof LoupePane>;
 

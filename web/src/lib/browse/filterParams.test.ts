@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
-import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { isTypedEdit, readFilterParams, withFilterParams } from './filterParams';
 
 const FULL: BrowseFilters = {

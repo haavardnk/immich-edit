@@ -1,6 +1,6 @@
-import { getAlbum } from '$lib/api/albums';
-import type { AlbumDetail } from '$lib/types/album';
-import { errorMessage } from '$lib/utils/errors';
+import { getAlbum } from '#lib/api/albums.ts';
+import type { AlbumDetail } from '#lib/types/album.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 class AlbumStore {
   current = $state<AlbumDetail | null>(null);

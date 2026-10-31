@@ -2,11 +2,11 @@
   import { IconButton } from '@immich/ui';
   import { mdiAutoFix, mdiEyedropperVariant } from '@mdi/js';
   import { untrack } from 'svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import { miredScale } from '$lib/components/editor/controls/sliderScale';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { hint } from '$lib/shortcuts/labels';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { miredScale } from '#lib/components/editor/controls/sliderScale.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import {
     KELVIN_MAX,
     KELVIN_MIN,
@@ -19,7 +19,7 @@
     resolveTemperature,
     whiteBalanceIsAsShot,
     type Temperature
-  } from '$lib/types/edits';
+  } from '#lib/types/edits.ts';
 
   const kelvinScale = miredScale(KELVIN_MIN, KELVIN_MAX);
 

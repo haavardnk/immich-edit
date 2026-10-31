@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { ui } from '$lib/stores/ui.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import GlobalSearch from '$lib/components/GlobalSearch.svelte';
-  import Wordmark from '$lib/components/Wordmark.svelte';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import GlobalSearch from '#lib/components/GlobalSearch.svelte';
+  import Wordmark from '#lib/components/Wordmark.svelte';
   import {
     ControlBar,
     ControlBarContent,
@@ -20,7 +20,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
-  import { jobs } from '$lib/stores/jobs.svelte';
+  import { jobs } from '#lib/stores/jobs.svelte.ts';
 
   let { onToggleSidebar }: { onToggleSidebar?: () => void } = $props();
 

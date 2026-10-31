@@ -12,7 +12,7 @@ import {
   type MaskedEdits,
   type Vec2f
 } from './edits';
-import type { MaskKind } from '$lib/api/masks';
+import type { MaskKind } from '#lib/api/masks.ts';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ManualTool = 'linear' | 'radial' | 'brush' | 'polygon' | 'luma_range' | 'color_range';

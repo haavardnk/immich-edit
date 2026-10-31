@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { observeSize } from '$lib/actions/observeSize';
-  import { assetThumbUrl } from '$lib/api/assets';
-  import { persistedPreviewUrl } from '$lib/api/preview';
-  import { ui } from '$lib/stores/ui.svelte';
-  import { CENTERED, type PaneView } from '$lib/stores/compare.svelte';
-  import { fitScale, nativeScale } from '$lib/utils/viewGeometry';
-  import { clampZoom } from '$lib/utils/zoomLevel';
+  import { observeSize } from '#lib/actions/observeSize.ts';
+  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { persistedPreviewUrl } from '#lib/api/preview.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { fitScale, nativeScale } from '#lib/utils/viewGeometry.ts';
+  import { clampZoom } from '#lib/utils/zoomLevel.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
 
   const DRAG_THRESHOLD = 5;

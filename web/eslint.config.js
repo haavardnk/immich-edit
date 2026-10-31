@@ -40,7 +40,7 @@ export default ts.config(
         'error',
         {
           selector: "TSAsExpression > TSTypeReference > Identifier[name='Error']",
-          message: 'Use errorMessage(e) from $lib/utils/errors instead of casting to Error.'
+          message: 'Use errorMessage(e) from #lib/utils/errors.ts instead of casting to Error.'
         }
       ],
       '@typescript-eslint/no-unused-vars': [

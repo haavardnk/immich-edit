@@ -2,12 +2,12 @@
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { browseControls } from '$lib/stores/browseControls.svelte';
-  import { structuredRoute } from '$lib/browse/browseRoutes';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { structuredRoute } from '#lib/browse/browseRoutes.ts';
   import { page } from '$app/state';
-  import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '$lib/browse/rating';
-  import { countOf } from '$lib/utils/plural';
+  import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '#lib/browse/rating.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps, RadioGroup } from 'bits-ui';
   import { mdiStar, mdiStarOffOutline, mdiStarOutline } from '@mdi/js';

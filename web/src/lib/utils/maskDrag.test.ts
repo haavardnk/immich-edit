@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MaskComponentKind } from '$lib/types/edits';
+import type { MaskComponentKind } from '#lib/types/edits.ts';
 import { draggedKind, nudgedKind, radialAxes } from './maskDrag';
 
 const linear: Extract<MaskComponentKind, { kind: 'linear' }> = {

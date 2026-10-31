@@ -6,9 +6,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
-vi.mock('$lib/api/copies', () => ({ createCopy: mocks.createCopy }));
+vi.mock('#lib/api/copies.ts', () => ({ createCopy: mocks.createCopy }));
 
-import { toasts } from '$lib/stores/toasts.svelte';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { createVirtualCopy } from './copies';
 
 describe('createVirtualCopy', () => {

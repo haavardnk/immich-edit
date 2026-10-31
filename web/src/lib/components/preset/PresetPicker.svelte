@@ -1,6 +1,6 @@
 <script lang="ts">
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-  import { presets } from '$lib/stores/presets.svelte';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
+  import { presets } from '#lib/stores/presets.svelte.ts';
 
   let {
     selectedId = $bindable(),

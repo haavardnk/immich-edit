@@ -1,5 +1,5 @@
-import type { Preset, PresetInput } from '$lib/api/presets';
-import { countOf } from '$lib/utils/plural';
+import type { Preset, PresetInput } from '#lib/api/presets.ts';
+import { countOf } from '#lib/utils/plural.ts';
 
 export const PRESET_FILE_KIND = 'immich-edit-presets';
 export const PRESET_FILE_VERSION = 1;

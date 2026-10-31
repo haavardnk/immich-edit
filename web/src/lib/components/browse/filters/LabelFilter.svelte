@@ -2,9 +2,9 @@
   import {
     segmentedControlClass,
     segmentedRadioItemClass
-  } from '$lib/components/editor/controls/segmentedControl';
-  import { browseControls, type LabelFilter } from '$lib/stores/browseControls.svelte';
-  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '$lib/stores/labels';
+  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { browseControls, type LabelFilter } from '#lib/stores/browseControls.svelte.ts';
+  import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '#lib/stores/labels.ts';
   import { Icon, Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import { mdiCircle, mdiCircleOffOutline } from '@mdi/js';

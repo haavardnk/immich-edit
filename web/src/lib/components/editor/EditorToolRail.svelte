@@ -8,10 +8,10 @@
     mdiLayersTripleOutline,
     mdiTuneVariant
   } from '@mdi/js';
-  import { modifiedTabCount } from '$lib/editor/modified';
-  import { hint } from '$lib/shortcuts/labels';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui, type EditorTab } from '$lib/stores/ui.svelte';
+  import { modifiedTabCount } from '#lib/editor/modified.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui, type EditorTab } from '#lib/stores/ui.svelte.ts';
 
   const tools: { id: EditorTab; label: string; icon: string; title: string }[] = [
     {

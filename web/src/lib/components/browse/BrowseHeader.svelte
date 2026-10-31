@@ -1,11 +1,11 @@
 <script lang="ts">
-  import SortMenu from '$lib/components/browse/SortMenu.svelte';
-  import { browseControls, type FilterKey } from '$lib/stores/browseControls.svelte';
-  import { LABEL_TEXT } from '$lib/stores/labels';
-  import { browseView, type GridSize, type TileInfo } from '$lib/stores/browseView.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import { activeFilterChips, photoCountLabel, withoutFilter } from '$lib/browse/filterChips';
-  import { idName } from '$lib/browse/idOptions';
+  import SortMenu from '#lib/components/browse/SortMenu.svelte';
+  import { browseControls, type FilterKey } from '#lib/stores/browseControls.svelte.ts';
+  import { LABEL_TEXT } from '#lib/stores/labels.ts';
+  import { browseView, type GridSize, type TileInfo } from '#lib/stores/browseView.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { activeFilterChips, photoCountLabel, withoutFilter } from '#lib/browse/filterChips.ts';
+  import { idName } from '#lib/browse/idOptions.ts';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { tick } from 'svelte';
   import {

@@ -1,8 +1,8 @@
-import { searchMetadata } from '$lib/api/search';
-import { findManagedTag, tagHasValue } from '$lib/browse/managedTags';
-import { library } from '$lib/stores/library.svelte';
-import type { AssetSummary } from '$lib/types/album';
-import type { TagRef } from '$lib/types/asset';
+import { searchMetadata } from '#lib/api/search.ts';
+import { findManagedTag, tagHasValue } from '#lib/browse/managedTags.ts';
+import { library } from '#lib/stores/library.svelte.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 
 export class TagMembers {
   ids = $state(new Set<string>());

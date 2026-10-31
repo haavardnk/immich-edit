@@ -1,4 +1,4 @@
-import { MAX_PANES, type CompareMode } from '$lib/stores/compare.svelte';
+import { MAX_PANES, type CompareMode } from '#lib/stores/compare.svelte.ts';
 
 export type MultiMode = Exclude<CompareMode, 'single'>;
 

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import CheckboxRow from '$lib/components/CheckboxRow.svelte';
-  import EditSlider from '$lib/components/editor/controls/EditSlider.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import Notice from '$lib/components/Notice.svelte';
-  import { editsToManifest } from '$lib/edits/manifest';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { NEUTRAL_LENS } from '$lib/types/edits';
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import Notice from '#lib/components/Notice.svelte';
+  import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { NEUTRAL_LENS } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
 
   const profile = $derived(editor.lensProfile);

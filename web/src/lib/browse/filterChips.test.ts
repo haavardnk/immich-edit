@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeFilterChips, photoCountLabel, withoutFilter } from './filterChips';
-import { FILTER_DEFAULTS, type BrowseFilters } from '$lib/stores/browseControls.svelte';
+import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 
 const NAMES: Record<string, string> = { a1: 'Summer', p1: 'Ann', p2: 'Bo', t1: 'Trips/Rome' };
 

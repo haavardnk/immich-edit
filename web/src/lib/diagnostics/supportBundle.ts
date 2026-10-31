@@ -4,7 +4,7 @@ import type {
   LatencyStats,
   PlanStats,
   StageStats
-} from '$lib/api/diagnostics';
+} from '#lib/api/diagnostics.ts';
 import { codecLabel, formatBytes, formatUs, gpuMemoryRows, hitRate, planLabel } from './format';
 
 function latencyRow(name: string, s: LatencyStats): string {

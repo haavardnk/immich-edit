@@ -1,14 +1,14 @@
-import type { ApplyPresetOptions } from '$lib/api/jobs';
-import { autoEdits } from '$lib/api/edits';
-import { applyCopySections } from '$lib/editor/copyPaste';
-import { presetEdits } from '$lib/edits/applyPreset';
-import { LOOK_AMOUNT_FULL } from '$lib/edits/lookAmount';
-import { keysFor } from '$lib/shortcuts/labels';
-import { clipboard } from '$lib/stores/clipboard.svelte';
-import { copyDialog } from '$lib/stores/copyDialog.svelte';
-import { toasts } from '$lib/stores/toasts.svelte';
-import { isIdentity, resetDevelopEdits, type EditManifest, type Edits } from '$lib/types/edits';
-import { errorMessage } from '$lib/utils/errors';
+import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+import { autoEdits } from '#lib/api/edits.ts';
+import { applyCopySections } from '#lib/editor/copyPaste.ts';
+import { presetEdits } from '#lib/edits/applyPreset.ts';
+import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+import { keysFor } from '#lib/shortcuts/labels.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { isIdentity, resetDevelopEdits, type EditManifest, type Edits } from '#lib/types/edits.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface DevelopCtx {
   assetId: string | null;

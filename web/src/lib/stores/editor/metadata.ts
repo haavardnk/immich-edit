@@ -1,10 +1,10 @@
-import { updateAsset } from '$lib/api/assets';
-import { addTagToAsset, removeTagFromAsset, upsertTags } from '$lib/api/tags';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-import { rejected } from '$lib/stores/rejected.svelte';
-import { ensureRejectTag, isRejected, setRejectedTags } from '$lib/browse/reject';
-import { ownsAsset } from '$lib/browse/ownership';
+import { updateAsset } from '#lib/api/assets.ts';
+import { addTagToAsset, removeTagFromAsset, upsertTags } from '#lib/api/tags.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+import { rejected } from '#lib/stores/rejected.svelte.ts';
+import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
+import { ownsAsset } from '#lib/browse/ownership.ts';
 import {
   isLabelTag,
   labelOf,
@@ -12,10 +12,10 @@ import {
   withLabel,
   writeLabel,
   type LabelColor
-} from '$lib/stores/labels';
-import { assignLabel } from '$lib/stores/labels.svelte';
-import type { AssetDetail, ExifInfo, TagRef } from '$lib/types/asset';
-import { errorMessage } from '$lib/utils/errors';
+} from '#lib/stores/labels.ts';
+import { assignLabel } from '#lib/stores/labels.svelte.ts';
+import type { AssetDetail, ExifInfo, TagRef } from '#lib/types/asset.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface MetadataCtx {
   assetId: string | null;

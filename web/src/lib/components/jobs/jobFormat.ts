@@ -1,5 +1,5 @@
-import { isJobActive, type Job } from '$lib/api/jobs';
-import { countOf } from '$lib/utils/plural';
+import { isJobActive, type Job } from '#lib/api/jobs.ts';
+import { countOf } from '#lib/utils/plural.ts';
 
 const KIND_LABELS: Record<string, string> = {
   export_immich: 'Export to Immich',

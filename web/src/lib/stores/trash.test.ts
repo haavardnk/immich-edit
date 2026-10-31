@@ -1,6 +1,6 @@
-import { deleteCopy } from '$lib/api/copies';
-import { restoreAssets, trashAssets } from '$lib/api/trash';
-import type { AssetSummary } from '$lib/types/album';
+import { deleteCopy } from '#lib/api/copies.ts';
+import { restoreAssets, trashAssets } from '#lib/api/trash.ts';
+import type { AssetSummary } from '#lib/types/album.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { browseView } from './browseView.svelte';
 import { browsing } from './browsing.svelte';
@@ -10,12 +10,12 @@ import { session } from './session.svelte';
 import { toasts } from './toasts.svelte';
 import { trash } from './trash.svelte';
 
-vi.mock('$lib/api/trash', () => ({
+vi.mock('#lib/api/trash.ts', () => ({
   trashAssets: vi.fn().mockResolvedValue({ count: 1 }),
   restoreAssets: vi.fn().mockResolvedValue({ count: 1 })
 }));
-vi.mock('$lib/api/copies', () => ({ deleteCopy: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('$lib/api/immich', () => ({
+vi.mock('#lib/api/copies.ts', () => ({ deleteCopy: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('#lib/api/immich.ts', () => ({
   getImmichCapabilities: vi.fn().mockResolvedValue({
     immich_version: '3.3.0',
     structured_search: true,

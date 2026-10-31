@@ -1,4 +1,4 @@
-import { countOf } from '$lib/utils/plural';
+import { countOf } from '#lib/utils/plural.ts';
 import { isCopy, sourceId } from './assetKey';
 import { ownsAsset } from './ownership';
 

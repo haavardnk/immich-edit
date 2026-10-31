@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ScopeGrid, ScopeKind } from '$lib/types/preview';
+import type { ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
 
 const storageKey = 'immich-edit:scopes';
 
@@ -14,7 +14,7 @@ const getPreviewScope = vi.fn(
   })
 );
 
-vi.mock('$lib/api/preview', () => ({ getPreviewScope }));
+vi.mock('#lib/api/preview.ts', () => ({ getPreviewScope }));
 
 afterEach(() => {
   vi.unstubAllGlobals();

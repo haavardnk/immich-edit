@@ -1,4 +1,4 @@
-import type { ColorSpaceOpt } from '$lib/api/export';
+import type { ColorSpaceOpt } from '#lib/api/export.ts';
 
 export function displayGamutIsWide(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;

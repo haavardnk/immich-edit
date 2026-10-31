@@ -2,16 +2,16 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { Button } from '@immich/ui';
-  import { addAssetsToAlbum, listAlbums, removeAssetsFromAlbum } from '$lib/api/albums';
-  import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+  import { addAssetsToAlbum, listAlbums, removeAssetsFromAlbum } from '#lib/api/albums.ts';
+  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
-  import { sourceId } from '$lib/browse/assetKey';
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { metadataConsent } from '$lib/stores/metadataConsent.svelte';
-  import { selection } from '$lib/stores/selection.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte';
-  import type { AlbumSummary } from '$lib/types/album';
-  import { countOf } from '$lib/utils/plural';
+  import { sourceId } from '#lib/browse/assetKey.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import type { AlbumSummary } from '#lib/types/album.ts';
+  import { countOf } from '#lib/utils/plural.ts';
 
   let { ids, busy = $bindable() }: { ids: string[]; busy: boolean } = $props();
 

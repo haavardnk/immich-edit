@@ -1,4 +1,4 @@
-import { errorMessage } from '$lib/utils/errors';
+import { errorMessage } from '#lib/utils/errors.ts';
 import { ApiError, NetworkError } from './client';
 
 export type ClientLogKind =

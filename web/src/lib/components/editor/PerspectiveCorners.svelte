@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { sourceToStage, stageToOutput, type StageFrame } from '$lib/editor/geometryStage';
-  import { editor } from '$lib/stores/editor.svelte';
+  import { sourceToStage, stageToOutput, type StageFrame } from '#lib/editor/geometryStage.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     cornerOffsetsFor,
     unitSquareCorners,
     type PerspectiveEdits
-  } from '$lib/utils/perspective';
+  } from '#lib/utils/perspective.ts';
 
   interface Props {
     frame: StageFrame;

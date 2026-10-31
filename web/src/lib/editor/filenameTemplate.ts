@@ -1,4 +1,4 @@
-import type { ExifInfo } from '$lib/types/asset';
+import type { ExifInfo } from '#lib/types/asset.ts';
 
 export const DEFAULT_FILENAME_TEMPLATE = '{name}_edit';
 export const FILENAME_TOKENS = ['{name}', '{date}', '{seq}'] as const;

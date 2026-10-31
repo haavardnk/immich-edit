@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { hint } from '$lib/shortcuts/labels';
-  import { editor } from '$lib/stores/editor.svelte';
-  import { ui, CROP_GRIDS } from '$lib/stores/ui.svelte';
-  import { cropIsDefault, type GeometrySession } from '$lib/stores/editor/geometry.svelte';
-  import SectionHeader from '$lib/components/editor/controls/SectionHeader.svelte';
-  import TextInput from '$lib/components/TextInput.svelte';
-  import { croppedOutputSize } from '$lib/utils/geom';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui, CROP_GRIDS } from '#lib/stores/ui.svelte.ts';
+  import { cropIsDefault, type GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { croppedOutputSize } from '#lib/utils/geom.ts';
   import {
     aspectForKey,
     aspectOptions,

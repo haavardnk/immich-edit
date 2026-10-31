@@ -1,8 +1,8 @@
 <script lang="ts">
-  import MenuItem from '$lib/components/MenuItem.svelte';
-  import Popover from '$lib/components/Popover.svelte';
-  import type { Preset } from '$lib/api/presets';
-  import { presets } from '$lib/stores/presets.svelte';
+  import MenuItem from '#lib/components/MenuItem.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import type { Preset } from '#lib/api/presets.ts';
+  import { presets } from '#lib/stores/presets.svelte.ts';
   import { IconButton } from '@immich/ui';
   import {
     mdiCheck,

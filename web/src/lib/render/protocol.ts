@@ -1,7 +1,7 @@
-import type { ColorSpaceOpt } from '$lib/api/export';
-import type { PreviewMode, Roi } from '$lib/api/preview';
-import type { Edits } from '$lib/types/edits';
-import type { ScopeGrid } from '$lib/types/preview';
+import type { ColorSpaceOpt } from '#lib/api/export.ts';
+import type { PreviewMode, Roi } from '#lib/api/preview.ts';
+import type { Edits } from '#lib/types/edits.ts';
+import type { ScopeGrid } from '#lib/types/preview.ts';
 
 export interface RenderView {
   max_edge: number;

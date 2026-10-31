@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { GeometryEdits } from '$lib/types/edits';
-import type { PreviewMeta } from '$lib/types/preview';
+import type { GeometryEdits } from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 import { neutralPerspective, type PerspectiveEdits } from './perspective';
 import {
   displayUvToMaskUv,

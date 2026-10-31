@@ -12,7 +12,7 @@ import {
   type EffectsEdits,
   type ToneEdits,
   type WhiteBalance
-} from '$lib/types/edits';
+} from '#lib/types/edits.ts';
 
 export const LOOK_AMOUNT_FULL = 100;
 export const LOOK_AMOUNT_MAX = 200;

@@ -1,4 +1,4 @@
-import { sourceToStage, stageFrame } from '$lib/editor/geometryStage';
+import { sourceToStage, stageFrame } from '#lib/editor/geometryStage.ts';
 import { describe, expect, it } from 'vitest';
 import { CORNER_LIMIT, perspectiveIsUsable, type Point } from './perspective';
 import {

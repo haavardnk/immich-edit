@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CurvePoint } from '$lib/types/edits';
-import type { Histogram } from '$lib/types/preview';
+import type { CurvePoint } from '#lib/types/edits.ts';
+import type { Histogram } from '#lib/types/preview.ts';
 import {
   curvePath,
   dragPoint,

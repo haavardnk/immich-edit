@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PreviewMeta } from '$lib/types/preview';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 import { formatBrushSize, stepBrush, wheelHardness, wheelNotches, wheelSize } from './brushSize';
 
 const SIZE = { step: 0.01, min: 0.005, max: 0.5 };

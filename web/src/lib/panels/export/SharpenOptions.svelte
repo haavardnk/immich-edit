@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TextInput from '$lib/components/TextInput.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import { Field, Select } from '@immich/ui';
   import { SHARPEN_PPI, isPrintMedia, sharpenError } from './sharpen';
   import { SHARPEN_AMOUNTS, SHARPEN_MEDIA, formSharpen, type ExportForm } from './settings';

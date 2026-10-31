@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { modifiedDevelopPanels } from '$lib/editor/modified';
-import { neutralEdits, type Edits } from '$lib/types/edits';
+import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
+import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { resetDevelopPanel } from './panelReset';
 
 function everyPanelModified(): Edits {

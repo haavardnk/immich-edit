@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { library } from '$lib/stores/library.svelte';
+  import { library } from '#lib/stores/library.svelte.ts';
   import AlbumItem from './AlbumItem.svelte';
 
   const activeId = $derived(

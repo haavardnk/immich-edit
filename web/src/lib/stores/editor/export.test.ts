@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ExportOptions } from '$lib/api/export';
+import type { ExportOptions } from '#lib/api/export.ts';
 
 const mocks = vi.hoisted(() => ({
   downloadExport: vi.fn(),
@@ -8,15 +8,15 @@ const mocks = vi.hoisted(() => ({
   removeTrashed: vi.fn()
 }));
 
-vi.mock('$lib/api/export', async (original) => ({
-  ...(await original<typeof import('$lib/api/export')>()),
+vi.mock('#lib/api/export.ts', async (original) => ({
+  ...(await original<typeof import('#lib/api/export.ts')>()),
   downloadExport: mocks.downloadExport,
   uploadToImmich: mocks.uploadToImmich
 }));
-vi.mock('$lib/stores/trash.svelte', () => ({ trash: { removeTrashed: mocks.removeTrashed } }));
-vi.mock('$lib/utils/download', () => ({ downloadBlob: mocks.downloadBlob }));
+vi.mock('#lib/stores/trash.svelte.ts', () => ({ trash: { removeTrashed: mocks.removeTrashed } }));
+vi.mock('#lib/utils/download.ts', () => ({ downloadBlob: mocks.downloadBlob }));
 
-import { editor } from '$lib/stores/editor.svelte';
+import { editor } from '#lib/stores/editor.svelte.ts';
 
 const JPEG: ExportOptions = {
   format: 'jpeg',

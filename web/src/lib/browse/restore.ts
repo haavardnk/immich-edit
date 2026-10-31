@@ -1,12 +1,12 @@
-import { searchWindow } from '$lib/api/search';
-import { validReturnPath } from '$lib/editor/navigation';
+import { searchWindow } from '#lib/api/search.ts';
+import { validReturnPath } from '#lib/editor/navigation.ts';
 import { arrangeLoaded } from './loadedFilter';
-import { browseControls } from '$lib/stores/browseControls.svelte';
+import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import { readFilterParams } from './filterParams';
 import { matchBrowseRoute } from './browseRoutes';
-import { BrowseFeed, type BrowseFeedOptions } from '$lib/stores/browseFeed.svelte';
-import { browsing } from '$lib/stores/browsing.svelte';
-import { loadCullTags, stampCullTags } from '$lib/stores/cullTags';
+import { BrowseFeed, type BrowseFeedOptions } from '#lib/stores/browseFeed.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { loadCullTags, stampCullTags } from '#lib/stores/cullTags.ts';
 
 const WINDOW_RADIUS = 250;
 

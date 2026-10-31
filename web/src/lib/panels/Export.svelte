@@ -1,12 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { editor } from '$lib/stores/editor.svelte';
-  import Notice from '$lib/components/Notice.svelte';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import Notice from '#lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
-  import { EXTENSION_BY_FORMAT } from '$lib/api/export';
-  import { captureDate } from '$lib/editor/filenameTemplate';
-  import { croppedOutputSize } from '$lib/utils/geom';
+  import { EXTENSION_BY_FORMAT } from '#lib/api/export.ts';
+  import { captureDate } from '#lib/editor/filenameTemplate.ts';
+  import { croppedOutputSize } from '#lib/utils/geom.ts';
   import DestinationToggle from './export/DestinationToggle.svelte';
   import ExportPresetMenu from './export/ExportPresetMenu.svelte';
   import ExportSection from './export/ExportSection.svelte';
@@ -17,10 +17,10 @@
   import WatermarkOptions from './export/WatermarkOptions.svelte';
   import ImmichOptions from './export/ImmichOptions.svelte';
   import { exportSettings } from './export/exportSettings.svelte';
-  import { ownsAsset } from '$lib/browse/ownership';
-  import { immichCapabilities } from '$lib/stores/immichCapabilities.svelte';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
+  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { replaceBlocked } from './export/replace';
-  import { backToGrid } from '$lib/browse/backToGrid';
+  import { backToGrid } from '#lib/browse/backToGrid.ts';
   import {
     baseOptions,
     COLOR_SPACES,

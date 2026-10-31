@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { browsing } from '$lib/stores/browsing.svelte';
-  import { compare, type PaneView } from '$lib/stores/compare.svelte';
-  import { hint } from '$lib/shortcuts/labels';
-  import LoupePane from '$lib/components/browse/LoupePane.svelte';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
+  import { compare, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import LoupePane from '#lib/components/browse/LoupePane.svelte';
   import { IconButton } from '@immich/ui';
   import { mdiArrowCollapseLeft, mdiClose } from '@mdi/js';
 

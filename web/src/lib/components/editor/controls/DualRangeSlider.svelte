@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { percent, percentRange } from '$lib/utils/percent';
+  import { percent, percentRange } from '#lib/utils/percent.ts';
   import { Slider } from 'bits-ui';
 
   const MIN = 0;
