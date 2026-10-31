@@ -1,4 +1,4 @@
-import type { ClientInit, HandleClientError } from '@sveltejs/kit';
+import type { ClientInit, HandleClientError } from '@sveltejs/kit/hooks';
 import { installClientLog, reportClientError } from '$lib/api/clientLog';
 import { toasts } from '$lib/stores/toasts.svelte';
 import { errorMessage } from '$lib/utils/errors';
@@ -7,11 +7,10 @@ export const init: ClientInit = () => {
   installClientLog();
 };
 
-export const handleError: HandleClientError = ({ error, status }) => {
+export const handleError: HandleClientError = ({ kind, error }) => {
+  if (kind !== 'unknown') return;
   const message = errorMessage(error);
-  if (status !== 404) {
-    toasts.push('error', message, 12000);
-    reportClientError('svelte', error);
-  }
+  toasts.push('error', message, 12000);
+  reportClientError('svelte', error);
   return { message };
 };

@@ -41,11 +41,11 @@
     const q = value.trim();
     if (q) {
       const onSearch = page.url.pathname === '/search';
-      const url = onSearch ? new URL(page.url) : new URL('/search', page.url);
+      const url = onSearch ? new URL(page.url.href) : new URL('/search', page.url.href);
       url.searchParams.set('q', q);
-      void goto(`${url.pathname}${url.search}`, { replaceState: onSearch, keepFocus: true });
+      void goto(`${url.pathname}${url.search}`, { replace: onSearch, reset: false });
     } else if (page.url.pathname === '/search') {
-      void goto('/photos', { keepFocus: true });
+      void goto('/photos', { reset: false });
     }
   }
 

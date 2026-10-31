@@ -31,9 +31,9 @@
 
   function setMode(next: SearchMode): void {
     if (next === mode) return;
-    const url = new URL(page.url);
+    const url = new URL(page.url.href);
     url.searchParams.set('mode', next);
-    void goto(`${url.pathname}${url.search}`, { replaceState: true, keepFocus: true });
+    void goto(`${url.pathname}${url.search}`, { replace: true, reset: false });
   }
 
   $effect(() => {

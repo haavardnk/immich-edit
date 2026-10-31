@@ -42,16 +42,16 @@
     if (bootState !== 'ready') return;
     const path = page.url.pathname;
     if (session.user) {
-      if (path === '/login' || path === '/setup') void goto('/', { replaceState: true });
+      if (path === '/login' || path === '/setup') void goto('/', { replace: true });
       return;
     }
     if (!configured) {
-      if (path !== '/setup') void goto('/setup', { replaceState: true });
+      if (path !== '/setup') void goto('/setup', { replace: true });
       return;
     }
     if (path !== '/login') {
       const next = encodeURIComponent(path + page.url.search);
-      void goto(`/login?next=${next}`, { replaceState: true });
+      void goto(`/login?next=${next}`, { replace: true });
     }
   });
 
