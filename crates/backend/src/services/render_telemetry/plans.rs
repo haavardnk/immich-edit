@@ -27,7 +27,7 @@ impl Plans {
         let (plan, edge) = match tiling.plan {
             TilePlan::SinglePass => (PlanKind::SinglePass, None),
             TilePlan::SensorTiled { edge } => (PlanKind::SensorTiled, Some(edge)),
-            TilePlan::DisplayTiled { edge } => (PlanKind::DisplayTiled, Some(edge)),
+            TilePlan::DisplayTiled { edge, .. } => (PlanKind::DisplayTiled, Some(edge)),
         };
         let same = |s: &&mut PlanStats| s.renderer == renderer && s.plan == plan && s.edge == edge;
         match self.0.iter_mut().find(same) {
@@ -58,7 +58,7 @@ mod tests {
     fn plans_count_renders_per_renderer_plan_and_edge() {
         let mut plans = Plans::default();
         let display = |edge, tiles| TilingReport {
-            plan: TilePlan::DisplayTiled { edge },
+            plan: TilePlan::DisplayTiled { edge, held: true },
             tiles,
         };
         plans.record(RendererKind::Gpu, TilingReport::SINGLE_PASS);

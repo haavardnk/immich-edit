@@ -9,11 +9,19 @@ use raw_pipeline_testkit::frames::synthetic_bayer_frame;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::render::rgb8_opts;
 
-use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, strokes};
+use super::{CANON_5D, Mode, Pair, Planned, XT2, decoded, radial, strokes};
 
-const TILES: TilePlan = TilePlan::DisplayTiled { edge: 1024 };
+const HELD: TilePlan = TilePlan::DisplayTiled {
+    edge: 1024,
+    held: true,
+};
+const STREAMED: TilePlan = TilePlan::DisplayTiled {
+    edge: 1024,
+    held: false,
+};
 const FIXTURES: [&str; 2] = [XT2, CANON_5D];
 const BUDGET: u64 = 320 << 20;
+const HELD_BUDGET: u64 = 640 << 20;
 const ROI: CropRect = CropRect {
     x: 0.3,
     y: 0.25,
@@ -183,7 +191,7 @@ fn modes(frame: &RawFrame) -> [Mode; 2] {
 
 #[test]
 fn display_tiles_match_the_single_pass_on_real_raws() {
-    let Some(pair) = Pair::forced(TILES) else {
+    let Some(pair) = Pair::forced(HELD) else {
         return;
     };
     for name in FIXTURES {
@@ -200,7 +208,7 @@ fn display_tiles_match_the_single_pass_on_real_raws() {
 
 #[test]
 fn display_tiles_match_magnified_and_roi_previews_with_a_range_mask() {
-    let Some(pair) = Pair::forced(TILES) else {
+    let Some(pair) = Pair::forced(HELD) else {
         return;
     };
     let cases = [
@@ -226,7 +234,7 @@ fn display_tiles_match_magnified_and_roi_previews_with_a_range_mask() {
 
 #[test]
 fn display_tiles_with_a_shared_context_match_the_single_pass() {
-    let Some(pair) = Pair::forced(TILES) else {
+    let Some(pair) = Pair::forced(STREAMED) else {
         return;
     };
     let frame = decoded(XT2);
@@ -244,7 +252,7 @@ fn display_tiles_with_a_shared_context_match_the_single_pass() {
 
 #[test]
 fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
-    let Some(pair) = Pair::forced(TILES) else {
+    let Some(pair) = Pair::forced(STREAMED) else {
         return;
     };
     let opts = RenderOptions {
@@ -268,16 +276,14 @@ fn display_tiles_with_lens_blur_and_a_context_match_the_single_pass() {
 
 #[test]
 fn display_tiles_render_a_mosaic_over_the_sensor_tile_budget() {
-    let Some(pair) = Pair::budgeted(BUDGET) else {
-        return;
-    };
     let frame = synthetic_bayer_frame(6000, 4000, "RGGB");
-    pair.require(
-        "6000x4000 in 320 MiB",
-        &frame,
-        &budget_edits(),
-        &export(6000),
-    );
+    for (budget, planned) in [(BUDGET, Planned::Streamed), (HELD_BUDGET, Planned::Held)] {
+        let Some(pair) = Pair::budgeted(budget, planned) else {
+            return;
+        };
+        let label = format!("6000x4000 in {} MiB", budget >> 20);
+        pair.require(&label, &frame, &budget_edits(), &export(6000));
+    }
 }
 
 fn tile_source(
@@ -315,7 +321,7 @@ fn require_tile_source(
 
 #[test]
 fn display_tiles_render_tile_sources_like_the_single_pass() {
-    let Some(pair) = Pair::forced(TILES) else {
+    let Some(pair) = Pair::forced(STREAMED) else {
         return;
     };
     let cases = [
@@ -331,7 +337,7 @@ fn display_tiles_render_tile_sources_like_the_single_pass() {
 
 #[test]
 fn display_tiles_render_only_the_window_of_a_tile_source_over_the_budget() {
-    let Some(pair) = Pair::budgeted(BUDGET) else {
+    let Some(pair) = Pair::budgeted(BUDGET, Planned::Streamed) else {
         return;
     };
     let frame = synthetic_bayer_frame(6000, 4000, "RGGB");

@@ -16,6 +16,7 @@ struct Tiled<'a> {
     options: &'a RenderOptions,
     shape: SensorShape,
     presence: bool,
+    held: bool,
 }
 
 impl Tiled<'_> {
@@ -32,16 +33,25 @@ impl Tiled<'_> {
         set
     }
 
-    fn extent(&self, sensor: &SensorTile) -> SourceExtent {
+    fn window(&self, base: &WorkingSet, window: Rect) -> (WorkingSet, SourceExtent) {
+        let full = self.shape.working();
+        if self.held {
+            let dims = window.dims();
+            let mut set = base.empty();
+            set.linear(dims, false);
+            return (set, SourceExtent { dims, full });
+        }
+        let sensor = self.shape.chain.tile(window);
         let rect = if self.shape.resamples() {
             sensor.core
         } else {
             sensor.detail
         };
-        SourceExtent {
+        let extent = SourceExtent {
             dims: rect.dims(),
-            full: self.shape.working(),
-        }
+            full,
+        };
+        (self.sensor(base, &sensor), extent)
     }
 
     fn partition(&self, base: &WorkingSet, edge: u32) -> Option<u64> {
@@ -50,9 +60,8 @@ impl Tiled<'_> {
     }
 
     fn core(&self, base: &WorkingSet, layout: &DisplayTiles, core: Rect) -> u64 {
-        let sensor = self.shape.chain.tile(layout.context_window(core));
-        let mut set = self.sensor(base, &sensor);
-        set.context_core(self.extent(&sensor), self.edits, self.options, core);
+        let (mut set, extent) = self.window(base, layout.context_window(core));
+        set.context_core(extent, self.edits, self.options, core);
         set.bytes
     }
 }
@@ -64,7 +73,7 @@ impl WorkingSet {
         edits: &Edits,
         options: &RenderOptions,
         kind: LinearKind,
-        edge: u32,
+        (edge, held): (u32, bool),
     ) {
         let edits = edits.clamped();
         let presence = kind == LinearKind::PostWb;
@@ -74,23 +83,20 @@ impl WorkingSet {
             options,
             shape: SensorShape::new(frame, &edits, options, presence),
             presence,
+            held,
         };
         let layout = DisplayTiles::new(frame, &edits, options, &tiled.shape, edge);
         let levels = match layout.context {
             Some(_) => Levels::Context,
             None => Levels::Local,
         };
+        if held {
+            self.linear(tiled.shape.working(), true);
+        }
         let tile_bytes = |tile: &DisplayTile| {
-            let sensor = tiled.shape.chain.tile(tile.window);
-            let mut set = tiled.sensor(self, &sensor);
+            let (mut set, extent) = tiled.window(self, tile.window);
             let output = (layout.shape.tile(tile), levels);
-            set.display(
-                &frame.meta,
-                (tiled.extent(&sensor), kind),
-                &edits,
-                options,
-                output,
-            );
+            set.display(&frame.meta, (extent, kind), &edits, options, output);
             set.bytes
         };
         let partition = tiled.partition(self, edge);
@@ -117,44 +123,36 @@ impl WorkingSet {
         tiles: TilePlan,
     ) {
         let edits = edits.clamped();
+        let edge = tiles.display_edge();
         let tiled = Tiled {
             frame,
             edits: &edits,
             options,
             shape: SensorShape::new(frame, &edits, options, true),
             presence: true,
+            held: edge.is_none(),
         };
-        let edge = tiles.display_edge();
         let layout = DisplayTiles::source(frame, &edits, options, &tiled.shape, edge);
         let window = layout.source_window();
+        let cores = layout
+            .cores
+            .iter()
+            .map(|&core| tiled.core(self, &layout, core));
         let work = match edge {
             Some(edge) => {
-                let sensor = tiled.shape.chain.tile(window);
-                let cores = layout
-                    .cores
-                    .iter()
-                    .map(|&core| tiled.core(self, &layout, core));
+                let (sensor, _) = tiled.window(self, window);
                 cores
                     .chain(tiled.partition(self, edge))
-                    .chain([tiled.sensor(self, &sensor).bytes])
+                    .chain([sensor.bytes])
                     .max()
                     .unwrap_or(0)
             }
             None => {
                 let mut sensor = self.empty();
                 let extent = sensor.sensor(frame, &edits, options, true, tiles);
-                let cores = layout.cores.iter().map(|&core| {
-                    let window = layout.context_window(core);
-                    let mut copy = self.empty();
-                    copy.linear(extent.full, true);
-                    copy.linear(window.dims(), false);
-                    let extent = SourceExtent {
-                        dims: window.dims(),
-                        full: extent.full,
-                    };
-                    copy.context_core(extent, &edits, options, core);
-                    copy.bytes
-                });
+                let mut whole = self.empty();
+                whole.linear(extent.full, true);
+                let cores = cores.map(|core| whole.bytes + core);
                 cores.chain([sensor.bytes]).max().unwrap_or(0)
             }
         };

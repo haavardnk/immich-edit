@@ -19,7 +19,14 @@ use crate::tile::TilePlan;
 
 const DEPTH: &str = "depth";
 const SAMPLE_EVERY: Duration = Duration::from_micros(100);
-const DISPLAY_TILES: TilePlan = TilePlan::DisplayTiled { edge: 2048 };
+const DISPLAY_TILES: TilePlan = TilePlan::DisplayTiled {
+    edge: 2048,
+    held: false,
+};
+const HELD_TILES: TilePlan = TilePlan::DisplayTiled {
+    edge: 2048,
+    held: true,
+};
 
 #[derive(Clone, Copy)]
 enum Output {
@@ -236,6 +243,7 @@ fn the_estimate_covers_the_measured_peak_of_24_mp_renders() {
                 export_16(),
                 DISPLAY_TILES,
             ),
+            case("held display tiles", full_edits(), export_16(), HELD_TILES),
             source("tile source", TilePlan::SinglePass),
             source("display-tiled tile source", DISPLAY_TILES),
         ],

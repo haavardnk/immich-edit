@@ -17,36 +17,54 @@ fn decoded(name: &str) -> RawFrame {
     decode::decode(&bytes).unwrap()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Planned {
+    Sensor,
+    Held,
+    Streamed,
+}
+
+impl Planned {
+    fn of(plan: TilePlan) -> Option<Self> {
+        match plan {
+            TilePlan::SensorTiled { .. } => Some(Self::Sensor),
+            TilePlan::DisplayTiled { held: true, .. } => Some(Self::Held),
+            TilePlan::DisplayTiled { held: false, .. } => Some(Self::Streamed),
+            TilePlan::SinglePass => None,
+        }
+    }
+}
+
 struct Pair {
     single: GpuRenderer,
     tiled: GpuRenderer,
-    sensor: bool,
+    planned: Planned,
 }
 
 impl Pair {
-    fn new(options: GpuRendererOptions, sensor: bool) -> Option<Self> {
+    fn new(options: GpuRendererOptions, planned: Planned) -> Option<Self> {
         Some(Self {
             single: try_renderer()?,
             tiled: try_renderer_with(options)?,
-            sensor,
+            planned,
         })
     }
 
     fn forced(tiles: TilePlan) -> Option<Self> {
-        let sensor = matches!(tiles, TilePlan::SensorTiled { .. });
+        let planned = Planned::of(tiles)?;
         let options = GpuRendererOptions {
             tiles: Some(tiles),
             ..GpuRendererOptions::default()
         };
-        Self::new(options, sensor)
+        Self::new(options, planned)
     }
 
-    fn budgeted(bytes: u64) -> Option<Self> {
+    fn budgeted(bytes: u64, planned: Planned) -> Option<Self> {
         let options = GpuRendererOptions {
             memory_budget_bytes: Some(bytes),
             ..GpuRendererOptions::default()
         };
-        Self::new(options, false)
+        Self::new(options, planned)
     }
 
     fn require(
@@ -59,7 +77,7 @@ impl Pair {
         let reference = render(&self.single, frame, edits, opts);
         let got = render(&self.tiled, frame, edits, opts);
         require_identical(label, &reference, &got);
-        require_tiles(label, got.tiling, self.sensor);
+        require_tiles(label, got.tiling, self.planned);
         got
     }
 
@@ -84,13 +102,8 @@ fn render(
     }
 }
 
-fn require_tiles(label: &str, tiling: TilingReport, sensor: bool) {
-    let planned = match tiling.plan {
-        TilePlan::SensorTiled { .. } => sensor,
-        TilePlan::DisplayTiled { .. } => !sensor,
-        TilePlan::SinglePass => false,
-    };
-    if !planned || tiling.tiles < 4 {
+fn require_tiles(label: &str, tiling: TilingReport, planned: Planned) {
+    if Planned::of(tiling.plan) != Some(planned) || tiling.tiles < 4 {
         panic!("{label} rendered as {tiling:?}");
     }
 }

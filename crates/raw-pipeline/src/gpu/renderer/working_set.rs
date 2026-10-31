@@ -396,8 +396,8 @@ impl GpuRenderer {
                 } else {
                     LinearKind::PreWb
                 };
-                if let TilePlan::DisplayTiled { edge } = tiles {
-                    set.display_tiles(frame, &edits, options, kind, edge);
+                if let TilePlan::DisplayTiled { edge, held } = tiles {
+                    set.display_tiles(frame, &edits, options, kind, (edge, held));
                     return set.total();
                 }
                 (set.sensor(frame, &edits, options, presence, tiles), kind)

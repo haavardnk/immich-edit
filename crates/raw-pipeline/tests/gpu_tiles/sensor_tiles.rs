@@ -7,7 +7,7 @@ use raw_pipeline_testkit::gpu::try_renderer_with;
 use raw_pipeline_testkit::masks::layer;
 use raw_pipeline_testkit::render::rgb8_opts;
 
-use super::{CANON_5D, Mode, Pair, XT2, decoded, radial, render, require_tiles, strokes};
+use super::{CANON_5D, Mode, Pair, Planned, XT2, decoded, radial, render, require_tiles, strokes};
 
 const TILES: TilePlan = TilePlan::SensorTiled { edge: 1024 };
 const DJI: &str = "DJI_FC7303_16-9.dng";
@@ -170,7 +170,7 @@ fn sensor_tiles_render_a_source_and_report_it() {
     if reference.tiling != TilingReport::SINGLE_PASS {
         panic!("the single pass source reported {:?}", reference.tiling);
     }
-    require_tiles("the tiled source", got.tiling, true);
+    require_tiles("the tiled source", got.tiling, Planned::Sensor);
     if got.image.rgb_f16 != reference.image.rgb_f16 {
         panic!("the tiled source differs from the single pass");
     }
