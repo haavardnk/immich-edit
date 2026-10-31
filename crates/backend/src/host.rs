@@ -34,15 +34,16 @@ fn probe() -> HostInfo {
         RefreshKind::nothing()
             .with_cpu(CpuRefreshKind::nothing())
             .with_memory(MemoryRefreshKind::nothing().with_ram()),
-    );
-    let total_memory = sys.total_memory();
+    )
+    .ok();
+    let sys = sys.as_ref();
+    let total_memory = sys.map_or(0, System::total_memory);
     HostInfo {
         os: std::env::consts::OS,
         arch: std::env::consts::ARCH,
-        os_version: System::long_os_version(),
+        os_version: System::long_os_version().ok(),
         cpu: sys
-            .cpus()
-            .first()
+            .and_then(|s| s.cpus().first())
             .map(|c| c.brand().trim().to_string())
             .filter(|b| !b.is_empty()),
         // Respects the cgroup CPU quota, so this is what the container can actually use.
@@ -50,6 +51,6 @@ fn probe() -> HostInfo {
             .map(|n| n.get())
             .unwrap_or(0),
         memory_total_bytes: (total_memory > 0).then_some(total_memory),
-        memory_limit_bytes: sys.cgroup_limits().map(|l| l.total_memory),
+        memory_limit_bytes: sys.and_then(System::cgroup_limits).map(|l| l.total_memory),
     }
 }
