@@ -36,7 +36,7 @@
       return;
     }
     adminSection = section;
-    void goto(`/settings#${section}`, { replaceState: true, noScroll: true, keepFocus: true });
+    void goto(`/settings#${section}`, { replace: true, reset: false });
   }
 
   $effect(() => {

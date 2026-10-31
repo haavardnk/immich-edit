@@ -27,7 +27,7 @@ function selectedShapeNudges(): boolean {
 }
 
 function openInEditor(id: string): void {
-  void goto(editorHref(id, page.url.searchParams.get('from')), { replaceState: true });
+  void goto(editorHref(id, page.url.searchParams.get('from')), { replace: true });
 }
 
 function navigate(id: string, delta: number): void {
