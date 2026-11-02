@@ -12,11 +12,12 @@
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
-  import { setLocale, TooltipProvider } from '@immich/ui';
+  import { setLocale, themeManager, ThemePreference, TooltipProvider } from '@immich/ui';
 
   let { children } = $props();
 
   setLocale(navigator.language);
+  themeManager.setPreference(ThemePreference.Dark);
 
   let bootState = $state<'loading' | 'ready' | 'unreachable'>('loading');
   let configured = $state(false);
