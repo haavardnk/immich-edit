@@ -40,8 +40,6 @@ but this one. Signing out of a password or OAuth session also revokes the Immich
 
 ## Appearance
 
-Edge only until the next release.
-
 **Settings** > **Appearance** sets how immich-edit looks for your account on every device you sign
 in on:
 
