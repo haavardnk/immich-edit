@@ -99,6 +99,12 @@ sqlite3 /data/immich-edit.db ".backup '/data/immich-edit-backup.db'"
 Database migrations run during startup. If startup fails, keep the backup and read the reported
 configuration or migration error. Do not delete `DATA_DIR` to make the error disappear.
 
+## Upgrade to v0.7.2
+
+Back up `DATA_DIR` first. v0.7.2 adds a table for each user's appearance choices, and v0.7.1 does
+not start on the migrated database; to go back, [restore](#restore) the backup and pin the image to
+`0.7.1`.
+
 ## Upgrade to v0.7.0
 
 Back up `DATA_DIR` first. v0.7.0 converts saved edits in place, and v0.6.x does not start on the
