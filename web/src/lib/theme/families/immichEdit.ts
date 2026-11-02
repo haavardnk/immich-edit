@@ -47,7 +47,16 @@ const dark: ThemeDefinition = {
     danger: '#f67d7d',
     info: '#7ab7ff'
   },
-  accents: { violet: '#b7a1fb' },
+  accents: {
+    violet: '#b7a1fb',
+    indigo: '#9babff',
+    blue: '#74b6ff',
+    sky: '#43c1f2',
+    teal: '#1bcbc4',
+    amber: '#e1a54a',
+    coral: '#f69472',
+    rose: '#f68ea7'
+  },
   inherit: ['semantic', 'ladder', 'surface', 'stage'],
   ramps: { primary: { violet: VIOLET_DARK }, gray: PLUM }
 };
@@ -71,7 +80,16 @@ const light: ThemeDefinition = {
     danger: '#dc2626',
     info: '#2563eb'
   },
-  accents: { violet: '#7159b0' },
+  accents: {
+    violet: '#7159b0',
+    indigo: '#5763b0',
+    blue: '#296baf',
+    sky: '#007094',
+    teal: '#00756f',
+    amber: '#8d5f00',
+    coral: '#ae4823',
+    rose: '#ad4363'
+  },
   ramps: { ladder: PLUM, gray: PLUM }
 };
 
@@ -79,6 +97,15 @@ export const immichEdit: ThemeFamily = {
   id: 'immich-edit',
   name: 'immich-edit',
   defaultAccent: 'violet',
-  accents: [{ id: 'violet', name: 'Violet' }],
+  accents: [
+    { id: 'violet', name: 'Violet' },
+    { id: 'indigo', name: 'Indigo' },
+    { id: 'blue', name: 'Blue' },
+    { id: 'sky', name: 'Sky' },
+    { id: 'teal', name: 'Teal' },
+    { id: 'amber', name: 'Amber' },
+    { id: 'coral', name: 'Coral' },
+    { id: 'rose', name: 'Rose' }
+  ],
   themes: [dark, light]
 };

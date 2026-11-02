@@ -33,7 +33,7 @@ const REMOTE: Appearance = {
   mode: 'dark',
   lightTheme: 'catppuccin-latte',
   darkTheme: 'nord',
-  accents: { nord: 'green' }
+  accents: { dark: 'green' }
 };
 
 async function freshStore(): Promise<(typeof import('./appearance.svelte'))['appearance']> {
@@ -87,16 +87,16 @@ describe('appearance store', () => {
     store.apply();
 
     await store.load();
-    store.setAccent('immich-edit', 'teal');
+    store.setAccent('dark', 'teal');
 
     await vi.waitFor(() => expect(api.putAppearance).toHaveBeenCalledTimes(1));
-    expect(store.current.accents).toEqual({ 'immich-edit': 'teal' });
+    expect(store.current.accents).toEqual({ dark: 'teal' });
   });
 
   it('only sets the package preference when the mode changes', async () => {
     const store = await freshStore();
     store.apply();
-    store.setAccent('immich-edit', 'rose');
+    store.setAccent('light', 'rose');
     store.setTheme('light', 'nord');
     store.setMode('system');
 

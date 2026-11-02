@@ -3,6 +3,7 @@
     segmentedControlClass,
     segmentedRadioItemClass
   } from '#lib/components/editor/controls/segmentedControl.ts';
+  import AccentPicker from '#lib/components/settings/AccentPicker.svelte';
   import ThemePicker from '#lib/components/settings/ThemePicker.svelte';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
   import type { ThemeMode } from '#lib/theme/types.ts';
@@ -35,6 +36,12 @@
       {/each}
     </RadioGroup.Root>
   </section>
-  <ThemePicker scheme="light" label="Light theme" />
-  <ThemePicker scheme="dark" label="Dark theme" />
+  <div class="space-y-4">
+    <ThemePicker scheme="light" label="Light theme" />
+    <AccentPicker scheme="light" label="Light accent" />
+  </div>
+  <div class="space-y-4">
+    <ThemePicker scheme="dark" label="Dark theme" />
+    <AccentPicker scheme="dark" label="Dark accent" />
+  </div>
 </div>
