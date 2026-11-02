@@ -27,7 +27,7 @@
   const rootClass = $derived(variant === 'section' ? 'border-t border-hairline' : '');
   const triggerClass = $derived(
     variant === 'section'
-      ? `group relative flex h-8 w-full items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none ${open ? 'bg-white/4 text-dark' : 'text-dark/65 hover:bg-white/3 hover:text-dark'}`
+      ? `group relative flex h-8 w-full items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none ${open ? 'bg-light-950/4 text-dark' : 'text-dark/65 hover:bg-light-950/3 hover:text-dark'}`
       : 'flex h-6 items-center gap-1 rounded px-1 text-[10px] font-medium text-dark/65 transition-colors select-none hover:bg-ghost hover:text-dark'
   );
   const iconSize = $derived(variant === 'section' ? 14 : 12);

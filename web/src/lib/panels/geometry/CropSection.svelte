@@ -101,7 +101,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="size-7 bg-neutral-800 not-disabled:hover:bg-neutral-700"
+      class="size-7 bg-light-200 not-disabled:hover:bg-light-300"
       icon={portrait ? mdiCropPortrait : mdiCropLandscape}
       title={portrait ? 'Switch to landscape' : 'Switch to portrait'}
       aria-label={portrait ? 'Switch to landscape' : 'Switch to portrait'}

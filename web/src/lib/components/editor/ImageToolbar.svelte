@@ -96,12 +96,12 @@
     {#if editor.asset}
       <div class="min-w-0 border-l border-hairline pl-2">
         <div class="flex min-w-0 items-center gap-2">
-          <span class="truncate whitespace-nowrap text-xs font-semibold text-white/90">
+          <span class="truncate whitespace-nowrap text-xs font-semibold text-light-950/90">
             {editor.asset.originalFileName}
           </span>
           {#if copyBadge}
             <span
-              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-[9px] font-medium text-white/60"
+              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-[9px] font-medium text-light-950/60"
               >{copyBadge}</span
             >
           {/if}

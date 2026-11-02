@@ -166,7 +166,7 @@
           class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {editor.activeRetouchId ===
           stroke.id
             ? 'border-primary/25 bg-primary/10'
-            : 'border-transparent hover:border-hairline hover:bg-white/4'}"
+            : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
         >
           <Icon
             icon={stroke.mode === 'heal' ? mdiBandage : mdiStamper}

@@ -16,7 +16,7 @@
 
   const groupClass = 'flex gap-0.5';
   const itemClass =
-    'flex h-5 items-center justify-center rounded-sm px-1.5 text-[10px] font-medium text-dark/60 transition-colors hover:text-dark aria-checked:bg-white/8 aria-checked:text-dark';
+    'flex h-5 items-center justify-center rounded-sm px-1.5 text-[10px] font-medium text-dark/60 transition-colors hover:text-dark aria-checked:bg-light-950/8 aria-checked:text-dark';
 
   const grid = $derived(scopes.grid);
   const hist = $derived(editor.meta?.histogram ?? null);
@@ -30,7 +30,7 @@
 {#snippet placeholder(pending: boolean)}
   <div
     role="status"
-    class="flex items-center justify-center bg-neutral-950 text-[10px] text-dark/65"
+    class="flex items-center justify-center bg-plot-surface text-[10px] text-plot-ink/65"
     style:height="{scopes.height}px"
   >
     {pending ? 'Loading…' : 'No data'}

@@ -325,7 +325,7 @@
             y1={line.from.y}
             x2={line.to.x}
             y2={line.to.y}
-            stroke="var(--color-primary)"
+            stroke="var(--color-image-accent)"
             stroke-width="2"
           />
         </svg>

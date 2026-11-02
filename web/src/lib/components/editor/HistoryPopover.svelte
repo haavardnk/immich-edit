@@ -72,7 +72,7 @@
       size="small"
       variant="ghost"
       color="secondary"
-      class="bg-transparent hover:bg-white/6"
+      class="bg-transparent hover:bg-light-950/6"
       icon={mdiHistory}
       title=""
       disabled={!editor.assetId}

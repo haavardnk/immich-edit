@@ -49,7 +49,7 @@
 <div
   class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {isActive
     ? 'border-primary/25 bg-primary/10'
-    : 'border-transparent hover:border-hairline hover:bg-white/4'}"
+    : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
 >
   <IconButton
     size="tiny"

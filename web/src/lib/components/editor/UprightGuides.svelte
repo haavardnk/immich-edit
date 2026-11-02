@@ -174,7 +174,7 @@
         y1={line.from[1]}
         x2={line.to[0]}
         y2={line.to[1]}
-        stroke="var(--color-primary)"
+        stroke="var(--color-image-accent)"
         stroke-width="2"
       />
     {/each}
@@ -184,7 +184,7 @@
         y1={drawing.from[1]}
         x2={drawing.to[0]}
         y2={drawing.to[1]}
-        stroke={drawingValid ? 'var(--color-primary)' : 'rgb(255 255 255 / 0.6)'}
+        stroke={drawingValid ? 'var(--color-image-accent)' : 'rgb(255 255 255 / 0.6)'}
         stroke-width="2"
         stroke-dasharray={drawingValid ? undefined : '4 3'}
       />
@@ -194,7 +194,7 @@
     {#each [['from', 'start'], ['to', 'end']] as const as [end, label] (end)}
       {@const [x, y] = line[end]}
       <button
-        class="absolute cursor-move rounded-full border border-black/60 bg-primary"
+        class="absolute cursor-move rounded-full border border-black/60 bg-image-accent"
         style="width: 12px; height: 12px; left: {x - 6}px; top: {y - 6}px;"
         onpointerdown={(e) => startMove(e, i, end)}
         onpointermove={onMove}

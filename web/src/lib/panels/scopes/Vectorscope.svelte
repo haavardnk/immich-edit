@@ -35,7 +35,7 @@
 </script>
 
 <div
-  class="relative mx-auto aspect-square max-w-full overflow-hidden bg-neutral-950"
+  class="relative mx-auto aspect-square max-w-full overflow-hidden bg-plot-surface"
   style:width="{size}px"
   role="img"
   aria-label="Vectorscope"
@@ -49,15 +49,23 @@
     class="pointer-events-none absolute inset-0 h-full w-full"
   >
     <g transform="scale({zoom})" stroke-width={0.5 / zoom}>
-      <circle cx="0" cy="0" r="46" fill="none" stroke="rgba(255,255,255,0.14)" />
-      <line x1="-4" x2="4" y1="0" y2="0" stroke="rgba(255,255,255,0.3)" />
-      <line x1="0" x2="0" y1="-4" y2="4" stroke="rgba(255,255,255,0.3)" />
+      <circle
+        cx="0"
+        cy="0"
+        r="46"
+        fill="none"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.14"
+      />
+      <line x1="-4" x2="4" y1="0" y2="0" stroke="var(--color-plot-line)" stroke-opacity="0.3" />
+      <line x1="0" x2="0" y1="-4" y2="4" stroke="var(--color-plot-line)" stroke-opacity="0.3" />
       <line
         x1="0"
         x2={skin.x}
         y1="0"
         y2={skin.y}
-        stroke="rgba(255,255,255,0.35)"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.35"
         stroke-dasharray="2 2"
       />
       {#each targets as target (target.label)}
@@ -67,13 +75,15 @@
           width={BOX * 2}
           height={BOX * 2}
           fill="none"
-          stroke="rgba(255,255,255,0.45)"
+          stroke="var(--color-plot-line)"
+          stroke-opacity="0.45"
         />
         <text
           x={target.x + BOX + 1}
           y={target.y - BOX - 1}
           font-size={5 / zoom}
-          fill="rgba(255,255,255,0.45)"
+          fill="var(--color-plot-line)"
+          fill-opacity="0.45"
         >
           {target.label}
         </text>

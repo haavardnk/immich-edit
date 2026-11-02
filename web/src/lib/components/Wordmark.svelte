@@ -23,7 +23,7 @@
   aria-label="immich-edit"
 >
   <Logo size={markSize} decorative />
-  <span aria-hidden="true" class:text-white={bright} class:text-dark={!bright}
+  <span aria-hidden="true" class:text-light-950={bright} class:text-dark={!bright}
     >immich<span class="text-logo-primary">-edit</span></span
   >
 </span>

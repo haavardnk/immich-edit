@@ -77,7 +77,7 @@
 <Popover
   {open}
   onOpenChange={toggle}
-  contentClass="w-(--bits-floating-anchor-width) max-h-80 overflow-hidden flex flex-col rounded-lg bg-neutral-900 p-1"
+  contentClass="w-(--bits-floating-anchor-width) max-h-80 overflow-hidden flex flex-col rounded-lg bg-light-100 p-1"
   tooltip={label}
 >
   {#snippet trigger(popoverProps)}
@@ -87,7 +87,7 @@
       variant="ghost"
       color="secondary"
       fullWidth
-      class="h-7 justify-start rounded-lg bg-neutral-800 px-2 text-[11px] hover:bg-neutral-700"
+      class="h-7 justify-start rounded-lg bg-light-200 px-2 text-[11px] hover:bg-light-300"
       {...popoverProps}
     >
       <span class="flex-1 truncate text-left">{label}</span>
@@ -108,14 +108,14 @@
       color="secondary"
       fullWidth
       class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'auto'
-        ? 'bg-primary/12 text-white'
-        : 'text-white/80 hover:bg-white/6'}"
+        ? 'bg-primary/12 text-light-950'
+        : 'text-light-950/80 hover:bg-light-950/6'}"
       onclick={() => pick('auto', null)}
     >
       {@render check(mode === 'auto')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Auto match</span>
-        <span class="block truncate text-[10px] text-white/65">{autoDetail}</span>
+        <span class="block truncate text-[10px] text-light-950/65">{autoDetail}</span>
       </span>
     </Button>
     <Button
@@ -125,14 +125,14 @@
       color="secondary"
       fullWidth
       class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'off'
-        ? 'bg-primary/12 text-white'
-        : 'text-white/80 hover:bg-white/6'}"
+        ? 'bg-primary/12 text-light-950'
+        : 'text-light-950/80 hover:bg-light-950/6'}"
       onclick={() => pick('off', null)}
     >
       {@render check(mode === 'off')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Default Color</span>
-        <span class="block truncate text-[10px] text-white/65">General-purpose rendering</span>
+        <span class="block truncate text-[10px] text-light-950/65">General-purpose rendering</span>
       </span>
     </Button>
     <Button
@@ -142,14 +142,14 @@
       color="secondary"
       fullWidth
       class="min-h-9 justify-start rounded-md px-2 py-1 {mode === 'flat'
-        ? 'bg-primary/12 text-white'
-        : 'text-white/80 hover:bg-white/6'}"
+        ? 'bg-primary/12 text-light-950'
+        : 'text-light-950/80 hover:bg-light-950/6'}"
       onclick={() => pick('flat', null)}
     >
       {@render check(mode === 'flat')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Flat</span>
-        <span class="block truncate text-[10px] text-white/65">
+        <span class="block truncate text-[10px] text-light-950/65">
           No tone curve, bare sensor colour
         </span>
       </span>

@@ -177,7 +177,7 @@
   >
     {#if dragRect}
       <div
-        class="pointer-events-none absolute border-2 border-primary bg-primary/15"
+        class="pointer-events-none absolute border-2 border-image-accent bg-image-accent/15"
         style="left: {dragRect.left}px; top: {dragRect.top}px; width: {dragRect.width}px; height: {dragRect.height}px;"
       ></div>
     {/if}

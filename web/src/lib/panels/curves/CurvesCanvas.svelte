@@ -173,7 +173,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <svg
     viewBox="0 0 {CURVE_SIZE} {CURVE_SIZE}"
-    class="aspect-square w-full cursor-crosshair select-none rounded-sm bg-neutral-950 ring-1 ring-hairline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    class="aspect-square w-full cursor-crosshair select-none rounded-sm bg-plot-surface ring-1 ring-hairline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={endDrag}

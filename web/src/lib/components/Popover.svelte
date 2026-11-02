@@ -33,8 +33,8 @@
 
   const appearanceClass = $derived(
     appearance === 'control'
-      ? 'flex h-10 items-center gap-1 overflow-visible rounded-lg border border-hairline bg-neutral-900 px-1 text-dark shadow-popover'
-      : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-white/10 bg-neutral-900 text-dark shadow-popover ring-1 ring-black/20'
+      ? 'flex h-10 items-center gap-1 overflow-visible rounded-lg border border-hairline bg-light-100 px-1 text-dark shadow-popover'
+      : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-light-950/10 bg-light-100 text-dark shadow-popover ring-1 ring-black/20'
   );
 
   let tooltipOpen = $state(false);

@@ -73,7 +73,7 @@
     </div>
     <div>
       <div class="text-[10px] uppercase text-dark/65">Typical</div>
-      <div class="font-mono text-lg tabular-nums text-white/90">{formatUs(stats.p50_us)}</div>
+      <div class="font-mono text-lg tabular-nums text-light-950/90">{formatUs(stats.p50_us)}</div>
     </div>
     <dl class="grid grid-cols-3 gap-3 text-right text-[10px]">
       <div>

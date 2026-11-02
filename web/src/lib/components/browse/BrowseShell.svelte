@@ -91,7 +91,7 @@
         <div
           class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted"
         >
-          <h2 class="text-base font-medium text-white">{emptyTitle}</h2>
+          <h2 class="text-base font-medium text-light-950">{emptyTitle}</h2>
           {#if emptyMessage}
             <p class="mt-1 max-w-sm text-sm">{emptyMessage}</p>
           {/if}

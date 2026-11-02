@@ -97,7 +97,7 @@
         size="small"
         variant="ghost"
         color="secondary"
-        class="bg-transparent hover:bg-white/6"
+        class="bg-transparent hover:bg-light-950/6"
         icon={editor.maskOverlayVisible ? mdiEye : mdiEyeOff}
         title={hint(
           editor.maskOverlayVisible ? 'Hide mask overlays' : 'Show mask overlays',
@@ -128,7 +128,7 @@
                   size="tiny"
                   variant="ghost"
                   color="secondary"
-                  class="h-8 bg-transparent hover:bg-white/6"
+                  class="h-8 bg-transparent hover:bg-light-950/6"
                   leadingIcon={mdiPlus}
                   aria-label="New mask"
                   disabled={cap.layersFull || cap.totalFull}
@@ -197,7 +197,7 @@
   {/if}
 
   {#if active}
-    <div class="mt-1 flex flex-col gap-1 rounded-md border border-hairline bg-white/3 p-1">
+    <div class="mt-1 flex flex-col gap-1 rounded-md border border-hairline bg-light-950/3 p-1">
       <div class="flex items-center gap-1 px-1">
         <Button
           type="button"

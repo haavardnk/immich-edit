@@ -56,7 +56,7 @@
       {#each items as item (item.id)}
         <div class="group flex">
           <span
-            class="inline-flex h-6 items-center rounded-s-full bg-primary ps-2.5 pe-1 text-[11px] whitespace-nowrap text-gray-800"
+            class="inline-flex h-6 items-center rounded-s-full bg-primary ps-2.5 pe-1 text-[11px] whitespace-nowrap text-light dark:text-gray-800"
           >
             {item.label}
           </span>

@@ -63,12 +63,12 @@
       onclick={() => browseView.closeLoupe()}
     />
     <div class="min-w-0 border-l border-hairline pl-2">
-      <h2 class="truncate text-xs font-semibold text-white/90">{filename}</h2>
+      <h2 class="truncate text-xs font-semibold text-light-950/90">{filename}</h2>
       {#if copyBadge}
         <div
           role="status"
           aria-label="Virtual copy"
-          class="flex min-w-0 items-center gap-1 font-mono text-[9px] font-medium text-white/65"
+          class="flex min-w-0 items-center gap-1 font-mono text-[9px] font-medium text-light-950/65"
         >
           <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
           <span class="truncate">{copyBadge}</span>

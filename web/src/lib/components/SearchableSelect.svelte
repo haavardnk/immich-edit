@@ -187,10 +187,10 @@
       sideOffset={-1}
       collisionPadding={8}
       customAnchor={anchor}
-      class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-white/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
+      class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-light-950/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
       'neutral'
-        ? 'bg-neutral-800'
-        : 'bg-gray-800'}"
+        ? 'bg-light-200'
+        : 'bg-gray-100 dark:bg-gray-800'}"
     >
       <div
         class="overflow-y-auto {compact
@@ -213,7 +213,7 @@
             label={getLabel(item)}
             class="flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 px-3 py-1 text-xs outline-none select-none {color ===
             'neutral'
-              ? 'hover:bg-white/6 data-highlighted:bg-white/6'
+              ? 'hover:bg-light-950/6 data-highlighted:bg-light-950/6'
               : 'hover:bg-primary-200 data-highlighted:bg-primary-200'}"
           >
             {#if itemColor}
@@ -240,7 +240,7 @@
             variant="ghost"
             color="secondary"
             class="h-9 w-full justify-start rounded-none px-3 text-left text-xs {color === 'neutral'
-              ? 'hover:bg-white/6'
+              ? 'hover:bg-light-950/6'
               : 'hover:bg-primary-200'}"
             onmousedown={(event: MouseEvent) => {
               event.preventDefault();

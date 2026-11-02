@@ -129,7 +129,7 @@
     {#if dragging && sample}
       <span
         data-testid="wb-picker-box"
-        class="pointer-events-none absolute block border-2 border-primary bg-primary/15"
+        class="pointer-events-none absolute block border-2 border-image-accent bg-image-accent/15"
         style="left: {sample.u * 100}%; top: {sample.v * 100}%; width: {sample.w *
           100}%; height: {sample.h * 100}%;"
       ></span>

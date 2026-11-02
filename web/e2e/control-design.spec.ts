@@ -301,7 +301,7 @@ test('the top bar search keeps its native pill shape', async ({ page }) => {
   expect(
     await searchSurface.evaluate((element) => Math.round(element.getBoundingClientRect().width))
   ).toBe(896);
-  expect(container.background).toBe(await resolvedBackground(page, 'bg-white/5'));
+  expect(container.background).toBe(await resolvedBackground(page, 'bg-ghost'));
   expect(container.radius).toBe(12);
 
   const iconInset = await page

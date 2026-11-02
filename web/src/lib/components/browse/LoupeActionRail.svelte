@@ -106,7 +106,9 @@
     </DisabledReason>
   </div>
   <div class="flex items-center gap-1">
-    <div class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-white/65">
+    <div
+      class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65"
+    >
       {#if multi}
         <Icon
           icon={compare.mode === 'compare' ? mdiCompare : mdiViewGridOutline}
@@ -114,10 +116,10 @@
           class="text-primary"
           aria-hidden="true"
         />
-        <span class="font-medium text-white/85">
+        <span class="font-medium text-light-950/85">
           {compare.mode === 'compare' ? 'Compare' : 'Survey'}
         </span>
-        <span class="h-3 w-px bg-white/15"></span>
+        <span class="h-3 w-px bg-light-950/15"></span>
       {/if}
       <span class="tabular-nums">{position} of {count}</span>
     </div>

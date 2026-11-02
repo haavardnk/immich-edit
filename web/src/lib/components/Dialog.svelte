@@ -24,9 +24,9 @@
 </script>
 
 <Modal {size} {onClose} closeOnBackdropClick>
-  <ModalHeader class="border-b border-hairline bg-neutral-950 px-5 py-4">
+  <ModalHeader class="border-b border-hairline bg-light-50 px-5 py-4">
     <div class="flex items-center gap-3">
-      <Dialog.Title class="flex-none text-base font-semibold text-white">
+      <Dialog.Title class="flex-none text-base font-semibold text-light-950">
         {title}
       </Dialog.Title>
       <div class="flex flex-1 items-center justify-end gap-1.5">
@@ -43,11 +43,11 @@
       />
     </div>
   </ModalHeader>
-  <ModalBody class="bg-neutral-950 py-5 {bodyClass}">
+  <ModalBody class="bg-light-50 py-5 {bodyClass}">
     {@render children()}
   </ModalBody>
   {#if footer}
-    <ModalFooter class="border-t border-hairline bg-neutral-950 px-5 py-3">
+    <ModalFooter class="border-t border-hairline bg-light-50 px-5 py-3">
       {@render footer()}
     </ModalFooter>
   {/if}

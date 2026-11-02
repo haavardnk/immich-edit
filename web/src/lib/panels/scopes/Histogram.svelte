@@ -39,7 +39,7 @@
 </script>
 
 <div
-  class="relative w-full bg-neutral-950"
+  class="relative w-full bg-plot-surface"
   style:height="{height}px"
   role="img"
   aria-label="Histogram"
@@ -82,13 +82,14 @@
         x2={level}
         y1="0"
         y2="100"
-        stroke="rgba(255,255,255,0.14)"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.14"
         stroke-width="0.4"
       />
     {/each}
   </svg>
   <div
-    class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-[8px] font-mono text-dark/45"
+    class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-[8px] font-mono text-plot-ink/45"
   >
     {#each levels as level (level)}
       <span>{level}</span>

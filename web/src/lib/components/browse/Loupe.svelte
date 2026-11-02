@@ -517,10 +517,10 @@
       {#if browseView.loupeInfoOpen && !ui.fullscreen}
         <section
           aria-label="Photo info"
-          class="absolute top-2 right-2 flex flex-col gap-2 rounded-lg border border-gray-700 bg-gray-900/95 p-3 shadow-xl"
+          class="absolute top-2 right-2 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/95 dark:border-gray-700 dark:bg-gray-900/95 p-3 shadow-xl"
         >
           <div class="flex items-start gap-2">
-            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-white/90">
+            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-light-950/90">
               {asset.originalFileName}
             </span>
             <IconButton

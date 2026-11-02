@@ -27,8 +27,11 @@
   --color-editor-chrome: #0b0b0d;
   --color-editor-panel: #0d0d0f;
   --color-image-canvas: var(--color-black);
-  --color-hairline: color-mix(in oklab, var(--color-white) 8%, transparent);
-  --color-ghost: color-mix(in oklab, var(--color-white) 5%, transparent);
+  --color-hairline: color-mix(in oklab, var(--immich-ui-light-950) 8%, transparent);
+  --color-ghost: color-mix(in oklab, var(--immich-ui-light-950) 5%, transparent);
+  --color-plot-surface: var(--color-neutral-950);
+  --color-plot-ink: oklch(89% 0 271);
+  --color-plot-line: var(--color-white);
   --color-channel-red: #ef4444;
   --color-channel-green: #22c55e;
   --color-channel-blue: #3b82f6;
@@ -37,7 +40,8 @@
   --color-curve-green: hsl(120 70% 65%);
   --color-curve-blue: hsl(240 70% 65%);
   --color-curve-luma: #f0d25a;
-  --color-retouch-active: var(--color-primary);
+  --color-image-accent: #b7a1fb;
+  --color-retouch-active: var(--color-image-accent);
   --color-retouch-source: #78dc8c;
   --color-mask-overlay: #ff3b30;
   --color-temperature-cool: #4a90d9;
@@ -70,8 +74,8 @@
   --color-control-shadow: color-mix(in srgb, var(--color-black) 60%, transparent);
   --color-crop-shade: color-mix(in srgb, var(--color-black) 55%, transparent);
   --color-curve-surface: color-mix(in srgb, var(--color-black) 30%, transparent);
-  --color-curve-grid: color-mix(in srgb, var(--immich-ui-dark) 6%, transparent);
-  --color-curve-diagonal: color-mix(in srgb, var(--immich-ui-dark) 15%, transparent);
+  --color-curve-grid: color-mix(in srgb, var(--color-plot-ink) 6%, transparent);
+  --color-curve-diagonal: color-mix(in srgb, var(--color-plot-ink) 15%, transparent);
   --gradient-hue-spectrum: conic-gradient(
     from 90deg,
     hsl(0 100% 50%),
@@ -217,7 +221,7 @@
 @utility panel-action {
   background-color: var(--color-ghost);
   &.panel-action:not(:disabled):hover {
-    background-color: color-mix(in oklab, var(--color-white) 10%, transparent);
+    background-color: color-mix(in oklab, var(--immich-ui-light-950) 10%, transparent);
   }
 }
 
@@ -227,12 +231,12 @@
   column-gap: 8px;
 }
 
-:root.dark [data-popover-content] {
+[data-popover-content] {
   background-color: var(--immich-ui-light-100);
   border-color: var(--immich-ui-light-200);
 }
 
-:root.dark [role='listbox'] {
+[role='listbox'] {
   border-color: var(--immich-ui-light-200);
 }
 
@@ -240,13 +244,12 @@
   background-color: var(--immich-ui-light-100);
 }
 
-:root.dark body:has(.model-select [data-select-trigger][data-state='open']) [data-select-content] {
+body:has(.model-select [data-select-trigger][data-state='open']) [data-select-content] {
   background-color: var(--immich-ui-light-100);
   border-color: var(--immich-ui-light-200);
 }
 
-:root.dark
-  body:has(.model-select [data-select-trigger][data-state='open'])
+body:has(.model-select [data-select-trigger][data-state='open'])
   [data-select-content]
   [role='option'][data-highlighted] {
   background-color: var(--immich-ui-light-200);
@@ -264,11 +267,11 @@
 }
 
 .editor-compact-select [data-select-trigger] > div {
-  background-color: var(--color-neutral-800);
+  background-color: var(--immich-ui-light-200);
 }
 
 .editor-compact-select [data-select-trigger]:not(:disabled):hover > div {
-  background-color: var(--color-neutral-700);
+  background-color: var(--immich-ui-light-300);
 }
 
 .scope-mode-select [data-select-trigger] > div > span {
@@ -284,18 +287,15 @@
   margin-inline: 4px;
 }
 
-:root.dark
-  body:has(.editor-compact-select [data-select-trigger][data-state='open'])
-  [data-select-content] {
-  background-color: var(--color-neutral-800);
-  border-color: var(--color-neutral-700);
+body:has(.editor-compact-select [data-select-trigger][data-state='open']) [data-select-content] {
+  background-color: var(--immich-ui-light-200);
+  border-color: var(--immich-ui-light-300);
 }
 
-:root.dark
-  body:has(.editor-compact-select [data-select-trigger][data-state='open'])
+body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   [data-select-content]
   [role='option'][data-highlighted] {
-  background-color: var(--color-neutral-700);
+  background-color: var(--immich-ui-light-300);
 }
 
 .editor-compact-field {
@@ -337,7 +337,7 @@
 
 .editor-compact-input-field [data-date-field-input] {
   height: 28px;
-  background-color: var(--color-neutral-800);
+  background-color: var(--immich-ui-light-200);
   transition: background-color 150ms;
 }
 
@@ -352,7 +352,7 @@
 }
 
 .editor-compact-input-field [data-date-field-input]:hover {
-  background-color: var(--color-neutral-700);
+  background-color: var(--immich-ui-light-300);
 }
 
 .editor-compact-input-field [data-date-field-input] > div {

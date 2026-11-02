@@ -50,7 +50,7 @@
 
 <div class="contents" inert={browseView.loupeId !== null}>
   {#if editorRoute}
-    <div class="flex h-screen w-screen overflow-hidden bg-black text-dark">
+    <div class="flex h-screen w-screen overflow-hidden bg-light text-dark">
       <div class="relative flex min-h-0 min-w-0 flex-1">
         <div class="flex min-h-0 min-w-0 flex-1 flex-col">
           <main class="flex-1 min-h-0 flex flex-col bg-light">
@@ -72,10 +72,10 @@
     </div>
   {:else}
     <AppShell class="h-screen w-screen bg-light text-dark">
-      <AppShellBar class="min-h-18 border-b border-hairline bg-neutral-950 py-1">
+      <AppShellBar class="min-h-18 border-b border-hairline bg-light-50 py-1">
         <TopBar onToggleSidebar={toggleSidebar} />
       </AppShellBar>
-      <AppShellSidebar bind:open={sidebarOpen} border={false} class="bg-neutral-950">
+      <AppShellSidebar bind:open={sidebarOpen} border={false} class="bg-light-50">
         {#if sidebarOpen}
           {#if settingsRoute}
             <SettingsSidebar />

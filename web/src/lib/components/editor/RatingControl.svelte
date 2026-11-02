@@ -16,7 +16,7 @@
 </script>
 
 <div
-  class="flex h-7 shrink-0 items-center gap-1 [&_button:not([data-label])]:text-white/55 [&_button:not([data-label]):hover]:text-white/90"
+  class="flex h-7 shrink-0 items-center gap-1 [&_button:not([data-label])]:text-light-950/55 [&_button:not([data-label]):hover]:text-light-950/90"
 >
   <StarRating {rating} size={14} disabled={!owned} onchange={(n) => void editor.setRating(n)} />
   <FavoriteButton

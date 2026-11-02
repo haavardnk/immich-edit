@@ -51,14 +51,14 @@
     <polygon
       points={quadPoints}
       fill="none"
-      stroke="var(--color-primary)"
+      stroke="var(--color-image-accent)"
       stroke-width="1"
       stroke-dasharray="4 3"
     />
   </svg>
   {#each handles as [x, y], i (i)}
     <button
-      class="pointer-events-auto absolute cursor-grab rounded-full border border-black/60 bg-primary active:cursor-grabbing"
+      class="pointer-events-auto absolute cursor-grab rounded-full border border-black/60 bg-image-accent active:cursor-grabbing"
       style="width: 14px; height: 14px; left: {x - 7}px; top: {y - 7}px;"
       onpointerdown={(e) => startDrag(e, i)}
       onpointermove={onMove}
