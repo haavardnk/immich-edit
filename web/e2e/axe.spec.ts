@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, installMocks, gotoAsset, openFilters } from './helpers';
+import { ASSET_ID, DEFAULT_APPEARANCE, installMocks, gotoAsset, openFilters } from './helpers';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -23,6 +23,17 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
 
   expect(await audit(page)).toEqual([]);
 });
+
+for (const path of ['/photos', '/settings#appearance']) {
+  test(`${path} has no serious accessibility violations in immich-edit Light`, async ({ page }) => {
+    await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode: 'light' } });
+    await page.goto(path);
+    await expect(page.locator('html')).toHaveClass(/\blight\b/);
+    await expect(page.getByRole('link').first()).toBeVisible();
+
+    expect(await audit(page)).toEqual([]);
+  });
+}
 
 test('open browse filters have no serious accessibility violations', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

@@ -612,6 +612,75 @@ async fn export_presets_are_scoped_to_the_owner() {
     }
 }
 
+#[tokio::test]
+async fn appearance_is_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let chosen = serde_json::json!({
+        "mode": "light",
+        "light_theme": "paper",
+        "dark_theme": "midnight",
+        "accents": { "blue": "sky" }
+    });
+
+    expect_status(
+        &admin,
+        json_request("PUT", "/api/appearance", chosen.clone()),
+        StatusCode::OK,
+        "owner put appearance",
+    )
+    .await;
+
+    let seen = body_json(
+        expect_status(
+            &member,
+            get("/api/appearance"),
+            StatusCode::OK,
+            "member get appearance",
+        )
+        .await,
+    )
+    .await;
+    if seen["mode"] != "dark"
+        || seen["light_theme"] != "immich-edit-light"
+        || seen["dark_theme"] != "immich-edit-dark"
+        || seen["accents"] != serde_json::json!({})
+    {
+        panic!("member read the owner's appearance: {seen}");
+    }
+
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            "/api/appearance",
+            serde_json::json!({
+                "mode": "system",
+                "light_theme": "stolen",
+                "dark_theme": "stolen",
+                "accents": {}
+            }),
+        ),
+        StatusCode::OK,
+        "member put appearance",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/appearance"),
+            StatusCode::OK,
+            "owner get appearance",
+        )
+        .await,
+    )
+    .await;
+    if owned != chosen {
+        panic!("owner appearance after member calls: {owned}");
+    }
+}
+
 #[cfg(feature = "ml")]
 async fn source_etag(app: &axum::Router, id: uuid::Uuid, what: &str) -> String {
     let resp = expect_status(

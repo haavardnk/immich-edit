@@ -42,7 +42,7 @@
         onReset={() => resetPanel(panel)}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
-        <div class="bg-black/10 px-3 pb-2 pt-1">
+        <div class="bg-recess px-3 pb-2 pt-1">
           <Comp />
         </div>
       </Disclosure>

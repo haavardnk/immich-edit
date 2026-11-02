@@ -3,6 +3,7 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
+  import ThemeToggle from '#lib/components/shell/ThemeToggle.svelte';
   import {
     ControlBar,
     ControlBarContent,
@@ -114,6 +115,8 @@
   </ControlBarContent>
 
   <ControlBarOverflow class="gap-0.5">
+    <ThemeToggle />
+
     <IconButton
       size="medium"
       variant="ghost"

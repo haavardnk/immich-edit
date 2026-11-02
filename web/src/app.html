@@ -1,11 +1,41 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-theme-revision="%theme.revision%">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="text-scale" content="scale" />
+    <meta name="theme-color" content="#000000" />
     <title>immich-edit</title>
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+    <script>
+      (function () {
+        var root = document.documentElement;
+        try {
+          var stored = localStorage.getItem('immich-ui-theme');
+          var mode = stored === null ? 'dark' : JSON.parse(stored);
+          var dark =
+            mode === 'dark' ||
+            (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+          root.classList.toggle('dark', dark);
+          root.classList.toggle('light', !dark);
+          var cache = JSON.parse(localStorage.getItem('immich-edit:theme') || 'null');
+          if (!cache || cache.version !== 1) return;
+          if (cache.revision !== root.getAttribute('data-theme-revision')) return;
+          var style = document.createElement('style');
+          style.id = 'immich-edit-theme';
+          style.textContent = cache.css;
+          document.head.appendChild(style);
+          root.setAttribute('data-theme', '');
+          var chrome = cache.chrome[dark ? 'dark' : 'light'];
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', chrome.themeColor);
+          document.querySelector('link[rel="icon"]').setAttribute('href', chrome.favicon);
+        } catch (error) {
+          return;
+        }
+      })();
+    </script>
     <link
       rel="preload"
       as="font"

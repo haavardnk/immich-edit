@@ -176,6 +176,20 @@ export function scopePayload(kind: string): Buffer {
   return Buffer.concat([header, body]);
 }
 
+export interface MockAppearance {
+  mode: 'system' | 'light' | 'dark';
+  light_theme: string;
+  dark_theme: string;
+  accents: Record<string, string>;
+}
+
+export const DEFAULT_APPEARANCE: MockAppearance = {
+  mode: 'dark',
+  light_theme: 'immich-edit-light',
+  dark_theme: 'immich-edit-dark',
+  accents: {}
+};
+
 export interface InstallOpts {
   assets?: MockAssetSummary[];
   searchPages?: MockAssetSummary[][];
@@ -212,6 +226,8 @@ export interface InstallOpts {
   smartSearch?: boolean;
   ocr?: boolean;
   trash?: boolean;
+  appearance?: MockAppearance;
+  onAppearance?: (body: MockAppearance) => void;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -226,6 +242,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets: Array<Record<string, unknown>> = [];
+  let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();
   const tagList: MockTag[] = [...(opts.tags ?? [])];
@@ -476,6 +493,13 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         return route.fulfill({ ...json(created), status: 201 });
       }
       return route.fulfill(json(presets));
+    }
+    if (p === '/api/appearance') {
+      if (method === 'PUT') {
+        appearance = req.postDataJSON() as MockAppearance;
+        opts.onAppearance?.(appearance);
+      }
+      return route.fulfill(json(appearance));
     }
     if (p === '/api/export-presets') {
       if (method === 'POST') {

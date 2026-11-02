@@ -1,5 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, json, numberedAssets, openFilters } from './helpers';
+import {
+  ASSET_ID,
+  DEFAULT_APPEARANCE,
+  gotoAsset,
+  installMocks,
+  json,
+  numberedAssets,
+  openFilters
+} from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -244,6 +252,75 @@ test('dark theme uses the immich-edit violet identity', async ({ page }) => {
       .evaluate((element) => getComputedStyle(element).color)
   ).toBe(primary);
 });
+
+test('light theme keeps the violet identity on a light page', async ({ page }) => {
+  await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode: 'light' } });
+  await page.goto('/photos');
+  await expect(page.locator('html')).toHaveClass(/\blight\b/);
+
+  const palettes = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+    return {
+      primary: steps.map((step) => style.getPropertyValue(`--immich-ui-primary-${step}`).trim()),
+      ladder: steps.map((step) => style.getPropertyValue(`--immich-ui-light-${step}`).trim()),
+      gray: steps.map((step) => style.getPropertyValue(`--color-gray-${step}`).trim())
+    };
+  });
+  expect(palettes.primary[5]).toBe('#7159b0');
+  expect(palettes.ladder).toEqual(palettes.gray);
+  expect(palettes.gray[0]).toBe('#f8f7f9');
+  expect(palettes.gray[10]).toBe('#120f15');
+
+  const primary = await resolvedColor(page, '--color-primary');
+  expect(await resolvedColor(page, '--immich-ui-light')).toBe('rgb(255, 255, 255)');
+  expect(await resolvedBackground(page, 'bg-primary')).toBe(primary);
+  const wordmark = page.getByRole('img', { name: 'immich-edit' });
+  expect(
+    await wordmark
+      .locator('svg path')
+      .first()
+      .evaluate((element) => getComputedStyle(element).stroke)
+  ).toBe(primary);
+  expect(
+    await wordmark
+      .locator('.text-logo-primary')
+      .evaluate((element) => getComputedStyle(element).color)
+  ).toBe(primary);
+});
+
+for (const mode of ['dark', 'light'] as const) {
+  test(`${mode} chrome keeps recess washes and elevation in scheme`, async ({ page }) => {
+    await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode } });
+    await gotoAsset(page);
+
+    const body = page
+      .locator('.bg-recess')
+      .filter({ has: page.getByRole('slider', { name: 'Exposure', exact: true }) });
+    const filmstrip = page.getByTestId('filmstrip-scroll').locator('../..');
+    await expect(filmstrip).toBeVisible();
+    const recess = await resolvedBackground(page, 'bg-recess');
+    const blackWash = await resolvedBackground(page, 'bg-black/10');
+    expect((await metricsOf(body)).background).toBe(recess);
+    const filmstripShadow = (await metricsOf(filmstrip)).boxShadow;
+
+    await page.goto('/photos');
+    await page.locator('button[aria-label^="Sort:"]').click();
+    const popoverShadow = (await metricsOf(page.locator('[data-popover-content]'))).boxShadow;
+
+    if (mode === 'dark') {
+      expect(recess).toBe(blackWash);
+      expect(filmstripShadow).toContain('color(srgb 0 0 0 / 0.18) 0px -8px 24px 0px');
+      expect(popoverShadow).toContain('color(srgb 0 0 0 / 0.5) 0px 18px 48px 0px');
+      expect(popoverShadow).toContain('0px 0px 0px 1px');
+    } else {
+      expect(recess).not.toBe(blackWash);
+      expect(filmstripShadow).toBe('none');
+      expect(popoverShadow).toContain('color(srgb 0 0 0 / 0.12) 0px 18px 48px 0px');
+      expect(popoverShadow).not.toContain('0px 0px 0px 1px');
+    }
+  });
+}
 
 test('sliders use the primary violet fill without replacing color gradients', async ({ page }) => {
   await installMocks(page);

@@ -11,6 +11,7 @@ use crate::asset_key::AssetKey;
 pub const RENDERER_VERSION: &str = "0.1.0";
 const SCHEMA_VERSION: i64 = 2;
 
+mod appearance;
 mod copies;
 mod export_jobs;
 mod export_presets;
@@ -19,6 +20,7 @@ mod pool;
 mod presets;
 mod purge;
 
+pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
 pub use export_presets::ExportPresetRecord;
 

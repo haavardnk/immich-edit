@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod albums;
+pub mod appearance;
 pub mod assets;
 pub mod auth;
 pub mod client_log;

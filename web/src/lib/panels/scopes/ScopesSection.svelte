@@ -52,7 +52,7 @@
   </div>
   <Collapsible.Content>
     {#if open}
-      <div class="bg-black/10 p-1">
+      <div class="bg-recess p-1">
         <ScopesPanel />
       </div>
     {/if}

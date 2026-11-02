@@ -119,7 +119,9 @@
 {/snippet}
 
 {#if assets.length > 0}
-  <div class="relative flex-none border-t border-light-950/12 bg-editor-chrome shadow-filmstrip">
+  <div
+    class="relative flex-none border-t border-light-950/12 bg-editor-chrome dark:shadow-filmstrip"
+  >
     {#if resizable && !collapsed}
       <BottomPanelResizeHandle label="Resize filmstrip" />
     {/if}

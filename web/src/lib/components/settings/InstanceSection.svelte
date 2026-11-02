@@ -2,6 +2,7 @@
   import TextInput from '#lib/components/TextInput.svelte';
   import { onMount } from 'svelte';
   import { session } from '#lib/stores/session.svelte.ts';
+  import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { getInstance, rebindInstance, type InstanceInfo } from '#lib/api/admin.ts';
   import { formatWhen } from '#lib/utils/datetime.ts';
   import { errorMessage } from '#lib/utils/errors.ts';
@@ -64,6 +65,7 @@
         api_key: method === 'apikey' ? apiKey.trim() : undefined
       });
       session.clear();
+      appearance.reset();
       window.location.replace('/login');
     } catch (e) {
       error = errorMessage(e);
