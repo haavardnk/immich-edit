@@ -62,7 +62,7 @@
         'aria-label': mixed ? 'Rating, mixed' : 'Rating',
         tabindex: disabled ? -1 : 0,
         class:
-          'flex items-center px-1 rounded outline-none focus-visible:ring-1 focus-visible:ring-white/20',
+          'flex items-center px-1 rounded outline-none focus-visible:ring-1 focus-visible:ring-light-950/20',
         oncontextmenu: disabled ? undefined : onGroupContext,
         onkeydown: disabled ? undefined : onGroupKey,
         onmouseleave: () => (hover = 0)

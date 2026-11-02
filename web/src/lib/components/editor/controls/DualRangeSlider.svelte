@@ -37,7 +37,7 @@
 </script>
 
 <div
-  class="panel-row h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-white/3 {disabled
+  class="panel-row h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-light-950/3 {disabled
     ? 'pointer-events-none opacity-50'
     : ''}"
 >

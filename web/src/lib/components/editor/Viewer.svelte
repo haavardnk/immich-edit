@@ -285,7 +285,7 @@
         aria-live="polite"
       >
         <span
-          class="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-dark shadow-lg backdrop-blur-sm"
+          class="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs text-white/85 shadow-lg backdrop-blur-sm"
         >
           <Icon icon={mdiLoading} size="14px" class="animate-spin" aria-hidden="true" />
           Building mask…
@@ -307,15 +307,15 @@
   {:else}
     <div class="flex gap-1">
       <div
-        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
+        class="h-2 w-2 animate-bounce rounded-full bg-image-accent/50"
         style="animation-delay: 0ms"
       ></div>
       <div
-        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
+        class="h-2 w-2 animate-bounce rounded-full bg-image-accent/50"
         style="animation-delay: 150ms"
       ></div>
       <div
-        class="h-2 w-2 animate-bounce rounded-full bg-primary/50"
+        class="h-2 w-2 animate-bounce rounded-full bg-image-accent/50"
         style="animation-delay: 300ms"
       ></div>
     </div>

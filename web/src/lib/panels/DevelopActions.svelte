@@ -30,7 +30,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
+    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
     leadingIcon={mdiAutoFix}
     title={hint('Auto adjust', 'autoAdjust')}
     aria-label="Auto"
@@ -43,7 +43,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
+    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
     leadingIcon={mdiRestore}
     title={hint('Reset develop settings', 'resetEdits')}
     aria-label="Reset develop settings"
@@ -59,7 +59,7 @@
     size="small"
     variant="ghost"
     color="secondary"
-    class="bg-transparent hover:bg-white/6"
+    class="bg-transparent hover:bg-light-950/6"
     icon={mdiContentCopy}
     title={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
     disabled={!editor.assetId || !editor.hasEdits}
@@ -70,7 +70,7 @@
     size="small"
     variant="ghost"
     color="secondary"
-    class="bg-transparent hover:bg-white/6"
+    class="bg-transparent hover:bg-light-950/6"
     icon={mdiContentPaste}
     title={editor.hasClipboard ? hint('Paste edits', 'pasteEdits') : 'Nothing copied'}
     disabled={!editor.assetId || !editor.hasClipboard || editor.saving}
@@ -82,7 +82,7 @@
     size="small"
     variant="ghost"
     color={ui.developModifiedOnly ? 'primary' : 'secondary'}
-    class="bg-transparent hover:bg-white/6"
+    class="bg-transparent hover:bg-light-950/6"
     icon={mdiFilterVariant}
     title={ui.developModifiedOnly ? 'Show all adjustments' : 'Show modified only'}
     aria-label={ui.developModifiedOnly ? 'Show all adjustments' : 'Show modified only'}

@@ -15,7 +15,12 @@
   const levels = [0, 25, 50, 75, 100];
 </script>
 
-<div class="relative w-full bg-neutral-950" style:height="{height}px" role="img" aria-label={label}>
+<div
+  class="relative w-full bg-plot-surface"
+  style:height="{height}px"
+  role="img"
+  aria-label={label}
+>
   <ScopeCanvas {raster} />
   <svg
     viewBox="0 0 100 100"
@@ -29,7 +34,8 @@
         x2="100"
         y1={100 - level}
         y2={100 - level}
-        stroke="rgba(255,255,255,0.14)"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.14"
         stroke-width="0.4"
       />
     {/each}
@@ -39,7 +45,8 @@
         x2="33.33"
         y1="0"
         y2="100"
-        stroke="rgba(255,255,255,0.2)"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.2"
         stroke-width="0.4"
       />
       <line
@@ -47,13 +54,14 @@
         x2="66.66"
         y1="0"
         y2="100"
-        stroke="rgba(255,255,255,0.2)"
+        stroke="var(--color-plot-line)"
+        stroke-opacity="0.2"
         stroke-width="0.4"
       />
     {/if}
   </svg>
   <div
-    class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-[8px] font-mono text-dark/45"
+    class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-[8px] font-mono text-plot-ink/45"
   >
     {#each [...levels].reverse() as level (level)}
       <span>{level}</span>

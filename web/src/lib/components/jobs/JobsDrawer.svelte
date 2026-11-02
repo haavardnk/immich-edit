@@ -58,14 +58,14 @@
     <Dialog.Portal>
       <Dialog.Overlay class="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" />
       <Dialog.Content
-        class="fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh w-105 max-w-[92vw] flex-col border-l border-white/10 bg-neutral-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
+        class="fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh w-105 max-w-[92vw] flex-col border-l border-light-950/10 bg-light-50 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl"
       >
         <header
           class="flex h-16 flex-none items-center justify-between border-b border-hairline px-4"
         >
           <div>
-            <Dialog.Title class="text-base font-semibold text-white">Jobs</Dialog.Title>
-            <p class="mt-0.5 text-[10px] text-white/40">
+            <Dialog.Title class="text-base font-semibold text-light-950">Jobs</Dialog.Title>
+            <p class="mt-0.5 text-[10px] text-light-950/40">
               {jobs.activeCount > 0 ? `${jobs.activeCount} active` : 'No active jobs'}
             </p>
           </div>
@@ -89,7 +89,7 @@
           {/if}
 
           {#each jobs.jobs as job (job.id)}
-            <div class="rounded-md border border-hairline bg-white/4">
+            <div class="rounded-md border border-hairline bg-light-950/4">
               <div class="flex items-center gap-2 px-3 py-3">
                 <IconButton
                   size="small"

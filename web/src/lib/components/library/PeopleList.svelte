@@ -21,7 +21,7 @@
           ? 'bg-primary/15 text-primary'
           : 'hover:bg-subtle hover:text-primary'}"
       >
-        <div class="h-8 w-8 flex-none overflow-hidden rounded-full bg-gray-800">
+        <div class="h-8 w-8 flex-none overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
           <img
             src={personThumbUrl(p.id)}
             alt=""

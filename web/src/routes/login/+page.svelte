@@ -139,7 +139,7 @@
   <main class="w-full max-w-xs">
     <Wordmark bright class="mb-6" />
     <div class="mb-5">
-      <h1 class="text-xl font-semibold text-white">Sign in</h1>
+      <h1 class="text-xl font-semibold text-light-950">Sign in</h1>
     </div>
     <div class="flex flex-col gap-3.5">
       {#if showOAuth && providers}
@@ -155,10 +155,10 @@
           {providers.button_text}
         </Button>
         {#if showPasswordForm}
-          <div class="flex items-center gap-3 text-xs text-white/35">
-            <span class="h-px flex-1 bg-white/15"></span>
+          <div class="flex items-center gap-3 text-xs text-light-950/35">
+            <span class="h-px flex-1 bg-light-950/15"></span>
             or
-            <span class="h-px flex-1 bg-white/15"></span>
+            <span class="h-px flex-1 bg-light-950/15"></span>
           </div>
         {/if}
       {/if}

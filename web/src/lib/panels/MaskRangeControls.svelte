@@ -78,7 +78,7 @@
       <span class="text-[11px] text-dark/65">Sample</span>
       <div class="flex items-center gap-1">
         <span
-          class="h-4 w-4 rounded-sm ring-1 ring-white/10"
+          class="h-4 w-4 rounded-sm ring-1 ring-light-950/10"
           style="background-color: {colorCss(color.sample_rgb)}"
         ></span>
         <Button
@@ -86,7 +86,7 @@
           size="tiny"
           variant="ghost"
           color={editor.colorPicker ? 'primary' : 'secondary'}
-          class="size-6 p-0 {editor.colorPicker ? 'bg-white/10' : ''}"
+          class="size-6 p-0 {editor.colorPicker ? 'bg-light-950/10' : ''}"
           title={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}
           aria-pressed={editor.colorPicker !== null}
           aria-label={editor.colorPicker ? 'Cancel eyedropper' : 'Pick color from image'}

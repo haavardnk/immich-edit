@@ -86,9 +86,9 @@
   class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5"
 >
   <div class="flex min-w-0 flex-1 items-baseline gap-2">
-    <h1 class="truncate text-sm font-semibold text-white">{title}</h1>
+    <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
     {#if totalCount !== undefined}
-      <span class="shrink-0 text-white/20">·</span>
+      <span class="shrink-0 text-light-950/20">·</span>
       <p class="shrink-0 text-[10px] text-dark/65">
         {photoCountLabel(totalCount, hiddenCount)}
       </p>

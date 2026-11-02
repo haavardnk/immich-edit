@@ -73,7 +73,7 @@ test('the tag multi-select filters, picks and clears its query', async ({ page }
   );
   const neutralHighlight = await page.evaluate(() => {
     const probe = document.createElement('span');
-    probe.className = 'bg-white/6';
+    probe.className = 'bg-light-950/6';
     document.body.append(probe);
     const color = getComputedStyle(probe).backgroundColor;
     probe.remove();

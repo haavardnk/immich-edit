@@ -13,7 +13,7 @@
 
   const flipH = $derived(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h);
   const flipV = $derived(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v);
-  const iconClass = 'bg-transparent hover:bg-white/6';
+  const iconClass = 'bg-transparent hover:bg-light-950/6';
 </script>
 
 <div class="flex min-w-0 flex-1 items-center gap-0.5">
@@ -21,7 +21,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-white/6"
+    class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
     leadingIcon={mdiRestore}
     title={hint('Reset geometry', 'resetEdits')}
     aria-label="Reset geometry"

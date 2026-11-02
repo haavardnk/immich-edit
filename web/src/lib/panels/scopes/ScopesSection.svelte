@@ -12,8 +12,8 @@
 <Collapsible.Root bind:open={() => open, onOpenChange} class="border-t border-hairline">
   <div
     class="flex h-8 items-center gap-1 pr-1 transition-colors {open
-      ? 'bg-white/4'
-      : 'hover:bg-white/3'}"
+      ? 'bg-light-950/4'
+      : 'hover:bg-light-950/3'}"
   >
     {#if scopes.pinned}
       <div

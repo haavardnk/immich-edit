@@ -26,7 +26,7 @@
     id="main-search-bar"
     name="q"
     type="text"
-    class="h-11.5 rounded-xl bg-ghost text-white/80 ring-transparent transition-colors hover:bg-white/7 dark:bg-ghost dark:ring-transparent dark:hover:bg-white/7 [&_input]:py-0 [&_input]:ps-13 [&_input]:placeholder:text-white/35 {value
+    class="h-11.5 rounded-xl bg-ghost text-light-950/80 ring-transparent transition-colors hover:bg-light-950/7 dark:bg-ghost dark:ring-transparent dark:hover:bg-light-950/7 [&_input]:py-0 [&_input]:ps-13 [&_input]:placeholder:text-light-950/35 {value
       ? 'pe-22.5'
       : 'pe-14'}"
     placeholder="Search your photos"

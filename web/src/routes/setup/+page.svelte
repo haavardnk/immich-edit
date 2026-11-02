@@ -131,8 +131,8 @@
   <main class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
     <Wordmark size="large" bright class="mb-8" />
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-white">Connect Immich</h1>
-      <p class="mt-1 text-sm text-white/45">
+      <h1 class="text-2xl font-semibold text-light-950">Connect Immich</h1>
+      <p class="mt-1 text-sm text-light-950/45">
         Sign in as an Immich administrator to claim this editor.
       </p>
     </div>
@@ -164,10 +164,10 @@
           >
             {providers.button_text}
           </Button>
-          <div class="flex items-center gap-3 text-xs text-white/35">
-            <span class="h-px flex-1 bg-white/15"></span>
+          <div class="flex items-center gap-3 text-xs text-light-950/35">
+            <span class="h-px flex-1 bg-light-950/15"></span>
             or
-            <span class="h-px flex-1 bg-white/15"></span>
+            <span class="h-px flex-1 bg-light-950/15"></span>
           </div>
         {/if}
 

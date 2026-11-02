@@ -23,7 +23,7 @@
   let dialog = $state<{ preset?: Preset } | null>(null);
   const tileWidth = $derived(Math.round(ui.filmstripHeight * 1.5));
   const createButtonClass =
-    'flex w-full items-center justify-center gap-1 rounded-sm border border-dashed border-white/20 text-[11px] text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary enabled:hover:border-white/40 enabled:hover:text-dark disabled:cursor-not-allowed disabled:opacity-50';
+    'flex w-full items-center justify-center gap-1 rounded-sm border border-dashed border-light-950/20 text-[11px] text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary enabled:hover:border-light-950/40 enabled:hover:text-dark disabled:cursor-not-allowed disabled:opacity-50';
 
   const groups = $derived(
     presets.grouped
@@ -63,7 +63,7 @@
 
 <section
   aria-label="Presets"
-  class="relative flex flex-none gap-3 border-t border-white/12 bg-editor-chrome px-2 py-1.5 shadow-filmstrip"
+  class="relative flex flex-none gap-3 border-t border-light-950/12 bg-editor-chrome px-2 py-1.5 shadow-filmstrip"
 >
   <BottomPanelResizeHandle label="Resize presets" />
   {#if groups.length > 1}
@@ -77,7 +77,7 @@
           type="button"
           class="flex-none truncate rounded-sm px-1.5 py-0.5 text-left text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-primary {group ===
           option.value
-            ? 'bg-white/10 text-dark'
+            ? 'bg-light-950/10 text-dark'
             : 'text-dark/60 hover:text-dark'}"
           title={option.label}
           aria-pressed={group === option.value}

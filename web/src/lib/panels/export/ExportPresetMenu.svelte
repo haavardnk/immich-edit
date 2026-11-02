@@ -27,7 +27,7 @@
     <button
       {...props}
       type="button"
-      class="flex items-center gap-1 self-start rounded px-1.5 py-0.5 text-[11px] text-dark/75 hover:bg-white/5 hover:text-dark"
+      class="flex items-center gap-1 self-start rounded px-1.5 py-0.5 text-[11px] text-dark/75 hover:bg-light-950/5 hover:text-dark"
     >
       Export presets
       <Icon icon={mdiChevronDown} size="14" />
@@ -35,7 +35,7 @@
   {/snippet}
   <ul class="py-1" aria-label="Export presets">
     {#each exportPresets.presets as preset (preset.id)}
-      <li class="group flex items-center hover:bg-white/5">
+      <li class="group flex items-center hover:bg-light-950/5">
         <button
           type="button"
           class="min-w-0 flex-1 truncate px-3 py-1.5 text-left text-xs"

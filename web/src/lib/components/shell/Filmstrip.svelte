@@ -119,7 +119,7 @@
 {/snippet}
 
 {#if assets.length > 0}
-  <div class="relative flex-none border-t border-white/12 bg-editor-chrome shadow-filmstrip">
+  <div class="relative flex-none border-t border-light-950/12 bg-editor-chrome shadow-filmstrip">
     {#if resizable && !collapsed}
       <BottomPanelResizeHandle label="Resize filmstrip" />
     {/if}
@@ -152,11 +152,11 @@
                         })}
                         type="button"
                         aria-pressed={isCurrent || isMember}
-                        class="group relative flex-none overflow-hidden rounded-sm border-2 bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                        class="group relative flex-none overflow-hidden rounded-sm border-2 bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
                           ? 'border-primary ring-2 ring-primary/60'
                           : isMember
                             ? 'border-primary/75 ring-1 ring-primary/40'
-                            : 'border-transparent hover:border-white/25'}"
+                            : 'border-transparent hover:border-light-950/25'}"
                         style:width="{box.width}px"
                         style:height="{thumbnailHeight}px"
                         title={asset.originalFileName}
@@ -175,8 +175,8 @@
                         {#if paneNumber > 0}
                           <span
                             class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
-                              ? 'border-primary bg-primary text-neutral-950'
-                              : 'border-primary/70 bg-neutral-950/90 text-primary'}"
+                              ? 'border-primary bg-primary text-light-50'
+                              : 'border-primary/70 bg-light-50/90 text-primary'}"
                           >
                             {paneNumber}
                           </span>
@@ -211,9 +211,9 @@
                     href={editorHref(asset.id, page.url.searchParams.get('from'))}
                     aria-label={asset.originalFileName}
                     aria-current={isCurrent ? 'page' : undefined}
-                    class="group relative flex-none overflow-hidden rounded-sm border bg-neutral-900 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                    class="group relative flex-none overflow-hidden rounded-sm border bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
                       ? 'border-primary ring-1 ring-primary/40'
-                      : 'border-hairline hover:border-white/25'}"
+                      : 'border-hairline hover:border-light-950/25'}"
                     style:width="{box.width}px"
                     style:height="{thumbnailHeight}px"
                     title={asset.originalFileName}

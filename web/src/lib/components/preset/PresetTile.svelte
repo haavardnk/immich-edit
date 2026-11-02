@@ -60,7 +60,7 @@
 >
   <button
     type="button"
-    class="relative flex h-full items-center justify-center overflow-hidden rounded-sm border border-hairline bg-neutral-900 text-lg text-dark/40 outline-none group-hover/tile:border-white/40 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+    class="relative flex h-full items-center justify-center overflow-hidden rounded-sm border border-hairline bg-light-100 text-lg text-dark/40 outline-none group-hover/tile:border-light-950/40 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
     style:width="{width}px"
     title="Apply {preset.name}"
     aria-label="Apply {preset.name}"

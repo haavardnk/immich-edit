@@ -12,7 +12,7 @@
   <div class="mt-1 flex flex-wrap gap-1">
     {#each items as item (item.id)}
       <span
-        class="inline-flex h-8 items-center gap-1 rounded-full bg-light-200 pl-3 text-xs text-dark dark:bg-primary-200 dark:text-white"
+        class="inline-flex h-8 items-center gap-1 rounded-full bg-light-200 pl-3 text-xs text-dark dark:bg-primary-200 dark:text-light-950"
       >
         {item.label}
         <IconButton

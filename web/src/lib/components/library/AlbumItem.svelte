@@ -12,7 +12,7 @@
     ? 'bg-primary/15 text-primary'
     : 'hover:bg-subtle hover:text-primary'}"
 >
-  <div class="h-8 w-8 flex-none overflow-hidden rounded-md bg-gray-800">
+  <div class="h-8 w-8 flex-none overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
     {#if album.albumThumbnailAssetId}
       <img
         src={assetThumbUrl(album.albumThumbnailAssetId)}

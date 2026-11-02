@@ -46,7 +46,7 @@
       size="tiny"
       variant="ghost"
       color={open ? 'primary' : 'secondary'}
-      class="min-w-12 px-1 font-mono tabular-nums text-white/70 hover:text-white"
+      class="min-w-12 px-1 font-mono tabular-nums text-light-950/70 hover:text-light-950"
       title=""
       aria-label="Zoom"
       {...props}>{fitMode ? 'Fit' : percent}</Button

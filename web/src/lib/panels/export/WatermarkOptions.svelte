@@ -187,7 +187,7 @@
                 class: `size-5 rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                   form.watermarkAnchor === anchor.value
                     ? 'bg-primary'
-                    : 'bg-neutral-700 hover:bg-neutral-600'
+                    : 'bg-light-300 hover:bg-light-400'
                 }`,
                 'aria-label': anchor.label,
                 'aria-pressed': form.watermarkAnchor === anchor.value,

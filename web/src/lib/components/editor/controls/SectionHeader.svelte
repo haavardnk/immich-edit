@@ -47,7 +47,7 @@
   }
 </script>
 
-<div class="flex h-6 items-center justify-between border-b border-white/6">
+<div class="flex h-6 items-center justify-between border-b border-light-950/6">
   {#if section && modified}
     <Button
       type="button"
