@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, DEFAULT_APPEARANCE, installMocks, gotoAsset, openFilters } from './helpers';
+import { ASSET_ID, DEFAULT_APPEARANCE, gotoAsset, installMocks, openFilters } from './helpers';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -24,9 +24,20 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
   expect(await audit(page)).toEqual([]);
 });
 
-for (const path of ['/photos', '/settings#appearance']) {
-  test(`${path} has no serious accessibility violations in immich-edit Light`, async ({ page }) => {
-    await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode: 'light' } });
+for (const [theme, path] of [
+  ['immich-edit-light', '/photos'],
+  ['immich-edit-light', '/settings#appearance'],
+  ['catppuccin-latte', '/photos'],
+  ['catppuccin-latte', '/settings#appearance'],
+  ['one-light', '/photos'],
+  ['one-light', '/settings#appearance'],
+  ['everforest-light', '/photos'],
+  ['everforest-light', '/settings#appearance']
+]) {
+  test(`${path} has no serious accessibility violations in ${theme}`, async ({ page }) => {
+    await installMocks(page, {
+      appearance: { ...DEFAULT_APPEARANCE, mode: 'light', light_theme: theme }
+    });
     await page.goto(path);
     await expect(page.locator('html')).toHaveClass(/\blight\b/);
     await expect(page.getByRole('link').first()).toBeVisible();

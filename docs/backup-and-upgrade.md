@@ -20,7 +20,7 @@ a host directory instead, such as `./data:/data`, back up that directory.
 
 | Path | Contents |
 | --- | --- |
-| `immich-edit.db` | Users, sessions, edits, history, copies, presets, jobs, model metadata, and instance configuration |
+| `immich-edit.db` | Users, sessions, edits, history, copies, presets, jobs, model metadata, appearance choices, and instance configuration |
 | `instance.key` | Key used to decrypt stored Immich credentials |
 | `dcp/` | Imported and bundled camera profiles referenced by the database |
 | `luts/` | Imported `.cube` files referenced by edits |

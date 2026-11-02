@@ -49,6 +49,23 @@ are included under `web/static/licenses/`.
 
 The `justified-layout` license notice is also included under `web/static/licenses/`.
 
+## Theme palettes
+
+The built-in themes use colour values from these palettes. immich-edit adjusts some values for
+contrast.
+
+- [Catppuccin](https://github.com/catppuccin/palette), MIT license.
+- [Rosé Pine](https://github.com/rose-pine/palette), MIT license.
+- [Tokyo Night](https://github.com/folke/tokyonight.nvim), Apache-2.0 license.
+- [Gruvbox](https://github.com/morhetz/gruvbox), MIT license.
+- [Solarized](https://github.com/altercation/solarized), MIT license.
+- [Nord](https://github.com/nordtheme/nord), MIT license.
+- [Dracula and Alucard](https://draculatheme.com/spec), MIT license.
+- [One Dark and One Light](https://github.com/atom/atom/tree/master/packages), from Atom, MIT license.
+- [GitHub](https://github.com/primer/primitives), from Primer Primitives, MIT license.
+- [Everforest](https://github.com/sainnhe/everforest), MIT license.
+- The Immich themes use the colours of [`@immich/ui`](https://github.com/immich-app/static-pages/tree/main/packages/ui).
+
 ## Project license
 
 immich-edit is distributed under

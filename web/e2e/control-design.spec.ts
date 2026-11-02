@@ -513,6 +513,31 @@ test('the selected editor tool uses a muted primary tile', async ({ page }) => {
   expect(positions[1]).toEqual(positions[0]);
 });
 
+test('bottom bar toggles mark their on state with a tile, not colour alone', async ({ page }) => {
+  await installMocks(page, {
+    appearance: { ...DEFAULT_APPEARANCE, mode: 'light', light_theme: 'rose-pine-dawn' }
+  });
+  await gotoAsset(page);
+  await expect(page.locator('html')).toHaveClass(/\blight\b/);
+  const tile = await resolvedBackground(page, 'bg-primary/10');
+  const background = async (name: string): Promise<string> =>
+    (await metricsOf(page.getByRole('button', { name, exact: true }))).background;
+
+  await expect.poll(() => background('Hide filmstrip')).toBe(tile);
+  await expect.poll(() => background('Show presets')).toBe('rgba(0, 0, 0, 0)');
+
+  await page.getByRole('button', { name: 'Show presets', exact: true }).click();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => background('Hide presets')).toBe(tile);
+  await expect.poll(() => background('Show filmstrip')).toBe('rgba(0, 0, 0, 0)');
+
+  await page.getByRole('button', { name: 'Hide presets', exact: true }).click();
+  await page.getByRole('button', { name: 'Show filmstrip', exact: true }).click();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => background('Show presets')).toBe('rgba(0, 0, 0, 0)');
+  await expect.poll(() => background('Hide filmstrip')).toBe(tile);
+});
+
 test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
   await installMocks(page);
   await page.route('**/api/tags', (route) =>
