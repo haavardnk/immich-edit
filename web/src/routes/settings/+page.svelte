@@ -10,13 +10,20 @@
   import InstanceSection from '#lib/components/settings/InstanceSection.svelte';
   import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
-  import { mdiAccountCircleOutline, mdiCogOutline, mdiMonitorShimmer } from '@mdi/js';
+  import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
+  import {
+    mdiAccountCircleOutline,
+    mdiCogOutline,
+    mdiMonitorShimmer,
+    mdiPaletteOutline
+  } from '@mdi/js';
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
   let appOpen = $state(false);
   let accountOpen = $state(false);
   let sessionsOpen = $state(false);
+  let appearanceOpen = $state(false);
   let renderingOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
@@ -57,6 +64,11 @@
       appOpen = false;
       accountOpen = true;
       sessionsOpen = page.url.hash === '#sessions';
+    }
+    if (page.url.hash === '#appearance') {
+      appOpen = false;
+      accountOpen = false;
+      appearanceOpen = true;
     }
   });
 </script>
@@ -124,6 +136,16 @@
       >
         <SessionsSection />
       </SettingsGroup>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="Appearance"
+      description="Choose light, dark or system mode and a theme for each."
+      icon={mdiPaletteOutline}
+      open={appearanceOpen}
+      onOpenChange={(open) => (appearanceOpen = open)}
+    >
+      <AppearanceSection />
     </SettingsGroup>
 
     <SettingsGroup

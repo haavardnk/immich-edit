@@ -8,7 +8,7 @@
   const title = $derived(diagnostics ? 'Diagnostics' : 'Settings');
 </script>
 
-<div class="flex h-full min-h-0 flex-col bg-editor-chrome">
+<div class="flex h-full min-h-0 flex-col bg-light-50">
   <header class="flex h-12 shrink-0 items-center border-b border-hairline bg-light px-3 sm:px-5">
     <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
   </header>

@@ -1,12 +1,9 @@
 import type { Preset, PresetInput } from '#lib/api/presets.ts';
+import { isRecord } from '#lib/utils/isRecord.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 export const PRESET_FILE_KIND = 'immich-edit-presets';
 export const PRESET_FILE_VERSION = 1;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 export function presetFileJson(presets: Preset[]): string {
   const body = {

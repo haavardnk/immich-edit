@@ -198,6 +198,10 @@ pub fn router(state: AppState) -> Router {
             put(routes::export_presets::update).delete(routes::export_presets::delete),
         )
         .route(
+            "/appearance",
+            get(routes::appearance::get).put(routes::appearance::update),
+        )
+        .route(
             "/jobs",
             get(routes::jobs::list)
                 .post(routes::jobs::create)

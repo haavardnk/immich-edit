@@ -2,6 +2,7 @@ mod common;
 
 mod admin;
 mod albums;
+mod appearance;
 mod assets;
 mod auth_logout;
 mod auth_oauth;

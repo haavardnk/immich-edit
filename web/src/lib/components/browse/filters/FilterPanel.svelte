@@ -100,7 +100,7 @@
           onReset={() => browseControls.applyFilters(withoutSection(filters, section))}
           onOpenChange={(open) => browseView.setFilterSection(section.id, open)}
         >
-          <div class="flex flex-col gap-1 bg-black/10 px-3 pt-1 pb-2">
+          <div class="flex flex-col gap-1 bg-recess px-3 pt-1 pb-2">
             {#if section.id === 'library'}
               <LibraryFilters {favoriteLocked} {supports} />
             {:else if section.id === 'collections'}

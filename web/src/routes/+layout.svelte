@@ -6,18 +6,19 @@
   import { setupStatus } from '#lib/api/auth.ts';
   import { isBackendDown } from '#lib/api/client.ts';
   import { session } from '#lib/stores/session.svelte.ts';
+  import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
-  import { setLocale, themeManager, ThemePreference, TooltipProvider } from '@immich/ui';
+  import { setLocale, TooltipProvider } from '@immich/ui';
 
   let { children } = $props();
 
   setLocale(navigator.language);
-  themeManager.setPreference(ThemePreference.Dark);
+  appearance.apply();
 
   let bootState = $state<'loading' | 'ready' | 'unreachable'>('loading');
   let configured = $state(false);
@@ -29,7 +30,10 @@
     try {
       const st = await setupStatus();
       configured = st.configured;
-      if (configured && (await session.load())) await immichCapabilities.load();
+      if (configured && (await session.load())) {
+        void appearance.load();
+        await immichCapabilities.load();
+      }
       bootState = 'ready';
     } catch (err: unknown) {
       bootState = isBackendDown(err) ? 'unreachable' : 'ready';
@@ -38,6 +42,8 @@
 
   onMount(boot);
   onMount(installFocusPolicy);
+
+  $effect(() => appearance.showScheme(appearance.scheme));
 
   $effect(() => {
     if (bootState !== 'ready') return;

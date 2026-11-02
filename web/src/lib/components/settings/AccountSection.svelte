@@ -1,5 +1,6 @@
 <script lang="ts">
   import { session } from '#lib/stores/session.svelte.ts';
+  import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { logout } from '#lib/api/auth.ts';
   import { mdiAccountCircleOutline, mdiLogoutVariant } from '@mdi/js';
   import { Badge, Icon, IconButton } from '@immich/ui';
@@ -11,6 +12,7 @@
     signingOut = true;
     await logout().catch(() => undefined);
     session.clear();
+    appearance.reset();
     window.location.replace('/login');
   }
 </script>

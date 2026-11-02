@@ -63,7 +63,7 @@
 
 <section
   aria-label="Presets"
-  class="relative flex flex-none gap-3 border-t border-light-950/12 bg-editor-chrome px-2 py-1.5 shadow-filmstrip"
+  class="relative flex flex-none gap-3 border-t border-light-950/12 bg-editor-chrome px-2 py-1.5 dark:shadow-filmstrip"
 >
   <BottomPanelResizeHandle label="Resize presets" />
   {#if groups.length > 1}

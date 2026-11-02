@@ -150,7 +150,7 @@
               </div>
 
               {#if jobs.expanded === job.id}
-                <div class="border-t border-hairline bg-black/15 px-3 py-2.5">
+                <div class="border-t border-hairline bg-recess dark:bg-black/15 px-3 py-2.5">
                   {#if jobs.items[job.id] === undefined}
                     <p class="text-[11px] text-dark/65">Loading…</p>
                   {:else}

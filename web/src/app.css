@@ -29,6 +29,8 @@
   --color-image-canvas: var(--color-black);
   --color-hairline: color-mix(in oklab, var(--immich-ui-light-950) 8%, transparent);
   --color-ghost: color-mix(in oklab, var(--immich-ui-light-950) 5%, transparent);
+  --color-recess: color-mix(in oklab, var(--color-black) 10%, transparent);
+  --color-popover-shadow: color-mix(in srgb, var(--color-black) 50%, transparent);
   --color-plot-surface: var(--color-neutral-950);
   --color-plot-ink: oklch(89% 0 271);
   --color-plot-line: var(--color-white);
@@ -58,7 +60,7 @@
   --color-grading-neutral: #555555;
   --color-logo-primary: var(--color-primary);
   --shadow-image: 0 16px 56px color-mix(in srgb, var(--color-black) 48%, transparent);
-  --shadow-popover: 0 18px 48px color-mix(in srgb, var(--color-black) 50%, transparent);
+  --shadow-popover: 0 18px 48px var(--color-popover-shadow);
   --shadow-filmstrip: 0 -8px 24px color-mix(in srgb, var(--color-black) 18%, transparent);
   --shadow-split: 0 0 4px color-mix(in srgb, var(--color-black) 60%, transparent);
 }
@@ -135,6 +137,15 @@
 @layer base {
   :root.dark {
     color-scheme: dark;
+  }
+
+  :root.light {
+    color-scheme: light;
+    --color-recess: color-mix(in oklab, var(--immich-ui-light-950) 3%, transparent);
+    --color-popover-shadow: color-mix(in srgb, var(--color-black) 12%, transparent);
+  }
+
+  :root.dark:not([data-theme]) {
     --immich-ui-primary-50: #221533;
     --immich-ui-primary-100: #2f1d46;
     --immich-ui-primary-200: #3c2559;
@@ -157,6 +168,105 @@
     --color-gray-800: #29212f;
     --color-gray-900: #1c171f;
     --color-gray-950: #120f15;
+  }
+
+  :root.light:not([data-theme]) {
+    --immich-ui-primary-50: #f3f1fc;
+    --immich-ui-primary-100: #e0ddf2;
+    --immich-ui-primary-200: #c2b9e5;
+    --immich-ui-primary-300: #a798da;
+    --immich-ui-primary-400: #8b75ca;
+    --immich-ui-primary-500: #7159b0;
+    --immich-ui-primary-600: #5c4890;
+    --immich-ui-primary-700: #4b3b76;
+    --immich-ui-primary-800: #382c5a;
+    --immich-ui-primary-900: #292142;
+    --immich-ui-primary-950: #1e182f;
+    --immich-ui-success-50: #ecf6ed;
+    --immich-ui-success-100: #d2e6d5;
+    --immich-ui-success-200: #a3ccaa;
+    --immich-ui-success-300: #76b583;
+    --immich-ui-success-400: #409b5a;
+    --immich-ui-success-500: #15803d;
+    --immich-ui-success-600: #106831;
+    --immich-ui-success-700: #105628;
+    --immich-ui-success-800: #0c401e;
+    --immich-ui-success-900: #0b2f16;
+    --immich-ui-success-950: #0b2311;
+    --immich-ui-warning-50: #faf2ea;
+    --immich-ui-warning-100: #eedfcf;
+    --immich-ui-warning-200: #ddbd9d;
+    --immich-ui-warning-300: #cd9e6d;
+    --immich-ui-warning-400: #ba7c36;
+    --immich-ui-warning-500: #a16207;
+    --immich-ui-warning-600: #834f04;
+    --immich-ui-warning-700: #6b4007;
+    --immich-ui-warning-800: #502f05;
+    --immich-ui-warning-900: #3a2206;
+    --immich-ui-warning-950: #2a1907;
+    --immich-ui-danger-50: #fff0ee;
+    --immich-ui-danger-100: #ffd9d3;
+    --immich-ui-danger-200: #ffaea4;
+    --immich-ui-danger-300: #ff8376;
+    --immich-ui-danger-400: #f54f46;
+    --immich-ui-danger-500: #dc2626;
+    --immich-ui-danger-600: #b31c1c;
+    --immich-ui-danger-700: #921817;
+    --immich-ui-danger-800: #6e100f;
+    --immich-ui-danger-900: #4f0e0c;
+    --immich-ui-danger-950: #380c09;
+    --immich-ui-info-50: #edf3ff;
+    --immich-ui-info-100: #d2e2ff;
+    --immich-ui-info-200: #a2c2ff;
+    --immich-ui-info-300: #77a5ff;
+    --immich-ui-info-400: #4682ff;
+    --immich-ui-info-500: #2563eb;
+    --immich-ui-info-600: #1c50c0;
+    --immich-ui-info-700: #18429e;
+    --immich-ui-info-800: #103177;
+    --immich-ui-info-900: #0c2457;
+    --immich-ui-info-950: #0a1b3e;
+    --immich-ui-light-50: #f8f7f9;
+    --immich-ui-light-100: #ebe8ee;
+    --immich-ui-light-200: #d5d0d9;
+    --immich-ui-light-300: #b7b0bd;
+    --immich-ui-light-400: #93899b;
+    --immich-ui-light-500: #6e6275;
+    --immich-ui-light-600: #504459;
+    --immich-ui-light-700: #392f41;
+    --immich-ui-light-800: #29212f;
+    --immich-ui-light-900: #1c171f;
+    --immich-ui-light-950: #120f15;
+    --immich-ui-dark-50: #120f15;
+    --immich-ui-dark-100: #1c171f;
+    --immich-ui-dark-200: #29212f;
+    --immich-ui-dark-300: #392f41;
+    --immich-ui-dark-400: #504459;
+    --immich-ui-dark-500: #6e6275;
+    --immich-ui-dark-600: #93899b;
+    --immich-ui-dark-700: #b7b0bd;
+    --immich-ui-dark-800: #d5d0d9;
+    --immich-ui-dark-900: #ebe8ee;
+    --immich-ui-dark-950: #f8f7f9;
+    --immich-ui-light: #ffffff;
+    --immich-ui-dark: #1c171f;
+    --immich-ui-muted: #93899b;
+    --immich-ui-gray: #f8f7f9;
+    --immich-ui-default-border: var(--immich-ui-light-300);
+    --color-gray-50: #f8f7f9;
+    --color-gray-100: #ebe8ee;
+    --color-gray-200: #d5d0d9;
+    --color-gray-300: #b7b0bd;
+    --color-gray-400: #93899b;
+    --color-gray-500: #6e6275;
+    --color-gray-600: #504459;
+    --color-gray-700: #392f41;
+    --color-gray-800: #29212f;
+    --color-gray-900: #1c171f;
+    --color-gray-950: #120f15;
+    --color-editor-chrome: #f1eff3;
+    --color-editor-panel: #f8f7f9;
+    --color-auth-stage: #f1eff3;
   }
 
   html,
@@ -370,6 +480,10 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
 .editor-compact-input-field [data-date-field-input] [data-segment]:focus {
   background-color: var(--immich-ui-primary-400);
   color: white;
+}
+
+:root.light .editor-compact-input-field [data-date-field-input] [data-segment]:focus {
+  background-color: var(--immich-ui-primary-600);
 }
 
 .editor-compact-input-field [data-date-field-input] button {
