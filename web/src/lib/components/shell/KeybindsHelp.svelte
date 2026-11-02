@@ -69,7 +69,12 @@
 <svelte:window onkeydowncapture={onWindowKeydown} />
 
 {#if ui.keybindsHelpOpen}
-  <Dialog title="Keyboard shortcuts" size="giant" onClose={ui.closeKeybindsHelp}>
+  <Dialog
+    title="Keyboard shortcuts"
+    size="giant"
+    onClose={ui.closeKeybindsHelp}
+    bodyClass="flex flex-col overflow-hidden p-0"
+  >
     {#snippet actions()}
       <div class="flex-1 min-w-0">
         <TextInput
@@ -89,7 +94,7 @@
       role="region"
       aria-label="Keyboard shortcuts"
       use:focusableScroll
-      class="max-h-[calc(100dvh-8rem)] overflow-y-auto"
+      class="immich-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5"
     >
       {#if sections.here.length === 0 && sections.elsewhere.length === 0}
         <p class="text-xs text-dark/65">No shortcuts match “{query}”.</p>
