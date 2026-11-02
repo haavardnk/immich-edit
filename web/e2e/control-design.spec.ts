@@ -976,6 +976,29 @@ test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {
   await expect(page.getByText('Retouch', { exact: false }).first()).toBeVisible();
 });
 
+test('the shortcuts dialog scrolls in one region', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await installMocks(page);
+  await page.goto('/photos');
+
+  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  const list = dialog.getByRole('region', { name: 'Keyboard shortcuts' });
+  await expect(list).toBeVisible();
+
+  const scrollers = await dialog.evaluate((root) =>
+    [root, ...root.querySelectorAll('*')]
+      .filter((element) => element.scrollHeight > element.clientHeight + 1)
+      .filter((element) => /auto|scroll/.test(getComputedStyle(element).overflowY))
+      .map((element) => element.getAttribute('aria-label'))
+  );
+  expect(scrollers).toEqual(['Keyboard shortcuts']);
+
+  const dialogBox = await dialog.boundingBox();
+  const listBox = await list.boundingBox();
+  expect(listBox!.y + listBox!.height).toBeLessThanOrEqual(dialogBox!.y + dialogBox!.height);
+});
+
 test('reduced motion disables generic motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await installMocks(page);
