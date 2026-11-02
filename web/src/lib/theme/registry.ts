@@ -1,4 +1,15 @@
+import { catppuccin } from './families/catppuccin';
+import { dracula } from './families/dracula';
+import { everforest } from './families/everforest';
+import { github } from './families/github';
+import { gruvbox } from './families/gruvbox';
+import { immichClassic } from './families/immichClassic';
 import { immichEdit } from './families/immichEdit';
+import { nord } from './families/nord';
+import { one } from './families/one';
+import { rosePine } from './families/rosePine';
+import { solarized } from './families/solarized';
+import { tokyoNight } from './families/tokyoNight';
 import { resolveTheme } from './resolve';
 import type { Appearance, ResolvedTheme, Scheme, ThemeDefinition, ThemeFamily } from './types';
 
@@ -7,9 +18,22 @@ export interface ThemeEntry {
   theme: ThemeDefinition;
 }
 
-export const FAMILIES: readonly ThemeFamily[] = [immichEdit];
+export const FAMILIES: readonly ThemeFamily[] = [
+  immichEdit,
+  immichClassic,
+  catppuccin,
+  rosePine,
+  tokyoNight,
+  gruvbox,
+  solarized,
+  nord,
+  dracula,
+  one,
+  github,
+  everforest
+];
 
-export const DEFAULT_THEME: Readonly<Record<Scheme, string>> = {
+const DEFAULT_THEME: Readonly<Record<Scheme, string>> = {
   light: 'immich-edit-light',
   dark: 'immich-edit-dark'
 };

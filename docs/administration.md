@@ -9,7 +9,8 @@ permalink: /administration/
 # Administration
 
 Open **Settings** from the gear in the top bar. Every user sees **Account**, with
-**Signed-in devices** inside it, and **Preview rendering**, plus **Diagnostics** in the sidebar.
+**Signed-in devices** inside it, **Appearance** and **Preview rendering**, plus **Diagnostics** in
+the sidebar.
 Administrators also get **App settings** with **Users**, **Models**, **Editing defaults** and
 **Immich instance**.
 Sections stay collapsed until you open them.
@@ -36,6 +37,25 @@ Under **App settings** > **Users**, an administrator can:
 address and when it was last seen. The browser you are using has a `this session` badge.
 **Revoke session** signs one device out, and **Revoke all other sessions** signs out every device
 but this one. Signing out of a password or OAuth session also revokes the Immich token behind it.
+
+## Appearance
+
+Edge only until the next release.
+
+**Settings** > **Appearance** sets how immich-edit looks for your account on every device you sign
+in on:
+
+- **Mode**: **Dark**, the default, **Light**, or **System**, which follows the device setting.
+- **Light theme** and **Dark theme**: the theme each mode uses. Built in are immich-edit, Immich,
+  Catppuccin, Rosé Pine, Tokyo Night, Gruvbox, Solarized, Nord, Dracula, One, GitHub and
+  Everforest.
+- **Light accent** and **Dark accent**: the highlight colour of each mode, picked under its theme
+  from that theme's colours. The logo and the browser tab icon follow the accent on screen.
+
+The sun and moon button in the top bar switches between light and dark on wider screens. Photos,
+the editor canvas, scopes, curves and guides drawn on a photo keep neutral colours in every theme,
+so a theme never changes how a photo looks. Some palette colours are adjusted slightly so text
+keeps WCAG AA contrast.
 
 ## Editing defaults
 

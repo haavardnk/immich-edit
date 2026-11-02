@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { DEFAULT_APPEARANCE, installMocks, type MockAppearance } from './helpers';
+import { DEFAULT_APPEARANCE, gotoAsset, installMocks, json, type MockAppearance } from './helpers';
 
 interface RootState {
   dark: boolean;
@@ -47,6 +47,7 @@ function recordAppearance(): {
 
 const LIGHT = { dark: false, light: true, primary: '#7159b0', page: '#ffffff' };
 const DARK = { dark: true, light: false, primary: '#b7a1fb', page: 'oklch(0% 0 0)' };
+const BLOCK_APP = '**/_app/immutable/**/*.js';
 
 test('the default dark theme survives an OS switch to light', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -105,7 +106,7 @@ test('a reload paints the saved theme before the app starts', async ({ page }) =
   await page.getByRole('button', { name: 'Switch to light theme' }).click();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
 
-  await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+  await page.route(BLOCK_APP, (route) => route.abort());
   await page.reload();
 
   expect(await rootState(page)).toEqual(LIGHT);
@@ -113,11 +114,39 @@ test('a reload paints the saved theme before the app starts', async ({ page }) =
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /^data:image\/svg\+xml,/);
 });
 
-test('the server appearance wins over a stale cache', async ({ page }) => {
-  await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode: 'light' } });
-  await page.goto('/photos');
+function serveAppearance(page: Page, appearance: MockAppearance): Promise<void> {
+  return page.route('**/api/appearance', (route) => route.fulfill(json(appearance)));
+}
 
+test('the server appearance replaces a stale cache after boot', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  await expect.poll(() => rootState(page)).toEqual(DARK);
+
+  await serveAppearance(page, { ...DEFAULT_APPEARANCE, mode: 'light' });
+  await page.route(BLOCK_APP, (route) => route.abort());
+  await page.reload();
+  expect(await rootState(page)).toEqual(DARK);
+
+  await page.unroute(BLOCK_APP);
+  await page.reload();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
+});
+
+test('a theme tile switches the whole palette and saves it', async ({ page }) => {
+  const record = recordAppearance();
+  await installMocks(page, { onAppearance: record.onAppearance });
+  await openAppearance(page);
+
+  await page.getByRole('radio', { name: 'Catppuccin Mocha' }).click();
+
+  await expect
+    .poll(() => rootState(page))
+    .toEqual({ dark: true, light: false, primary: '#cba6f7', page: '#1e1e2e' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', '');
+  await expect
+    .poll(() => record.saved.at(-1))
+    .toEqual({ ...DEFAULT_APPEARANCE, dark_theme: 'catppuccin-mocha' });
 });
 
 async function top(locator: Locator): Promise<number> {
@@ -150,6 +179,39 @@ test('each mode has its own accent row under its theme grid', async ({ page }) =
   expect(await rootState(page)).toEqual(DARK);
 });
 
+test('the dark accent row offers the dark theme family accents', async ({ page }) => {
+  await installMocks(page, {
+    appearance: { ...DEFAULT_APPEARANCE, dark_theme: 'tokyo-night' }
+  });
+  await openAppearance(page);
+
+  const light = page.getByRole('radiogroup', { name: 'Light accent' });
+  const dark = page.getByRole('radiogroup', { name: 'Dark accent' });
+  await expect(dark.getByRole('radio', { name: 'Cyan' })).toBeVisible();
+  await expect(dark.getByRole('radio', { name: 'Violet' })).toHaveCount(0);
+  await expect(light.getByRole('radio', { name: 'Violet' })).toBeVisible();
+  await expect(light.getByRole('radio', { name: 'Cyan' })).toHaveCount(0);
+});
+
+test('a theme that inherits the package palette drops the violet fallback', async ({ page }) => {
+  await installMocks(page, {
+    appearance: { ...DEFAULT_APPEARANCE, dark_theme: 'immich-dark' }
+  });
+  await page.goto('/photos');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return [
+          style.getPropertyValue('--immich-ui-primary-500').trim(),
+          style.getPropertyValue('--color-gray-800').trim()
+        ];
+      })
+    )
+    .toEqual(['oklch(83.6% .074 258.58)', 'oklch(27.8% .033 256.848)']);
+});
+
 function logoStroke(page: Page): Promise<string> {
   return page
     .getByRole('img', { name: 'immich-edit' })
@@ -159,27 +221,14 @@ function logoStroke(page: Page): Promise<string> {
     .evaluate((element) => getComputedStyle(element).stroke);
 }
 
-function imageAccents(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const style = getComputedStyle(document.documentElement);
-    return ['--color-image-accent', '--color-retouch-active'].map((name) => {
-      const probe = document.createElement('span');
-      probe.style.color = `var(${name})`;
-      document.body.append(probe);
-      const color = getComputedStyle(probe).color;
-      probe.remove();
-      return `${style.getPropertyValue(name).trim()} ${color}`;
-    });
-  });
-}
+const VIOLET = 'rgb(183, 161, 251)';
 
-test('an accent recolours primary, the logo and the favicon but not image strokes', async ({
+test('an accent recolours primary, the logo and the favicon but not on-photo strokes', async ({
   page
 }) => {
   const record = recordAppearance();
   await installMocks(page, { onAppearance: record.onAppearance });
   await openAppearance(page);
-  const before = await imageAccents(page);
 
   await page
     .getByRole('radiogroup', { name: 'Dark accent' })
@@ -189,12 +238,25 @@ test('an accent recolours primary, the logo and the favicon but not image stroke
   await expect.poll(() => rootState(page)).toEqual({ ...DARK, primary: '#1bcbc4' });
   expect(await logoStroke(page)).toBe('rgb(27, 203, 196)');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /%231bcbc4/);
-  expect(await imageAccents(page)).toEqual(before);
-  expect(before[0]).toBe('#b7a1fb rgb(183, 161, 251)');
   await expect
     .poll(() => record.saved.at(-1))
     .toEqual({ ...DEFAULT_APPEARANCE, accents: { dark: 'teal' } });
 
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('button', { name: 'Corner handles' }).click();
+  const handle = page.getByRole('button', { name: 'perspective corner 1' });
+  await expect(handle).toBeVisible();
+  expect(await handle.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+    VIOLET
+  );
+  expect(
+    await page
+      .locator('polygon[stroke="var(--color-image-accent)"]')
+      .evaluate((element) => getComputedStyle(element).stroke)
+  ).toBe(VIOLET);
+
+  await openAppearance(page);
   await page.getByRole('radio', { name: 'Light', exact: true }).click();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
   await page
@@ -204,28 +266,26 @@ test('an accent recolours primary, the logo and the favicon but not image stroke
   await expect.poll(() => rootState(page)).toEqual({ ...LIGHT, primary: '#00756f' });
 });
 
-test('the login logo shows the cached accent on first paint', async ({ page }) => {
+test('the login page paints the cached accent before the app starts', async ({ page }) => {
   await installMocks(page, {
     appearance: { ...DEFAULT_APPEARANCE, accents: { dark: 'coral' } }
   });
   await page.goto('/photos');
   await expect.poll(() => rootState(page)).toEqual({ ...DARK, primary: '#f69472' });
 
-  await page.route('**/api/setup/status', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{"configured":true}' })
-  );
+  await page.route('**/api/setup/status', (route) => route.fulfill(json({ configured: true })));
   await page.route('**/api/auth/me', (route) =>
-    route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: '{"code":"unauthorized","message":"unauthorized"}'
-    })
+    route.fulfill(json({ code: 'unauthorized', message: 'unauthorized' }, 401))
   );
+  await page.route(BLOCK_APP, (route) => route.abort());
+  await page.goto('/login');
+  expect(await rootState(page)).toEqual({ ...DARK, primary: '#f69472' });
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /%23f69472/);
+
+  await page.unroute(BLOCK_APP);
   await page.goto('/login');
   await expect(page.getByLabel('Immich email', { exact: true })).toBeVisible();
-
   expect(await logoStroke(page)).toBe('rgb(246, 148, 114)');
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /%23f69472/);
 });
 
 test('signing out paints the default theme for the next person', async ({ page }) => {
@@ -233,17 +293,11 @@ test('signing out paints the default theme for the next person', async ({ page }
   await page.goto('/settings#account');
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
 
-  await page.route('**/api/setup/status', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{"configured":true}' })
-  );
+  await page.route('**/api/setup/status', (route) => route.fulfill(json({ configured: true })));
   await page.route('**/api/auth/me', (route) =>
-    route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: '{"code":"unauthorized","message":"unauthorized"}'
-    })
+    route.fulfill(json({ code: 'unauthorized', message: 'unauthorized' }, 401))
   );
-  await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+  await page.route(BLOCK_APP, (route) => route.abort());
   await page.getByRole('button', { name: 'Sign out' }).click();
   await page.waitForURL('**/login');
 
@@ -264,14 +318,14 @@ test('a cache from another theme revision is not painted', async ({ page }) => {
       JSON.stringify({ ...(cache instanceof Object ? cache : {}), revision: 'stale' })
     );
   });
-  await page.route('**/_app/immutable/**/*.js', (route) => route.abort());
+  await page.route(BLOCK_APP, (route) => route.abort());
   await page.reload();
   expect(await rootState(page)).toMatchObject({ light: true, primary: LIGHT.primary });
   await expect(page.locator('#immich-edit-theme')).toHaveCount(0);
   await expect(page.locator('html')).not.toHaveAttribute('data-theme');
   await expect(page.locator('link[rel="icon"]')).not.toHaveAttribute('href', /^data:/);
 
-  await page.unroute('**/_app/immutable/**/*.js');
+  await page.unroute(BLOCK_APP);
   await page.reload();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
   await expect(page.locator('html')).toHaveAttribute('data-theme', '');

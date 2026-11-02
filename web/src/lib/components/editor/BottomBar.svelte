@@ -53,6 +53,7 @@
       size="tiny"
       variant="ghost"
       color={ui.presetStrip ? 'primary' : 'secondary'}
+      class={ui.presetStrip ? 'bg-primary/10' : undefined}
       leadingIcon={mdiPaletteSwatchOutline}
       title={hint(ui.presetStrip ? 'Hide presets' : 'Show presets', 'presetStrip')}
       aria-label={ui.presetStrip ? 'Hide presets' : 'Show presets'}
@@ -63,6 +64,7 @@
       size="tiny"
       variant="ghost"
       color={hasFilmstrip && filmstripShown ? 'primary' : 'secondary'}
+      class={hasFilmstrip && filmstripShown ? 'bg-primary/10' : undefined}
       leadingIcon={mdiFilmstrip}
       title={!hasFilmstrip
         ? 'No filmstrip available'
