@@ -16,7 +16,7 @@
 
   const tiles = $derived(
     themesFor(scheme).map(({ family, theme }) => {
-      const resolved = resolveTheme(family, theme, appearance.current.accents[family.id]);
+      const resolved = resolveTheme(family, theme, appearance.current.accents[scheme]);
       return {
         id: theme.id,
         name: theme.name,

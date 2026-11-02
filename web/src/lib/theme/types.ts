@@ -62,7 +62,7 @@ export interface Appearance {
   mode: ThemeMode;
   lightTheme: string;
   darkTheme: string;
-  accents: Readonly<Record<string, string>>;
+  accents: Readonly<Partial<Record<Scheme, string>>>;
 }
 
 export interface ResolvedTheme {

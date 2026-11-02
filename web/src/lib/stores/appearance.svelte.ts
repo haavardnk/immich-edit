@@ -64,10 +64,10 @@ class AppearanceStore {
     );
   }
 
-  setAccent(family: string, accent: string): void {
+  setAccent(scheme: Scheme, accent: string): void {
     this.#commit((appearance) => ({
       ...appearance,
-      accents: { ...appearance.accents, [family]: accent }
+      accents: { ...appearance.accents, [scheme]: accent }
     }));
   }
 

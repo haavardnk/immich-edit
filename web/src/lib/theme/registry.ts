@@ -40,7 +40,7 @@ export function themeEntry(id: string, scheme: Scheme): ThemeEntry {
 export function resolveAppearance(appearance: Appearance): Record<Scheme, ResolvedTheme> {
   const resolve = (id: string, scheme: Scheme): ResolvedTheme => {
     const { family, theme } = themeEntry(id, scheme);
-    return resolveTheme(family, theme, appearance.accents[family.id]);
+    return resolveTheme(family, theme, appearance.accents[scheme]);
   };
   return {
     light: resolve(appearance.lightTheme, 'light'),

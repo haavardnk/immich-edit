@@ -91,12 +91,18 @@ describe('theme registry', () => {
       mode: 'system',
       lightTheme: 'removed-theme',
       darkTheme: 'immich-edit-light',
-      accents: { 'immich-edit': 'removed-accent' }
+      accents: { dark: 'removed-accent' }
     });
     expect(themes.light.id).toBe(DEFAULT_APPEARANCE.lightTheme);
     expect(themes.dark.id).toBe(DEFAULT_APPEARANCE.darkTheme);
     expect(themes.dark.accent).toBe('violet');
     expect(themeEntry('removed-theme', 'dark').theme.id).toBe('immich-edit-dark');
+  });
+
+  it('resolves the light and dark accents independently', () => {
+    const themes = resolveAppearance({ ...DEFAULT_APPEARANCE, accents: { light: 'teal' } });
+    expect(themes.light.accent).toBe('teal');
+    expect(themes.dark.accent).toBe('violet');
   });
 
   it('lists themes by scheme', () => {
