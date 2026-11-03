@@ -100,6 +100,24 @@ describe('setRating', () => {
     expect(failures).toEqual([['rating', boom]]);
   });
 
+  it('keeps a newer rating when an older write fails', async () => {
+    browsing.set([asset('a')]);
+    let refuse: (error: Error) => void = () => {};
+    h.updateAsset.mockImplementationOnce(
+      () => new Promise<never>((_, reject) => (refuse = reject))
+    );
+    const { target, failures } = recordingTarget('a');
+    const older = setRating(target, 3);
+    await vi.waitFor(() => expect(h.updateAsset).toHaveBeenCalledTimes(1));
+    const newer = setRating(target, 4);
+    await vi.waitFor(() => expect(browsing.assets[0]?.exifInfo?.rating).toBe(4));
+    refuse(new Error('boom'));
+    expect(await Promise.all([older, newer])).toEqual(['saved', 'saved']);
+    expect(h.updateAsset).toHaveBeenLastCalledWith('a', { rating: 4 });
+    expect(browsing.assets[0]?.exifInfo?.rating).toBe(4);
+    expect(failures).toEqual([]);
+  });
+
   it('writes into the listed photo in place', async () => {
     const element = asset('a');
     browsing.set([element]);
@@ -181,6 +199,38 @@ describe('setLabel', () => {
     h.consent.value = false;
     expect(await setLabel(browseTarget('a'), 'red')).toBe('skipped');
     expect(labelOf(browsing.assets[0]!)).toBeNull();
+  });
+
+  it('swaps out a label that was still being written', async () => {
+    browsing.set([asset('a')]);
+    let land: () => void = () => {};
+    addTagToAsset.mockImplementationOnce(() => new Promise<void>((resolve) => (land = resolve)));
+    const first = setLabel(browseTarget('a'), 'red');
+    await vi.waitFor(() => expect(addTagToAsset).toHaveBeenCalledWith('red', 'a'));
+    const second = setLabel(browseTarget('a'), 'blue');
+    await vi.waitFor(() => expect(labelOf(browsing.assets[0]!)).toBe('blue'));
+    land();
+    expect(await Promise.all([first, second])).toEqual(['saved', 'saved']);
+    expect(removeTagFromAsset).toHaveBeenCalledWith('red', 'a');
+    expect(addTagToAsset).toHaveBeenLastCalledWith('blue', 'a');
+    expect(labelOf(browsing.assets[0]!)).toBe('blue');
+  });
+
+  it('keeps the old label when Immich refuses the label it replaced', async () => {
+    browsing.set([asset('a', [red])]);
+    let refuse: () => void = () => {};
+    removeTagFromAsset.mockImplementationOnce(
+      () => new Promise<void>((_, reject) => (refuse = () => reject(new Error('boom'))))
+    );
+    const first = setLabel(recordingTarget('a').target, 'green');
+    await vi.waitFor(() => expect(removeTagFromAsset).toHaveBeenCalledTimes(1));
+    const second = setLabel(recordingTarget('a').target, 'blue');
+    await vi.waitFor(() => expect(labelOf(browsing.assets[0]!)).toBe('blue'));
+    refuse();
+    await Promise.all([first, second]);
+    expect(removeTagFromAsset).toHaveBeenLastCalledWith('red', 'a');
+    expect(removeTagFromAsset).toHaveBeenCalledTimes(2);
+    expect(labelOf(browsing.assets[0]!)).toBe('blue');
   });
 });
 
