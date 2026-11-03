@@ -4,7 +4,8 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { restoreBrowse } from '#lib/browse/restore.ts';
-  import { editorKeydown, editorKeyup } from '#lib/shortcuts/editorKeymap.ts';
+  import { commandKeys } from '#lib/commands/registry.ts';
+  import { activeContexts } from '#lib/shortcuts/context.ts';
   import { warmNeighbours } from '#lib/editor/neighbours.ts';
   import Viewer from '#lib/components/editor/Viewer.svelte';
   import ImageToolbar from '#lib/components/editor/ImageToolbar.svelte';
@@ -52,8 +53,8 @@
 
 <svelte:window
   onbeforeunload={guardPendingSave}
-  onkeydown={(e) => editorKeydown(e, id)}
-  onkeyup={editorKeyup}
+  onkeydown={(e) => commandKeys.keydown(e, activeContexts())}
+  onkeyup={commandKeys.keyup}
 />
 
 {#if tooNarrow}

@@ -4,15 +4,10 @@
   import { openDevelopPanels } from '#lib/panels/registry.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
   import HistoryPopover from '#lib/components/editor/HistoryPopover.svelte';
-  import { hint } from '#lib/shortcuts/labels.ts';
+  import { commandLabel, commandTitle, isEnabled, runCommand } from '#lib/commands/command.ts';
+  import { autoAdjust, copyEdits, pasteEdits, resetDevelop } from '#lib/commands/editor/edits.ts';
   import { Button, IconButton } from '@immich/ui';
-  import {
-    mdiAutoFix,
-    mdiRestore,
-    mdiFilterVariant,
-    mdiContentCopy,
-    mdiContentPaste
-  } from '@mdi/js';
+  import { mdiFilterVariant } from '@mdi/js';
 
   function toggleModifiedOnly(): void {
     ui.developModifiedOnly = !ui.developModifiedOnly;
@@ -28,11 +23,11 @@
     variant="ghost"
     color="secondary"
     class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
-    leadingIcon={mdiAutoFix}
-    title={hint('Auto adjust', 'autoAdjust')}
+    leadingIcon={autoAdjust.icon}
+    title={commandTitle(autoAdjust)}
     aria-label="Auto"
-    disabled={editor.autoBusy || !editor.assetId}
-    onclick={() => void editor.onAutoAdjust()}
+    disabled={!isEnabled(autoAdjust)}
+    onclick={() => runCommand(autoAdjust)}
   >
     {editor.autoBusy ? 'Analyzing…' : 'Auto'}
   </Button>
@@ -41,11 +36,11 @@
     variant="ghost"
     color="secondary"
     class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
-    leadingIcon={mdiRestore}
-    title={hint('Reset develop settings', 'resetEdits')}
-    aria-label="Reset develop settings"
-    disabled={!editor.canResetDevelop}
-    onclick={() => void editor.onReset()}
+    leadingIcon={resetDevelop.icon}
+    title={commandTitle(resetDevelop)}
+    aria-label={commandLabel(resetDevelop)}
+    disabled={!isEnabled(resetDevelop)}
+    onclick={() => runCommand(resetDevelop)}
   >
     Reset
   </Button>
@@ -57,22 +52,22 @@
     variant="ghost"
     color="secondary"
     class="bg-transparent hover:bg-light-950/6"
-    icon={mdiContentCopy}
-    title={editor.hasEdits ? hint('Copy edits', 'copyEdits') : 'Nothing to copy'}
-    disabled={!editor.assetId || !editor.hasEdits}
-    aria-label="Copy edits"
-    onclick={editor.copyEdits}
+    icon={copyEdits.icon}
+    title={commandTitle(copyEdits)}
+    disabled={!isEnabled(copyEdits)}
+    aria-label={commandLabel(copyEdits)}
+    onclick={() => runCommand(copyEdits)}
   />
   <IconButton
     size="small"
     variant="ghost"
     color="secondary"
     class="bg-transparent hover:bg-light-950/6"
-    icon={mdiContentPaste}
-    title={editor.hasClipboard ? hint('Paste edits', 'pasteEdits') : 'Nothing copied'}
-    disabled={!editor.canPaste}
-    aria-label="Paste edits"
-    onclick={() => void editor.pasteEdits()}
+    icon={pasteEdits.icon}
+    title={commandTitle(pasteEdits)}
+    disabled={!isEnabled(pasteEdits)}
+    aria-label={commandLabel(pasteEdits)}
+    onclick={() => runCommand(pasteEdits)}
   />
   <HistoryPopover />
   <IconButton

@@ -314,12 +314,6 @@ class UiStore {
     this.metaPopover = null;
   };
 
-  closeMetadataPopovers = (): boolean => {
-    if (!this.metaPopover) return false;
-    this.metaPopover = null;
-    return true;
-  };
-
   get zoomed(): boolean {
     return this.zoom > this.fitZoom;
   }
