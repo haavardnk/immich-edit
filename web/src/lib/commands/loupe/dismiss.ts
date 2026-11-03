@@ -5,6 +5,7 @@ import type { KeybindContext, KeybindId } from '#lib/shortcuts/table.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
+import { mdiArrowLeft } from '@mdi/js';
 
 function exitFullscreen(id: string, context: KeybindContext, bind: KeybindId): Command {
   return loupeCommand({
@@ -18,16 +19,20 @@ function exitFullscreen(id: string, context: KeybindContext, bind: KeybindId): C
   });
 }
 
+export const loupeClose = loupeCommand({
+  id: 'loupe.close',
+  contexts: ['loupe'],
+  label: 'Back',
+  icon: mdiArrowLeft,
+  bind: 'loupeClose',
+  run: () => browseView.closeLoupe()
+});
+
 export const LOUPE_DISMISS_COMMANDS: readonly Command[] = [
   exitFullscreen('loupe.exitFullscreen', 'loupe', 'loupeClose'),
   exitFullscreen('compare.exitFullscreen', 'compare', 'compareExit'),
   exitFullscreen('survey.exitFullscreen', 'survey', 'surveyExit'),
-  loupeCommand({
-    id: 'loupe.close',
-    contexts: ['loupe'],
-    bind: 'loupeClose',
-    run: () => browseView.closeLoupe()
-  }),
+  loupeClose,
   loupeCommand({
     id: 'compare.exit',
     contexts: ['compare'],

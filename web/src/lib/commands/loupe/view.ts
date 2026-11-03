@@ -4,6 +4,40 @@ import type { Command } from '#lib/commands/types.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
+import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
+import { mdiSkipNextOutline } from '@mdi/js';
+
+export const loupeInfo = loupeCommand({
+  id: 'loupe.info',
+  contexts: VIEWING,
+  ...infoView,
+  pressed: () => browseView.loupeInfoOpen,
+  run: () => browseView.toggleLoupeInfo()
+});
+
+export const loupeClipWarn = loupeCommand({
+  id: 'loupe.clipWarn',
+  contexts: VIEWING,
+  ...clipWarnView,
+  pressed: () => ui.clipWarn,
+  run: () => ui.toggleClipWarn()
+});
+
+export const loupeFullscreen = loupeCommand({
+  id: 'loupe.fullscreen',
+  contexts: VIEWING,
+  ...fullscreenView,
+  run: () => ui.toggleFullscreen()
+});
+
+export const loupeAutoAdvance = loupeCommand({
+  id: 'loupe.autoAdvance',
+  contexts: VIEWING,
+  label: 'Auto-advance',
+  icon: mdiSkipNextOutline,
+  pressed: () => browseView.loupeAutoAdvance,
+  run: () => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)
+});
 
 export const LOUPE_VIEW_COMMANDS: readonly Command[] = [
   loupeCommand({
@@ -21,30 +55,16 @@ export const LOUPE_VIEW_COMMANDS: readonly Command[] = [
       if (step) loupeHost.get()?.panBy(step[0], step[1]);
     }
   }),
-  loupeCommand({
-    id: 'loupe.info',
-    contexts: VIEWING,
-    bind: 'toggleInfo',
-    run: () => browseView.toggleLoupeInfo()
-  }),
+  loupeInfo,
   loupeCommand({
     id: 'loupe.tags',
     contexts: ['loupe'],
     bind: 'toggleTags',
     run: () => (browseView.loupeTagsOpen = !browseView.loupeTagsOpen)
   }),
-  loupeCommand({
-    id: 'loupe.clipWarn',
-    contexts: VIEWING,
-    bind: 'clipWarn',
-    run: () => ui.toggleClipWarn()
-  }),
-  loupeCommand({
-    id: 'loupe.fullscreen',
-    contexts: VIEWING,
-    bind: 'fullscreen',
-    run: () => ui.toggleFullscreen()
-  }),
+  loupeClipWarn,
+  loupeFullscreen,
+  loupeAutoAdvance,
   loupeCommand({
     id: 'loupe.filmstrip',
     contexts: VIEWING,

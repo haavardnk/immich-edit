@@ -4,7 +4,7 @@ import { browseView } from '#lib/stores/browseView.svelte.ts';
 
 export const VIEWING: readonly KeybindContext[] = ['loupe', 'compare', 'survey'];
 
-export function loupeCommand(spec: Command): Command {
+export function loupeCommand<T extends Command>(spec: T): T {
   return {
     ...spec,
     gate: spec.gate ?? 'outsideWidgets',

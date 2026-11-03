@@ -12,14 +12,17 @@ export interface CommandTrigger {
 export interface Command {
   id: string;
   contexts: readonly KeybindContext[];
-  label?: string;
+  label?: string | (() => string);
   icon?: string;
   bind?: KeybindId;
   gate?: KeyGate;
   active?: (trigger: CommandTrigger) => boolean;
   enabled?: () => boolean;
+  pressed?: () => boolean;
   unavailable?: () => string | null;
   yields?: (trigger: CommandTrigger) => boolean;
   run: (trigger?: CommandTrigger) => void;
   release?: () => void;
 }
+
+export type IconCommand = Command & { icon: string };
