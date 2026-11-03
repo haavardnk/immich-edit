@@ -4,6 +4,7 @@
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import {
     aiDenoiseDetail,
     aiDenoiseStrength,
@@ -13,16 +14,12 @@
     lumaNr,
     lumaNrContrast,
     lumaNrDetail,
+    NOISE_REDUCTION,
     noColorNr,
     noLumaNr
   } from '#lib/editor/params/detail.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import {
-    AI_DENOISE_STRENGTH,
-    aiDenoiseActive,
-    NEUTRAL_DETAIL,
-    neutraliseSection
-  } from '#lib/types/edits.ts';
+  import { AI_DENOISE_STRENGTH, aiDenoiseActive, NEUTRAL_DETAIL } from '#lib/types/edits.ts';
   import AiDenoiseStatus from './AiDenoiseStatus.svelte';
 
   const aiDenoiseOn = $derived(editor.edits.detail.ai_denoise);
@@ -36,15 +33,15 @@
     }
     void editor.onCommit('AI Denoise');
   }
-
-  function reset(): void {
-    editor.edits = neutraliseSection(editor.edits, 'noise_reduction');
-    void editor.onCommit('Reset Noise Reduction');
-  }
 </script>
 
 <div class="flex flex-col gap-1 py-1.5">
-  <SectionHeader title="Noise Reduction" section="noise_reduction" {modified} onReset={reset} />
+  <SectionHeader
+    title="Noise Reduction"
+    section="noise_reduction"
+    {modified}
+    onReset={() => commitSectionReset(NOISE_REDUCTION)}
+  />
   <div role="group" aria-label="AI Denoise" class="flex flex-col gap-1">
     <Tooltip
       text={editor.isRaw

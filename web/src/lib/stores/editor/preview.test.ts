@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PreviewMode, RenderLane } from '#lib/api/preview.ts';
 import type { RenderView, RenderedFrame } from '#lib/render/protocol.ts';
+import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
 import {
-  neutraliseSection,
   neutralEdits,
   originalPreviewEdits,
   type Edits,
@@ -135,6 +135,7 @@ function context(): PreviewCtx {
     splitMode: false,
     showingOriginal: false,
     bypassedSection: null,
+    isRaw: false,
     presetPreview: null,
     geometrySession: null,
     maskWeight: null,
@@ -272,7 +273,7 @@ describe('preview lanes during a slider drag', () => {
     [
       'section bypass',
       (c) => (c.bypassedSection = 'tone'),
-      (e) => ({ mode: 'none', edits: neutraliseSection(e, 'tone') })
+      (e) => ({ mode: 'none', edits: neutraliseSection(e, 'tone', false) })
     ],
     [
       'color picker',

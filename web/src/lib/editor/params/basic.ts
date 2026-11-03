@@ -1,3 +1,4 @@
+import { neutralCurves } from '#lib/types/edits.ts';
 import { field, param } from './define';
 import { PERCENT, hundredths } from './range';
 import type { ParamDef, SectionDef } from './types';
@@ -122,4 +123,13 @@ export const PRESENCE: SectionDef = {
     [texture, clarity, dehaze],
     [vibrance, saturation]
   ]
+};
+
+export const CURVES: SectionDef = {
+  id: 'curves',
+  title: 'Curves',
+  rows: [],
+  clear: (edits) => {
+    edits.basic.curves = neutralCurves();
+  }
 };

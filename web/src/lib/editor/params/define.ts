@@ -1,5 +1,5 @@
 import type { Edits } from '#lib/types/edits.ts';
-import type { ParamAccess, ParamDef } from './types';
+import type { ParamAccess, ParamDef, SectionDef } from './types';
 
 type FieldArea = 'basic' | 'tone' | 'detail' | 'effects' | 'lens' | 'lens_blur';
 
@@ -25,6 +25,10 @@ export function field<A extends FieldArea>(area: A, key: NumberKey<Edits[A]>): P
 
 export function paramDefault(param: ParamDef, isRaw: boolean): number {
   return isRaw ? (param.rawDefaultValue ?? param.defaultValue) : param.defaultValue;
+}
+
+export function sectionLabel(section: SectionDef): string {
+  return section.history ?? section.title;
 }
 
 export function paramsModified(edits: Edits, params: readonly ParamDef[], isRaw: boolean): boolean {

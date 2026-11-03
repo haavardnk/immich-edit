@@ -18,7 +18,7 @@
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
 
   function resetPanel(panel: PanelDef): void {
-    editor.edits = resetDevelopPanel(editor.edits, panel.id);
+    editor.edits = resetDevelopPanel(editor.edits, panel.id, editor.isRaw);
     void editor.onCommit(`Reset ${panel.title}`);
   }
 </script>

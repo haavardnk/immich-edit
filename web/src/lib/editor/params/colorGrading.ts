@@ -1,6 +1,6 @@
 import type { ColorGradeEdits, ColorGradeRegion, Edits } from '#lib/types/edits.ts';
 import { param } from './define';
-import { HUE_GRADIENT, luminanceGradient, saturationGradient } from './gradients';
+import { BALANCE_GRADIENT, HUE_GRADIENT, luminanceGradient, saturationGradient } from './gradients';
 import { AMOUNT, HUE, PERCENT, signedRange } from './range';
 import type { ParamAccess, ParamDef, ParamRange, SectionDef } from './types';
 
@@ -79,7 +79,7 @@ export const gradeBalance = param({
   history: 'Color Balance',
   synonyms: ['color grading', 'split toning'],
   ...PERCENT,
-  gradient: 'var(--gradient-grading-balance)',
+  gradient: BALANCE_GRADIENT,
   ...gradeField('balance')
 });
 

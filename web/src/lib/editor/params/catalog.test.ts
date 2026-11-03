@@ -1,8 +1,9 @@
-import { MASKED_EDIT_KEYS, neutralEdits, neutraliseSection, type Edits } from '#lib/types/edits.ts';
+import { MASKED_EDIT_KEYS, neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { describe, expect, it } from 'vitest';
 import { DESKTOP_SECTIONS, PARAMS, TOUCH_GROUPS } from './catalog';
 import { paramDefault } from './define';
 import { MASK_PARAM_ROWS } from './masks';
+import { neutraliseSection } from './neutralise';
 import type { ParamDef } from './types';
 
 const OWNED_ELSEWHERE = [
@@ -135,7 +136,7 @@ describe('parameter catalog', () => {
     )
   )('bypasses exactly the %s section parameters (raw %s)', (id, isRaw, section) => {
     const own = section.rows.flat();
-    const bypassed = neutraliseSection(withAll(PARAMS, isRaw), id);
+    const bypassed = neutraliseSection(withAll(PARAMS, isRaw), id, isRaw);
     for (const param of PARAMS) {
       const expected = own.includes(param) ? paramDefault(param, isRaw) : otherValue(param, isRaw);
       expect(param.get(bypassed, isRaw)).toBe(expected);

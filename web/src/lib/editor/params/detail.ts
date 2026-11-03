@@ -1,4 +1,9 @@
-import { AI_DENOISE_STRENGTH, neutralSharpenAmount, type Edits } from '#lib/types/edits.ts';
+import {
+  AI_DENOISE_STRENGTH,
+  NEUTRAL_DETAIL,
+  neutralSharpenAmount,
+  type Edits
+} from '#lib/types/edits.ts';
 import { field, param } from './define';
 import { AMOUNT, amountRange, tenths } from './range';
 import type { ParamDef, SectionDef } from './types';
@@ -183,7 +188,10 @@ export const DETAIL_PARAMS: readonly ParamDef[] = [
 export const SHARPENING: SectionDef = {
   id: 'sharpening',
   title: 'Sharpening',
-  rows: [[captureCornerBoost], [sharpenAmount, sharpenRadius, sharpenDetail, sharpenMasking]]
+  rows: [[captureCornerBoost], [sharpenAmount, sharpenRadius, sharpenDetail, sharpenMasking]],
+  clear: (edits) => {
+    edits.detail.capture_sharpen = NEUTRAL_DETAIL.capture_sharpen;
+  }
 };
 
 export const NOISE_REDUCTION: SectionDef = {
@@ -193,5 +201,8 @@ export const NOISE_REDUCTION: SectionDef = {
     [aiDenoiseStrength, aiDenoiseDetail],
     [lumaNr, lumaNrDetail, lumaNrContrast],
     [colorNr, colorNrDetail, colorNrSmoothness]
-  ]
+  ],
+  clear: (edits) => {
+    edits.detail.ai_denoise = NEUTRAL_DETAIL.ai_denoise;
+  }
 };

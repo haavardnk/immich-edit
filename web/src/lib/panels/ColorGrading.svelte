@@ -1,7 +1,10 @@
 <script lang="ts">
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
-  import { commitParamReset } from '#lib/components/editor/controls/paramReset.ts';
+  import {
+    commitParamReset,
+    commitSectionReset
+  } from '#lib/components/editor/controls/paramReset.ts';
   import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
   import {
     segmentedControlClass,
@@ -10,9 +13,9 @@
   import Disclosure from '#lib/components/Disclosure.svelte';
   import { RadioGroup, Tabs } from 'bits-ui';
   import {
+    COLOR_GRADING,
     GRADE_REGION_LABELS,
     GRADE_REGIONS,
-    GRADING_PARAMS,
     gradeBalance,
     gradeBlend,
     type GradeRegion
@@ -53,7 +56,7 @@
       </Tabs.List>
       <ResetButton
         title="Reset all color grading"
-        onclick={() => commitParamReset(GRADING_PARAMS, 'Reset Color Grading')}
+        onclick={() => commitSectionReset(COLOR_GRADING)}
       />
     </div>
 

@@ -2,9 +2,11 @@
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     captureCornerBoost,
+    SHARPENING,
     sharpenAmount,
     sharpenDetail,
     sharpenMasking,
@@ -29,16 +31,6 @@
     if (!checked) editor.edits.detail.capture_corner_boost = NEUTRAL_DETAIL.capture_corner_boost;
     void editor.onCommit('Capture Sharpening');
   }
-
-  function resetSharpen(): void {
-    editor.edits.detail.capture_sharpen = NEUTRAL_DETAIL.capture_sharpen;
-    editor.edits.detail.capture_corner_boost = NEUTRAL_DETAIL.capture_corner_boost;
-    editor.edits.detail.sharpen_amount = NEUTRAL_DETAIL.sharpen_amount;
-    editor.edits.detail.sharpen_radius = NEUTRAL_DETAIL.sharpen_radius;
-    editor.edits.detail.sharpen_detail = NEUTRAL_DETAIL.sharpen_detail;
-    editor.edits.detail.sharpen_masking = NEUTRAL_DETAIL.sharpen_masking;
-    void editor.onCommit('Reset Sharpening');
-  }
 </script>
 
 <div class="flex flex-col divide-y divide-dark/10">
@@ -47,7 +39,7 @@
       title="Sharpening"
       section="sharpening"
       modified={sharpenModified}
-      onReset={resetSharpen}
+      onReset={() => commitSectionReset(SHARPENING)}
     />
     <Tooltip
       text={editor.isRaw
