@@ -1,20 +1,12 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { BW_MIX, bwBalance } from '#lib/editor/params/color.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { BW_CHANNELS, neutralBw, type BwChannel } from '#lib/types/edits.ts';
-
-  const CHANNEL_HUES: Record<BwChannel, number> = {
-    red: 0,
-    yellow: 60,
-    green: 120,
-    aqua: 180,
-    blue: 240,
-    magenta: 300
-  };
+  import { neutralBw } from '#lib/types/edits.ts';
 
   const TINTS = [
     { key: 'shadows', label: 'Shadows' },
@@ -23,15 +15,6 @@
 
   const bw = $derived(editor.edits.color.bw);
   const modified = $derived('bw' in editsToManifest(editor.edits).ops);
-
-  function channelLabel(channel: BwChannel): string {
-    return channel.charAt(0).toUpperCase() + channel.slice(1);
-  }
-
-  function channelGradient(channel: BwChannel): string {
-    const hue = CHANNEL_HUES[channel];
-    return `linear-gradient(to right, hsl(${hue}, 0%, 15%), hsl(${hue}, 70%, 55%), hsl(${hue}, 0%, 90%))`;
-  }
 
   function toggle(enabled: boolean): void {
     editor.edits.color.bw.enabled = enabled;
@@ -50,15 +33,8 @@
 
   {#if bw.enabled}
     <div class="flex flex-col gap-1 border-t border-hairline pt-1">
-      {#each BW_CHANNELS as channel (channel)}
-        <EditSlider
-          label={channelLabel(channel)}
-          commitAction={`B&W ${channelLabel(channel)}`}
-          bind:value={editor.edits.color.bw.mix[channel]}
-          min={-100}
-          max={100}
-          gradient={channelGradient(channel)}
-        />
+      {#each BW_MIX as param (param.id)}
+        <ParamSlider {param} />
       {/each}
     </div>
 
@@ -78,14 +54,7 @@
           </div>
         {/each}
       </div>
-      <EditSlider
-        label="Balance"
-        commitAction="B&W Tint Balance"
-        bind:value={editor.edits.color.bw.balance}
-        min={-100}
-        max={100}
-        gradient="var(--gradient-grading-balance)"
-      />
+      <ParamSlider param={bwBalance} />
     </div>
   {/if}
 </div>

@@ -1,30 +1,46 @@
 import { MASKED_EDIT_KEYS, neutralEdits, neutraliseSection, type Edits } from '#lib/types/edits.ts';
 import { describe, expect, it } from 'vitest';
 import { DESKTOP_SECTIONS, PARAMS, TOUCH_GROUPS } from './catalog';
+import { paramDefault } from './define';
 import { MASK_PARAM_ROWS } from './masks';
 import type { ParamDef } from './types';
 
 const OWNED_ELSEWHERE = [
   'basic.white_balance',
-  'geometry.rotate',
-  'geometry.flip_h',
-  'geometry.flip_v',
-  'geometry.crop',
-  'geometry.aspect',
+  'detail.capture_sharpen',
+  'detail.ai_denoise',
+  'lens.profile_enabled',
+  'lens.ca_enabled',
+  'lens.constrain_crop',
+  'lens.k1',
+  'lens.k2',
+  'lens.k3',
+  'lens.vk1',
+  'lens.vk2',
+  'lens.vk3',
+  'lens.ca_red_scale_x10000',
+  'lens.ca_blue_scale_x10000',
+  'lens_blur.focus_min',
+  'lens_blur.focus_max',
+  'lens_blur.shape',
+  'lens_blur.depth_raster_id',
+  'color.bw.enabled',
+  'color.lut_3d.lut_id',
+  'color.dcp',
+  'geometry',
   'masks',
   'retouch'
 ];
 
 const FIELDS_AWAITING_CATALOG = [
   'basic.curves',
-  'color',
-  'detail',
-  'effects',
-  'lens',
-  'lens_blur',
-  'geometry.rotate_angle',
-  'geometry.perspective'
+  'color.hsl',
+  'color.color_grade',
+  'color.bw.shadows',
+  'color.bw.highlights'
 ];
+
+const RAW_STATES = [false, true];
 
 const EXCLUDED = [...OWNED_ELSEWHERE, ...FIELDS_AWAITING_CATALOG];
 
@@ -44,13 +60,13 @@ function changedPaths(before: Edits, after: Edits): string[] {
   return [...leaves(after)].filter(([path, value]) => old.get(path) !== value).map(([p]) => p);
 }
 
-function otherValue(param: ParamDef): number {
-  return param.max === param.defaultValue ? param.min : param.max;
+function otherValue(param: ParamDef, isRaw: boolean): number {
+  return param.max === paramDefault(param, isRaw) ? param.min : param.max;
 }
 
-function withAll(params: readonly ParamDef[]): Edits {
+function withAll(params: readonly ParamDef[], isRaw: boolean): Edits {
   const edits = neutralEdits();
-  for (const param of params) param.set(edits, otherValue(param));
+  for (const param of params) param.set(edits, otherValue(param, isRaw), isRaw);
   return edits;
 }
 
@@ -67,7 +83,14 @@ function sorted(params: readonly ParamDef[]): ParamDef[] {
 }
 
 const covered = new Map(
-  PARAMS.map((param) => [param.id, changedPaths(neutralEdits(), withAll([param]))])
+  PARAMS.map((param) => [
+    param.id,
+    RAW_STATES.flatMap((isRaw) => changedPaths(neutralEdits(), withAll([param], isRaw)))
+  ])
+);
+
+const cases = PARAMS.flatMap((param) =>
+  RAW_STATES.map((isRaw) => [param.id, isRaw, param] as const)
 );
 
 describe('parameter catalog', () => {
@@ -75,16 +98,20 @@ describe('parameter catalog', () => {
     expect(new Set(PARAMS.map((param) => param.id)).size).toBe(PARAMS.length);
   });
 
-  it.each(PARAMS.map((param) => [param.id, param] as const))(
-    '%s round-trips one field from its neutral default',
-    (_, param) => {
+  it.each(cases)(
+    '%s round-trips one field from its neutral default (raw %s)',
+    (_, isRaw, param) => {
       const edits = neutralEdits();
-      expect(param.get(edits)).toBe(param.defaultValue);
-      param.set(edits, otherValue(param));
-      expect(param.get(edits)).toBe(otherValue(param));
-      expect(covered.get(param.id)).toHaveLength(1);
-      expect(param.min).toBeLessThanOrEqual(param.defaultValue);
-      expect(param.max).toBeGreaterThanOrEqual(param.defaultValue);
+      const neutral = paramDefault(param, isRaw);
+      expect(param.get(edits, isRaw)).toBe(neutral);
+      param.set(edits, otherValue(param, isRaw), isRaw);
+      expect(param.get(edits, isRaw)).toBe(otherValue(param, isRaw));
+      expect(changedPaths(neutralEdits(), edits)).toStrictEqual([covered.get(param.id)?.[0]]);
+      param.set(edits, neutral, isRaw);
+      expect(edits).toStrictEqual(neutralEdits());
+      expect(new Set(covered.get(param.id)).size).toBe(1);
+      expect(param.min).toBeLessThanOrEqual(neutral);
+      expect(param.max).toBeGreaterThanOrEqual(neutral);
       expect(param.fineStep).toBeGreaterThan(0);
       expect(param.fineStep).toBeLessThanOrEqual(param.step);
     }
@@ -108,17 +135,18 @@ describe('parameter catalog', () => {
     expect(sorted(viewed)).toStrictEqual(sorted(PARAMS));
   });
 
-  it.each(DESKTOP_SECTIONS.map((section) => [section.id, section] as const))(
-    'bypasses exactly the %s section parameters',
-    (id, section) => {
-      const own = section.rows.flat();
-      const bypassed = neutraliseSection(withAll(PARAMS), id);
-      for (const param of PARAMS) {
-        const expected = own.includes(param) ? param.defaultValue : otherValue(param);
-        expect(param.get(bypassed)).toBe(expected);
-      }
+  it.each(
+    DESKTOP_SECTIONS.flatMap((section) =>
+      RAW_STATES.map((isRaw) => [section.id, isRaw, section] as const)
+    )
+  )('bypasses exactly the %s section parameters (raw %s)', (id, isRaw, section) => {
+    const own = section.rows.flat();
+    const bypassed = neutraliseSection(withAll(PARAMS, isRaw), id);
+    for (const param of PARAMS) {
+      const expected = own.includes(param) ? paramDefault(param, isRaw) : otherValue(param, isRaw);
+      expect(param.get(bypassed, isRaw)).toBe(expected);
     }
-  );
+  });
 
   it('gives every masked edit one slider', () => {
     const keys = MASK_PARAM_ROWS.flat().map((param) => param.key);

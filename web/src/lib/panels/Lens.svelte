@@ -1,9 +1,10 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { lensDistortion, lensVignetting } from '#lib/editor/params/lens.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { NEUTRAL_LENS } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
@@ -17,8 +18,7 @@
     !!profile?.edits &&
       (profile.edits.ca_red_scale_x10000 !== 0 || profile.edits.ca_blue_scale_x10000 !== 0)
   );
-  const isRaw = $derived(editor.meta?.is_raw ?? false);
-  const autoOn = $derived(isRaw && hasProfile && !!profile?.auto);
+  const autoOn = $derived(editor.isRaw && hasProfile && !!profile?.auto);
   const profileEnabled = $derived(editor.edits.lens.profile_enabled ?? autoOn);
   const isAuto = $derived(editor.edits.lens.profile_enabled === null && autoOn);
   const modified = $derived('lens_profile' in editsToManifest(editor.edits).ops);
@@ -128,25 +128,9 @@
     onChange={onToggleCa}
   />
 
-  <EditSlider
-    label="Distortion"
-    commitAction="Lens Distortion"
-    bind:value={editor.edits.lens.distortion_amount}
-    min={0}
-    max={200}
-    defaultValue={100}
-    disabled={!profileEnabled}
-  />
+  <ParamSlider param={lensDistortion} disabled={!profileEnabled} />
 
-  <EditSlider
-    label="Vignetting"
-    commitAction="Lens Vignetting"
-    bind:value={editor.edits.lens.vignette_amount}
-    min={0}
-    max={200}
-    defaultValue={100}
-    disabled={!profileEnabled}
-  />
+  <ParamSlider param={lensVignetting} disabled={!profileEnabled} />
 
   <CheckboxRow
     label="Constrain Crop"

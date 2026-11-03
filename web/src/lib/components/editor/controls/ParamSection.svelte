@@ -1,16 +1,22 @@
 <script lang="ts">
   import ParamSlider from './ParamSlider.svelte';
   import SectionHeader from './SectionHeader.svelte';
+  import { paramDefault } from '#lib/editor/params/define.ts';
   import type { SectionDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
 
   let { section }: { section: SectionDef } = $props();
 
   const params = $derived(section.rows.flat());
-  const modified = $derived(params.some((param) => param.get(editor.edits) !== param.defaultValue));
+  const modified = $derived(
+    params.some(
+      (param) => param.get(editor.edits, editor.isRaw) !== paramDefault(param, editor.isRaw)
+    )
+  );
 
   function reset(): void {
-    for (const param of params) param.set(editor.edits, param.defaultValue);
+    for (const param of params)
+      param.set(editor.edits, paramDefault(param, editor.isRaw), editor.isRaw);
     void editor.onCommit(`Reset ${section.title}`);
   }
 </script>

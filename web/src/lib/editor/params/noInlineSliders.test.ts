@@ -13,22 +13,14 @@ const CATALOG_IMPORT = /import\s*\{([^}]*)\}\s*from\s*'#lib\/editor\/params\/[^'
 const FORWARDING_WRAPPERS = ['/src/lib/components/editor/controls/EditSlider.svelte'];
 
 const FILES_AWAITING_CATALOG = [
-  '/src/lib/panels/Bw.svelte',
   '/src/lib/panels/ColorGrading.svelte',
-  '/src/lib/panels/Detail.svelte',
-  '/src/lib/panels/Effects.svelte',
   '/src/lib/panels/Hsl.svelte',
-  '/src/lib/panels/Lens.svelte',
-  '/src/lib/panels/LensBlur.svelte',
-  '/src/lib/panels/Lut.svelte',
   '/src/lib/panels/MaskBrushControls.svelte',
   '/src/lib/panels/MaskGeneratedControls.svelte',
   '/src/lib/panels/MaskPolygonControls.svelte',
   '/src/lib/panels/MaskRangeControls.svelte',
   '/src/lib/panels/Masks.svelte',
-  '/src/lib/panels/Retouch.svelte',
-  '/src/lib/panels/Transform.svelte',
-  '/src/lib/panels/detail/NoiseReductionSection.svelte'
+  '/src/lib/panels/Retouch.svelte'
 ];
 
 function catalogNames(source: string): Set<string> {

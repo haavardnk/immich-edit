@@ -1,11 +1,19 @@
 <script lang="ts">
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import {
+    grainAmount,
+    grainRoughness,
+    grainSize,
+    noGrain,
+    noVignette,
+    vignetteAmount,
+    vignetteFeather,
+    vignetteMidpoint,
+    vignetteRoundness
+  } from '#lib/editor/params/effects.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { NEUTRAL_EFFECTS } from '#lib/types/edits.ts';
-
-  const vignetteInactive = $derived(editor.edits.effects.vignette_amount === 0);
-  const grainInactive = $derived(editor.edits.effects.grain_amount === 0);
 
   function resetVignette(): void {
     editor.edits.effects.vignette_amount = NEUTRAL_EFFECTS.vignette_amount;
@@ -28,69 +36,23 @@
     <SectionHeader
       title="Vignette"
       section="vignette"
-      modified={!vignetteInactive}
+      modified={!noVignette(editor.edits)}
       onReset={resetVignette}
     />
-    <EditSlider
-      label="Amount"
-      commitAction="Vignette Amount"
-      bind:value={editor.edits.effects.vignette_amount}
-      min={-100}
-      max={100}
-    />
-    <EditSlider
-      label="Midpoint"
-      commitAction="Vignette Midpoint"
-      bind:value={editor.edits.effects.vignette_midpoint}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={vignetteInactive}
-    />
-    <EditSlider
-      label="Feather"
-      commitAction="Vignette Feather"
-      bind:value={editor.edits.effects.vignette_feather}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={vignetteInactive}
-    />
-    <EditSlider
-      label="Roundness"
-      commitAction="Vignette Roundness"
-      bind:value={editor.edits.effects.vignette_roundness}
-      min={-100}
-      max={100}
-      disabled={vignetteInactive}
-    />
+    <ParamSlider param={vignetteAmount} />
+    <ParamSlider param={vignetteMidpoint} />
+    <ParamSlider param={vignetteFeather} />
+    <ParamSlider param={vignetteRoundness} />
   </div>
   <div class="flex flex-col gap-1 pt-1.5">
-    <SectionHeader title="Grain" section="grain" modified={!grainInactive} onReset={resetGrain} />
-    <EditSlider
-      label="Amount"
-      commitAction="Grain Amount"
-      bind:value={editor.edits.effects.grain_amount}
-      min={0}
-      max={100}
+    <SectionHeader
+      title="Grain"
+      section="grain"
+      modified={!noGrain(editor.edits)}
+      onReset={resetGrain}
     />
-    <EditSlider
-      label="Size"
-      commitAction="Grain Size"
-      bind:value={editor.edits.effects.grain_size}
-      min={0}
-      max={100}
-      defaultValue={25}
-      disabled={grainInactive}
-    />
-    <EditSlider
-      label="Roughness"
-      commitAction="Grain Roughness"
-      bind:value={editor.edits.effects.grain_roughness}
-      min={0}
-      max={100}
-      defaultValue={50}
-      disabled={grainInactive}
-    />
+    <ParamSlider param={grainAmount} />
+    <ParamSlider param={grainSize} />
+    <ParamSlider param={grainRoughness} />
   </div>
 </div>
