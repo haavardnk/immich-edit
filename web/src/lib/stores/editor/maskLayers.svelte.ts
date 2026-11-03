@@ -2,6 +2,7 @@ import type { BrushBuffer } from '#lib/utils/brush.ts';
 import type { BrushTool } from '#lib/stores/ui.svelte.ts';
 import {
   cloneLayerWithNewIds,
+  DEFAULT_POLYGON_FEATHER,
   defaultLinear,
   makeComponent,
   makeLayer,
@@ -325,7 +326,7 @@ export async function finishPolygon(ctx: MaskLayersCtx): Promise<void> {
   const kind: MaskComponentKind = {
     kind: 'polygon',
     points: draft.points,
-    feather: 0.05
+    feather: DEFAULT_POLYGON_FEATHER
   };
   if (draft.layerId && ctx.edits.masks.some((layer) => layer.id === draft.layerId)) {
     await addMaskComponent(ctx, draft.layerId, kind, draft.mode);

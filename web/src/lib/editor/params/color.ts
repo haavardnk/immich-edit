@@ -1,6 +1,7 @@
-import { BW_CHANNELS, type BwChannel } from '#lib/types/edits.ts';
+import { BW_CHANNELS, type BwChannel, type BwTint, type Edits } from '#lib/types/edits.ts';
 import { param } from './define';
-import { AMOUNT, PERCENT } from './range';
+import { HUE_GRADIENT, saturationGradient } from './gradients';
+import { AMOUNT, HUE, PERCENT } from './range';
 import type { ParamDef, SectionDef } from './types';
 
 const CHANNEL_HUES: Record<BwChannel, number> = {
@@ -31,6 +32,47 @@ function bwMix(channel: BwChannel): ParamDef {
 
 export const BW_MIX: readonly ParamDef[] = BW_CHANNELS.map(bwMix);
 
+type TintRegion = 'shadows' | 'highlights';
+
+function tintOf(edits: Edits, region: TintRegion): BwTint {
+  return edits.color.bw[region];
+}
+
+function bwTint(region: TintRegion, label: string): readonly ParamDef[] {
+  const synonyms = ['black and white', 'B&W', 'split tone', 'tint'];
+  return [
+    param({
+      id: `bw_${region}_hue`,
+      label: `${label} Hue`,
+      history: `B&W ${label} Hue`,
+      synonyms,
+      ...HUE,
+      gradient: HUE_GRADIENT,
+      get: (edits) => tintOf(edits, region).hue,
+      set: (edits, value) => {
+        tintOf(edits, region).hue = value;
+      }
+    }),
+    param({
+      id: `bw_${region}_sat`,
+      label: `${label} Saturation`,
+      history: `B&W ${label} Saturation`,
+      synonyms,
+      ...AMOUNT,
+      liveGradient: (edits) => saturationGradient(Math.round(tintOf(edits, region).hue)),
+      get: (edits) => tintOf(edits, region).sat,
+      set: (edits, value) => {
+        tintOf(edits, region).sat = value;
+      }
+    })
+  ];
+}
+
+export const BW_TINTS: readonly ParamDef[] = [
+  ...bwTint('shadows', 'Shadows'),
+  ...bwTint('highlights', 'Highlights')
+];
+
 export const bwBalance = param({
   id: 'bw_balance',
   label: 'Balance',
@@ -57,12 +99,12 @@ export const lutAmount = param({
   }
 });
 
-export const COLOR_PARAMS: readonly ParamDef[] = [...BW_MIX, bwBalance, lutAmount];
+export const COLOR_PARAMS: readonly ParamDef[] = [...BW_MIX, ...BW_TINTS, bwBalance, lutAmount];
 
 export const BW: SectionDef = {
   id: 'bw',
   title: 'B&W',
-  rows: [BW_MIX, [bwBalance]]
+  rows: [BW_MIX, [...BW_TINTS, bwBalance]]
 };
 
 export const LUT: SectionDef = {

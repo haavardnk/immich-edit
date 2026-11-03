@@ -62,6 +62,8 @@ export type DevelopSection =
   | 'grain'
   | 'lens'
   | 'lens_blur'
+  | 'hsl'
+  | 'color_grading'
   | 'lut'
   | 'bw';
 
@@ -147,6 +149,10 @@ export function neutraliseSection(edits: Edits, section: DevelopSection): Edits 
       return { ...edits, lens: neutral.lens };
     case 'lens_blur':
       return { ...edits, lens_blur: resetLensBlur(edits.lens_blur) };
+    case 'hsl':
+      return { ...edits, color: { ...edits.color, hsl: neutral.color.hsl } };
+    case 'color_grading':
+      return { ...edits, color: { ...edits.color, color_grade: neutral.color.color_grade } };
     case 'lut':
       return { ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } };
     case 'bw':

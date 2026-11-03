@@ -26,3 +26,11 @@ export function field<A extends FieldArea>(area: A, key: NumberKey<Edits[A]>): P
 export function paramDefault(param: ParamDef, isRaw: boolean): number {
   return isRaw ? (param.rawDefaultValue ?? param.defaultValue) : param.defaultValue;
 }
+
+export function paramsModified(edits: Edits, params: readonly ParamDef[], isRaw: boolean): boolean {
+  return params.some((param) => param.get(edits, isRaw) !== paramDefault(param, isRaw));
+}
+
+export function resetParams(edits: Edits, params: readonly ParamDef[], isRaw: boolean): void {
+  for (const param of params) param.set(edits, paramDefault(param, isRaw), isRaw);
+}
