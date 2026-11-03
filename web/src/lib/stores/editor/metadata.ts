@@ -37,9 +37,7 @@ async function run(
 
 function addTagTo(target: assetMeta.MetaTarget, tag: TagRef): Promise<assetMeta.MetaOutcome> {
   return assetMeta.changeMeta(target, 'tag', (asset) =>
-    hasTag(asset, tag)
-      ? null
-      : { fields: { tags: [...asset.tags, tag] }, write: () => addTagToAsset(tag.id, target.id) }
+    hasTag(asset, tag) ? null : tagChange(target.id, asset.tags, tag.id, tag, true)
   );
 }
 
@@ -70,10 +68,10 @@ export function addTag(ctx: MetadataCtx, tag: TagRef): Promise<void> {
 
 export function removeTag(ctx: MetadataCtx, tagId: string): Promise<void> {
   return run(ctx, (target) =>
-    assetMeta.changeMeta(target, 'tag', (asset) => ({
-      fields: { tags: asset.tags.filter((t) => t.id !== tagId) },
-      write: () => removeTagFromAsset(tagId, target.id)
-    }))
+    assetMeta.changeMeta(target, 'tag', (asset) => {
+      const applied = asset.tags.find((t) => t.id === tagId) ?? null;
+      return tagChange(target.id, asset.tags, tagId, applied, false);
+    })
   );
 }
 
@@ -99,4 +97,27 @@ function hasTag(asset: { tags: TagRef[] } | null, tag: TagRef): boolean {
 async function createTag(value: string): Promise<TagRef | null> {
   const [created] = await upsertTags([value]);
   return created ? { id: created.id, name: created.name, value: created.value } : null;
+}
+
+function tagChange(
+  assetId: string,
+  tags: TagRef[],
+  tagId: string,
+  tag: TagRef | null,
+  on: boolean
+): assetMeta.MetaChange<boolean> {
+  return {
+    slots: assetMeta.flagSlots,
+    slot: `tag:${tagId}`,
+    from: tags.some((t) => t.id === tagId),
+    to: on,
+    fields: (asset, value) => ({ tags: withTag(asset.tags, tagId, value ? tag : null) }),
+    write: () => (on ? addTagToAsset(tagId, assetId) : removeTagFromAsset(tagId, assetId))
+  };
+}
+
+function withTag(tags: TagRef[], tagId: string, tag: TagRef | null): TagRef[] {
+  const applied = tags.some((t) => t.id === tagId);
+  if (tag) return applied ? tags : [...tags, tag];
+  return applied ? tags.filter((t) => t.id !== tagId) : tags;
 }
