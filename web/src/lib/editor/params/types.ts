@@ -1,3 +1,4 @@
+import type { PreviewMode } from '#lib/api/preview.ts';
 import type { SliderScale } from '#lib/components/editor/controls/sliderScale.ts';
 import type { DevelopSection, Edits } from '#lib/types/edits.ts';
 
@@ -11,13 +12,20 @@ export interface ParamRange {
   scale?: SliderScale;
 }
 
-export interface ParamDef extends ParamRange {
+export interface ParamAccess {
+  get: (edits: Edits, isRaw: boolean) => number;
+  set: (edits: Edits, value: number, isRaw: boolean) => void;
+}
+
+export interface ParamDef extends ParamRange, ParamAccess {
   id: string;
   label: string;
+  history: string;
   synonyms: readonly string[];
   defaultValue: number;
-  get: (edits: Edits) => number;
-  set: (edits: Edits, value: number) => void;
+  rawDefaultValue?: number;
+  inactive?: (edits: Edits, isRaw: boolean) => boolean;
+  previewMode?: PreviewMode;
 }
 
 export interface SectionDef {

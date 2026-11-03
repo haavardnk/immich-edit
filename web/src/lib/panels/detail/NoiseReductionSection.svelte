@@ -2,8 +2,20 @@
   import { mergeProps } from 'bits-ui';
   import { Tooltip } from '@immich/ui';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import {
+    aiDenoiseDetail,
+    aiDenoiseStrength,
+    colorNr,
+    colorNrDetail,
+    colorNrSmoothness,
+    lumaNr,
+    lumaNrContrast,
+    lumaNrDetail,
+    noColorNr,
+    noLumaNr
+  } from '#lib/editor/params/detail.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     AI_DENOISE_STRENGTH,
@@ -13,11 +25,8 @@
   } from '#lib/types/edits.ts';
   import AiDenoiseStatus from './AiDenoiseStatus.svelte';
 
-  const isRaw = $derived(editor.meta?.is_raw ?? false);
   const aiDenoiseOn = $derived(editor.edits.detail.ai_denoise);
-  const lumaNrInactive = $derived(editor.edits.detail.luma_nr_amount === 0);
-  const colorNrInactive = $derived(editor.edits.detail.color_nr_amount === 0);
-  const modified = $derived(aiDenoiseOn || !lumaNrInactive || !colorNrInactive);
+  const modified = $derived(aiDenoiseOn || !noLumaNr(editor.edits) || !noColorNr(editor.edits));
 
   function onToggleAiDenoise(checked: boolean): void {
     editor.edits.detail.ai_denoise = checked;
@@ -38,7 +47,7 @@
   <SectionHeader title="Noise Reduction" section="noise_reduction" {modified} onReset={reset} />
   <div role="group" aria-label="AI Denoise" class="flex flex-col gap-1">
     <Tooltip
-      text={isRaw
+      text={editor.isRaw
         ? 'Removes noise with a neural network, once per photo at full resolution'
         : 'Only available for raw files'}
     >
@@ -46,84 +55,26 @@
         <CheckboxRow
           label="AI Denoise"
           checked={aiDenoiseOn}
-          disabled={!isRaw}
+          disabled={!editor.isRaw}
           onChange={onToggleAiDenoise}
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
     </Tooltip>
-    <EditSlider
-      label="Strength"
-      commitAction="AI Denoise Strength"
-      bind:value={editor.edits.detail.ai_denoise_strength}
-      min={0}
-      max={100}
-      defaultValue={AI_DENOISE_STRENGTH}
-      disabled={!isRaw || !aiDenoiseOn}
-    />
-    <EditSlider
-      label="Detail"
-      commitAction="AI Denoise Detail"
-      bind:value={editor.edits.detail.ai_denoise_detail}
-      min={0}
-      max={100}
-      disabled={!isRaw || !aiDenoiseOn}
-    />
-    {#if isRaw && aiDenoiseActive(editor.edits.detail)}
+    <ParamSlider param={aiDenoiseStrength} />
+    <ParamSlider param={aiDenoiseDetail} />
+    {#if editor.isRaw && aiDenoiseActive(editor.edits.detail)}
       <AiDenoiseStatus status={editor.aiDenoise.status} onRetry={() => editor.aiDenoise.retry()} />
     {/if}
   </div>
 </div>
 <div class="flex flex-col gap-1 py-1.5">
-  <EditSlider
-    label="Luminance"
-    commitAction="Luminance NR"
-    bind:value={editor.edits.detail.luma_nr_amount}
-    min={0}
-    max={100}
-  />
-  <EditSlider
-    label="Detail"
-    commitAction="Luminance NR Detail"
-    bind:value={editor.edits.detail.luma_nr_detail}
-    min={0}
-    max={100}
-    defaultValue={50}
-    disabled={lumaNrInactive}
-  />
-  <EditSlider
-    label="Contrast"
-    commitAction="Luminance NR Contrast"
-    bind:value={editor.edits.detail.luma_nr_contrast}
-    min={0}
-    max={100}
-    disabled={lumaNrInactive}
-  />
+  <ParamSlider param={lumaNr} />
+  <ParamSlider param={lumaNrDetail} />
+  <ParamSlider param={lumaNrContrast} />
 </div>
 <div class="flex flex-col gap-1 pt-1.5">
-  <EditSlider
-    label="Color"
-    commitAction="Color NR"
-    bind:value={editor.edits.detail.color_nr_amount}
-    min={0}
-    max={100}
-  />
-  <EditSlider
-    label="Detail"
-    commitAction="Color NR Detail"
-    bind:value={editor.edits.detail.color_nr_detail}
-    min={0}
-    max={100}
-    defaultValue={50}
-    disabled={colorNrInactive}
-  />
-  <EditSlider
-    label="Smoothness"
-    commitAction="Color NR Smoothness"
-    bind:value={editor.edits.detail.color_nr_smoothness}
-    min={0}
-    max={100}
-    defaultValue={50}
-    disabled={colorNrInactive}
-  />
+  <ParamSlider param={colorNr} />
+  <ParamSlider param={colorNrDetail} />
+  <ParamSlider param={colorNrSmoothness} />
 </div>

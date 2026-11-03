@@ -1,17 +1,20 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { NEUTRAL_DETAIL, neutralSharpenAmount } from '#lib/types/edits.ts';
+  import {
+    captureCornerBoost,
+    sharpenAmount,
+    sharpenDetail,
+    sharpenMasking,
+    sharpenRadius
+  } from '#lib/editor/params/detail.ts';
+  import { NEUTRAL_DETAIL } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import NoiseReductionSection from './detail/NoiseReductionSection.svelte';
 
-  const isRaw = $derived(editor.meta?.is_raw ?? false);
-  const defaultSharpen = $derived(neutralSharpenAmount(isRaw));
-  const sharpenAmount = $derived(editor.edits.detail.sharpen_amount ?? defaultSharpen);
-  const sharpenInactive = $derived(sharpenAmount === 0);
   const sharpenModified = $derived(
     editor.edits.detail.capture_sharpen !== NEUTRAL_DETAIL.capture_sharpen ||
       editor.edits.detail.capture_corner_boost !== NEUTRAL_DETAIL.capture_corner_boost ||
@@ -20,11 +23,6 @@
       editor.edits.detail.sharpen_detail !== NEUTRAL_DETAIL.sharpen_detail ||
       editor.edits.detail.sharpen_masking !== NEUTRAL_DETAIL.sharpen_masking
   );
-
-  function setSharpenAmount(v: number): void {
-    editor.edits.detail.sharpen_amount = v === defaultSharpen ? null : v;
-    editor.onLive();
-  }
 
   function onToggleCaptureSharpen(checked: boolean): void {
     editor.edits.detail.capture_sharpen = checked;
@@ -52,7 +50,7 @@
       onReset={resetSharpen}
     />
     <Tooltip
-      text={isRaw
+      text={editor.isRaw
         ? 'Compensates for sensor and anti-aliasing filter blur'
         : 'Only available for raw files'}
     >
@@ -60,62 +58,19 @@
         <CheckboxRow
           label="Capture Sharpening"
           checked={editor.edits.detail.capture_sharpen}
-          disabled={!isRaw}
+          disabled={!editor.isRaw}
           onChange={onToggleCaptureSharpen}
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
     </Tooltip>
-    <EditSlider
-      label="Corner Boost"
-      commitAction="Capture Corner Boost"
-      bind:value={editor.edits.detail.capture_corner_boost}
-      min={0}
-      max={100}
-      disabled={!isRaw || !editor.edits.detail.capture_sharpen}
-    />
+    <ParamSlider param={captureCornerBoost} />
   </div>
   <div class="flex flex-col gap-1 py-1.5">
-    <EditSlider
-      label="Amount"
-      commitAction="Sharpen Amount"
-      value={sharpenAmount}
-      min={0}
-      max={150}
-      defaultValue={defaultSharpen}
-      onLive={setSharpenAmount}
-    />
-    <EditSlider
-      label="Radius"
-      commitAction="Sharpen Radius"
-      bind:value={editor.edits.detail.sharpen_radius}
-      min={0.5}
-      max={3.0}
-      step={0.1}
-      defaultValue={1.0}
-      disabled={sharpenInactive}
-      previewMode="sharpen_radius"
-      format={(v: number) => v.toFixed(1)}
-    />
-    <EditSlider
-      label="Detail"
-      commitAction="Sharpen Detail"
-      bind:value={editor.edits.detail.sharpen_detail}
-      min={0}
-      max={100}
-      defaultValue={25}
-      disabled={sharpenInactive}
-      previewMode="sharpen_detail"
-    />
-    <EditSlider
-      label="Masking"
-      commitAction="Sharpen Masking"
-      bind:value={editor.edits.detail.sharpen_masking}
-      min={0}
-      max={100}
-      disabled={sharpenInactive}
-      previewMode="sharpen_mask"
-    />
+    <ParamSlider param={sharpenAmount} />
+    <ParamSlider param={sharpenRadius} />
+    <ParamSlider param={sharpenDetail} />
+    <ParamSlider param={sharpenMasking} />
   </div>
   <NoiseReductionSection />
 </div>

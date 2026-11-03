@@ -1,17 +1,19 @@
 <script lang="ts">
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import FileImportButton from '#lib/components/FileImportButton.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { lutAmount } from '#lib/editor/params/color.ts';
   import { mdiClose } from '@mdi/js';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { listLuts, importLut, deleteLut, type LutMeta } from '#lib/api/luts.ts';
   import { ApiError } from '#lib/api/client.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { neutraliseSection } from '#lib/types/edits.ts';
   import { IconButton } from '@immich/ui';
 
   let luts = $state<LutMeta[]>([]);
@@ -77,8 +79,7 @@
   }
 
   function reset(): void {
-    editor.edits.color.lut_3d.lut_id = null;
-    editor.edits.color.lut_3d.amount = 100;
+    editor.edits = neutraliseSection(editor.edits, 'lut');
     pendingDelete = false;
     void editor.onCommit('Reset LUT');
   }
@@ -136,14 +137,7 @@
 
   {#if selected}
     <div class="border-t border-hairline pt-1">
-      <EditSlider
-        label="Amount"
-        commitAction="LUT Amount"
-        bind:value={editor.edits.color.lut_3d.amount}
-        min={0}
-        max={100}
-        defaultValue={100}
-      />
+      <ParamSlider param={lutAmount} />
     </div>
   {/if}
 </div>

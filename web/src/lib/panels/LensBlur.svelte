@@ -1,6 +1,6 @@
 <script lang="ts">
   import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import {
     segmentedControlClass,
@@ -8,6 +8,7 @@
   } from '#lib/components/editor/controls/segmentedControl.ts';
   import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import { lensBlurAmount, lensBlurBoost } from '#lib/editor/params/lensBlur.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { depthMap } from '#lib/stores/editor/depthMap.svelte.ts';
   import { maskModels } from '#lib/stores/maskModels.svelte.ts';
@@ -136,13 +137,7 @@
     </Notice>
   {/if}
   {#if hasDepth}
-    <EditSlider
-      label="Amount"
-      commitAction="Lens Blur Amount"
-      bind:value={editor.edits.lens_blur.amount}
-      min={0}
-      max={100}
-    />
+    <ParamSlider param={lensBlurAmount} />
     <DualRangeSlider
       label="Focal Range"
       value={[blur.focus_min, blur.focus_max]}
@@ -169,13 +164,6 @@
         {/each}
       </RadioGroup.Root>
     </div>
-    <EditSlider
-      label="Boost"
-      commitAction="Lens Blur Boost"
-      bind:value={editor.edits.lens_blur.boost}
-      min={0}
-      max={100}
-      disabled={!active}
-    />
+    <ParamSlider param={lensBlurBoost} />
   {/if}
 </div>

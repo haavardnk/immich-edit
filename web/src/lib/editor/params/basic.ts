@@ -1,106 +1,94 @@
-import type { BasicEdits, ToneEdits } from '#lib/types/edits.ts';
-import { hundredths, signedRange } from './range';
-import type { ParamDef, ParamRange, SectionDef } from './types';
+import { field, param } from './define';
+import { PERCENT, hundredths } from './range';
+import type { ParamDef, SectionDef } from './types';
 
-type BasicKey = Exclude<keyof BasicEdits, 'white_balance' | 'curves'>;
-
-interface FieldSpec {
-  id: string;
-  label: string;
-  synonyms: readonly string[];
-  range?: ParamRange;
-}
-
-const PERCENT = signedRange(100);
-
-function fieldParam(
-  { range = PERCENT, ...spec }: FieldSpec,
-  get: ParamDef['get'],
-  set: ParamDef['set']
-): ParamDef {
-  return { ...spec, ...range, defaultValue: 0, get, set };
-}
-
-function basicParam(key: BasicKey, spec: FieldSpec): ParamDef {
-  return fieldParam(
-    spec,
-    (edits) => edits.basic[key],
-    (edits, value) => {
-      edits.basic[key] = value;
-    }
-  );
-}
-
-function toneParam(key: keyof ToneEdits, spec: FieldSpec): ParamDef {
-  return fieldParam(
-    spec,
-    (edits) => edits.tone[key],
-    (edits, value) => {
-      edits.tone[key] = value;
-    }
-  );
-}
-
-export const exposure = basicParam('exposure_ev', {
+export const exposure = param({
   id: 'exposure',
   label: 'Exposure',
   synonyms: ['EV', 'stops'],
-  range: { min: -5, max: 5, step: 0.05, fineStep: 0.01, format: hundredths }
+  min: -5,
+  max: 5,
+  step: 0.05,
+  fineStep: 0.01,
+  format: hundredths,
+  ...field('basic', 'exposure_ev')
 });
-export const brightness = basicParam('brightness', {
+export const brightness = param({
   id: 'brightness',
   label: 'Brightness',
-  synonyms: ['midtones', 'lightness']
+  synonyms: ['midtones', 'lightness'],
+  ...PERCENT,
+  ...field('basic', 'brightness')
 });
-export const contrast = basicParam('contrast', {
+export const contrast = param({
   id: 'contrast',
   label: 'Contrast',
-  synonyms: ['punch']
+  synonyms: ['punch'],
+  ...PERCENT,
+  ...field('basic', 'contrast')
 });
-export const highlights = toneParam('highlights', {
+export const highlights = param({
   id: 'highlights',
   label: 'Highlights',
-  synonyms: ['recovery', 'bright areas']
+  synonyms: ['recovery', 'bright areas'],
+  ...PERCENT,
+  ...field('tone', 'highlights')
 });
-export const shadows = toneParam('shadows', {
+export const shadows = param({
   id: 'shadows',
   label: 'Shadows',
-  synonyms: ['fill light', 'dark areas']
+  synonyms: ['fill light', 'dark areas'],
+  ...PERCENT,
+  ...field('tone', 'shadows')
 });
-export const whites = toneParam('whites', {
+export const whites = param({
   id: 'whites',
   label: 'Whites',
-  synonyms: ['white point', 'clipping']
+  synonyms: ['white point', 'clipping'],
+  ...PERCENT,
+  ...field('tone', 'whites')
 });
-export const blacks = toneParam('blacks', {
+export const blacks = param({
   id: 'blacks',
   label: 'Blacks',
-  synonyms: ['black point', 'crush']
+  synonyms: ['black point', 'crush'],
+  ...PERCENT,
+  ...field('tone', 'blacks')
 });
-export const texture = basicParam('texture', {
+export const texture = param({
   id: 'texture',
   label: 'Texture',
-  synonyms: ['detail', 'skin']
+  synonyms: ['detail', 'skin'],
+  ...PERCENT,
+  ...field('basic', 'texture')
 });
-export const clarity = basicParam('clarity', {
+export const clarity = param({
   id: 'clarity',
   label: 'Clarity',
-  synonyms: ['local contrast', 'midtone contrast']
+  synonyms: ['local contrast', 'midtone contrast'],
+  ...PERCENT,
+  ...field('basic', 'clarity')
 });
-export const dehaze = basicParam('dehaze', {
+export const dehaze = param({
   id: 'dehaze',
   label: 'Dehaze',
-  synonyms: ['haze', 'fog', 'atmosphere']
+  synonyms: ['haze', 'fog', 'atmosphere'],
+  ...PERCENT,
+  ...field('basic', 'dehaze')
 });
-export const vibrance = basicParam('vibrance', {
+export const vibrance = param({
   id: 'vibrance',
   label: 'Vibrance',
-  synonyms: ['color', 'smart saturation']
+  synonyms: ['color', 'smart saturation'],
+  ...PERCENT,
+  ...field('basic', 'vibrance')
 });
-export const saturation = basicParam('saturation', {
+export const saturation = param({
   id: 'saturation',
   label: 'Saturation',
-  synonyms: ['color', 'intensity']
+  synonyms: ['color', 'intensity'],
+  ...PERCENT,
+  ...field('basic', 'saturation')
 });
 
 export const BASIC_PARAMS: readonly ParamDef[] = [
