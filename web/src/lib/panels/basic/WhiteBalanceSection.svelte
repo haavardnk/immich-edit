@@ -4,14 +4,10 @@
   import { untrack } from 'svelte';
   import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import { miredScale } from '#lib/components/editor/controls/sliderScale.ts';
+  import { KELVIN, SHIFT_TEMPERATURE, SHIFT_TINT, TINT } from '#lib/editor/params/whiteBalance.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import {
-    KELVIN_MAX,
-    KELVIN_MIN,
-    RELATIVE_LIMIT,
-    TINT_LIMIT,
     absoluteWhiteBalance,
     asShotWhiteBalance,
     relativeShift,
@@ -20,8 +16,6 @@
     whiteBalanceIsAsShot,
     type Temperature
   } from '#lib/types/edits.ts';
-
-  const kelvinScale = miredScale(KELVIN_MIN, KELVIN_MAX);
 
   const wb = $derived(editor.edits.basic.white_balance);
   const asShot = $derived(editor.asShot);
@@ -90,24 +84,27 @@
     label="Temperature"
     commitAction="Temperature"
     value={kelvin}
-    min={KELVIN_MIN}
-    max={KELVIN_MAX}
-    scale={kelvinScale}
+    min={KELVIN.min}
+    max={KELVIN.max}
+    step={KELVIN.step}
+    scale={KELVIN.scale}
     defaultValue={asShot?.kelvin ?? kelvin}
     disabled={pending}
-    format={(v: number) => `${v.toFixed(0)} K`}
-    gradient="var(--gradient-temperature)"
+    format={KELVIN.format}
+    gradient={KELVIN.gradient}
     onLive={(v: number) => setWhite({ kelvin: v, tint })}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={-TINT_LIMIT}
-    max={TINT_LIMIT}
+    min={TINT.min}
+    max={TINT.max}
+    step={TINT.step}
     defaultValue={asShot?.tint ?? tint}
     disabled={pending}
-    gradient="var(--gradient-tint)"
+    format={TINT.format}
+    gradient={TINT.gradient}
     onLive={(v: number) => setWhite({ kelvin, tint: v })}
   />
 {:else}
@@ -117,20 +114,24 @@
     label="Temperature"
     commitAction="Temperature"
     value={temp}
-    min={-RELATIVE_LIMIT}
-    max={RELATIVE_LIMIT}
+    min={SHIFT_TEMPERATURE.min}
+    max={SHIFT_TEMPERATURE.max}
+    step={SHIFT_TEMPERATURE.step}
     disabled={pending}
-    gradient="var(--gradient-temperature)"
+    format={SHIFT_TEMPERATURE.format}
+    gradient={SHIFT_TEMPERATURE.gradient}
     onLive={(v: number) => setShift(v, tint)}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={-RELATIVE_LIMIT}
-    max={RELATIVE_LIMIT}
+    min={SHIFT_TINT.min}
+    max={SHIFT_TINT.max}
+    step={SHIFT_TINT.step}
     disabled={pending}
-    gradient="var(--gradient-tint)"
+    format={SHIFT_TINT.format}
+    gradient={SHIFT_TINT.gradient}
     onLive={(v: number) => setShift(temp, v)}
   />
 {/if}
