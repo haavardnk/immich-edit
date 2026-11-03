@@ -783,10 +783,11 @@ export const KEYBINDS = [
   },
   {
     id: 'retouchDeselect',
-    keys: ['Escape'],
+    keys: [],
     contexts: ['retouch'],
     group: 'Retouch',
-    label: 'Deselect the current stroke'
+    label: 'Deselect the current stroke',
+    display: (mac: boolean) => keyLabel('Escape', mac)
   },
   {
     id: 'retouchSample',
