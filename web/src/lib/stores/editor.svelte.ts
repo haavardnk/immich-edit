@@ -398,7 +398,11 @@ class EditorStore {
 
   retrySave = (): Promise<void> => this.saves.retry();
 
+  canResetDevelop = $derived(develop.canResetDevelop(this));
+
   onReset = (): Promise<void> => develop.resetDevelop(this);
+
+  canResetGeometry = $derived(geometry.canReset(this));
 
   resetGeometry = (): Promise<void> => geometry.reset(this);
 
@@ -407,6 +411,8 @@ class EditorStore {
   copyEdits = (): void => develop.copyEdits(this);
 
   pasteEdits = (): Promise<void> => develop.pasteEdits(this);
+
+  canPaste = $derived(develop.canPaste(this));
 
   hasClipboard = $derived(clipboard.has);
 

@@ -52,6 +52,7 @@ export interface GeometryCtx {
   initialised: boolean;
   edits: Edits;
   geometrySession: GeometrySession | null;
+  saving: boolean;
   error: string | null;
   clearView(): void;
   onCommit(action?: string): Promise<void>;
@@ -339,9 +340,13 @@ export async function resetTransform(ctx: GeometryCtx): Promise<void> {
   await commit(ctx, 'Reset transform');
 }
 
+export function canReset(ctx: GeometryCtx): boolean {
+  return ctx.assetId !== null && !ctx.saving && !geometryIsIdentity(ctx.edits.geometry);
+}
+
 export async function reset(ctx: GeometryCtx): Promise<void> {
   dropGuides(ctx);
-  if (!ctx.assetId || geometryIsIdentity(ctx.edits.geometry)) return;
+  if (!canReset(ctx)) return;
   if (wheelTimer) clearTimeout(wheelTimer);
   wheelTimer = null;
   ctx.edits = { ...ctx.edits, geometry: neutralGeometry() };

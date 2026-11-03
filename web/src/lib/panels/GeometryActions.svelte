@@ -1,6 +1,5 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { geometryIsIdentity } from '#lib/types/edits.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { Button, IconButton } from '@immich/ui';
   import {
@@ -25,7 +24,7 @@
     leadingIcon={mdiRestore}
     title={hint('Reset geometry', 'resetEdits')}
     aria-label="Reset geometry"
-    disabled={geometryIsIdentity(editor.edits.geometry) || editor.saving}
+    disabled={!editor.canResetGeometry}
     onclick={() => void editor.resetGeometry()}
   >
     Reset
