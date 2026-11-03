@@ -35,6 +35,7 @@ function session(loaded = true): TestCtx {
     initialised: true,
     edits: neutralEdits() as Edits,
     geometrySession: null,
+    saving: false,
     error: null,
     actions: [],
     clearView: () => undefined,

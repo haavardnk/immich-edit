@@ -7,21 +7,40 @@ import { keysFor } from '#lib/shortcuts/labels.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import { isIdentity, resetDevelopEdits, type EditManifest, type Edits } from '#lib/types/edits.ts';
+import {
+  isDevelopIdentity,
+  isIdentity,
+  resetDevelopEdits,
+  type EditManifest,
+  type Edits
+} from '#lib/types/edits.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface DevelopCtx {
   assetId: string | null;
   initialised: boolean;
   edits: Edits;
+  saving: boolean;
   autoBusy: boolean;
   error: string | null;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
 }
 
+function editable(ctx: DevelopCtx): boolean {
+  return ctx.assetId !== null && ctx.initialised && !ctx.saving;
+}
+
+export function canResetDevelop(ctx: DevelopCtx): boolean {
+  return editable(ctx) && !isDevelopIdentity(ctx.edits);
+}
+
+export function canPaste(ctx: DevelopCtx): boolean {
+  return editable(ctx) && clipboard.has;
+}
+
 export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
-  if (!ctx.assetId) return;
+  if (!canResetDevelop(ctx)) return;
   ctx.edits = resetDevelopEdits(ctx.edits);
   await ctx.onCommit('Reset Develop');
   toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, 3000);
@@ -38,7 +57,7 @@ export function copyEdits(ctx: DevelopCtx): void {
 }
 
 export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
-  if (!ctx.initialised) return;
+  if (!editable(ctx)) return;
   const snap = clipboard.snapshot();
   if (!snap) {
     toasts.push('info', 'Nothing copied', 3000);

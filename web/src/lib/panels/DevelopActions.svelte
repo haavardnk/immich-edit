@@ -2,7 +2,6 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { openDevelopPanels } from '#lib/panels/registry.ts';
-  import { isDevelopIdentity } from '#lib/types/edits.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
   import HistoryPopover from '#lib/components/editor/HistoryPopover.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -14,8 +13,6 @@
     mdiContentCopy,
     mdiContentPaste
   } from '@mdi/js';
-
-  const neutral = $derived(isDevelopIdentity(editor.edits));
 
   function toggleModifiedOnly(): void {
     ui.developModifiedOnly = !ui.developModifiedOnly;
@@ -47,7 +44,7 @@
     leadingIcon={mdiRestore}
     title={hint('Reset develop settings', 'resetEdits')}
     aria-label="Reset develop settings"
-    disabled={neutral || editor.saving}
+    disabled={!editor.canResetDevelop}
     onclick={() => void editor.onReset()}
   >
     Reset
@@ -73,7 +70,7 @@
     class="bg-transparent hover:bg-light-950/6"
     icon={mdiContentPaste}
     title={editor.hasClipboard ? hint('Paste edits', 'pasteEdits') : 'Nothing copied'}
-    disabled={!editor.assetId || !editor.hasClipboard || editor.saving}
+    disabled={!editor.canPaste}
     aria-label="Paste edits"
     onclick={() => void editor.pasteEdits()}
   />

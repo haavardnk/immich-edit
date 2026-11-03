@@ -7,6 +7,7 @@ vi.mock('#lib/api/preview.ts', () => ({
 }));
 
 import {
+  canReset,
   commit,
   cropIsDefault,
   endSession,
@@ -40,6 +41,7 @@ function session(loaded = true): TestCtx {
     initialised: true,
     edits: neutralEdits() as Edits,
     geometrySession: null,
+    saving: false,
     error: null,
     actions: [],
     clearView: () => undefined,
@@ -188,5 +190,18 @@ describe('live geometry', () => {
     expect(c.edits.basic.exposure_ev).toBe(1);
     expect(c.geometrySession?.draftAngle).toBe(0);
     expect(c.actions).toEqual(['Rotate', 'Straighten', 'Reset Geometry']);
+  });
+
+  it('does not reset geometry while a save is in flight', async () => {
+    const c = session();
+    rotateStep(c, 90);
+    expect(canReset(c)).toBe(true);
+    c.saving = true;
+
+    expect(canReset(c)).toBe(false);
+    await reset(c);
+
+    expect(c.edits.geometry.rotate).toBe(90);
+    expect(c.actions).toEqual(['Rotate']);
   });
 });
