@@ -8,7 +8,6 @@
   import { compare, CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
-    browseTarget,
     clearFlags,
     setLabel,
     setRating,
@@ -227,18 +226,13 @@
 
   function cull(
     write: (target: MetaTarget) => Promise<MetaOutcome>,
-    after: (id: string) => void
+    after?: (id: string) => void
   ): void {
     const id = focusedId;
     if (!id) return;
-    void write(browseTarget(id)).then((outcome) => {
-      if (outcome !== 'skipped') after(id);
+    void write(loupeTags.target(id)).then((outcome) => {
+      if (outcome !== 'skipped') after?.(id);
     });
-  }
-
-  function syncLoupeTags(id: string): void {
-    const updated = browsing.find(id);
-    if (updated) loupeTags.set(id, updated.tags);
   }
 
   function rate(value: number | null): void {
@@ -250,10 +244,7 @@
   }
 
   function reject(): void {
-    cull(toggleReject, (id) => {
-      syncLoupeTags(id);
-      autoAdvance(id);
-    });
+    cull(toggleReject, autoAdvance);
   }
 
   function moveToTrash(): void {
@@ -268,7 +259,7 @@
   }
 
   function unflag(): void {
-    cull(clearFlags, syncLoupeTags);
+    cull(clearFlags);
   }
 
   function applyLabel(color: LabelColor | null): void {
