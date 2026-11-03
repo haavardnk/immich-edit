@@ -1,9 +1,12 @@
 <script lang="ts">
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
-  import { commitParamReset } from '#lib/components/editor/controls/paramReset.ts';
+  import {
+    commitParamReset,
+    commitSectionReset
+  } from '#lib/components/editor/controls/paramReset.ts';
   import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
-  import { HSL_BAND_PARAMS, HSL_PARAMS } from '#lib/editor/params/hsl.ts';
+  import { HSL, HSL_BAND_PARAMS } from '#lib/editor/params/hsl.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
@@ -42,9 +45,7 @@
       title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
       label="Reset {bandName}"
       onclick={(e) =>
-        e.shiftKey
-          ? commitParamReset(HSL_PARAMS, 'Reset HSL')
-          : commitParamReset(bandParams, `Reset ${bandName}`)}
+        e.shiftKey ? commitSectionReset(HSL) : commitParamReset(bandParams, `Reset ${bandName}`)}
     />
   </div>
   {#each bandParams as param (param.id)}

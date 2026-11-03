@@ -1,6 +1,12 @@
-import { BW_CHANNELS, type BwChannel, type BwTint, type Edits } from '#lib/types/edits.ts';
+import {
+  BW_CHANNELS,
+  neutralDcp,
+  type BwChannel,
+  type BwTint,
+  type Edits
+} from '#lib/types/edits.ts';
 import { param } from './define';
-import { HUE_GRADIENT, saturationGradient } from './gradients';
+import { BALANCE_GRADIENT, HUE_GRADIENT, saturationGradient } from './gradients';
 import { AMOUNT, HUE, PERCENT } from './range';
 import type { ParamDef, SectionDef } from './types';
 
@@ -32,7 +38,12 @@ function bwMix(channel: BwChannel): ParamDef {
 
 export const BW_MIX: readonly ParamDef[] = BW_CHANNELS.map(bwMix);
 
-type TintRegion = 'shadows' | 'highlights';
+export const BW_TINT_REGIONS = [
+  { key: 'shadows', label: 'Shadows' },
+  { key: 'highlights', label: 'Highlights' }
+] as const;
+
+type TintRegion = (typeof BW_TINT_REGIONS)[number]['key'];
 
 function tintOf(edits: Edits, region: TintRegion): BwTint {
   return edits.color.bw[region];
@@ -68,10 +79,9 @@ function bwTint(region: TintRegion, label: string): readonly ParamDef[] {
   ];
 }
 
-export const BW_TINTS: readonly ParamDef[] = [
-  ...bwTint('shadows', 'Shadows'),
-  ...bwTint('highlights', 'Highlights')
-];
+export const BW_TINTS: readonly ParamDef[] = BW_TINT_REGIONS.flatMap(({ key, label }) =>
+  bwTint(key, label)
+);
 
 export const bwBalance = param({
   id: 'bw_balance',
@@ -79,7 +89,7 @@ export const bwBalance = param({
   history: 'B&W Tint Balance',
   synonyms: ['black and white', 'B&W', 'split tone'],
   ...PERCENT,
-  gradient: 'var(--gradient-grading-balance)',
+  gradient: BALANCE_GRADIENT,
   get: (edits) => edits.color.bw.balance,
   set: (edits, value) => {
     edits.color.bw.balance = value;
@@ -104,11 +114,27 @@ export const COLOR_PARAMS: readonly ParamDef[] = [...BW_MIX, ...BW_TINTS, bwBala
 export const BW: SectionDef = {
   id: 'bw',
   title: 'B&W',
-  rows: [BW_MIX, [...BW_TINTS, bwBalance]]
+  history: 'Black & White',
+  rows: [BW_MIX, [...BW_TINTS, bwBalance]],
+  clear: (edits) => {
+    edits.color.bw.enabled = false;
+  }
 };
 
 export const LUT: SectionDef = {
   id: 'lut',
   title: 'LUT',
-  rows: [[lutAmount]]
+  rows: [[lutAmount]],
+  clear: (edits) => {
+    edits.color.lut_3d.lut_id = null;
+  }
+};
+
+export const DCP: SectionDef = {
+  id: 'dcp',
+  title: 'Camera Profile',
+  rows: [],
+  clear: (edits) => {
+    edits.color.dcp = neutralDcp();
+  }
 };

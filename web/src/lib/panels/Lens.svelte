@@ -2,9 +2,11 @@
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import Notice from '#lib/components/Notice.svelte';
   import { editsToManifest } from '#lib/edits/manifest.ts';
-  import { lensDistortion, lensVignetting } from '#lib/editor/params/lens.ts';
+  import { sectionLabel } from '#lib/editor/params/define.ts';
+  import { LENS, lensDistortion, lensVignetting } from '#lib/editor/params/lens.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { NEUTRAL_LENS } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
@@ -71,11 +73,6 @@
     editor.edits.lens.constrain_crop = checked;
     void editor.onCommit('Constrain Crop');
   }
-
-  function resetLens(): void {
-    editor.edits.lens = { ...NEUTRAL_LENS };
-    void editor.onCommit('Reset Lens Corrections');
-  }
 </script>
 
 <div class="flex flex-col gap-1">
@@ -84,8 +81,8 @@
       title="Lens Profile"
       section="lens"
       {modified}
-      onReset={resetLens}
-      resetTitle="Reset Lens Corrections"
+      onReset={() => commitSectionReset(LENS)}
+      resetTitle="Reset {sectionLabel(LENS)}"
     />
     {#if profileLoading}
       <div class="text-[11px] text-dark/65">Loading…</div>

@@ -1,7 +1,13 @@
 import { miredScale } from '#lib/components/editor/controls/sliderScale.ts';
-import { KELVIN_MAX, KELVIN_MIN, RELATIVE_LIMIT, TINT_LIMIT } from '#lib/types/edits.ts';
+import {
+  asShotWhiteBalance,
+  KELVIN_MAX,
+  KELVIN_MIN,
+  RELATIVE_LIMIT,
+  TINT_LIMIT
+} from '#lib/types/edits.ts';
 import { signedRange } from './range';
-import type { ParamRange } from './types';
+import type { ParamRange, SectionDef } from './types';
 
 const TEMPERATURE_GRADIENT = 'var(--gradient-temperature)';
 const TINT_GRADIENT = 'var(--gradient-tint)';
@@ -24,3 +30,12 @@ export const SHIFT_TEMPERATURE: ParamRange = {
 };
 
 export const SHIFT_TINT: ParamRange = { ...signedRange(RELATIVE_LIMIT), gradient: TINT_GRADIENT };
+
+export const WHITE_BALANCE: SectionDef = {
+  id: 'white_balance',
+  title: 'White Balance',
+  rows: [],
+  clear: (edits) => {
+    edits.basic.white_balance = asShotWhiteBalance();
+  }
+};

@@ -1,4 +1,4 @@
-import { lensBlurActive } from '#lib/types/edits.ts';
+import { lensBlurActive, resetLensBlur } from '#lib/types/edits.ts';
 import { field, param } from './define';
 import { AMOUNT } from './range';
 import type { ParamDef, SectionDef } from './types';
@@ -27,5 +27,9 @@ export const LENS_BLUR_PARAMS: readonly ParamDef[] = [lensBlurAmount, lensBlurBo
 export const LENS_BLUR: SectionDef = {
   id: 'lens_blur',
   title: 'Blur',
-  rows: [[lensBlurAmount, lensBlurBoost]]
+  history: 'Lens Blur',
+  rows: [[lensBlurAmount, lensBlurBoost]],
+  clear: (edits) => {
+    edits.lens_blur = resetLensBlur(edits.lens_blur);
+  }
 };
