@@ -7,10 +7,6 @@ export function editorAssetId(): string | null {
   return page.params.id ?? null;
 }
 
-export function returnPath(): string | null {
-  return page.url.searchParams.get('from');
-}
-
 export function selectedShapeNudges(): boolean {
   if (ui.editorTab !== 'masks' || !editor.activeMaskComponentId) return false;
   const layer = editor.edits.masks.find((l) => l.id === editor.activeLayerId);

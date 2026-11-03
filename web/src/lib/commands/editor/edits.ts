@@ -5,7 +5,8 @@ import { NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.t
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { mdiAutoFix, mdiContentCopy, mdiContentPaste, mdiRestore } from '@mdi/js';
-import { editorAssetId, returnPath } from '#lib/commands/editor/context.ts';
+import { editorAssetId } from '#lib/commands/editor/context.ts';
+import { returnPath } from '#lib/utils/route.ts';
 
 export const autoAdjust = {
   id: 'editor.auto',
@@ -74,6 +75,7 @@ export const EDIT_COMMANDS: readonly Command[] = [
     id: 'editor.virtualCopy',
     contexts: ['editor'],
     bind: 'createVirtualCopy',
+    yields: (trigger) => trigger.repeat,
     run: () => {
       const id = editorAssetId();
       if (id) void createVirtualCopy(id, { returnPath: returnPath() });
