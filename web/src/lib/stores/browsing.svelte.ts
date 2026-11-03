@@ -64,11 +64,13 @@ class BrowsingStore {
     if (idx >= 0 && this.assets.length - idx <= PREFETCH_WINDOW) void this.requestMore();
   }
 
+  find(id: string): AssetSummary | null {
+    return this.assets.find((asset) => asset.id === id) ?? null;
+  }
+
   patch(id: string, fields: Partial<AssetSummary>): void {
-    const idx = this.assets.findIndex((a) => a.id === id);
-    const current = this.assets[idx];
-    if (!current) return;
-    this.assets[idx] = { ...current, ...fields };
+    const current = this.find(id);
+    if (current) Object.assign(current, fields);
   }
 
   insertCopy(copyId: string, source: string, label: string | null): void {

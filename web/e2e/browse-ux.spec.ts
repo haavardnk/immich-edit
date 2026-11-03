@@ -77,6 +77,29 @@ test('clicking a star on a hovered tile rates that photo', async ({ page }) => {
   expect(await tile.evaluate((el) => el.contains(document.activeElement))).toBe(false);
 });
 
+for (const path of ['/edited', '/folders?path=%2Fphotos']) {
+  test(`a star on a tile in ${path} shows the new rating`, async ({ page }) => {
+    await installMocks(page, {
+      assets: [ASSET_SUMMARY],
+      edits: [{ id: ASSET_SUMMARY.id, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' }]
+    });
+    await page.route('**/api/folders/assets?*', (route) => route.fulfill(json([ASSET_SUMMARY])));
+    await page.addInitScript(() => {
+      localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    });
+    await page.goto(path);
+    const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+    const update = page.waitForRequest(
+      (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_SUMMARY.id}`)
+    );
+
+    await tile.hover();
+    await tile.getByRole('radio', { name: '4 stars' }).click();
+    expect((await update).postDataJSON()).toMatchObject({ rating: 4 });
+    await expect(tile.getByRole('radio', { name: '4 stars' })).toBeChecked();
+  });
+}
+
 test('a ticked photo hides its stars off hover and the arrows still move', async ({ page }) => {
   await installMocks(page, { assets: PAGED_ASSETS });
   await page.addInitScript(() => {
