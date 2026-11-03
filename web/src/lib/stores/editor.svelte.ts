@@ -83,9 +83,13 @@ class EditorStore {
   }
 
   set meta(value: PreviewMeta | null) {
-    const wasRaw = this.previewMeta?.is_raw === true;
+    const wasRaw = this.isRaw;
     this.previewMeta = value;
     if ((value?.is_raw === true) !== wasRaw) this.syncAiDenoise();
+  }
+
+  get isRaw(): boolean {
+    return this.previewMeta?.is_raw === true;
   }
 
   lensProfile = $state<LensProfileMatch | null>(null);
@@ -102,7 +106,7 @@ class EditorStore {
   lensView: LensEdits = $derived(
     effectiveLens(
       this.edits.lens,
-      this.meta?.is_raw && this.lensProfile?.auto ? this.lensProfile.edits : null
+      this.isRaw && this.lensProfile?.auto ? this.lensProfile.edits : null
     )
   );
   lastImmichOpts: ImmichExportOptions | null = null;
@@ -208,8 +212,7 @@ class EditorStore {
   }
 
   private syncAiDenoise(): void {
-    const raw = this.meta?.is_raw === true;
-    this.aiDenoise.sync(this.assetId, raw && aiDenoiseActive(this.edits.detail));
+    this.aiDenoise.sync(this.assetId, this.isRaw && aiDenoiseActive(this.edits.detail));
   }
 
   initialised = $state(false);
