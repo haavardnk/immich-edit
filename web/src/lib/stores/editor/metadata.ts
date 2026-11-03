@@ -1,21 +1,8 @@
-import { updateAsset } from '#lib/api/assets.ts';
 import { addTagToAsset, removeTagFromAsset, upsertTags } from '#lib/api/tags.ts';
+import * as assetMeta from '#lib/browse/assetMeta.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
-import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-import { rejected } from '#lib/stores/rejected.svelte.ts';
-import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
-import { ownsAsset } from '#lib/browse/ownership.ts';
-import {
-  isLabelTag,
-  labelOf,
-  labelTagFor,
-  withLabel,
-  writeLabel,
-  type LabelColor
-} from '#lib/stores/labels.ts';
-import { assignLabel } from '#lib/stores/labels.svelte.ts';
-import type { AssetDetail, ExifInfo, TagRef } from '#lib/types/asset.ts';
-import { errorMessage } from '#lib/utils/errors.ts';
+import type { LabelColor } from '#lib/stores/labels.ts';
+import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
 
 export interface MetadataCtx {
   assetId: string | null;
@@ -23,182 +10,93 @@ export interface MetadataCtx {
   error: string | null;
 }
 
-type Loaded = MetadataCtx & { assetId: string; asset: AssetDetail };
-
-async function ready(ctx: MetadataCtx): Promise<Loaded | null> {
-  if (!ctx.assetId || !ctx.asset || !ownsAsset(ctx.asset)) return null;
-  if (!(await metadataConsent.gate())) return null;
-  return ctx as Loaded;
-}
-
-function syncBrowsing(ctx: Loaded): void {
-  browsing.patch(ctx.assetId, {
-    isFavorite: ctx.asset.isFavorite,
-    exifInfo: ctx.asset.exifInfo ?? null,
-    tags: ctx.asset.tags
-  });
-}
-
-function blankExif(rating: number | null): ExifInfo {
+function editorTarget(ctx: MetadataCtx): assetMeta.MetaTarget | null {
+  const id = ctx.assetId;
+  if (!id) return null;
+  const open = (): boolean => ctx.assetId === id;
   return {
-    make: null,
-    model: null,
-    lensModel: null,
-    city: null,
-    state: null,
-    country: null,
-    fNumber: null,
-    focalLength: null,
-    iso: null,
-    exposureTime: null,
-    exifImageWidth: null,
-    exifImageHeight: null,
-    orientation: null,
-    dateTimeOriginal: null,
-    timeZone: null,
-    rating,
-    fileSizeInByte: null
+    id,
+    read: () => (open() ? ctx.asset : null),
+    patch: (fields) => {
+      if (open() && ctx.asset) ctx.asset = { ...ctx.asset, ...fields };
+      browsing.patch(id, fields);
+    },
+    fail: (kind, error) => {
+      if (open()) ctx.error = assetMeta.metaFailure(kind, error);
+    }
   };
 }
 
-export async function toggleFavorite(ctx: MetadataCtx): Promise<void> {
-  const c = await ready(ctx);
-  if (!c) return;
-  const prev = c.asset.isFavorite;
-  c.asset = { ...c.asset, isFavorite: !prev };
-  try {
-    const updated = await updateAsset(c.assetId, { isFavorite: !prev });
-    c.asset = { ...updated, tags: c.asset.tags };
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, isFavorite: prev };
-    c.error = errorMessage(e);
-  }
+async function run(
+  ctx: MetadataCtx,
+  op: (target: assetMeta.MetaTarget) => Promise<assetMeta.MetaOutcome>
+): Promise<void> {
+  const target = editorTarget(ctx);
+  if (target) await op(target);
 }
 
-export async function setRating(ctx: MetadataCtx, rating: number | null): Promise<void> {
-  const c = await ready(ctx);
-  if (!c) return;
-  const prevExif = c.asset.exifInfo;
-  c.asset = {
-    ...c.asset,
-    exifInfo: prevExif ? { ...prevExif, rating } : blankExif(rating)
-  };
-  try {
-    const updated = await updateAsset(c.assetId, { rating });
-    c.asset = { ...updated, tags: c.asset.tags };
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, exifInfo: prevExif };
-    c.error = errorMessage(e);
-  }
+function addTagTo(target: assetMeta.MetaTarget, tag: TagRef): Promise<assetMeta.MetaOutcome> {
+  return assetMeta.changeMeta(target, 'tag', (asset) =>
+    hasTag(asset, tag)
+      ? null
+      : { fields: { tags: [...asset.tags, tag] }, write: () => addTagToAsset(tag.id, target.id) }
+  );
 }
 
-export async function addTag(ctx: MetadataCtx, tag: TagRef): Promise<void> {
-  if (ctx.asset?.tags.some((t) => t.id === tag.id)) return;
-  const c = await ready(ctx);
-  if (!c) return;
-  const prev = c.asset.tags;
-  c.asset = { ...c.asset, tags: [...prev, tag] };
-  try {
-    await addTagToAsset(tag.id, c.assetId);
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, tags: prev };
-    c.error = errorMessage(e);
-  }
+export function toggleFavorite(ctx: MetadataCtx): Promise<void> {
+  return run(ctx, assetMeta.toggleFavorite);
 }
 
-export async function removeTag(ctx: MetadataCtx, tagId: string): Promise<void> {
-  const c = await ready(ctx);
-  if (!c) return;
-  const prev = c.asset.tags;
-  c.asset = { ...c.asset, tags: prev.filter((t) => t.id !== tagId) };
-  try {
-    await removeTagFromAsset(tagId, c.assetId);
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, tags: prev };
-    c.error = errorMessage(e);
-  }
+export function setRating(ctx: MetadataCtx, rating: number | null): Promise<void> {
+  return run(ctx, (target) => assetMeta.setRating(target, rating));
 }
 
-export async function toggleReject(ctx: MetadataCtx): Promise<void> {
-  const c = await ready(ctx);
-  if (!c) return;
-  const rejectTag = await ensureRejectTag();
-  if (!rejectTag) {
-    c.error = 'reject: could not create tag';
-    return;
-  }
-  const next = !isRejected(c.asset);
-  const prev = c.asset.tags;
-  c.asset = { ...c.asset, tags: setRejectedTags(prev, rejectTag, next) };
-  if (next) rejected.add(c.assetId, rejectTag);
-  else rejected.remove(c.assetId);
-  try {
-    if (next) await addTagToAsset(rejectTag.id, c.assetId);
-    else await removeTagFromAsset(rejectTag.id, c.assetId);
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, tags: prev };
-    if (next) rejected.remove(c.assetId);
-    else rejected.add(c.assetId, rejectTag);
-    c.error = errorMessage(e);
-  }
+export function toggleReject(ctx: MetadataCtx): Promise<void> {
+  return run(ctx, assetMeta.toggleReject);
 }
 
-export async function setLabel(ctx: MetadataCtx, color: LabelColor | null): Promise<void> {
-  const c = await ready(ctx);
-  if (!c) return;
-  const tag = await labelTagFor(color);
-  if (tag === undefined) {
-    c.error = 'label: could not create tag';
-    return;
-  }
-  const prev = c.asset.tags;
-  const prevColor = labelOf(c.asset);
-  const prevTag = prev.find(isLabelTag) ?? null;
-  c.asset = { ...c.asset, tags: withLabel(prev, tag) };
-  assignLabel(c.assetId, color, tag);
-  try {
-    await writeLabel(c.assetId, prev, tag);
-    syncBrowsing(c);
-  } catch (e) {
-    if (c.asset) c.asset = { ...c.asset, tags: prev };
-    assignLabel(c.assetId, prevColor, prevTag);
-    c.error = errorMessage(e);
-  }
+export function setLabel(ctx: MetadataCtx, color: LabelColor | null): Promise<void> {
+  return run(ctx, (target) => assetMeta.setLabel(target, color));
+}
+
+export function clearFlags(ctx: MetadataCtx): Promise<void> {
+  return run(ctx, assetMeta.clearFlags);
+}
+
+export function addTag(ctx: MetadataCtx, tag: TagRef): Promise<void> {
+  if (hasTag(ctx.asset, tag)) return Promise.resolve();
+  return run(ctx, (target) => addTagTo(target, tag));
+}
+
+export function removeTag(ctx: MetadataCtx, tagId: string): Promise<void> {
+  return run(ctx, (target) =>
+    assetMeta.changeMeta(target, 'tag', (asset) => ({
+      fields: { tags: asset.tags.filter((t) => t.id !== tagId) },
+      write: () => removeTagFromAsset(tagId, target.id)
+    }))
+  );
 }
 
 export async function createAndAddTag(ctx: MetadataCtx, value: string): Promise<TagRef | null> {
-  const c = await ready(ctx);
-  if (!c) return null;
+  const target = editorTarget(ctx);
+  if (!target || !(await assetMeta.writableMeta(target))) return null;
+  let tag: TagRef | null;
   try {
-    const created = await upsertTags([value]);
-    const tag = created[0];
-    if (!tag) return null;
-    const ref: TagRef = { id: tag.id, name: tag.name, value: tag.value };
-    if (c.asset.tags.some((t) => t.id === ref.id)) return ref;
-    const prev = c.asset.tags;
-    c.asset = { ...c.asset, tags: [...prev, ref] };
-    try {
-      await addTagToAsset(ref.id, c.assetId);
-      syncBrowsing(c);
-    } catch (e) {
-      if (c.asset) c.asset = { ...c.asset, tags: prev };
-      c.error = errorMessage(e);
-      return null;
-    }
-    return ref;
-  } catch (e) {
-    c.error = errorMessage(e);
+    tag = await createTag(value);
+  } catch (error) {
+    target.fail('tag', error);
     return null;
   }
+  if (!tag) return null;
+  if ((await addTagTo(target, tag)) === 'saved' || hasTag(target.read(), tag)) return tag;
+  return null;
 }
 
-export async function clearFlags(ctx: MetadataCtx): Promise<void> {
-  if (!ctx.asset) return;
-  if (ctx.asset.isFavorite) await toggleFavorite(ctx);
-  if (ctx.asset && isRejected(ctx.asset)) await toggleReject(ctx);
+function hasTag(asset: { tags: TagRef[] } | null, tag: TagRef): boolean {
+  return asset?.tags.some((t) => t.id === tag.id) ?? false;
+}
+
+async function createTag(value: string): Promise<TagRef | null> {
+  const [created] = await upsertTags([value]);
+  return created ? { id: created.id, name: created.name, value: created.value } : null;
 }
