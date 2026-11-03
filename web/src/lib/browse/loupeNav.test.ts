@@ -7,7 +7,6 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
   advanceFocused,
-  enterMulti,
   leaveMulti,
   openLastLoupe,
   pickFromStrip,
@@ -113,7 +112,7 @@ describe('loupe navigation', () => {
     ['survey', ['b', 'c', 'd']]
   ] as const)('enters %s from the open asset', (mode, members) => {
     browseView.openLoupe('b');
-    enterMulti(mode);
+    selectViewMode(mode);
     expect(compare.mode).toBe(mode);
     expect(compare.members).toEqual(members);
   });
@@ -121,14 +120,14 @@ describe('loupe navigation', () => {
   it('refuses to compare a lone photo', () => {
     load(['a']);
     browseView.openLoupe('a');
-    enterMulti('compare');
+    selectViewMode('compare');
     expect(compare.mode).toBe('single');
     expect(toasts.items.map((t) => t.message)).toEqual(['compare needs two photos']);
   });
 
   it('selects the survivors of a pruned survey on leave', () => {
     browseView.openLoupe('a');
-    enterMulti('survey');
+    selectViewMode('survey');
     compare.drop(0);
     leaveMulti();
     expect(compare.mode).toBe('single');
@@ -158,7 +157,7 @@ describe('loupe navigation', () => {
 
   it('removes a compare member from the strip back to single', () => {
     browseView.openLoupe('a');
-    enterMulti('compare');
+    selectViewMode('compare');
     pickFromStrip('a', true);
     expect(compare.mode).toBe('single');
     expect(browseView.loupeId).toBe('b');

@@ -4,7 +4,8 @@ import type { Command, CommandTrigger } from '#lib/commands/types.ts';
 
 export function commandLabel(command: Command): string {
   const bind = (KEYBINDS as readonly Keybind[]).find(({ id }) => id === command.bind);
-  return command.label ?? bind?.label ?? command.id;
+  const label = typeof command.label === 'function' ? command.label() : command.label;
+  return label ?? bind?.label ?? command.id;
 }
 
 export function isEnabled(command: Command): boolean {
@@ -20,4 +21,30 @@ export function commandTitle(command: Command): string {
 
 export function runCommand(command: Command, trigger?: CommandTrigger): void {
   if (isEnabled(command)) command.run(trigger);
+}
+
+export interface PressHandlers {
+  onclick?: () => void;
+  onpointerdown?: () => void;
+  onpointerup?: () => void;
+  onpointercancel?: () => void;
+  onpointerleave?: () => void;
+}
+
+export function pressHandlers(command: Command, before?: () => void): PressHandlers {
+  const release = command.release;
+  if (!release) {
+    return {
+      onclick: () => {
+        before?.();
+        runCommand(command);
+      }
+    };
+  }
+  return {
+    onpointerdown: () => runCommand(command),
+    onpointerup: release,
+    onpointercancel: release,
+    onpointerleave: release
+  };
 }

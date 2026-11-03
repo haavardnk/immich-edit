@@ -13,8 +13,7 @@
     loupeFocusedId,
     openInEditor,
     rateFocused,
-    rejectFocused,
-    trashFocused
+    rejectFocused
   } from '#lib/browse/loupeActions.ts';
   import { loupeHost } from '#lib/commands/loupe/loupeHost.ts';
   import { labelOf } from '#lib/stores/labels.ts';
@@ -23,7 +22,7 @@
   import { ownsAsset } from '#lib/browse/ownership.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { paneGridStyle } from '#lib/browse/loupeLayout.ts';
-  import { pickFromStrip, selectViewMode, stepLoupe } from '#lib/browse/loupeNav.ts';
+  import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { putBounded } from '#lib/utils/boundedRecord.ts';
   import { cachedFaceData, loadFaceData } from '#lib/stores/zoomTargets.ts';
@@ -218,15 +217,7 @@
 {#if asset}
   <div class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
     {#if !ui.fullscreen}
-      <LoupeToolbar
-        filename={asset.originalFileName}
-        {copyBadge}
-        {multi}
-        {moreActive}
-        onSelectViewMode={selectViewMode}
-        onOpenEditor={() => openInEditor()}
-        onTrash={trashFocused}
-      />
+      <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
     {/if}
 
     <div

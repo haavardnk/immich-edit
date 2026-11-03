@@ -4,9 +4,35 @@ import { hasTextSelection } from '#lib/shortcuts/targets.ts';
 import { NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
-import { mdiAutoFix, mdiContentCopy, mdiContentPaste, mdiRestore } from '@mdi/js';
+import {
+  mdiAutoFix,
+  mdiContentCopy,
+  mdiContentDuplicate,
+  mdiContentPaste,
+  mdiRedo,
+  mdiRestore,
+  mdiUndo
+} from '@mdi/js';
 import { editorAssetId } from '#lib/commands/editor/context.ts';
 import { returnPath } from '#lib/utils/route.ts';
+
+export const undo = {
+  id: 'editor.undo',
+  contexts: ['editor'],
+  icon: mdiUndo,
+  bind: 'undo',
+  enabled: () => editor.canUndo,
+  run: () => editor.undo()
+} satisfies Command;
+
+export const redo = {
+  id: 'editor.redo',
+  contexts: ['editor'],
+  icon: mdiRedo,
+  bind: 'redo',
+  enabled: () => editor.canRedo,
+  run: () => editor.redo()
+} satisfies Command;
 
 export const autoAdjust = {
   id: 'editor.auto',
@@ -63,22 +89,27 @@ export const pasteEdits = {
   run: () => void editor.pasteEdits()
 } satisfies Command;
 
+export const virtualCopy = {
+  id: 'editor.virtualCopy',
+  contexts: ['editor'],
+  label: 'Create virtual copy',
+  icon: mdiContentDuplicate,
+  bind: 'createVirtualCopy',
+  yields: (trigger) => trigger.repeat,
+  enabled: () => editorAssetId() !== null,
+  run: () => {
+    const id = editorAssetId();
+    if (id) void createVirtualCopy(id, { returnPath: returnPath() });
+  }
+} satisfies Command;
+
 export const EDIT_COMMANDS: readonly Command[] = [
-  { id: 'editor.undo', contexts: ['editor'], bind: 'undo', run: () => editor.undo() },
-  { id: 'editor.redo', contexts: ['editor'], bind: 'redo', run: () => editor.redo() },
+  undo,
+  redo,
   autoAdjust,
   resetGeometry,
   resetDevelop,
   copyEdits,
   pasteEdits,
-  {
-    id: 'editor.virtualCopy',
-    contexts: ['editor'],
-    bind: 'createVirtualCopy',
-    yields: (trigger) => trigger.repeat,
-    run: () => {
-      const id = editorAssetId();
-      if (id) void createVirtualCopy(id, { returnPath: returnPath() });
-    }
-  }
+  virtualCopy
 ];

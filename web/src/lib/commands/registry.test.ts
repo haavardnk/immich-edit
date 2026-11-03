@@ -2,6 +2,7 @@ import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
 import { KEYBINDS, type Keybind, type KeybindContext } from '#lib/shortcuts/table.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { commandLabel } from './command';
+import * as menus from './menus';
 import { COMMANDS } from './registry';
 import type { Command } from './types';
 
@@ -99,6 +100,38 @@ describe('command registry', () => {
         unguarded.map(({ id }) => id),
         key
       ).toEqual([]);
+    }
+  });
+
+  it('lists registered commands in every menu', () => {
+    const ids = Object.fromEntries(
+      Object.entries(menus).map(([name, menu]) => [
+        name,
+        menu.map((group) => group.map((command) => command.id))
+      ])
+    );
+    expect(ids).toEqual({
+      LOUPE_VIEW_MODE_MENU: [['loupe.single', 'loupe.compare', 'loupe.survey']],
+      LOUPE_MORE_MENU: [
+        ['loupe.info', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas', 'loupe.autoAdvance'],
+        ['loupe.trash'],
+        ['app.help']
+      ],
+      EDITOR_VERSION_MENU: [['editor.virtualCopy']],
+      EDITOR_VIEW_MENU: [
+        [
+          'editor.info',
+          'editor.fullscreen',
+          'editor.holdOriginal',
+          'editor.beforeAfter',
+          'editor.clipWarn',
+          'app.greyCanvas'
+        ]
+      ],
+      EDITOR_MORE_MENU: [['editor.trash'], ['app.help']]
+    });
+    for (const command of Object.values(menus).flatMap((menu) => menu.flat())) {
+      expect(COMMANDS, command.id).toContain(command);
     }
   });
 
