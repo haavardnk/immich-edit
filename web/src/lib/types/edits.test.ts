@@ -164,6 +164,8 @@ const SECTION_FIELDS: Record<DevelopSection, string[]> = {
   ],
   grain: ['effects.grain_amount', 'effects.grain_size', 'effects.grain_roughness'],
   lens: ['lens.profile_enabled', 'lens.k1'],
+  hsl: ['color.hsl.bands'],
+  color_grading: ['color.color_grade.midtones', 'color.color_grade.balance'],
   lut: ['color.lut_3d.lut_id', 'color.lut_3d.amount'],
   bw: ['color.bw.enabled', 'color.bw.mix.green', 'color.bw.shadows.sat', 'color.bw.balance'],
   lens_blur: [
@@ -220,6 +222,8 @@ function graded(): Edits {
   edits.color.lut_3d.lut_id = 'lut';
   edits.color.lut_3d.amount = 60;
   edits.color.hsl.bands = edits.color.hsl.bands.map((band) => ({ ...band, hue: 10 }));
+  edits.color.color_grade.midtones = { hue: 200, sat: 30, lum: 10 };
+  edits.color.color_grade.balance = 20;
   edits.color.bw.enabled = true;
   edits.color.bw.mix.green = 40;
   edits.color.bw.shadows.sat = 25;
@@ -252,7 +256,6 @@ describe('neutraliseSection', () => {
         expect(read(bypassed, field)).toEqual(read(edits, field));
       }
     }
-    expect(bypassed.color.hsl).toEqual(edits.color.hsl);
     expect(bypassed.geometry).toEqual(edits.geometry);
     expect(bypassed.lens_blur.depth_raster_id).toBe('depth');
     expect(bypassed.color.dcp).toEqual(edits.color.dcp);

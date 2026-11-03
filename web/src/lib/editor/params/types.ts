@@ -26,6 +26,12 @@ export interface ParamDef extends ParamRange, ParamAccess {
   rawDefaultValue?: number;
   inactive?: (edits: Edits, isRaw: boolean) => boolean;
   previewMode?: PreviewMode;
+  liveGradient?: (edits: Edits) => string;
+}
+
+export interface ToolRange extends ParamRange {
+  defaultValue: number;
+  keyStep: number;
 }
 
 export interface SectionDef {

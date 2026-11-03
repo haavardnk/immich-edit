@@ -21,6 +21,6 @@
   defaultValue={paramDefault(param, editor.isRaw)}
   disabled={disabled || (param.inactive?.(editor.edits, editor.isRaw) ?? false)}
   format={param.format}
-  gradient={param.gradient}
+  gradient={param.liveGradient?.(editor.edits) ?? param.gradient}
   previewMode={param.previewMode}
 />

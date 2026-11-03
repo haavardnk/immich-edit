@@ -1,10 +1,7 @@
+import type { ToolRange } from '#lib/editor/params/types.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
 
-export type BrushRange = { step: number; min: number; max: number };
-
-export const RETOUCH_SIZE: BrushRange = { step: 0.005, min: 0.005, max: 0.3 };
-export const BRUSH_SIZE: BrushRange = { step: 0.01, min: 0.005, max: 0.5 };
-export const HARDNESS: BrushRange = { step: 0.1, min: 0, max: 1 };
+type BrushRange = Pick<ToolRange, 'min' | 'max' | 'keyStep'>;
 
 const WHEEL_NOTCH_PX = 100;
 const WHEEL_LINE_PX = 16;
@@ -20,7 +17,7 @@ function clamp(value: number, { min, max }: BrushRange): number {
 }
 
 export function stepBrush(current: number, key: string, range: BrushRange): number {
-  const delta = key === '[' || key === '{' ? -range.step : range.step;
+  const delta = key === '[' || key === '{' ? -range.keyStep : range.keyStep;
   return clamp(current + delta, range);
 }
 
@@ -35,5 +32,5 @@ export function wheelSize(current: number, notches: number, range: BrushRange): 
 }
 
 export function wheelHardness(current: number, notches: number, range: BrushRange): number {
-  return clamp(current + notches * range.step, range);
+  return clamp(current + notches * range.keyStep, range);
 }

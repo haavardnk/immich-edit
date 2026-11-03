@@ -1,5 +1,12 @@
 <script lang="ts">
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import {
+    COLOR_SOFTNESS,
+    COLOR_TOLERANCE,
+    LUMA_MAX,
+    LUMA_MIN,
+    LUMA_SOFTNESS
+  } from '#lib/editor/params/maskComponents.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskComponent } from '#lib/types/edits.ts';
   import { Button, Icon } from '@immich/ui';
@@ -9,7 +16,7 @@
 
   const luma = $derived(component.kind.kind === 'luma_range' ? component.kind : null);
   const color = $derived(component.kind.kind === 'color_range' ? component.kind : null);
-  const softness = $derived(luma?.softness ?? color?.softness ?? 0.1);
+  const softness = $derived(luma?.softness ?? color?.softness ?? LUMA_SOFTNESS.defaultValue);
 
   function commit(): void {
     void editor.commitMasks();
@@ -39,35 +46,35 @@
     <SliderRow
       label="Min"
       value={luma.min}
-      min={0}
-      max={1}
-      step={0.01}
-      defaultValue={0.25}
+      min={LUMA_MIN.min}
+      max={LUMA_MIN.max}
+      step={LUMA_MIN.step}
+      defaultValue={LUMA_MIN.defaultValue}
       onLive={(value: number) => updateLuma('min', value)}
       onCommit={commit}
-      format={(value: number) => value.toFixed(2)}
+      format={LUMA_MIN.format}
     />
     <SliderRow
       label="Max"
       value={luma.max}
-      min={0}
-      max={1}
-      step={0.01}
-      defaultValue={0.75}
+      min={LUMA_MAX.min}
+      max={LUMA_MAX.max}
+      step={LUMA_MAX.step}
+      defaultValue={LUMA_MAX.defaultValue}
       onLive={(value: number) => updateLuma('max', value)}
       onCommit={commit}
-      format={(value: number) => value.toFixed(2)}
+      format={LUMA_MAX.format}
     />
     <SliderRow
       label="Softness"
       value={softness}
-      min={0}
-      max={1}
-      step={0.01}
-      defaultValue={0.1}
+      min={LUMA_SOFTNESS.min}
+      max={LUMA_SOFTNESS.max}
+      step={LUMA_SOFTNESS.step}
+      defaultValue={LUMA_SOFTNESS.defaultValue}
       onLive={(value: number) => updateLuma('softness', value)}
       onCommit={commit}
-      format={(value: number) => value.toFixed(2)}
+      format={LUMA_SOFTNESS.format}
     />
   </div>
 {/if}
@@ -102,24 +109,24 @@
     <SliderRow
       label="Tolerance"
       value={color.tolerance}
-      min={0}
-      max={1}
-      step={0.01}
-      defaultValue={0.1}
+      min={COLOR_TOLERANCE.min}
+      max={COLOR_TOLERANCE.max}
+      step={COLOR_TOLERANCE.step}
+      defaultValue={COLOR_TOLERANCE.defaultValue}
       onLive={(value: number) => updateColor('tolerance', value)}
       onCommit={commit}
-      format={(value: number) => value.toFixed(2)}
+      format={COLOR_TOLERANCE.format}
     />
     <SliderRow
       label="Softness"
       value={softness}
-      min={0}
-      max={1}
-      step={0.01}
-      defaultValue={0.05}
+      min={COLOR_SOFTNESS.min}
+      max={COLOR_SOFTNESS.max}
+      step={COLOR_SOFTNESS.step}
+      defaultValue={COLOR_SOFTNESS.defaultValue}
       onLive={(value: number) => updateColor('softness', value)}
       onCommit={commit}
-      format={(value: number) => value.toFixed(2)}
+      format={COLOR_SOFTNESS.format}
     />
   </div>
 {/if}

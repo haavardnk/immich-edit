@@ -1,47 +1,18 @@
 <script lang="ts">
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import { commitParamReset } from '#lib/components/editor/controls/paramReset.ts';
   import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
-  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { HSL_BAND_PARAMS, HSL_PARAMS } from '#lib/editor/params/hsl.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
-  import { HSL_BAND_NAMES, HSL_BAND_COLORS, HSL_BAND_HUES } from '#lib/types/edits.ts';
+  import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
 
   let activeBand = $state(0);
 
-  function resetBand(i: number): void {
-    const b = editor.edits.color.hsl.bands[i];
-    if (!b) return;
-    b.hue = 0;
-    b.sat = 0;
-    b.lum = 0;
-    void editor.onCommit(`Reset ${HSL_BAND_NAMES[i]}`);
-  }
-
-  function resetAllHsl(): void {
-    for (const b of editor.edits.color.hsl.bands) {
-      b.hue = 0;
-      b.sat = 0;
-      b.lum = 0;
-    }
-    void editor.onCommit('Reset HSL');
-  }
-
   const bandName = $derived(HSL_BAND_NAMES[activeBand] ?? '');
-  const bandHue = $derived(HSL_BAND_HUES[activeBand] ?? 0);
-  const currentBand = $derived(editor.edits.color.hsl.bands[activeBand]);
-  const effectiveHue = $derived((bandHue + (currentBand?.hue ?? 0) + 360) % 360);
-  const effectiveSat = $derived(Math.max(0, Math.min(100, ((currentBand?.sat ?? 0) + 100) / 2)));
-  const hueGradient = $derived(
-    `linear-gradient(to right, hsl(${(bandHue - 100 + 360) % 360}, 50%, 50%), hsl(${bandHue}, 50%, 50%), hsl(${(bandHue + 100) % 360}, 50%, 50%))`
-  );
-  const satGradient = $derived(
-    `linear-gradient(to right, hsl(${effectiveHue}, 0%, 50%), hsl(${effectiveHue}, 100%, 50%))`
-  );
-  const lumGradient = $derived(
-    `linear-gradient(to right, hsl(${effectiveHue}, ${effectiveSat}%, 0%), hsl(${effectiveHue}, ${effectiveSat}%, 50%), hsl(${effectiveHue}, ${effectiveSat}%, 100%))`
-  );
+  const bandParams = $derived(HSL_BAND_PARAMS[activeBand] ?? []);
 </script>
 
 <div class="flex flex-col gap-1">
@@ -70,33 +41,13 @@
     <ResetButton
       title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
       label="Reset {bandName}"
-      onclick={(e) => (e.shiftKey ? resetAllHsl() : resetBand(activeBand))}
+      onclick={(e) =>
+        e.shiftKey
+          ? commitParamReset(HSL_PARAMS, 'Reset HSL')
+          : commitParamReset(bandParams, `Reset ${bandName}`)}
     />
   </div>
-  {#if currentBand}
-    <EditSlider
-      label="Hue"
-      commitAction={`${bandName} Hue`}
-      bind:value={currentBand.hue}
-      min={-100}
-      max={100}
-      gradient={hueGradient}
-    />
-    <EditSlider
-      label="Saturation"
-      commitAction={`${bandName} Saturation`}
-      bind:value={currentBand.sat}
-      min={-100}
-      max={100}
-      gradient={satGradient}
-    />
-    <EditSlider
-      label="Luminance"
-      commitAction={`${bandName} Luminance`}
-      bind:value={currentBand.lum}
-      min={-100}
-      max={100}
-      gradient={lumGradient}
-    />
-  {/if}
+  {#each bandParams as param (param.id)}
+    <ParamSlider {param} />
+  {/each}
 </div>

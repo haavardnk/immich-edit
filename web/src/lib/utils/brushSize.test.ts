@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { BRUSH_HARDNESS as HARD, BRUSH_SIZE as SIZE } from '#lib/editor/params/brush.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
 import { formatBrushSize, stepBrush, wheelHardness, wheelNotches, wheelSize } from './brushSize';
-
-const SIZE = { step: 0.01, min: 0.005, max: 0.5 };
-const HARD = { step: 0.1, min: 0, max: 1 };
 
 function meta(w: number, h: number): PreviewMeta {
   return {

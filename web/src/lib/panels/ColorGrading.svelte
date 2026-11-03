@@ -1,6 +1,7 @@
 <script lang="ts">
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import { commitParamReset } from '#lib/components/editor/controls/paramReset.ts';
   import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
   import {
     segmentedControlClass,
@@ -8,28 +9,26 @@
   } from '#lib/components/editor/controls/segmentedControl.ts';
   import Disclosure from '#lib/components/Disclosure.svelte';
   import { RadioGroup, Tabs } from 'bits-ui';
+  import {
+    GRADE_REGION_LABELS,
+    GRADE_REGIONS,
+    GRADING_PARAMS,
+    gradeBalance,
+    gradeBlend,
+    type GradeRegion
+  } from '#lib/editor/params/colorGrading.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
 
-  type RegionKey = 'shadows' | 'midtones' | 'highlights' | 'global';
   type Mode = 'three_way' | 'global';
 
-  const REGION_LABELS: Record<RegionKey, string> = {
-    shadows: 'Shadows',
-    midtones: 'Midtones',
-    highlights: 'Highlights',
-    global: 'Global'
-  };
-
-  const ALL_REGIONS: RegionKey[] = ['shadows', 'midtones', 'highlights', 'global'];
-
-  const WHEELS: { key: Exclude<RegionKey, 'global'>; size: number; cell: string }[] = [
+  const WHEELS: { key: Exclude<GradeRegion, 'global'>; size: number; cell: string }[] = [
     { key: 'midtones', size: 94, cell: 'col-span-2' },
     { key: 'shadows', size: 78, cell: '' },
     { key: 'highlights', size: 78, cell: '' }
   ];
 
   let mode = $state<Mode>('three_way');
-  let activeRegion = $state<RegionKey>('midtones');
+  let activeRegion = $state<GradeRegion>('midtones');
   let adjustOpen = $state(false);
 
   $effect(() => {
@@ -38,35 +37,7 @@
   });
 
   const activeRegionData = $derived(editor.edits.color.color_grade[activeRegion]);
-  const hueGradient = 'var(--gradient-hue-linear)';
-  const satGradient = $derived(
-    `linear-gradient(to right, hsl(${Math.round(activeRegionData.hue)}, 0%, 50%), hsl(${Math.round(activeRegionData.hue)}, 100%, 50%))`
-  );
-  const lumGradient = $derived(
-    `linear-gradient(to right, hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 0%), hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 50%), hsl(${Math.round(activeRegionData.hue)}, ${Math.round(activeRegionData.sat)}%, 100%))`
-  );
-  const balanceGradient = 'var(--gradient-grading-balance)';
-  const blendingGradient = 'var(--gradient-grading-blend)';
-
-  function resetRegion(key: RegionKey): void {
-    const reg = editor.edits.color.color_grade[key];
-    reg.hue = 0;
-    reg.sat = 0;
-    reg.lum = 0;
-    void editor.onCommit(`Reset ${REGION_LABELS[key]}`);
-  }
-
-  function resetAllGrading(): void {
-    const cg = editor.edits.color.color_grade;
-    for (const k of ALL_REGIONS) {
-      cg[k].hue = 0;
-      cg[k].sat = 0;
-      cg[k].lum = 0;
-    }
-    cg.balance = 0;
-    cg.blend = 0;
-    void editor.onCommit('Reset Color Grading');
-  }
+  const activeLabel = $derived(GRADE_REGION_LABELS[activeRegion]);
 </script>
 
 <div class="flex flex-col gap-1">
@@ -80,13 +51,16 @@
         <Tabs.Trigger value="three_way" class="{segmentedTabItemClass} px-2">3-Way</Tabs.Trigger>
         <Tabs.Trigger value="global" class="{segmentedTabItemClass} px-2">Global</Tabs.Trigger>
       </Tabs.List>
-      <ResetButton title="Reset all color grading" onclick={resetAllGrading} />
+      <ResetButton
+        title="Reset all color grading"
+        onclick={() => commitParamReset(GRADING_PARAMS, 'Reset Color Grading')}
+      />
     </div>
 
     <Tabs.Content value="three_way">
       {#if mode === 'three_way'}
         <RadioGroup.Root
-          bind:value={() => activeRegion, (v) => (activeRegion = v as RegionKey)}
+          bind:value={() => activeRegion, (v) => (activeRegion = v as GradeRegion)}
           orientation="horizontal"
           aria-label="Colour grading region"
           class="grid grid-cols-2 justify-items-center gap-x-2 gap-y-1"
@@ -107,14 +81,14 @@
                   size={wheel.size}
                   onLive={editor.onLive}
                   onCommit={editor.onCommit}
-                  commitAction="{REGION_LABELS[wheel.key]} Color"
+                  commitAction="{GRADE_REGION_LABELS[wheel.key]} Color"
                 />
               </div>
               <RadioGroup.Item
                 value={wheel.key}
                 class="h-5 px-1.5 text-[10px] font-medium text-dark/65 transition-colors duration-150 hover:text-dark aria-checked:text-primary"
               >
-                {REGION_LABELS[wheel.key]}
+                {GRADE_REGION_LABELS[wheel.key]}
               </RadioGroup.Item>
             </div>
           {/each}
@@ -141,7 +115,7 @@
   <div class="flex flex-col gap-1 border-t border-hairline pt-1">
     <Disclosure
       open={adjustOpen}
-      title="Adjust — {REGION_LABELS[activeRegion]}"
+      title="Adjust — {activeLabel}"
       variant="inline"
       onOpenChange={(v) => (adjustOpen = v)}
     >
@@ -152,54 +126,19 @@
           <span>H: {Math.round(activeRegionData.hue)}</span>
           <span>S: {Math.round(activeRegionData.sat)}</span>
           <ResetButton
-            title="Reset {REGION_LABELS[activeRegion]}"
-            onclick={() => resetRegion(activeRegion)}
+            title="Reset {activeLabel}"
+            onclick={() => commitParamReset(GRADE_REGIONS[activeRegion], `Reset ${activeLabel}`)}
           />
         </div>
-        <EditSlider
-          label="Hue"
-          commitAction={`${REGION_LABELS[activeRegion]} Hue`}
-          bind:value={activeRegionData.hue}
-          min={0}
-          max={360}
-          gradient={hueGradient}
-        />
-        <EditSlider
-          label="Saturation"
-          commitAction={`${REGION_LABELS[activeRegion]} Saturation`}
-          bind:value={activeRegionData.sat}
-          min={0}
-          max={100}
-          gradient={satGradient}
-        />
-        <EditSlider
-          label="Luminance"
-          commitAction={`${REGION_LABELS[activeRegion]} Luminance`}
-          bind:value={activeRegionData.lum}
-          min={-50}
-          max={50}
-          gradient={lumGradient}
-        />
+        {#each GRADE_REGIONS[activeRegion] as param (param.id)}
+          <ParamSlider {param} />
+        {/each}
       </div>
     </Disclosure>
   </div>
 
   <div class="flex flex-col gap-1 border-t border-hairline pt-1">
-    <EditSlider
-      label="Balance"
-      commitAction="Color Balance"
-      bind:value={editor.edits.color.color_grade.balance}
-      min={-100}
-      max={100}
-      gradient={balanceGradient}
-    />
-    <EditSlider
-      label="Blending"
-      commitAction="Color Blending"
-      bind:value={editor.edits.color.color_grade.blend}
-      min={0}
-      max={100}
-      gradient={blendingGradient}
-    />
+    <ParamSlider param={gradeBalance} />
+    <ParamSlider param={gradeBlend} />
   </div>
 </div>
