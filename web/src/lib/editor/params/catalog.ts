@@ -9,8 +9,10 @@ import {
   vibrance
 } from './basic';
 import { BW, COLOR_PARAMS, LUT } from './color';
+import { COLOR_GRADING, GRADING_PARAMS } from './colorGrading';
 import { DETAIL_PARAMS, NOISE_REDUCTION, SHARPENING } from './detail';
 import { EFFECTS_PARAMS, GRAIN, VIGNETTE } from './effects';
+import { HSL, HSL_PARAMS } from './hsl';
 import { LENS, LENS_PARAMS } from './lens';
 import { LENS_BLUR, LENS_BLUR_PARAMS } from './lensBlur';
 import type { ParamDef, SectionDef, TouchGroup } from './types';
@@ -21,6 +23,8 @@ export const PARAMS: readonly ParamDef[] = [
   ...EFFECTS_PARAMS,
   ...LENS_PARAMS,
   ...LENS_BLUR_PARAMS,
+  ...HSL_PARAMS,
+  ...GRADING_PARAMS,
   ...COLOR_PARAMS
 ];
 
@@ -33,6 +37,8 @@ export const DESKTOP_SECTIONS: readonly SectionDef[] = [
   GRAIN,
   LENS,
   LENS_BLUR,
+  HSL,
+  COLOR_GRADING,
   BW,
   LUT
 ];
@@ -50,6 +56,8 @@ export const TOUCH_GROUPS: readonly TouchGroup[] = [
     label: 'Color',
     views: [
       { id: 'basic', label: 'Basic', params: [vibrance, saturation] },
+      { id: 'mix', label: 'Mix', params: flat(HSL) },
+      { id: 'grading', label: 'Grading', params: flat(COLOR_GRADING) },
       { id: 'bw', label: 'B&W', params: flat(BW) }
     ]
   },

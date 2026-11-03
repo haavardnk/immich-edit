@@ -11,13 +11,8 @@
     viewTransform
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-  import {
-    HARDNESS,
-    RETOUCH_SIZE,
-    wheelHardness,
-    wheelNotches,
-    wheelSize
-  } from '#lib/utils/brushSize.ts';
+  import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
+  import { wheelHardness, wheelNotches, wheelSize } from '#lib/utils/brushSize.ts';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -256,7 +251,7 @@
     const notches = wheelNotches(e);
     if (e.shiftKey) {
       editor.setRetouchTool({
-        hardness: wheelHardness(editor.retouchTool.hardness, notches, HARDNESS)
+        hardness: wheelHardness(editor.retouchTool.hardness, notches, RETOUCH_HARDNESS)
       });
       return;
     }

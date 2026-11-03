@@ -7,6 +7,7 @@ import type { ParamDef } from './types';
 
 const OWNED_ELSEWHERE = [
   'basic.white_balance',
+  'basic.curves',
   'detail.capture_sharpen',
   'detail.ai_denoise',
   'lens.profile_enabled',
@@ -32,20 +33,11 @@ const OWNED_ELSEWHERE = [
   'retouch'
 ];
 
-const FIELDS_AWAITING_CATALOG = [
-  'basic.curves',
-  'color.hsl',
-  'color.color_grade',
-  'color.bw.shadows',
-  'color.bw.highlights'
-];
-
 const RAW_STATES = [false, true];
 
-const EXCLUDED = [...OWNED_ELSEWHERE, ...FIELDS_AWAITING_CATALOG];
-
 function leaves(value: unknown, path = ''): Map<string, string> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
+  const branches = Array.isArray(value) && value.length > 0;
+  if (value && typeof value === 'object' && (branches || !Array.isArray(value))) {
     return new Map(
       Object.entries(value).flatMap(([key, child]) => [
         ...leaves(child, path ? `${path}.${key}` : key)
@@ -75,7 +67,7 @@ function under(path: string, prefix: string): boolean {
 }
 
 function excluded(path: string): boolean {
-  return EXCLUDED.some((prefix) => under(path, prefix));
+  return OWNED_ELSEWHERE.some((prefix) => under(path, prefix));
 }
 
 function sorted(params: readonly ParamDef[]): ParamDef[] {
@@ -122,7 +114,9 @@ describe('parameter catalog', () => {
     const owned = new Set([...covered.values()].flat());
     expect(fields.filter((path) => !owned.has(path) && !excluded(path))).toEqual([]);
     expect([...owned].filter(excluded)).toEqual([]);
-    expect(EXCLUDED.filter((prefix) => !fields.some((path) => under(path, prefix)))).toEqual([]);
+    expect(OWNED_ELSEWHERE.filter((prefix) => !fields.some((path) => under(path, prefix)))).toEqual(
+      []
+    );
   });
 
   it('places every parameter in exactly one desktop section', () => {

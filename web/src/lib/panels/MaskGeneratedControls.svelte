@@ -2,8 +2,19 @@
   import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import {
+    DEPTH_SOFTNESS,
+    GENERATED_FEATHER,
+    GENERATED_GROW
+  } from '#lib/editor/params/maskComponents.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskComponent } from '#lib/types/edits.ts';
+  import {
+    DEFAULT_DEPTH_RANGE,
+    DEFAULT_GENERATED_FEATHER,
+    DEFAULT_GENERATED_GROW,
+    generatedLabel
+  } from '#lib/types/masks.ts';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { mergeProps } from 'bits-ui';
   import { onDestroy } from 'svelte';
@@ -13,33 +24,24 @@
   const meta = $derived(component.generated);
 
   let syncedId = $state<string | null>(null);
-  let grow = $state(0);
-  let featherPx = $state(0);
-  let depthMin = $state(0);
-  let depthMax = $state(1);
-  let depthSoftness = $state(0.1);
+  let grow = $state(DEFAULT_GENERATED_GROW);
+  let featherPx = $state(DEFAULT_GENERATED_FEATHER);
+  let depthMin = $state(DEFAULT_DEPTH_RANGE.min);
+  let depthMax = $state(DEFAULT_DEPTH_RANGE.max);
+  let depthSoftness = $state(DEFAULT_DEPTH_RANGE.softness);
 
   $effect(() => {
     if (component.id === syncedId) return;
     syncedId = component.id;
-    grow = meta?.grow ?? 0;
-    featherPx = meta?.feather ?? 0;
-    depthMin = meta?.range?.min ?? 0;
-    depthMax = meta?.range?.max ?? 1;
-    depthSoftness = meta?.range?.softness ?? 0.1;
+    const range = meta?.range ?? DEFAULT_DEPTH_RANGE;
+    grow = meta?.grow ?? DEFAULT_GENERATED_GROW;
+    featherPx = meta?.feather ?? DEFAULT_GENERATED_FEATHER;
+    depthMin = range.min;
+    depthMax = range.max;
+    depthSoftness = range.softness;
   });
 
   onDestroy(editor.endDepthPreview);
-
-  function label(kind: string): string {
-    if (kind === 'subject') return 'Subject';
-    if (kind === 'people') return 'People';
-    if (kind === 'sky') return 'Sky';
-    if (kind === 'depth') return 'Depth';
-    if (kind === 'semantic') return 'Scene';
-    if (kind === 'click') return 'Click to select';
-    return kind;
-  }
 
   function previewDepth(): void {
     if (!meta || component.kind.kind !== 'brush') return;
@@ -63,12 +65,14 @@
     if (!meta) return;
     const range =
       meta.kind === 'depth' ? { min: depthMin, max: depthMax, softness: depthSoftness } : undefined;
+    const stored = meta.range ?? DEFAULT_DEPTH_RANGE;
     const sameRange =
       !range ||
-      (range.min === (meta.range?.min ?? 0) &&
-        range.max === (meta.range?.max ?? 1) &&
-        range.softness === (meta.range?.softness ?? 0.1));
-    const unchanged = sameRange && grow === (meta.grow ?? 0) && featherPx === (meta.feather ?? 0);
+      (range.min === stored.min && range.max === stored.max && range.softness === stored.softness);
+    const unchanged =
+      sameRange &&
+      grow === (meta.grow ?? DEFAULT_GENERATED_GROW) &&
+      featherPx === (meta.feather ?? DEFAULT_GENERATED_FEATHER);
     if (unchanged && !meta.painted) return;
     await editor.rebakeGeneratedComponent(layerId, component.id, grow, featherPx, range);
   }
@@ -82,7 +86,7 @@
           {...mergeProps(props, { tabindex: -1 })}
           class="px-1 text-[10px] uppercase tracking-wider text-dark/65"
         >
-          {label(meta.kind)}{meta.class ? ` · ${meta.class}` : ''}
+          {generatedLabel(meta.kind)}{meta.class ? ` · ${meta.class}` : ''}
         </div>
       {/snippet}
     </ElementTooltip>
@@ -97,7 +101,7 @@
       <DualRangeSlider
         label="Near → Far"
         value={[depthMin, depthMax]}
-        defaultValue={[0, 1]}
+        defaultValue={[DEFAULT_DEPTH_RANGE.min, DEFAULT_DEPTH_RANGE.max]}
         thumbLabels={['Near limit', 'Far limit']}
         onLive={([near, far]) => {
           depthMin = near;
@@ -109,39 +113,39 @@
       <SliderRow
         label="Softness"
         value={depthSoftness}
-        min={0}
-        max={1}
-        step={0.01}
-        defaultValue={0.1}
+        min={DEPTH_SOFTNESS.min}
+        max={DEPTH_SOFTNESS.max}
+        step={DEPTH_SOFTNESS.step}
+        defaultValue={DEPTH_SOFTNESS.defaultValue}
         onLive={(v: number) => {
           depthSoftness = v;
           previewDepth();
         }}
         onCommit={rebake}
-        format={(v: number) => v.toFixed(2)}
+        format={DEPTH_SOFTNESS.format}
       />
     {/if}
     <SliderRow
       label="Grow"
       value={grow}
-      min={-32}
-      max={32}
-      step={1}
-      defaultValue={0}
+      min={GENERATED_GROW.min}
+      max={GENERATED_GROW.max}
+      step={GENERATED_GROW.step}
+      defaultValue={GENERATED_GROW.defaultValue}
       onLive={(v: number) => (grow = v)}
       onCommit={rebake}
-      format={(v: number) => v.toFixed(0)}
+      format={GENERATED_GROW.format}
     />
     <SliderRow
       label="Feather"
       value={featherPx}
-      min={0}
-      max={32}
-      step={1}
-      defaultValue={0}
+      min={GENERATED_FEATHER.min}
+      max={GENERATED_FEATHER.max}
+      step={GENERATED_FEATHER.step}
+      defaultValue={GENERATED_FEATHER.defaultValue}
       onLive={(v: number) => (featherPx = v)}
       onCommit={rebake}
-      format={(v: number) => v.toFixed(0)}
+      format={GENERATED_FEATHER.format}
     />
   </div>
 {/if}

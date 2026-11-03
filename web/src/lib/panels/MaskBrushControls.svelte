@@ -2,6 +2,7 @@
   import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { BRUSH_FLOW, BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
   import { formatBrushSize } from '#lib/utils/brushSize.ts';
   import { Button } from '@immich/ui';
 
@@ -37,10 +38,10 @@
   <SliderRow
     label="Size"
     value={size}
-    min={0.005}
-    max={0.5}
-    step={0.005}
-    defaultValue={0.08}
+    min={BRUSH_SIZE.min}
+    max={BRUSH_SIZE.max}
+    step={BRUSH_SIZE.step}
+    defaultValue={BRUSH_SIZE.defaultValue}
     onLive={(v: number) => editor.setBrushTool({ size: v })}
     onCommit={() => editor.setBrushTool({ size })}
     format={(v: number) => formatBrushSize(v, editor.meta)}
@@ -48,23 +49,23 @@
   <SliderRow
     label="Hardness"
     value={hardness}
-    min={0}
-    max={1}
-    step={0.01}
-    defaultValue={0.5}
+    min={BRUSH_HARDNESS.min}
+    max={BRUSH_HARDNESS.max}
+    step={BRUSH_HARDNESS.step}
+    defaultValue={BRUSH_HARDNESS.defaultValue}
     onLive={(v: number) => editor.setBrushTool({ hardness: v })}
     onCommit={() => editor.setBrushTool({ hardness })}
-    format={(v: number) => v.toFixed(2)}
+    format={BRUSH_HARDNESS.format}
   />
   <SliderRow
     label="Flow"
     value={flow}
-    min={0.01}
-    max={1}
-    step={0.01}
-    defaultValue={0.8}
+    min={BRUSH_FLOW.min}
+    max={BRUSH_FLOW.max}
+    step={BRUSH_FLOW.step}
+    defaultValue={BRUSH_FLOW.defaultValue}
     onLive={(v: number) => editor.setBrushTool({ flow: v })}
     onCommit={() => editor.setBrushTool({ flow })}
-    format={(v: number) => v.toFixed(2)}
+    format={BRUSH_FLOW.format}
   />
 </div>

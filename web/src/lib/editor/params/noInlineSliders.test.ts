@@ -12,17 +12,6 @@ const CATALOG_IMPORT = /import\s*\{([^}]*)\}\s*from\s*'#lib\/editor\/params\/[^'
 
 const FORWARDING_WRAPPERS = ['/src/lib/components/editor/controls/EditSlider.svelte'];
 
-const FILES_AWAITING_CATALOG = [
-  '/src/lib/panels/ColorGrading.svelte',
-  '/src/lib/panels/Hsl.svelte',
-  '/src/lib/panels/MaskBrushControls.svelte',
-  '/src/lib/panels/MaskGeneratedControls.svelte',
-  '/src/lib/panels/MaskPolygonControls.svelte',
-  '/src/lib/panels/MaskRangeControls.svelte',
-  '/src/lib/panels/Masks.svelte',
-  '/src/lib/panels/Retouch.svelte'
-];
-
 function catalogNames(source: string): Set<string> {
   const names = [...source.matchAll(CATALOG_IMPORT)].flatMap((match) =>
     (match[1] ?? '').split(',').map((name) =>
@@ -54,7 +43,7 @@ describe('slider rows', () => {
       .filter(([path, source]) => !FORWARDING_WRAPPERS.includes(path) && hasInlineRange(source))
       .map(([path]) => path)
       .sort();
-    expect(offenders).toEqual(FILES_AWAITING_CATALOG);
+    expect(offenders).toEqual([]);
   });
 
   it.each([

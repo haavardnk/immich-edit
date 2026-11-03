@@ -1,5 +1,6 @@
 <script lang="ts">
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { POLYGON_FEATHER } from '#lib/editor/params/maskComponents.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskComponent } from '#lib/types/edits.ts';
 
@@ -18,13 +19,13 @@
     <SliderRow
       label="Feather"
       value={polygon.feather}
-      min={0}
-      max={0.5}
-      step={0.005}
-      defaultValue={0.05}
+      min={POLYGON_FEATHER.min}
+      max={POLYGON_FEATHER.max}
+      step={POLYGON_FEATHER.step}
+      defaultValue={POLYGON_FEATHER.defaultValue}
       onLive={updateFeather}
       onCommit={() => void editor.commitMasks()}
-      format={(value: number) => value.toFixed(3)}
+      format={POLYGON_FEATHER.format}
     />
   </div>
 {/if}
