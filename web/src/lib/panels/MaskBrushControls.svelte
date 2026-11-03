@@ -38,10 +38,7 @@
   <SliderRow
     label="Size"
     value={size}
-    min={BRUSH_SIZE.min}
-    max={BRUSH_SIZE.max}
-    step={BRUSH_SIZE.step}
-    defaultValue={BRUSH_SIZE.defaultValue}
+    range={BRUSH_SIZE}
     onLive={(v: number) => editor.setBrushTool({ size: v })}
     onCommit={() => editor.setBrushTool({ size })}
     format={(v: number) => formatBrushSize(v, editor.meta)}
@@ -49,23 +46,15 @@
   <SliderRow
     label="Hardness"
     value={hardness}
-    min={BRUSH_HARDNESS.min}
-    max={BRUSH_HARDNESS.max}
-    step={BRUSH_HARDNESS.step}
-    defaultValue={BRUSH_HARDNESS.defaultValue}
+    range={BRUSH_HARDNESS}
     onLive={(v: number) => editor.setBrushTool({ hardness: v })}
     onCommit={() => editor.setBrushTool({ hardness })}
-    format={BRUSH_HARDNESS.format}
   />
   <SliderRow
     label="Flow"
     value={flow}
-    min={BRUSH_FLOW.min}
-    max={BRUSH_FLOW.max}
-    step={BRUSH_FLOW.step}
-    defaultValue={BRUSH_FLOW.defaultValue}
+    range={BRUSH_FLOW}
     onLive={(v: number) => editor.setBrushTool({ flow: v })}
     onCommit={() => editor.setBrushTool({ flow })}
-    format={BRUSH_FLOW.format}
   />
 </div>

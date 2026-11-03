@@ -92,23 +92,17 @@
       <SliderRow
         label="Angle"
         value={editor.geometrySession.draftAngle}
-        min={STRAIGHTEN.min}
-        max={STRAIGHTEN.max}
-        step={STRAIGHTEN.step}
+        range={STRAIGHTEN}
         onLive={editor.updateGeometryDraftAngle}
         onCommit={() => void editor.commitGeometry('Straighten')}
-        format={STRAIGHTEN.format}
       />
       {#each perspectiveSliders as s (s.key)}
         <SliderRow
           label={s.label}
           value={editor.geometrySession.draftPerspective[s.key]}
-          min={PERSPECTIVE.min}
-          max={PERSPECTIVE.max}
-          step={PERSPECTIVE.step}
+          range={PERSPECTIVE}
           onLive={(v: number) => onPerspectiveLive(s.key, v)}
           onCommit={() => void editor.commitGeometry('Perspective')}
-          format={PERSPECTIVE.format}
         />
       {/each}
     </div>

@@ -129,10 +129,7 @@
   <SliderRow
     label="Size"
     value={size}
-    min={RETOUCH_SIZE.min}
-    max={RETOUCH_SIZE.max}
-    step={RETOUCH_SIZE.step}
-    defaultValue={RETOUCH_SIZE.defaultValue}
+    range={RETOUCH_SIZE}
     onLive={(v: number) => live({ radius: v }, { size: v })}
     onCommit={commit}
     format={(v: number) => formatBrushSize(v, editor.meta)}
@@ -140,24 +137,16 @@
   <SliderRow
     label="Hardness"
     value={hardness}
-    min={RETOUCH_HARDNESS.min}
-    max={RETOUCH_HARDNESS.max}
-    step={RETOUCH_HARDNESS.step}
-    defaultValue={RETOUCH_HARDNESS.defaultValue}
+    range={RETOUCH_HARDNESS}
     onLive={(v: number) => live({ hardness: v }, { hardness: v })}
     onCommit={commit}
-    format={RETOUCH_HARDNESS.format}
   />
   <SliderRow
     label="Opacity"
     value={opacity}
-    min={RETOUCH_OPACITY.min}
-    max={RETOUCH_OPACITY.max}
-    step={RETOUCH_OPACITY.step}
-    defaultValue={RETOUCH_OPACITY.defaultValue}
+    range={RETOUCH_OPACITY}
     onLive={(v: number) => live({ opacity: v }, { opacity: v })}
     onCommit={commit}
-    format={RETOUCH_OPACITY.format}
   />
 
   {#if strokes.length > 0}

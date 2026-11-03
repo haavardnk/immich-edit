@@ -19,13 +19,9 @@
 <SliderRow
   label={param.label}
   {value}
-  min={param.min}
-  max={param.max}
-  step={param.step}
+  range={param}
   onLive={live}
   onCommit={commit}
   onDragStart={editor.holdMaskOverlay}
   onDragEnd={editor.releaseMaskOverlay}
-  format={param.format}
-  gradient={param.gradient}
 />

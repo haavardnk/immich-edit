@@ -113,39 +113,27 @@
       <SliderRow
         label="Softness"
         value={depthSoftness}
-        min={DEPTH_SOFTNESS.min}
-        max={DEPTH_SOFTNESS.max}
-        step={DEPTH_SOFTNESS.step}
-        defaultValue={DEPTH_SOFTNESS.defaultValue}
+        range={DEPTH_SOFTNESS}
         onLive={(v: number) => {
           depthSoftness = v;
           previewDepth();
         }}
         onCommit={rebake}
-        format={DEPTH_SOFTNESS.format}
       />
     {/if}
     <SliderRow
       label="Grow"
       value={grow}
-      min={GENERATED_GROW.min}
-      max={GENERATED_GROW.max}
-      step={GENERATED_GROW.step}
-      defaultValue={GENERATED_GROW.defaultValue}
+      range={GENERATED_GROW}
       onLive={(v: number) => (grow = v)}
       onCommit={rebake}
-      format={GENERATED_GROW.format}
     />
     <SliderRow
       label="Feather"
       value={featherPx}
-      min={GENERATED_FEATHER.min}
-      max={GENERATED_FEATHER.max}
-      step={GENERATED_FEATHER.step}
-      defaultValue={GENERATED_FEATHER.defaultValue}
+      range={GENERATED_FEATHER}
       onLive={(v: number) => (featherPx = v)}
       onCommit={rebake}
-      format={GENERATED_FEATHER.format}
     />
   </div>
 {/if}
