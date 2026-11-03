@@ -90,27 +90,18 @@
     label="Temperature"
     commitAction="Temperature"
     value={kelvin}
-    min={KELVIN.min}
-    max={KELVIN.max}
-    step={KELVIN.step}
-    scale={KELVIN.scale}
+    range={KELVIN}
     defaultValue={asShot?.kelvin ?? kelvin}
     disabled={pending}
-    format={KELVIN.format}
-    gradient={KELVIN.gradient}
     onLive={(v: number) => setWhite({ kelvin: v, tint })}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={TINT.min}
-    max={TINT.max}
-    step={TINT.step}
+    range={TINT}
     defaultValue={asShot?.tint ?? tint}
     disabled={pending}
-    format={TINT.format}
-    gradient={TINT.gradient}
     onLive={(v: number) => setWhite({ kelvin, tint: v })}
   />
 {:else}
@@ -120,24 +111,16 @@
     label="Temperature"
     commitAction="Temperature"
     value={temp}
-    min={SHIFT_TEMPERATURE.min}
-    max={SHIFT_TEMPERATURE.max}
-    step={SHIFT_TEMPERATURE.step}
+    range={SHIFT_TEMPERATURE}
     disabled={pending}
-    format={SHIFT_TEMPERATURE.format}
-    gradient={SHIFT_TEMPERATURE.gradient}
     onLive={(v: number) => setShift(v, tint)}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={SHIFT_TINT.min}
-    max={SHIFT_TINT.max}
-    step={SHIFT_TINT.step}
+    range={SHIFT_TINT}
     disabled={pending}
-    format={SHIFT_TINT.format}
-    gradient={SHIFT_TINT.gradient}
     onLive={(v: number) => setShift(temp, v)}
   />
 {/if}

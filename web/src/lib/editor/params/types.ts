@@ -29,6 +29,10 @@ export interface ParamDef extends ParamRange, ParamAccess {
   liveGradient?: (edits: Edits) => string;
 }
 
+export interface SliderRange extends ParamRange {
+  defaultValue?: number;
+}
+
 export interface ToolRange extends ParamRange {
   defaultValue: number;
   keyStep: number;

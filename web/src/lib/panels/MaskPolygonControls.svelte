@@ -19,13 +19,9 @@
     <SliderRow
       label="Feather"
       value={polygon.feather}
-      min={POLYGON_FEATHER.min}
-      max={POLYGON_FEATHER.max}
-      step={POLYGON_FEATHER.step}
-      defaultValue={POLYGON_FEATHER.defaultValue}
+      range={POLYGON_FEATHER}
       onLive={updateFeather}
       onCommit={() => void editor.commitMasks()}
-      format={POLYGON_FEATHER.format}
     />
   </div>
 {/if}
