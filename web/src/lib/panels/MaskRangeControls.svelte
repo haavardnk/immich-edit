@@ -46,35 +46,23 @@
     <SliderRow
       label="Min"
       value={luma.min}
-      min={LUMA_MIN.min}
-      max={LUMA_MIN.max}
-      step={LUMA_MIN.step}
-      defaultValue={LUMA_MIN.defaultValue}
+      range={LUMA_MIN}
       onLive={(value: number) => updateLuma('min', value)}
       onCommit={commit}
-      format={LUMA_MIN.format}
     />
     <SliderRow
       label="Max"
       value={luma.max}
-      min={LUMA_MAX.min}
-      max={LUMA_MAX.max}
-      step={LUMA_MAX.step}
-      defaultValue={LUMA_MAX.defaultValue}
+      range={LUMA_MAX}
       onLive={(value: number) => updateLuma('max', value)}
       onCommit={commit}
-      format={LUMA_MAX.format}
     />
     <SliderRow
       label="Softness"
       value={softness}
-      min={LUMA_SOFTNESS.min}
-      max={LUMA_SOFTNESS.max}
-      step={LUMA_SOFTNESS.step}
-      defaultValue={LUMA_SOFTNESS.defaultValue}
+      range={LUMA_SOFTNESS}
       onLive={(value: number) => updateLuma('softness', value)}
       onCommit={commit}
-      format={LUMA_SOFTNESS.format}
     />
   </div>
 {/if}
@@ -109,24 +97,16 @@
     <SliderRow
       label="Tolerance"
       value={color.tolerance}
-      min={COLOR_TOLERANCE.min}
-      max={COLOR_TOLERANCE.max}
-      step={COLOR_TOLERANCE.step}
-      defaultValue={COLOR_TOLERANCE.defaultValue}
+      range={COLOR_TOLERANCE}
       onLive={(value: number) => updateColor('tolerance', value)}
       onCommit={commit}
-      format={COLOR_TOLERANCE.format}
     />
     <SliderRow
       label="Softness"
       value={softness}
-      min={COLOR_SOFTNESS.min}
-      max={COLOR_SOFTNESS.max}
-      step={COLOR_SOFTNESS.step}
-      defaultValue={COLOR_SOFTNESS.defaultValue}
+      range={COLOR_SOFTNESS}
       onLive={(value: number) => updateColor('softness', value)}
       onCommit={commit}
-      format={COLOR_SOFTNESS.format}
     />
   </div>
 {/if}

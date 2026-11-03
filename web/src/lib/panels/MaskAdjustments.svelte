@@ -42,15 +42,11 @@
   <SliderRow
     label="Amount"
     value={amountValue}
-    min={MASK_AMOUNT.min}
-    max={MASK_AMOUNT.max}
-    step={MASK_AMOUNT.step}
-    defaultValue={MASK_AMOUNT.defaultValue}
+    range={MASK_AMOUNT}
     onLive={onAmountLive}
     onCommit={commit}
     onDragStart={editor.holdMaskOverlay}
     onDragEnd={editor.releaseMaskOverlay}
-    format={MASK_AMOUNT.format}
   />
   {#each MASK_PARAM_ROWS as row, index (index)}
     <div class="border-t border-dark/5"></div>

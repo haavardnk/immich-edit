@@ -347,13 +347,9 @@
             <SliderRow
               label="Feather"
               value={featherValue}
-              min={MASK_FEATHER.min}
-              max={MASK_FEATHER.max}
-              step={MASK_FEATHER.step}
-              defaultValue={MASK_FEATHER.defaultValue}
+              range={MASK_FEATHER}
               onLive={onFeatherLive}
               onCommit={() => void editor.commitMasks()}
-              format={MASK_FEATHER.format}
             />
           </div>
         {/if}

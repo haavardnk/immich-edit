@@ -14,13 +14,9 @@
     () => param.get(editor.edits, editor.isRaw),
     (value) => param.set(editor.edits, value, editor.isRaw)
   }
-  min={param.min}
-  max={param.max}
-  step={param.step}
-  scale={param.scale}
+  range={param}
   defaultValue={paramDefault(param, editor.isRaw)}
   disabled={disabled || (param.inactive?.(editor.edits, editor.isRaw) ?? false)}
-  format={param.format}
   gradient={param.liveGradient?.(editor.edits) ?? param.gradient}
   previewMode={param.previewMode}
 />
