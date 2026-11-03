@@ -3,13 +3,20 @@ import { KEYBINDS, type Keybind, type KeybindContext } from '#lib/shortcuts/tabl
 import { describe, expect, it, vi } from 'vitest';
 import { commandLabel } from './command';
 import { COMMANDS } from './registry';
+import type { Command } from './types';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/'), params: {} } }));
 
-const AWAITING_CONTEXTS: readonly KeybindContext[] = ['grid', 'loupe', 'compare', 'survey'];
-
 const OVERLAY_BINDS = ['maskCancelDraw', 'maskClosePolygon', 'maskDelete', 'maskNudge'];
+
+const SHARED_BINDS = [
+  'editorEscape@editor',
+  'resetEdits@editor',
+  'loupeClose@loupe',
+  'compareExit@compare',
+  'surveyExit@survey'
+];
 
 const BINDS = KEYBINDS as readonly Keybind[];
 
@@ -41,7 +48,6 @@ describe('command registry', () => {
       (bind) => bind.keys.length > 0 && !OVERLAY_BINDS.includes(bind.id)
     ).flatMap((bind) =>
       bind.contexts
-        .filter((context) => !AWAITING_CONTEXTS.includes(context))
         .filter(
           (context) =>
             !COMMANDS.some(
@@ -69,14 +75,37 @@ describe('command registry', () => {
     ]);
   });
 
-  it('leaves only the last command on a shared shortcut without an active guard', () => {
-    const ambiguous = COMMANDS.filter((command, index) =>
-      COMMANDS.slice(index + 1).some(
-        (later) =>
-          later.bind === command.bind &&
-          later.contexts.some((context) => command.contexts.includes(context))
-      )
-    ).filter((command) => !command.active);
-    expect(ambiguous.map(({ id }) => id)).toEqual([]);
+  it.each([
+    ['loupeClose', ['loupe.exitFullscreen', 'loupe.close']],
+    ['compareExit', ['compare.exitFullscreen', 'compare.exit']],
+    ['surveyExit', ['survey.exitFullscreen', 'survey.exit']]
+  ])('leaves loupe fullscreen before %s', (bind, order) => {
+    expect(COMMANDS.filter((command) => command.bind === bind).map(({ id }) => id)).toEqual(order);
+  });
+
+  it('shares a shortcut within a context only in an allowlisted guarded chain', () => {
+    const owners = new Map<string, Command[]>();
+    for (const command of COMMANDS) {
+      for (const context of command.contexts) {
+        const key = `${command.bind}@${context}`;
+        if (command.bind) owners.set(key, [...(owners.get(key) ?? []), command]);
+      }
+    }
+    const shared = [...owners].filter(([, commands]) => commands.length > 1);
+    expect(shared.map(([key]) => key).sort()).toEqual([...SHARED_BINDS].sort());
+    for (const [key, commands] of shared) {
+      const unguarded = commands.slice(0, -1).filter((command) => !command.active);
+      expect(
+        unguarded.map(({ id }) => id),
+        key
+      ).toEqual([]);
+    }
+  });
+
+  it('creates one editor virtual copy per key press', () => {
+    const command = COMMANDS.find(({ id }) => id === 'editor.virtualCopy');
+    const trigger = { key: "'", code: 'Quote', shiftKey: false, repeat: false };
+    expect(command?.yields?.({ ...trigger, repeat: true })).toBe(true);
+    expect(command?.yields?.(trigger)).toBe(false);
   });
 });

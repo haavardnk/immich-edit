@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
-  import { createVirtualCopies } from '#lib/editor/copies.ts';
+  import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
   import { isRejected } from '#lib/browse/reject.ts';
   import * as bulkMeta from '#lib/browse/bulkMeta.ts';
   import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
@@ -71,7 +71,7 @@
     bar?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus();
   }
 
-  let metaBusy = $derived(busy || selectingAll);
+  let metaBusy = $derived(busy || selectingAll || virtualCopies.busy);
   let count = $derived(selectedIds.length);
   let targetCount = $derived(selectingAll ? assets.length : count);
   let picked = $derived.by(() => {
@@ -109,7 +109,7 @@
   }
 
   async function runBulk(write: (ids: string[]) => Promise<unknown>): Promise<void> {
-    if (busy || selectingAll) return;
+    if (metaBusy) return;
     busy = true;
     try {
       await write([...selectedIds]);
@@ -123,7 +123,7 @@
   }
 
   function createCopies(): Promise<void> {
-    return runBulk(createVirtualCopies);
+    return runBulk(virtualCopies.create);
   }
 
   function setRating(value: number | null): Promise<void> {

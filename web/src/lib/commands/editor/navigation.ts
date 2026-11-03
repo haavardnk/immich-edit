@@ -6,7 +6,8 @@ import { ui, type EditorTab } from '#lib/stores/ui.svelte.ts';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import type { Command } from '#lib/commands/types.ts';
-import { editorAssetId, returnPath, selectedShapeNudges } from '#lib/commands/editor/context.ts';
+import { editorAssetId, selectedShapeNudges } from '#lib/commands/editor/context.ts';
+import { returnPath } from '#lib/utils/route.ts';
 
 function openInEditor(id: string): void {
   void goto(editorHref(id, returnPath()), { replace: true });

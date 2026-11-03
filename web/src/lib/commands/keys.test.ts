@@ -21,15 +21,20 @@ vi.mock('#lib/stores/ui.svelte.ts', () => ({
 
 const EDITOR: readonly KeybindContext[] = ['editor', 'global'];
 const MASKS: readonly KeybindContext[] = ['masks', 'editor', 'global'];
+const GRID: readonly KeybindContext[] = ['grid', 'global'];
 
-function press(key: string, init: { code?: string; target?: object } = {}): KeyboardEvent {
+function press(
+  key: string,
+  init: { code?: string; shiftKey?: boolean; repeat?: boolean; target?: object } = {}
+): KeyboardEvent {
   const event = {
     key,
     code: init.code ?? '',
     metaKey: false,
     ctrlKey: false,
-    shiftKey: false,
+    shiftKey: init.shiftKey ?? false,
     altKey: false,
+    repeat: init.repeat ?? false,
     target: init.target ?? null,
     defaultPrevented: false,
     getModifierState: () => false,
@@ -75,8 +80,24 @@ describe('key dispatcher', () => {
     createKeyDispatcher([inactive, active]).keydown(event, EDITOR);
 
     expect(inactive.run).not.toHaveBeenCalled();
-    expect(active.run).toHaveBeenCalledWith({ key: 'p' });
+    expect(active.run).toHaveBeenCalledWith({ key: 'p', code: '', shiftKey: false, repeat: false });
     expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it('hands the code, shift and repeat state to active, yields and run', () => {
+    const active = vi.fn(() => true);
+    const yields = vi.fn(() => false);
+    const rate = command({ id: 'rate', contexts: ['grid'], bind: 'rateAdvance', active, yields });
+    const trigger = { key: '!', code: 'Digit1', shiftKey: true, repeat: true };
+
+    createKeyDispatcher([rate]).keydown(
+      press('!', { code: 'Digit1', shiftKey: true, repeat: true }),
+      GRID
+    );
+
+    expect(active).toHaveBeenCalledWith(trigger);
+    expect(yields).toHaveBeenCalledWith(trigger);
+    expect(rate.run).toHaveBeenCalledWith(trigger);
   });
 
   it('ignores commands owned by a context outside the stack', () => {
@@ -148,6 +169,36 @@ describe('key dispatcher', () => {
     expect(bound.run).not.toHaveBeenCalled();
     expect(open.run).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['outsideControls', press('z', { target: radio }), true],
+    ['outsideWidgets', press('z', { target: radio }), false],
+    ['outsideControls', press('Enter', { target: button }), false],
+    ['outsideWidgets', press('Enter', { target: button }), false],
+    ['outsideWidgets', press('z', { target: input }), false]
+  ] as const)('applies the %s gate to focused widgets', (gate, event, runs) => {
+    const bound = command({ id: 'zoom', bind: 'zoomToggle', gate });
+    const open = command({ id: 'open', bind: 'openEditor', contexts: ['grid'], gate });
+
+    createKeyDispatcher([bound, open]).keydown(event, [...EDITOR, 'grid']);
+
+    const calls = vi.mocked(bound.run).mock.calls.length + vi.mocked(open.run).mock.calls.length;
+    expect(calls).toBe(runs ? 1 : 0);
+  });
+
+  it.each(['outsideControls', 'outsideWidgets'] as const)(
+    'lets the %s gate act on keys already handled or behind the help dialog',
+    (gate) => {
+      const bound = command({ id: 'zoom', bind: 'zoomToggle', gate });
+      const event = press('z');
+      Object.assign(event, { defaultPrevented: true });
+      h.helpOpen = true;
+
+      createKeyDispatcher([bound]).keydown(event, EDITOR);
+
+      expect(bound.run).toHaveBeenCalledOnce();
+    }
+  );
 
   it('does nothing while a modal is open', () => {
     const bound = command({ id: 'zoom', bind: 'zoomToggle', gate: 'always' });
