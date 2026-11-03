@@ -1,3 +1,4 @@
+import { NEUTRAL_LENS } from '#lib/types/edits.ts';
 import { field, param } from './define';
 import { amountRange } from './range';
 import type { ParamDef, SectionDef } from './types';
@@ -27,5 +28,9 @@ export const LENS_PARAMS: readonly ParamDef[] = [lensDistortion, lensVignetting]
 export const LENS: SectionDef = {
   id: 'lens',
   title: 'Lens Profile',
-  rows: [[lensDistortion, lensVignetting]]
+  history: 'Lens Corrections',
+  rows: [[lensDistortion, lensVignetting]],
+  clear: (edits) => {
+    edits.lens = { ...NEUTRAL_LENS };
+  }
 };

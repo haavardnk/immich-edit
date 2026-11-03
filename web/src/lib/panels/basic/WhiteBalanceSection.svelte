@@ -4,12 +4,18 @@
   import { untrack } from 'svelte';
   import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import { KELVIN, SHIFT_TEMPERATURE, SHIFT_TINT, TINT } from '#lib/editor/params/whiteBalance.ts';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
+  import {
+    KELVIN,
+    SHIFT_TEMPERATURE,
+    SHIFT_TINT,
+    TINT,
+    WHITE_BALANCE
+  } from '#lib/editor/params/whiteBalance.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import {
     absoluteWhiteBalance,
-    asShotWhiteBalance,
     relativeShift,
     relativeWhiteBalance,
     resolveTemperature,
@@ -45,14 +51,14 @@
     editor.edits.basic.white_balance = relativeWhiteBalance(temp, tint);
     editor.onLive();
   }
-
-  function reset(): void {
-    editor.edits.basic.white_balance = asShotWhiteBalance();
-    void editor.onCommit('Reset White Balance');
-  }
 </script>
 
-<SectionHeader title="White Balance" section="white_balance" {modified} onReset={reset}>
+<SectionHeader
+  title="White Balance"
+  section="white_balance"
+  {modified}
+  onReset={() => commitSectionReset(WHITE_BALANCE)}
+>
   {#snippet actions()}
     <IconButton
       size="tiny"

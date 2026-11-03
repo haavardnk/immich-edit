@@ -1,7 +1,7 @@
 <script lang="ts">
   import ParamSlider from './ParamSlider.svelte';
   import SectionHeader from './SectionHeader.svelte';
-  import { commitParamReset } from './paramReset';
+  import { commitSectionReset } from './paramReset';
   import { paramsModified } from '#lib/editor/params/define.ts';
   import type { SectionDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
@@ -16,7 +16,7 @@
   title={section.title}
   section={section.id}
   {modified}
-  onReset={() => commitParamReset(params, `Reset ${section.title}`)}
+  onReset={() => commitSectionReset(section)}
 />
 {#each section.rows as row, index (index)}
   {#if index > 0}

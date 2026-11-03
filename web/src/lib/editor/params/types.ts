@@ -37,7 +37,28 @@ export interface ToolRange extends ParamRange {
 export interface SectionDef {
   id: DevelopSection;
   title: string;
+  history?: string;
   rows: readonly (readonly ParamDef[])[];
+  clear?: (edits: Edits) => void;
+}
+
+export type DesktopPanelId =
+  | 'dcp'
+  | 'basic'
+  | 'curves'
+  | 'hsl'
+  | 'color-grading'
+  | 'bw'
+  | 'lut'
+  | 'detail'
+  | 'lens'
+  | 'lens-blur'
+  | 'effects';
+
+export interface DesktopPanel {
+  id: DesktopPanelId;
+  title: string;
+  sections: readonly SectionDef[];
 }
 
 export interface TouchView {
@@ -46,8 +67,10 @@ export interface TouchView {
   params: readonly ParamDef[];
 }
 
+export type TouchGroupId = 'light' | 'color' | 'effects' | 'detail' | 'optics' | 'profile';
+
 export interface TouchGroup {
-  id: string;
+  id: TouchGroupId;
   label: string;
   views: readonly TouchView[];
 }
