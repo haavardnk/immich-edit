@@ -10,9 +10,12 @@ import {
   unflagFocused
 } from '#lib/browse/loupeActions.ts';
 import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
+import { trashLabelFor } from '#lib/browse/trash.ts';
 import { loupeCommand, VIEWING } from '#lib/commands/loupe/context.ts';
 import type { Command, CommandTrigger } from '#lib/commands/types.ts';
+import { compare } from '#lib/stores/compare.svelte.ts';
 import { labelOf, nextLabelFromKey, type LabelColor } from '#lib/stores/labels.ts';
+import { mdiTrashCanOutline } from '@mdi/js';
 
 function nextLabel(trigger: CommandTrigger): LabelColor | null | undefined {
   const asset = loupeAsset();
@@ -40,11 +43,21 @@ function keyed<T>(
   };
 }
 
+export const loupeTrash = loupeCommand({
+  id: 'loupe.trash',
+  contexts: ['loupe'],
+  label: () => trashLabelFor(loupeFocusedId()),
+  icon: mdiTrashCanOutline,
+  bind: 'trash',
+  enabled: () => compare.mode === 'single',
+  run: trashFocused
+});
+
 export const LOUPE_CULLING_COMMANDS: readonly Command[] = [
   loupeCommand({ id: 'loupe.favorite', contexts: VIEWING, bind: 'favorite', run: favoriteFocused }),
   loupeCommand({ id: 'loupe.reject', contexts: VIEWING, bind: 'reject', run: rejectFocused }),
   loupeCommand({ id: 'loupe.unflag', contexts: VIEWING, bind: 'unflag', run: unflagFocused }),
-  loupeCommand({ id: 'loupe.trash', contexts: ['loupe'], bind: 'trash', run: trashFocused }),
+  loupeTrash,
   loupeCommand({
     id: 'loupe.label',
     contexts: VIEWING,
