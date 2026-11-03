@@ -16,12 +16,13 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
   import {
-    rateAsset,
-    toggleFavorite,
-    toggleReject,
+    browseTarget,
     clearFlags,
-    setLabel
-  } from '#lib/browse/cull.ts';
+    setLabel,
+    setRating,
+    toggleFavorite,
+    toggleReject
+  } from '#lib/browse/assetMeta.ts';
   import { labelOf, nextLabelFromKey } from '#lib/stores/labels.ts';
   import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
   import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
@@ -201,19 +202,19 @@
   function applyRating(rating: number | null): void {
     const ids = targets();
     if (ids.length === 0) return;
-    ids.forEach((id) => void rateAsset(id, rating));
+    ids.forEach((id) => void setRating(browseTarget(id), rating));
   }
 
   function applyFavorite(): void {
-    targets().forEach((id) => void toggleFavorite(id));
+    targets().forEach((id) => void toggleFavorite(browseTarget(id)));
   }
 
   function applyReject(): void {
-    targets().forEach((id) => void toggleReject(id));
+    targets().forEach((id) => void toggleReject(browseTarget(id)));
   }
 
   function applyUnflag(): void {
-    targets().forEach((id) => void clearFlags(id));
+    targets().forEach((id) => void clearFlags(browseTarget(id)));
   }
 
   function applyTrash(): boolean {
@@ -231,7 +232,7 @@
     const common = labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
     const next = nextLabelFromKey(key, common);
     if (next === undefined) return false;
-    ids.forEach((id) => void setLabel(id, next));
+    ids.forEach((id) => void setLabel(browseTarget(id), next));
     return true;
   }
 
@@ -397,8 +398,8 @@
         const [only] = ids;
         if (ids.length > 1 || !only) return applyRating(next);
         const following = items[items.findIndex((asset) => asset.id === only) + 1];
-        void rateAsset(only, next).then((ok) => {
-          if (!ok || !following) return;
+        void setRating(browseTarget(only), next).then((outcome) => {
+          if (outcome === 'skipped' || !following) return;
           selection.selectLoaded([following.id]);
           browseView.setActive(following.id);
           ensureVisible(following.id);
@@ -501,7 +502,7 @@
         }}
         onActivate={() => browseView.setActive(item.asset.id)}
         onLoupe={() => browseView.openLoupe(item.asset.id)}
-        onRate={(rating) => void rateAsset(item.asset.id, rating)}
+        onRate={(rating) => void setRating(browseTarget(item.asset.id), rating)}
         onDeleteCopy={isCopy(item.asset.id)
           ? () => void trash.removeCopy(item.asset.id)
           : undefined}

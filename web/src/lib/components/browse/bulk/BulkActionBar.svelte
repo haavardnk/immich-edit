@@ -1,30 +1,26 @@
 <script lang="ts">
   import type { AssetSummary } from '#lib/types/album.ts';
-  import type { AssetDetail } from '#lib/types/asset.ts';
   import { page } from '$app/state';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
-  import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { addTagToAsset, removeTagFromAsset } from '#lib/api/tags.ts';
-  import { updateAsset } from '#lib/api/assets.ts';
   import { createVirtualCopy } from '#lib/editor/copies.ts';
   import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-  import { rejected } from '#lib/stores/rejected.svelte.ts';
-  import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
+  import { ensureRejectTag, isRejected } from '#lib/browse/reject.ts';
+  import {
+    browseTarget,
+    setFavorite as setAssetFavorite,
+    setLabel as setAssetLabel,
+    setRating as setAssetRating,
+    setRejected,
+    type MetaOutcome,
+    type MetaTarget
+  } from '#lib/browse/assetMeta.ts';
   import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
   import { NOT_OWNER_TRASH } from '#lib/browse/trash.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
-  import {
-    LABEL_NAMES,
-    labelOf,
-    labelTagFor,
-    withLabel,
-    writeLabel,
-    type LabelColor
-  } from '#lib/stores/labels.ts';
-  import { assignLabel } from '#lib/stores/labels.svelte.ts';
+  import { LABEL_NAMES, labelOf, labelTagFor, type LabelColor } from '#lib/stores/labels.ts';
   import LabelPicker from '#lib/components/LabelPicker.svelte';
   import FavoriteButton from '#lib/components/FavoriteButton.svelte';
   import RejectButton from '#lib/components/RejectButton.svelte';
@@ -138,36 +134,36 @@
     await Promise.all(workers);
   }
 
-  async function applyMeta(fn: (id: string) => Promise<AssetDetail>): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
+  async function applyMeta(
+    write: (target: MetaTarget) => Promise<MetaOutcome>,
+    success: (count: number) => string
+  ): Promise<void> {
     busy = true;
     const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
     let failed = 0;
     await runPool(ids, 6, async (id) => {
-      try {
-        const updated = await fn(id);
-        const a = byId.get(id);
-        if (a) {
-          a.isFavorite = updated.isFavorite;
-          a.exifInfo = updated.exifInfo;
-        }
-        browsing.patch(id, { isFavorite: updated.isFavorite, exifInfo: updated.exifInfo });
-      } catch {
-        failed += 1;
-      }
+      if ((await write(browseTarget(id, () => {}))) !== 'saved') failed += 1;
     });
     busy = false;
     if (failed > 0) {
       toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
     } else {
-      toasts.push('success', `Updated ${countOf(ids.length, 'asset')}`, 4000);
+      toasts.push('success', success(ids.length), 4000);
     }
   }
 
-  function setFavorite(value: boolean): void {
-    void applyMeta((id) => updateAsset(id, { isFavorite: value }));
+  async function canApplyMeta(): Promise<boolean> {
+    if (busy || selectingAll) return false;
+    return metadataConsent.gate();
+  }
+
+  function updated(count: number): string {
+    return `Updated ${countOf(count, 'asset')}`;
+  }
+
+  async function setFavorite(value: boolean): Promise<void> {
+    if (!(await canApplyMeta())) return;
+    await applyMeta((target) => setAssetFavorite(target, value), updated);
   }
 
   async function createCopies(): Promise<void> {
@@ -194,81 +190,34 @@
     }
   }
 
-  function setRating(value: number | null): void {
-    void applyMeta((id) => updateAsset(id, { rating: value }));
+  async function setRating(value: number | null): Promise<void> {
+    if (!(await canApplyMeta())) return;
+    await applyMeta((target) => setAssetRating(target, value), updated);
   }
 
   async function applyReject(value: boolean): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
-    const rejectTag = await ensureRejectTag();
-    if (!rejectTag) {
+    if (!(await canApplyMeta())) return;
+    if (!(await ensureRejectTag())) {
       toasts.push('error', 'reject: could not create tag', 6000);
       return;
     }
-    busy = true;
-    const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
-    let failed = 0;
-    await runPool(ids, 6, async (id) => {
-      try {
-        await (value ? addTagToAsset(rejectTag.id, id) : removeTagFromAsset(rejectTag.id, id));
-        const a = byId.get(id);
-        if (a) {
-          const tags = setRejectedTags(a.tags, rejectTag, value);
-          a.tags = tags;
-          browsing.patch(id, { tags });
-        }
-        if (value) rejected.add(id, rejectTag);
-        else rejected.remove(id);
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      toasts.push(
-        'success',
-        `${value ? 'Rejected' : 'Unrejected'} ${countOf(ids.length, 'asset')}`,
-        4000
-      );
-    }
+    await applyMeta(
+      (target) => setRejected(target, value),
+      (count) => `${value ? 'Rejected' : 'Unrejected'} ${countOf(count, 'asset')}`
+    );
   }
+
   async function applyLabel(color: LabelColor | null): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
-    const tag = await labelTagFor(color);
-    if (tag === undefined) {
+    if (!(await canApplyMeta())) return;
+    if ((await labelTagFor(color)) === undefined) {
       toasts.push('error', 'label: could not create tag', 6000);
       return;
     }
-    busy = true;
-    const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
-    let failed = 0;
-    await runPool(ids, 6, async (id) => {
-      const a = byId.get(id);
-      try {
-        await writeLabel(id, a?.tags ?? [], tag);
-        if (a) {
-          const tags = withLabel(a.tags, tag);
-          a.tags = tags;
-          browsing.patch(id, { tags });
-        }
-        assignLabel(id, color, tag);
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      const what = color ? `${LABEL_NAMES[color]} label on` : 'Cleared the label of';
-      toasts.push('success', `${what} ${countOf(ids.length, 'photo')}`, 4000);
-    }
+    const what = color ? `${LABEL_NAMES[color]} label on` : 'Cleared the label of';
+    await applyMeta(
+      (target) => setAssetLabel(target, color),
+      (count) => `${what} ${countOf(count, 'photo')}`
+    );
   }
 </script>
 
@@ -344,14 +293,14 @@
             isFavorite={favoriteState === 'all'}
             mixed={favoriteState === 'some'}
             disabled={metaBusy || !allOwned}
-            ontoggle={() => setFavorite(favoriteState !== 'all')}
+            ontoggle={() => void setFavorite(favoriteState !== 'all')}
           />
           <StarRating
             size={20}
             rating={commonRating ?? 0}
             mixed={commonRating === null}
             disabled={metaBusy || !allOwned}
-            onchange={setRating}
+            onchange={(value) => void setRating(value)}
           />
           <RejectButton
             size="medium"
