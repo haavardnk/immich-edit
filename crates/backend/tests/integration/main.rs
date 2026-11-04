@@ -44,6 +44,7 @@ mod middleware;
 #[cfg(feature = "ml")]
 mod models;
 mod people;
+mod preferences;
 mod presets;
 mod preview;
 mod rasters;
