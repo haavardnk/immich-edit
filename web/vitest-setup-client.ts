@@ -45,6 +45,7 @@ window.matchMedia = (query: string): MediaQueryList =>
   }) as MediaQueryList;
 
 Element.prototype.scrollTo = (): void => {};
+Element.prototype.scrollIntoView = (): void => {};
 
 Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
   configurable: true,

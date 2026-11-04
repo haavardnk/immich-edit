@@ -60,7 +60,9 @@ keeps WCAG AA contrast.
 **Settings** > **This device** holds settings kept in this browser only. Under **Layout**, **Auto**
 picks the touch layout below 768 px wide, or on a touch-first screen whose short side is at most
 1100 px. It re-evaluates live when you rotate or resize. **Desktop** and **Touch** force one layout
-for this browser. **Preview rendering** is covered in [rendering](rendering.md#the-browser).
+for this browser. In the touch layout, menus, dialogs and pickers open as sheets from the bottom of
+the screen, and dragging a sheet's handle down closes it.
+**Preview rendering** is covered in [rendering](rendering.md#the-browser).
 
 ## Editing defaults
 

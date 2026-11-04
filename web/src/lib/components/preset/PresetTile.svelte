@@ -85,7 +85,14 @@
       >{preset.name}</span
     >
   </button>
-  <Popover open={menuOpen} anchor="top" align="end" onOpenChange={setMenu} contentClass="w-52 py-1">
+  <Popover
+    open={menuOpen}
+    anchor="top"
+    align="end"
+    onOpenChange={setMenu}
+    contentClass="w-52 py-1"
+    title={preset.name}
+  >
     {#snippet trigger(props)}
       <IconButton
         size="tiny"
@@ -119,11 +126,17 @@
           label="Confirm delete"
           onclick={() => act(() => void presets.remove(preset.id))}
         />
-        <MenuItem icon={mdiClose} label="Cancel" onclick={() => (confirmingDelete = false)} />
+        <MenuItem
+          icon={mdiClose}
+          label="Cancel"
+          data-menu-stay
+          onclick={() => (confirmingDelete = false)}
+        />
       {:else}
         <MenuItem
           icon={mdiDeleteOutline}
           label="Delete"
+          data-menu-stay
           onclick={() => (confirmingDelete = true)}
         />
       {/if}

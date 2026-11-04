@@ -16,7 +16,10 @@
   {open}
   align="end"
   onOpenChange={(v) => (open = v)}
+  appearance="panel"
   contentClass="w-80 max-h-112 overflow-y-auto"
+  sheetClass="p-0"
+  title="Edit history"
   tooltip="Edit history"
 >
   {#snippet trigger(popoverProps)}
@@ -32,7 +35,7 @@
       {...popoverProps}
     />
   {/snippet}
-  <div class="flex items-center justify-between border-b border-dark/5 px-3 py-2">
+  <div class="flex items-center justify-between border-b border-dark/5 px-3 py-2 touch:hidden">
     <span class="text-[11px] uppercase tracking-wider text-dark/65">History</span>
     <IconButton
       size="small"

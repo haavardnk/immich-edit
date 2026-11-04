@@ -14,7 +14,9 @@
     align="end"
     customAnchor={anchor}
     onOpenChange={(v) => (v ? ui.openPopover('exif') : ui.closePopover())}
+    appearance="panel"
     contentClass="p-3"
+    title="Info"
   >
     <ExifRows asset={editor.asset} />
   </Popover>
