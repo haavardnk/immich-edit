@@ -94,7 +94,7 @@ describe('bulk metadata', () => {
     expect(await setRating(['a', 'b', 'c'], 4)).toBe(true);
     expect(h.updateAsset).toHaveBeenCalledTimes(3);
     expect(browsing.assets.map((a) => a.exifInfo?.rating)).toEqual([4, 4, 4]);
-    expect(push).toHaveBeenCalledWith('success', 'Updated 3 assets', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Updated 3 assets', { ttlMs: 4000 });
   });
 
   it('writes nothing when consent is refused', async () => {
@@ -110,33 +110,33 @@ describe('bulk metadata', () => {
     );
     expect(await setFavorite(['a', 'b', 'c'], true)).toBe(true);
     expect(browsing.assets.map((a) => a.isFavorite)).toEqual([true, false, true]);
-    expect(push).toHaveBeenCalledWith('warn', '1 of 3 failed', 6000);
+    expect(push).toHaveBeenCalledWith('warn', '1 of 3 failed', { ttlMs: 6000 });
   });
 
   it('counts photos it could not write as failed', async () => {
     browsing.set([asset('a')]);
     expect(await setRating(['a', 'gone'], 2)).toBe(true);
-    expect(push).toHaveBeenCalledWith('warn', '1 of 2 failed', 6000);
+    expect(push).toHaveBeenCalledWith('warn', '1 of 2 failed', { ttlMs: 6000 });
   });
 
   it('rejects every photo', async () => {
     expect(await setRejected(['a', 'b'], true)).toBe(true);
     expect(h.addTagToAsset).toHaveBeenCalledTimes(2);
     expect(rejected.ids.has('a') && rejected.ids.has('b')).toBe(true);
-    expect(push).toHaveBeenCalledWith('success', 'Rejected 2 assets', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Rejected 2 assets', { ttlMs: 4000 });
   });
 
   it('stops when the reject tag cannot be created', async () => {
     h.rejectTag = null;
     expect(await setRejected(['a', 'b'], true)).toBe(false);
     expect(h.addTagToAsset).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('error', 'reject: could not create tag', 6000);
+    expect(push).toHaveBeenCalledWith('error', 'reject: could not create tag', { ttlMs: 6000 });
   });
 
   it('labels every photo', async () => {
     expect(await setLabel(['a', 'b'], 'red')).toBe(true);
     expect(browsing.assets.slice(0, 2).map(labelOf)).toEqual(['red', 'red']);
-    expect(push).toHaveBeenCalledWith('success', 'Red label on 2 photos', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Red label on 2 photos', { ttlMs: 4000 });
   });
 });
 
@@ -146,7 +146,7 @@ describe('bulk tags', () => {
     expect(h.addTagToAsset).toHaveBeenCalledTimes(4);
     expect(tagIds('a')).toEqual(['t1', 't2']);
     expect(tagIds('b')).toEqual(['t1', 't2']);
-    expect(push).toHaveBeenCalledWith('success', 'Added tags on 2 assets', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Added tags on 2 assets', { ttlMs: 4000 });
   });
 
   it('removes every tag from every photo', async () => {
@@ -154,7 +154,7 @@ describe('bulk tags', () => {
     expect(await removeTags(['a', 'b'], [sunset])).toBe(true);
     expect(tagIds('a')).toEqual(['t2']);
     expect(tagIds('b')).toEqual([]);
-    expect(push).toHaveBeenCalledWith('success', 'Removed tags on 2 assets', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Removed tags on 2 assets', { ttlMs: 4000 });
   });
 
   it('counts each refused tag update', async () => {
@@ -163,7 +163,7 @@ describe('bulk tags', () => {
     );
     expect(await addTags(['a', 'b'], [sunset, beach])).toBe(true);
     expect(tagIds('b')).toEqual(['t1']);
-    expect(push).toHaveBeenCalledWith('warn', '1 tag update failed', 6000);
+    expect(push).toHaveBeenCalledWith('warn', '1 tag update failed', { ttlMs: 6000 });
   });
 
   it('writes nothing when consent is refused', async () => {
