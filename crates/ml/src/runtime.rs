@@ -116,7 +116,7 @@ impl ModelRuntime {
 }
 
 static ENVIRONMENT: LazyLock<Result<Environment, String>> = LazyLock::new(|| {
-    let environment = ort_log::routed(ort::init())
+    let environment = ort_log::routed(ort::init().with_telemetry(false))
         .build()
         .map_err(|e| e.to_string())?;
     environment.set_log_level(ort_log::threshold());
