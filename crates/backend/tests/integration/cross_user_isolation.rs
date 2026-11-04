@@ -728,6 +728,81 @@ async fn appearance_is_scoped_to_the_owner() {
     }
 }
 
+#[tokio::test]
+async fn preferences_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let chosen = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({
+                    "click_target": "loupe",
+                    "mask_overlay_color": "#ff0000",
+                    "shortcuts": { "help": ["F1"] }
+                }),
+            ),
+            StatusCode::OK,
+            "owner patch preferences",
+        )
+        .await,
+    )
+    .await;
+
+    let seen = body_json(
+        expect_status(
+            &member,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "member get preferences",
+        )
+        .await,
+    )
+    .await;
+    if seen["click_target"] != "editor"
+        || !seen["mask_overlay_color"].is_null()
+        || seen["shortcuts"] != serde_json::json!({})
+    {
+        panic!("member read the owner's preferences: {seen}");
+    }
+
+    let member_saved = body_json(
+        expect_status(
+            &member,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({ "pinned_settings": ["exposure"] }),
+            ),
+            StatusCode::OK,
+            "member patch preferences",
+        )
+        .await,
+    )
+    .await;
+    if member_saved["click_target"] != "editor"
+        || member_saved["shortcuts"] != serde_json::json!({})
+    {
+        panic!("member patch merged onto the owner's preferences: {member_saved}");
+    }
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "owner get preferences",
+        )
+        .await,
+    )
+    .await;
+    if owned != chosen || !owned["pinned_settings"].is_null() {
+        panic!("owner preferences after member calls: {owned}");
+    }
+}
+
 #[cfg(feature = "ml")]
 async fn source_etag(app: &axum::Router, id: uuid::Uuid, what: &str) -> String {
     let resp = expect_status(

@@ -17,6 +17,7 @@ mod export_jobs;
 mod export_presets;
 mod history;
 mod pool;
+mod preferences;
 mod presets;
 mod purge;
 mod raster_refs;
@@ -25,6 +26,7 @@ pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
 pub use export_presets::ExportPresetRecord;
 pub use history::{EditHistoryEntry, RestoreOutcome};
+pub use preferences::{ClickTarget, Preferences, PreferencesPatch, SectionEntry};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {

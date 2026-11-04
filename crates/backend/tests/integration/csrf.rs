@@ -145,6 +145,41 @@ async fn safe_methods_skip_the_guard() {
 }
 
 #[tokio::test]
+async fn a_cookie_patch_is_guarded_like_any_mutation() {
+    let server = MockServer::start().await;
+    let (app, token) = app_and_token(&server).await;
+    let patch = |origin: &'static str| {
+        Request::builder()
+            .method("PATCH")
+            .uri("/api/preferences")
+            .header("host", "localhost")
+            .header("origin", origin)
+            .header("cookie", format!("immich_edit_auth={token}"))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"click_target":"loupe"}"#))
+            .unwrap()
+    };
+    let foreign = app
+        .clone()
+        .oneshot(patch("https://evil.example"))
+        .await
+        .unwrap()
+        .status();
+    if foreign != StatusCode::FORBIDDEN {
+        panic!("a cross-origin patch must be rejected, got {foreign}");
+    }
+    let same = app
+        .clone()
+        .oneshot(patch("http://localhost"))
+        .await
+        .unwrap()
+        .status();
+    if same != StatusCode::OK {
+        panic!("a same-origin patch must pass, got {same}");
+    }
+}
+
+#[tokio::test]
 async fn a_foreign_origin_api_key_mutation_is_forbidden() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;

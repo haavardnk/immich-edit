@@ -7,6 +7,7 @@ pub fn build_cors(allowed: &[String]) -> CorsLayer {
         Method::GET,
         Method::POST,
         Method::PUT,
+        Method::PATCH,
         Method::DELETE,
         Method::OPTIONS,
     ];
