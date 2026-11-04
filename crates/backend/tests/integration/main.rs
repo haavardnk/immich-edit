@@ -21,6 +21,7 @@ mod denoise_report;
 #[cfg(feature = "ml")]
 mod denoise_revision;
 mod edits;
+mod edits_history;
 mod export;
 mod export_immich;
 mod export_presets;
