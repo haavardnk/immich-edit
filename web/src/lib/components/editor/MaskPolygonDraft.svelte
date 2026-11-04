@@ -4,7 +4,7 @@
   import { isKeybind } from '#lib/shortcuts/match.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { yieldsToControl } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
   import type { Vec2f } from '#lib/types/edits.ts';
   import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
@@ -52,7 +52,7 @@
   }
 
   function onKey(e: KeyboardEvent): void {
-    if (isModalOpen() || yieldsToControl(e)) return;
+    if (isAnyModalOpen() || yieldsToControl(e)) return;
     if (isKeybind(e, 'maskCancelDraw')) {
       e.preventDefault();
       editor.cancelPolygon();

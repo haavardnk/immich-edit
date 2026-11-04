@@ -53,7 +53,7 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await page.goto('/photos');
 
   await openFilters(page, 'Date', 'File', 'Camera', 'Place');
-  await expect(page.getByRole('combobox', { name: 'City' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'City', exact: true })).toBeVisible();
   expect(await audit(page)).toEqual([]);
 });
 
