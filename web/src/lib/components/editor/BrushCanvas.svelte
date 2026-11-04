@@ -17,7 +17,7 @@
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
-  import { wheelHardness, wheelNotches, wheelSize } from '#lib/utils/brushSize.ts';
+  import { brushWheel } from '#lib/utils/brushSize.ts';
 
   let {
     img
@@ -219,17 +219,12 @@
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!e.altKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const notches = wheelNotches(e);
-    if (e.shiftKey) {
-      editor.setBrushTool({
-        hardness: wheelHardness(editor.brushTool.hardness, notches, BRUSH_HARDNESS)
-      });
-      return;
-    }
-    editor.setBrushTool({ size: wheelSize(editor.brushTool.size, notches, BRUSH_SIZE) });
+    brushWheel(
+      e,
+      editor.brushTool,
+      { size: BRUSH_SIZE, hardness: BRUSH_HARDNESS },
+      editor.setBrushTool
+    );
   }
 
   async function onPointerUp(e: PointerEvent): Promise<void> {
