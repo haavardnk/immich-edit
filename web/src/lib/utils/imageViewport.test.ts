@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nudgePan, panStep, splitPosition, viewportTransform, zoomAtAnchor } from './imageViewport';
+import { nudgePan, panStep, viewportTransform, zoomAtAnchor } from './imageViewport';
 import type { Rect } from './viewGeometry';
 
 describe('zoomAtAnchor', () => {
@@ -10,18 +10,6 @@ describe('zoomAtAnchor', () => {
     [100, 50, -150, -137.5]
   ])('anchors zoom %s to %s at the local cursor', (previous, next, panX, panY) => {
     expect(zoomAtAnchor(800, 600, frame, 200, 125, previous, next)).toEqual({ panX, panY });
-  });
-});
-
-describe('splitPosition', () => {
-  it.each<[number, number, number, number]>([
-    [150, 100, 200, 0.25],
-    [50, 100, 200, 0],
-    [350, 100, 200, 1],
-    [150, 100, 0, 0],
-    [150, 100, -200, 0]
-  ])('maps clientX %s in rect (%s, %s)', (clientX, left, width, expected) => {
-    expect(splitPosition(clientX, left, width)).toBe(expected);
   });
 });
 
