@@ -14,10 +14,12 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
   import { fitScale, frameBox, nativeScale, placement } from '#lib/utils/viewGeometry.ts';
-  import { splitPosition, viewportTransform, zoomAtAnchor } from '#lib/utils/imageViewport.ts';
+  import { viewportTransform, zoomAtAnchor } from '#lib/utils/imageViewport.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { clampedPoint, elementPoint } from '#lib/gestures/point.ts';
 
   const WHEEL_STEP = 1.1;
 
@@ -30,9 +32,6 @@
   let splitNatW = $state(0);
   let splitNatH = $state(0);
   let dragging = $state(false);
-  let splitDragging = $state(false);
-  let lastX = 0;
-  let lastY = 0;
 
   const fit = $derived(baseNat ? fitScale(viewBox.w, viewBox.h, baseNat.w, baseNat.h) : 0);
   const unit = $derived(
@@ -59,46 +58,35 @@
     ui.greyCanvas ? 'ring-1 ring-white/10' : 'shadow-image ring-1 ring-white/10'
   );
 
-  function onPointerDown(e: PointerEvent): void {
-    if (!ui.zoomed) return;
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
+  const pan = pointerDrag<{ x: number; y: number }>({
+    start(e) {
+      if (!ui.zoomed) return null;
+      dragging = true;
+      return { x: e.clientX, y: e.clientY };
+    },
+    move(e, last) {
+      ui.panX += e.clientX - last.x;
+      ui.panY += e.clientY - last.y;
+      last.x = e.clientX;
+      last.y = e.clientY;
+    },
+    end() {
+      dragging = false;
+    }
+  });
 
-  function onPointerMove(e: PointerEvent): void {
-    if (!dragging) return;
-    ui.panX += e.clientX - lastX;
-    ui.panY += e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-  }
-
-  function onPointerUp(): void {
-    dragging = false;
-  }
-
-  function onSplitPointerDown(e: PointerEvent): void {
-    splitDragging = true;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    updateSplit(e);
-    e.stopPropagation();
-  }
-
-  function onSplitPointerMove(e: PointerEvent): void {
-    if (!splitDragging) return;
-    updateSplit(e);
-  }
-
-  function onSplitPointerUp(): void {
-    splitDragging = false;
-  }
+  const split = pointerDrag<true>({
+    start(e) {
+      updateSplit(e);
+      e.stopPropagation();
+      return true;
+    },
+    move: (e) => updateSplit(e)
+  });
 
   function updateSplit(e: PointerEvent): void {
     if (!splitWrap) return;
-    const rect = splitWrap.getBoundingClientRect();
-    editor.setSplitPos(splitPosition(e.clientX, rect.left, rect.width));
+    editor.setSplitPos(clampedPoint(e, splitWrap).x);
   }
 
   function onSplitKeyDown(e: KeyboardEvent): void {
@@ -116,18 +104,10 @@
     const prev = ui.zoom;
     ui.userZoom(next);
     if (!before || !container || ui.zoom === prev || !ui.zoomed) return;
-    const rect = container.getBoundingClientRect();
-    const pan = zoomAtAnchor(
-      viewBox.w,
-      viewBox.h,
-      before,
-      clientX - rect.left,
-      clientY - rect.top,
-      prev,
-      ui.zoom
-    );
-    ui.panX = pan.panX;
-    ui.panY = pan.panY;
+    const at = elementPoint({ clientX, clientY }, container);
+    const anchored = zoomAtAnchor(viewBox.w, viewBox.h, before, at.x, at.y, prev, ui.zoom);
+    ui.panX = anchored.panX;
+    ui.panY = anchored.panY;
   }
 
   function onWheel(e: WheelEvent): void {
@@ -182,10 +162,7 @@
   class="editor-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
-  onpointerdown={editor.geometrySession ? undefined : onPointerDown}
-  onpointermove={editor.geometrySession ? undefined : onPointerMove}
-  onpointerup={editor.geometrySession ? undefined : onPointerUp}
-  onpointercancel={editor.geometrySession ? undefined : onPointerUp}
+  {...editor.geometrySession ? {} : pan.on()}
   onwheel={editor.geometrySession ? undefined : onWheel}
   ondblclick={editor.geometrySession ? undefined : onDblClick}
 >
@@ -240,10 +217,7 @@
           aria-valuemax="100"
           class="absolute top-1/2 w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white border-2 border-black/40 shadow-lg cursor-ew-resize flex items-center justify-center text-black/70 text-xs font-bold"
           style="left: {editor.splitPos * 100}%;"
-          onpointerdown={onSplitPointerDown}
-          onpointermove={onSplitPointerMove}
-          onpointerup={onSplitPointerUp}
-          onpointercancel={onSplitPointerUp}
+          {...split.on()}
           onkeydown={onSplitKeyDown}
         >
           ↔
