@@ -20,6 +20,7 @@
     visibleAssetRange,
     type AssetGridBox
   } from '#lib/browse/assetGridLayout.ts';
+  import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
 
   let {
     assets,
@@ -46,7 +47,7 @@
   let pendingRestore: number | null = null;
   let revealOnReturn = false;
   let loupeWasOpen = false;
-  let shiftPressed = $state(false);
+  let extendKey = $state(false);
   let hoveredId = $state<string | null>(null);
   let selectingAll = $state(false);
   let bulkBar: BulkActionBar | undefined = $state();
@@ -70,8 +71,10 @@
       .filter((item): item is { asset: AssetSummary; box: AssetGridBox } => item.box !== undefined)
   );
 
+  const extending = $derived(extendKey || latched('extend'));
+
   const rangePreview = $derived.by(() => {
-    if (selectingAll || !shiftPressed || !hoveredId) return null;
+    if (selectingAll || !extending || !hoveredId) return null;
     return selection.rangeTarget(
       items.map((asset) => asset.id),
       hoveredId
@@ -199,12 +202,12 @@
     }
   }
 
-  function trackShift(e: KeyboardEvent): void {
-    shiftPressed = e.shiftKey;
+  function trackExtend(e: KeyboardEvent): void {
+    extendKey = keyHeld('extend', e);
   }
 
-  function clearShiftPreview(): void {
-    shiftPressed = false;
+  function clearRangePreview(): void {
+    extendKey = false;
     hoveredId = null;
   }
 
@@ -263,7 +266,7 @@
   });
 </script>
 
-<svelte:window onkeydown={trackShift} onkeyup={trackShift} onblur={clearShiftPreview} />
+<svelte:window onkeydown={trackExtend} onkeyup={trackExtend} onblur={clearRangePreview} />
 
 <div
   bind:this={root}

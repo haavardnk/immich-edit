@@ -13,6 +13,7 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { Icon } from '@immich/ui';
   import { mdiPlus, mdiUpload } from '@mdi/js';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let applyOptions = $state<ApplyPresetOptions>({
     includeGeometry: false,
@@ -55,7 +56,7 @@
 
   function onWheel(e: WheelEvent): void {
     const row = e.currentTarget as HTMLElement;
-    if (e.deltaX !== 0 || e.deltaY === 0 || e.ctrlKey || e.metaKey) return;
+    if (e.deltaX !== 0 || e.deltaY === 0 || held('zoom', e)) return;
     e.preventDefault();
     row.scrollLeft += e.deltaY;
   }
