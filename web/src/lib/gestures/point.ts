@@ -2,7 +2,7 @@ export type Box = { left: number; top: number; width: number; height: number };
 
 export type Point = { x: number; y: number };
 
-type ClientPoint = { clientX: number; clientY: number };
+export type ClientPoint = { clientX: number; clientY: number };
 
 function boxOf(target: Element | Box): Box {
   return 'getBoundingClientRect' in target ? target.getBoundingClientRect() : target;

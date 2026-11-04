@@ -3,15 +3,22 @@
   import { assetThumbUrl } from '#lib/api/assets.ts';
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import { CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
-  import { fitScale, nativeScale } from '#lib/utils/viewGeometry.ts';
-  import { clampZoom } from '#lib/utils/zoomLevel.ts';
+  import {
+    clampView,
+    FIT_VIEW,
+    isZoomed,
+    panByStep,
+    viewportMetrics,
+    viewportTransform,
+    zoomRatio,
+    type View,
+    type ViewportMetrics
+  } from '#lib/utils/imageViewport.ts';
+  import { untrack } from 'svelte';
   import { devicePixelRatio } from 'svelte/reactivity/window';
   import { held } from '#lib/input/modifiers.svelte.ts';
-  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
 
-  const DRAG_THRESHOLD = 5;
-  const WHEEL_STEP = 1.1;
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
 
@@ -26,20 +33,20 @@
     onFocus,
     onSize,
     sourceLong,
-    onFitZoom,
+    onMetrics,
     onImage
   }: {
     assetId: string;
     alt: string;
-    view: PaneView;
+    view: View;
     focused?: boolean;
     showFocus?: boolean;
     badge?: string;
-    onView: (view: PaneView, solo?: boolean) => void;
+    onView: (view: View, solo?: boolean) => void;
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
     sourceLong?: number | null;
-    onFitZoom?: (zoom: number) => void;
+    onMetrics?: (metrics: ViewportMetrics) => void;
     onImage?: (element: HTMLImageElement) => void;
   } = $props();
 
@@ -49,58 +56,19 @@
   let natural = $state({ w: 0, h: 0 });
   let dragging = $state(false);
   let loadedId = $state<string | null>(null);
-  let lastX = 0;
-  let lastY = 0;
-  let totalDrag = 0;
   let wasFocused = false;
-  let pressId: number | null = null;
 
   const dpr = $derived(Math.min(2, devicePixelRatio.current || 1));
-  const fit = $derived(fitScale(box.w, box.h, natural.w, natural.h));
-  const unit = $derived(nativeScale(Math.max(natural.w, natural.h), sourceLong ?? 0, dpr) || fit);
-  const fitZoom = $derived(unit > 0 ? (100 * fit) / unit : 100);
-  const zoomed = $derived(view.zoom !== null && view.zoom > fitZoom);
-  const fitRatio = $derived(fit > 0 ? scaleFor(view.zoom) / fit : 1);
-  const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, fitRatio)));
+  const metrics = $derived(viewportMetrics(box, natural, sourceLong ?? 0, dpr));
+  const zoomed = $derived(isZoomed(metrics, view));
+  const shown = $derived(clampView(metrics, view));
+  const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, zoomRatio(metrics, view.zoom))));
   const src = $derived(persistedPreviewUrl(assetId, maxEdge, ui.clipWarn));
   const loading = $derived(loadedId !== assetId);
-  const zoomBox = $derived.by(() => {
-    return imageBoxAt(view.zoom);
-  });
-  const boundedView = $derived(clampCenter(view));
-  const transform = $derived.by(() => {
-    if (fitRatio === 1) return '';
-    if (!zoomBox) return `transform: scale(${fitRatio}); transform-origin: center;`;
-    const offsetX = (0.5 - boundedView.cx) * zoomBox.w;
-    const offsetY = (0.5 - boundedView.cy) * zoomBox.h;
-    return `transform: scale(${fitRatio}) translate(${offsetX / fitRatio}px, ${offsetY / fitRatio}px); transform-origin: center;`;
-  });
-
-  function scaleFor(zoom: number | null): number {
-    return zoom === null ? fit : (zoom / 100) * unit;
-  }
-
-  function imageBoxAt(zoom: number | null): { w: number; h: number } | null {
-    if (!box.w || !box.h || !natural.w || !natural.h) return null;
-    const scale = scaleFor(zoom);
-    if (scale <= 0) return null;
-    return { w: natural.w * scale, h: natural.h * scale };
-  }
+  const transform = $derived(viewportTransform(metrics, shown));
 
   function quantize(value: number): number {
     return SIZES.find((size) => size >= value) ?? MAX_SIZE;
-  }
-
-  function clampCenter(next: PaneView): PaneView {
-    const nextBox = imageBoxAt(next.zoom);
-    if (!nextBox) return next;
-    const limitX = Math.max(0, (nextBox.w - box.w) / 2) / nextBox.w;
-    const limitY = Math.max(0, (nextBox.h - box.h) / 2) / nextBox.h;
-    return {
-      zoom: next.zoom,
-      cx: Math.min(0.5 + limitX, Math.max(0.5 - limitX, next.cx)),
-      cy: Math.min(0.5 + limitY, Math.max(0.5 - limitY, next.cy))
-    };
   }
 
   function measure(): void {
@@ -116,129 +84,36 @@
     measure();
   }
 
-  function zoomInAt(clientX: number, clientY: number, solo: boolean): void {
-    const zoom = ui.zoomLevel;
-    if (!zoomBox || !container) {
-      onView({ zoom, cx: 0.5, cy: 0.5 }, solo);
-      return;
-    }
-    const rect = container.getBoundingClientRect();
-    const cx = 0.5 + (clientX - (rect.left + rect.width / 2)) / zoomBox.w;
-    const cy = 0.5 + (clientY - (rect.top + rect.height / 2)) / zoomBox.h;
-    onView(clampCenter({ zoom, cx, cy }), solo);
-  }
-
   export function panBy(fx: number, fy: number): void {
-    if (!zoomed || !zoomBox) return;
-    onView(
-      clampCenter({
-        zoom: view.zoom,
-        cx: boundedView.cx + (fx * box.w) / zoomBox.w,
-        cy: boundedView.cy + (fy * box.h) / zoomBox.h
-      })
-    );
+    if (!zoomed) return;
+    onView(panByStep(metrics, shown, [fx, fy]));
   }
 
-  const pan = pointerDrag<true>({
-    start(e) {
+  const gestures = viewportGestures({
+    element: () => container,
+    metrics: () => metrics,
+    view: () => shown,
+    apply: (next, e) => onView(next, e !== undefined && held('solo', e)),
+    press(e) {
       e.preventDefault();
-      pressId = e.pointerId;
       wasFocused = focused || !showFocus;
       onFocus?.();
-      lastX = e.clientX;
-      lastY = e.clientY;
-      totalDrag = 0;
-      if (!zoomed) return null;
-      dragging = true;
-      return true;
     },
-    move(e) {
-      if (!zoomBox) return;
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      totalDrag += Math.abs(dx) + Math.abs(dy);
-      onView(
-        clampCenter({
-          zoom: view.zoom,
-          cx: view.cx - dx / zoomBox.w,
-          cy: view.cy - dy / zoomBox.h
-        }),
-        held('solo', e)
-      );
-    },
-    end() {
-      dragging = false;
-    },
-    cancel() {
-      dragging = false;
-      pressId = null;
+    dragging: (active) => (dragging = active),
+    tap(e) {
+      if (!wasFocused) return;
+      if (zoomed) onView(FIT_VIEW, held('solo', e));
+      else gestures.zoomAt(e, ui.zoomLevel, e);
     }
   });
-
-  function zoomAtPointer(e: WheelEvent): void {
-    const current = zoomBox;
-    const next = clampZoom(
-      (view.zoom ?? fitZoom) * (e.deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP),
-      fitZoom
-    );
-    const nextBox = imageBoxAt(next);
-    if (next <= fitZoom || !current || !nextBox || !container) {
-      onView(CENTERED, held('solo', e));
-      return;
-    }
-    const rect = container.getBoundingClientRect();
-    const dx = e.clientX - (rect.left + rect.width / 2);
-    const dy = e.clientY - (rect.top + rect.height / 2);
-    const u = boundedView.cx + dx / current.w;
-    const v = boundedView.cy + dy / current.h;
-    onView(
-      clampCenter({ zoom: next, cx: u - dx / nextBox.w, cy: v - dy / nextBox.h }),
-      held('solo', e)
-    );
-  }
-
-  function onWheel(e: WheelEvent): void {
-    if (held('zoom', e)) {
-      e.preventDefault();
-      zoomAtPointer(e);
-      return;
-    }
-    if (!zoomed || !zoomBox) return;
-    e.preventDefault();
-    onView(
-      clampCenter({
-        zoom: view.zoom,
-        cx: boundedView.cx + e.deltaX / zoomBox.w,
-        cy: boundedView.cy + e.deltaY / zoomBox.h
-      }),
-      held('solo', e)
-    );
-  }
-
-  function onPointerUp(e: PointerEvent): void {
-    if (e.pointerId !== pressId) return;
-    pressId = null;
-    const wasDragging = dragging;
-    pan.follow.onpointerup(e);
-    if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
-    if (!wasFocused) return;
-    if (zoomed) onView(CENTERED, held('solo', e));
-    else zoomInAt(e.clientX, e.clientY, held('solo', e));
-  }
-
-  function onPointerCancel(e: PointerEvent): void {
-    if (e.pointerId === pressId) pressId = null;
-    pan.follow.onpointercancel(e);
-  }
 
   $effect(() => {
     onSize?.(maxEdge);
   });
 
   $effect(() => {
-    onFitZoom?.(fitZoom);
+    const current = metrics;
+    untrack(() => onMetrics?.(current));
   });
 </script>
 
@@ -258,12 +133,7 @@
       ? 'border-2 border-primary'
       : 'border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
     : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
-  onpointerdown={(e) => pan.begin(e)}
-  onpointermove={pan.follow.onpointermove}
-  onpointerup={onPointerUp}
-  onpointercancel={onPointerCancel}
-  onlostpointercapture={pan.follow.onlostpointercapture}
-  onwheel={onWheel}
+  {...gestures.handlers}
 >
   {#if badge !== undefined}
     <span

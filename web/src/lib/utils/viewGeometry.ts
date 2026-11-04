@@ -145,21 +145,3 @@ export function placement(
     height: exact ? nativeH : targetH
   };
 }
-
-export function zoomAnchor(
-  containerW: number,
-  containerH: number,
-  frame: Rect,
-  anchorX: number,
-  anchorY: number,
-  nextZoomRatio: number
-): { panX: number; panY: number } {
-  const nextW = frame.width * nextZoomRatio;
-  const nextH = frame.height * nextZoomRatio;
-  const u = frame.width > 0 ? (anchorX - frame.left) / frame.width : 0.5;
-  const v = frame.height > 0 ? (anchorY - frame.top) / frame.height : 0.5;
-  return {
-    panX: anchorX - u * nextW - (containerW - nextW) / 2,
-    panY: anchorY - v * nextH - (containerH - nextH) / 2
-  };
-}

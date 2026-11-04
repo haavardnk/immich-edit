@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { compare, CENTERED } from './compare.svelte';
+import { FIT_VIEW } from '#lib/utils/imageViewport.ts';
+import { compare } from './compare.svelte';
 
 describe('compare store', () => {
   beforeEach(() => compare.exit());
@@ -21,7 +22,7 @@ describe('compare store', () => {
     compare.drop(2);
     expect(compare.members).toEqual(['a', 'b']);
     expect(compare.focusIndex).toBe(1);
-    expect(compare.viewOf('c')).toEqual(CENTERED);
+    expect(compare.viewOf('c')).toEqual(FIT_VIEW);
   });
 
   it('promotes a pane to the first slot', () => {
@@ -82,12 +83,12 @@ describe('compare store', () => {
     compare.setMember(0, 'c');
     expect(compare.members).toEqual(['c', 'b']);
     expect(compare.viewOf('c')).toEqual({ zoom: 200, cx: 0.1, cy: 0.9 });
-    expect(compare.viewOf('a')).toEqual(CENTERED);
+    expect(compare.viewOf('a')).toEqual(FIT_VIEW);
   });
 
   it.each([
     [true, { zoom: 200, cx: 0.25, cy: 0.75 }],
-    [false, CENTERED]
+    [false, FIT_VIEW]
   ])('sync %s fans the view out to every pane', (sync, expected) => {
     compare.enter('compare', ['a', 'b']);
     compare.syncView = sync;
