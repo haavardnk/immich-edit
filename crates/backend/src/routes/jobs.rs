@@ -18,9 +18,12 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
-    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job, validate_export_job,
+    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job, confirm_zip_archive,
+    discard_zip_archive, validate_export_job,
 };
-use crate::services::job_store::{JobItemRecord, JobRecord, JobStatus, NewJob, NewJobItem};
+use crate::services::job_store::{
+    JobItemRecord, JobItemStatus, JobRecord, JobStatus, NewJob, NewJobItem,
+};
 use crate::services::paste_edits::PASTE_EDITS_KIND;
 use crate::services::reset_edits::RESET_EDITS_KIND;
 use crate::state::AppState;
@@ -132,6 +135,49 @@ pub async fn cancel(
     }
 }
 
+fn retry_blocker(job: &JobRecord, server_epoch: i64) -> Option<&'static str> {
+    match job.status {
+        JobStatus::Pending | JobStatus::Running => return Some("job is still running"),
+        JobStatus::Cancelled => return Some("job was cancelled"),
+        JobStatus::Completed | JobStatus::Failed => {}
+    }
+    if job.server_epoch != server_epoch {
+        return Some("job belongs to a previous server");
+    }
+    (job.failed == 0).then_some("job has no failed items")
+}
+
+pub async fn retry(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(id): Path<Uuid>,
+) -> Result<Json<JobRecord>, AppError> {
+    let job = owned_job(&state, &ctx, id).await?;
+    if let Some(reason) = retry_blocker(&job, ctx.server_epoch) {
+        return Err(AppError::Conflict(reason.into()));
+    }
+    if job.kind == EXPORT_JOB_KIND {
+        let failed_asset_ids: Vec<String> = state
+            .jobs
+            .list_items(id)
+            .await?
+            .into_iter()
+            .filter(|item| item.status == JobItemStatus::Failed)
+            .map(|item| item.asset_id)
+            .collect();
+        validate_export_job(&ctx.immich, &job.params, &failed_asset_ids).await?;
+    }
+    let retried = state
+        .jobs
+        .retry_failed(id, ctx.session_id, ctx.cred.as_slice(), ctx.auth_kind)
+        .await?
+        .ok_or_else(|| AppError::Conflict("job is not retryable".into()))?;
+    if retried.kind == DOWNLOAD_ZIP_KIND {
+        discard_zip_archive(&state, ctx.server_epoch, ctx.owner, id).await;
+    }
+    Ok(Json(retried))
+}
+
 pub async fn clear(State(state): State<AppState>, ctx: AuthCtx) -> Result<StatusCode, AppError> {
     let cleared = state.jobs.clear_finished(ctx.owner).await?;
     for (id, kind) in cleared {
@@ -158,6 +204,7 @@ pub async fn download(
     let file = tokio::fs::File::open(&archive)
         .await
         .map_err(|e| AppError::internal("open zip archive", &e))?;
+    confirm_zip_archive(&state, ctx.server_epoch, ctx.owner, &job).await?;
     let body = Body::from_stream(ReaderStream::new(file));
     let short: String = id.to_string().chars().take(8).collect();
     let mut resp = Response::new(body);
