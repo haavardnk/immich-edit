@@ -17,7 +17,7 @@
   import ExportPanel from '#lib/panels/Export.svelte';
   import MasksPanel from '#lib/panels/Masks.svelte';
   import RetouchPanel from '#lib/panels/Retouch.svelte';
-  import ResizeHandle from './ResizeHandle.svelte';
+  import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
 
   const editorTabs: { id: EditorTab; label: string }[] = [
     { id: 'develop', label: 'Develop' },
