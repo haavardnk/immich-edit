@@ -114,6 +114,42 @@ describe('live geometry', () => {
     expect(c.actions).toEqual(['Crop']);
   });
 
+  it('makes a later end wait for the crop a teardown is still saving', async () => {
+    vi.useFakeTimers();
+    const c = session();
+    const events: string[] = [];
+    let release = (): void => undefined;
+    c.onCommit = (action?: string) =>
+      new Promise<void>((resolve) => {
+        events.push(`commit ${action ?? ''}`);
+        release = () => {
+          events.push('saved');
+          resolve();
+        };
+      });
+    updateDraftCrop(c, { x: 0.1, y: 0.1, w: 0.5, h: 0.5 });
+    scheduleCropCommit(c);
+
+    void endSession(c);
+    const routeEnd = endSession(c).then(() => void events.push('unload'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(events).toEqual(['commit Crop']);
+
+    release();
+    await routeEnd;
+    expect(events).toEqual(['commit Crop', 'saved', 'unload']);
+  });
+
+  it('resolves an end with no session and nothing in flight at once', async () => {
+    const c = session();
+    await endSession(c);
+    const events: string[] = [];
+    await endSession(c).then(() => void events.push('unload'));
+    expect(events).toEqual(['unload']);
+    expect(c.actions).toEqual([]);
+  });
+
   it('renders a new frame only when non-geometry edits change', () => {
     const c = session();
     const edits = neutralEdits() as Edits;
