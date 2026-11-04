@@ -132,6 +132,64 @@ async fn purging_an_unknown_user_is_not_found() {
 }
 
 #[tokio::test]
+async fn purging_a_user_removes_their_saved_views() {
+    let server = MockServer::start().await;
+    mock_me(&server, test_user_id(), true).await;
+    let (state, admin, member) = two_owner_state(&server).await;
+    for app in [&admin, &member] {
+        let res = app
+            .clone()
+            .oneshot(json_request(
+                "POST",
+                "/api/saved-views",
+                serde_json::json!({ "name": "Picks", "url": "/photos?rating=5" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+    let res = member
+        .oneshot(json_request(
+            "POST",
+            "/api/export-presets",
+            serde_json::json!({ "name": "Web JPEG", "form": { "format": "jpeg" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let res = admin
+        .oneshot(empty_request(
+            "DELETE",
+            &format!("/api/admin/users/{}/data", member_user_id()),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let edits = &state.edits;
+    assert!(
+        edits
+            .list_saved_views(member_user_id())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        edits.list_saved_views(test_user_id()).await.unwrap().len(),
+        1
+    );
+    assert_eq!(
+        edits
+            .list_export_presets(member_user_id())
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
 async fn a_rebind_needs_a_matching_confirmation_hostname() {
     let server = MockServer::start().await;
     mock_me(&server, test_user_id(), true).await;
@@ -161,6 +219,58 @@ async fn a_rebind_needs_a_matching_confirmation_hostname() {
         body_json(res).await["message"],
         "confirmation hostname does not match"
     );
+}
+
+#[tokio::test]
+async fn a_rebind_keeps_the_admins_account_settings() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let token = seed_session(&server, &state).await;
+    let app = wrap_auth(router(state.clone()), token);
+    let mut saved = Vec::new();
+    for (method, uri, body) in [
+        (
+            "POST",
+            "/api/export-presets",
+            serde_json::json!({ "name": "Web JPEG", "form": { "format": "jpeg" } }),
+        ),
+        (
+            "PUT",
+            "/api/appearance",
+            serde_json::json!({
+                "mode": "light",
+                "light_theme": "paper",
+                "dark_theme": "midnight",
+                "accents": { "blue": "sky" }
+            }),
+        ),
+        (
+            "PATCH",
+            "/api/preferences",
+            serde_json::json!({ "click_target": "loupe", "shortcuts": { "help": ["F1"] } }),
+        ),
+    ] {
+        let res = app
+            .clone()
+            .oneshot(json_request(method, uri, body))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK, "{method} {uri}");
+        saved.push(body_json(res).await);
+    }
+
+    rebind_instance(&server, &state).await;
+
+    let owner = test_user_id();
+    let presets = state.edits.list_export_presets(owner).await.unwrap();
+    assert_eq!(
+        serde_json::to_value(&presets).unwrap(),
+        serde_json::json!([saved[0]])
+    );
+    let appearance = state.edits.get_appearance(owner).await.unwrap();
+    assert_eq!(serde_json::to_value(appearance).unwrap(), saved[1]);
+    let preferences = state.edits.get_preferences(owner).await.unwrap();
+    assert_eq!(serde_json::to_value(preferences).unwrap(), saved[2]);
 }
 
 #[tokio::test]

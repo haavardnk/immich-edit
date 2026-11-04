@@ -1,22 +1,13 @@
 use crate::common::*;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use immich_edit_backend::immich::client::ImmichUser;
+
 use immich_edit_backend::services::auth_store::AuthKind;
 use immich_edit_backend::state::AppState;
 use serde_json::Value;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::MockServer;
-
-fn admin_user() -> ImmichUser {
-    ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    }
-}
 
 async fn second_admin_session(server: &MockServer, state: &AppState) -> String {
     seed_session_with_cred(

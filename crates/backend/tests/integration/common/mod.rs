@@ -181,14 +181,17 @@ pub fn router(state: AppState) -> axum::Router {
     app::router(state)
 }
 
-pub async fn seed_session(server: &MockServer, state: &AppState) -> String {
-    let user = ImmichUser {
+pub fn admin_user() -> ImmichUser {
+    ImmichUser {
         id: test_user_id(),
         email: "admin@test.local".into(),
         name: "Admin".into(),
         is_admin: true,
-    };
-    seed_session_as(server, state, user, AuthKind::ApiKey).await
+    }
+}
+
+pub async fn seed_session(server: &MockServer, state: &AppState) -> String {
+    seed_session_as(server, state, admin_user(), AuthKind::ApiKey).await
 }
 
 pub async fn seed_session_as(
@@ -256,12 +259,6 @@ pub async fn two_owner_routers(
     server: &MockServer,
     state: AppState,
 ) -> (axum::Router, axum::Router) {
-    let admin = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
     let member = ImmichUser {
         id: member_user_id(),
         email: "member@test.local".into(),
@@ -271,7 +268,7 @@ pub async fn two_owner_routers(
     let admin_token = seed_session_with_cred(
         server,
         &state,
-        admin,
+        admin_user(),
         AuthKind::ApiKey,
         TEST_API_KEY.as_bytes(),
     )
@@ -290,6 +287,21 @@ pub async fn two_owner_routers(
     )
 }
 
+pub async fn rebind_instance(server: &MockServer, state: &AppState) {
+    state
+        .auth
+        .rebind_instance_and_create_session(
+            &server.uri(),
+            &admin_user(),
+            AuthKind::ApiKey,
+            TEST_API_KEY.as_bytes(),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+}
+
 pub async fn member_app(server: &MockServer) -> axum::Router {
     let state = test_state(server).await;
     let token = seed_member_session(server, &state).await;
@@ -298,13 +310,7 @@ pub async fn member_app(server: &MockServer) -> axum::Router {
 
 pub async fn password_app(server: &MockServer) -> axum::Router {
     let state = test_state(server).await;
-    let user = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
-    let token = seed_session_as(server, &state, user, AuthKind::Password).await;
+    let token = seed_session_as(server, &state, admin_user(), AuthKind::Password).await;
     wrap_auth(app::router(state), token)
 }
 

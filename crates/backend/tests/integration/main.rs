@@ -49,6 +49,7 @@ mod presets;
 mod preview;
 mod rasters;
 mod request_timeout;
+mod saved_views;
 mod search;
 mod sessions;
 mod setup_oauth;
