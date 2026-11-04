@@ -9,6 +9,7 @@
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import { Button, LoadingSpinner } from '@immich/ui';
+  import type { Snippet } from 'svelte';
 
   let {
     title,
@@ -25,7 +26,11 @@
     onLoadAll,
     sortBasis = 'capture',
     error = null,
-    onRetry
+    onRetry,
+    headerWhileLoading = false,
+    trashRejects = true,
+    toolbar,
+    emptyAction
   }: {
     title: string;
     assets: AssetSummary[];
@@ -39,9 +44,13 @@
     loadingMore?: boolean;
     onLoadMore?: () => void;
     onLoadAll?: () => Promise<boolean>;
-    sortBasis?: 'capture' | 'edit';
+    sortBasis?: 'capture' | 'edit' | null;
     error?: string | null;
     onRetry?: () => void;
+    headerWhileLoading?: boolean;
+    trashRejects?: boolean;
+    toolbar?: Snippet;
+    emptyAction?: Snippet;
   } = $props();
 
   const hiddenCount = $derived(
@@ -60,16 +69,18 @@
   }
 </script>
 
+{#snippet loadingLine()}
+  <div class="flex flex-1 items-center justify-center">
+    <div class="inline-flex items-center gap-2 text-muted" role="status">
+      <LoadingSpinner size="small" />
+      <span class="text-xs">{loadingLabel}</span>
+    </div>
+  </div>
+{/snippet}
+
 <div class="flex min-h-0 flex-1">
   <div class="flex min-w-0 flex-1 flex-col">
-    {#if loading}
-      <div class="flex flex-1 items-center justify-center">
-        <div class="inline-flex items-center gap-2 text-muted" role="status">
-          <LoadingSpinner size="small" />
-          <span class="text-xs">{loadingLabel}</span>
-        </div>
-      </div>
-    {:else if error}
+    {#if error}
       <div class="flex-1 flex items-center justify-center">
         <Notice message={error} class="text-sm">
           {#if onRetry}
@@ -79,15 +90,20 @@
           {/if}
         </Notice>
       </div>
+    {:else if loading && !headerWhileLoading}
+      {@render loadingLine()}
     {:else}
       <BrowseHeader
         {title}
         totalCount={headerTotal}
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}
-        onTrashRejected={assets.length > hiddenCount ? trashRejected : undefined}
+        onTrashRejected={trashRejects && assets.length > hiddenCount ? trashRejected : undefined}
       />
-      {#if assets.length === 0}
+      {@render toolbar?.()}
+      {#if loading}
+        {@render loadingLine()}
+      {:else if assets.length === 0}
         <div
           class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted"
         >
@@ -95,6 +111,7 @@
           {#if emptyMessage}
             <p class="mt-1 max-w-sm text-sm">{emptyMessage}</p>
           {/if}
+          {@render emptyAction?.()}
         </div>
       {:else}
         <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">

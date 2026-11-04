@@ -5,7 +5,7 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { person: id } }) });
@@ -23,7 +23,7 @@
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowseShell
+<BrowsePage
   {title}
   assets={feed.assets}
   loading={feed.loading && !feed.loadedOnce}
