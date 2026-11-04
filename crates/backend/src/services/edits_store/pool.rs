@@ -53,7 +53,7 @@ impl EditsStore {
 
 #[cfg(test)]
 mod tests {
-    use raw_pipeline::edits::{BasicEdits, WhiteBalance};
+    use raw_pipeline::edits::WhiteBalance;
 
     use super::*;
 
@@ -65,25 +65,16 @@ mod tests {
 
     async fn seed(s: &EditsStore, json: &str) -> AssetKey {
         let id = AssetKey::master(Uuid::new_v4());
-        let edits = Edits {
-            basic: BasicEdits {
-                exposure_ev: 1.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let write = EditWrite {
-            manifest: EditManifest::from_edits(&edits),
-            ..Default::default()
-        };
-        s.put(O, id, write).await.unwrap();
         for sql in [
-            "UPDATE edits SET edits_json = ?1 WHERE asset_id = ?2",
-            "UPDATE edits_history SET edits_json = ?1 WHERE asset_id = ?2",
+            "INSERT INTO edits (user_id, asset_id, edits_json, renderer_version, created_at, \
+             updated_at) VALUES (?1, ?2, ?3, 'r', 't', 't')",
+            "INSERT INTO edits_history (user_id, asset_id, edits_json, manifest_hash, created_at) \
+             VALUES (?1, ?2, ?3, 'h', 't')",
         ] {
             sqlx::query(sql)
-                .bind(json)
+                .bind(O.to_string())
                 .bind(id.to_string())
+                .bind(json)
                 .execute(&s.pool)
                 .await
                 .unwrap();

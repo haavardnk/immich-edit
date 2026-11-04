@@ -146,9 +146,10 @@ and white. The panel's dot resets all of them.
 **Develop**, lists every saved state. Expand an entry to see what changed, and click it to go back
 to that state.
 
-{: .warning }
-Going back in **Edit history** deletes every entry after the one you pick. Make a
-[virtual copy](#try-variations) first if you might want the later state again.
+{: .note }
+Going back in **Edit history** keeps the later entries, so you can pick one of them to go forward
+again. Your next edit deletes them. Make a [virtual copy](#try-variations) if you want to keep both
+versions.
 
 **Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
 It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms

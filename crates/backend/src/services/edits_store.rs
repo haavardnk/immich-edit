@@ -2,7 +2,7 @@ use chrono::Utc;
 use raw_pipeline::edit_manifest::EditManifest;
 use raw_pipeline::edits::Edits;
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, Sqlite, SqliteExecutor, SqlitePool, Transaction};
+use sqlx::{Row, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool, Transaction};
 use uuid::Uuid;
 use uuid::fmt::Hyphenated;
 
@@ -19,10 +19,12 @@ mod history;
 mod pool;
 mod presets;
 mod purge;
+mod raster_refs;
 
 pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
 pub use export_presets::ExportPresetRecord;
+pub use history::{EditHistoryEntry, RestoreOutcome};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
@@ -78,18 +80,6 @@ pub struct EditedAssetEntry {
     pub ai_denoise: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EditHistoryEntry {
-    pub id: i64,
-    pub manifest_hash: String,
-    pub deleted: bool,
-    pub edits: Option<Edits>,
-    pub created_at: String,
-    pub action: Option<String>,
-}
-
-const HISTORY_LIMIT_PER_ASSET: i64 = 50;
-
 #[derive(Debug)]
 pub enum WriteOutcome<T> {
     Written(T),
@@ -130,6 +120,40 @@ async fn fetch_record<'e, E: SqliteExecutor<'e>>(
         updated_at,
         hash,
     }))
+}
+
+async fn upsert_edits(
+    conn: &mut SqliteConnection,
+    owner: Uuid,
+    asset_id: AssetKey,
+    edits_json: &str,
+    immich_updated_at: Option<&str>,
+    immich_checksum: Option<&str>,
+    now: &str,
+) -> Result<(), EditsStoreError> {
+    sqlx::query(
+        "INSERT INTO edits (user_id, asset_id, edits_json, schema_version, renderer_version, \
+         immich_updated_at, immich_checksum, created_at, updated_at) \
+         VALUES (?8, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
+         ON CONFLICT(user_id, asset_id) DO UPDATE SET \
+           edits_json = excluded.edits_json, \
+           schema_version = excluded.schema_version, \
+           renderer_version = excluded.renderer_version, \
+           immich_updated_at = excluded.immich_updated_at, \
+           immich_checksum = excluded.immich_checksum, \
+           updated_at = excluded.updated_at",
+    )
+    .bind(asset_id.to_string())
+    .bind(edits_json)
+    .bind(SCHEMA_VERSION)
+    .bind(RENDERER_VERSION)
+    .bind(immich_updated_at)
+    .bind(immich_checksum)
+    .bind(now)
+    .bind(owner.to_string())
+    .execute(conn)
+    .await?;
+    Ok(())
 }
 
 fn conflict_with(
@@ -236,34 +260,28 @@ impl EditsStore {
         }
         let now = Utc::now().to_rfc3339();
         let edits_json = serde_json::to_string(&edits)?;
-        sqlx::query(
-            "INSERT INTO edits (user_id, asset_id, edits_json, schema_version, renderer_version, \
-             immich_updated_at, immich_checksum, created_at, updated_at) \
-             VALUES (?8, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7) \
-             ON CONFLICT(user_id, asset_id) DO UPDATE SET \
-               edits_json = excluded.edits_json, \
-               schema_version = excluded.schema_version, \
-               renderer_version = excluded.renderer_version, \
-               immich_updated_at = excluded.immich_updated_at, \
-               immich_checksum = excluded.immich_checksum, \
-               updated_at = excluded.updated_at",
+        upsert_edits(
+            &mut tx,
+            owner,
+            asset_id,
+            &edits_json,
+            immich_updated_at.as_deref(),
+            immich_checksum.as_deref(),
+            &now,
         )
-        .bind(asset_id.to_string())
-        .bind(&edits_json)
-        .bind(SCHEMA_VERSION)
-        .bind(&renderer_version)
-        .bind(&immich_updated_at)
-        .bind(&immich_checksum)
-        .bind(&now)
-        .bind(owner.to_string())
-        .execute(&mut *tx)
         .await?;
-        tx.commit().await?;
         if !unchanged {
-            self.write_history(owner, asset_id, &hash, Some(&edits_json), false, action)
-                .await?;
-            self.refresh_raster_refs(owner, asset_id).await?;
+            let entry = history::NewHistoryEntry {
+                manifest_hash: &hash,
+                edits_json: Some(&edits_json),
+                deleted: false,
+                action,
+                created_at: &now,
+            };
+            history::write_history(&mut tx, owner, asset_id, entry).await?;
+            raster_refs::refresh_raster_refs(&mut tx, owner, asset_id).await?;
         }
+        tx.commit().await?;
         Ok(EditRecord {
             schema_version: SCHEMA_VERSION as u32,
             asset_id,
@@ -346,68 +364,22 @@ impl EditsStore {
             .bind(owner.to_string())
             .execute(&mut *tx)
             .await?;
-        tx.commit().await?;
         let deleted = res.rows_affected() > 0;
         if deleted {
             let tombstone_hash = Edits::default().stable_hash();
-            self.write_history(owner, asset_id, &tombstone_hash, None, true, action)
-                .await?;
-            self.refresh_raster_refs(owner, asset_id).await?;
-        }
-        Ok(deleted)
-    }
-
-    async fn refresh_raster_refs(
-        &self,
-        owner: Uuid,
-        asset_id: AssetKey,
-    ) -> Result<(), EditsStoreError> {
-        let owner_str = owner.to_string();
-        let asset_str = asset_id.to_string();
-        let current: Option<String> =
-            sqlx::query_scalar("SELECT edits_json FROM edits WHERE user_id = ?1 AND asset_id = ?2")
-                .bind(&owner_str)
-                .bind(&asset_str)
-                .fetch_optional(&self.pool)
-                .await?;
-        let history: Vec<String> = sqlx::query_scalar(
-            "SELECT edits_json FROM edits_history \
-             WHERE user_id = ?1 AND asset_id = ?2 AND edits_json IS NOT NULL",
-        )
-        .bind(&owner_str)
-        .bind(&asset_str)
-        .fetch_all(&self.pool)
-        .await?;
-        let mut ids: Vec<String> = Vec::new();
-        for json in current.into_iter().chain(history) {
-            let Ok(edits) = serde_json::from_str::<Edits>(&json) else {
-                continue;
+            let now = Utc::now().to_rfc3339();
+            let entry = history::NewHistoryEntry {
+                manifest_hash: &tombstone_hash,
+                edits_json: None,
+                deleted: true,
+                action,
+                created_at: &now,
             };
-            for id in edits.retained_raster_ids() {
-                if !ids.contains(&id) {
-                    ids.push(id);
-                }
-            }
-        }
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM raster_refs WHERE user_id = ?1 AND asset_id = ?2")
-            .bind(&owner_str)
-            .bind(&asset_str)
-            .execute(&mut *tx)
-            .await?;
-        for id in &ids {
-            sqlx::query(
-                "INSERT OR IGNORE INTO raster_refs (user_id, asset_id, raster_id) \
-                 VALUES (?1, ?2, ?3)",
-            )
-            .bind(&owner_str)
-            .bind(&asset_str)
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
+            history::write_history(&mut tx, owner, asset_id, entry).await?;
+            raster_refs::refresh_raster_refs(&mut tx, owner, asset_id).await?;
         }
         tx.commit().await?;
-        Ok(())
+        Ok(deleted)
     }
 }
 
@@ -453,9 +425,9 @@ pub struct PresetRecord {
 mod tests {
     use super::*;
 
-    const O: Uuid = Uuid::nil();
+    pub(super) const O: Uuid = Uuid::nil();
 
-    fn key() -> AssetKey {
+    pub(super) fn key() -> AssetKey {
         AssetKey::master(Uuid::new_v4())
     }
 
@@ -463,7 +435,7 @@ mod tests {
         Uuid::new_v4()
     }
 
-    async fn store() -> EditsStore {
+    pub(super) async fn store() -> EditsStore {
         EditsStore::migrated_memory().await.unwrap()
     }
 
@@ -471,7 +443,7 @@ mod tests {
         EditManifest::from_edits(&edits)
     }
 
-    fn manifest_with_exposure(exposure_ev: f64) -> EditManifest {
+    pub(super) fn manifest_with_exposure(exposure_ev: f64) -> EditManifest {
         manifest_with(Edits {
             basic: raw_pipeline::edits::BasicEdits {
                 exposure_ev,
@@ -481,7 +453,7 @@ mod tests {
         })
     }
 
-    fn write(manifest: EditManifest) -> EditWrite<'static> {
+    pub(super) fn write(manifest: EditManifest) -> EditWrite<'static> {
         EditWrite {
             manifest,
             ..Default::default()
@@ -644,82 +616,6 @@ mod tests {
         let loaded = s.get(O, id).await.unwrap().unwrap();
         if loaded.manifest.to_edits().basic.exposure_ev != 2.0 {
             panic!("overwrite");
-        }
-    }
-
-    #[tokio::test]
-    async fn put_history_roundtrips_action() {
-        let s = store().await;
-        let id = key();
-        s.put(
-            O,
-            id,
-            EditWrite {
-                manifest: manifest_with_exposure(0.5),
-                action: Some("Exposure"),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
-        let hist = s.list_history(O, id).await.unwrap();
-        if hist.len() != 1 || hist[0].action.as_deref() != Some("Exposure") {
-            panic!("action not stored: {hist:?}");
-        }
-        s.put(O, id, EditWrite::default()).await.unwrap();
-        let hist = s.list_history(O, id).await.unwrap();
-        if hist.len() != 2 || hist[0].action.is_some() {
-            panic!("missing null-action row: {hist:?}");
-        }
-    }
-
-    #[tokio::test]
-    async fn delete_history_roundtrips_action() {
-        let s = store().await;
-        let id = key();
-        s.put(
-            O,
-            id,
-            EditWrite {
-                action: Some("Auto"),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
-        s.delete(O, id, Some("Brightness")).await.unwrap();
-        let hist = s.list_history(O, id).await.unwrap();
-        if !hist[0].deleted || hist[0].action.as_deref() != Some("Brightness") {
-            panic!("tombstone action: {hist:?}");
-        }
-    }
-
-    #[tokio::test]
-    async fn history_reads_null_action() {
-        let s = store().await;
-        let id = key();
-        sqlx::query(
-            "INSERT INTO edits_history (asset_id, manifest_hash, edits_json, deleted, created_at) \
-             VALUES (?1, ?2, ?3, 0, ?4)",
-        )
-        .bind(id.to_string())
-        .bind("deadbeef")
-        .bind("{}")
-        .bind("2026-01-01T00:00:00Z")
-        .execute(&s.pool)
-        .await
-        .unwrap();
-        let hist = s.list_history(O, id).await.unwrap();
-        if hist.len() != 1 || hist[0].action.is_some() {
-            panic!("expected null action: {hist:?}");
-        }
-        let single = s
-            .get_history_entry_by_hash(O, id, "deadbeef")
-            .await
-            .unwrap()
-            .unwrap();
-        if single.action.is_some() {
-            panic!("single null action: {single:?}");
         }
     }
 

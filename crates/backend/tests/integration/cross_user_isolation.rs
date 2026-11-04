@@ -1,7 +1,6 @@
 use crate::common::*;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use serde_json::Value;
 use tower::ServiceExt;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -44,13 +43,6 @@ async fn mock_asset_for_admin(server: &MockServer, id: uuid::Uuid) {
         .await;
 }
 
-fn manifest_body(ev: f64) -> Value {
-    serde_json::json!({
-        "schema_version": 2,
-        "ops": { "exposure": { "ev": ev } }
-    })
-}
-
 async fn save_admin_edits(admin: &axum::Router, id: uuid::Uuid) -> String {
     let saved = body_json(
         expect_status(
@@ -58,7 +50,7 @@ async fn save_admin_edits(admin: &axum::Router, id: uuid::Uuid) -> String {
             json_request(
                 "PUT",
                 &format!("/api/assets/{id}/edits"),
-                manifest_body(1.5),
+                exposure_manifest(1.5),
             ),
             StatusCode::OK,
             "owner put edits",
@@ -135,7 +127,7 @@ async fn a_member_cannot_overwrite_another_owners_edits() {
         json_request(
             "PUT",
             &format!("/api/assets/{id}/edits"),
-            manifest_body(-2.0),
+            exposure_manifest(-2.0),
         ),
         StatusCode::BAD_GATEWAY,
         "member put edits",
@@ -161,6 +153,61 @@ async fn a_member_cannot_overwrite_another_owners_edits() {
     .await;
     if record["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
         panic!("member changed the owner's edits: {record}");
+    }
+}
+
+#[tokio::test]
+async fn history_restore_is_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_for_admin(&server, id).await;
+    let (admin, member) = two_owner_apps(&server).await;
+    save_admin_edits(&admin, id).await;
+    expect_status(
+        &admin,
+        json_request(
+            "PUT",
+            &format!("/api/assets/{id}/edits"),
+            exposure_manifest(0.5),
+        ),
+        StatusCode::OK,
+        "owner second put",
+    )
+    .await;
+    let history_uri = format!("/api/assets/{id}/edits/history");
+    let history =
+        body_json(expect_status(&admin, get(&history_uri), StatusCode::OK, "owner history").await)
+            .await;
+    let older = history[1]["id"].as_i64().expect("older entry id");
+    let restore = || {
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/restore"),
+            serde_json::json!({ "entry_id": older }),
+        )
+    };
+
+    expect_status(
+        &member,
+        restore(),
+        StatusCode::NOT_FOUND,
+        "member restore owner entry",
+    )
+    .await;
+    let history =
+        body_json(expect_status(&admin, get(&history_uri), StatusCode::OK, "owner history").await)
+            .await;
+    if history
+        .as_array()
+        .is_none_or(|h| h.iter().any(|e| e["undone"] != false))
+    {
+        panic!("member restore touched the owner's history: {history}");
+    }
+
+    let restored =
+        body_json(expect_status(&admin, restore(), StatusCode::OK, "owner restore").await).await;
+    if restored["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
+        panic!("owner restore body: {restored}");
     }
 }
 
@@ -246,7 +293,7 @@ async fn presets_are_scoped_to_the_owner() {
             json_request(
                 "POST",
                 "/api/presets",
-                serde_json::json!({ "name": "Owner look", "manifest": manifest_body(0.5) }),
+                serde_json::json!({ "name": "Owner look", "manifest": exposure_manifest(0.5) }),
             ),
             StatusCode::OK,
             "owner create preset",
@@ -275,7 +322,7 @@ async fn presets_are_scoped_to_the_owner() {
         json_request(
             "PUT",
             &format!("/api/presets/{preset_id}"),
-            serde_json::json!({ "name": "stolen", "manifest": manifest_body(9.0) }),
+            serde_json::json!({ "name": "stolen", "manifest": exposure_manifest(9.0) }),
         ),
         StatusCode::NOT_FOUND,
         "member update preset",

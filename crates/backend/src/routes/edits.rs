@@ -18,7 +18,7 @@ use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
 use crate::routes::faces::normalize as normalize_face;
 use crate::services::edits_store::{
-    EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, WriteOutcome,
+    EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, RestoreOutcome, WriteOutcome,
 };
 use crate::services::render::{AssetRevision, RenderError, RenderIdentity};
 use crate::services::white_balance::{self, WhiteBalanceSample};
@@ -73,6 +73,7 @@ pub struct HistoryItem {
     pub manifest: Option<EditManifest>,
     pub created_at: String,
     pub action: Option<String>,
+    pub undone: bool,
 }
 
 impl From<EditHistoryEntry> for HistoryItem {
@@ -84,6 +85,7 @@ impl From<EditHistoryEntry> for HistoryItem {
             manifest: entry.edits.as_ref().map(EditManifest::from_edits),
             created_at: entry.created_at,
             action: entry.action,
+            undone: entry.undone,
         }
     }
 }
@@ -372,20 +374,28 @@ pub async fn restore(
     Path(id): Path<AssetKey>,
     Json(body): Json<RestoreBody>,
 ) -> Result<Response, AppError> {
-    let Some(entry) = state
+    if state
         .edits
         .get_history_entry(ctx.owner, id, body.entry_id)
         .await?
-    else {
+        .is_none()
+    {
         return Err(AppError::NotFound);
-    };
+    }
     let asset = ctx.immich.asset(id.source()).await?;
-    let saved = state
+    let outcome = state
         .edits
-        .restore_to_entry(ctx.owner, id, &entry, asset.updated_at, asset.checksum)
+        .restore_to_entry(
+            ctx.owner,
+            id,
+            body.entry_id,
+            asset.updated_at,
+            asset.checksum,
+        )
         .await?;
-    match saved {
-        Some(record) => Ok(Json(record).into_response()),
-        None => Ok(StatusCode::NO_CONTENT.into_response()),
+    match outcome {
+        RestoreOutcome::Restored(record) => Ok(Json(record).into_response()),
+        RestoreOutcome::Cleared => Ok(StatusCode::NO_CONTENT.into_response()),
+        RestoreOutcome::NotFound => Err(AppError::NotFound),
     }
 }

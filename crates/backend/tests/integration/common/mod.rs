@@ -39,6 +39,7 @@ use wiremock::MockServer;
 
 #[cfg(feature = "ml")]
 mod denoise;
+mod edits;
 mod http;
 mod immich;
 mod jobs;
@@ -46,6 +47,7 @@ mod logs;
 
 #[cfg(feature = "ml")]
 pub use denoise::*;
+pub use edits::*;
 pub use http::*;
 pub use immich::*;
 pub use jobs::*;
