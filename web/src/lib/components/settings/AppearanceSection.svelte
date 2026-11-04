@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import AccentPicker from '#lib/components/settings/AccentPicker.svelte';
   import ThemePicker from '#lib/components/settings/ThemePicker.svelte';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
@@ -27,10 +24,10 @@
       }}
       orientation="horizontal"
       aria-label="Mode"
-      class="{segmentedControlClass} grid w-fit grid-cols-3"
+      class="{segmented.text.group} grid w-fit grid-cols-3"
     >
       {#each MODES as mode (mode.value)}
-        <RadioGroup.Item value={mode.value} class="{segmentedRadioItemClass} px-3">
+        <RadioGroup.Item value={mode.value} class="{segmented.text.radio} px-3">
           {mode.label}
         </RadioGroup.Item>
       {/each}

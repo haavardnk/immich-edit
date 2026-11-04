@@ -1,199 +1,38 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { editor } from '#lib/stores/editor.svelte.ts';
-  import Notice from '#lib/components/Notice.svelte';
-  import { Button, Icon } from '@immich/ui';
-  import { mdiExport, mdiCloudUpload, mdiRefresh, mdiAlertOutline } from '@mdi/js';
-  import { EXTENSION_BY_FORMAT } from '#lib/api/export.ts';
-  import { captureDate } from '#lib/editor/filenameTemplate.ts';
-  import { croppedOutputSize } from '#lib/utils/geom.ts';
-  import DestinationToggle from './export/DestinationToggle.svelte';
-  import ExportPresetMenu from './export/ExportPresetMenu.svelte';
-  import ExportSection from './export/ExportSection.svelte';
-  import FilenameTemplateField from './export/FilenameTemplateField.svelte';
-  import FormatOptions from './export/FormatOptions.svelte';
-  import ResizeOptions from './export/ResizeOptions.svelte';
-  import SharpenOptions from './export/SharpenOptions.svelte';
-  import WatermarkOptions from './export/WatermarkOptions.svelte';
-  import ImmichOptions from './export/ImmichOptions.svelte';
-  import { exportSettings } from './export/exportSettings.svelte';
-  import { ownsAsset } from '#lib/browse/ownership.ts';
-  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
-  import { replaceBlocked } from './export/replace';
-  import { backToGrid } from '#lib/browse/backToGrid.ts';
-  import {
-    baseOptions,
-    COLOR_SPACES,
-    ensureLibraryLoaded,
-    formatLabel,
-    formInvalid,
-    immichOptions
-  } from './export/settings';
+  import { Button } from '@immich/ui';
+  import ExportForm from '#lib/panels/export/ExportForm.svelte';
+  import ExportResult from '#lib/panels/export/ExportResult.svelte';
+  import ProofMismatchNotice from '#lib/panels/export/ProofMismatchNotice.svelte';
+  import { EditorExporter } from '#lib/panels/export/editorExport.svelte.ts';
 
-  const form = $derived(exportSettings.form);
-  const destination = $derived(exportSettings.destination);
-
-  $effect(() => {
-    if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
-  });
-
-  let isLoading = $derived(
-    destination === 'download' ? editor.exporting : editor.exportingToImmich
-  );
-  let label = $derived(formatLabel(form.format));
-  let buttonLabel = $derived(
-    destination === 'download' ? `Export ${label}` : `Upload ${label} to Immich`
-  );
-  let busyLabel = $derived(destination === 'download' ? 'Exporting…' : 'Uploading…');
-  let result = $derived(destination === 'download' ? editor.lastDownload : editor.lastUpload);
-  let proofMismatch = $derived(editor.isProofing && editor.proofSpace !== form.colorSpace);
-  function spaceLabel(space: string): string {
-    return COLOR_SPACES.find((c) => c.value === space)?.label ?? space;
-  }
-  let crop = $derived(
-    editor.meta
-      ? croppedOutputSize(editor.edits.geometry, editor.meta.source_w, editor.meta.source_h)
-      : null
-  );
-  let nameExample = $derived(
-    editor.asset
-      ? {
-          original: editor.asset.originalFileName,
-          date: captureDate(editor.asset),
-          position: 1,
-          total: 1
-        }
-      : null
-  );
-  let invalid = $derived(formInvalid(form));
-  let stackable = $derived(editor.asset ? ownsAsset(editor.asset) : true);
-  let replaceReason = $derived(
-    replaceBlocked({ owned: stackable, trashOn: immichCapabilities.trash })
-  );
-
-  let replaceOriginal = $state(false);
-
-  async function afterUpload(upload: Promise<boolean>): Promise<void> {
-    const assetId = editor.assetId;
-    if (await upload) await backToGrid(assetId, page.url.searchParams.get('from'));
-  }
-
-  function upload(): void {
-    const replace = replaceOriginal && replaceReason === null;
-    replaceOriginal = false;
-    void afterUpload(
-      editor.onUploadToImmich(immichOptions(form, { stackable, replaceOriginal: replace }))
-    );
-  }
+  const exporter = new EditorExporter();
 </script>
 
+{#snippet proofNotice()}
+  <ProofMismatchNotice />
+{/snippet}
+
 <div class="flex flex-col gap-1">
-  <ExportPresetMenu />
-  <DestinationToggle bind:value={exportSettings.destination} />
+  <ExportForm
+    scope={exporter.scope}
+    crop={exporter.crop}
+    bind:replaceOriginal={exporter.replaceOriginal}
+    fileNotice={proofNotice}
+  />
 
-  <ExportSection title="File">
-    <FormatOptions bind:form={exportSettings.form} />
-    {#if proofMismatch}
-      <Notice
-        color="warning"
-        message={`Soft proofing ${spaceLabel(editor.proofSpace)}, exporting ${spaceLabel(form.colorSpace)}`}
-      >
-        <Button
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="h-6 panel-action"
-          onclick={() => (exportSettings.form.colorSpace = editor.proofSpace)}
-        >
-          Export {spaceLabel(editor.proofSpace)}
-        </Button>
-      </Notice>
-    {/if}
-  </ExportSection>
-
-  <ExportSection title="Size">
-    <ResizeOptions bind:form={exportSettings.form} {crop} />
-    <SharpenOptions bind:form={exportSettings.form} />
-  </ExportSection>
-
-  <ExportSection title="Watermark">
-    <WatermarkOptions bind:form={exportSettings.form} />
-  </ExportSection>
-
-  <ExportSection title="Name">
-    <FilenameTemplateField
-      bind:value={exportSettings.form.filenameTemplate}
-      example={nameExample}
-      extension={EXTENSION_BY_FORMAT[form.format]}
-    />
-  </ExportSection>
-
-  {#if destination === 'immich'}
-    <ExportSection title="Immich">
-      <ImmichOptions
-        bind:form={exportSettings.form}
-        bind:replaceOriginal
-        {stackable}
-        {replaceReason}
-      />
-    </ExportSection>
-  {/if}
-
-  {#if result}
-    <Notice
-      color={result.kind === 'success'
-        ? 'success'
-        : result.kind === 'duplicate'
-          ? 'warning'
-          : 'danger'}
-      message={result.message}
-    >
-      {#if result.kind === 'error'}
-        <Button
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="h-6 panel-action"
-          leadingIcon={mdiRefresh}
-          onclick={() =>
-            void (destination === 'download'
-              ? editor.retryExport()
-              : afterUpload(editor.retryUpload()))}
-          disabled={isLoading}
-        >
-          Retry
-        </Button>
-      {/if}
-    </Notice>
-  {/if}
-
-  {#if result && result.warnings.length > 0}
-    <ul
-      class="space-y-0.5 rounded-sm border border-warning-500/25 bg-warning-500/10 px-2 py-1.5 text-[10px] leading-snug text-warning-800"
-    >
-      {#each result.warnings as w (w)}
-        <li class="flex items-start gap-1.5">
-          <Icon icon={mdiAlertOutline} size="12px" class="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>{w}</span>
-        </li>
-      {/each}
-    </ul>
-  {/if}
+  <ExportResult result={exporter.result} busy={exporter.busy} onRetry={exporter.retry} />
 
   <div class="sticky bottom-0 -mx-3 border-t border-hairline bg-editor-panel px-3 py-1.5">
     <Button
       size="small"
       color="primary"
       fullWidth
-      loading={isLoading}
-      leadingIcon={destination === 'download' ? mdiExport : mdiCloudUpload}
-      disabled={isLoading || !editor.assetId || invalid}
-      onclick={() => {
-        if (destination === 'download') void editor.onExport(baseOptions(form));
-        else upload();
-      }}
+      loading={exporter.busy}
+      leadingIcon={exporter.icon}
+      disabled={exporter.disabled}
+      onclick={exporter.start}
     >
-      {isLoading ? busyLabel : buttonLabel}
+      {exporter.label}
     </Button>
   </div>
 </div>

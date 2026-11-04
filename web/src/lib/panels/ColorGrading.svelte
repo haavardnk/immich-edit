@@ -6,10 +6,7 @@
     commitSectionReset
   } from '#lib/components/editor/controls/paramReset.ts';
   import HueWheel from '#lib/components/editor/controls/HueWheel.svelte';
-  import {
-    segmentedControlClass,
-    segmentedTabItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import Disclosure from '#lib/components/Disclosure.svelte';
   import { RadioGroup, Tabs } from 'bits-ui';
   import {
@@ -50,9 +47,9 @@
     activationMode="manual"
   >
     <div class="flex h-7 items-center justify-between">
-      <Tabs.List class={segmentedControlClass}>
-        <Tabs.Trigger value="three_way" class="{segmentedTabItemClass} px-2">3-Way</Tabs.Trigger>
-        <Tabs.Trigger value="global" class="{segmentedTabItemClass} px-2">Global</Tabs.Trigger>
+      <Tabs.List class={segmented.text.group}>
+        <Tabs.Trigger value="three_way" class="{segmented.text.tab} px-2">3-Way</Tabs.Trigger>
+        <Tabs.Trigger value="global" class="{segmented.text.tab} px-2">Global</Tabs.Trigger>
       </Tabs.List>
       <ResetButton
         title="Reset all color grading"

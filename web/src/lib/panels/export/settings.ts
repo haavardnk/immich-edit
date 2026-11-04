@@ -40,7 +40,7 @@ import type {
 
 export type Destination = 'download' | 'immich';
 
-export interface ExportForm {
+export interface ExportFormValues {
   format: ExportFormat;
   quality: number;
   qualities: Partial<Record<ExportFormat, number>>;
@@ -188,7 +188,7 @@ export const QUALITY_DEFAULTS: Partial<Record<ExportFormat, number>> = {
   heic: 65
 };
 
-export function changeFormat(form: ExportForm, next: ExportFormat): void {
+export function changeFormat(form: ExportFormValues, next: ExportFormat): void {
   if (QUALITY_DEFAULTS[form.format] !== undefined) {
     form.qualities = { ...form.qualities, [form.format]: form.quality };
   }
@@ -215,7 +215,7 @@ function pickQualities(value: unknown): Partial<Record<ExportFormat, number>> {
   return Object.fromEntries(entries);
 }
 
-export function defaultExportForm(): ExportForm {
+export function defaultExportForm(): ExportFormValues {
   return {
     format: 'jpeg',
     quality: 90,
@@ -251,12 +251,12 @@ export function defaultExportForm(): ExportForm {
 
 export function restoreExportForm(
   stored:
-    | (Partial<Record<keyof ExportForm, unknown>> & {
+    | (Partial<Record<keyof ExportFormValues, unknown>> & {
         filenameSuffix?: unknown;
         includeExif?: unknown;
       })
     | undefined
-): ExportForm {
+): ExportFormValues {
   const form = defaultExportForm();
   if (!stored) return form;
   const sharpenPpi = stored.sharpenPpi;
@@ -304,7 +304,11 @@ export function formatLabel(format: ExportFormat): string {
   return FORMATS.find((f) => f.value === format)?.label ?? format;
 }
 
-export function formResize(f: ExportForm): ExportResize | null {
+export function spaceLabel(space: ColorSpaceOpt): string {
+  return COLOR_SPACES.find((c) => c.value === space)?.label ?? space;
+}
+
+export function formResize(f: ExportFormValues): ExportResize | null {
   if (f.resizeMode === 'none') return null;
   if (f.resizeMode === 'percent') return { mode: 'percent', percent: f.resizePercent };
   if (f.resizeMode === 'megapixels') {
@@ -318,12 +322,12 @@ export function formResize(f: ExportForm): ExportResize | null {
   };
 }
 
-export function formSharpen(f: ExportForm): ExportSharpen | null {
+export function formSharpen(f: ExportFormValues): ExportSharpen | null {
   if (f.sharpenMedia === 'none') return null;
   return { media: f.sharpenMedia, amount: f.sharpenAmount, ppi: f.sharpenPpi };
 }
 
-export function formWatermark(f: ExportForm): ExportWatermark | null {
+export function formWatermark(f: ExportFormValues): ExportWatermark | null {
   if (!f.watermarkId) return null;
   return {
     id: f.watermarkId,
@@ -334,7 +338,7 @@ export function formWatermark(f: ExportForm): ExportWatermark | null {
   };
 }
 
-export function formInvalid(f: ExportForm): boolean {
+export function formInvalid(f: ExportFormValues): boolean {
   return (
     templateError(f.filenameTemplate) !== null ||
     resizeError(formResize(f)) !== null ||
@@ -342,7 +346,7 @@ export function formInvalid(f: ExportForm): boolean {
   );
 }
 
-export function baseOptions(f: ExportForm): ExportOptions {
+export function baseOptions(f: ExportFormValues): ExportOptions {
   return {
     format: f.format,
     quality: f.quality,
@@ -360,7 +364,7 @@ export function baseOptions(f: ExportForm): ExportOptions {
 }
 
 export function immichOptions(
-  f: ExportForm,
+  f: ExportFormValues,
   {
     stackable = true,
     replaceOriginal = false
@@ -382,14 +386,14 @@ let tagsRequested = false;
 let albumsLoaded = false;
 let tagsLoaded = false;
 
-export function pruneLibraryIds(form: ExportForm): void {
+export function pruneLibraryIds(form: ExportFormValues): void {
   if (albumsLoaded)
     form.albumIds = form.albumIds.filter((id) => library.albums.some((album) => album.id === id));
   if (tagsLoaded)
     form.tagIds = form.tagIds.filter((id) => library.tags.some((tag) => tag.id === id));
 }
 
-export function ensureLibraryLoaded(form: ExportForm): void {
+export function ensureLibraryLoaded(form: ExportFormValues): void {
   if (!albumsRequested) {
     albumsRequested = true;
     void listAlbums()

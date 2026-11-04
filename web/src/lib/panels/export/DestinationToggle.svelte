@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import type { Destination } from './settings';
   import { RadioGroup } from 'bits-ui';
 
@@ -21,12 +18,12 @@
   bind:value={() => value, (v) => (value = v as Destination)}
   orientation="horizontal"
   aria-label="Export destination"
-  class={segmentedControlClass}
+  class={segmented.text.group}
 >
-  <RadioGroup.Item value="download" class="{segmentedRadioItemClass} flex-1">
+  <RadioGroup.Item value="download" class="{segmented.text.radio} flex-1">
     {downloadLabel}
   </RadioGroup.Item>
-  <RadioGroup.Item value="immich" class="{segmentedRadioItemClass} flex-1">
+  <RadioGroup.Item value="immich" class="{segmented.text.radio} flex-1">
     {immichLabel}
   </RadioGroup.Item>
 </RadioGroup.Root>
