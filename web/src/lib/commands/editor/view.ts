@@ -1,9 +1,9 @@
+import { selectedShapeNudges } from '#lib/commands/editor/context.ts';
 import type { Command } from '#lib/commands/types.ts';
+import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { selectedShapeNudges } from '#lib/commands/editor/context.ts';
-import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
 import { mdiCompare, mdiEyeOutline } from '@mdi/js';
 
 function showOriginal(): void {
@@ -75,7 +75,7 @@ export const VIEW_COMMANDS: readonly Command[] = [
       if (step) editor.panBy(step);
     }
   },
-  { id: 'editor.zoom', contexts: ['editor'], bind: 'zoomToggle', run: () => editor.zoomCycle() },
+  { id: 'editor.zoom', contexts: ['editor'], bind: 'zoomToggle', run: () => editor.cycleZoom() },
   editorInfo,
   {
     id: 'editor.tags',
