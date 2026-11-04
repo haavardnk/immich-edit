@@ -21,12 +21,14 @@ mod preferences;
 mod presets;
 mod purge;
 mod raster_refs;
+mod saved_views;
 
 pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
 pub use export_presets::ExportPresetRecord;
 pub use history::{EditHistoryEntry, RestoreOutcome};
 pub use preferences::{ClickTarget, Preferences, PreferencesPatch, SectionEntry};
+pub use saved_views::SavedViewRecord;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {

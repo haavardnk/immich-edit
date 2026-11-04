@@ -1,5 +1,5 @@
 use crate::common::*;
-use immich_edit_backend::immich::client::ImmichUser;
+
 use immich_edit_backend::services::auth_store::AuthKind;
 use immich_edit_backend::services::job_runner::{JobRunner, UnsupportedExecutor};
 use serde_json::{Value, json};
@@ -126,14 +126,14 @@ async fn an_unreadable_session_is_logged() {
     let (capture, _guard) = capture_logs(Level::ERROR);
     let server = MockServer::start().await;
     let state = test_state(&server).await;
-    let user = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
-    let token =
-        seed_session_with_cred(&server, &state, user, AuthKind::ApiKey, &[0xff, 0xfe]).await;
+    let token = seed_session_with_cred(
+        &server,
+        &state,
+        admin_user(),
+        AuthKind::ApiKey,
+        &[0xff, 0xfe],
+    )
+    .await;
 
     let resp = wrap_auth(router(state), token)
         .oneshot(get("/api/albums"))

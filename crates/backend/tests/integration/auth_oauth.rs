@@ -4,7 +4,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use immich_edit_backend::immich::client::ImmichUser;
+
 use immich_edit_backend::services::auth_store::AuthKind;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -385,14 +385,14 @@ async fn logging_out_of_an_oauth_session_revokes_the_immich_token() {
         .mount(&server)
         .await;
     let state = test_state(&server).await;
-    let user = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
-    let token =
-        seed_session_with_cred(&server, &state, user, AuthKind::OAuth, b"oauth-token").await;
+    let token = seed_session_with_cred(
+        &server,
+        &state,
+        admin_user(),
+        AuthKind::OAuth,
+        b"oauth-token",
+    )
+    .await;
     let app = wrap_auth(router(state), token);
 
     let resp = app

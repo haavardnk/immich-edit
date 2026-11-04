@@ -26,21 +26,8 @@ impl EditsStore {
             .bind(&owner_str)
             .execute(&mut *tx)
             .await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
-    pub async fn purge_all(&self) -> Result<(), EditsStoreError> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM edits_history")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM export_jobs")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs")
+        sqlx::query("DELETE FROM saved_views WHERE user_id = ?1")
+            .bind(&owner_str)
             .execute(&mut *tx)
             .await?;
         tx.commit().await?;

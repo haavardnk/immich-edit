@@ -803,6 +803,74 @@ async fn preferences_are_scoped_to_the_owner() {
     }
 }
 
+#[tokio::test]
+async fn saved_views_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+
+    let view = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                "/api/saved-views",
+                serde_json::json!({ "name": "Five stars", "url": "/photos?rating=5" }),
+            ),
+            StatusCode::OK,
+            "owner create saved view",
+        )
+        .await,
+    )
+    .await;
+    let view_id = view["id"].as_str().expect("saved view id").to_string();
+
+    let listed = body_json(
+        expect_status(
+            &member,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "member list",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's saved views: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            &format!("/api/saved-views/{view_id}"),
+            serde_json::json!({ "name": "stolen", "url": "/stolen" }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update saved view",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("DELETE", &format!("/api/saved-views/{view_id}")),
+        StatusCode::NOT_FOUND,
+        "member delete saved view",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "owner list",
+        )
+        .await,
+    )
+    .await;
+    if owned.as_array().map(Vec::len) != Some(1) || owned[0] != view {
+        panic!("owner saved views after member calls: {owned}");
+    }
+}
+
 #[cfg(feature = "ml")]
 async fn source_etag(app: &axum::Router, id: uuid::Uuid, what: &str) -> String {
     let resp = expect_status(
