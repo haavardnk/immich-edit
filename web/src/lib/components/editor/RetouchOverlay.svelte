@@ -14,6 +14,9 @@
   import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
   import { brushWheel } from '#lib/utils/brushSize.ts';
   import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { normalizedPoint } from '#lib/gestures/point.ts';
+  import { RETOUCH_SOURCE_HIT } from '#lib/editor/handles.ts';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -83,7 +86,7 @@
     const r = displayRadius(s.radius, sx, sy) / minSide();
     const dx = (nx - sx) * rect.w;
     const dy = (ny - sy) * rect.h;
-    return Math.hypot(dx, dy) <= Math.max(8, r * minSide()) ? s.id : null;
+    return Math.hypot(dx, dy) <= Math.max(RETOUCH_SOURCE_HIT, r * minSide()) ? s.id : null;
   }
 
   function hitStroke(nx: number, ny: number): RetouchStroke | null {
@@ -101,11 +104,8 @@
 
   function normalise(e: PointerEvent): [number, number] {
     if (!canvasEl) return [0, 0];
-    const bounds = canvasEl.getBoundingClientRect();
-    return [
-      (e.clientX - bounds.left) / Math.max(1, bounds.width),
-      (e.clientY - bounds.top) / Math.max(1, bounds.height)
-    ];
+    const p = normalizedPoint(e, canvasEl);
+    return [p.x, p.y];
   }
 
   async function finishStroke(): Promise<void> {
@@ -133,17 +133,21 @@
     });
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    if (!canvasEl || e.button !== 0) return;
+  function startPointer(e: PointerEvent): true | null {
+    if (!canvasEl || e.button !== 0) return null;
     e.preventDefault();
     e.stopPropagation();
     const [nx, ny] = normalise(e);
     if (held('sample', e) || editor.retouchSampling) {
       const s = displayUvToSceneUv(view, nx, ny);
       editor.setRetouchAnchor({ x: s[0], y: s[1] });
-      return;
+      return null;
     }
-    canvasEl.setPointerCapture(e.pointerId);
+    pickTarget(nx, ny);
+    return true;
+  }
+
+  function pickTarget(nx: number, ny: number): void {
     const handle = hitSourceHandle(nx, ny);
     if (handle) {
       dragSourceId = handle;
@@ -182,7 +186,7 @@
     drawPts = [[nx, ny]];
   }
 
-  function onPointerMove(e: PointerEvent): void {
+  function trackPointer(e: PointerEvent): void {
     const [nx, ny] = normalise(e);
     hover = [nx, ny];
     sampleKey = keyHeld('sample', e);
@@ -224,8 +228,7 @@
     drawPts = [...drawPts, ...added].slice(0, MAX_RETOUCH_POINTS);
   }
 
-  function onPointerUp(e: PointerEvent): void {
-    canvasEl?.releasePointerCapture?.(e.pointerId);
+  function endPointer(): void {
     if (dragSourceId) {
       const id = dragSourceId;
       dragSourceId = null;
@@ -241,6 +244,13 @@
     }
     if (drawing) void finishStroke();
   }
+
+  const pointer = pointerDrag<true>({
+    start: startPointer,
+    move: trackPointer,
+    hover: trackPointer,
+    end: endPointer
+  });
 
   function onPointerLeave(): void {
     hover = null;
@@ -471,10 +481,7 @@
         : canPick
           ? 'crosshair'
           : 'not-allowed'};"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...pointer.on()}
     onpointerleave={onPointerLeave}
     onwheel={onWheel}
   ></canvas>

@@ -23,12 +23,13 @@
     toSvg
   } from './curves';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
 
   let { channel }: { channel: CurveChannel } = $props();
 
   let dragging: number | null = $state(null);
   let selected: number | null = $state(null);
-  let pointerId: number | null = null;
   let keyboardDirty = $state(false);
 
   const channelStroke: Record<CurveChannel, string> = {
@@ -70,48 +71,44 @@
   function svgCoords(e: MouseEvent): { sx: number; sy: number } {
     const svg = (e.currentTarget as SVGElement).closest('svg') as SVGSVGElement;
     const rect = svg.getBoundingClientRect();
+    const at = elementPoint(e, rect);
     const scale = CURVE_SIZE / rect.width;
-    return { sx: (e.clientX - rect.left) * scale, sy: (e.clientY - rect.top) * scale };
+    return { sx: at.x * scale, sy: at.y * scale };
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    if (e.button !== undefined && e.button !== 0) return;
-    const { sx, sy } = svgCoords(e);
-    const pts = getCurve(channel);
-    const hit = hitTest(pts, sx, sy);
-    if (hit >= 0) {
-      dragging = hit;
-      selected = hit;
-    } else {
-      const { points, index } = insertPoint(pts, fromSvg(sx, sy));
-      setCurve(points);
-      dragging = index;
-      selected = index;
+  const drag = pointerDrag<true>({
+    start(e) {
+      if (e.button !== undefined && e.button !== 0) return null;
+      const { sx, sy } = svgCoords(e);
+      const pts = getCurve(channel);
+      const hit = hitTest(pts, sx, sy);
+      if (hit >= 0) {
+        dragging = hit;
+        selected = hit;
+      } else {
+        const { points, index } = insertPoint(pts, fromSvg(sx, sy));
+        setCurve(points);
+        dragging = index;
+        selected = index;
+        editor.onLive();
+      }
+      e.preventDefault();
+      return true;
+    },
+    move(e) {
+      if (dragging === null) return;
+      const { sx, sy } = svgCoords(e);
+      const next = dragPoint(getCurve(channel), dragging, fromSvg(sx, sy));
+      if (!next) return;
+      setCurve(next);
       editor.onLive();
+    },
+    end() {
+      if (dragging === null) return;
+      dragging = null;
+      commit();
     }
-    pointerId = e.pointerId;
-    (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
-    e.preventDefault();
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (dragging === null) return;
-    const { sx, sy } = svgCoords(e);
-    const next = dragPoint(getCurve(channel), dragging, fromSvg(sx, sy));
-    if (!next) return;
-    setCurve(next);
-    editor.onLive();
-  }
-
-  function endDrag(e: PointerEvent): void {
-    if (dragging === null) return;
-    dragging = null;
-    if (pointerId !== null) {
-      (e.currentTarget as SVGElement).releasePointerCapture(pointerId);
-      pointerId = null;
-    }
-    commit();
-  }
+  });
 
   function onDblClick(e: MouseEvent): void {
     const { sx, sy } = svgCoords(e);
@@ -170,15 +167,11 @@
 </script>
 
 <div class="flex flex-col items-center">
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <svg
     viewBox="0 0 {CURVE_SIZE} {CURVE_SIZE}"
     class="aspect-square w-full cursor-crosshair select-none rounded-sm bg-plot-surface ring-1 ring-hairline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={endDrag}
-    onpointercancel={endDrag}
+    {...drag.on()}
     ondblclick={onDblClick}
     onkeydown={onKeyDown}
     onkeyup={onKeyUp}
