@@ -7,7 +7,8 @@
   import { mdiClose } from '@mdi/js';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
-  import { HANDLE_DOT, HANDLE_HIT } from '#lib/editor/handles.ts';
+  import { HANDLE_DOT } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   interface Props {
     frame: StageFrame;
@@ -27,7 +28,7 @@
   }
 
   const REMOVE_OFFSET = 16;
-  const hit = HANDLE_HIT;
+  const hit = $derived(handleHit());
 
   let root = $state<HTMLDivElement | null>(null);
   let drawing = $state<{ from: Point; to: Point } | null>(null);
