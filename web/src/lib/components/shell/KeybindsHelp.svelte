@@ -94,7 +94,7 @@
       role="region"
       aria-label="Keyboard shortcuts"
       use:focusableScroll
-      class="immich-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 touch:max-h-[70dvh]"
+      class="immich-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 touch:max-h-[calc(var(--app-height)*0.7)]"
     >
       {#if sections.here.length === 0 && sections.elsewhere.length === 0}
         <p class="text-xs text-dark/65">No shortcuts match “{query}”.</p>

@@ -11,7 +11,7 @@
     "prepare": "svelte-kit sync || echo ''",
     "format": "prettier --write .",
     "lint": "svelte-kit sync && prettier --check . && eslint .",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p src/service-worker/tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",

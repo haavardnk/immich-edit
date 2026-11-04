@@ -54,7 +54,7 @@ class PresetsStore {
     try {
       const created = await createPreset(input);
       this.presets = [...this.presets, created];
-      toasts.push('success', `Saved preset "${created.name}"`, 5000);
+      toasts.push('success', `Saved preset "${created.name}"`, { ttlMs: 5000 });
       return created;
     } catch (e) {
       toasts.fail('Failed to save preset', e, 8000);
@@ -118,9 +118,9 @@ class PresetsStore {
     const failed = fresh.length - created.length;
     const summary = importSummary(created.length, skipped, failed);
     if (failed > 0) {
-      toasts.push('error', `${summary}: ${errorMessage(firstError)}`, 8000);
+      toasts.push('error', `${summary}: ${errorMessage(firstError)}`, { ttlMs: 8000 });
     } else {
-      toasts.push(created.length > 0 ? 'success' : 'info', summary, 8000);
+      toasts.push(created.length > 0 ? 'success' : 'info', summary, { ttlMs: 8000 });
     }
   };
 }

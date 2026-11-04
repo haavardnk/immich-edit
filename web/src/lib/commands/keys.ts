@@ -49,7 +49,7 @@ export function createKeyDispatcher(commands: readonly Command[]): KeyDispatcher
       e.preventDefault();
       if (!isEnabled(command)) {
         const reason = command.unavailable?.();
-        if (reason) toasts.push('info', reason, 3000);
+        if (reason) toasts.push('info', reason, { ttlMs: 3000 });
         return;
       }
       if (command.release) held.set(command, e.code);
