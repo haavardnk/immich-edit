@@ -44,6 +44,7 @@
         color={colors[toast.kind]}
         icon={false}
         title={toast.message}
+        description={toast.description}
         button={toast.action ? actionButton(toast.action) : undefined}
         onClose={() => toasts.dismiss(toast.id)}
       />

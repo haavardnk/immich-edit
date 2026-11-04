@@ -9,13 +9,13 @@ import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export async function copyEditsFrom(assetId: string): Promise<void> {
   if (editedThumbs.getHash(assetId) === undefined) {
-    toasts.push('info', NO_EDITS_TO_COPY, 3000);
+    toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
     return;
   }
   try {
     const record = await getEdits(assetId);
     copyDialog.show(manifestToEdits(record.manifest), () =>
-      toasts.push('success', 'Copied settings', 3000)
+      toasts.push('success', 'Copied settings', { ttlMs: 3000 })
     );
   } catch (e) {
     toasts.fail('Failed to copy edits', e, 6000);
@@ -25,7 +25,7 @@ export async function copyEditsFrom(assetId: string): Promise<void> {
 export async function pasteEditsTo(assetIds: string[]): Promise<void> {
   const snap = clipboard.snapshot();
   if (!snap) {
-    toasts.push('info', NOTHING_COPIED, 3000);
+    toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
     return;
   }
   await runBulkJob(

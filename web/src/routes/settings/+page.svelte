@@ -12,6 +12,8 @@
   import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
   import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
   import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
+  import InstallSection from '#lib/components/settings/InstallSection.svelte';
+  import { install } from '#lib/pwa/install.svelte.ts';
   import {
     mdiAccountCircleOutline,
     mdiCellphoneLink,
@@ -21,7 +23,7 @@
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
-  const DEVICE_HASHES = ['#device', '#layout', '#rendering'];
+  const DEVICE_HASHES = ['#device', '#layout', '#rendering', '#install'];
 
   let appOpen = $state(false);
   let accountOpen = $state(false);
@@ -30,6 +32,7 @@
   let deviceOpen = $state(false);
   let layoutOpen = $state(false);
   let renderingOpen = $state(false);
+  let installOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
   const requestedAdminSection = $derived(adminSectionFromHash(page.url.hash));
@@ -81,6 +84,7 @@
       deviceOpen = true;
       layoutOpen = page.url.hash === '#layout';
       renderingOpen = page.url.hash === '#rendering';
+      installOpen = page.url.hash === '#install';
     }
   });
 </script>
@@ -184,6 +188,16 @@
         >
           <PreviewRenderingSection />
         </SettingsGroup>
+        {#if install.state.kind !== 'hidden'}
+          <SettingsGroup
+            title="Install app"
+            description="Open immich-edit in its own window from the Home Screen, Dock or app list."
+            open={installOpen}
+            onOpenChange={(open) => (installOpen = open)}
+          >
+            <InstallSection />
+          </SettingsGroup>
+        {/if}
       </div>
     </SettingsGroup>
   </div>

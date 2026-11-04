@@ -12,7 +12,7 @@
   }
 </script>
 
-<div class="safe-frame flex min-h-dvh bg-light text-dark">
+<div class="safe-frame flex min-h-(--app-height) bg-light text-dark">
   <div class="flex flex-1 items-center p-6">
     <Container size="small" center>
       <Card

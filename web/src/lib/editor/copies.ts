@@ -21,7 +21,7 @@ export async function createVirtualCopy(
   toasts.push(
     'success',
     created.name ? `Created virtual copy "${created.name}"` : 'Created virtual copy',
-    3000
+    { ttlMs: 3000 }
   );
   return created.id;
 }

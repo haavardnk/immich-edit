@@ -95,7 +95,7 @@
           {...rest}
           {...props}
           tabindex="-1"
-          class="fixed right-[calc(var(--safe-right)+8px)] bottom-[calc(var(--safe-bottom)+8px)] left-[calc(var(--safe-left)+8px)] z-50 mx-auto flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-16px)] max-w-lg flex-col gap-2 outline-none starting:translate-y-[150%] data-leaving:translate-y-[150%] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out"
+          class="fixed right-[calc(var(--safe-right)+8px)] bottom-[calc(var(--safe-bottom)+8px)] left-[calc(var(--safe-left)+8px)] z-50 mx-auto flex max-h-[calc(var(--app-height)-var(--safe-top)-var(--safe-bottom)-16px)] max-w-lg flex-col gap-2 outline-none starting:translate-y-[150%] data-leaving:translate-y-[150%] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out"
           {@attach frameRef}
         >
           <div class="flex min-h-0 flex-col overflow-hidden rounded-[14px] bg-light-100 text-dark">

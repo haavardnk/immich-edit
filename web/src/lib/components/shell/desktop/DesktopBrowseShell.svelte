@@ -16,7 +16,7 @@
   });
 </script>
 
-<AppShell class="app-frame">
+<AppShell class="app-frame h-(--app-height)">
   <AppShellBar class="min-h-18 border-b border-hairline bg-light-50 py-1">
     <TopBar onToggleSidebar={navSidebar.toggle} />
   </AppShellBar>
