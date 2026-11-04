@@ -8,43 +8,50 @@ import {
   spacedHandles
 } from './handles.ts';
 
+const RADII = Object.entries(HANDLE_HIT);
+
 describe('handle hit areas', () => {
   it('gives every visible dot a hit area that contains it and meets 24 px', () => {
     for (const dot of Object.values(HANDLE_DOT)) {
-      expect(dot).toBeLessThanOrEqual(HANDLE_HIT);
+      expect(dot).toBeLessThanOrEqual(HANDLE_HIT.desktop);
     }
-    expect(HANDLE_HIT * 2).toBeGreaterThanOrEqual(24);
+    expect(HANDLE_HIT.desktop * 2).toBeGreaterThanOrEqual(24);
+  });
+
+  it('gives touch a 44 px target', () => {
+    expect(HANDLE_HIT.touch * 2).toBeGreaterThanOrEqual(44);
+    expect(HANDLE_HIT.touch).toBeGreaterThan(HANDLE_HIT.desktop);
   });
 
   it('keeps the retouch source hit inside the shared hit radius', () => {
-    expect(RETOUCH_SOURCE_HIT).toBeLessThanOrEqual(HANDLE_HIT);
+    expect(RETOUCH_SOURCE_HIT).toBeLessThanOrEqual(HANDLE_HIT.desktop);
   });
 });
 
-describe('spacedHandles', () => {
+describe.each(RADII)('spacedHandles on %s', (_mode, radius) => {
   it('uses the full hit radius for isolated handles', () => {
-    const [a, b] = spacedHandles([
+    const [a, b] = spacedHandles(radius, [
       { cx: 0, cy: 0, r: 5 },
       { cx: 100, cy: 0, r: 5 }
     ]);
-    expect(a?.hit).toBe(HANDLE_HIT);
-    expect(b?.hit).toBe(HANDLE_HIT);
+    expect(a?.hit).toBe(radius);
+    expect(b?.hit).toBe(radius);
   });
 
   it('caps the hit radius at half the distance to the nearest neighbour', () => {
-    const spaced = spacedHandles([
+    const spaced = spacedHandles(radius, [
       { cx: 0, cy: 0, r: 5 },
       { cx: 16, cy: 0, r: 5 },
-      { cx: 0, cy: 40, r: 5 }
+      { cx: 0, cy: 60, r: 5 }
     ]);
-    expect(spaced.map((h) => h.hit)).toEqual([8, 8, HANDLE_HIT]);
+    expect(spaced.map((h) => h.hit)).toEqual([8, 8, radius]);
     const [a, b] = spaced;
     if (!a || !b) throw new Error('missing handles');
     expect(a.hit + b.hit).toBeLessThanOrEqual(Math.hypot(b.cx - a.cx, b.cy - a.cy));
   });
 
   it('never shrinks a hit area below its visible dot', () => {
-    const spaced = spacedHandles([
+    const spaced = spacedHandles(radius, [
       { cx: 0, cy: 0, r: 6 },
       { cx: 4, cy: 0, r: 5 }
     ]);
@@ -52,7 +59,7 @@ describe('spacedHandles', () => {
   });
 
   it('keeps a preset hit radius and still counts it as a neighbour', () => {
-    const spaced = spacedHandles([
+    const spaced = spacedHandles(radius, [
       { cx: 0, cy: 0, r: 5, hit: 5 },
       { cx: 14, cy: 0, r: 7 }
     ]);
@@ -60,7 +67,7 @@ describe('spacedHandles', () => {
   });
 
   it('keeps the descriptor fields and order', () => {
-    const spaced = spacedHandles([
+    const spaced = spacedHandles(radius, [
       { cx: 0, cy: 0, r: 5, label: 'first' },
       { cx: 50, cy: 0, r: 5, label: 'last' }
     ]);
@@ -69,15 +76,20 @@ describe('spacedHandles', () => {
 });
 
 describe('crop handles', () => {
-  it('scales the hit size with the crop and clamps it', () => {
-    expect(boxHandleHit(400, 300)).toBe(HANDLE_HIT);
-    expect(boxHandleHit(40, 200)).toBe(10);
-    expect(boxHandleHit(8, 8)).toBe(HANDLE_DOT.crop);
+  it.each(RADII)('scales the hit size with the crop and clamps it on %s', (_mode, radius) => {
+    expect(boxHandleHit(radius, 400, 300)).toBe(radius);
+    expect(boxHandleHit(radius, 40, 200)).toBe(10);
+    expect(boxHandleHit(radius, 8, 8)).toBe(HANDLE_DOT.crop);
   });
 
-  it('leaves the middle of the crop free for moving', () => {
-    for (const size of [24, 40, 48, 60, 100]) {
-      expect(boxHandleHit(size, size) * 2).toBeLessThanOrEqual(size / 2);
+  it('grows the touch hit size once the crop has room', () => {
+    expect(boxHandleHit(HANDLE_HIT.desktop, 60, 200)).toBe(HANDLE_HIT.desktop);
+    expect(boxHandleHit(HANDLE_HIT.touch, 60, 200)).toBe(15);
+  });
+
+  it.each(RADII)('leaves the middle of the crop free for moving on %s', (_mode, radius) => {
+    for (const size of [24, 40, 48, 60, 100, 200]) {
+      expect(boxHandleHit(radius, size, size) * 2).toBeLessThanOrEqual(size / 2);
     }
   });
 

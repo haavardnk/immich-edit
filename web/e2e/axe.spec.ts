@@ -27,6 +27,7 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
 for (const [theme, path] of [
   ['immich-edit-light', '/photos'],
   ['immich-edit-light', '/settings#appearance'],
+  ['immich-edit-light', '/settings#layout'],
   ['catppuccin-latte', '/photos'],
   ['catppuccin-latte', '/settings#appearance'],
   ['one-light', '/photos'],

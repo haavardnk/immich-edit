@@ -11,19 +11,24 @@
   import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
   import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
+  import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
   import {
     mdiAccountCircleOutline,
+    mdiCellphoneLink,
     mdiCogOutline,
-    mdiMonitorShimmer,
     mdiPaletteOutline
   } from '@mdi/js';
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
+  const DEVICE_HASHES = ['#device', '#layout', '#rendering'];
+
   let appOpen = $state(false);
   let accountOpen = $state(false);
   let sessionsOpen = $state(false);
   let appearanceOpen = $state(false);
+  let deviceOpen = $state(false);
+  let layoutOpen = $state(false);
   let renderingOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
@@ -69,6 +74,13 @@
       appOpen = false;
       accountOpen = false;
       appearanceOpen = true;
+    }
+    if (DEVICE_HASHES.includes(page.url.hash)) {
+      appOpen = false;
+      accountOpen = false;
+      deviceOpen = true;
+      layoutOpen = page.url.hash === '#layout';
+      renderingOpen = page.url.hash === '#rendering';
     }
   });
 </script>
@@ -149,13 +161,30 @@
     </SettingsGroup>
 
     <SettingsGroup
-      title="Preview rendering"
-      description="Choose where editor previews render on this device."
-      icon={mdiMonitorShimmer}
-      open={renderingOpen}
-      onOpenChange={(open) => (renderingOpen = open)}
+      title="This device"
+      description="Settings kept in this browser."
+      icon={mdiCellphoneLink}
+      open={deviceOpen}
+      onOpenChange={(open) => (deviceOpen = open)}
     >
-      <PreviewRenderingSection />
+      <div class="space-y-3">
+        <SettingsGroup
+          title="Layout"
+          description="Choose the desktop or touch layout, or let this screen decide."
+          open={layoutOpen}
+          onOpenChange={(open) => (layoutOpen = open)}
+        >
+          <LayoutSection />
+        </SettingsGroup>
+        <SettingsGroup
+          title="Preview rendering"
+          description="Choose where editor previews render on this device."
+          open={renderingOpen}
+          onOpenChange={(open) => (renderingOpen = open)}
+        >
+          <PreviewRenderingSection />
+        </SettingsGroup>
+      </div>
     </SettingsGroup>
   </div>
 {/if}

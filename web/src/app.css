@@ -2,6 +2,9 @@
 
 @source '../node_modules/@immich/ui/dist';
 
+@custom-variant touch (&:where([data-layout="touch"], [data-layout="touch"] *));
+@custom-variant wide (&:where([data-wide], [data-wide] *));
+
 @font-face {
   font-family: 'Google Sans';
   src: url('/fonts/GoogleSans%5BGRAD,opsz,wght%5D.ttf') format('truetype-variations');
@@ -66,6 +69,10 @@
 }
 
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --color-slider-fill: var(--color-primary);
   --color-slider-track: color-mix(in srgb, var(--immich-ui-dark) 16%, transparent);
   --color-slider-marker: color-mix(in srgb, var(--immich-ui-dark) 40%, transparent);
@@ -282,6 +289,7 @@
     letter-spacing: 0;
     color: var(--immich-ui-dark);
     background-color: var(--immich-ui-light);
+    touch-action: manipulation;
   }
 
   button:not(:disabled),
@@ -326,6 +334,19 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+@utility safe-frame {
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+@utility app-frame {
+  @apply safe-frame h-dvh w-screen bg-light text-dark;
+}
+
+@utility no-callout {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @utility panel-action {

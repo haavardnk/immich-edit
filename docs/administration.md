@@ -9,8 +9,8 @@ permalink: /administration/
 # Administration
 
 Open **Settings** from the gear in the top bar. Every user sees **Account**, with
-**Signed-in devices** inside it, **Appearance** and **Preview rendering**, plus **Diagnostics** in
-the sidebar.
+**Signed-in devices** inside it, **Appearance**, and **This device**, with **Layout** and
+**Preview rendering** inside it, plus **Diagnostics** in the sidebar.
 Administrators also get **App settings** with **Users**, **Models**, **Editing defaults** and
 **Immich instance**.
 Sections stay collapsed until you open them.
@@ -54,6 +54,13 @@ The sun and moon button in the top bar switches between light and dark on wider 
 the editor canvas, scopes, curves and guides drawn on a photo keep neutral colours in every theme,
 so a theme never changes how a photo looks. Some palette colours are adjusted slightly so text
 keeps WCAG AA contrast.
+
+## This device
+
+**Settings** > **This device** holds settings kept in this browser only. Under **Layout**, **Auto**
+picks the touch layout below 768 px wide, or on a touch-first screen whose short side is at most
+1100 px. It re-evaluates live when you rotate or resize. **Desktop** and **Touch** force one layout
+for this browser. **Preview rendering** is covered in [rendering](rendering.md#the-browser).
 
 ## Editing defaults
 
