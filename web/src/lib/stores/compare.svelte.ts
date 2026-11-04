@@ -1,12 +1,6 @@
+import { FIT_VIEW, type View } from '#lib/utils/imageViewport.ts';
+
 export type CompareMode = 'single' | 'compare' | 'survey';
-
-export interface PaneView {
-  zoom: number | null;
-  cx: number;
-  cy: number;
-}
-
-export const CENTERED: PaneView = { zoom: null, cx: 0.5, cy: 0.5 };
 
 export const MAX_PANES = 9;
 
@@ -15,7 +9,7 @@ class CompareStore {
   members = $state<string[]>([]);
   focusIndex = $state(0);
   syncView = $state(true);
-  views = $state<Record<string, PaneView>>({});
+  views = $state<Record<string, View>>({});
   startCount = $state(0);
 
   get focusedId(): string | null {
@@ -59,7 +53,7 @@ class CompareStore {
 
   addMember(id: string): void {
     if (this.members.includes(id) || this.members.length >= MAX_PANES) return;
-    const view = this.focusedId ? this.viewOf(this.focusedId) : CENTERED;
+    const view = this.focusedId ? this.viewOf(this.focusedId) : FIT_VIEW;
     this.members.push(id);
     this.views[id] = { ...view };
     this.focusIndex = this.members.length - 1;
@@ -88,11 +82,11 @@ class CompareStore {
     this.focusIndex = 0;
   }
 
-  viewOf(id: string): PaneView {
-    return this.views[id] ?? CENTERED;
+  viewOf(id: string): View {
+    return this.views[id] ?? FIT_VIEW;
   }
 
-  applyView(id: string, view: PaneView, solo = false): void {
+  applyView(id: string, view: View, solo = false): void {
     if (this.syncView && !solo && this.mode !== 'single') {
       for (const member of this.members) this.views[member] = { ...view };
       return;
