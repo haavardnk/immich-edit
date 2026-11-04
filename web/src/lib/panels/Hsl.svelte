@@ -5,7 +5,7 @@
     commitParamReset,
     commitSectionReset
   } from '#lib/components/editor/controls/paramReset.ts';
-  import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { HSL, HSL_BAND_PARAMS } from '#lib/editor/params/hsl.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '#lib/types/edits.ts';
@@ -31,7 +31,7 @@
         {#snippet child({ props })}
           <RadioGroup.Item
             value={String(i)}
-            class={compactSegmentedSwatchItemClass}
+            class={segmented.tool.swatch}
             style="background-color: {HSL_BAND_COLORS[i]}"
             aria-label={name}
             {...props}

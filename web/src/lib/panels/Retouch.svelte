@@ -1,9 +1,6 @@
 <script lang="ts">
   import Notice from '#lib/components/Notice.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import { RETOUCH_HARDNESS, RETOUCH_OPACITY, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
@@ -55,13 +52,13 @@
       bind:value={() => mode, (v) => setMode(v as RetouchMode)}
       orientation="horizontal"
       aria-label="Retouch tool"
-      class={segmentedControlClass}
+      class={segmented.text.group}
     >
       <Tooltip
         text="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"
       >
         {#snippet child({ props })}
-          <RadioGroup.Item value="heal" class="{segmentedRadioItemClass} gap-1 px-2" {...props}>
+          <RadioGroup.Item value="heal" class="{segmented.text.radio} gap-1 px-2" {...props}>
             <Icon icon={mdiBandage} size="12px" aria-hidden="true" />
             Heal
           </RadioGroup.Item>
@@ -69,7 +66,7 @@
       </Tooltip>
       <Tooltip text="{hint('Clone', 'retouchClone')} — copies the source pixels exactly">
         {#snippet child({ props })}
-          <RadioGroup.Item value="clone" class="{segmentedRadioItemClass} gap-1 px-2" {...props}>
+          <RadioGroup.Item value="clone" class="{segmented.text.radio} gap-1 px-2" {...props}>
             <Icon icon={mdiStamper} size="12px" aria-hidden="true" />
             Clone
           </RadioGroup.Item>

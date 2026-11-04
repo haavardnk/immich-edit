@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
   import { kindIcon, MODES } from './maskTools';
@@ -100,7 +100,7 @@
 {#if isActive}
   <div class="mx-1 flex min-h-7 items-center gap-1 border-l border-primary/25 px-2 pb-1">
     {#if index > 0}
-      <div class="{compactSegmentedControlClass} flex text-[10px]">
+      <div class="{segmented.tool.group} flex text-[10px]">
         {#each MODES as m (m.value)}
           <IconButton
             size="tiny"

@@ -1,7 +1,7 @@
 <script lang="ts">
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
-  import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { CURVES } from '#lib/editor/params/basic.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
@@ -53,7 +53,7 @@
         {#snippet child({ props })}
           <RadioGroup.Item
             value={ch}
-            class="{compactSegmentedSwatchItemClass} flex items-center justify-center overflow-hidden"
+            class="{segmented.tool.swatch} flex items-center justify-center overflow-hidden"
             style={channelSwatchStyle[ch]}
             aria-label="Edit {CHANNEL_LABELS[ch]} curve"
             {...props}

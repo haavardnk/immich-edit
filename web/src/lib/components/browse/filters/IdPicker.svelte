@@ -2,10 +2,7 @@
   import { page } from '$app/state';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { routeScope, structuredRoute } from '#lib/browse/browseRoutes.ts';
   import {
     ID_EXCLUSIONS,
@@ -75,10 +72,10 @@
         }
         orientation="horizontal"
         aria-label="{label} match"
-        class={segmentedControlClass}
+        class={segmented.text.group}
       >
         {#each ID_MATCHES as match (match)}
-          <RadioGroup.Item value={match} class="{segmentedRadioItemClass} flex-1">
+          <RadioGroup.Item value={match} class="{segmented.text.radio} flex-1">
             {ID_MATCH_LABELS[match]}
           </RadioGroup.Item>
         {/each}

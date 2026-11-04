@@ -3,10 +3,7 @@
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { sectionLabel } from '#lib/editor/params/define.ts';
@@ -151,10 +148,10 @@
         onValueChange={(v: string) => setShape(v as BokehShape)}
         orientation="horizontal"
         aria-label="Bokeh shape"
-        class="{segmentedControlClass} col-span-2"
+        class="{segmented.text.group} col-span-2"
       >
         {#each BOKEH_SHAPES as shape (shape)}
-          <RadioGroup.Item value={shape} class="{segmentedRadioItemClass} flex-1 px-2">
+          <RadioGroup.Item value={shape} class="{segmented.text.radio} flex-1 px-2">
             {SHAPE_LABELS[shape]}
           </RadioGroup.Item>
         {/each}
