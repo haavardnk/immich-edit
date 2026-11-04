@@ -17,7 +17,7 @@
   const tooNarrow = $derived((innerWidth.current ?? 1920) < 768);
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-light text-dark">
+<div class="app-frame flex overflow-hidden">
   <div class="relative flex min-h-0 min-w-0 flex-1">
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <main class="flex-1 min-h-0 flex flex-col bg-light">
@@ -43,7 +43,7 @@
               variant="filled"
               color="primary"
               shape="round"
-              class="fixed top-3 right-3 z-40 shadow-lg"
+              class="fixed top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-40 shadow-lg"
               icon={mdiFullscreenExit}
               title={hint('Exit fullscreen', 'fullscreen')}
               aria-label={hint('Exit fullscreen', 'fullscreen')}

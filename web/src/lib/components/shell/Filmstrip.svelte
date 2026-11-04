@@ -129,7 +129,7 @@
     {#if !collapsed}
       <div class="relative">
         <div
-          class="overflow-x-auto py-1.5 scrollbar-hidden"
+          class="no-callout overflow-x-auto py-1.5 scrollbar-hidden"
           data-testid="filmstrip-scroll"
           bind:this={scrollContainer}
           use:observeSize={measure}

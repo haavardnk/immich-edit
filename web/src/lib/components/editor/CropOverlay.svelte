@@ -20,6 +20,7 @@
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
   import { CROP_HANDLES, HANDLE_DOT, boxHandleHit } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);
@@ -104,7 +105,7 @@
         ratio: number | null;
       };
 
-  const hit = $derived(boxHandleHit(cropPx.w, cropPx.h));
+  const hit = $derived(boxHandleHit(handleHit(), cropPx.w, cropPx.h));
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop

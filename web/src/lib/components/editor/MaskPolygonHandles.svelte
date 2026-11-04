@@ -6,7 +6,8 @@
   import MaskHandle from './MaskHandle.svelte';
   import { elementPoint } from '#lib/gestures/point.ts';
   import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
-  import type { ComponentProps } from 'svelte';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import type { MaskHandleSpec } from '#lib/types/maskHandle.ts';
 
   let {
     kind,
@@ -66,7 +67,7 @@
   }
 
   const handles = $derived(
-    spacedHandles<ComponentProps<typeof MaskHandle>>([
+    spacedHandles<MaskHandleSpec>(handleHit(), [
       ...kind.points.map((_, i) => {
         const mid = midpoint(i);
         return {

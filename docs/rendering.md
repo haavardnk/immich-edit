@@ -103,7 +103,7 @@ section lists ways around it.
 
 The browser renderer uses the GPU of the computer you edit from, not the server's. It loads when
 the editor opens a photo. Each browser keeps its own choice under
-**Settings** > **Preview rendering**:
+**Settings** > **This device** > **Preview rendering**:
 
 - **Fastest**, the default, times both renderers and uses whichever is clearly quicker.
 - **Browser** always draws previews locally, even when the server is faster.

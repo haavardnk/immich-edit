@@ -8,7 +8,8 @@
   } from '#lib/utils/perspective.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
-  import { HANDLE_DOT, HANDLE_HIT } from '#lib/editor/handles.ts';
+  import { HANDLE_DOT } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   interface Props {
     frame: StageFrame;
@@ -19,7 +20,7 @@
 
   let root = $state<HTMLDivElement | null>(null);
 
-  const hit = HANDLE_HIT;
+  const hit = $derived(handleHit());
   const handles = $derived(unitSquareCorners().map((c) => sourceToStage(frame, c)));
   const quadPoints = $derived(handles.map(([x, y]) => `${x},${y}`).join(' '));
 

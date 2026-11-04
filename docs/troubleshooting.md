@@ -186,8 +186,8 @@ the GPU adapter and its limits, how long the renderer took to load, and the last
 - `WebGPU needs HTTPS or localhost`: the page is served over plain HTTP from another machine. See
   [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
 - `no WebGPU`: the browser lacks WebGPU, or has it turned off.
-- `server selected` or `browser selected`: **Settings** > **Preview rendering** is set to
-  **Server** or **Browser** in this browser.
+- `server selected` or `browser selected`: **Settings** > **This device** >
+  **Preview rendering** is set to **Server** or **Browser** in this browser.
 - `measuring speed`: **Fastest** has not timed both renderers yet. Previews come from the server
   until it has; **Previews** reads `measuring`.
 - `browser faster, 8.0 vs 30.0 ms/MP`: the browser's time per megapixel, then the server's.
