@@ -1,9 +1,6 @@
 <script lang="ts">
   import { RadioGroup } from 'bits-ui';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { renderer, type RendererChoice } from '#lib/stores/renderer.svelte.ts';
   import { rendererStatus } from '#lib/stores/rendererStatus.ts';
 
@@ -25,10 +22,10 @@
     }}
     orientation="horizontal"
     aria-label="Preview renderer"
-    class="{segmentedControlClass} grid w-fit grid-cols-3"
+    class="{segmented.text.group} grid w-fit grid-cols-3"
   >
     {#each OPTIONS as option (option.value)}
-      <RadioGroup.Item value={option.value} class="{segmentedRadioItemClass} px-3">
+      <RadioGroup.Item value={option.value} class="{segmented.text.radio} px-3">
         {option.label}
       </RadioGroup.Item>
     {/each}
