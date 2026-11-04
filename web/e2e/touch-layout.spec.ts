@@ -1,14 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks } from './helpers';
+import { openBrowse } from './browse';
 
 function root(page: Page): Locator {
   return page.locator('html');
-}
-
-async function openBrowse(page: Page): Promise<void> {
-  await installMocks(page);
-  await page.goto('/photos');
-  await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
 }
 
 function layoutGroup(page: Page): Locator {

@@ -60,7 +60,10 @@
   {open}
   align="end"
   onOpenChange={(v) => (open = v)}
+  appearance="panel"
   contentClass="flex min-w-55 flex-col gap-2.5 p-3"
+  sheetClass="flex flex-col gap-3 px-4 py-3"
+  title="Sort"
   tooltip={label}
 >
   {#snippet trigger(popoverProps)}

@@ -77,7 +77,11 @@
 <Popover
   {open}
   onOpenChange={toggle}
+  appearance="panel"
   contentClass="w-(--bits-floating-anchor-width) max-h-80 overflow-hidden flex flex-col rounded-lg bg-light-100 p-1"
+  sheetClass="flex flex-col"
+  sheetPicker
+  title="Camera profile"
   tooltip={label}
 >
   {#snippet trigger(popoverProps)}
