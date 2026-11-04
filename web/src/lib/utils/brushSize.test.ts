@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BRUSH_HARDNESS as HARD, BRUSH_SIZE as SIZE } from '#lib/editor/params/brush.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
-import { formatBrushSize, stepBrush, wheelHardness, wheelNotches, wheelSize } from './brushSize';
+import {
+  brushWheel,
+  formatBrushSize,
+  stepBrush,
+  wheelHardness,
+  wheelNotches,
+  wheelSize
+} from './brushSize';
 
 function meta(w: number, h: number): PreviewMeta {
   return {
@@ -73,5 +80,47 @@ describe('wheel brush steps', () => {
     expect(wheelHardness(0.5, 1, HARD)).toBeCloseTo(0.6, 6);
     expect(wheelHardness(0.95, 1, HARD)).toBe(1);
     expect(wheelHardness(0.05, -1, HARD)).toBe(0);
+  });
+});
+
+describe('brushWheel', () => {
+  const ranges = { size: SIZE, hardness: HARD };
+  const tool = { size: 0.2, hardness: 0.5 };
+
+  function wheel(altKey: boolean, shiftKey: boolean) {
+    return {
+      deltaX: 0,
+      deltaY: -100,
+      deltaMode: 0,
+      altKey,
+      shiftKey,
+      ctrlKey: false,
+      metaKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    };
+  }
+
+  it('leaves a plain wheel to the viewer', () => {
+    const e = wheel(false, true);
+    const apply = vi.fn();
+    brushWheel(e, tool, ranges, apply);
+    expect(apply).not.toHaveBeenCalled();
+    expect(e.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('scales the size on Alt+wheel', () => {
+    const e = wheel(true, false);
+    const apply = vi.fn();
+    brushWheel(e, tool, ranges, apply);
+    expect(e.preventDefault).toHaveBeenCalled();
+    expect(e.stopPropagation).toHaveBeenCalled();
+    expect(apply).toHaveBeenCalledWith({ size: expect.closeTo(0.22, 6) });
+  });
+
+  it('steps the hardness on Alt+Shift+wheel', () => {
+    const apply = vi.fn();
+    brushWheel(wheel(true, true), tool, ranges, apply);
+    expect(apply).toHaveBeenCalledWith({ hardness: expect.closeTo(0.6, 6) });
   });
 });
