@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::safe_path;
+use crate::services::job_store::{JobRecord, JobStatus};
 use crate::state::AppState;
 
 pub fn zip_job_dir(
@@ -43,22 +44,43 @@ pub fn zip_archive_path(
 }
 
 pub async fn cleanup_zip_job(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) {
-    let (Ok(dir), Ok(archive)) = (
-        zip_job_dir(state, server_epoch, owner, job_id),
-        zip_archive_path(state, server_epoch, owner, job_id),
-    ) else {
-        return;
-    };
-    if let Err(e) = tokio::fs::remove_dir_all(&dir).await
+    if let Ok(dir) = zip_job_dir(state, server_epoch, owner, job_id)
+        && let Err(e) = tokio::fs::remove_dir_all(&dir).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
         tracing::warn!(error = %e, "remove export dir");
     }
+    discard_zip_archive(state, server_epoch, owner, job_id).await;
+}
+
+pub async fn discard_zip_archive(state: &AppState, server_epoch: i64, owner: Uuid, job_id: Uuid) {
+    let Ok(archive) = zip_archive_path(state, server_epoch, owner, job_id) else {
+        return;
+    };
     if let Err(e) = tokio::fs::remove_file(&archive).await
         && e.kind() != std::io::ErrorKind::NotFound
     {
         tracing::warn!(error = %e, "remove export archive");
     }
+}
+
+pub async fn confirm_zip_archive(
+    state: &AppState,
+    server_epoch: i64,
+    owner: Uuid,
+    built_for: &JobRecord,
+) -> Result<(), AppError> {
+    let current = state.jobs.get_job(built_for.id).await?;
+    let unchanged = current.is_some_and(|job| {
+        job.status == JobStatus::Completed && job.updated_at == built_for.updated_at
+    });
+    if unchanged {
+        return Ok(());
+    }
+    discard_zip_archive(state, server_epoch, owner, built_for.id).await;
+    Err(AppError::Conflict(
+        "job changed while building the archive".into(),
+    ))
 }
 
 pub(super) async fn write_unique(
@@ -74,16 +96,29 @@ pub(super) async fn write_unique(
         } else {
             format!("{stem}_{n}.{extension}")
         };
+        let path = dir.join(&filename);
         match tokio::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(dir.join(&filename))
+            .open(&path)
             .await
         {
             Ok(mut file) => {
                 use tokio::io::AsyncWriteExt;
-                file.write_all(bytes).await?;
-                file.flush().await?;
+                let written = async {
+                    file.write_all(bytes).await?;
+                    file.flush().await
+                }
+                .await;
+                if let Err(e) = written {
+                    drop(file);
+                    if let Err(remove) = tokio::fs::remove_file(&path).await
+                        && remove.kind() != std::io::ErrorKind::NotFound
+                    {
+                        tracing::warn!(error = %remove, "remove partial export file");
+                    }
+                    return Err(e);
+                }
                 return Ok(filename);
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {

@@ -215,6 +215,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         )
         .route("/jobs/{id}", get(routes::jobs::get))
         .route("/jobs/{id}/cancel", post(routes::jobs::cancel))
+        .route("/jobs/{id}/retry", post(routes::jobs::retry))
         .route("/jobs/{id}/download", get(routes::jobs::download))
         .route("/jobs/{id}/events", get(routes::jobs::events))
         .route(

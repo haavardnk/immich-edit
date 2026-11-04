@@ -41,12 +41,14 @@ use wiremock::MockServer;
 mod denoise;
 mod http;
 mod immich;
+mod jobs;
 mod logs;
 
 #[cfg(feature = "ml")]
 pub use denoise::*;
 pub use http::*;
 pub use immich::*;
+pub use jobs::*;
 pub use logs::*;
 
 pub const TEST_API_KEY: &str = "test-key";
