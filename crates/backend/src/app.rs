@@ -208,6 +208,10 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             get(routes::appearance::get).put(routes::appearance::update),
         )
         .route(
+            "/preferences",
+            get(routes::preferences::get).patch(routes::preferences::update),
+        )
+        .route(
             "/jobs",
             get(routes::jobs::list)
                 .post(routes::jobs::create)
