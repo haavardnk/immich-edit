@@ -83,3 +83,19 @@ describe('edited thumbnail URLs', () => {
     expect(editedThumbs.getHash('a1')).toBe('h4');
   });
 });
+
+describe('edited membership', () => {
+  it('follows the loaded list, saves and deletes', async () => {
+    const items = [{ id: 'a1', hash: 'h1', updated_at: 'u' }];
+    mockedList.mockResolvedValueOnce({ render_revision: 'd1-l1', items });
+    await editedThumbs.refresh();
+
+    expect(editedThumbs.has('a1')).toBe(true);
+    expect(editedThumbs.has('a9')).toBe(false);
+
+    editedThumbs.upsert('a9', 'h9', 'u9');
+    editedThumbs.remove('a1');
+    expect(editedThumbs.has('a9')).toBe(true);
+    expect(editedThumbs.has('a1')).toBe(false);
+  });
+});

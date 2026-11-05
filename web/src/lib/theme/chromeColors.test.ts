@@ -21,6 +21,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/components/browse/AssetTile.svelte': [
     'bg-black/35',
     'bg-black/40',
+    'bg-black/55',
     'bg-black/70',
     'border-white',
     'text-white',
