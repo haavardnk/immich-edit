@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import JobList from './JobList.svelte';
 import JobListActions from './JobListActions.svelte';
 import JobsDrawer from './JobsDrawer.svelte';
+import JobsSheet from './JobsSheet.svelte';
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
 
@@ -84,5 +85,36 @@ describe('JobList layout parity', () => {
     ]);
     expect(found.actions).toEqual([button('Clear finished')]);
     expect(found.drawer).toEqual(mergeControls(found.list, found.actions));
+  });
+
+  it('exposes the grouped list and its actions in the jobs sheet', async () => {
+    const found = await layoutControls([
+      layout('list', JobList, { grouped: true }),
+      layout('actions', JobListActions, {}),
+      layout('sheet', JobsSheet, {}, { exclude: [button('Close jobs')] })
+    ]);
+    expect(found.sheet).toEqual(mergeControls(found.list, found.actions));
+  });
+
+  it('lists running jobs before finished ones only when grouped', async () => {
+    jobs.jobs = [job('zip', 'download_zip', 'completed'), job('run', 'export_immich', 'running')];
+    const headings = async (grouped: boolean): Promise<string[]> => {
+      const target = document.createElement('div');
+      document.body.appendChild(target);
+      const destroy = layout('list', JobList, { grouped }).render(target);
+      const found = [...target.querySelectorAll('h3, [aria-label$=" progress"]')].map(
+        (element) => element.textContent?.trim() || (element.getAttribute('aria-label') ?? '')
+      );
+      await destroy();
+      target.remove();
+      return found;
+    };
+    expect(await headings(false)).toEqual(['Download ZIP progress', 'Export to Immich progress']);
+    expect(await headings(true)).toEqual([
+      'In progress',
+      'Export to Immich progress',
+      'Finished',
+      'Download ZIP progress'
+    ]);
   });
 });

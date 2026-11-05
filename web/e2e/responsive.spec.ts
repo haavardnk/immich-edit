@@ -377,7 +377,7 @@ for (const size of [
 
     await page.goto(`/assets/${ASSET_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Desktop required' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeHidden();
     expect(await sidewaysScrollers(page)).toEqual([]);
   });

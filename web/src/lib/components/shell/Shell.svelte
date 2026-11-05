@@ -32,6 +32,10 @@
     if (to) leaveLoupeOnEditorPath(to.url.pathname);
   });
 
+  $effect.pre(() => {
+    browseView.setFiltersCompact(layout.compact);
+  });
+
   $effect(() => {
     document.documentElement.classList.toggle('grey-canvas', ui.greyCanvas);
   });

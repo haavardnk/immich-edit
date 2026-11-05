@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import { SearchInput } from '#lib/browse/searchInput.svelte.ts';
+  import { SEARCH_FIELD_SHORT_PLACEHOLDER } from '#lib/browse/searchField.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { Button } from '@immich/ui';
   import type { Attachment } from 'svelte/attachments';
@@ -37,6 +38,7 @@
 <div class="flex min-w-0 flex-1 items-center" {@attach bindField}>
   <GlobalSearch
     value={ui.searchQuery}
+    placeholder={SEARCH_FIELD_SHORT_PLACEHOLDER}
     onInput={search.inputEvent}
     {onSubmit}
     onClear={search.clear}

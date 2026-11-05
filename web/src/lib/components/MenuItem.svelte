@@ -13,7 +13,7 @@
     label: string;
     keys?: string;
     pressed?: boolean;
-  } & Omit<HTMLButtonAttributes, 'children' | 'color' | 'size' | 'type'> = $props();
+  } & Omit<HTMLButtonAttributes, 'children' | 'color' | 'size' | 'type' | 'class'> = $props();
 </script>
 
 <MenuRow {...rest} {icon} {label} {keys} {pressed} aria-label={label} />

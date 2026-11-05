@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeFilterChips, photoCountLabel, withoutFilter } from './filterChips';
+import { activeFilterChips, photoCountLabel, showPhotosLabel, withoutFilter } from './filterChips';
 import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 
 const NAMES: Record<string, string> = { a1: 'Summer', p1: 'Ann', p2: 'Bo', t1: 'Trips/Rome' };
@@ -107,5 +107,14 @@ describe('browse filter chips', () => {
     [1000, 12, '1000 photos, 12 hidden']
   ])('counts %i photos with %i hidden', (total, hidden, label) => {
     expect(photoCountLabel(total, hidden)).toBe(label);
+  });
+
+  it.each([
+    [undefined, 'Show photos'],
+    [0, 'Show 0 photos'],
+    [1, 'Show 1 photo'],
+    [1204, 'Show 1204 photos']
+  ])('labels the filter sheet button for %s photos as %s', (total, label) => {
+    expect(showPhotosLabel(total)).toBe(label);
   });
 });

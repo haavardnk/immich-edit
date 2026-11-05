@@ -136,5 +136,5 @@
       {/if}
     {/if}
   </div>
-  <FilterPanel {favoriteLocked} />
+  <FilterPanel {favoriteLocked} count={headerTotal} />
 </div>

@@ -6,6 +6,7 @@
   import { setupStatus } from '#lib/api/auth.ts';
   import { isBackendDown } from '#lib/api/client.ts';
   import { session } from '#lib/stores/session.svelte.ts';
+  import { navHistory } from '#lib/stores/navHistory.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
@@ -13,13 +14,15 @@
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
+  import { installPointerKind } from '#lib/device/pointerKind.svelte.ts';
   import { showLayout } from '#lib/device/document.ts';
   import '#lib/pwa/install.svelte.ts';
   import { checkForUpdate, installServiceWorker } from '#lib/pwa/serviceWorker.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
-  import { setLocale, TooltipProvider } from '@immich/ui';
+  import AppTooltipProvider from '#lib/components/AppTooltipProvider.svelte';
+  import { setLocale } from '@immich/ui';
 
   let { children } = $props();
 
@@ -50,8 +53,10 @@
   onMount(installFocusPolicy);
   onMount(listenForCommands);
   onMount(installLayout);
+  onMount(installPointerKind);
   onMount(() => installServiceWorker(() => editor.saving || editor.saveError !== null));
   afterNavigate(checkForUpdate);
+  afterNavigate(navHistory.record);
 
   $effect(() => appearance.showScheme(appearance.scheme));
   $effect(() => showLayout(layout.mode, layout.wide));
@@ -76,7 +81,7 @@
   syncFilterUrl(() => bootState === 'ready');
 </script>
 
-<TooltipProvider>
+<AppTooltipProvider>
   {#if bootState === 'loading'}
     <div class="app-frame flex items-center justify-center">
       <div
@@ -103,4 +108,4 @@
     </div>
   {/if}
   <Toasts />
-</TooltipProvider>
+</AppTooltipProvider>

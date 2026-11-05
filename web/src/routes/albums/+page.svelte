@@ -29,7 +29,7 @@
     {:else}
       <ul
         aria-label="Albums"
-        class="grid grid-cols-2 gap-x-3 gap-y-4 p-4 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4 sm:p-5"
+        class="grid grid-cols-2 gap-x-3 gap-y-4.5 px-4 pt-1.5 pb-4 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4 sm:p-5"
       >
         {#each albums as album (album.id)}
           <li class="min-w-0"><AlbumCard {album} /></li>

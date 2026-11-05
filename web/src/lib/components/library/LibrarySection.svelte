@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Link } from '@immich/ui';
+  import SectionHeading from '#lib/components/SectionHeading.svelte';
+  import TooltipLink from '#lib/components/TooltipLink.svelte';
   import type { Snippet } from 'svelte';
 
   let {
@@ -15,19 +16,21 @@
   const id = $props.id();
 </script>
 
-<section aria-labelledby={id} class="flex flex-col gap-2 py-3">
-  <div class="flex min-h-8 items-center justify-between px-4 sm:px-5">
-    <h2 {id} class="text-sm font-semibold text-light-950">{title}</h2>
-    {#if more}
-      <Link
-        href={more.href}
-        underline={false}
-        class="flex min-h-8 items-center text-sm font-medium text-primary touch:min-h-11"
-        aria-label={more.name}
-      >
-        {more.label}
-      </Link>
-    {/if}
-  </div>
+{#snippet moreLink()}
+  {#if more}
+    <TooltipLink
+      always
+      tooltip={more.name}
+      href={more.href}
+      aria-label={more.name}
+      class="flex min-h-8 items-center rounded-md text-xs font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary touch:min-h-11 touch:text-[12.5px]"
+    >
+      {more.label}
+    </TooltipLink>
+  {/if}
+{/snippet}
+
+<section aria-labelledby={id} class="flex flex-col gap-1 pb-2">
+  <SectionHeading {id} {title} action={more ? moreLink : undefined} />
   {@render children()}
 </section>

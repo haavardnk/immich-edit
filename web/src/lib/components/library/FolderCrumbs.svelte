@@ -1,5 +1,6 @@
 <script lang="ts">
   import { folderCrumbs, folderHref } from '#lib/browse/folders.ts';
+  import TooltipLink from '#lib/components/TooltipLink.svelte';
   import { Icon } from '@immich/ui';
   import { mdiChevronRight, mdiFolderOutline } from '@mdi/js';
   import type { Attachment } from 'svelte/attachments';
@@ -14,23 +15,28 @@
 </script>
 
 {#snippet crumb(name: string, href: string, current: boolean, icon?: string)}
-  <a
+  <TooltipLink
+    tooltip={name}
     {href}
     aria-current={current ? 'page' : undefined}
-    class="flex h-8 shrink-0 items-center touch:h-11 gap-1.5 rounded-full px-2.5 text-xs whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary {current
-      ? 'bg-primary/15 font-semibold text-primary'
-      : 'text-dark/80 hover:bg-subtle'}"
+    class="group flex h-8 shrink-0 items-center outline-none touch:h-11"
   >
-    {#if icon}
-      <Icon {icon} size="16px" aria-hidden="true" />
-    {/if}
-    {name}
-  </a>
+    <span
+      class="flex h-8 max-w-48 items-center gap-1.5 rounded-lg px-2 text-xs whitespace-nowrap group-focus-visible:ring-2 group-focus-visible:ring-primary touch:text-[13.5px] {current
+        ? 'bg-light-100 font-medium text-light-950'
+        : 'text-dark/65 group-hover:bg-subtle'}"
+    >
+      {#if icon}
+        <Icon {icon} size="16px" class="shrink-0" aria-hidden="true" />
+      {/if}
+      <span data-truncate class="truncate">{name}</span>
+    </span>
+  </TooltipLink>
 {/snippet}
 
 <nav
   aria-label="Folder path"
-  class="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-hairline bg-light px-2 py-1.5 scrollbar-hidden sm:px-4"
+  class="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-hairline bg-light px-2 py-1.5 scrollbar-hidden sm:px-4 touch:border-b-0 touch:px-3 touch:py-0"
   {@attach keepCurrentInView}
 >
   {@render crumb('Folders', folderHref(''), crumbs.length === 0, mdiFolderOutline)}

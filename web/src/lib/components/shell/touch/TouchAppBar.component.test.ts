@@ -2,8 +2,16 @@ import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
 import { jobs } from '#lib/stores/jobs.svelte.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TouchAppBar from './TouchAppBar.svelte';
+
+const route = vi.hoisted(() => ({ page: { url: new URL('http://localhost/photos'), params: {} } }));
+
+const nav = vi.hoisted(() => ({ goto: vi.fn() }));
+
+vi.mock('$app/state', () => route);
+
+vi.mock('$app/navigation', () => ({ goto: nav.goto }));
 
 type BarProps = ComponentProps<typeof TouchAppBar>;
 
@@ -34,6 +42,8 @@ afterEach(() => {
   target.remove();
   touchBars.set(false);
   jobs.attention = false;
+  route.page.url = new URL('http://localhost/photos');
+  nav.goto.mockClear();
 });
 
 describe('TouchAppBar', () => {
@@ -64,5 +74,29 @@ describe('TouchAppBar', () => {
     flushSync();
     expect(bar.inert).toBe(true);
     expect(bar.className).toContain('-mt-13');
+  });
+
+  it.each([
+    ['/people', '/library'],
+    ['/albums/a1', '/albums'],
+    ['/folders?path=%2Fphotos%2F2026', '/folders?path=%2Fphotos'],
+    ['/settings/diagnostics', '/settings']
+  ])('shows Back instead of the avatar on %s and goes to %s', (path, parent) => {
+    route.page.url = new URL(path, 'http://localhost');
+    const bar = render();
+
+    expect(bar.querySelector('[aria-label="Account"]')).toBeNull();
+    const back = bar.querySelector<HTMLButtonElement>('button[aria-label="Back"]');
+    expect(back).not.toBeNull();
+    back?.click();
+    expect(nav.goto).toHaveBeenCalledWith(parent, { replace: true });
+  });
+
+  it.each(['/photos', '/albums', '/search', '/library'])('keeps the avatar on %s', (path) => {
+    route.page.url = new URL(path, 'http://localhost');
+    const bar = render();
+
+    expect(bar.querySelector('[aria-label="Account"]')).not.toBeNull();
+    expect(bar.querySelector('[aria-label="Back"]')).toBeNull();
   });
 });
