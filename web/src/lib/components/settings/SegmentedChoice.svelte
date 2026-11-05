@@ -28,11 +28,14 @@
   }}
   orientation="horizontal"
   aria-label={label}
-  class="{segmented.text.group} grid w-fit"
+  class="{segmented.text.group} grid w-fit touch:h-12"
   style="grid-template-columns: repeat({options.length}, minmax(0, 1fr));"
 >
   {#each options as option (option.value)}
-    <RadioGroup.Item value={option.value} class="{segmented.text.radio} px-3">
+    <RadioGroup.Item
+      value={option.value}
+      class="{segmented.text.radio} px-3 touch:h-11 touch:text-xs"
+    >
       {option.label}
     </RadioGroup.Item>
   {/each}

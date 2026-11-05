@@ -250,7 +250,17 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
   const people = opts.people ?? [];
-  const albums = opts.albums ?? [];
+  const albums = [...(opts.albums ?? [])];
+  const albumSummary = (album: MockAlbum) => ({
+    id: album.id,
+    albumName: album.albumName,
+    assetCount: album.assetIds.length,
+    albumThumbnailAssetId: null,
+    updatedAt: album.updatedAt ?? null,
+    ownerId: album.ownerId ?? SESSION_USER.id,
+    shared: album.shared ?? false,
+    endDate: album.endDate ?? null
+  });
   const matchesPeople = (id: string, set: IdSet | undefined): boolean =>
     matchesIds(
       people.filter((person) => person.assetIds.includes(id)).map((person) => person.id),
@@ -340,6 +350,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(
         json({
           immich_version: structured ? '3.2.2' : '3.1.0',
+          external_host: 'photos.example.net',
           structured_search: structured,
           smart_search: opts.smartSearch ?? true,
           ocr: opts.ocr ?? true,
@@ -419,18 +430,18 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
-    if (p === '/api/albums')
-      return route.fulfill(
-        json(
-          albums.map(({ id, albumName, assetIds }) => ({
-            id,
-            albumName,
-            assetCount: assetIds.length,
-            albumThumbnailAssetId: null,
-            updatedAt: null
-          }))
-        )
-      );
+    if (p === '/api/albums' && method === 'POST') {
+      const { albumName } = req.postDataJSON() as { albumName: string };
+      const album = { id: `album-${albums.length + 1}`, albumName: albumName.trim(), assetIds: [] };
+      albums.push(album);
+      return route.fulfill(json(albumSummary(album)));
+    }
+    if (p === '/api/albums') return route.fulfill(json(albums.map(albumSummary)));
+    const albumDetail = albums.find((album) => p === `/api/albums/${album.id}`);
+    if (albumDetail && method === 'GET') {
+      const { id, albumName, assetCount, updatedAt } = albumSummary(albumDetail);
+      return route.fulfill(json({ id, albumName, assetCount, updatedAt }));
+    }
     if (p === '/api/tags') {
       if (method === 'PUT') {
         const values = (req.postDataJSON() as { tags: string[] }).tags;

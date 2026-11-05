@@ -172,6 +172,11 @@ impl ImmichClient {
         self.get_json("api/albums").await
     }
 
+    pub async fn create_album(&self, name: &str) -> ImmichResult<AlbumSummary> {
+        self.post_json("api/albums", &serde_json::json!({ "albumName": name }))
+            .await
+    }
+
     pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumDetail> {
         self.get_json(&format!("api/albums/{id}")).await
     }
@@ -532,6 +537,8 @@ pub struct ServerConfig {
     pub oauth_button_text: String,
     #[serde(default)]
     pub trash_days: Option<u32>,
+    #[serde(default)]
+    pub external_domain: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

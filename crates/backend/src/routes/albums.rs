@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::dto::{AlbumDetail, AlbumSummary, BulkIdResponse};
+use crate::names::display_name;
 use crate::routes::auth::AuthCtx;
 
 const MAX_ALBUM_ASSETS: usize = 10_000;
@@ -15,9 +16,24 @@ pub struct AlbumAssetsBody {
     ids: Vec<AssetKey>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateAlbumBody {
+    #[serde(rename = "albumName")]
+    album_name: String,
+}
+
 pub async fn list(ctx: AuthCtx) -> Result<Json<Vec<AlbumSummary>>, AppError> {
     let albums = ctx.immich.list_albums().await?;
     Ok(Json(albums))
+}
+
+pub async fn create(
+    ctx: AuthCtx,
+    Json(body): Json<CreateAlbumBody>,
+) -> Result<Json<AlbumSummary>, AppError> {
+    let name = display_name(&body.album_name, "album name").map_err(AppError::BadRequest)?;
+    Ok(Json(ctx.immich.create_album(&name).await?))
 }
 
 pub async fn detail(ctx: AuthCtx, Path(id): Path<Uuid>) -> Result<Json<AlbumDetail>, AppError> {

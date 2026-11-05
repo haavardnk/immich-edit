@@ -164,7 +164,10 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             post(routes::client_log::post)
                 .layer(DefaultBodyLimit::max(routes::client_log::BODY_LIMIT)),
         )
-        .route("/albums", get(routes::albums::list))
+        .route(
+            "/albums",
+            get(routes::albums::list).post(routes::albums::create),
+        )
         .route("/albums/{id}", get(routes::albums::detail))
         .route(
             "/albums/{id}/assets",

@@ -10,10 +10,11 @@
     count?: number | null;
     expanded: boolean;
     onToggle: () => void;
+    more?: { href: string; label: string };
     children: Snippet;
   };
 
-  let { icon, label, count, expanded, onToggle, children }: Props = $props();
+  let { icon, label, count, expanded, onToggle, more, children }: Props = $props();
 </script>
 
 <Collapsible.Root bind:open={() => expanded, () => onToggle()}>
@@ -36,6 +37,14 @@
     {#if expanded}
       <div class="pb-1">
         {@render children()}
+        {#if more}
+          <a
+            href={more.href}
+            class="flex rounded-e-full py-1.5 ps-5 pe-4 text-xs font-medium text-primary outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+          >
+            {more.label}
+          </a>
+        {/if}
       </div>
     {/if}
   </Collapsible.Content>

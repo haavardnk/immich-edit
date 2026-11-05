@@ -1,20 +1,12 @@
 import TagPicker from '#lib/components/TagPicker.svelte';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ mode: 'touch' as 'desktop' | 'touch' }));
-
-vi.mock('#lib/device/layout.svelte.ts', () => ({
-  layout: {
-    get mode() {
-      return h.mode;
-    },
-    get hasKeyboard() {
-      return false;
-    }
-  }
+vi.mock('#lib/device/layout.svelte.ts', async () => ({
+  layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
 }));
 
 vi.mock('#lib/stores/library.svelte.ts', () => ({
@@ -64,7 +56,7 @@ function dialog(): HTMLElement {
 }
 
 beforeEach(() => {
-  h.mode = 'touch';
+  resetLayout({ mode: 'touch' });
   target = document.createElement('div');
   document.body.appendChild(target);
 });
@@ -103,7 +95,7 @@ describe('TagPicker on touch', () => {
   });
 
   it('keeps the anchored combobox on desktop', async () => {
-    h.mode = 'desktop';
+    layoutState.mode = 'desktop';
     await render(true);
     expect(document.querySelector('button[data-sheet-handle]')).toBeNull();
     expect(document.querySelector('[data-popover-content] input[role="combobox"]')).not.toBeNull();

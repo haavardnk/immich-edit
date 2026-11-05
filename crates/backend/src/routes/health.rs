@@ -37,6 +37,7 @@ pub async fn live() -> Json<Value> {
 #[derive(Debug, Serialize)]
 pub struct ImmichCapabilitiesBody {
     pub immich_version: Option<String>,
+    pub external_host: Option<String>,
     pub structured_search: bool,
     pub smart_search: bool,
     pub ocr: bool,
@@ -56,6 +57,7 @@ pub async fn immich_capabilities(
         ocr: caps.ocr,
         trash: caps.trash,
         trash_days: caps.trash_days,
+        external_host: caps.external_host,
     })
 }
 

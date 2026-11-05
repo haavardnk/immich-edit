@@ -8,6 +8,9 @@ pub fn display_name(raw: &str, label: &str) -> Result<String, String> {
     if name.chars().count() > MAX_NAME_CHARS {
         return Err(format!("{label} longer than {MAX_NAME_CHARS} characters"));
     }
+    if name.chars().any(char::is_control) {
+        return Err(format!("{label} must not contain control characters"));
+    }
     Ok(name.to_string())
 }
 
@@ -44,5 +47,22 @@ mod tests {
                 "snapshot name longer than 80 characters"
             );
         }
+    }
+
+    #[test]
+    fn a_name_refuses_inner_control_characters() {
+        for name in [
+            "Warm\nlook",
+            "Warm\tlook",
+            "Warm\u{7}",
+            "\u{1b}[31mWarm",
+            "Warm\u{85}look",
+        ] {
+            assert_eq!(
+                display_name(name, "album name").unwrap_err(),
+                "album name must not contain control characters"
+            );
+        }
+        assert!(display_name("Ferien – Nordsee 🌊", "album name").is_ok());
     }
 }

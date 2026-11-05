@@ -14,6 +14,19 @@ import {
 import type { EditManifest } from '#lib/types/edits.ts';
 import type { CopySections } from '#lib/editor/copyPaste.ts';
 
+export const JOB_KINDS = {
+  exportImmich: 'export_immich',
+  downloadZip: 'download_zip',
+  applyPreset: 'apply_preset',
+  pasteEdits: 'paste_edits',
+  resetEdits: 'reset_edits'
+} as const;
+
+export const TRANSFER_JOB_KINDS: ReadonlySet<string> = new Set([
+  JOB_KINDS.exportImmich,
+  JOB_KINDS.downloadZip
+]);
+
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobItemStatus = 'pending' | 'running' | 'completed' | 'failed';
 
@@ -112,7 +125,7 @@ function baseParams(opts: ExportOptions): ExportJobParams {
 
 export function createImmichExportJob(assetIds: string[], opts: ImmichExportOptions): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
-    kind: 'export_immich',
+    kind: JOB_KINDS.exportImmich,
     asset_ids: assetIds,
     params: {
       ...baseParams(opts),
@@ -128,7 +141,7 @@ export function createImmichExportJob(assetIds: string[], opts: ImmichExportOpti
 
 export function createZipExportJob(assetIds: string[], opts: ExportOptions): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
-    kind: 'download_zip',
+    kind: JOB_KINDS.downloadZip,
     asset_ids: assetIds,
     params: baseParams(opts)
   });
@@ -146,7 +159,7 @@ export function createApplyPresetJob(
   opts: ApplyPresetOptions
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
-    kind: 'apply_preset',
+    kind: JOB_KINDS.applyPreset,
     asset_ids: assetIds,
     params: {
       preset_id: presetId,
@@ -163,7 +176,7 @@ export function createPasteEditsJob(
   sections: CopySections
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
-    kind: 'paste_edits',
+    kind: JOB_KINDS.pasteEdits,
     asset_ids: assetIds,
     params: { manifest, sections }
   });
@@ -171,7 +184,7 @@ export function createPasteEditsJob(
 
 export function createResetEditsJob(assetIds: string[]): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
-    kind: 'reset_edits',
+    kind: JOB_KINDS.resetEdits,
     asset_ids: assetIds,
     params: {}
   });

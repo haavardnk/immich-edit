@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import type { FolderNode } from '#lib/stores/library.svelte.ts';
+  import { folderHref } from '#lib/browse/folders.ts';
   import FolderTree from './FolderTree.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiFolderOutline, mdiChevronDown, mdiChevronRight } from '@mdi/js';
@@ -57,7 +58,7 @@
         {/if}
       {:else}
         <a
-          href={`/folders?path=${encodeURIComponent(node.path)}`}
+          href={folderHref(node.path)}
           aria-current={node.path === activePath ? 'page' : undefined}
           class="flex items-center gap-1.5 rounded-e-full py-1 ps-7 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {node.path ===
           activePath

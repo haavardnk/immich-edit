@@ -4,16 +4,66 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "ImmichAlbum")]
 pub struct AlbumSummary {
     pub id: Uuid,
     #[serde(rename = "albumName")]
     pub album_name: String,
-    #[serde(rename = "assetCount", default)]
+    #[serde(rename = "assetCount")]
     pub asset_count: u32,
-    #[serde(rename = "albumThumbnailAssetId", default)]
+    #[serde(rename = "albumThumbnailAssetId")]
     pub album_thumbnail_asset_id: Option<Uuid>,
-    #[serde(rename = "updatedAt", default)]
+    #[serde(rename = "updatedAt")]
     pub updated_at: Option<String>,
+    #[serde(rename = "ownerId")]
+    pub owner_id: Option<Uuid>,
+    pub shared: bool,
+    #[serde(rename = "endDate")]
+    pub end_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbum {
+    id: Uuid,
+    #[serde(rename = "albumName")]
+    album_name: String,
+    #[serde(rename = "assetCount", default)]
+    asset_count: u32,
+    #[serde(rename = "albumThumbnailAssetId", default)]
+    album_thumbnail_asset_id: Option<Uuid>,
+    #[serde(rename = "updatedAt", default)]
+    updated_at: Option<String>,
+    #[serde(rename = "albumUsers", default)]
+    album_users: Vec<ImmichAlbumUser>,
+    #[serde(default)]
+    shared: bool,
+    #[serde(rename = "endDate", default)]
+    end_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbumUser {
+    user: ImmichAlbumMember,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbumMember {
+    id: Uuid,
+}
+
+impl From<ImmichAlbum> for AlbumSummary {
+    fn from(album: ImmichAlbum) -> Self {
+        Self {
+            id: album.id,
+            album_name: album.album_name,
+            asset_count: album.asset_count,
+            album_thumbnail_asset_id: album.album_thumbnail_asset_id,
+            updated_at: album.updated_at,
+            owner_id: album.album_users.first().map(|owner| owner.user.id),
+            shared: album.shared,
+            end_date: album.end_date,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
