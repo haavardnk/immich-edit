@@ -12,6 +12,7 @@ export interface Layout {
   mode: LayoutMode;
   wide: boolean;
   landscape: boolean;
+  compact: boolean;
 }
 
 export const LAYOUT_CHOICES: readonly LayoutChoice[] = ['auto', 'desktop', 'touch'];
@@ -35,5 +36,5 @@ export function resolveLayout({ width, height, coarse, choice }: LayoutInput): L
     landscape &&
     width >= WIDE_MIN_WIDTH &&
     Math.min(width, height) >= WIDE_SHORT_SIDE;
-  return { mode, wide, landscape };
+  return { mode, wide, landscape, compact: mode === 'touch' && !wide };
 }

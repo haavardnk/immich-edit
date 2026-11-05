@@ -9,15 +9,10 @@
   import FolderTree from '#lib/components/library/FolderTree.svelte';
   import SidebarLink from './SidebarLink.svelte';
   import SidebarSection from './SidebarSection.svelte';
-  import {
-    mdiImageMultipleOutline,
-    mdiImageAlbum,
-    mdiFolderOutline,
-    mdiAccountOutline,
-    mdiHeartOutline,
-    mdiTagMultipleOutline,
-    mdiPencilOutline
-  } from '@mdi/js';
+  import { COLLECTIONS } from '#lib/components/library/collections.ts';
+  import { mdiImageMultipleOutline, mdiImageAlbum } from '@mdi/js';
+
+  const { favorites, people, tags, folders, edited } = COLLECTIONS;
 
   function toggleSection(id: SidebarSectionId): void {
     if (sidebar.toggle(id)) void library.loadView(id);
@@ -54,21 +49,22 @@
       active={currentPath === '/photos'}
     />
     <SidebarSection
-      icon={mdiAccountOutline}
-      label="People"
-      count={library.people.length}
+      icon={people.icon}
+      label={people.label}
+      count={people.count()}
       expanded={sidebar.isOpen('people')}
       onToggle={() => toggleSection('people')}
+      more={{ href: people.href, label: 'See all people' }}
     >
       <PeopleList />
     </SidebarSection>
     <div class="mx-4 my-3 h-px bg-hairline"></div>
     <SidebarLink
-      href="/favorites"
-      icon={mdiHeartOutline}
-      label="Favorites"
-      count={library.favoritesCount}
-      active={currentPath === '/favorites'}
+      href={favorites.href}
+      icon={favorites.icon}
+      label={favorites.label}
+      count={favorites.count()}
+      active={currentPath === favorites.href}
     />
     <SidebarSection
       icon={mdiImageAlbum}
@@ -76,33 +72,36 @@
       count={library.albums.length}
       expanded={sidebar.isOpen('albums')}
       onToggle={() => toggleSection('albums')}
+      more={{ href: '/albums', label: 'See all albums' }}
     >
       <AlbumList />
     </SidebarSection>
     <SidebarSection
-      icon={mdiTagMultipleOutline}
-      label="Tags"
-      count={library.tags.length}
+      icon={tags.icon}
+      label={tags.label}
+      count={tags.count()}
       expanded={sidebar.isOpen('tags')}
       onToggle={() => toggleSection('tags')}
+      more={{ href: tags.href, label: 'See all tags' }}
     >
       <TagList />
     </SidebarSection>
     <SidebarSection
-      icon={mdiFolderOutline}
-      label="Folders"
-      count={library.foldersCount}
+      icon={folders.icon}
+      label={folders.label}
+      count={folders.count()}
       expanded={sidebar.isOpen('folders')}
       onToggle={() => toggleSection('folders')}
+      more={{ href: folders.href, label: 'Browse folders' }}
     >
       <FolderTree nodes={library.folderTree} />
     </SidebarSection>
     <SidebarLink
-      href="/edited"
-      icon={mdiPencilOutline}
-      label="Edited"
-      count={library.editedCount}
-      active={currentPath === '/edited'}
+      href={edited.href}
+      icon={edited.icon}
+      label={edited.label}
+      count={edited.count()}
+      active={currentPath === edited.href}
       hideZero
     />
   </div>

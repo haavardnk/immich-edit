@@ -6,6 +6,9 @@ export interface AlbumSummary {
   assetCount: number;
   albumThumbnailAssetId: string | null;
   updatedAt: string | null;
+  ownerId: string | null;
+  shared: boolean;
+  endDate: string | null;
 }
 
 export interface AlbumDetail {

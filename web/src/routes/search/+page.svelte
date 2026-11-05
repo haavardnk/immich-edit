@@ -13,7 +13,10 @@
     searchModeAvailable,
     type SearchMode
   } from '#lib/browse/searchMode.ts';
+  import { runSearch } from '#lib/browse/searchInput.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import RecentSearches from '#lib/components/browse/RecentSearches.svelte';
+  import TouchSearchBar from '#lib/components/shell/touch/TouchSearchBar.svelte';
   import { Button } from '@immich/ui';
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
@@ -63,7 +66,7 @@
           toolbar: undefined,
           emptyTitle: 'Search your library',
           emptyMessage: 'Type in the search bar to find photos.',
-          emptyAction: undefined
+          emptyAction: recents
         }
   );
 </script>
@@ -88,6 +91,16 @@
   </div>
 {/snippet}
 
+{#snippet recents()}
+  <div class="mt-6 flex w-full justify-center">
+    <RecentSearches onRun={runSearch} />
+  </div>
+{/snippet}
+
+{#snippet searchBar()}
+  <TouchSearchBar />
+{/snippet}
+
 {#snippet filenameFallback()}
   <Button
     type="button"
@@ -103,6 +116,7 @@
 
 <BrowsePage
   {...view}
+  bar={searchBar}
   assets={feed.assets}
   loadingLabel="Searching…"
   headerWhileLoading

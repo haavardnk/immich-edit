@@ -1,4 +1,5 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
@@ -14,6 +15,10 @@ const navigation = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/state', () => route);
+
+vi.mock('#lib/device/layout.svelte.ts', async () => ({
+  layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
+}));
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -73,6 +78,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetLayout();
   browseView.loupeId = null;
   flushSync();
   if (component) void unmount(component);
@@ -89,8 +95,26 @@ describe('Shell', () => {
 
     expect(target.querySelector('[aria-label="Global navigation"]')).not.toBeNull();
     expect(routeContent()?.parentElement?.tagName).toBe('MAIN');
-    expect(editedThumbs.loadOnce).toHaveBeenCalledOnce();
+    expect(editedThumbs.loadOnce).toHaveBeenCalled();
     expect(jobs.load).toHaveBeenCalledOnce();
+  });
+
+  it('wraps a browse route in the touch shell on a compact layout', () => {
+    layoutState.mode = 'touch';
+    render('/photos');
+
+    expect(target.querySelector('[aria-label="Global navigation"]')).toBeNull();
+    expect(target.querySelector('nav[aria-label="Main"]')).not.toBeNull();
+    expect(routeContent()?.parentElement?.tagName).toBe('MAIN');
+  });
+
+  it('keeps an editor route bare on a compact layout', () => {
+    layoutState.mode = 'touch';
+    render('/assets/a1');
+
+    expect(target.querySelector('nav[aria-label="Main"]')).toBeNull();
+    expect(target.querySelector('main')).toBeNull();
+    expect(routeContent()).not.toBeNull();
   });
 
   it('renders an editor route without the browse shell', () => {

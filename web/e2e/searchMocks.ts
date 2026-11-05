@@ -133,6 +133,10 @@ export interface MockAlbum {
   id: string;
   albumName: string;
   assetIds: string[];
+  ownerId?: string;
+  shared?: boolean;
+  updatedAt?: string;
+  endDate?: string;
 }
 
 export function matchesIds(ids: string[], set: IdSet | undefined): boolean {

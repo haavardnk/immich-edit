@@ -1,11 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { library } from '#lib/stores/library.svelte.ts';
-  import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
+  import { userTags } from '#lib/browse/managedTags.ts';
   import { Icon } from '@immich/ui';
   import { mdiTagOutline } from '@mdi/js';
 
-  const tags = $derived(library.tags.filter((t) => !isManagedTag(toTagRef(t))));
+  const tags = $derived(userTags(library.tags));
   const activeId = $derived(
     page.url.pathname.startsWith('/tags/') ? (page.params.id ?? null) : null
   );
@@ -19,7 +19,7 @@
       <a
         href={`/tags/${t.id}`}
         aria-current={t.id === activeId ? 'page' : undefined}
-        class="flex items-center gap-2.5 rounded-e-full py-2 ps-3 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary {t.id ===
+        class="flex items-center gap-2.5 rounded-e-full py-2 ps-3 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary touch:min-h-11 {t.id ===
         activeId
           ? 'bg-primary/15 text-primary'
           : 'hover:bg-subtle hover:text-primary'}"

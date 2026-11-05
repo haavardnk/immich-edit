@@ -51,11 +51,13 @@ async function expectAtBottom(page: Page, sheet: Locator): Promise<void> {
 
 async function settledHandle(sheet: Locator): Promise<{ x: number; y: number }> {
   const handle = sheet.locator('[data-sheet-handle]');
+  const height = sheet.page().viewportSize()?.height ?? Number.POSITIVE_INFINITY;
   let previous = Number.NaN;
   await expect
     .poll(async () => {
-      const y = (await handle.boundingBox())?.y ?? Number.NaN;
-      const still = Math.abs(y - previous) < 0.5;
+      const box = await handle.boundingBox();
+      const y = box?.y ?? Number.NaN;
+      const still = Math.abs(y - previous) < 0.5 && y + (box?.height ?? 0) <= height;
       previous = y;
       return still;
     })
@@ -71,25 +73,48 @@ async function dragHandle(page: Page, sheet: Locator, distance: number): Promise
 }
 
 test.describe('touch sheets', { tag: '@touch' }, () => {
-  test('a panel popover opens as a bottom sheet with Done', async ({ page }) => {
+  test('a panel popover opens as a bottom sheet with Done', { tag: '@phone' }, async ({ page }) => {
     await openBrowse(page);
 
-    await page.getByRole('button', { name: /^Sort:/ }).tap();
-    const sheet = page.getByRole('dialog', { name: 'Sort' });
+    await page.getByRole('button', { name: 'View options', exact: true }).tap();
+    const sheet = page.getByRole('dialog', { name: 'View options' });
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('data-popover-content');
     await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
     await expect(sheet.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
     await expectAtBottom(page, sheet);
 
-    await sheet.getByRole('radio', { name: 'Oldest first', exact: true }).tap();
-    await expect(page.locator('button[aria-label="Sort: date taken, oldest first"]')).toHaveCount(
-      1
-    );
+    const oldest = sheet.getByRole('radio', { name: 'Oldest first', exact: true });
+    await oldest.tap();
+    await expect(oldest).toBeChecked();
 
     await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(sheet).toBeHidden();
   });
+
+  test(
+    'the sort popover opens as a bottom sheet with Done',
+    { tag: '@tablet' },
+    async ({ page }) => {
+      await openBrowse(page);
+
+      await page.getByRole('button', { name: /^Sort:/ }).tap();
+      const sheet = page.getByRole('dialog', { name: 'Sort' });
+      await expect(sheet).toBeVisible();
+      await expect(sheet).toHaveAttribute('data-popover-content');
+      await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
+      await expect(sheet.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
+      await expectAtBottom(page, sheet);
+
+      await sheet.getByRole('radio', { name: 'Oldest first', exact: true }).tap();
+      await expect(page.locator('button[aria-label="Sort: date taken, oldest first"]')).toHaveCount(
+        1
+      );
+
+      await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
+      await expect(sheet).toBeHidden();
+    }
+  );
 
   test('a command menu opens as an action sheet with Cancel', async ({ page }) => {
     await openLoupe(page);
