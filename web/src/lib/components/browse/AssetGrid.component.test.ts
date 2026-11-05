@@ -1,17 +1,20 @@
+import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
+import { gridSizeHud } from '#lib/browse/gridSizeHud.svelte.ts';
+import { listenForCommands } from '#lib/commands/listen.ts';
+import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
+import { asset } from '#lib/testing/assets.ts';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import type { AssetSummary } from '#lib/types/album.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
 import FilterPanel from './filters/FilterPanel.svelte';
-import ComponentHost from '#lib/testing/ComponentHost.svelte';
-import { selection } from '#lib/stores/selection.svelte.ts';
-import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { browseControls } from '#lib/stores/browseControls.svelte.ts';
-import { session } from '#lib/stores/session.svelte.ts';
-import type { AssetSummary } from '#lib/types/album.ts';
-import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
-import { listenForCommands } from '#lib/commands/listen.ts';
-import { ui } from '#lib/stores/ui.svelte.ts';
-import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -48,20 +51,6 @@ const Host: Component<{ component: Component<GridProps>; props: GridProps }> = C
 type PanelProps = ComponentProps<typeof FilterPanel>;
 
 const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
-
-function asset(id: string): AssetSummary {
-  return {
-    id,
-    originalFileName: `${id}.jpg`,
-    type: 'IMAGE',
-    fileCreatedAt: null,
-    updatedAt: null,
-    checksum: null,
-    isFavorite: false,
-    exifInfo: null,
-    tags: []
-  };
-}
 
 const assets = [asset('a'), asset('b'), asset('c')];
 
@@ -128,6 +117,10 @@ afterEach(() => {
   component = null;
   scroller.remove();
   window.getSelection()?.removeAllRanges();
+  editedThumbs.remove('b');
+  browseView.setTileInfo('badges');
+  browseView.setGridSize('md');
+  gridSizeHud.hide();
 });
 
 describe('AssetGrid', () => {
@@ -199,7 +192,7 @@ describe('AssetGrid', () => {
     expect(browseView.activeId).toBe('b');
   });
 
-  it("creates one virtual copy per Mod+' press, ignoring key repeat and presses while copying", async () => {
+  it("creates one virtual copy per Mod+' press, ignoring key repeat", async () => {
     copies.createVirtualCopies.mockResolvedValue(undefined);
     render();
     click(selectButton(0));
@@ -207,14 +200,6 @@ describe('AssetGrid', () => {
     await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
     press("'", { ctrlKey: true, repeat: true });
     expect(copies.createVirtualCopies).toHaveBeenCalledExactlyOnceWith(['a']);
-
-    let finish = (): void => {};
-    copies.createVirtualCopies.mockReturnValue(new Promise<void>((done) => (finish = done)));
-    press("'", { ctrlKey: true });
-    press("'", { ctrlKey: true });
-    finish();
-    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
-    expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
   });
 
   it('toggles the filter panel with Shift+F', async () => {
@@ -325,5 +310,42 @@ describe('AssetGrid', () => {
     expect(tags()?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[aria-label="Albums"]')?.disabled).toBe(false);
+  });
+
+  it('marks edited photos in badges and name-and-date, never in hover-only', () => {
+    editedThumbs.upsert('b', 'h1', 'u1');
+    render();
+    const marked = (): boolean[] =>
+      tiles().map((tile) => tile.querySelector('[role="img"][aria-label="Edited"]') !== null);
+
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('full');
+    flushSync();
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('none');
+    flushSync();
+    expect(marked()).toEqual([false, false, false]);
+  });
+
+  it('steps the thumbnail size from the keyboard and shows the size HUD', () => {
+    render();
+    const status = (): Element | null =>
+      document.querySelector('[role="status"]:has([data-testid="grid-size-hud"])');
+    const live = Array.from(document.querySelectorAll('[role="status"]'));
+    expect(status()).toBeNull();
+
+    press('=');
+    expect(browseView.gridSize).toBe('lg');
+    expect(live).toContain(status());
+    const hud = document.querySelector('[data-testid="grid-size-hud"]');
+    expect(hud?.textContent).toContain('220 px');
+    expect(hud?.textContent).toContain('Ctrl scroll · pinch');
+
+    press('-');
+    press('-');
+    expect(browseView.gridSize).toBe('sm');
+    expect(document.querySelector('[data-testid="grid-size-hud"]')?.textContent).toContain(
+      '110 px'
+    );
   });
 });

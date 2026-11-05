@@ -1,11 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { LayoutMode } from '#lib/device/layoutRules.ts';
 
 const storageKey = 'immich-edit:browseView';
+
+const layoutMock = await vi.hoisted(async () => import('#lib/testing/layoutMock.ts'));
+
+vi.mock('#lib/device/layout.svelte.ts', () => ({ layout: layoutMock.fakeLayout }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.resetModules();
+  layoutMock.resetLayout();
 });
+
+function onLayout(mode: LayoutMode, wide = false): void {
+  layoutMock.resetLayout({ mode, wide });
+}
 
 function stubStorage(initial?: unknown): Map<string, string> {
   const values = new Map<string, string>();
@@ -19,7 +29,12 @@ function stubStorage(initial?: unknown): Map<string, string> {
 
 describe('browse view persistence', () => {
   it('restores the stored grid size and loupe flags', async () => {
-    stubStorage({ gridSize: 'xl', loupeAutoAdvance: true, loupeInfoOpen: true, tileInfo: 'full' });
+    stubStorage({
+      gridSizeChoice: 'xl',
+      loupeAutoAdvance: true,
+      loupeInfoOpen: true,
+      tileInfo: 'full'
+    });
 
     const { browseView } = await import('./browseView.svelte');
 
@@ -30,7 +45,12 @@ describe('browse view persistence', () => {
   });
 
   it('ignores an unknown grid size', async () => {
-    stubStorage({ gridSize: 'huge', loupeAutoAdvance: 'yes', loupeInfoOpen: 1, tileInfo: 'all' });
+    stubStorage({
+      gridSizeChoice: 'huge',
+      loupeAutoAdvance: 'yes',
+      loupeInfoOpen: 1,
+      tileInfo: 'all'
+    });
 
     const { browseView } = await import('./browseView.svelte');
 
@@ -45,7 +65,7 @@ describe('browse view persistence', () => {
 
     const { browseView } = await import('./browseView.svelte');
     browseView.setLoupeAutoAdvance(true);
-    browseView.stepGridSize(1);
+    browseView.setGridSize('lg');
     browseView.toggleLoupeInfo();
     browseView.cycleTileInfo();
     browseView.setFiltersOpen(true);
@@ -56,7 +76,7 @@ describe('browse view persistence', () => {
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
       filtersOpen: true,
       filterSections: ['place'],
-      gridSize: 'lg',
+      gridSizeChoice: 'lg',
       loupeAutoAdvance: true,
       loupeInfoOpen: true,
       tileInfo: 'full'
@@ -106,5 +126,58 @@ describe('browse view persistence', () => {
     expect(browseView.tileInfo).toBe('none');
     browseView.cycleTileInfo();
     expect(browseView.tileInfo).toBe('badges');
+  });
+});
+
+describe('grid size per layout', () => {
+  it.each([
+    ['desktop', false, 'md', 150],
+    ['touch', false, 'lg', 112],
+    ['touch', true, 'xl', 160]
+  ] as const)('defaults on %s (wide %s) to %s at %i px', async (mode, wide, size, height) => {
+    stubStorage();
+    onLayout(mode, wide);
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.gridSize).toBe(size);
+    expect(browseView.rowHeight).toBe(height);
+  });
+
+  it('follows the layout until the user chooses and leaves the default unstored', async () => {
+    const values = stubStorage();
+    onLayout('touch');
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setTileInfo('full');
+    expect(JSON.parse(values.get(storageKey) ?? '')).not.toHaveProperty('gridSizeChoice');
+    onLayout('touch', true);
+    expect(browseView.gridSize).toBe('xl');
+
+    browseView.setGridSize('sm');
+    onLayout('desktop');
+    expect(browseView.gridSize).toBe('sm');
+    expect(browseView.rowHeight).toBe(110);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ gridSizeChoice: 'sm' });
+  });
+
+  it('ignores a legacy stored size and drops it on the next write', async () => {
+    const values = stubStorage({ gridSize: 'md' });
+    onLayout('touch', true);
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.gridSize).toBe('xl');
+    expect(browseView.rowHeight).toBe(160);
+
+    browseView.setTileInfo('full');
+    expect(JSON.parse(values.get(storageKey) ?? '')).not.toHaveProperty('gridSize');
+  });
+
+  it('sizes a stored choice per layout', async () => {
+    stubStorage({ gridSizeChoice: 'md' });
+    onLayout('touch', true);
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.gridSize).toBe('md');
+    expect(browseView.rowHeight).toBe(80);
   });
 });
