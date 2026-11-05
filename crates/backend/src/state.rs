@@ -72,6 +72,7 @@ pub struct AppState {
     pub people_counts: AssetCountCache,
     pub timelines: TimelineCache,
     pub stack_locks: KeyedLocks<(Uuid, Uuid)>,
+    pub export_output_locks: KeyedLocks<(Uuid, String, String)>,
 }
 
 impl AppState {
@@ -207,6 +208,7 @@ impl AppState {
             people_counts: AssetCountCache::new(Scope::Person),
             timelines: TimelineCache::default(),
             stack_locks: KeyedLocks::default(),
+            export_output_locks: KeyedLocks::default(),
         })
     }
 }

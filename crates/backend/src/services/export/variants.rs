@@ -11,7 +11,7 @@ use crate::services::job_runner::JobItemError;
 use crate::services::job_store::{JobItemRecord, JobRecord, NewJobItem};
 
 use super::batch::{ExportJobParams, validate_export_job};
-use super::naming::clean_name;
+use super::naming::preset_key;
 use super::{DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, Seq};
 
 const MAX_VARIANTS: usize = 16;
@@ -56,7 +56,7 @@ fn variant_params(preset: &str, raw: &Value) -> Result<ExportJobParams, String> 
 }
 
 fn file_name_clash(seen: &HashMap<String, String>, preset: &str) -> Option<String> {
-    let earlier = seen.get(&clean_name(preset).to_lowercase())?;
+    let earlier = seen.get(&preset_key(preset))?;
     Some(if earlier.to_lowercase() == preset.to_lowercase() {
         format!("preset {preset} is listed twice")
     } else {
@@ -88,7 +88,7 @@ impl ExportVariants {
             if let Some(clash) = file_name_clash(&seen, &preset) {
                 return Err(clash);
             }
-            seen.insert(clean_name(&preset).to_lowercase(), preset.clone());
+            seen.insert(preset_key(&preset), preset.clone());
             variants.push(ExportVariant {
                 params: variant_params(&preset, &variant.params)?,
                 preset: Some(preset),

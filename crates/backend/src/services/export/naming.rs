@@ -134,6 +134,10 @@ pub(super) fn clean_name(name: &str) -> String {
         .collect()
 }
 
+pub(super) fn preset_key(preset: &str) -> String {
+    clean_name(preset).to_lowercase()
+}
+
 pub fn capture_date(asset: &AssetDetail) -> Option<NaiveDate> {
     [
         asset.local_date_time.as_deref(),

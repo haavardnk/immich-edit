@@ -40,6 +40,7 @@ use wiremock::MockServer;
 #[cfg(feature = "ml")]
 mod denoise;
 mod edits;
+mod export_conflict;
 mod export_jobs;
 mod http;
 mod immich;
@@ -49,6 +50,7 @@ mod logs;
 #[cfg(feature = "ml")]
 pub use denoise::*;
 pub use edits::*;
+pub use export_conflict::*;
 pub use export_jobs::*;
 pub use http::*;
 pub use immich::*;
@@ -177,6 +179,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         people_counts: AssetCountCache::new(Scope::Person),
         timelines: TimelineCache::default(),
         stack_locks: Default::default(),
+        export_output_locks: Default::default(),
     }
 }
 

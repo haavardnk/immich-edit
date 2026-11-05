@@ -17,7 +17,8 @@ use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub use crate::services::export::{
-    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ConflictPolicy, ExportParams, ExportToImmichBody, StackPrimary, hash_request,
+    resolve_filename,
 };
 
 pub async fn get_export(

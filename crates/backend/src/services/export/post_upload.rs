@@ -2,16 +2,18 @@ use uuid::Uuid;
 
 use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetDetail, BulkIdResponse};
+use crate::services::edits_store::ExportOutputKey;
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
-use super::replace::{Replacement, replace_original};
+use super::replace::{Replacement, replace_original, replace_previous};
 use super::stack::stack_with_original;
 use super::{ExportToImmichBody, immich_metadata};
 
 pub(super) struct Finished {
     pub warnings: Vec<String>,
     pub original_trashed: bool,
+    pub replaced_asset_id: Option<Uuid>,
 }
 
 pub(super) struct Uploaded<'a> {
@@ -20,6 +22,8 @@ pub(super) struct Uploaded<'a> {
     pub id: Uuid,
     pub status: &'a str,
     pub variant: i64,
+    pub output: ExportOutputKey<'a>,
+    pub previous: Option<Uuid>,
 }
 
 pub(super) async fn finish_upload(
@@ -29,25 +33,46 @@ pub(super) async fn finish_upload(
     upload: Uploaded<'_>,
 ) -> Finished {
     let mut warnings = run_post_upload(state, identity, immich, &upload).await;
-    if !upload.body.replace_original {
-        return Finished {
-            warnings,
-            original_trashed: false,
-        };
-    }
     let replacement = Replacement {
-        original: upload.original,
         new_id: upload.id,
         step_failed: !warnings.is_empty(),
         favorite_set: upload.body.favorite,
     };
-    let replaced = replace_original(state, identity, immich, replacement).await;
-    if let Err(warning) = &replaced {
-        warnings.push(warning.clone());
+    let mut replaced_asset_id = None;
+    if let Some(previous) = upload.previous
+        && upload.id != upload.output.asset_id.source()
+    {
+        let replaced = replace_previous(
+            state,
+            identity,
+            immich,
+            upload.output,
+            previous,
+            replacement,
+        )
+        .await;
+        replaced_asset_id = settle(&mut warnings, replaced).flatten();
+    }
+    let mut original_trashed = false;
+    if upload.body.replace_original {
+        let replaced =
+            replace_original(state, identity, immich, upload.original, replacement).await;
+        original_trashed = settle(&mut warnings, replaced).is_some();
     }
     Finished {
         warnings,
-        original_trashed: replaced.is_ok(),
+        original_trashed,
+        replaced_asset_id,
+    }
+}
+
+fn settle<T>(warnings: &mut Vec<String>, outcome: Result<T, String>) -> Option<T> {
+    match outcome {
+        Ok(value) => Some(value),
+        Err(warning) => {
+            warnings.push(warning);
+            None
+        }
     }
 }
 

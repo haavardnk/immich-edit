@@ -136,7 +136,58 @@ impl EditsStore {
             .bind(&id_str)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM export_outputs WHERE user_id = ?1 AND asset_id = ?2")
+            .bind(&owner_str)
+            .bind(&id_str)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(true)
+    }
+
+    pub async fn has_edits_for_source(
+        &self,
+        owner: Uuid,
+        source: Uuid,
+    ) -> Result<bool, EditsStoreError> {
+        let source = source.to_string();
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM edits WHERE user_id = ?1 \
+             AND (asset_id = ?2 OR substr(asset_id, 1, length(?2) + 1) = ?2 || '_')) \
+             OR EXISTS (SELECT 1 FROM asset_copies WHERE user_id = ?1 \
+             AND source_asset_id = ?2 AND deleted = 0)",
+        )
+        .bind(owner.to_string())
+        .bind(&source)
+        .fetch_one(&self.pool)
+        .await?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::tests::{O, store};
+    use super::*;
+
+    #[tokio::test]
+    async fn edits_of_a_source_include_its_live_copies() {
+        let s = store().await;
+        let [master, copied, bare, deleted, untouched] = [(); 5].map(|_| Uuid::new_v4());
+        let copy = s.create_copy(O, copied, None).await.unwrap().id;
+        s.create_copy(O, bare, None).await.unwrap();
+        let gone = s.create_copy(O, deleted, None).await.unwrap().id;
+        assert!(s.delete_copy(O, gone).await.unwrap());
+        s.put(O, AssetKey::master(master), EditWrite::default())
+            .await
+            .unwrap();
+        s.put(O, copy, EditWrite::default()).await.unwrap();
+
+        let mut found = Vec::new();
+        for source in [master, copied, bare, deleted, untouched] {
+            found.push(s.has_edits_for_source(O, source).await.unwrap());
+        }
+        found.push(s.has_edits_for_source(Uuid::new_v4(), bare).await.unwrap());
+
+        assert_eq!(found, [true, true, true, false, false, false]);
     }
 }
