@@ -26,8 +26,8 @@
       variant={browseView.gridSize === opt.value ? 'filled' : 'ghost'}
       color={browseView.gridSize === opt.value ? 'primary' : 'secondary'}
       class="min-w-7 px-1.5 sm:min-w-8 sm:px-2"
-      title={hint(`Thumbnail size ${opt.label}`, 'gridSize')}
-      aria-label="Thumbnail size {opt.label}"
+      title={hint(opt.title, 'gridSize')}
+      aria-label={opt.title}
       aria-pressed={browseView.gridSize === opt.value}
       onclick={() => browseView.setGridSize(opt.value)}
     >

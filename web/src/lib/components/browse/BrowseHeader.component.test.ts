@@ -9,6 +9,10 @@ vi.mock('#lib/device/layout.svelte.ts', async () => ({
   layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
 }));
 
+vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/photos'), params: {} } }));
+
+vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+
 type HeaderProps = ComponentProps<typeof BrowseHeader>;
 
 const Host: Component<{ component: Component<HeaderProps>; props: HeaderProps }> = ComponentHost;

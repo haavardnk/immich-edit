@@ -1,6 +1,7 @@
 <script lang="ts">
   import { assetThumbUrl } from '#lib/api/assets.ts';
   import { recentEdits } from '#lib/browse/recentEdits.ts';
+  import TooltipLink from '#lib/components/TooltipLink.svelte';
   import { editorHref } from '#lib/editor/navigation.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 
@@ -12,18 +13,22 @@
 {#if entries.length === 0}
   <p class="px-4 text-xs text-dark/65 sm:px-5" role="status">No edited photos yet</p>
 {:else}
-  <ul aria-label="Recently edited" class="grid grid-cols-4 gap-1.5 px-4 sm:max-w-xl sm:px-5">
+  <ul
+    aria-label="Recently edited"
+    class="flex gap-1 overflow-x-auto px-4 py-1 scrollbar-hidden sm:px-5"
+  >
     {#each entries as entry, index (entry.id)}
-      <li>
-        <a
+      {@const name = entry.asset?.originalFileName}
+      <li class="shrink-0">
+        <TooltipLink
+          always
+          tooltip={name ?? 'Open recent edit'}
           href={editorHref(entry.id, returnPath)}
-          aria-label={entry.asset?.originalFileName
-            ? `Open ${entry.asset.originalFileName}`
-            : `Open recent edit ${index + 1}`}
-          class="no-callout block aspect-square overflow-hidden rounded-md bg-light-200 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label={name ? `Open ${name}` : `Open recent edit ${index + 1}`}
+          class="no-callout block h-28 w-42 overflow-hidden rounded-lg bg-light-200 outline-none focus-visible:ring-2 focus-visible:ring-primary touch:h-32 touch:w-48"
         >
           <img src={assetThumbUrl(entry.id)} alt="" loading="lazy" class="size-full object-cover" />
-        </a>
+        </TooltipLink>
       </li>
     {/each}
   </ul>

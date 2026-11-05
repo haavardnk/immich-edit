@@ -57,6 +57,7 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --tab-bar-pad: max(0px, calc(var(--safe-bottom) - 12px));
   --color-slider-fill: var(--color-primary);
   --color-slider-track: color-mix(in srgb, var(--immich-ui-dark) 16%, transparent);
   --color-slider-marker: color-mix(in srgb, var(--immich-ui-dark) 40%, transparent);

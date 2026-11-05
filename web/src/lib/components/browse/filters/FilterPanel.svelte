@@ -1,14 +1,16 @@
 <script lang="ts">
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
+  import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { filterPanelHost } from '#lib/commands/grid/filterPanelHost.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { Button, IconButton } from '@immich/ui';
   import { mdiClose, mdiRestore } from '@mdi/js';
   import { onMount, tick } from 'svelte';
 
-  let { favoriteLocked = false }: { favoriteLocked?: boolean } = $props();
+  let { favoriteLocked = false, count }: { favoriteLocked?: boolean; count?: number } = $props();
 
   let panel = $state<HTMLElement | null>(null);
 
@@ -23,7 +25,9 @@
   onMount(() => filterPanelHost.attach({ close }));
 </script>
 
-{#if browseView.filtersOpen}
+{#if layout.compact}
+  <FilterSheet {favoriteLocked} {count} />
+{:else if browseView.filtersOpen}
   <aside
     bind:this={panel}
     id="browse-filters"

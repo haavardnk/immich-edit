@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { AssetSummary } from '#lib/types/album.ts';
 
 const h = vi.hoisted(() => ({ goto: vi.fn(() => Promise.resolve()) }));
@@ -46,5 +46,49 @@ describe('backToGrid', () => {
     browseView.leaveLoupeForEditor('c');
     await backToGrid('c');
     expect(browseView.loupeId).toBeNull();
+  });
+});
+
+describe('backToGrid returning', () => {
+  const back = vi.fn();
+
+  function stubEntries(urls: string[]): void {
+    const index = urls.length - 1;
+    Object.defineProperty(globalThis, 'navigation', {
+      value: {
+        currentEntry: { index, url: `http://localhost${urls[index]}` },
+        entries: () => urls.map((url, i) => ({ index: i, url: `http://localhost${url}` }))
+      },
+      configurable: true
+    });
+  }
+
+  beforeEach(() => {
+    h.goto.mockClear();
+    browsing.set([summary('a'), summary('b')]);
+    Object.defineProperty(globalThis, 'history', {
+      value: { back, length: 2 },
+      configurable: true
+    });
+  });
+
+  afterEach(() => {
+    back.mockClear();
+    Reflect.deleteProperty(globalThis, 'navigation');
+    Reflect.deleteProperty(globalThis, 'history');
+  });
+
+  it('pops back to the grid it was pushed from', () => {
+    stubEntries(['/albums/x', '/assets/b?from=%2Falbums%2Fx']);
+    void backToGrid('b', '/albums/x', 'return');
+    expect(back).toHaveBeenCalledOnce();
+    expect(h.goto).not.toHaveBeenCalled();
+  });
+
+  it('replaces the editor entry when the grid is not the previous entry', async () => {
+    stubEntries(['/library', '/assets/b?from=%2Falbums%2Fx']);
+    await backToGrid('b', '/albums/x', 'return');
+    expect(back).not.toHaveBeenCalled();
+    expect(h.goto).toHaveBeenCalledWith('/albums/x', { replace: true });
   });
 });

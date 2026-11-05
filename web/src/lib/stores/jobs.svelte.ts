@@ -6,6 +6,7 @@ import {
   JOB_KINDS,
   jobNeedsAttention,
   listJobs,
+  splitJobs,
   TRANSFER_JOB_KINDS,
   type Job,
   type JobItem
@@ -60,10 +61,10 @@ class JobsStore {
   private polling = false;
   private failures = 0;
 
-  active = $derived(this.jobs.filter((j) => isJobActive(j.status)));
+  active = $derived(splitJobs(this.jobs).running);
   activeCount = $derived(this.active.length);
   activeTransfers = $derived(this.active.filter((j) => TRANSFER_JOB_KINDS.has(j.kind)).length);
-  clearableCount = $derived(this.jobs.filter((j) => !isJobActive(j.status)).length);
+  clearableCount = $derived(this.jobs.length - this.activeCount);
 
   load = async (): Promise<void> => {
     if (this.loading) return;
@@ -186,12 +187,12 @@ class JobsStore {
   clear = async (): Promise<void> => {
     try {
       await clearJobs();
-      const removed = new Set(this.jobs.filter((j) => !isJobActive(j.status)).map((j) => j.id));
+      const removed = new Set(splitJobs(this.jobs).finished.map((j) => j.id));
       for (const id of removed) {
         this.disconnect(id);
         this.streamErrors.delete(id);
       }
-      this.jobs = this.jobs.filter((j) => isJobActive(j.status));
+      this.jobs = splitJobs(this.jobs).running;
       this.watched = this.watched.filter((id) => !removed.has(id));
       const items = { ...this.items };
       for (const id of removed) delete items[id];

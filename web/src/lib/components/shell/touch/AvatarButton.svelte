@@ -14,14 +14,15 @@
     color="secondary"
     shape="round"
     class="size-11 p-0"
+    title="Account"
     aria-label={jobs.attention ? 'Account, a job finished with failures' : 'Account'}
     aria-haspopup="dialog"
     aria-expanded={accountDrawer.open}
     onclick={accountDrawer.show}
   >
-    <Avatar size="small" {name} />
+    <Avatar size="small" class="size-8 text-[13px] font-bold" {name} />
   </Button>
   {#if jobs.attention}
-    <AttentionDot class="absolute top-1 right-1 ring-2 ring-light-50" />
+    <AttentionDot class="absolute top-1 right-1 ring-2 ring-light" />
   {/if}
 </div>

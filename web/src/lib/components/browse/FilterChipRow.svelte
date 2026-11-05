@@ -31,7 +31,7 @@
   <div
     role="list"
     aria-label="Active filters"
-    class="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-hairline bg-light px-3 py-1.5 sm:px-5"
+    class="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-hairline bg-light px-3 py-1.5 sm:px-5 touch:border-b-0 touch:px-3 touch:pt-1 touch:pb-2"
   >
     {#each chips as chip (chip.key)}
       <span

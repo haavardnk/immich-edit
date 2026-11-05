@@ -7,6 +7,8 @@
   import ImageToolbar from '#lib/components/editor/ImageToolbar.svelte';
   import BottomBar from '#lib/components/editor/BottomBar.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import BackButton from '#lib/components/shell/BackButton.svelte';
+  import { editorAssetId, leaveEditor } from '#lib/commands/editor/context.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -23,12 +25,10 @@
       <main class="flex-1 min-h-0 flex flex-col bg-light">
         {#if tooNarrow}
           <div class="flex-1 flex items-center justify-center p-6 text-center">
-            <div class="max-w-sm space-y-2">
-              <h2 class="text-sm font-medium text-dark">Desktop required</h2>
-              <p class="text-xs text-dark/65">
-                immich-edit requires a desktop browser (≥ 768px) for editing. Please switch to a
-                larger screen.
-              </p>
+            <div class="flex max-w-sm flex-col items-center gap-3">
+              <h2 class="text-sm font-medium text-dark">Larger screen needed</h2>
+              <p class="text-xs text-dark/65">Editing needs a larger screen for now.</p>
+              <BackButton labelled onBack={() => leaveEditor(editorAssetId(), 'return')} />
             </div>
           </div>
         {:else}

@@ -27,6 +27,10 @@ function within(pathname: string, root: string): boolean {
   return pathname === root || pathname.startsWith(`${root}/`);
 }
 
+export function isTabRoot(pathname: string): boolean {
+  return NAV_TABS.some((tab) => tab.href === pathname);
+}
+
 export function activeTab(pathname: string): NavTabId | null {
   return TAB_ROOTS.find(({ roots }) => roots.some((root) => within(pathname, root)))?.tab ?? null;
 }

@@ -266,7 +266,7 @@ describe('TouchBrowseShell', () => {
     const scroller = target.querySelector<HTMLElement>('[data-testid="scroller"]');
     if (!tabBar || !scroller) throw new Error('missing shell');
     const root = document.documentElement.style;
-    expect(root.getPropertyValue('--chrome-bottom')).toContain('3.5rem');
+    expect(root.getPropertyValue('--chrome-bottom')).toContain('3.75rem');
 
     scrollTo(scroller, 10);
     scrollTo(scroller, 200);

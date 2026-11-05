@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeTab } from './navTabs';
+import { activeTab, isTabRoot } from './navTabs';
 
 describe('activeTab', () => {
   it.each([
@@ -25,4 +25,19 @@ describe('activeTab', () => {
       expect(activeTab(pathname)).toBeNull();
     }
   );
+});
+
+describe('isTabRoot', () => {
+  it.each([
+    ['/photos', true],
+    ['/albums', true],
+    ['/search', true],
+    ['/library', true],
+    ['/albums/a1', false],
+    ['/people', false],
+    ['/folders', false],
+    ['/settings', false]
+  ])('treats %s as a tab root: %s', (pathname, root) => {
+    expect(isTabRoot(pathname)).toBe(root);
+  });
 });

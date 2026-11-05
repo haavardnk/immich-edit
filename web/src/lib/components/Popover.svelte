@@ -77,8 +77,19 @@
   });
 </script>
 
+{#snippet tooltipTrigger(props: Record<string, unknown>)}
+  <Tooltip
+    text={tooltip}
+    bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
+  >
+    {#snippet child({ props: tooltipProps })}
+      {@render trigger?.(mergeProps(tooltipProps, props))}
+    {/snippet}
+  </Tooltip>
+{/snippet}
+
 {#if layout.mode === 'touch'}
-  {@render trigger?.(sheetTriggerProps)}
+  {@render tooltipTrigger(sheetTriggerProps)}
   {#if open && appearance === 'menu'}
     <ActionSheet
       {open}
@@ -122,14 +133,7 @@
     {#if trigger}
       <Bits.Trigger>
         {#snippet child({ props })}
-          <Tooltip
-            text={tooltip}
-            bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
-          >
-            {#snippet child({ props: tooltipProps })}
-              {@render trigger(mergeProps(tooltipProps, props))}
-            {/snippet}
-          </Tooltip>
+          {@render tooltipTrigger(props)}
         {/snippet}
       </Bits.Trigger>
     {/if}
