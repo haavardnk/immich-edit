@@ -30,7 +30,9 @@
     headerWhileLoading = false,
     trashRejects = true,
     toolbar,
-    emptyAction
+    emptyAction,
+    bar,
+    lead
   }: {
     title: string;
     assets: AssetSummary[];
@@ -51,6 +53,8 @@
     trashRejects?: boolean;
     toolbar?: Snippet;
     emptyAction?: Snippet;
+    bar?: Snippet;
+    lead?: Snippet;
   } = $props();
 
   const hiddenCount = $derived(
@@ -78,6 +82,16 @@
   </div>
 {/snippet}
 
+{#snippet emptyState()}
+  <div class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted">
+    <h2 class="text-base font-medium text-light-950">{emptyTitle}</h2>
+    {#if emptyMessage}
+      <p class="mt-1 max-w-sm text-sm">{emptyMessage}</p>
+    {/if}
+    {@render emptyAction?.()}
+  </div>
+{/snippet}
+
 <div class="flex min-h-0 flex-1">
   <div class="flex min-w-0 flex-1 flex-col">
     {#if error}
@@ -98,27 +112,29 @@
         totalCount={headerTotal}
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}
+        {bar}
         onTrashRejected={trashRejects && assets.length > hiddenCount ? trashRejected : undefined}
       />
       {@render toolbar?.()}
       {#if loading}
         {@render loadingLine()}
-      {:else if assets.length === 0}
+      {:else if assets.length === 0 && lead}
         <div
-          class="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center text-muted"
+          class="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden"
+          data-testid="browse-scroller"
         >
-          <h2 class="text-base font-medium text-light-950">{emptyTitle}</h2>
-          {#if emptyMessage}
-            <p class="mt-1 max-w-sm text-sm">{emptyMessage}</p>
-          {/if}
-          {@render emptyAction?.()}
+          {@render lead()}
+          {@render emptyState()}
         </div>
+      {:else if assets.length === 0}
+        {@render emptyState()}
       {:else}
-        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden" data-testid="browse-scroller">
+          {@render lead?.()}
           <AssetGrid {assets} {loadingMore} {onLoadMore} {onLoadAll} />
         </div>
       {/if}
     {/if}
   </div>
-  <FilterPanel {favoriteLocked} />
+  <FilterPanel {favoriteLocked} count={headerTotal} />
 </div>

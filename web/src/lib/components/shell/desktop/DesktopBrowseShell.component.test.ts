@@ -27,7 +27,7 @@ const viewport = vi.hoisted(() => {
   return {
     set(narrow: boolean): void {
       state.narrow = narrow;
-      for (const listener of listeners) listener(new Event('change'));
+      for (const listener of [...listeners]) listener(new Event('change'));
     }
   };
 });

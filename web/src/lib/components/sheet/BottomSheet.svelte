@@ -18,6 +18,7 @@
     open,
     onOpenChange,
     title,
+    subtitle,
     titleHidden = false,
     modal = true,
     dismissable = true,
@@ -27,6 +28,7 @@
     detent = $bindable(0),
     detentLabels,
     close,
+    closeLabel = 'close',
     header,
     footer,
     bodyClass = '',
@@ -36,6 +38,7 @@
     open: boolean;
     onOpenChange: (open: boolean) => void;
     title: string;
+    subtitle?: string;
     titleHidden?: boolean;
     modal?: boolean;
     dismissable?: boolean;
@@ -45,6 +48,7 @@
     detent?: number;
     detentLabels?: readonly string[];
     close?: 'icon' | 'done';
+    closeLabel?: string;
     header?: Snippet;
     footer?: Snippet;
     bodyClass?: string;
@@ -232,7 +236,10 @@
                       <div
                         class="flex min-h-12 items-center gap-1 border-b border-hairline pr-1.5 pl-4"
                       >
-                        <div class="flex min-h-11 min-w-0 shrink items-center" {@attach titleDrag}>
+                        <div
+                          class="flex min-h-11 min-w-0 shrink items-center gap-2"
+                          {@attach titleDrag}
+                        >
                           <Dialog.Title
                             class={titleHidden
                               ? 'sr-only'
@@ -240,6 +247,9 @@
                           >
                             {title}
                           </Dialog.Title>
+                          {#if subtitle}
+                            <span class="shrink-0 text-[13px] text-dark/65">{subtitle}</span>
+                          {/if}
                         </div>
                         <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
                           {@render header?.()}
@@ -250,7 +260,7 @@
                             variant="ghost"
                             color="secondary"
                             icon={mdiClose}
-                            aria-label="close"
+                            aria-label={closeLabel}
                             class="min-h-11 min-w-11 flex-none"
                             onclick={() => void requestClose()}
                           />
@@ -280,7 +290,7 @@
                     bind:offsetHeight={bottomHeight}
                   >
                     {#if footer}
-                      <div class="flex items-center border-t border-hairline px-5 py-3">
+                      <div class="flex items-center border-t border-hairline px-3 py-2.5">
                         {@render footer()}
                       </div>
                     {/if}

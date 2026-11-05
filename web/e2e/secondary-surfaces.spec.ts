@@ -1,5 +1,5 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { seriousViolations } from './axeHelpers';
 import { installMocks, json, SESSION_USER } from './helpers';
 
 const JOB = {
@@ -39,15 +39,6 @@ async function installSecondaryMocks(page: Page): Promise<void> {
     if (path === '/api/jobs') return route.fulfill(json([JOB]));
     return route.fallback();
   });
-}
-
-async function seriousViolations(page: Page): Promise<string[]> {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
-  return results.violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .map((violation) => violation.id);
 }
 
 test('login fits mobile and reveals the password', async ({ page }) => {
@@ -127,20 +118,45 @@ test('settings fit the mobile viewport', async ({ page }) => {
   await page.goto('/settings');
 
   await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-  await page.getByRole('button', { name: 'Administration' }).click();
-  const navigation = page.getByRole('navigation', { name: 'Settings' });
-  await expect(navigation.getByRole('link')).toHaveCount(2);
+  await expect(
+    page.locator('header[data-app-bar]').getByRole('button', { name: 'Back', exact: true })
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Diagnostics' })).toBeVisible();
   await expect(page.getByRole('button', { name: /App settings/ })).toHaveAttribute(
     'aria-expanded',
     'false'
   );
-  await expect(page.getByRole('button', { name: /Account/ })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: /^Account\s\S/ })).toHaveAttribute(
     'aria-expanded',
     'false'
   );
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)
   ).toBe(true);
+});
+
+test('settings sign-out asks first while a transfer runs', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installSecondaryMocks(page);
+  await page.route('**/api/jobs/**', (route) => route.fulfill({ status: 404 }));
+  await page.route('**/api/jobs', (route) =>
+    route.fulfill(json([{ ...JOB, status: 'running', completed: 1 }]))
+  );
+  const logouts: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/auth/logout')) logouts.push(request.url());
+  });
+  await page.goto('/settings');
+
+  await page.getByRole('button', { name: /^Account\s\S/ }).click();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Sign out?' });
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText('1 export or upload job still running');
+
+  await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(confirm).toBeHidden();
+  expect(logouts).toEqual([]);
 });
 
 test('settings deep links and close returns to the previous page', async ({ page }) => {
@@ -200,14 +216,10 @@ test('admins can turn off automatic lens corrections', async ({ page }) => {
   await listed;
 });
 
-test('jobs drawer stays bounded and restores focus', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await installSecondaryMocks(page);
-  await page.goto('/photos');
-
-  const trigger = page.getByRole('button', { name: 'Jobs' });
-  await trigger.click();
-
+async function expectBoundedJobsDrawer(
+  page: Page,
+  viewport: { width: number; height: number }
+): Promise<void> {
   const drawer = page.getByRole('dialog', { name: 'Jobs' });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText('completed', { exact: true })).toBeVisible();
@@ -218,14 +230,43 @@ test('jobs drawer stays bounded and restores focus', async ({ page }) => {
   expect(bounds).not.toBeNull();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.y).toBeGreaterThanOrEqual(0);
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(844);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
   expect(await drawer.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
   expect(await seriousViolations(page)).toEqual([]);
 
   await page.keyboard.press('Escape');
   await expect(drawer).toBeHidden();
+}
+
+test('jobs drawer stays bounded and restores focus on desktop', async ({ page }) => {
+  const viewport = { width: 1280, height: 800 };
+  await page.setViewportSize(viewport);
+  await installSecondaryMocks(page);
+  await page.goto('/photos');
+
+  const trigger = page.getByRole('button', { name: 'Jobs', exact: true });
+  await trigger.click();
+
+  await expectBoundedJobsDrawer(page, viewport);
+  await expect(trigger).toBeFocused();
+});
+
+test('jobs drawer opened from the account drawer stays bounded on a phone', async ({ page }) => {
+  const viewport = { width: 390, height: 844 };
+  await page.setViewportSize(viewport);
+  await installSecondaryMocks(page);
+  await page.goto('/photos');
+
+  const trigger = page.getByRole('button', { name: 'Account', exact: true });
+  await trigger.click();
+  await page
+    .getByRole('dialog', { name: 'Account' })
+    .getByRole('button', { name: 'Jobs', exact: true })
+    .click();
+
+  await expectBoundedJobsDrawer(page, viewport);
   await expect(trigger).toBeFocused();
 });
 

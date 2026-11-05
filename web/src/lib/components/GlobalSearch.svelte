@@ -1,18 +1,23 @@
 <script lang="ts">
   import TextInput from '#lib/components/TextInput.svelte';
+  import { SEARCH_FIELD_LABEL } from '#lib/browse/searchField.ts';
   import { IconButton } from '@immich/ui';
   import { mdiClose, mdiMagnify } from '@mdi/js';
 
   let {
     value,
+    placeholder = SEARCH_FIELD_LABEL,
     onInput,
     onSubmit,
-    onClear
+    onClear,
+    onFocus
   }: {
     value: string;
+    placeholder?: string;
     onInput: (event: Event) => void;
     onSubmit: (event: SubmitEvent) => void;
     onClear: () => void;
+    onFocus?: () => void;
   } = $props();
 </script>
 
@@ -26,13 +31,14 @@
     id="main-search-bar"
     name="q"
     type="text"
-    class="h-11.5 rounded-xl bg-ghost text-light-950/80 ring-transparent transition-colors hover:bg-light-950/7 dark:bg-ghost dark:ring-transparent dark:hover:bg-light-950/7 [&_input]:py-0 [&_input]:ps-13 [&_input]:placeholder:text-light-950/35 {value
-      ? 'pe-22.5'
-      : 'pe-14'}"
-    placeholder="Search your photos"
-    aria-label="Search your photos"
+    class="h-11.5 rounded-xl bg-ghost text-light-950/80 ring-transparent transition-colors hover:bg-light-950/7 dark:bg-ghost dark:ring-transparent dark:hover:bg-light-950/7 [&_input]:py-0 [&_input]:ps-13 [&_input]:placeholder:text-light-950/35 touch:[&_input]:ps-12 {value
+      ? 'pe-22.5 touch:pe-12'
+      : 'pe-14 touch:pe-3'}"
+    {placeholder}
+    aria-label={SEARCH_FIELD_LABEL}
     {value}
     oninput={onInput}
+    onfocus={onFocus}
   />
   {#if value}
     <div class="absolute inset-y-0 inset-e-0 flex items-center pe-2">

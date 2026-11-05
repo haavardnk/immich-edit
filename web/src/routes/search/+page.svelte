@@ -13,7 +13,11 @@
     searchModeAvailable,
     type SearchMode
   } from '#lib/browse/searchMode.ts';
+  import { runSearch } from '#lib/browse/searchInput.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import RecentSearches from '#lib/components/browse/RecentSearches.svelte';
+  import SearchModeBar from '#lib/components/browse/SearchModeBar.svelte';
+  import TouchSearchBar from '#lib/components/shell/touch/TouchSearchBar.svelte';
   import { Button } from '@immich/ui';
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
@@ -69,23 +73,17 @@
 </script>
 
 {#snippet modeBar()}
-  <div class="flex flex-none items-center gap-2 border-b border-dark/10 px-3 py-1.5">
-    <span class="shrink-0 text-[11px] text-dark/65">Search by</span>
-    <div class="flex min-w-0 flex-wrap gap-0.5 rounded-2xl bg-light-100 p-0.5 text-[11px]">
-      {#each modes as option (option.mode)}
-        <Button
-          type="button"
-          size="tiny"
-          variant={mode === option.mode ? 'filled' : 'ghost'}
-          color={mode === option.mode ? 'primary' : 'secondary'}
-          aria-pressed={mode === option.mode}
-          onclick={() => setMode(option.mode)}
-        >
-          {option.label}
-        </Button>
-      {/each}
-    </div>
+  <SearchModeBar {modes} {mode} onSelect={setMode} />
+{/snippet}
+
+{#snippet recents()}
+  <div class="pt-1">
+    <RecentSearches onRun={runSearch} />
   </div>
+{/snippet}
+
+{#snippet searchBar()}
+  <TouchSearchBar />
 {/snippet}
 
 {#snippet filenameFallback()}
@@ -103,6 +101,8 @@
 
 <BrowsePage
   {...view}
+  bar={searchBar}
+  lead={query ? undefined : recents}
   assets={feed.assets}
   loadingLabel="Searching…"
   headerWhileLoading

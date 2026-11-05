@@ -777,7 +777,9 @@ export async function gotoAsset(page: Page): Promise<void> {
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
   await page.getByRole('button', { name: /^Filters/ }).click();
-  const panel = page.getByRole('complementary', { name: 'Filters' });
+  const panel = page
+    .getByRole('complementary', { name: 'Filters' })
+    .or(page.getByRole('dialog', { name: 'Filters' }));
   for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
   return panel;
 }

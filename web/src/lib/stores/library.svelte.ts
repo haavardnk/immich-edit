@@ -1,4 +1,4 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { listAlbums } from '#lib/api/albums.ts';
 import { listPeople, type PersonSummary } from '#lib/api/people.ts';
 import { listTags, type TagSummary } from '#lib/api/tags.ts';
@@ -35,80 +35,74 @@ function buildTree(paths: string[]): FolderNode[] {
   return root.children;
 }
 
+function byName(albums: AlbumSummary[]): AlbumSummary[] {
+  return albums.sort((x, y) => x.albumName.localeCompare(y.albumName));
+}
+
 class LibraryStore {
   view = $state<LibraryView>('albums');
   albums = $state<AlbumSummary[]>([]);
   people = $state<PersonSummary[]>([]);
   tags = $state<TagSummary[]>([]);
   folderTree = $state<FolderNode[]>([]);
-  loading = $state(false);
-  error = $state<string | null>(null);
 
   photosCount = $state<number | null>(null);
   favoritesCount = $state<number | null>(null);
   private folderPathCount = $state<number | null>(null);
+  private editedCountLoaded = $state(false);
+
+  private loaded = new SvelteSet<LibraryView>();
+  private errors = new SvelteMap<LibraryView, string>();
+  private pending = new Map<LibraryView, Promise<void>>();
+  private countsLoading: Promise<void> | null = null;
 
   get foldersCount(): number | null {
-    return this.folderPathCount;
+    return this.loaded.has('folders') ? this.folderPathCount : null;
   }
 
   get editedCount(): number | null {
     return this.editedCountLoaded ? editedThumbs.count : null;
   }
 
-  private editedCountLoaded = $state(false);
-
-  private loaded = new SvelteSet<LibraryView>();
-  private countsLoaded = false;
-  private tagsLoading: Promise<void> | null = null;
-
   isLoaded(view: LibraryView): boolean {
     return this.loaded.has(view);
   }
 
-  ensureTags(): Promise<void> {
-    if (this.loaded.has('tags')) return Promise.resolve();
-    this.tagsLoading ??= listTags()
-      .then((tags) => {
-        this.tags = tags;
-        this.loaded.add('tags');
+  errorFor(view: LibraryView): string | null {
+    return this.errors.get(view) ?? null;
+  }
+
+  ensure(view: LibraryView): Promise<void> {
+    if (this.loaded.has(view)) return Promise.resolve();
+    const pending = this.pending.get(view);
+    if (pending) return pending;
+    this.errors.delete(view);
+    const loading = this.fetch(view)
+      .then(() => {
+        this.loaded.add(view);
+      })
+      .catch((e: unknown) => {
+        this.errors.set(view, errorMessage(e));
+        throw e;
       })
       .finally(() => {
-        this.tagsLoading = null;
+        this.pending.delete(view);
       });
-    return this.tagsLoading;
+    this.pending.set(view, loading);
+    return loading;
+  }
+
+  request = (view: LibraryView): void => {
+    this.ensure(view).catch(() => undefined);
+  };
+
+  ensureTags(): Promise<void> {
+    return this.ensure('tags');
   }
 
   async loadView(v: LibraryView): Promise<void> {
     this.view = v;
-    if (this.loaded.has(v) || this.loading) return;
-    this.loading = true;
-    this.error = null;
-    try {
-      switch (v) {
-        case 'albums': {
-          const a = await listAlbums();
-          this.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
-          break;
-        }
-        case 'people':
-          this.people = await listPeople();
-          break;
-        case 'tags':
-          this.tags = await listTags();
-          break;
-        case 'folders':
-          this.folderTree = buildTree(await folderPaths());
-          break;
-        case 'favorites':
-          break;
-      }
-      this.loaded.add(v);
-    } catch (e) {
-      this.error = errorMessage(e);
-    } finally {
-      this.loading = false;
-    }
+    await this.ensure(v).catch(() => undefined);
   }
 
   async load(force = false): Promise<void> {
@@ -116,38 +110,49 @@ class LibraryStore {
     await this.loadView(this.view);
   }
 
-  async loadCounts(): Promise<void> {
-    if (this.countsLoaded) return;
-    this.countsLoaded = true;
-    const [stats, favStats, albums, people, tags, paths] = await Promise.all([
-      searchStatistics({}).catch(() => null),
-      searchStatistics({ favorite: true }).catch(() => null),
-      listAlbums().catch(() => null),
-      listPeople().catch(() => null),
-      listTags().catch(() => null),
-      folderPaths().catch(() => [] as string[])
+  loadCounts(): Promise<void> {
+    this.countsLoading ??= this.fetchCounts().catch(() => {
+      this.countsLoading = null;
+    });
+    return this.countsLoading;
+  }
+
+  private async fetch(view: LibraryView): Promise<void> {
+    switch (view) {
+      case 'albums':
+        this.albums = byName(await listAlbums());
+        break;
+      case 'people':
+        this.people = await listPeople();
+        break;
+      case 'tags':
+        this.tags = await listTags();
+        break;
+      case 'folders': {
+        const paths = await folderPaths();
+        this.folderTree = buildTree(paths);
+        this.folderPathCount = paths.length;
+        break;
+      }
+      case 'favorites':
+        break;
+    }
+  }
+
+  private async fetchCounts(): Promise<void> {
+    const views = (['albums', 'people', 'tags', 'folders'] as const).map((view) =>
+      this.ensure(view).catch(() => undefined)
+    );
+    const [stats, favStats] = await Promise.all([
+      searchStatistics({}),
+      searchStatistics({ favorite: true }),
+      editedThumbs.loadOnce().then(() => {
+        this.editedCountLoaded = true;
+      }),
+      ...views
     ]);
-    await editedThumbs.loadOnce().catch(() => undefined);
-    if (stats) this.photosCount = stats.total;
-    if (favStats) this.favoritesCount = favStats.total;
-    if (albums && !this.loaded.has('albums')) {
-      this.albums = albums.sort((x, y) => x.albumName.localeCompare(y.albumName));
-      this.loaded.add('albums');
-    }
-    if (people && !this.loaded.has('people')) {
-      this.people = people;
-      this.loaded.add('people');
-    }
-    if (tags && !this.loaded.has('tags')) {
-      this.tags = tags;
-      this.loaded.add('tags');
-    }
-    if (!this.loaded.has('folders')) {
-      this.folderTree = buildTree(paths);
-      this.loaded.add('folders');
-    }
-    this.folderPathCount = paths.length;
-    this.editedCountLoaded = true;
+    this.photosCount = stats.total;
+    this.favoritesCount = favStats.total;
   }
 }
 

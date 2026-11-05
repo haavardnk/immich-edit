@@ -35,7 +35,9 @@ class BrowseViewStore {
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
   tileInfo = $state<TileInfo>('badges');
-  filtersOpen = $state(false);
+  #filtersDocked = $state(false);
+  #filtersSheet = $state(false);
+  #filtersCompact = $state(false);
   filterSections = $state<FilterSectionId[]>([]);
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
@@ -49,14 +51,14 @@ class BrowseViewStore {
     if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
     if (stored?.tileInfo && TILE_INFO_ORDER.includes(stored.tileInfo))
       this.tileInfo = stored.tileInfo;
-    if (typeof stored?.filtersOpen === 'boolean') this.filtersOpen = stored.filtersOpen;
+    if (typeof stored?.filtersOpen === 'boolean') this.#filtersDocked = stored.filtersOpen;
     if (Array.isArray(stored?.filterSections))
       this.filterSections = stored.filterSections.filter(isFilterSectionId);
   }
 
   private persist(): void {
     writeStored(STORAGE_KEY, {
-      filtersOpen: this.filtersOpen,
+      filtersOpen: this.#filtersDocked,
       filterSections: this.filterSections,
       gridSize: this.gridSize,
       loupeAutoAdvance: this.loupeAutoAdvance,
@@ -94,13 +96,31 @@ class BrowseViewStore {
   cycleTileInfo(): void {
     const next =
       TILE_INFO_ORDER[(TILE_INFO_ORDER.indexOf(this.tileInfo) + 1) % TILE_INFO_ORDER.length];
-    if (next) this.tileInfo = next;
+    if (next) this.setTileInfo(next);
+  }
+
+  setTileInfo(info: TileInfo): void {
+    this.tileInfo = info;
     this.persist();
   }
 
+  get filtersOpen(): boolean {
+    return this.#filtersCompact ? this.#filtersSheet : this.#filtersDocked;
+  }
+
   setFiltersOpen(open: boolean): void {
-    this.filtersOpen = open;
+    if (this.#filtersCompact) {
+      this.#filtersSheet = open;
+      return;
+    }
+    this.#filtersDocked = open;
     this.persist();
+  }
+
+  setFiltersCompact(compact: boolean): void {
+    if (compact === this.#filtersCompact) return;
+    this.#filtersCompact = compact;
+    this.#filtersSheet = false;
   }
 
   setFilterSection(id: FilterSectionId, open: boolean): void {

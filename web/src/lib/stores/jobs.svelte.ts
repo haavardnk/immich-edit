@@ -3,8 +3,11 @@ import {
   clearJobs,
   getJob,
   isJobActive,
+  JOB_KINDS,
   jobNeedsAttention,
   listJobs,
+  splitJobs,
+  TRANSFER_JOB_KINDS,
   type Job,
   type JobItem
 } from '#lib/api/jobs.ts';
@@ -19,7 +22,11 @@ const POLL_BASE_MS = 4000;
 const MAX_BACKOFF_STEPS = 4;
 const MAX_STREAM_ERRORS = 5;
 const DONE_TOAST_MS = 6000;
-const REFRESHES_THUMBS = new Set(['apply_preset', 'paste_edits', 'reset_edits']);
+const REFRESHES_THUMBS: ReadonlySet<string> = new Set([
+  JOB_KINDS.applyPreset,
+  JOB_KINDS.pasteEdits,
+  JOB_KINDS.resetEdits
+]);
 
 function endedNow(previous: Job | undefined, next: Job): boolean {
   return previous !== undefined && isJobActive(previous.status) && !isJobActive(next.status);
@@ -35,7 +42,7 @@ function isGone(error: unknown): boolean {
 
 function replacesOriginals(job: Job): boolean {
   const params = job.params as { replace_original?: unknown } | null;
-  return job.kind === 'export_immich' && params?.replace_original === true;
+  return job.kind === JOB_KINDS.exportImmich && params?.replace_original === true;
 }
 
 class JobsStore {
@@ -54,8 +61,10 @@ class JobsStore {
   private polling = false;
   private failures = 0;
 
-  activeCount = $derived(this.jobs.filter((j) => isJobActive(j.status)).length);
-  clearableCount = $derived(this.jobs.filter((j) => !isJobActive(j.status)).length);
+  active = $derived(splitJobs(this.jobs).running);
+  activeCount = $derived(this.active.length);
+  activeTransfers = $derived(this.active.filter((j) => TRANSFER_JOB_KINDS.has(j.kind)).length);
+  clearableCount = $derived(this.jobs.length - this.activeCount);
 
   load = async (): Promise<void> => {
     if (this.loading) return;
@@ -178,12 +187,12 @@ class JobsStore {
   clear = async (): Promise<void> => {
     try {
       await clearJobs();
-      const removed = new Set(this.jobs.filter((j) => !isJobActive(j.status)).map((j) => j.id));
+      const removed = new Set(splitJobs(this.jobs).finished.map((j) => j.id));
       for (const id of removed) {
         this.disconnect(id);
         this.streamErrors.delete(id);
       }
-      this.jobs = this.jobs.filter((j) => isJobActive(j.status));
+      this.jobs = splitJobs(this.jobs).running;
       this.watched = this.watched.filter((id) => !removed.has(id));
       const items = { ...this.items };
       for (const id of removed) delete items[id];

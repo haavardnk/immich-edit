@@ -1,19 +1,11 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import ContainerHarness from '#lib/testing/ContainerHarness.svelte';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ mode: 'desktop' as 'desktop' | 'touch' }));
-
-vi.mock('#lib/device/layout.svelte.ts', () => ({
-  layout: {
-    get mode() {
-      return h.mode;
-    },
-    get hasKeyboard() {
-      return false;
-    }
-  }
+vi.mock('#lib/device/layout.svelte.ts', async () => ({
+  layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
 }));
 
 type HarnessProps = ComponentProps<typeof ContainerHarness>;
@@ -85,7 +77,7 @@ function touchPointer(element: Element, type: string): void {
 }
 
 beforeEach(() => {
-  h.mode = 'desktop';
+  resetLayout();
   target = document.createElement('div');
   document.body.appendChild(target);
 });
@@ -107,7 +99,7 @@ describe('Dialog presentation', () => {
   });
 
   it('becomes a bottom sheet named by its title on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onClose } = await render('dialog');
     const dialog = document.querySelector('[role="dialog"]');
     if (!dialog) throw new Error('no dialog');
@@ -121,7 +113,7 @@ describe('Dialog presentation', () => {
   });
 
   it('closes the touch sheet on Escape', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onClose } = await render('dialog');
     (document.activeElement ?? document.body).dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
@@ -150,7 +142,7 @@ describe('Popover presentation', () => {
   });
 
   it('opens a menu as an action sheet with Cancel on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onOpenChange, onRow } = await render('menu');
     expect(popoverContent()).toBeNull();
     button('Toggle').click();
@@ -169,7 +161,7 @@ describe('Popover presentation', () => {
   });
 
   it('closes the action sheet from Cancel', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onOpenChange, onRow } = await render('menu');
     button('Toggle').click();
     await settle();
@@ -180,7 +172,7 @@ describe('Popover presentation', () => {
   });
 
   it('opens a panel as a modal bottom sheet with Done on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onOpenChange } = await render('panel');
     button('Toggle').click();
     await settle();
@@ -197,7 +189,7 @@ describe('Popover presentation', () => {
   });
 
   it('opens a control popover as a non-modal sheet on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onOpenChange } = await render('control');
     button('Toggle').click();
     await settle();
@@ -224,7 +216,7 @@ describe('ContextMenu presentation', () => {
   });
 
   it('opens an action sheet on long press on touch and runs the row', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onRow } = await render('context');
     vi.useFakeTimers();
     touchPointer(button('Thumb'), 'pointerdown');
@@ -244,7 +236,7 @@ describe('ContextMenu presentation', () => {
   });
 
   it('opens the action sheet from the context menu key on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     await render('context');
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     button('Thumb').dispatchEvent(event);
@@ -257,7 +249,7 @@ describe('ContextMenu presentation', () => {
   });
 
   it('does not open on a short touch press', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     await render('context');
     vi.useFakeTimers();
     touchPointer(button('Thumb'), 'pointerdown');

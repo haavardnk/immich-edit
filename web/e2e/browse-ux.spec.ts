@@ -210,12 +210,13 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
 
   await page.goto('/photos');
 
+  await page.getByRole('button', { name: 'View options', exact: true }).click();
+  const sizes = page
+    .getByRole('dialog', { name: 'View options' })
+    .getByRole('radiogroup', { name: 'Thumbnail size' });
   for (const size of ['S', 'M', 'L', 'XL']) {
-    await expect(page.getByRole('button', { name: `Thumbnail size ${size}` })).toBeInViewport();
+    await expect(sizes.getByRole('radio', { name: size, exact: true })).toBeInViewport();
   }
-  await page.getByRole('button', { name: 'Thumbnail size XL' }).click();
-  await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await sizes.getByRole('radio', { name: 'XL', exact: true }).click();
+  await expect(sizes.getByRole('radio', { name: 'XL', exact: true })).toBeChecked();
 });
