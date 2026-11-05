@@ -27,7 +27,6 @@ pub mod luts;
 pub mod masks;
 #[cfg(feature = "ml")]
 pub mod models;
-pub mod names;
 pub mod people;
 pub mod preferences;
 pub mod presets;

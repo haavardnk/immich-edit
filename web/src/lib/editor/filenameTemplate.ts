@@ -9,7 +9,7 @@ const UNDATED = 'undated';
 const RESERVED = '/\\:*?"<>|';
 const RFC3339 = /^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
 
-type Token = 'name' | 'date' | 'seq';
+type Token = 'name' | 'date' | 'seq' | 'preset';
 type Part = { text: string } | { token: Token };
 
 export interface NameContext {
@@ -17,10 +17,11 @@ export interface NameContext {
   date: string | null;
   position: number;
   total: number;
+  preset?: string | null;
 }
 
 function isToken(value: string): value is Token {
-  return value === 'name' || value === 'date' || value === 'seq';
+  return value === 'name' || value === 'date' || value === 'seq' || value === 'preset';
 }
 
 function forbidden(char: string): boolean {
@@ -61,16 +62,20 @@ export function templateError(raw: string): string | null {
   }
 }
 
+function cleanName(name: string): string {
+  return [...name].map((char) => (forbidden(char) ? '_' : char)).join('');
+}
+
 function cleanStem(original: string): string {
   const dot = original.lastIndexOf('.');
-  const stem = dot < 0 ? original : original.slice(0, dot);
-  return [...stem].map((char) => (forbidden(char) ? '_' : char)).join('');
+  return cleanName(dot < 0 ? original : original.slice(0, dot));
 }
 
 function renderPart(part: Part, ctx: NameContext): string {
   if ('text' in part) return part.text;
   if (part.token === 'name') return cleanStem(ctx.original);
   if (part.token === 'date') return ctx.date ?? UNDATED;
+  if (part.token === 'preset') return ctx.preset ? cleanName(ctx.preset) : '';
   return String(ctx.position).padStart(String(Math.max(1, ctx.total)).length, '0');
 }
 

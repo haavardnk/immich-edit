@@ -8,10 +8,10 @@ use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
+use crate::names::display_name;
 use crate::routes::auth::AuthCtx;
 use crate::routes::edits::write_manifest;
 use crate::routes::headers;
-use crate::routes::names::display_name;
 use crate::services::edits_store::EditSnapshot;
 use crate::state::AppState;
 
