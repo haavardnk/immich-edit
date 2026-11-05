@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::config::Config;
 use crate::services::asset_counts::AssetCountCache;
 use crate::services::auth_store::AuthStore;
@@ -16,6 +18,7 @@ use crate::services::embedding_cache::EmbeddingCache;
 use crate::services::immich_capabilities::CapabilityCache;
 use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
+use crate::services::keyed_lock::KeyedLocks;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
 #[cfg(feature = "ml")]
@@ -68,6 +71,7 @@ pub struct AppState {
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
     pub timelines: TimelineCache,
+    pub stack_locks: KeyedLocks<(Uuid, Uuid)>,
 }
 
 impl AppState {
@@ -202,6 +206,7 @@ impl AppState {
             tag_counts: AssetCountCache::new(Scope::Tag),
             people_counts: AssetCountCache::new(Scope::Person),
             timelines: TimelineCache::default(),
+            stack_locks: KeyedLocks::default(),
         })
     }
 }

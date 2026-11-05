@@ -26,6 +26,8 @@ mod params;
 mod post_upload;
 mod replace;
 mod resize;
+mod stack;
+mod variants;
 mod watermark;
 
 pub use archive::*;
@@ -34,6 +36,7 @@ pub use immich::*;
 pub use naming::*;
 pub use params::*;
 pub use resize::{Resize, ResizeMode};
+pub use variants::{ExportVariants, expand_items};
 
 #[derive(Debug, Deserialize)]
 pub struct ExportBody {

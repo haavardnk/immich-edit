@@ -18,12 +18,10 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
 use crate::services::apply_preset::APPLY_PRESET_KIND;
 use crate::services::export::{
-    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, build_zip_archive, cleanup_zip_job, confirm_zip_archive,
-    discard_zip_archive, validate_export_job,
+    DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, ExportVariants, build_zip_archive, cleanup_zip_job,
+    confirm_zip_archive, discard_zip_archive, expand_items,
 };
-use crate::services::job_store::{
-    JobItemRecord, JobItemStatus, JobRecord, JobStatus, NewJob, NewJobItem,
-};
+use crate::services::job_store::{JobItemRecord, JobItemStatus, JobRecord, JobStatus, NewJob};
 use crate::services::paste_edits::PASTE_EDITS_KIND;
 use crate::services::reset_edits::RESET_EDITS_KIND;
 use crate::state::AppState;
@@ -74,19 +72,15 @@ pub async fn create(
     if asset_ids.is_empty() {
         return Err(AppError::BadRequest("no matching assets".into()));
     }
-    if asset_ids.len() > MAX_ITEMS {
+    let variants = ExportVariants::for_job(kind, &body.params)?;
+    let per_asset = variants.as_ref().map_or(1, ExportVariants::count);
+    if asset_ids.len().saturating_mul(per_asset) > MAX_ITEMS {
         return Err(AppError::BadRequest("too many items".into()));
     }
-    if kind == EXPORT_JOB_KIND {
-        validate_export_job(&ctx.immich, &body.params, &asset_ids).await?;
+    if let Some(variants) = &variants {
+        variants.validate(kind, &ctx.immich, &asset_ids).await?;
     }
-    let items: Vec<NewJobItem> = asset_ids
-        .into_iter()
-        .map(|asset_id| NewJobItem {
-            asset_id,
-            idempotency_key: None,
-        })
-        .collect();
+    let items = expand_items(asset_ids, per_asset);
     let job = state
         .jobs
         .create_job(NewJob {
@@ -156,16 +150,17 @@ pub async fn retry(
     if let Some(reason) = retry_blocker(&job, ctx.server_epoch) {
         return Err(AppError::Conflict(reason.into()));
     }
-    if job.kind == EXPORT_JOB_KIND {
-        let failed_asset_ids: Vec<String> = state
+    if let Some(variants) = ExportVariants::for_job(&job.kind, &job.params)? {
+        let failed: Vec<JobItemRecord> = state
             .jobs
             .list_items(id)
             .await?
             .into_iter()
             .filter(|item| item.status == JobItemStatus::Failed)
-            .map(|item| item.asset_id)
             .collect();
-        validate_export_job(&ctx.immich, &job.params, &failed_asset_ids).await?;
+        variants
+            .validate_items(&job.kind, &ctx.immich, &failed)
+            .await?;
     }
     let retried = state
         .jobs

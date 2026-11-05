@@ -1,48 +1,45 @@
 use uuid::Uuid;
 
+use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetDetail, BulkIdResponse};
-use crate::immich::{ImmichClient, ImmichError};
 use crate::services::render::RenderIdentity;
 use crate::state::AppState;
 
 use super::replace::{Replacement, replace_original};
-use super::{ExportToImmichBody, StackPrimary, immich_metadata};
+use super::stack::stack_with_original;
+use super::{ExportToImmichBody, immich_metadata};
 
 pub(super) struct Finished {
     pub warnings: Vec<String>,
     pub original_trashed: bool,
 }
 
+pub(super) struct Uploaded<'a> {
+    pub original: &'a AssetDetail,
+    pub body: &'a ExportToImmichBody,
+    pub id: Uuid,
+    pub status: &'a str,
+    pub variant: i64,
+}
+
 pub(super) async fn finish_upload(
     state: &AppState,
     identity: RenderIdentity,
     immich: &ImmichClient,
-    original: &AssetDetail,
-    body: &ExportToImmichBody,
-    new_id: Uuid,
-    upload_status: &str,
+    upload: Uploaded<'_>,
 ) -> Finished {
-    let mut warnings = run_post_upload(
-        state,
-        identity,
-        immich,
-        original,
-        body,
-        new_id,
-        upload_status,
-    )
-    .await;
-    if !body.replace_original {
+    let mut warnings = run_post_upload(state, identity, immich, &upload).await;
+    if !upload.body.replace_original {
         return Finished {
             warnings,
             original_trashed: false,
         };
     }
     let replacement = Replacement {
-        original,
-        new_id,
+        original: upload.original,
+        new_id: upload.id,
         step_failed: !warnings.is_empty(),
-        favorite_set: body.favorite,
+        favorite_set: upload.body.favorite,
     };
     let replaced = replace_original(state, identity, immich, replacement).await;
     if let Err(warning) = &replaced {
@@ -58,11 +55,15 @@ async fn run_post_upload(
     state: &AppState,
     identity: RenderIdentity,
     immich: &ImmichClient,
-    original: &AssetDetail,
-    body: &ExportToImmichBody,
-    new_id: Uuid,
-    upload_status: &str,
+    upload: &Uploaded<'_>,
 ) -> Vec<String> {
+    let Uploaded {
+        original,
+        body,
+        id: new_id,
+        status: upload_status,
+        ..
+    } = *upload;
     let mut warnings: Vec<String> = Vec::new();
     let is_duplicate = upload_status.eq_ignore_ascii_case("duplicate");
 
@@ -115,9 +116,7 @@ async fn run_post_upload(
     if body.stack_with_original {
         if original.owned_by_other(identity.owner) {
             warnings.push("Stacking skipped: the original belongs to another Immich user".into());
-        } else if let Err(e) =
-            stack_with_original(immich, original, new_id, body.stack_primary).await
-        {
+        } else if let Err(e) = stack_with_original(state, immich, identity.owner, upload).await {
             warnings.push(format!("Stacking failed: {}", e.short()));
         }
     }
@@ -131,34 +130,4 @@ fn refusals(items: Vec<BulkIdResponse>) -> impl Iterator<Item = String> {
         .filter(|item| !item.success)
         .map(|item| item.error.unwrap_or_else(|| "unknown".into()))
         .filter(|error| error != "duplicate")
-}
-
-async fn stack_with_original(
-    immich: &ImmichClient,
-    original: &AssetDetail,
-    new_id: Uuid,
-    primary: StackPrimary,
-) -> Result<(), ImmichError> {
-    let mut ids: Vec<Uuid> = vec![new_id, original.id.source()];
-    if let Some(stack_id) = original.current_stack_id()
-        && let Ok(stack) = immich.get_stack(stack_id).await
-    {
-        for a in stack.assets {
-            if !ids.contains(&a.id.source()) {
-                ids.push(a.id.source());
-            }
-        }
-    }
-    let primary_id = match primary {
-        StackPrimary::Edited => new_id,
-        StackPrimary::Original => original.id.source(),
-    };
-    if let Some(pos) = ids.iter().position(|i| *i == primary_id) {
-        ids.swap(0, pos);
-    }
-    let created = immich.create_stack(&ids).await?;
-    if created.primary_asset_id != primary_id {
-        immich.update_stack_primary(created.id, primary_id).await?;
-    }
-    Ok(())
 }

@@ -14,7 +14,7 @@ use crate::services::trash;
 use crate::state::AppState;
 use crate::telemetry::ErrorChain;
 
-use super::post_upload::finish_upload;
+use super::post_upload::{Uploaded, finish_upload};
 use super::*;
 
 #[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
@@ -79,6 +79,8 @@ pub struct ExportImmichRequest<'a> {
     pub idempotency_key: Option<String>,
     pub priority: RenderPriority,
     pub seq: Seq,
+    pub preset: Option<&'a str>,
+    pub variant: i64,
 }
 
 pub async fn export_to_immich(
@@ -115,7 +117,8 @@ pub async fn export_to_immich(
                     Err(AppError::Conflict("export already in progress".into()))
                 }
                 ExportJobStatus::Uploaded => {
-                    resume_export_job(state, immich, identity, job, body, existing).await
+                    resume_export_job(state, immich, identity, job, body, existing, req.variant)
+                        .await
                 }
                 ExportJobStatus::Completed => Ok(record_to_result(&existing)),
             };
@@ -144,6 +147,7 @@ pub async fn export_to_immich(
             original: &original.original_file_name,
             date: capture_date(&original),
             seq: req.seq,
+            preset: req.preset,
         });
         let filename = resolve_filename(&stem, rendered.output.extension(), &existing_names);
         let now = Utc::now().to_rfc3339();
@@ -169,8 +173,19 @@ pub async fn export_to_immich(
                 .await?;
         }
 
-        let finished =
-            finish_upload(state, identity, immich, &original, body, new_id, &status).await;
+        let finished = finish_upload(
+            state,
+            identity,
+            immich,
+            Uploaded {
+                original: &original,
+                body,
+                id: new_id,
+                status: &status,
+                variant: req.variant,
+            },
+        )
+        .await;
         let warnings: Vec<String> = rendered
             .warnings
             .into_iter()
@@ -265,6 +280,7 @@ async fn resume_export_job(
     job: ExportJobKey<'_>,
     body: &ExportToImmichBody,
     existing: ExportJobRecord,
+    variant: i64,
 ) -> Result<ExportToImmichResult, AppError> {
     let Some(new_id) = existing.immich_asset_id else {
         tracing::error!(asset = %job.asset_id, "export job record has no immich asset id");
@@ -276,10 +292,13 @@ async fn resume_export_job(
         state,
         identity,
         immich,
-        &original,
-        body,
-        new_id,
-        &upload_status,
+        Uploaded {
+            original: &original,
+            body,
+            id: new_id,
+            status: &upload_status,
+            variant,
+        },
     )
     .await;
     let warnings: Vec<String> = existing

@@ -24,6 +24,7 @@ enum Token {
     Name,
     Date,
     Seq,
+    Preset,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +50,7 @@ pub struct NameContext<'a> {
     pub original: &'a str,
     pub date: Option<NaiveDate>,
     pub seq: Seq,
+    pub preset: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +88,7 @@ impl NameTemplate {
                 "name" => Token::Name,
                 "date" => Token::Date,
                 "seq" => Token::Seq,
+                "preset" => Token::Preset,
                 other => return Err(invalid(format!("Unknown filename token {{{other}}}"))),
             };
             parts.push(Part::Token(token));
@@ -109,6 +112,7 @@ impl NameTemplate {
                     .date
                     .map_or_else(|| UNDATED.into(), |d| d.format("%Y-%m-%d").to_string()),
                 Part::Token(Token::Seq) => format!("{:0width$}", ctx.seq.position),
+                Part::Token(Token::Preset) => ctx.preset.map(clean_name).unwrap_or_default(),
             })
             .collect();
         let trimmed = rendered.trim_matches(|c: char| c.is_whitespace() || c == '.');
@@ -121,8 +125,11 @@ impl NameTemplate {
 }
 
 fn clean_stem(original: &str) -> String {
-    let stem = original.rsplit_once('.').map_or(original, |(s, _)| s);
-    stem.chars()
+    clean_name(original.rsplit_once('.').map_or(original, |(s, _)| s))
+}
+
+pub(super) fn clean_name(name: &str) -> String {
+    name.chars()
         .map(|c| if forbidden(c) { '_' } else { c })
         .collect()
 }
@@ -202,6 +209,7 @@ mod tests {
             original: case["original"].as_str().unwrap_or("IMG_0001.ARW"),
             date,
             seq,
+            preset: case["preset"].as_str(),
         }))
     }
 
