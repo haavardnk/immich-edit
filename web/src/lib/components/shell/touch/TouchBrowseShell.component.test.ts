@@ -1,6 +1,6 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
-import { accountDrawer } from '#lib/components/shell/touch/accountDrawer.svelte.ts';
+import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
 import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
 import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
 import { jobs } from '#lib/stores/jobs.svelte.ts';
@@ -247,11 +247,11 @@ describe('TouchBrowseShell', () => {
 
   it('floats a jobs pill while jobs run and opens the jobs drawer from it', async () => {
     await render();
-    expect(byLabel('Jobs: Export to Immich · 3 of 12')).toBeNull();
+    expect(byLabel('Jobs: Exporting 3 of 12')).toBeNull();
 
     jobs.jobs = [job('export_immich')];
     await settle();
-    const pill = byLabel('Jobs: Export to Immich · 3 of 12');
+    const pill = byLabel('Jobs: Exporting 3 of 12');
     expect(pill).not.toBeNull();
 
     pill?.click();

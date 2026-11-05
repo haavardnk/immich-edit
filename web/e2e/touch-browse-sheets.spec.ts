@@ -119,7 +119,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the jobs pill opens a sheet with running jobs first', async ({ page }) => {
     await openWithJobs(page);
 
-    const pill = page.getByRole('button', { name: /^Jobs: Export to Immich/ });
+    const pill = page.getByRole('button', { name: /^Jobs: Exporting/ });
     await pill.tap();
     await expectLargeDetent(page, 'Jobs');
     const sheet = page.getByRole('dialog', { name: 'Jobs' });

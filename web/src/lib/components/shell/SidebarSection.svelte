@@ -19,10 +19,10 @@
 
 <Collapsible.Root bind:open={() => expanded, () => onToggle()}>
   <Collapsible.Trigger
-    class="hover:bg-subtle hover:text-primary flex w-full place-items-center gap-4 rounded-e-full py-3 ps-5 transition-[padding] delay-100 duration-100"
+    class="hover:bg-subtle hover:text-primary flex w-full place-items-center gap-4 rounded-e-full py-3 ps-5 transition-[padding] delay-100 duration-100 wide:h-11 wide:rounded-[10px] wide:py-0 wide:ps-3"
   >
     <Icon {icon} size="1.375em" class="shrink-0" aria-hidden="true" />
-    <span class="flex-1 truncate text-left text-sm font-medium">{label}</span>
+    <span class="flex-1 truncate text-left text-sm font-medium wide:text-[15px]">{label}</span>
     {#if count != null && count > 0}
       <span class="text-xs text-dark/65 tabular-nums">{count}</span>
     {/if}

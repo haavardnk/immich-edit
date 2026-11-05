@@ -5,7 +5,7 @@
   import SheetScrim from '#lib/components/sheet/SheetScrim.svelte';
   import AccountBadges from '#lib/components/settings/AccountBadges.svelte';
   import ThemeModeChoice from '#lib/components/settings/ThemeModeChoice.svelte';
-  import { accountDrawer } from '#lib/components/shell/touch/accountDrawer.svelte.ts';
+  import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
   import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { help } from '#lib/commands/app.ts';
   import { layout } from '#lib/device/layout.svelte.ts';

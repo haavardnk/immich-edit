@@ -2,6 +2,7 @@ import type { Job } from '#lib/api/jobs.ts';
 import { describe, expect, it } from 'vitest';
 import {
   jobKindLabel,
+  jobKindVerb,
   jobOutcome,
   jobProgress,
   jobsProgressFraction,
@@ -32,14 +33,20 @@ describe('jobFormat', () => {
     expect(jobsSummary(2)).toBe('2 active');
   });
 
-  it('describes running jobs for the jobs pill', () => {
+  it('describes running jobs for the jobs pill and card', () => {
     expect(
       jobsProgressText([job({ kind: 'export_immich', total: 12, completed: 3, failed: 0 })])
-    ).toBe('Export to Immich · 3 of 12');
+    ).toBe('Exporting 3 of 12');
     expect(jobsProgressText([job({}), job({ id: 'k', total: 6, completed: 1, failed: 0 })])).toBe(
-      '2 jobs running · 3 of 10'
+      '2 jobs · 3 of 10'
     );
-    expect(jobsProgressText([job({ total: 0, completed: 0, failed: 0 })])).toBe('Download ZIP');
+    expect(jobsProgressText([job({ total: 0, completed: 0, failed: 0 })])).toBe('Zipping');
+    expect(
+      jobsProgressText([job({ total: 0, completed: 0, failed: 0 }), job({ id: 'k', total: 0 })])
+    ).toBe('2 jobs running');
+    expect(jobsProgressText([job({ kind: 'mystery', total: 2, completed: 1, failed: 0 })])).toBe(
+      'mystery 1 of 2'
+    );
   });
 
   it('reports the combined fraction of active jobs', () => {
@@ -54,6 +61,8 @@ describe('jobFormat', () => {
   it('labels known kinds and passes unknown kinds through', () => {
     expect(jobKindLabel('download_zip')).toBe('Download ZIP');
     expect(jobKindLabel('mystery')).toBe('mystery');
+    expect(jobKindVerb('apply_preset')).toBe('Applying preset');
+    expect(jobKindVerb('mystery')).toBe('mystery');
   });
 
   it('reports progress and outcome', () => {

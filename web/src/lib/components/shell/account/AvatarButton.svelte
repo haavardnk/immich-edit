@@ -1,6 +1,6 @@
 <script lang="ts">
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
-  import { accountDrawer } from '#lib/components/shell/touch/accountDrawer.svelte.ts';
+  import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { Avatar, Button } from '@immich/ui';
