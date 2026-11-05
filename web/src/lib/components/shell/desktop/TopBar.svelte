@@ -5,6 +5,7 @@
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
+  import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
   import ThemeToggle from '#lib/components/shell/ThemeToggle.svelte';
   import {
     ControlBar,
@@ -13,9 +14,8 @@
     ControlBarOverflow,
     IconButton
   } from '@immich/ui';
-  import { mdiMenu, mdiCogOutline, mdiClose, mdiFormatListChecks } from '@mdi/js';
+  import { mdiMenu, mdiFormatListChecks } from '@mdi/js';
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { SearchInput } from '#lib/browse/searchInput.svelte.ts';
 
@@ -24,14 +24,6 @@
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
 
   const search = new SearchInput('/photos');
-
-  function toggleSettings(): void {
-    if (onSettings) {
-      window.history.back();
-    } else {
-      void goto('/settings');
-    }
-  }
 </script>
 
 <ControlBar
@@ -98,16 +90,6 @@
       {/if}
     </div>
 
-    <IconButton
-      size="medium"
-      variant="ghost"
-      color={onSettings ? 'primary' : 'secondary'}
-      shape="rectangle"
-      icon={onSettings ? mdiClose : mdiCogOutline}
-      title={onSettings ? 'Close settings' : 'Settings & diagnostics'}
-      aria-label={onSettings ? 'Close settings' : 'Settings'}
-      aria-pressed={onSettings}
-      onclick={toggleSettings}
-    />
+    <SettingsButton />
   </ControlBarOverflow>
 </ControlBar>

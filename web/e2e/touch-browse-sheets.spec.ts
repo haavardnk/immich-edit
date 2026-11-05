@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
 import { json, numberedAssets } from './helpers';
-import { avatar, mockLibrary, open, openDrawer } from './touchShell';
+import { avatar, mockLibrary, open, openDrawer, tabBar } from './touchShell';
 
 const GREEN = { id: 'tag-green', name: 'green', value: 'immich-edit/label/green' };
 
@@ -119,7 +119,10 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the jobs pill opens a sheet with running jobs first', async ({ page }) => {
     await openWithJobs(page);
 
-    const pill = page.getByRole('button', { name: /^Jobs: Export to Immich/ });
+    const pill = page.getByRole('button', { name: /^Jobs: Exporting/ });
+    await expect(pill).toBeVisible();
+    const [pillBox, navBox] = await Promise.all([pill.boundingBox(), tabBar(page).boundingBox()]);
+    expect((pillBox?.y ?? 0) + (pillBox?.height ?? 0)).toBeLessThanOrEqual(navBox?.y ?? 0);
     await pill.tap();
     await expectLargeDetent(page, 'Jobs');
     const sheet = page.getByRole('dialog', { name: 'Jobs' });

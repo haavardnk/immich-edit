@@ -7,13 +7,15 @@
     type JobItem,
     type JobItemStatus
   } from '#lib/api/jobs.ts';
-  import { jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
+  import { jobEtaText, jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
   import Notice from '#lib/components/Notice.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
   import { mdiChevronDown, mdiChevronRight, mdiCancel, mdiDownload } from '@mdi/js';
   import { Badge, IconButton, ProgressBar, type Color } from '@immich/ui';
 
   let { job }: { job: Job } = $props();
+
+  const eta = $derived(jobEtaText(job));
 
   function statusColor(status: Job['status']): Color {
     switch (status) {
@@ -80,6 +82,9 @@
       />
       <div class="mt-1 text-[10px] text-dark/65 touch:text-xs">
         {job.completed + job.failed} / {job.total}
+        {#if eta}
+          · {eta}
+        {/if}
         {#if job.failed > 0}
           · <span class="text-danger-800">{job.failed} failed</span>
         {/if}

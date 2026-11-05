@@ -96,6 +96,16 @@ describe('JobList layout parity', () => {
     expect(found.sheet).toEqual(mergeControls(found.list, found.actions));
   });
 
+  it('shows the ETA of a running job in its row', async () => {
+    jobs.jobs = [{ ...job('run', 'export_immich', 'running'), eta_secs: 30 }];
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const destroy = layout('list', JobList, {}).render(target);
+    expect(target.textContent).toContain('1 / 2 · <1 min left');
+    await destroy();
+    target.remove();
+  });
+
   it('lists running jobs before finished ones only when grouped', async () => {
     jobs.jobs = [job('zip', 'download_zip', 'completed'), job('run', 'export_immich', 'running')];
     const headings = async (grouped: boolean): Promise<string[]> => {

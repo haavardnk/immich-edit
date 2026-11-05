@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import AccountDrawer from '#lib/components/shell/touch/AccountDrawer.svelte';
+  import AccountDrawer from '#lib/components/shell/account/AccountDrawer.svelte';
   import BottomNav from '#lib/components/shell/touch/BottomNav.svelte';
   import JobsPill from '#lib/components/shell/touch/JobsPill.svelte';
-  import { accountDrawer } from '#lib/components/shell/touch/accountDrawer.svelte.ts';
+  import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
   import { hideBarsOnScroll } from '#lib/components/shell/touch/barsHide.ts';
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
