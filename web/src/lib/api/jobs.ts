@@ -42,6 +42,8 @@ export interface Job {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  eta_secs?: number | null;
+  item_ms?: number | null;
 }
 
 export interface JobItemResult {

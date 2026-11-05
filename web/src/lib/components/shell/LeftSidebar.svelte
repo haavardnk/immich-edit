@@ -33,14 +33,14 @@
 
 <aside
   aria-label="Library"
-  class="flex h-full w-64 min-h-0 flex-col overflow-hidden bg-light-50 text-dark"
+  class="flex h-full w-64 min-h-0 flex-col overflow-hidden bg-light-50 text-dark wide:w-full"
 >
   <div
-    class="shrink-0 px-5 pb-2 pt-5 text-[10px] font-semibold uppercase text-dark/65 dark:text-light-950/35"
+    class="shrink-0 px-5 pb-2 pt-5 text-[10px] font-semibold uppercase text-dark/65 dark:text-light-950/35 wide:hidden"
   >
     Library
   </div>
-  <div class="flex-1 min-h-0 space-y-1 overflow-y-auto scrollbar-hidden pe-5">
+  <div class="flex-1 min-h-0 space-y-1 overflow-y-auto scrollbar-hidden pe-5 wide:px-2.5">
     <SidebarLink
       href="/photos"
       icon={mdiImageMultipleOutline}

@@ -108,6 +108,17 @@ describe('Shell', () => {
     expect(routeContent()?.parentElement?.tagName).toBe('MAIN');
   });
 
+  it('wraps a browse route in the wide shell on a wide touch layout', () => {
+    layoutState.mode = 'touch';
+    layoutState.wide = true;
+    render('/photos');
+
+    expect(target.querySelector('[aria-label="Global navigation"]')).toBeNull();
+    expect(target.querySelector('nav[aria-label="Main"]')).toBeNull();
+    expect(target.querySelector('aside[aria-label="Library"]')).not.toBeNull();
+    expect(routeContent()?.parentElement?.tagName).toBe('MAIN');
+  });
+
   it('keeps an editor route bare on a compact layout', () => {
     layoutState.mode = 'touch';
     render('/assets/a1');

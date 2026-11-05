@@ -1,6 +1,6 @@
 <script lang="ts">
   import AccountBadges from '#lib/components/settings/AccountBadges.svelte';
-  import ImmichServerLine from '#lib/components/shell/touch/ImmichServerLine.svelte';
+  import ImmichServerLine from '#lib/components/shell/account/ImmichServerLine.svelte';
   import { session } from '#lib/stores/session.svelte.ts';
   import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { mdiAccountCircleOutline, mdiLogoutVariant } from '@mdi/js';

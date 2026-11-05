@@ -217,18 +217,14 @@ test.describe('albums page on touch', { tag: '@touch' }, () => {
     await cancelWhileCreating(page, tap);
   });
 
-  test(
-    'the account drawer names the Immich server for a non-admin',
-    { tag: '@phone' },
-    async ({ page }) => {
-      await openAlbums(page, false);
-      const panel = await openDrawer(page);
-      await expect(
-        panel.getByText('photos.example.net · Immich v3.1.0', { exact: true })
-      ).toBeVisible();
-      await expect(drawer(page).getByText('admin', { exact: true })).toHaveCount(0);
-    }
-  );
+  test('the account drawer names the Immich server for a non-admin', async ({ page }) => {
+    await openAlbums(page, false);
+    const panel = await openDrawer(page);
+    await expect(
+      panel.getByText('photos.example.net · Immich v3.1.0', { exact: true })
+    ).toBeVisible();
+    await expect(drawer(page).getByText('admin', { exact: true })).toHaveCount(0);
+  });
 });
 
 test.describe('albums page in phone landscape', { tag: ['@touch', '@phone'] }, () => {

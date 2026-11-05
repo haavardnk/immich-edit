@@ -244,6 +244,10 @@ mod tests {
             cancelled_at: None,
             created_at: String::new(),
             updated_at: String::new(),
+            started_at: None,
+            started_done: 0,
+            eta_secs: None,
+            item_ms: None,
         }
     }
 

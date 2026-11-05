@@ -8,6 +8,7 @@ use uuid::fmt::Hyphenated;
 
 mod cancel;
 mod credentials;
+mod eta;
 mod finalize;
 mod retry;
 
@@ -66,6 +67,16 @@ pub struct JobRecord {
     pub cancelled_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(skip)]
+    pub started_at: Option<String>,
+    #[serde(skip)]
+    pub started_done: i64,
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub eta_secs: Option<u64>,
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub item_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -194,13 +205,14 @@ impl JobStore {
     }
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
-        Ok(sqlx::query_as::<_, JobRecord>(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
+        let job = sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, started_at, started_done, user_id, server_epoch \
              FROM jobs WHERE id = ?1",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
-        .await?)
+        .await?;
+        Ok(job.map(|job| job.with_eta(Utc::now())))
     }
 
     pub async fn list_jobs(
@@ -208,14 +220,16 @@ impl JobStore {
         owner: Uuid,
         limit: i64,
     ) -> Result<Vec<JobRecord>, JobStoreError> {
-        Ok(sqlx::query_as::<_, JobRecord>(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
+        let jobs = sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, started_at, started_done, user_id, server_epoch \
              FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
         .bind(owner.to_string())
         .fetch_all(&self.pool)
-        .await?)
+        .await?;
+        let now = Utc::now();
+        Ok(jobs.into_iter().map(|job| job.with_eta(now)).collect())
     }
 
     pub async fn list_items(&self, job_id: Uuid) -> Result<Vec<JobItemRecord>, JobStoreError> {
@@ -249,7 +263,8 @@ impl JobStore {
 
         if let Some(item) = &item {
             let changed = sqlx::query(
-                "UPDATE jobs SET status = 'running', updated_at = ? WHERE id = ? AND status = 'pending'",
+                "UPDATE jobs SET status = 'running', updated_at = ?1, started_at = ?1, started_done = completed + failed \
+                 WHERE id = ?2 AND status = 'pending'",
             )
             .bind(&now)
             .bind(item.job_id.to_string())

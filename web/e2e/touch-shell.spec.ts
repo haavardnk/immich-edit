@@ -9,11 +9,26 @@ import {
   EDITS,
   expectTab,
   expectTargets,
+  mockLibrary,
   open,
   openDrawer,
   tab,
   tabBar
 } from './touchShell';
+
+const RUNNING_JOB = {
+  id: 'job-1',
+  kind: 'export_immich',
+  status: 'running',
+  target: {},
+  params: {},
+  total: 4,
+  completed: 1,
+  failed: 0,
+  cancelled_at: null,
+  created_at: '2026-11-01T00:00:00Z',
+  updated_at: '2026-11-01T00:00:01Z'
+};
 
 test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the tab bar switches tabs and marks the current one', async ({ page }) => {
@@ -220,7 +235,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await page.route('**/api/jobs', (route) => route.fulfill(json([running])));
     await page.reload();
 
-    const pill = page.getByRole('button', { name: 'Jobs: Export to Immich · 3 of 12' });
+    const pill = page.getByRole('button', { name: 'Jobs: Exporting 3 of 12' });
     await expect(pill).toBeVisible();
     const [pillBox, navBox] = await Promise.all([pill.boundingBox(), tabBar(page).boundingBox()]);
     expect((pillBox?.y ?? 0) + (pillBox?.height ?? 0)).toBeLessThanOrEqual(navBox?.y ?? 0);
@@ -407,13 +422,88 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
 });
 
 test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, () => {
-  test('landscape keeps the desktop shell and renders the index pages', async ({ page }) => {
+  test('landscape puts the brand and search on top and the account and running jobs at the foot of a touch-sized sidebar', async ({
+    page
+  }) => {
+    await mockLibrary(page, { assets: numberedAssets(40) });
+    await page.route('**/api/jobs', (route) => route.fulfill(json([RUNNING_JOB])));
+    await page.route('**/api/jobs/job-1/events', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/event-stream', body: '' })
+    );
+    await page.goto('/photos');
+    await expect(page.locator('html')).toHaveAttribute('data-wide');
+
+    const sidebar = page.getByRole('complementary', { name: 'Library' });
+    await expect(sidebar).toBeVisible();
+    expect((await page.locator('main').boundingBox())?.x).toBeCloseTo(280, 0);
+    await expectTargets(sidebar.getByRole('link'), 44);
+    await expect(tabBar(page)).toHaveCount(0);
+    await expect(page.locator('[aria-label="Global navigation"]')).toHaveCount(0);
+
+    const brand = page.getByRole('img', { name: 'immich-edit' });
+    const search = page.getByRole('search');
+    await expect(brand).toBeVisible();
+    await expect(search).toBeVisible();
+    const [brandBox, searchBox, sidebarBox, headerBox] = await Promise.all([
+      brand.boundingBox(),
+      search.boundingBox(),
+      sidebar.boundingBox(),
+      page.locator('main header').first().boundingBox()
+    ]);
+    expect(brandBox?.y ?? 0).toBeLessThan(searchBox?.y ?? 0);
+    expect((searchBox?.y ?? 0) + (searchBox?.height ?? 0)).toBeLessThanOrEqual(sidebarBox?.y ?? 0);
+    expect((searchBox?.x ?? 0) + (searchBox?.width ?? 0)).toBeLessThanOrEqual(280);
+    expect(headerBox?.y).toBe(0);
+
+    await expect(page.getByRole('button', { name: 'Jobs', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+
+    await expect(page.getByText('Test User', { exact: true })).toBeVisible();
+    await expect(page.getByText('photos.example.net', { exact: true })).toBeVisible();
+    await expect(page.getByText(new URL(page.url()).host, { exact: true })).toHaveCount(0);
+    const jobsCard = page.getByRole('button', { name: 'Jobs: Exporting 1 of 4' });
+    await expect(jobsCard).toBeVisible();
+    await expect(avatar(page)).toHaveCount(1);
+    const [card, account] = await Promise.all([jobsCard.boundingBox(), avatar(page).boundingBox()]);
+    expect((card?.y ?? 0) + (card?.height ?? 0)).toBeLessThanOrEqual(account?.y ?? 0);
+    const viewportHeight = page.viewportSize()?.height ?? 0;
+    expect((account?.y ?? 0) + (account?.height ?? 0)).toBeGreaterThan(viewportHeight - 70);
+
+    await jobsCard.tap();
+    const jobsDialog = page.getByRole('dialog', { name: 'Jobs' });
+    await expect(jobsDialog).toBeVisible();
+    await jobsDialog.getByRole('button', { name: 'Close jobs' }).tap();
+    await expect(jobsDialog).toBeHidden();
+
+    await openDrawer(page);
+    await drawer(page).getByRole('button', { name: 'Close account menu' }).tap();
+    await expect(drawer(page)).toBeHidden();
+
+    await page.getByRole('button', { name: 'Settings', exact: true }).tap();
+    await expect(page).toHaveURL('/settings');
+    await expect(page.getByRole('button', { name: 'Close settings' })).toBeVisible();
+  });
+
+  test('landscape uses the sidebar shell, searches from it and renders the index pages', async ({
+    page
+  }) => {
     await open(page, '/library');
 
     await expect(page.locator('html')).toHaveAttribute('data-wide');
-    await expect(page.locator('[aria-label="Global navigation"]')).toBeVisible();
+    await expect(page.locator('[aria-label="Global navigation"]')).toHaveCount(0);
     await expect(tabBar(page)).toHaveCount(0);
     await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(5);
+
+    const field = page.getByRole('search').getByRole('textbox', { name: 'Search your photos' });
+    await field.tap();
+    await field.fill('fjord');
+    await field.press('Enter');
+    await expect(page).toHaveURL('/search?q=fjord');
+    await expect(field).toHaveValue('fjord');
 
     await page.goto('/albums');
     await expect(page.getByRole('list', { name: 'Albums' }).getByRole('link')).toHaveCount(2);
