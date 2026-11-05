@@ -26,7 +26,7 @@ mod snapshots;
 
 pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
-pub use export_presets::ExportPresetRecord;
+pub use export_presets::{ExportDestination, ExportPresetRecord, ExportPresetWrite};
 pub use history::{EditHistoryEntry, RestoreOutcome};
 pub use preferences::{ClickTarget, Preferences, PreferencesPatch, SectionEntry};
 pub use saved_views::SavedViewRecord;

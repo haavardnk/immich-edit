@@ -51,7 +51,7 @@ impl JobStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::job_store::tests::{create, store};
+    use crate::services::job_store::tests::{create, create_items, item, store};
     use serde_json::json;
 
     async fn settle_next(store: &JobStore, succeed: bool) -> JobItemRecord {
@@ -166,6 +166,21 @@ mod tests {
 
         assert_eq!(retried.status, JobStatus::Pending);
         assert_eq!(retried.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn a_retried_variant_item_keeps_its_variant() {
+        let store = store().await;
+        let job = create_items(&store, &[item("a", 1, 0), item("a", 1, 1)]).await;
+        settle_next(&store, true).await;
+        let failed = settle_next(&store, false).await;
+        assert_eq!(failed.variant, 1);
+
+        retry(&store, job.id).await.unwrap();
+
+        let reclaimed = store.claim_next_item().await.unwrap().unwrap();
+        assert_eq!(reclaimed.id, failed.id);
+        assert_eq!((reclaimed.position, reclaimed.variant), (1, 1));
     }
 
     #[tokio::test]

@@ -66,12 +66,13 @@ impl JobSeed {
 
     pub async fn create(self, state: &AppState, token: &str) -> JobRecord {
         let ctx = state.auth.authenticate(token).await.unwrap().unwrap();
-        let items: Vec<NewJobItem> = self
-            .assets
-            .into_iter()
-            .map(|asset_id| NewJobItem {
+        let items: Vec<NewJobItem> = (1_i64..)
+            .zip(self.assets)
+            .map(|(position, asset_id)| NewJobItem {
                 asset_id,
                 idempotency_key: None,
+                position,
+                variant: 0,
             })
             .collect();
         state

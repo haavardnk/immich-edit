@@ -1,4 +1,4 @@
-use crate::routes::names::display_name;
+use crate::names::display_name;
 
 const MAX_URL_BYTES: usize = 2048;
 

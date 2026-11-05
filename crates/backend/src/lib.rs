@@ -5,6 +5,7 @@ pub mod error;
 pub mod host;
 pub mod immich;
 pub mod lens_profile;
+pub mod names;
 pub mod routes;
 pub mod safe_path;
 pub mod services;

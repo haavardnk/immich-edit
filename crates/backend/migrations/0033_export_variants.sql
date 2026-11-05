@@ -1,0 +1,3 @@
+ALTER TABLE export_presets ADD COLUMN destination TEXT NOT NULL DEFAULT 'download';
+
+ALTER TABLE job_items ADD COLUMN variant INTEGER NOT NULL DEFAULT 0;

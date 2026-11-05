@@ -10,6 +10,7 @@ interface NamingCase {
   date?: string | null;
   position?: number;
   total?: number;
+  preset?: string | null;
   expect?: string;
   error?: string;
 }
@@ -53,7 +54,8 @@ describe('filename templates', () => {
       original: c.original ?? 'IMG_0001.ARW',
       date: c.date ?? null,
       position: c.position ?? 1,
-      total: c.total ?? 1
+      total: c.total ?? 1,
+      preset: c.preset ?? null
     });
     expect(name).toBe(c.expect);
   });

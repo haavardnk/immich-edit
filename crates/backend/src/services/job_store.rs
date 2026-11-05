@@ -82,6 +82,7 @@ pub struct JobItemRecord {
     pub idempotency_key: Option<String>,
     pub attempts: i64,
     pub position: i64,
+    pub variant: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -90,6 +91,8 @@ pub struct JobItemRecord {
 pub struct NewJobItem {
     pub asset_id: String,
     pub idempotency_key: Option<String>,
+    pub position: i64,
+    pub variant: i64,
 }
 
 pub struct NewJob<'a> {
@@ -167,16 +170,17 @@ impl JobStore {
 
         self.insert_credential(&mut tx, id, cred, auth_kind).await?;
 
-        for (position, item) in (1_i64..).zip(items) {
+        for item in items {
             sqlx::query(
-                "INSERT INTO job_items (id, job_id, asset_id, status, idempotency_key, attempts, position, created_at, updated_at) \
-                 VALUES (?, ?, ?, 'pending', ?, 0, ?, ?, ?)",
+                "INSERT INTO job_items (id, job_id, asset_id, status, idempotency_key, attempts, position, variant, created_at, updated_at) \
+                 VALUES (?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?)",
             )
             .bind(Uuid::new_v4().to_string())
             .bind(id.to_string())
             .bind(&item.asset_id)
             .bind(item.idempotency_key.as_deref())
-            .bind(position)
+            .bind(item.position)
+            .bind(item.variant)
             .bind(&now)
             .bind(&now)
             .execute(&mut *tx)
@@ -216,8 +220,8 @@ impl JobStore {
 
     pub async fn list_items(&self, job_id: Uuid) -> Result<Vec<JobItemRecord>, JobStoreError> {
         Ok(sqlx::query_as::<_, JobItemRecord>(
-            "SELECT id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, created_at, updated_at \
-             FROM job_items WHERE job_id = ? ORDER BY position ASC, created_at ASC",
+            "SELECT id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, variant, created_at, updated_at \
+             FROM job_items WHERE job_id = ? ORDER BY position ASC, variant ASC, created_at ASC",
         )
         .bind(job_id.to_string())
         .fetch_all(&self.pool)
@@ -235,9 +239,9 @@ impl JobStore {
                  WHERE ji.status = 'pending' \
                    AND j.status IN ('pending', 'running') \
                    AND j.cancelled_at IS NULL \
-                 ORDER BY ji.created_at ASC, ji.position ASC LIMIT 1 \
+                 ORDER BY ji.created_at ASC, ji.position ASC, ji.variant ASC LIMIT 1 \
              ) \
-             RETURNING id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, created_at, updated_at",
+             RETURNING id, job_id, asset_id, status, error, result_json, idempotency_key, attempts, position, variant, created_at, updated_at",
         )
         .bind(&now)
         .fetch_optional(&self.pool)
@@ -317,13 +321,23 @@ mod tests {
     }
 
     pub(super) async fn create(store: &JobStore, ids: &[&str]) -> JobRecord {
-        let items: Vec<NewJobItem> = ids
-            .iter()
-            .map(|id| NewJobItem {
-                asset_id: (*id).to_string(),
-                idempotency_key: None,
-            })
+        let items: Vec<NewJobItem> = (1_i64..)
+            .zip(ids)
+            .map(|(position, id)| item(id, position, 0))
             .collect();
+        create_items(store, &items).await
+    }
+
+    pub(super) fn item(asset_id: &str, position: i64, variant: i64) -> NewJobItem {
+        NewJobItem {
+            asset_id: asset_id.to_string(),
+            idempotency_key: None,
+            position,
+            variant,
+        }
+    }
+
+    pub(super) async fn create_items(store: &JobStore, items: &[NewJobItem]) -> JobRecord {
         store
             .create_job(NewJob {
                 owner: Uuid::nil(),
@@ -332,7 +346,7 @@ mod tests {
                 kind: "test",
                 target: &json!(null),
                 params: &json!(null),
-                items: &items,
+                items,
                 cred: b"test-key",
                 auth_kind: AuthKind::ApiKey,
             })
@@ -380,6 +394,40 @@ mod tests {
         assert_eq!(listed, [("c".into(), 1), ("a".into(), 2), ("b".into(), 3)]);
         let claimed = store.claim_next_item().await.unwrap().unwrap();
         assert_eq!((claimed.asset_id.as_str(), claimed.position), ("c", 1));
+    }
+
+    #[tokio::test]
+    async fn variants_of_a_photo_run_together_in_variant_order() {
+        let store = store().await;
+        let job = create_items(
+            &store,
+            &[
+                item("b", 2, 1),
+                item("a", 1, 1),
+                item("b", 2, 0),
+                item("a", 1, 0),
+            ],
+        )
+        .await;
+        let order = |items: Vec<JobItemRecord>| -> Vec<(String, i64, i64)> {
+            items
+                .into_iter()
+                .map(|item| (item.asset_id, item.position, item.variant))
+                .collect()
+        };
+        let want: Vec<(String, i64, i64)> = vec![
+            ("a".into(), 1, 0),
+            ("a".into(), 1, 1),
+            ("b".into(), 2, 0),
+            ("b".into(), 2, 1),
+        ];
+
+        assert_eq!(order(store.list_items(job.id).await.unwrap()), want);
+        let mut claimed = Vec::new();
+        while let Some(next) = store.claim_next_item().await.unwrap() {
+            claimed.push(next);
+        }
+        assert_eq!(order(claimed), want);
     }
 
     #[tokio::test]
