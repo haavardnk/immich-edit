@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { flushSync, onMount, untrack } from 'svelte';
   import { afterNavigate } from '$app/navigation';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import AssetTile from './AssetTile.svelte';
+  import GridSizeHud from '#lib/components/browse/GridSizeHud.svelte';
   import BulkActionBar from './bulk/BulkActionBar.svelte';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -21,6 +22,12 @@
     type AssetGridBox
   } from '#lib/browse/assetGridLayout.ts';
   import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
+  import { stepGrid } from '#lib/browse/gridResize.ts';
+  import { anchoredViewTop, scaleStepper, zoomAnchor } from '#lib/browse/gridZoom.ts';
+  import { listenGridZoom } from '#lib/browse/gridZoomInput.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
+  import { pinchRecognizer, type PinchUpdate } from '#lib/gestures/pinch.ts';
+  import type { Point } from '#lib/gestures/point.ts';
 
   let {
     assets,
@@ -56,7 +63,7 @@
 
   const layout = $derived.by(() => {
     const inner = Math.max(0, gridWidth - PAD * 2);
-    const geometry = createAssetGridLayout(items, inner, browseView.minTile, GAP);
+    const geometry = createAssetGridLayout(items, inner, browseView.rowHeight, GAP);
     return { ...geometry, totalHeight: PAD * 2 + geometry.height };
   });
 
@@ -172,7 +179,7 @@
     if (key === 'ArrowRight') return index + 1;
     if (key === 'ArrowLeft') return index - 1;
     const rows = key.startsWith('Page')
-      ? Math.max(1, Math.floor(parentHeight / browseView.minTile))
+      ? Math.max(1, Math.floor(parentHeight / browseView.rowHeight))
       : 1;
     return verticalAssetIndex(layout, index, key === 'ArrowUp' || key === 'PageUp' ? -rows : rows);
   }
@@ -206,6 +213,55 @@
     extendKey = keyHeld('extend', e);
   }
 
+  function inScroller(at: Point | null): at is Point {
+    if (!at || !scrollParent) return false;
+    const box = scrollParent.getBoundingClientRect();
+    return at.y >= box.top && at.y <= box.bottom && at.x >= box.left && at.x <= box.right;
+  }
+
+  function holdAnchor(at: Point | null): () => void {
+    if (!root || !scrollParent) return () => {};
+    measure();
+    const origin = root.getBoundingClientRect();
+    const anchor = zoomAnchor(layout, {
+      point: inScroller(at) ? { x: at.x - origin.left - PAD, y: at.y - origin.top - PAD } : null,
+      activeIndex: items.findIndex((asset) => asset.id === browseView.activeId),
+      viewTop: viewTop - PAD,
+      viewHeight: parentHeight
+    });
+    if (!anchor) return () => {};
+    pendingRestore = null;
+    return () => {
+      flushSync();
+      measure();
+      const top = anchoredViewTop(layout, anchor);
+      if (top === null || !scrollParent) return;
+      scrollParent.scrollTop += top - (viewTop - PAD);
+      measure();
+    };
+  }
+
+  const pinchSteps = scaleStepper();
+
+  function pinchStep(pinch: PinchUpdate): void {
+    stepGrid(pinchSteps.to(pinch.scale), { anchor: { x: pinch.x, y: pinch.y } });
+  }
+
+  const pinchZoom = gestures({
+    touchAction: 'pan-y',
+    pointerTypes: ['touch'],
+    recognizers: [
+      pinchRecognizer({
+        enabled: () => browseView.loupeId === null && !selectingAll,
+        start: (pinch) => {
+          pinchSteps.start();
+          pinchStep(pinch);
+        },
+        move: pinchStep
+      })
+    ]
+  });
+
   function clearRangePreview(): void {
     extendKey = false;
     hoveredId = null;
@@ -227,7 +283,8 @@
       selectAll,
       move,
       reveal: ensureVisible,
-      focusBulkBar: () => bulkBar?.focusFirst()
+      focusBulkBar: () => bulkBar?.focusFirst(),
+      holdAnchor
     })
   );
 
@@ -242,11 +299,15 @@
     pendingRestore = savedTop > 0 ? savedTop : null;
     scrollParent = findScrollParent(root);
     const parentResize = scrollParent ? observeSize(scrollParent, onResize) : undefined;
+    const stopZoom = scrollParent
+      ? listenGridZoom(scrollParent, (steps, at) => stepGrid(steps, { anchor: at, hud: at }))
+      : undefined;
     if (scrollParent) {
       scrollParent.addEventListener('scroll', onScroll, { passive: true });
     }
     return () => {
       parentResize?.destroy?.();
+      stopZoom?.();
       scrollParent?.removeEventListener('scroll', onScroll);
     };
   });
@@ -271,6 +332,7 @@
 <div
   bind:this={root}
   use:observeSize={onResize}
+  {@attach pinchZoom}
   class="relative"
   style:height="{layout.totalHeight}px"
 >
@@ -317,6 +379,7 @@
 {#if loadingMore}
   <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
 {/if}
+<GridSizeHud />
 
 <BulkActionBar
   bind:this={bulkBar}

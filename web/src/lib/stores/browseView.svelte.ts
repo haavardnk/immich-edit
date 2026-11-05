@@ -1,34 +1,31 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
+import {
+  defaultGridSize,
+  gridRowHeight,
+  isGridSize,
+  type GridSize
+} from '#lib/browse/gridSizes.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 
-export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 export type TileInfo = 'none' | 'badges' | 'full';
 
 const TILE_INFO_ORDER: TileInfo[] = ['none', 'badges', 'full'];
-
-const GRID_MIN: Record<GridSize, number> = {
-  sm: 110,
-  md: 150,
-  lg: 220,
-  xl: 320
-};
-
-const SIZE_ORDER: GridSize[] = ['sm', 'md', 'lg', 'xl'];
 
 const STORAGE_KEY = 'immich-edit:browseView';
 
 type Persisted = {
   filtersOpen: boolean;
   filterSections: FilterSectionId[];
-  gridSize: GridSize;
+  gridSizeChoice?: GridSize;
   loupeAutoAdvance: boolean;
   loupeInfoOpen: boolean;
   tileInfo: TileInfo;
 };
 
 class BrowseViewStore {
-  gridSize = $state<GridSize>('md');
+  #chosenSize = $state<GridSize | null>(null);
   activeId = $state<string | null>(null);
   loupeId = $state<string | null>(null);
   loupeInfoOpen = $state(false);
@@ -45,7 +42,8 @@ class BrowseViewStore {
 
   constructor() {
     const stored = readStored<Persisted>(STORAGE_KEY);
-    if (stored?.gridSize && SIZE_ORDER.includes(stored.gridSize)) this.gridSize = stored.gridSize;
+    const size = stored?.gridSizeChoice;
+    if (isGridSize(size)) this.#chosenSize = size;
     if (typeof stored?.loupeAutoAdvance === 'boolean')
       this.loupeAutoAdvance = stored.loupeAutoAdvance;
     if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
@@ -60,27 +58,24 @@ class BrowseViewStore {
     writeStored(STORAGE_KEY, {
       filtersOpen: this.#filtersDocked,
       filterSections: this.filterSections,
-      gridSize: this.gridSize,
+      gridSizeChoice: this.#chosenSize ?? undefined,
       loupeAutoAdvance: this.loupeAutoAdvance,
       loupeInfoOpen: this.loupeInfoOpen,
       tileInfo: this.tileInfo
     } satisfies Persisted);
   }
 
-  get minTile(): number {
-    return GRID_MIN[this.gridSize];
+  get gridSize(): GridSize {
+    return this.#chosenSize ?? defaultGridSize(layout);
+  }
+
+  get rowHeight(): number {
+    return gridRowHeight(this.gridSize, layout.mode);
   }
 
   setGridSize(size: GridSize): void {
-    this.gridSize = size;
+    this.#chosenSize = size;
     this.persist();
-  }
-
-  stepGridSize(delta: number): void {
-    const idx = SIZE_ORDER.indexOf(this.gridSize);
-    const next = Math.min(SIZE_ORDER.length - 1, Math.max(0, idx + delta));
-    const size = SIZE_ORDER[next];
-    if (size) this.setGridSize(size);
   }
 
   setLoupeAutoAdvance(on: boolean): void {
