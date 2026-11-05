@@ -56,6 +56,13 @@ pub fn etag(tag: &str) -> Result<HeaderValue, AppError> {
     header_value(&format!("\"{tag}\""))
 }
 
+pub fn if_match(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(header::IF_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.trim_matches('"').to_string())
+}
+
 pub fn etag_matches(headers: &HeaderMap, etag: &HeaderValue) -> bool {
     headers
         .get(header::IF_NONE_MATCH)

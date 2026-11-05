@@ -15,7 +15,9 @@ pub(super) async fn refresh_raster_refs(
         "SELECT edits_json FROM edits WHERE user_id = ?1 AND asset_id = ?2 \
          UNION ALL \
          SELECT edits_json FROM edits_history \
-         WHERE user_id = ?1 AND asset_id = ?2 AND edits_json IS NOT NULL",
+         WHERE user_id = ?1 AND asset_id = ?2 AND edits_json IS NOT NULL \
+         UNION ALL \
+         SELECT edits_json FROM edit_snapshots WHERE user_id = ?1 AND asset_id = ?2",
     )
     .bind(&owner_str)
     .bind(&asset_str)
@@ -56,7 +58,9 @@ impl EditsStore {
         let rows = sqlx::query(
             "SELECT user_id, asset_id, edits_json FROM edits \
              UNION ALL \
-             SELECT user_id, asset_id, edits_json FROM edits_history WHERE edits_json IS NOT NULL",
+             SELECT user_id, asset_id, edits_json FROM edits_history WHERE edits_json IS NOT NULL \
+             UNION ALL \
+             SELECT user_id, asset_id, edits_json FROM edit_snapshots",
         )
         .fetch_all(&self.pool)
         .await?;

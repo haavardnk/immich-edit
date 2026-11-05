@@ -14,6 +14,10 @@ impl EditsStore {
             .bind(&owner_str)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM edit_snapshots WHERE user_id = ?1")
+            .bind(&owner_str)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM presets WHERE user_id = ?1")
             .bind(&owner_str)
             .execute(&mut *tx)

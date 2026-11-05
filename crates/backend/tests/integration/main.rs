@@ -53,6 +53,7 @@ mod saved_views;
 mod search;
 mod sessions;
 mod setup_oauth;
+mod snapshots;
 mod source;
 mod static_files;
 mod tags;

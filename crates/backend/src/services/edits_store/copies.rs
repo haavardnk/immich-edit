@@ -121,6 +121,11 @@ impl EditsStore {
             .bind(&id_str)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM edit_snapshots WHERE user_id = ?1 AND asset_id = ?2")
+            .bind(&owner_str)
+            .bind(&id_str)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM raster_refs WHERE user_id = ?1 AND asset_id = ?2")
             .bind(&owner_str)
             .bind(&id_str)

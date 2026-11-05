@@ -261,6 +261,18 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         .route("/assets/{id}/edits/history", get(routes::edits::history))
         .route("/assets/{id}/edits/restore", post(routes::edits::restore))
         .route(
+            "/assets/{id}/snapshots",
+            get(routes::snapshots::list).post(routes::snapshots::create),
+        )
+        .route(
+            "/assets/{id}/snapshots/{snapshot_id}",
+            patch(routes::snapshots::rename).delete(routes::snapshots::delete),
+        )
+        .route(
+            "/assets/{id}/snapshots/{snapshot_id}/restore",
+            post(routes::snapshots::restore),
+        )
+        .route(
             "/assets/{id}/edits/white-balance",
             post(routes::edits::white_balance_sample),
         )
