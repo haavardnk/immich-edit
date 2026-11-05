@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::Path;
+use axum::extract::{Path, State};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -8,6 +8,7 @@ use crate::error::AppError;
 use crate::immich::dto::{AlbumDetail, AlbumSummary, BulkIdResponse};
 use crate::names::display_name;
 use crate::routes::auth::AuthCtx;
+use crate::state::AppState;
 
 const MAX_ALBUM_ASSETS: usize = 10_000;
 
@@ -55,19 +56,25 @@ fn source_ids(body: AlbumAssetsBody) -> Result<Vec<Uuid>, AppError> {
 }
 
 pub async fn add_assets(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<AlbumAssetsBody>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
     let ids = source_ids(body)?;
-    Ok(Json(ctx.immich.add_assets_to_album(id, &ids).await?))
+    let resp = ctx.immich.add_assets_to_album(id, &ids).await?;
+    state.search_caches.membership_changed();
+    Ok(Json(resp))
 }
 
 pub async fn remove_assets(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<AlbumAssetsBody>,
 ) -> Result<Json<Vec<BulkIdResponse>>, AppError> {
     let ids = source_ids(body)?;
-    Ok(Json(ctx.immich.remove_assets_from_album(id, &ids).await?))
+    let resp = ctx.immich.remove_assets_from_album(id, &ids).await?;
+    state.search_caches.membership_changed();
+    Ok(Json(resp))
 }

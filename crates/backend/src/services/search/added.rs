@@ -2,12 +2,10 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use chrono::{DateTime, Datelike, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Utc};
 use futures_util::future::try_join_all;
-use lru::LruCache;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -17,8 +15,9 @@ use crate::services::search::cursor::Cursor;
 use crate::services::search::filter::{BrowseFilter, Scope, Visibility};
 use crate::services::search::query::{Direction, MAX_SIZE, PageQuery, Sort};
 use crate::services::search::{SearchPage, Searcher};
+use crate::services::ttl_cache::TtlCache;
 
-const CACHE_CAP: usize = 64;
+const CACHE_CAP: NonZeroUsize = NonZeroUsize::new(64).unwrap();
 const CACHE_TTL: Duration = Duration::from_secs(300);
 const SCAN_CHUNKS: usize = 16;
 const CONCURRENCY: usize = 4;
@@ -31,22 +30,15 @@ struct BucketKey {
     bucket: String,
 }
 
-struct CachedBucket {
-    fetched: Instant,
-    entries: Arc<[Entry]>,
-}
-
 #[derive(Clone)]
 pub struct TimelineCache {
-    inner: Arc<Mutex<LruCache<BucketKey, CachedBucket>>>,
+    inner: TtlCache<BucketKey, Arc<[Entry]>>,
 }
 
 impl Default for TimelineCache {
     fn default() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(CACHE_CAP).unwrap(),
-            ))),
+            inner: TtlCache::new(CACHE_CAP, CACHE_TTL),
         }
     }
 }
@@ -179,7 +171,7 @@ fn overlaps(bucket: &str, after: Option<DateTime<Utc>>, before: Option<DateTime<
     starts_before_end && ends_after_start
 }
 
-fn parse_at(raw: &str) -> Option<DateTime<Utc>> {
+pub(super) fn parse_at(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .map(|at| at.with_timezone(&Utc))
         .ok()
@@ -234,12 +226,11 @@ impl<'a> Timeline<'a> {
                 .join("&"),
             bucket: bucket.time_bucket.clone(),
         };
-        let cache = &self.searcher.timelines.inner;
-        if let Some(hit) = cache.lock().await.get(&key)
-            && hit.fetched.elapsed() < CACHE_TTL
-            && hit.entries.len() as u64 == bucket.count
+        let cache = &self.searcher.caches.timelines.inner;
+        if let Some(hit) = cache.get(&key).await
+            && hit.len() as u64 == bucket.count
         {
-            return Ok(hit.entries.clone());
+            return Ok(hit);
         }
         let assets = self
             .searcher
@@ -261,13 +252,7 @@ impl<'a> Timeline<'a> {
                     .ok_or_else(|| ImmichError::Decode(format!("timeline createdAt {raw:?}")))
             })
             .collect::<Result<Arc<[Entry]>, ImmichError>>()?;
-        cache.lock().await.put(
-            key,
-            CachedBucket {
-                fetched: Instant::now(),
-                entries: entries.clone(),
-            },
-        );
+        cache.put(key, entries.clone()).await;
         Ok(entries)
     }
 

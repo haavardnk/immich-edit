@@ -8,6 +8,7 @@ use crate::immich::dto::{AssetSummary, SearchStatistics};
 use crate::routes::auth::AuthCtx;
 use crate::services::copy_expand::expand_assets;
 use crate::services::search::filter::BrowseFilter;
+use crate::services::search::months::{self, MonthCounts};
 use crate::services::search::query::{CountQuery, PageQuery, SmartQuery, Sort};
 use crate::services::search::suggestions::{self, SuggestionQuery};
 use crate::services::search::window::{self, MAX_RADIUS};
@@ -33,7 +34,7 @@ pub struct SearchWindow {
 pub async fn searcher(state: &AppState, ctx: &AuthCtx) -> Searcher {
     Searcher::connect(
         &state.capabilities,
-        &state.timelines,
+        &state.search_caches,
         ctx.owner,
         ctx.server_epoch,
         &ctx.immich,
@@ -68,6 +69,16 @@ pub async fn statistics(
 ) -> Result<Json<SearchStatistics>, AppError> {
     let total = searcher(&state, &ctx).await.count(&query.filter).await?;
     Ok(Json(SearchStatistics { total }))
+}
+
+pub async fn months(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Json(query): Json<CountQuery>,
+) -> Result<Json<MonthCounts>, AppError> {
+    let searcher = searcher(&state, &ctx).await;
+    let counts = months::count(&searcher, &query.filter).await?;
+    Ok(Json(counts))
 }
 
 pub async fn suggestions(

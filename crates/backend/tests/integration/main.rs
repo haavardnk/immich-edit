@@ -58,6 +58,7 @@ mod rasters;
 mod request_timeout;
 mod saved_views;
 mod search;
+mod search_months;
 mod sessions;
 mod setup_oauth;
 mod snapshots;
