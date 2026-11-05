@@ -270,8 +270,8 @@ test('the editor filmstrip preserves mixed source orientations', async ({ page }
   }
 });
 
-test('the mobile browse shell uses a toggleable 256px sidebar', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('the narrow desktop browse shell uses a toggleable 256px sidebar', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 844 });
   await installMocks(page);
 
   await page.goto('/photos');

@@ -1,12 +1,12 @@
-import { isJobActive, type Job } from '#lib/api/jobs.ts';
+import { isJobActive, JOB_KINDS, type Job } from '#lib/api/jobs.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 const KIND_LABELS: Record<string, string> = {
-  export_immich: 'Export to Immich',
-  download_zip: 'Download ZIP',
-  apply_preset: 'Apply Preset',
-  paste_edits: 'Paste Edits',
-  reset_edits: 'Reset Edits'
+  [JOB_KINDS.exportImmich]: 'Export to Immich',
+  [JOB_KINDS.downloadZip]: 'Download ZIP',
+  [JOB_KINDS.applyPreset]: 'Apply Preset',
+  [JOB_KINDS.pasteEdits]: 'Paste Edits',
+  [JOB_KINDS.resetEdits]: 'Reset Edits'
 };
 
 export function jobKindLabel(kind: string): string {
@@ -28,4 +28,15 @@ export function jobOutcome(job: Job): string {
 
 export function jobsSummary(activeCount: number): string {
   return activeCount > 0 ? `${activeCount} active` : 'No active jobs';
+}
+
+export function jobsProgressText(active: readonly Job[]): string {
+  const done = active.reduce((sum, job) => sum + job.completed + job.failed, 0);
+  const total = active.reduce((sum, job) => sum + job.total, 0);
+  const [only] = active;
+  const subject =
+    only && active.length === 1
+      ? jobKindLabel(only.kind)
+      : `${countOf(active.length, 'job')} running`;
+  return total > 0 ? `${subject} · ${done} of ${total}` : subject;
 }

@@ -7,12 +7,14 @@
     value,
     onInput,
     onSubmit,
-    onClear
+    onClear,
+    onFocus
   }: {
     value: string;
     onInput: (event: Event) => void;
     onSubmit: (event: SubmitEvent) => void;
     onClear: () => void;
+    onFocus?: () => void;
   } = $props();
 </script>
 
@@ -33,6 +35,7 @@
     aria-label="Search your photos"
     {value}
     oninput={onInput}
+    onfocus={onFocus}
   />
   {#if value}
     <div class="absolute inset-y-0 inset-e-0 flex items-center pe-2">

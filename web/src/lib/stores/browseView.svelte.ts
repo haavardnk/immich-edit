@@ -94,7 +94,11 @@ class BrowseViewStore {
   cycleTileInfo(): void {
     const next =
       TILE_INFO_ORDER[(TILE_INFO_ORDER.indexOf(this.tileInfo) + 1) % TILE_INFO_ORDER.length];
-    if (next) this.tileInfo = next;
+    if (next) this.setTileInfo(next);
+  }
+
+  setTileInfo(info: TileInfo): void {
+    this.tileInfo = info;
     this.persist();
   }
 

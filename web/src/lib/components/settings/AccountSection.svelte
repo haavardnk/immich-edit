@@ -1,20 +1,9 @@
 <script lang="ts">
+  import AccountBadges from '#lib/components/settings/AccountBadges.svelte';
   import { session } from '#lib/stores/session.svelte.ts';
-  import { appearance } from '#lib/stores/appearance.svelte.ts';
-  import { logout } from '#lib/api/auth.ts';
+  import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { mdiAccountCircleOutline, mdiLogoutVariant } from '@mdi/js';
-  import { Badge, Icon, IconButton } from '@immich/ui';
-
-  let signingOut = $state(false);
-
-  async function signOut(): Promise<void> {
-    if (signingOut) return;
-    signingOut = true;
-    await logout().catch(() => undefined);
-    session.clear();
-    appearance.reset();
-    window.location.replace('/login');
-  }
+  import { Icon, IconButton } from '@immich/ui';
 </script>
 
 {#if session.user}
@@ -30,14 +19,7 @@
         <div class="truncate text-sm font-medium">{session.user.name || session.user.email}</div>
         <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-dark/65">
           <span class="truncate font-mono">{session.user.email}</span>
-          {#if session.user.is_admin}<Badge size="tiny" color="primary">admin</Badge>{/if}
-          <Badge size="tiny" color="secondary">
-            {session.user.auth_kind === 'password'
-              ? 'password'
-              : session.user.auth_kind === 'oauth'
-                ? 'single sign-on'
-                : 'API key'}
-          </Badge>
+          <AccountBadges user={session.user} />
         </div>
       </div>
       <IconButton
@@ -47,9 +29,9 @@
         icon={mdiLogoutVariant}
         title="Sign out"
         aria-label="Sign out"
-        loading={signingOut}
-        disabled={signingOut}
-        onclick={() => void signOut()}
+        loading={signOutFlow.signingOut}
+        disabled={signOutFlow.signingOut}
+        onclick={signOutFlow.request}
       />
     </div>
   </section>
