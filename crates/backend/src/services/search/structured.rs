@@ -60,14 +60,19 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
     range(
         &mut body,
         "takenAt",
-        filter.taken_after.map(timestamp),
-        filter.taken_before.map(timestamp),
+        [
+            ("gte", filter.taken_after.map(timestamp)),
+            ("lte", filter.taken_before.map(timestamp)),
+            ("lt", filter.taken_until.map(timestamp)),
+        ],
     );
     range(
         &mut body,
         "fileSizeInBytes",
-        filter.min_size.map(Value::from),
-        filter.max_size.map(Value::from),
+        [
+            ("gte", filter.min_size.map(Value::from)),
+            ("lte", filter.max_size.map(Value::from)),
+        ],
     );
     for (field, values) in filter.exif_values() {
         match values {
@@ -84,14 +89,25 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
     range(
         &mut body,
         "createdAt",
-        added_after.map(timestamp),
-        added_before.map(timestamp),
+        [
+            ("gte", added_after.map(timestamp)),
+            ("lte", added_before.map(timestamp)),
+        ],
+    );
+    range(
+        &mut body,
+        "updatedAt",
+        [("gte", filter.updated_after.map(timestamp))],
     );
     body
 }
 
-fn range(body: &mut Map<String, Value>, field: &str, gte: Option<Value>, lte: Option<Value>) {
-    let bounds: Map<String, Value> = [("gte", gte), ("lte", lte)]
+fn range<const N: usize>(
+    body: &mut Map<String, Value>,
+    field: &str,
+    bounds: [(&str, Option<Value>); N],
+) {
+    let bounds: Map<String, Value> = bounds
         .into_iter()
         .filter_map(|(key, bound)| Some((key.into(), bound?)))
         .collect();
@@ -237,6 +253,30 @@ mod tests {
         let body = count(&filter_by, &Ids::default());
         if body != expected {
             panic!("text body was {body}");
+        }
+    }
+
+    #[test]
+    fn an_exclusive_taken_end_is_sent_as_lt_beside_the_picked_bounds() {
+        let filter_by = BrowseFilter {
+            taken_after: Some(Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap()),
+            taken_before: Some(Utc.with_ymd_and_hms(2024, 3, 15, 22, 59, 59).unwrap()),
+            taken_until: Some(Utc.with_ymd_and_hms(2024, 4, 1, 0, 0, 0).unwrap()),
+            ..BrowseFilter::default()
+        };
+        let expected = json!({
+            "filter": {
+                "trashedAt": { "eq": null },
+                "takenAt": {
+                    "gte": "2024-03-01T00:00:00.000Z",
+                    "lte": "2024-03-15T22:59:59.000Z",
+                    "lt": "2024-04-01T00:00:00.000Z",
+                },
+            }
+        });
+        let body = count(&filter_by, &Ids::default());
+        if body != expected {
+            panic!("month structured body was {body}");
         }
     }
 
