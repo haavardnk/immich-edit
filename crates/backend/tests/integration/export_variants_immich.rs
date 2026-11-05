@@ -2,7 +2,7 @@ use crate::common::*;
 use axum::http::StatusCode;
 use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::routes::export::{
-    ExportParams, ExportToImmichBody, StackPrimary, hash_request,
+    ConflictPolicy, ExportParams, ExportToImmichBody, StackPrimary, hash_request,
 };
 use immich_edit_backend::services::edits_store::{ExportJobKey, ExportJobStatus};
 use serde_json::{Value, json};
@@ -121,6 +121,7 @@ async fn a_retried_preset_resumes_its_own_uploaded_export() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original: false,
+        on_conflict: ConflictPolicy::default(),
     };
     state
         .edits

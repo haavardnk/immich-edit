@@ -1,20 +1,22 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::immich::client::UploadRequest;
-use crate::services::edits_store::{ExportJobKey, ExportJobRecord, ExportJobStatus};
+use crate::services::edits_store::{ExportJobBaseline, ExportJobKey, ExportOutputKey};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
 use crate::services::trash;
 use crate::state::AppState;
 use crate::telemetry::ErrorChain;
 
+use super::conflict::{self, Conflict};
+use super::naming::preset_key;
 use super::post_upload::{Uploaded, finish_upload};
+use super::replay::{ExportContext, settle_existing};
 use super::*;
 
 #[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
@@ -43,6 +45,8 @@ pub struct ExportToImmichBody {
     pub stack_primary: StackPrimary,
     #[serde(default)]
     pub replace_original: bool,
+    #[serde(default)]
+    pub on_conflict: ConflictPolicy,
 }
 
 impl ExportToImmichBody {
@@ -63,6 +67,10 @@ pub(super) fn replace_fits(
     Ok(())
 }
 
+pub(super) fn trashes(replace_original: bool, on_conflict: ConflictPolicy) -> bool {
+    replace_original || on_conflict == ConflictPolicy::Replace
+}
+
 #[derive(Debug, Serialize)]
 pub struct ExportToImmichResult {
     pub asset_id: Uuid,
@@ -70,6 +78,8 @@ pub struct ExportToImmichResult {
     pub status: String,
     pub warnings: Vec<String>,
     pub original_trashed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replaced_asset_id: Option<Uuid>,
 }
 
 pub struct ExportImmichRequest<'a> {
@@ -102,34 +112,49 @@ pub async fn export_to_immich(
         key,
     });
     let request_hash = job.map(|_| hash_request(id, body));
-    let mut reserved = false;
+    let preset = preset_key(req.preset.unwrap_or_default());
+    let output = ExportOutputKey {
+        owner,
+        asset_id: id,
+        preset: &preset,
+    };
+    let export = ExportContext {
+        identity,
+        body,
+        output,
+        variant: req.variant,
+    };
 
+    let _turn = conflict::hold(state, output).await;
+    if let (Some(job), Some(hash)) = (job, request_hash.as_deref())
+        && let Some(existing) = state.edits.get_export_job(job).await?
+    {
+        return settle_existing(state, immich, export, job, hash, existing).await;
+    }
+    let template = NameTemplate::parse(body.params.filename_template.as_deref())?;
+    if trashes(body.replace_original, body.on_conflict) {
+        trash::ensure_enabled(immich).await?;
+    }
+    let resolved = conflict::resolve(state, immich, body.on_conflict, output).await?;
+    let replace = match resolved.conflict {
+        Conflict::Skip(previous, filename) => return Ok(conflict::skipped(previous, filename)),
+        Conflict::Replace(previous) => Some(previous),
+        Conflict::None => None,
+    };
+
+    let mut reserved = false;
     if let (Some(job), Some(hash)) = (job, request_hash.as_deref()) {
-        reserved = state.edits.reserve_export_job(job, hash).await?;
+        let baseline = ExportJobBaseline {
+            previous_asset_id: resolved.previous,
+            replace_asset_id: replace,
+        };
+        reserved = state.edits.reserve_export_job(job, hash, baseline).await?;
         if !reserved && let Some(existing) = state.edits.get_export_job(job).await? {
-            if existing.request_hash != hash {
-                return Err(AppError::BadRequest(
-                    "idempotency key reused with different request".into(),
-                ));
-            }
-            return match existing.status {
-                ExportJobStatus::Pending => {
-                    Err(AppError::Conflict("export already in progress".into()))
-                }
-                ExportJobStatus::Uploaded => {
-                    resume_export_job(state, immich, identity, job, body, existing, req.variant)
-                        .await
-                }
-                ExportJobStatus::Completed => Ok(record_to_result(&existing)),
-            };
+            return settle_existing(state, immich, export, job, hash, existing).await;
         }
     }
 
     let result: Result<ExportToImmichResult, AppError> = async {
-        let template = NameTemplate::parse(body.params.filename_template.as_deref())?;
-        if body.replace_original {
-            trash::ensure_enabled(immich).await?;
-        }
         let original = immich.asset(id.source()).await?;
         let existing_names = collect_existing_filenames(immich, &original).await;
 
@@ -183,6 +208,8 @@ pub async fn export_to_immich(
                 id: new_id,
                 status: &status,
                 variant: req.variant,
+                output,
+                previous: replace,
             },
         )
         .await;
@@ -192,20 +219,16 @@ pub async fn export_to_immich(
             .chain(finished.warnings)
             .collect();
 
-        if let Some(job) = job {
-            state
-                .edits
-                .complete_export_job(job, &warnings, finished.original_trashed)
-                .await?;
-        }
-
-        Ok(ExportToImmichResult {
+        let result = ExportToImmichResult {
             asset_id: new_id,
             filename,
             status,
             warnings,
             original_trashed: finished.original_trashed,
-        })
+            replaced_asset_id: finished.replaced_asset_id,
+        };
+        conflict::record(state, job, output, resolved.previous, &result).await?;
+        Ok(result)
     }
     .await;
 
@@ -217,104 +240,4 @@ pub async fn export_to_immich(
         tracing::warn!(error = %ErrorChain(&error), "release pending export job");
     }
     result
-}
-
-pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
-    let mut album_ids = body.album_ids.clone();
-    album_ids.sort();
-    let mut tag_ids = body.tag_ids.clone();
-    tag_ids.sort();
-    let canonical = serde_json::json!({
-        "asset_id": asset_id.to_string(),
-        "edits": body.edits.clamped(),
-        "format": format!("{:?}", body.params.format),
-        "quality": body.params.quality,
-        "metadata": format!("{:?}", body.params.metadata()),
-        "bit_depth": format!("{:?}", body.params.bit_depth),
-        "png_compression": format!("{:?}", body.params.png_compression),
-        "tiff_compression": format!("{:?}", body.params.tiff_compression),
-        "lossless": body.params.lossless,
-        "color_space": format!("{:?}", body.params.color_space),
-        "album_ids": album_ids,
-        "tag_ids": tag_ids,
-        "favorite": body.favorite,
-        "stack_with_original": body.stack_with_original,
-        "stack_primary": format!("{:?}", body.stack_primary),
-        "replace_original": body.replace_original,
-        "filename_template": body.params.filename_template,
-        "resize_mode": body.params.resize_mode.map(|m| format!("{m:?}")),
-        "resize_width": body.params.resize_width,
-        "resize_height": body.params.resize_height,
-        "resize_megapixels": body.params.resize_megapixels,
-        "resize_percent": body.params.resize_percent,
-        "resize_enlarge": body.params.resize_enlarge,
-        "output_sharpen_media": body.params.output_sharpen_media.map(|m| format!("{m:?}")),
-        "output_sharpen_amount": format!("{:?}", body.params.output_sharpen_amount),
-        "output_sharpen_ppi": body.params.output_sharpen_ppi,
-        "watermark_id": body.params.watermark_id,
-        "watermark_size": body.params.watermark_size,
-        "watermark_opacity": body.params.watermark_opacity,
-        "watermark_anchor": format!("{:?}", body.params.watermark_anchor),
-        "watermark_inset": body.params.watermark_inset,
-    });
-    let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
-    let mut h = Sha256::new();
-    h.update(&bytes);
-    hex::encode(h.finalize())
-}
-
-fn record_to_result(rec: &ExportJobRecord) -> ExportToImmichResult {
-    ExportToImmichResult {
-        asset_id: rec.immich_asset_id.unwrap_or_default(),
-        filename: rec.filename.clone().unwrap_or_default(),
-        status: rec.upload_status.clone().unwrap_or_default(),
-        warnings: rec.warnings.clone(),
-        original_trashed: rec.original_trashed,
-    }
-}
-
-async fn resume_export_job(
-    state: &AppState,
-    immich: &ImmichClient,
-    identity: RenderIdentity,
-    job: ExportJobKey<'_>,
-    body: &ExportToImmichBody,
-    existing: ExportJobRecord,
-    variant: i64,
-) -> Result<ExportToImmichResult, AppError> {
-    let Some(new_id) = existing.immich_asset_id else {
-        tracing::error!(asset = %job.asset_id, "export job record has no immich asset id");
-        return Err(AppError::Internal);
-    };
-    let original = immich.asset(job.asset_id.source()).await?;
-    let upload_status = existing.upload_status.clone().unwrap_or_default();
-    let finished = finish_upload(
-        state,
-        identity,
-        immich,
-        Uploaded {
-            original: &original,
-            body,
-            id: new_id,
-            status: &upload_status,
-            variant,
-        },
-    )
-    .await;
-    let warnings: Vec<String> = existing
-        .warnings
-        .into_iter()
-        .chain(finished.warnings)
-        .collect();
-    state
-        .edits
-        .complete_export_job(job, &warnings, finished.original_trashed)
-        .await?;
-    Ok(ExportToImmichResult {
-        asset_id: new_id,
-        filename: existing.filename.unwrap_or_default(),
-        status: upload_status,
-        warnings,
-        original_trashed: finished.original_trashed,
-    })
 }

@@ -128,10 +128,14 @@ fn clean_stem(original: &str) -> String {
     clean_name(original.rsplit_once('.').map_or(original, |(s, _)| s))
 }
 
-pub(super) fn clean_name(name: &str) -> String {
+fn clean_name(name: &str) -> String {
     name.chars()
         .map(|c| if forbidden(c) { '_' } else { c })
         .collect()
+}
+
+pub(super) fn preset_key(preset: &str) -> String {
+    clean_name(preset).to_lowercase()
 }
 
 pub fn capture_date(asset: &AssetDetail) -> Option<NaiveDate> {

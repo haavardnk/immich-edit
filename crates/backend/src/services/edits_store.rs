@@ -14,6 +14,7 @@ const SCHEMA_VERSION: i64 = 2;
 mod appearance;
 mod copies;
 mod export_jobs;
+mod export_outputs;
 mod export_presets;
 mod history;
 mod pool;
@@ -26,6 +27,8 @@ mod snapshots;
 
 pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
+pub use export_jobs::{ExportJobBaseline, ExportJobCompletion};
+pub use export_outputs::{ExportOutput, ExportOutputKey};
 pub use export_presets::{ExportDestination, ExportPresetRecord, ExportPresetWrite};
 pub use history::{EditHistoryEntry, RestoreOutcome};
 pub use preferences::{ClickTarget, Preferences, PreferencesPatch, SectionEntry};
@@ -413,6 +416,9 @@ pub struct ExportJobRecord {
     pub upload_status: Option<String>,
     pub warnings: Vec<String>,
     pub original_trashed: bool,
+    pub replaced_asset_id: Option<Uuid>,
+    pub previous_asset_id: Option<Uuid>,
+    pub replace_asset_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -658,9 +664,13 @@ mod tests {
         if r.original_trashed {
             panic!("trashed before completion: {r:?}");
         }
-        s.complete_export_job(job, &["w1".into()], true)
-            .await
-            .unwrap();
+        let completion = ExportJobCompletion {
+            warnings: &["w1".into()],
+            original_trashed: true,
+            replaced_asset_id: None,
+            output: None,
+        };
+        s.complete_export_job(job, completion).await.unwrap();
         let r = s.get_export_job(job).await.unwrap().unwrap();
         if r.status != ExportJobStatus::Completed
             || r.warnings != vec!["w1".to_string()]
