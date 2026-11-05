@@ -14,6 +14,7 @@
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,
@@ -22,7 +23,8 @@
     mdiCheck,
     mdiEyeOutline,
     mdiCloseCircle,
-    mdiContentDuplicate
+    mdiContentDuplicate,
+    mdiTuneVariant
   } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
 
@@ -62,6 +64,7 @@
   const owned = $derived(ownsAsset(asset));
   const rejected = $derived(isRejected(asset));
   const label = $derived(labelOf(asset));
+  const edited = $derived(info !== 'none' && editedThumbs.has(asset.id));
   const src = $derived(assetThumbUrl(asset.id));
   const marked = $derived(selected || rangePreview);
   const copyBadge = $derived(
@@ -161,10 +164,19 @@
       <Icon icon={mdiCheck} size="16px" aria-hidden="true" />
     {/if}
   </button>
-  {#if asset.isFavorite || rejected || label}
+  {#if edited || asset.isFavorite || rejected || label}
     <div
       class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-1 text-white drop-shadow-md"
     >
+      {#if edited}
+        <div
+          role="img"
+          aria-label="Edited"
+          class="grid size-5 place-items-center rounded-full bg-black/55"
+        >
+          <Icon icon={mdiTuneVariant} size="12px" aria-hidden="true" />
+        </div>
+      {/if}
       {#if asset.isFavorite}
         <div role="img" aria-label="Favorite" class="transition-opacity {markClass}">
           <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
