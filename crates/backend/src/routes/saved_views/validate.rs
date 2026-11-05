@@ -1,17 +1,9 @@
-const MAX_NAME_CHARS: usize = 80;
+use crate::routes::names::display_name;
+
 const MAX_URL_BYTES: usize = 2048;
 
 pub fn name(raw: &str) -> Result<String, String> {
-    let name = raw.trim();
-    if name.is_empty() {
-        return Err("saved view name required".into());
-    }
-    if name.chars().count() > MAX_NAME_CHARS {
-        return Err(format!(
-            "saved view name longer than {MAX_NAME_CHARS} characters"
-        ));
-    }
-    Ok(name.to_string())
+    display_name(raw, "saved view name")
 }
 
 pub fn url(url: &str) -> Result<(), String> {
@@ -48,32 +40,8 @@ mod tests {
     }
 
     #[test]
-    fn a_name_is_trimmed() {
-        assert_eq!(name("  Five stars  ").unwrap(), "Five stars");
-    }
-
-    #[test]
-    fn a_blank_name_is_required() {
-        for blank in ["", "   ", "\t\n"] {
-            assert_eq!(name(blank).unwrap_err(), "saved view name required");
-        }
-    }
-
-    #[test]
-    fn a_name_counts_characters_not_bytes() {
-        assert!(name(&"x".repeat(80)).is_ok());
-        assert!(name(&"é".repeat(80)).is_ok());
-        assert!(name(&format!("  {}  ", "x".repeat(80))).is_ok());
-        assert!(
-            name(&"x".repeat(81))
-                .unwrap_err()
-                .contains("longer than 80")
-        );
-        assert!(
-            name(&"é".repeat(81))
-                .unwrap_err()
-                .contains("longer than 80")
-        );
+    fn a_name_error_names_a_saved_view() {
+        assert_eq!(name("   ").unwrap_err(), "saved view name required");
     }
 
     #[test]
