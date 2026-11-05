@@ -16,7 +16,7 @@ use crate::services::trash;
 use crate::state::AppState;
 
 use super::archive::write_unique;
-use super::immich::replace_fits;
+use super::immich::{replace_fits, trashes};
 use super::variants::{ItemExport, idempotency_key, item_export, tag_preset};
 use super::*;
 
@@ -36,6 +36,8 @@ pub struct ExportJobParams {
     pub stack_primary: StackPrimary,
     #[serde(default)]
     pub replace_original: bool,
+    #[serde(default)]
+    pub on_conflict: ConflictPolicy,
     #[serde(default, rename = "filename_suffix")]
     legacy_suffix: Option<String>,
     #[serde(default)]
@@ -61,9 +63,16 @@ pub(super) async fn validate_export_job(
     asset_ids: &[String],
 ) -> Result<(), AppError> {
     replace_fits(parsed.replace_original, parsed.stack_with_original)?;
-    if !parsed.replace_original {
-        return Ok(());
+    if parsed.replace_original {
+        one_version_per_source(asset_ids)?;
     }
+    if trashes(parsed.replace_original, parsed.on_conflict) {
+        trash::ensure_enabled(immich).await?;
+    }
+    Ok(())
+}
+
+fn one_version_per_source(asset_ids: &[String]) -> Result<(), AppError> {
     let mut sources = HashSet::new();
     for id in asset_ids {
         let key = id
@@ -75,7 +84,7 @@ pub(super) async fn validate_export_job(
             ));
         }
     }
-    trash::ensure_enabled(immich).await
+    Ok(())
 }
 
 pub struct BatchExecutor {
@@ -180,6 +189,7 @@ async fn run_immich_item(
         stack_with_original: params.stack_with_original,
         stack_primary: params.stack_primary,
         replace_original: params.replace_original,
+        on_conflict: params.on_conflict,
     };
     let result = export_to_immich(
         state,

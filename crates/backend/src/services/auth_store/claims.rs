@@ -72,6 +72,9 @@ impl AuthStore {
         sqlx::query("DELETE FROM export_jobs")
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM export_outputs")
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM raster_refs")
             .execute(&mut *tx)
             .await?;
