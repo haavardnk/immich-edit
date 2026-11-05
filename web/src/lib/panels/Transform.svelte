@@ -6,6 +6,7 @@
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import CropSection from './geometry/CropSection.svelte';
+  import { PERSPECTIVE, STRAIGHTEN } from '#lib/editor/params/geometry.ts';
   import type { Edits, GeometryEdits } from '#lib/types/edits.ts';
   import { perspectiveIsIdentity, type PerspectiveEdits } from '#lib/utils/perspective.ts';
   import { IconButton } from '@immich/ui';
@@ -91,23 +92,17 @@
       <SliderRow
         label="Angle"
         value={editor.geometrySession.draftAngle}
-        min={-45}
-        max={45}
-        step={0.1}
+        range={STRAIGHTEN}
         onLive={editor.updateGeometryDraftAngle}
         onCommit={() => void editor.commitGeometry('Straighten')}
-        format={(v: number) => `${v.toFixed(1)}°`}
       />
       {#each perspectiveSliders as s (s.key)}
         <SliderRow
           label={s.label}
           value={editor.geometrySession.draftPerspective[s.key]}
-          min={-100}
-          max={100}
-          step={1}
+          range={PERSPECTIVE}
           onLive={(v: number) => onPerspectiveLive(s.key, v)}
           onCommit={() => void editor.commitGeometry('Perspective')}
-          format={(v: number) => v.toFixed(0)}
         />
       {/each}
     </div>

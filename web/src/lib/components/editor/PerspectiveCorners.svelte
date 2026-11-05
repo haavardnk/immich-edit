@@ -6,6 +6,10 @@
     unitSquareCorners,
     type PerspectiveEdits
   } from '#lib/utils/perspective.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { HANDLE_DOT } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   interface Props {
     frame: StageFrame;
@@ -15,35 +19,30 @@
   let { frame, perspective }: Props = $props();
 
   let root = $state<HTMLDivElement | null>(null);
-  let dragging = $state<number | null>(null);
 
+  const hit = $derived(handleHit());
   const handles = $derived(unitSquareCorners().map((c) => sourceToStage(frame, c)));
   const quadPoints = $derived(handles.map(([x, y]) => `${x},${y}`).join(' '));
 
-  function startDrag(e: PointerEvent, index: number): void {
-    e.preventDefault();
-    e.stopPropagation();
-    dragging = index;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function onMove(e: PointerEvent): void {
-    if (dragging === null || !root) return;
-    e.stopPropagation();
-    const rect = root.getBoundingClientRect();
-    const uv = stageToOutput(frame, [e.clientX - rect.left, e.clientY - rect.top]);
-    editor.updateGeometryDraftPerspective({
-      corners: cornerOffsetsFor(perspective, dragging, uv)
-    });
-  }
-
-  function onUp(e: PointerEvent): void {
-    e.stopPropagation();
-    const dragged = dragging !== null;
-    dragging = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    if (dragged) void editor.commitGeometry('Perspective');
-  }
+  const corner = pointerDrag<number, number>({
+    start(e, index) {
+      e.preventDefault();
+      e.stopPropagation();
+      return index;
+    },
+    move(e, index) {
+      e.stopPropagation();
+      if (!root) return;
+      const at = elementPoint(e, root);
+      editor.updateGeometryDraftPerspective({
+        corners: cornerOffsetsFor(perspective, index, stageToOutput(frame, [at.x, at.y]))
+      });
+    },
+    end(e) {
+      e.stopPropagation();
+      void editor.commitGeometry('Perspective');
+    }
+  });
 </script>
 
 <div bind:this={root} class="pointer-events-none absolute inset-0">
@@ -58,13 +57,15 @@
   </svg>
   {#each handles as [x, y], i (i)}
     <button
-      class="pointer-events-auto absolute cursor-grab rounded-full border border-black/60 bg-image-accent active:cursor-grabbing"
-      style="width: 14px; height: 14px; left: {x - 7}px; top: {y - 7}px;"
-      onpointerdown={(e) => startDrag(e, i)}
-      onpointermove={onMove}
-      onpointerup={onUp}
-      onpointercancel={onUp}
+      class="pointer-events-auto absolute cursor-grab active:cursor-grabbing"
+      style="width: {hit * 2}px; height: {hit * 2}px; left: {x - hit}px; top: {y - hit}px;"
+      {...corner.on(i)}
       aria-label="perspective corner {i + 1}"
-    ></button>
+    >
+      <span
+        class="pointer-events-none absolute rounded-full border border-black/60 bg-image-accent"
+        style="inset: {hit - HANDLE_DOT.corner}px;"
+      ></span>
+    </button>
   {/each}
 </div>

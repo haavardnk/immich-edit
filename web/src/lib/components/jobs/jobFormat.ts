@@ -25,3 +25,7 @@ export function jobOutcome(job: Job): string {
   if (job.status === 'failed') return 'Failed';
   return `Done, ${countOf(job.completed, 'photo')}`;
 }
+
+export function jobsSummary(activeCount: number): string {
+  return activeCount > 0 ? `${activeCount} active` : 'No active jobs';
+}

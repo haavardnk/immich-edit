@@ -1,32 +1,14 @@
 <script lang="ts">
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import type { MaskedEditKey } from '#lib/types/edits.ts';
+  import type { MaskParam } from '#lib/editor/params/masks.ts';
 
-  let {
-    layerId,
-    eKey,
-    label,
-    min,
-    max,
-    step = 1,
-    format,
-    gradient
-  }: {
-    layerId: string;
-    eKey: MaskedEditKey;
-    label: string;
-    min: number;
-    max: number;
-    step?: number;
-    format?: (v: number) => string;
-    gradient?: string;
-  } = $props();
+  let { layerId, param }: { layerId: string; param: MaskParam } = $props();
 
-  const value = $derived(editor.edits.masks.find((l) => l.id === layerId)?.edits[eKey] ?? 0);
+  const value = $derived(editor.edits.masks.find((l) => l.id === layerId)?.edits[param.key] ?? 0);
 
   function live(v: number): void {
-    editor.setMaskLayerEdit(layerId, eKey, v);
+    editor.setMaskLayerEdit(layerId, param.key, v);
   }
 
   function commit(): void {
@@ -35,15 +17,11 @@
 </script>
 
 <SliderRow
-  {label}
+  label={param.label}
   {value}
-  {min}
-  {max}
-  {step}
+  range={param}
   onLive={live}
   onCommit={commit}
   onDragStart={editor.holdMaskOverlay}
   onDragEnd={editor.releaseMaskOverlay}
-  format={format ?? ((v: number) => v.toFixed(0))}
-  {gradient}
 />

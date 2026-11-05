@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { compare, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
+  import type { View, ViewportMetrics } from '#lib/utils/imageViewport.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import LoupePane from '#lib/components/browse/LoupePane.svelte';
   import { IconButton } from '@immich/ui';
@@ -13,16 +14,16 @@
     canDrop,
     onView,
     onSize,
-    onFitZoom,
+    onMetrics,
     onImage
   }: {
     panes: string[];
     focusedId: string | null;
     multi: boolean;
     canDrop: boolean;
-    onView: (id: string, view: PaneView, solo?: boolean) => void;
+    onView: (id: string, view: View, solo?: boolean) => void;
     onSize: (maxEdge: number) => void;
-    onFitZoom: (id: string, value: number) => void;
+    onMetrics: (id: string, metrics: ViewportMetrics) => void;
     onImage: (id: string, element: HTMLImageElement) => void;
   } = $props();
 
@@ -57,7 +58,7 @@
         paneAsset?.exifInfo?.exifImageWidth ?? 0,
         paneAsset?.exifInfo?.exifImageHeight ?? 0
       )}
-      onFitZoom={(value) => onFitZoom(id, value)}
+      onMetrics={(metrics) => onMetrics(id, metrics)}
       onImage={(element) => onImage(id, element)}
     />
     {#if compare.mode === 'compare' && index > 0 && id === focusedId}

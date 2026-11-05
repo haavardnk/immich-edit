@@ -17,7 +17,8 @@ use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub use crate::services::export::{
-    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ConflictPolicy, ExportParams, ExportToImmichBody, StackPrimary, hash_request,
+    resolve_filename,
 };
 
 pub async fn get_export(
@@ -65,6 +66,7 @@ async fn download(
         original: &asset.original_file_name,
         date: capture_date(&asset),
         seq: Seq::SINGLE,
+        preset: None,
     });
     let filename = format!("{stem}.{}", rendered.output.extension());
     download_response(&filename, rendered)
@@ -106,6 +108,8 @@ pub async fn post_export_immich(
             idempotency_key: idem_key,
             priority: RenderPriority::Interactive,
             seq: Seq::SINGLE,
+            preset: None,
+            variant: 0,
         },
     )
     .await?;

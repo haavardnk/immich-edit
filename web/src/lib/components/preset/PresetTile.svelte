@@ -60,7 +60,7 @@
 >
   <button
     type="button"
-    class="relative flex h-full items-center justify-center overflow-hidden rounded-sm border border-hairline bg-light-100 text-lg text-dark/40 outline-none group-hover/tile:border-light-950/40 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+    class="no-callout relative flex h-full items-center justify-center overflow-hidden rounded-sm border border-hairline bg-light-100 text-lg text-dark/40 outline-none group-hover/tile:border-light-950/40 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
     style:width="{width}px"
     title="Apply {preset.name}"
     aria-label="Apply {preset.name}"
@@ -85,7 +85,14 @@
       >{preset.name}</span
     >
   </button>
-  <Popover open={menuOpen} anchor="top" align="end" onOpenChange={setMenu} contentClass="w-52 py-1">
+  <Popover
+    open={menuOpen}
+    anchor="top"
+    align="end"
+    onOpenChange={setMenu}
+    contentClass="w-52 py-1"
+    title={preset.name}
+  >
     {#snippet trigger(props)}
       <IconButton
         size="tiny"
@@ -119,11 +126,17 @@
           label="Confirm delete"
           onclick={() => act(() => void presets.remove(preset.id))}
         />
-        <MenuItem icon={mdiClose} label="Cancel" onclick={() => (confirmingDelete = false)} />
+        <MenuItem
+          icon={mdiClose}
+          label="Cancel"
+          data-menu-stay
+          onclick={() => (confirmingDelete = false)}
+        />
       {:else}
         <MenuItem
           icon={mdiDeleteOutline}
           label="Delete"
+          data-menu-stay
           onclick={() => (confirmingDelete = true)}
         />
       {/if}

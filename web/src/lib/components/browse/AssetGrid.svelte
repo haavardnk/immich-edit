@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { afterNavigate, goto } from '$app/navigation';
+  import { afterNavigate } from '$app/navigation';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import AssetTile from './AssetTile.svelte';
@@ -9,33 +9,18 @@
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { hides } from '#lib/browse/loadedFilter.ts';
-  import { compare } from '#lib/stores/compare.svelte.ts';
-  import { multiMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
-  import {
-    rateAsset,
-    toggleFavorite,
-    toggleReject,
-    clearFlags,
-    setLabel
-  } from '#lib/browse/cull.ts';
-  import { labelOf, nextLabelFromKey } from '#lib/stores/labels.ts';
-  import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
-  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
-  import { editorHref } from '#lib/editor/navigation.ts';
-  import { matchKeybind } from '#lib/shortcuts/match.ts';
-  import { hasTextSelection, yieldsToControl } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
-  import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
+  import { browseTarget, setRating } from '#lib/browse/assetMeta.ts';
+  import { gridCurrent, openMulti } from '#lib/browse/gridActions.ts';
+  import { gridHost } from '#lib/commands/grid/gridHost.ts';
   import {
     createAssetGridLayout,
     verticalAssetIndex,
     visibleAssetRange,
     type AssetGridBox
   } from '#lib/browse/assetGridLayout.ts';
+  import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
 
   let {
     assets,
@@ -62,7 +47,7 @@
   let pendingRestore: number | null = null;
   let revealOnReturn = false;
   let loupeWasOpen = false;
-  let shiftPressed = $state(false);
+  let extendKey = $state(false);
   let hoveredId = $state<string | null>(null);
   let selectingAll = $state(false);
   let bulkBar: BulkActionBar | undefined = $state();
@@ -86,8 +71,10 @@
       .filter((item): item is { asset: AssetSummary; box: AssetGridBox } => item.box !== undefined)
   );
 
+  const extending = $derived(extendKey || latched('extend'));
+
   const rangePreview = $derived.by(() => {
-    if (selectingAll || !shiftPressed || !hoveredId) return null;
+    if (selectingAll || !extending || !hoveredId) return null;
     return selection.rangeTarget(
       items.map((asset) => asset.id),
       hoveredId
@@ -176,69 +163,10 @@
     return false;
   }
 
-  function isTyping(): boolean {
-    const el = document.activeElement;
-    if (!el) return false;
-    const tag = el.tagName;
-    return (
-      tag === 'INPUT' ||
-      tag === 'TEXTAREA' ||
-      tag === 'SELECT' ||
-      (el as HTMLElement).isContentEditable
-    );
-  }
-
-  function targets(): string[] {
-    return [...selection.selected];
-  }
-
-  function current(): string | null {
-    const id = browseView.activeId;
-    if (id && selection.has(id)) return id;
-    return items.find((asset) => selection.has(asset.id))?.id ?? null;
-  }
-
-  function applyRating(rating: number | null): void {
-    const ids = targets();
-    if (ids.length === 0) return;
-    ids.forEach((id) => void rateAsset(id, rating));
-  }
-
-  function applyFavorite(): void {
-    targets().forEach((id) => void toggleFavorite(id));
-  }
-
-  function applyReject(): void {
-    targets().forEach((id) => void toggleReject(id));
-  }
-
-  function applyUnflag(): void {
-    targets().forEach((id) => void clearFlags(id));
-  }
-
-  function applyTrash(): boolean {
-    const ids = new Set(targets());
-    if (ids.size === 0) return false;
-    void trash.request(items.filter((asset) => ids.has(asset.id)));
-    return true;
-  }
-
-  function applyLabelKey(key: string): boolean {
-    const ids = targets();
-    if (ids.length === 0) return false;
-    const idSet = new Set(ids);
-    const labels = items.filter((a) => idSet.has(a.id)).map((a) => labelOf(a));
-    const common = labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
-    const next = nextLabelFromKey(key, common);
-    if (next === undefined) return false;
-    ids.forEach((id) => void setLabel(id, next));
-    return true;
-  }
-
   function moveIndex(key: string): number {
     if (key === 'Home') return 0;
     if (key === 'End') return items.length - 1;
-    const cursor = selection.active ? current() : browseView.activeId;
+    const cursor = selection.active ? gridCurrent(items) : browseView.activeId;
     const index = cursor ? items.findIndex((asset) => asset.id === cursor) : -1;
     if (index < 0 || !selection.active) return Math.max(0, index);
     if (key === 'ArrowRight') return index + 1;
@@ -249,11 +177,10 @@
     return verticalAssetIndex(layout, index, key === 'ArrowUp' || key === 'PageUp' ? -rows : rows);
   }
 
-  function selectMove(e: KeyboardEvent): void {
-    e.preventDefault();
-    const target = items[Math.min(items.length - 1, Math.max(0, moveIndex(e.key)))];
+  function move(key: string, extend: boolean): void {
+    const target = items[Math.min(items.length - 1, Math.max(0, moveIndex(key)))];
     if (!target) return;
-    if (e.shiftKey && selection.active)
+    if (extend && selection.active)
       selection.range(
         items.map((asset) => asset.id),
         target.id
@@ -261,22 +188,6 @@
     else selection.selectLoaded([target.id]);
     browseView.setActive(target.id);
     ensureVisible(target.id);
-  }
-
-  function openMulti(mode: MultiMode): void {
-    const members = multiMembers(
-      mode,
-      items.map((a) => a.id),
-      selection.selected,
-      current()
-    );
-    const first = members[0];
-    if (members.length < 2 || !first) {
-      toasts.push('info', `${mode} needs two photos`);
-      return;
-    }
-    browseView.openLoupe(first);
-    compare.enter(mode, members);
   }
 
   async function selectAll(): Promise<boolean> {
@@ -291,129 +202,12 @@
     }
   }
 
-  function onKeydown(e: KeyboardEvent): void {
-    shiftPressed = e.shiftKey;
-    if (browseView.loupeId || isModalOpen() || isTyping() || yieldsToControl(e)) return;
-
-    const bind = matchKeybind(e, CONTEXT_STACKS.grid);
-    if (!bind) return;
-    if (selectingAll) {
-      e.preventDefault();
-      return;
-    }
-
-    switch (bind) {
-      case 'help':
-        e.preventDefault();
-        return ui.toggleKeybindsHelp();
-      case 'gridClearSelection':
-        if (!selection.active) return;
-        e.preventDefault();
-        return selection.clear();
-      case 'focusBulkBar':
-        if (!selection.active) return;
-        e.preventDefault();
-        return bulkBar?.focusFirst();
-      case 'gridSelectAll':
-        e.preventDefault();
-        void selectAll();
-        return;
-      case 'gridMove':
-      case 'gridEdge':
-      case 'gridPage':
-      case 'gridExtend':
-        return selectMove(e);
-      case 'gridSize':
-        e.preventDefault();
-        return browseView.stepGridSize(e.key === '-' || e.key === '_' ? -1 : 1);
-      case 'gridTileInfo':
-        e.preventDefault();
-        return browseView.cycleTileInfo();
-      case 'favorite':
-        e.preventDefault();
-        return applyFavorite();
-      case 'reject':
-        e.preventDefault();
-        return applyReject();
-      case 'unflag':
-        e.preventDefault();
-        return applyUnflag();
-      case 'trash':
-        if (applyTrash()) e.preventDefault();
-        return;
-      case 'label':
-        if (applyLabelKey(e.key)) e.preventDefault();
-        return;
-      case 'enterCompare':
-        e.preventDefault();
-        return openMulti('compare');
-      case 'enterSurvey':
-        e.preventDefault();
-        return openMulti('survey');
-      case 'openEditor': {
-        const id = current();
-        if (!id) return;
-        e.preventDefault();
-        void goto(editorHref(id, `${window.location.pathname}${window.location.search}`));
-        return;
-      }
-      case 'openLoupe': {
-        const id = current();
-        if (!id) return;
-        e.preventDefault();
-        browseView.openLoupe(id);
-        return;
-      }
-      case 'copyEdits': {
-        const ids = targets();
-        if (ids.length !== 1 || !ids[0] || hasTextSelection()) return;
-        e.preventDefault();
-        void copyEditsFrom(ids[0]);
-        return;
-      }
-      case 'pasteEdits': {
-        const ids = targets();
-        if (ids.length === 0 || hasTextSelection()) return;
-        e.preventDefault();
-        void pasteEditsTo(ids);
-        return;
-      }
-      case 'rate': {
-        const ids = targets();
-        if (ids.length === 0) return;
-        e.preventDefault();
-        const idSet = new Set(ids);
-        const ratings = items.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
-        const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
-        const next = nextRatingFromKey(e.key, current);
-        if (next !== undefined) applyRating(next);
-        return;
-      }
-      case 'rateAdvance': {
-        const next = ratingFromCode(e.code);
-        const ids = targets();
-        if (next === undefined || ids.length === 0) return;
-        e.preventDefault();
-        const [only] = ids;
-        if (ids.length > 1 || !only) return applyRating(next);
-        const following = items[items.findIndex((asset) => asset.id === only) + 1];
-        void rateAsset(only, next).then((ok) => {
-          if (!ok || !following) return;
-          selection.selectLoaded([following.id]);
-          browseView.setActive(following.id);
-          ensureVisible(following.id);
-        });
-        return;
-      }
-    }
+  function trackExtend(e: KeyboardEvent): void {
+    extendKey = keyHeld('extend', e);
   }
 
-  function onKeyup(e: KeyboardEvent): void {
-    shiftPressed = e.shiftKey;
-  }
-
-  function clearShiftPreview(): void {
-    shiftPressed = false;
+  function clearRangePreview(): void {
+    extendKey = false;
     hoveredId = null;
   }
 
@@ -425,6 +219,17 @@
     }
     restoreScroll();
   });
+
+  onMount(() =>
+    gridHost.attach({
+      items: () => items,
+      selectingAll: () => selectingAll,
+      selectAll,
+      move,
+      reveal: ensureVisible,
+      focusBulkBar: () => bulkBar?.focusFirst()
+    })
+  );
 
   onMount(() => {
     const path = `${window.location.pathname}${window.location.search}`;
@@ -461,7 +266,7 @@
   });
 </script>
 
-<svelte:window onkeydown={onKeydown} onkeyup={onKeyup} onblur={clearShiftPreview} />
+<svelte:window onkeydown={trackExtend} onkeyup={trackExtend} onblur={clearRangePreview} />
 
 <div
   bind:this={root}
@@ -501,7 +306,7 @@
         }}
         onActivate={() => browseView.setActive(item.asset.id)}
         onLoupe={() => browseView.openLoupe(item.asset.id)}
-        onRate={(rating) => void rateAsset(item.asset.id, rating)}
+        onRate={(rating) => void setRating(browseTarget(item.asset.id), rating)}
         onDeleteCopy={isCopy(item.asset.id)
           ? () => void trash.removeCopy(item.asset.id)
           : undefined}
@@ -518,7 +323,7 @@
   assets={items}
   selectedIds={[...selection.selected]}
   onClear={selection.clear}
-  onMulti={openMulti}
+  onMulti={(mode) => openMulti(mode, items)}
   onSelectAll={selectAll}
   hasMore={onLoadMore !== undefined}
   {loadingMore}

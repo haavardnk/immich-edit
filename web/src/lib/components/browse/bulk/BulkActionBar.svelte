@@ -1,37 +1,22 @@
 <script lang="ts">
   import type { AssetSummary } from '#lib/types/album.ts';
-  import type { AssetDetail } from '#lib/types/asset.ts';
   import { page } from '$app/state';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
-  import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { addTagToAsset, removeTagFromAsset } from '#lib/api/tags.ts';
-  import { updateAsset } from '#lib/api/assets.ts';
-  import { createVirtualCopy } from '#lib/editor/copies.ts';
-  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-  import { rejected } from '#lib/stores/rejected.svelte.ts';
-  import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
+  import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import * as bulkMeta from '#lib/browse/bulkMeta.ts';
   import { NOT_OWNER, SOME_NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
   import { NOT_OWNER_TRASH } from '#lib/browse/trash.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
-  import {
-    LABEL_NAMES,
-    labelOf,
-    labelTagFor,
-    withLabel,
-    writeLabel,
-    type LabelColor
-  } from '#lib/stores/labels.ts';
-  import { assignLabel } from '#lib/stores/labels.svelte.ts';
+  import { labelOf, type LabelColor } from '#lib/stores/labels.ts';
   import LabelPicker from '#lib/components/LabelPicker.svelte';
   import FavoriteButton from '#lib/components/FavoriteButton.svelte';
   import RejectButton from '#lib/components/RejectButton.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
   import { commonValue, coverage } from '#lib/utils/selectionState.ts';
-  import { countOf } from '#lib/utils/plural.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
   import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
   import BulkAlbumBand from './BulkAlbumBand.svelte';
@@ -86,7 +71,7 @@
     bar?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus();
   }
 
-  let metaBusy = $derived(busy || selectingAll);
+  let metaBusy = $derived(busy || selectingAll || virtualCopies.busy);
   let count = $derived(selectedIds.length);
   let targetCount = $derived(selectingAll ? assets.length : count);
   let picked = $derived.by(() => {
@@ -123,152 +108,34 @@
     await onSelectAll();
   }
 
-  async function runPool<T>(
-    items: T[],
-    limit: number,
-    fn: (item: T) => Promise<void>
-  ): Promise<void> {
-    let next = 0;
-    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (next < items.length) {
-        const item = items[next++];
-        if (item !== undefined) await fn(item);
-      }
-    });
-    await Promise.all(workers);
-  }
-
-  async function applyMeta(fn: (id: string) => Promise<AssetDetail>): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
+  async function runBulk(write: (ids: string[]) => Promise<unknown>): Promise<void> {
+    if (metaBusy) return;
     busy = true;
-    const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
-    let failed = 0;
-    await runPool(ids, 6, async (id) => {
-      try {
-        const updated = await fn(id);
-        const a = byId.get(id);
-        if (a) {
-          a.isFavorite = updated.isFavorite;
-          a.exifInfo = updated.exifInfo;
-        }
-        browsing.patch(id, { isFavorite: updated.isFavorite, exifInfo: updated.exifInfo });
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      toasts.push('success', `Updated ${countOf(ids.length, 'asset')}`, 4000);
+    try {
+      await write([...selectedIds]);
+    } finally {
+      busy = false;
     }
   }
 
-  function setFavorite(value: boolean): void {
-    void applyMeta((id) => updateAsset(id, { isFavorite: value }));
+  function setFavorite(value: boolean): Promise<void> {
+    return runBulk((ids) => bulkMeta.setFavorite(ids, value));
   }
 
-  async function createCopies(): Promise<void> {
-    if (busy || selectingAll) return;
-    busy = true;
-    const ids = [...selectedIds];
-    let failed = 0;
-    await runPool(ids, 4, async (id) => {
-      try {
-        await createVirtualCopy(id, { navigate: false });
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      toasts.push(
-        'success',
-        `Created ${countOf(ids.length, 'virtual copy', 'virtual copies')}`,
-        4000
-      );
-    }
+  function createCopies(): Promise<void> {
+    return runBulk(virtualCopies.create);
   }
 
-  function setRating(value: number | null): void {
-    void applyMeta((id) => updateAsset(id, { rating: value }));
+  function setRating(value: number | null): Promise<void> {
+    return runBulk((ids) => bulkMeta.setRating(ids, value));
   }
 
-  async function applyReject(value: boolean): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
-    const rejectTag = await ensureRejectTag();
-    if (!rejectTag) {
-      toasts.push('error', 'reject: could not create tag', 6000);
-      return;
-    }
-    busy = true;
-    const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
-    let failed = 0;
-    await runPool(ids, 6, async (id) => {
-      try {
-        await (value ? addTagToAsset(rejectTag.id, id) : removeTagFromAsset(rejectTag.id, id));
-        const a = byId.get(id);
-        if (a) {
-          const tags = setRejectedTags(a.tags, rejectTag, value);
-          a.tags = tags;
-          browsing.patch(id, { tags });
-        }
-        if (value) rejected.add(id, rejectTag);
-        else rejected.remove(id);
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      toasts.push(
-        'success',
-        `${value ? 'Rejected' : 'Unrejected'} ${countOf(ids.length, 'asset')}`,
-        4000
-      );
-    }
+  function applyReject(value: boolean): Promise<void> {
+    return runBulk((ids) => bulkMeta.setRejected(ids, value));
   }
-  async function applyLabel(color: LabelColor | null): Promise<void> {
-    if (busy || selectingAll) return;
-    if (!(await metadataConsent.gate())) return;
-    const tag = await labelTagFor(color);
-    if (tag === undefined) {
-      toasts.push('error', 'label: could not create tag', 6000);
-      return;
-    }
-    busy = true;
-    const ids = [...selectedIds];
-    const byId = new Map(assets.map((a) => [a.id, a]));
-    let failed = 0;
-    await runPool(ids, 6, async (id) => {
-      const a = byId.get(id);
-      try {
-        await writeLabel(id, a?.tags ?? [], tag);
-        if (a) {
-          const tags = withLabel(a.tags, tag);
-          a.tags = tags;
-          browsing.patch(id, { tags });
-        }
-        assignLabel(id, color, tag);
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} of ${ids.length} failed`, 6000);
-    } else {
-      const what = color ? `${LABEL_NAMES[color]} label on` : 'Cleared the label of';
-      toasts.push('success', `${what} ${countOf(ids.length, 'photo')}`, 4000);
-    }
+
+  function applyLabel(color: LabelColor | null): Promise<void> {
+    return runBulk((ids) => bulkMeta.setLabel(ids, color));
   }
 </script>
 
@@ -277,7 +144,7 @@
     bind:this={bar}
     role="toolbar"
     aria-label="Selection actions"
-    class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
+    class="fixed bottom-[calc(1rem+var(--safe-bottom))] left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem-var(--safe-left)-var(--safe-right))] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
     <ControlBar static shape="rectangle" class="min-w-0 px-3">
       <ControlBarHeader class="flex items-center gap-2 p-1">
@@ -344,14 +211,14 @@
             isFavorite={favoriteState === 'all'}
             mixed={favoriteState === 'some'}
             disabled={metaBusy || !allOwned}
-            ontoggle={() => setFavorite(favoriteState !== 'all')}
+            ontoggle={() => void setFavorite(favoriteState !== 'all')}
           />
           <StarRating
             size={20}
             rating={commonRating ?? 0}
             mixed={commonRating === null}
             disabled={metaBusy || !allOwned}
-            onchange={setRating}
+            onchange={(value) => void setRating(value)}
           />
           <RejectButton
             size="medium"
@@ -447,7 +314,7 @@
     </ControlBar>
 
     {#if band === 'tags' && allOwned}
-      <BulkTagBand ids={selectedIds} {runPool} bind:busy />
+      <BulkTagBand ids={selectedIds} bind:busy />
     {:else if band === 'albums'}
       <BulkAlbumBand ids={selectedIds} bind:busy />
     {/if}

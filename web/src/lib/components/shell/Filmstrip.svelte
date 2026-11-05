@@ -15,6 +15,7 @@
   import { Icon } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
     currentId: currentIdProp = null,
@@ -78,7 +79,7 @@
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!scrollContainer || e.deltaX !== 0 || e.deltaY === 0 || e.ctrlKey || e.metaKey) return;
+    if (!scrollContainer || e.deltaX !== 0 || e.deltaY === 0 || held('zoom', e)) return;
     e.preventDefault();
     scrollContainer.scrollLeft += e.deltaY;
   }
@@ -128,7 +129,7 @@
     {#if !collapsed}
       <div class="relative">
         <div
-          class="overflow-x-auto py-1.5 scrollbar-hidden"
+          class="no-callout overflow-x-auto py-1.5 scrollbar-hidden"
           data-testid="filmstrip-scroll"
           bind:this={scrollContainer}
           use:observeSize={measure}
@@ -150,7 +151,7 @@
                       <button
                         {...mergeProps(props, {
                           onclick: (e: MouseEvent) =>
-                            onSelect(asset.id, e.metaKey || e.ctrlKey || e.shiftKey)
+                            onSelect(asset.id, held('extend', e) || held('toggle', e))
                         })}
                         type="button"
                         aria-pressed={isCurrent || isMember}

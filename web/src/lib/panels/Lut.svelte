@@ -1,11 +1,13 @@
 <script lang="ts">
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import FileImportButton from '#lib/components/FileImportButton.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { editsToManifest } from '#lib/edits/manifest.ts';
+  import { LUT, lutAmount } from '#lib/editor/params/color.ts';
   import { mdiClose } from '@mdi/js';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
@@ -77,10 +79,8 @@
   }
 
   function reset(): void {
-    editor.edits.color.lut_3d.lut_id = null;
-    editor.edits.color.lut_3d.amount = 100;
     pendingDelete = false;
-    void editor.onCommit('Reset LUT');
+    commitSectionReset(LUT);
   }
 </script>
 
@@ -136,14 +136,7 @@
 
   {#if selected}
     <div class="border-t border-hairline pt-1">
-      <EditSlider
-        label="Amount"
-        commitAction="LUT Amount"
-        bind:value={editor.edits.color.lut_3d.amount}
-        min={0}
-        max={100}
-        defaultValue={100}
-      />
+      <ParamSlider param={lutAmount} />
     </div>
   {/if}
 </div>

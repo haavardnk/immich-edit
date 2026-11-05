@@ -1,46 +1,32 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
+  import { onNavigate } from '$app/navigation';
   import type { Snippet } from 'svelte';
-  import TopBar from './TopBar.svelte';
-  import LeftSidebar from './LeftSidebar.svelte';
-  import SettingsSidebar from './SettingsSidebar.svelte';
-  import RightSidebar from './RightSidebar.svelte';
-  import Filmstrip from './Filmstrip.svelte';
-  import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
+  import DesktopBrowseShell from '#lib/components/shell/desktop/DesktopBrowseShell.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
   import TrashDialog from './TrashDialog.svelte';
   import JobsDrawer from '#lib/components/jobs/JobsDrawer.svelte';
-  import EditorToolRail from '#lib/components/editor/EditorToolRail.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
-  import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
+  import { onEditorRoute } from '#lib/utils/route.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
-  import { AppShell, AppShellBar, AppShellSidebar } from '@immich/ui';
-  import { MediaQuery } from 'svelte/reactivity';
 
   let { children }: { children: Snippet } = $props();
 
-  const editorRoute = $derived(page.url.pathname.startsWith('/assets/'));
-  const settingsRoute = $derived(page.url.pathname.startsWith('/settings'));
-  const narrowViewport = new MediaQuery('max-width: 1023px');
-  let sidebarOpen = $derived(!narrowViewport.current);
-
-  function toggleSidebar(): void {
-    sidebarOpen = !sidebarOpen;
-  }
+  const onEditor = $derived(onEditorRoute());
 
   onMount(() => {
     void editedThumbs.loadOnce();
     void jobs.load();
   });
 
-  $effect(() => {
-    if (page.url.pathname && narrowViewport.current) sidebarOpen = false;
+  onNavigate(({ to }) => {
+    if (to) leaveLoupeOnEditorPath(to.url.pathname);
   });
 
   $effect(() => {
@@ -49,45 +35,12 @@
 </script>
 
 <div class="contents" inert={browseView.loupeId !== null}>
-  {#if editorRoute}
-    <div class="flex h-screen w-screen overflow-hidden bg-light text-dark">
-      <div class="relative flex min-h-0 min-w-0 flex-1">
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-          <main class="flex-1 min-h-0 flex flex-col bg-light">
-            {@render children()}
-          </main>
-          {#if editor.assetId && !ui.fullscreen}
-            {#if ui.presetStrip}
-              <PresetStrip />
-            {:else}
-              <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
-            {/if}
-          {/if}
-        </div>
-        {#if !ui.fullscreen}
-          <RightSidebar />
-          <EditorToolRail />
-        {/if}
-      </div>
-    </div>
+  {#if onEditor}
+    {@render children()}
   {:else}
-    <AppShell class="h-screen w-screen bg-light text-dark">
-      <AppShellBar class="min-h-18 border-b border-hairline bg-light-50 py-1">
-        <TopBar onToggleSidebar={toggleSidebar} />
-      </AppShellBar>
-      <AppShellSidebar bind:open={sidebarOpen} border={false} class="bg-light-50">
-        {#if sidebarOpen}
-          {#if settingsRoute}
-            <SettingsSidebar />
-          {:else}
-            <LeftSidebar />
-          {/if}
-        {/if}
-      </AppShellSidebar>
-      <main class="flex h-full min-w-0 flex-col bg-light">
-        {@render children()}
-      </main>
-    </AppShell>
+    <DesktopBrowseShell>
+      {@render children()}
+    </DesktopBrowseShell>
   {/if}
 </div>
 

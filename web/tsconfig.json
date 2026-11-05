@@ -6,5 +6,5 @@
     "noUncheckedIndexedAccess": true
   },
   "include": ["src", "*.ts"],
-  "exclude": ["src/lib/wasm"]
+  "exclude": ["src/lib/wasm", "src/service-worker"]
 }

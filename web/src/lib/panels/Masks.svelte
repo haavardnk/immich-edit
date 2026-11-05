@@ -1,6 +1,7 @@
 <script lang="ts">
   import Notice from '#lib/components/Notice.svelte';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { MASK_FEATHER } from '#lib/editor/params/maskComponents.ts';
   import MaskAdjustments from './MaskAdjustments.svelte';
   import MaskBrushControls from './MaskBrushControls.svelte';
   import MaskGeneratedControls from './MaskGeneratedControls.svelte';
@@ -65,7 +66,7 @@
   const featherValue = $derived(
     activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')
       ? activeComp.kind.feather
-      : 0.5
+      : MASK_FEATHER.defaultValue
   );
 
   $effect(() => {
@@ -346,13 +347,9 @@
             <SliderRow
               label="Feather"
               value={featherValue}
-              min={0}
-              max={1}
-              step={0.01}
-              defaultValue={0.5}
+              range={MASK_FEATHER}
               onLive={onFeatherLive}
               onCommit={() => void editor.commitMasks()}
-              format={(v: number) => v.toFixed(2)}
             />
           </div>
         {/if}

@@ -12,12 +12,8 @@ import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
 import { renderer } from '#lib/stores/renderer.svelte.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
-import {
-  neutraliseSection,
-  originalPreviewEdits,
-  type DevelopSection,
-  type Edits
-} from '#lib/types/edits.ts';
+import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
+import { originalPreviewEdits, type DevelopSection, type Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
 import { displayGamutIsWide, previewColorSpace } from '#lib/utils/colorGamut.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
@@ -72,6 +68,7 @@ export interface PreviewCtx extends MaskWeightCtx {
   splitMode: boolean;
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
+  readonly isRaw: boolean;
   presetPreview: PresetPreview | null;
   geometrySession: GeometrySession | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
@@ -169,10 +166,6 @@ export class PreviewEngine {
 
   get sourceLong(): number {
     return this.tiles.srcLong;
-  }
-
-  get snapshot(): ViewSnapshot | null {
-    return this.viewSnap;
   }
 
   get viewScale(): number | null {
@@ -324,7 +317,12 @@ export class PreviewEngine {
     if (this.ctx.showingOriginal) {
       return { edits: originalPreviewEdits(edits), maxEdge, previewMode: 'none' };
     }
-    if (section) return { edits: neutraliseSection(edits, section), maxEdge, previewMode: 'none' };
+    if (section)
+      return {
+        edits: neutraliseSection(edits, section, this.ctx.isRaw),
+        maxEdge,
+        previewMode: 'none'
+      };
     if (this.ctx.presetPreview) {
       return { edits: presetEdits(edits, this.ctx.presetPreview), maxEdge, previewMode: 'none' };
     }

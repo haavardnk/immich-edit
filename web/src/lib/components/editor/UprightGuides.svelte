@@ -5,6 +5,10 @@
   import { classifyGuide, type UprightGuide } from '#lib/utils/upright.ts';
   import { Icon } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { HANDLE_DOT } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   interface Props {
     frame: StageFrame;
@@ -24,6 +28,7 @@
   }
 
   const REMOVE_OFFSET = 16;
+  const hit = $derived(handleHit());
 
   let root = $state<HTMLDivElement | null>(null);
   let drawing = $state<{ from: Point; to: Point } | null>(null);
@@ -57,91 +62,86 @@
   }
 
   function local(e: PointerEvent): Point {
-    const rect = root?.getBoundingClientRect();
-    return [e.clientX - (rect?.left ?? 0), e.clientY - (rect?.top ?? 0)];
+    const at = root ? elementPoint(e, root) : { x: e.clientX, y: e.clientY };
+    return [at.x, at.y];
   }
 
-  function capture(e: PointerEvent): boolean {
+  function primary(e: PointerEvent): boolean {
     e.stopPropagation();
     if (!e.isPrimary || e.button !== 0) return false;
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     return true;
   }
 
-  function release(e: PointerEvent): void {
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-  }
-
-  function cancel(e: PointerEvent): void {
+  function cancelDrag(e: PointerEvent): void {
     e.stopPropagation();
     drawing = null;
     moving = null;
   }
 
-  function startDraw(e: PointerEvent): void {
-    if (!capture(e)) return;
-    const at = local(e);
-    drawing = { from: at, to: at };
-  }
-
-  function onDraw(e: PointerEvent): void {
-    e.stopPropagation();
-    if (!drawing) return;
-    drawing = { from: drawing.from, to: local(e) };
-  }
-
-  function endDraw(e: PointerEvent): void {
-    const drawn = drawing;
-    drawing = null;
-    if (!drawn) {
+  const draw = pointerDrag<true>({
+    start(e) {
+      if (!primary(e)) return null;
+      const at = local(e);
+      drawing = { from: at, to: at };
+      return true;
+    },
+    move(e) {
       e.stopPropagation();
-      return;
-    }
-    release(e);
-    const kind = classifyGuide(drawn.from, drawn.to, diagonal);
-    if (!kind) return;
-    void editor.addUprightGuide({
-      kind,
-      from: stageToSource(frame, drawn.from),
-      to: stageToSource(frame, drawn.to)
-    });
-  }
+      if (!drawing) return;
+      drawing = { from: drawing.from, to: local(e) };
+    },
+    end(e) {
+      e.stopPropagation();
+      const drawn = drawing;
+      drawing = null;
+      if (!drawn) return;
+      const kind = classifyGuide(drawn.from, drawn.to, diagonal);
+      if (!kind) return;
+      void editor.addUprightGuide({
+        kind,
+        from: stageToSource(frame, drawn.from),
+        to: stageToSource(frame, drawn.to)
+      });
+    },
+    cancel: cancelDrag
+  });
 
-  function startMove(e: PointerEvent, index: number, end: End): void {
-    const line = lines[index];
-    if (!capture(e) || !line) return;
-    const pointer = local(e);
-    const at = line[end];
-    moving = { index, end, at, grab: [pointer[0] - at[0], pointer[1] - at[1]], dragged: false };
-  }
-
-  function onMove(e: PointerEvent): void {
-    e.stopPropagation();
-    if (!moving) return;
-    const pointer = local(e);
-    moving = {
-      ...moving,
-      at: [pointer[0] - moving.grab[0], pointer[1] - moving.grab[1]],
-      dragged: true
-    };
-  }
-
-  function endMove(e: PointerEvent): void {
-    release(e);
-    const moved = moving;
-    const line = moved ? lines[moved.index] : undefined;
-    const guide = moved ? guides[moved.index] : undefined;
-    moving = null;
-    if (!moved?.dragged || !line || !guide) return;
-    if (classifyGuide(line.from, line.to, diagonal) !== guide.kind) return;
-    const at = stageToSource(frame, moved.at);
-    void editor.moveUprightGuide(
-      moved.index,
-      moved.end === 'from' ? { ...guide, from: at } : { ...guide, to: at }
-    );
-  }
+  const move = pointerDrag<true, { index: number; end: End }>({
+    start(e, { index, end }) {
+      const line = lines[index];
+      if (!primary(e) || !line) return null;
+      const pointer = local(e);
+      const at = line[end];
+      moving = { index, end, at, grab: [pointer[0] - at[0], pointer[1] - at[1]], dragged: false };
+      return true;
+    },
+    move(e) {
+      e.stopPropagation();
+      if (!moving) return;
+      const pointer = local(e);
+      moving = {
+        ...moving,
+        at: [pointer[0] - moving.grab[0], pointer[1] - moving.grab[1]],
+        dragged: true
+      };
+    },
+    end(e) {
+      e.stopPropagation();
+      const moved = moving;
+      const line = moved ? lines[moved.index] : undefined;
+      const guide = moved ? guides[moved.index] : undefined;
+      moving = null;
+      if (!moved?.dragged || !line || !guide) return;
+      if (classifyGuide(line.from, line.to, diagonal) !== guide.kind) return;
+      const at = stageToSource(frame, moved.at);
+      void editor.moveUprightGuide(
+        moved.index,
+        moved.end === 'from' ? { ...guide, from: at } : { ...guide, to: at }
+      );
+    },
+    cancel: cancelDrag
+  });
 </script>
 
 <div
@@ -149,10 +149,7 @@
   class="absolute inset-0 cursor-crosshair touch-none"
   data-testid="upright-surface"
   role="presentation"
-  onpointerdown={startDraw}
-  onpointermove={onDraw}
-  onpointerup={endDraw}
-  onpointercancel={cancel}
+  {...draw.on()}
 >
   <svg
     class="pointer-events-none absolute inset-0"
@@ -194,14 +191,16 @@
     {#each [['from', 'start'], ['to', 'end']] as const as [end, label] (end)}
       {@const [x, y] = line[end]}
       <button
-        class="absolute cursor-move rounded-full border border-black/60 bg-image-accent"
-        style="width: 12px; height: 12px; left: {x - 6}px; top: {y - 6}px;"
-        onpointerdown={(e) => startMove(e, i, end)}
-        onpointermove={onMove}
-        onpointerup={endMove}
-        onpointercancel={cancel}
+        class="absolute cursor-move"
+        style="width: {hit * 2}px; height: {hit * 2}px; left: {x - hit}px; top: {y - hit}px;"
+        {...move.on({ index: i, end })}
         aria-label="upright guide {i + 1} {label}"
-      ></button>
+      >
+        <span
+          class="pointer-events-none absolute rounded-full border border-black/60 bg-image-accent"
+          style="inset: {hit - HANDLE_DOT.guideEnd}px;"
+        ></span>
+      </button>
     {/each}
     <button
       class="absolute flex cursor-pointer items-center justify-center rounded-full border border-white/40 bg-black/70 text-white"

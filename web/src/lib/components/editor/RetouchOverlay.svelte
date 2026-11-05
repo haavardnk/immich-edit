@@ -11,13 +11,12 @@
     viewTransform
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-  import {
-    HARDNESS,
-    RETOUCH_SIZE,
-    wheelHardness,
-    wheelNotches,
-    wheelSize
-  } from '#lib/utils/brushSize.ts';
+  import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
+  import { brushWheel } from '#lib/utils/brushSize.ts';
+  import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { normalizedPoint } from '#lib/gestures/point.ts';
+  import { RETOUCH_SOURCE_HIT } from '#lib/editor/handles.ts';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -42,14 +41,15 @@
   } | null>(null);
   let hoverMovable = $state(false);
   let hover = $state<[number, number] | null>(null);
-  let hoverAlt = $state(false);
+  let sampleKey = $state(false);
   let strokeOffset: [number, number] | null = null;
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
   const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
-  const canPick = $derived(!!anchor || hoverAlt || editor.retouchSampling);
+  const sampleHeld = $derived(sampleKey || latched('sample'));
+  const canPick = $derived(!!anchor || sampleHeld || editor.retouchSampling);
 
   function minSide(): number {
     return Math.max(1, Math.min(rect.w, rect.h));
@@ -86,7 +86,7 @@
     const r = displayRadius(s.radius, sx, sy) / minSide();
     const dx = (nx - sx) * rect.w;
     const dy = (ny - sy) * rect.h;
-    return Math.hypot(dx, dy) <= Math.max(8, r * minSide()) ? s.id : null;
+    return Math.hypot(dx, dy) <= Math.max(RETOUCH_SOURCE_HIT, r * minSide()) ? s.id : null;
   }
 
   function hitStroke(nx: number, ny: number): RetouchStroke | null {
@@ -104,11 +104,8 @@
 
   function normalise(e: PointerEvent): [number, number] {
     if (!canvasEl) return [0, 0];
-    const bounds = canvasEl.getBoundingClientRect();
-    return [
-      (e.clientX - bounds.left) / Math.max(1, bounds.width),
-      (e.clientY - bounds.top) / Math.max(1, bounds.height)
-    ];
+    const p = normalizedPoint(e, canvasEl);
+    return [p.x, p.y];
   }
 
   async function finishStroke(): Promise<void> {
@@ -136,17 +133,21 @@
     });
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    if (!canvasEl || e.button !== 0) return;
+  function startPointer(e: PointerEvent): true | null {
+    if (!canvasEl || e.button !== 0) return null;
     e.preventDefault();
     e.stopPropagation();
     const [nx, ny] = normalise(e);
-    if (e.altKey || editor.retouchSampling) {
+    if (held('sample', e) || editor.retouchSampling) {
       const s = displayUvToSceneUv(view, nx, ny);
       editor.setRetouchAnchor({ x: s[0], y: s[1] });
-      return;
+      return null;
     }
-    canvasEl.setPointerCapture(e.pointerId);
+    pickTarget(nx, ny);
+    return true;
+  }
+
+  function pickTarget(nx: number, ny: number): void {
     const handle = hitSourceHandle(nx, ny);
     if (handle) {
       dragSourceId = handle;
@@ -185,10 +186,10 @@
     drawPts = [[nx, ny]];
   }
 
-  function onPointerMove(e: PointerEvent): void {
+  function trackPointer(e: PointerEvent): void {
     const [nx, ny] = normalise(e);
     hover = [nx, ny];
-    hoverAlt = e.altKey;
+    sampleKey = keyHeld('sample', e);
     if (dragSourceId) {
       const s = displayUvToSceneUv(view, nx, ny);
       void editor.setRetouchStroke(dragSourceId, { source: { x: s[0], y: s[1] } }, false);
@@ -227,8 +228,7 @@
     drawPts = [...drawPts, ...added].slice(0, MAX_RETOUCH_POINTS);
   }
 
-  function onPointerUp(e: PointerEvent): void {
-    canvasEl?.releasePointerCapture?.(e.pointerId);
+  function endPointer(): void {
     if (dragSourceId) {
       const id = dragSourceId;
       dragSourceId = null;
@@ -245,22 +245,24 @@
     if (drawing) void finishStroke();
   }
 
+  const pointer = pointerDrag<true>({
+    start: startPointer,
+    move: trackPointer,
+    hover: trackPointer,
+    end: endPointer
+  });
+
   function onPointerLeave(): void {
     hover = null;
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!e.altKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const notches = wheelNotches(e);
-    if (e.shiftKey) {
-      editor.setRetouchTool({
-        hardness: wheelHardness(editor.retouchTool.hardness, notches, HARDNESS)
-      });
-      return;
-    }
-    editor.setRetouchTool({ size: wheelSize(editor.retouchTool.size, notches, RETOUCH_SIZE) });
+    brushWheel(
+      e,
+      editor.retouchTool,
+      { size: RETOUCH_SIZE, hardness: RETOUCH_HARDNESS },
+      editor.setRetouchTool
+    );
   }
 
   function ring(
@@ -418,7 +420,7 @@
 
     if (!hover) return;
     const rPx = displayRadius(editor.retouchTool.size, hover[0], hover[1]);
-    const picking = hoverAlt || !anchor || editor.retouchSampling;
+    const picking = sampleHeld || !anchor || editor.retouchSampling;
     ring(
       ctx,
       hover[0] * w,
@@ -455,7 +457,7 @@
     void strokes;
     void drawPts;
     void hover;
-    void hoverAlt;
+    void sampleHeld;
     void anchor;
     void view;
     void rect.w;
@@ -479,10 +481,7 @@
         : canPick
           ? 'crosshair'
           : 'not-allowed'};"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...pointer.on()}
     onpointerleave={onPointerLeave}
     onwheel={onWheel}
   ></canvas>

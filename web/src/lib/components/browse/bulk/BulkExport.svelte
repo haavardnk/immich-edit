@@ -1,140 +1,32 @@
 <script lang="ts">
-  import { selection } from '#lib/stores/selection.svelte.ts';
-  import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { EXTENSION_BY_FORMAT } from '#lib/api/export.ts';
-  import { createImmichExportJob, createZipExportJob } from '#lib/api/jobs.ts';
-  import { runBulkJob } from '#lib/api/bulkJob.ts';
-  import { captureDate } from '#lib/editor/filenameTemplate.ts';
   import { Button } from '@immich/ui';
-  import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
-  import DestinationToggle from '#lib/panels/export/DestinationToggle.svelte';
-  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
-  import ExportSection from '#lib/panels/export/ExportSection.svelte';
-  import FilenameTemplateField from '#lib/panels/export/FilenameTemplateField.svelte';
-  import FormatOptions from '#lib/panels/export/FormatOptions.svelte';
-  import ResizeOptions from '#lib/panels/export/ResizeOptions.svelte';
-  import SharpenOptions from '#lib/panels/export/SharpenOptions.svelte';
-  import WatermarkOptions from '#lib/panels/export/WatermarkOptions.svelte';
-  import ImmichOptions from '#lib/panels/export/ImmichOptions.svelte';
-  import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
-  import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '#lib/browse/ownership.ts';
-  import { sourceId } from '#lib/browse/assetKey.ts';
-  import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
-  import { replaceBlocked } from '#lib/panels/export/replace.ts';
-  import { countOf } from '#lib/utils/plural.ts';
-  import {
-    baseOptions,
-    ensureLibraryLoaded,
-    formatLabel,
-    formInvalid,
-    immichOptions
-  } from '#lib/panels/export/settings.ts';
+  import ExportForm from '#lib/panels/export/ExportForm.svelte';
+  import { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
 
-  const form = $derived(exportSettings.form);
-  const destination = $derived(exportSettings.destination);
-  let busy = $state(false);
-  let replaceOriginal = $state(false);
-
-  $effect(() => {
-    if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
-  });
-
-  async function submit(): Promise<void> {
-    if (busy) return;
-    busy = true;
-    const replace = replaceOriginal && replaceReason === null;
-    replaceOriginal = false;
-    await runBulkJob(
-      (assetIds) =>
-        destination === 'immich'
-          ? createImmichExportJob(
-              assetIds,
-              immichOptions(form, { stackable, replaceOriginal: replace })
-            )
-          : createZipExportJob(assetIds, baseOptions(form)),
-      'Failed to queue export'
-    );
-    busy = false;
-  }
-
-  let label = $derived(formatLabel(form.format));
-  let picked = $derived(browsing.assets.filter((asset) => selection.selected.has(asset.id)));
-  let first = $derived(picked[0] ?? null);
-  let stackable = $derived(picked.length < selection.count || picked.some(ownsAsset));
-  let replaceReason = $derived(
-    replaceBlocked({
-      owned: stackable,
-      trashOn: immichCapabilities.trash,
-      versionsOfOnePhoto: new Set(picked.map((a) => sourceId(a.id))).size < picked.length,
-      single: selection.count === 1
-    })
-  );
-  let nameExample = $derived(
-    first
-      ? {
-          original: first.originalFileName,
-          date: captureDate(first),
-          position: 1,
-          total: selection.count
-        }
-      : null
-  );
-  let invalid = $derived(formInvalid(form));
+  const exporter = new BulkExporter();
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
   <div class="text-[11px] text-dark/65 select-none">
-    {countOf(selection.count, 'asset')} selected
+    {exporter.summary}
   </div>
 
-  <ExportPresetMenu />
-  <DestinationToggle bind:value={exportSettings.destination} downloadLabel="Download ZIP" />
-
-  <ExportSection title="File">
-    <FormatOptions bind:form={exportSettings.form} />
-  </ExportSection>
-
-  <ExportSection title="Size">
-    <ResizeOptions bind:form={exportSettings.form} />
-    <SharpenOptions bind:form={exportSettings.form} />
-  </ExportSection>
-
-  <ExportSection title="Watermark">
-    <WatermarkOptions bind:form={exportSettings.form} />
-  </ExportSection>
-
-  <ExportSection title="Name">
-    <FilenameTemplateField
-      bind:value={exportSettings.form.filenameTemplate}
-      example={nameExample}
-      extension={EXTENSION_BY_FORMAT[form.format]}
-    />
-  </ExportSection>
-
-  {#if destination === 'immich'}
-    <ExportSection title="Immich">
-      <ImmichOptions
-        bind:form={exportSettings.form}
-        bind:replaceOriginal
-        {stackable}
-        stackReason={selection.count === 1 ? NOT_OWNER_STACK : NONE_OWNED_STACK}
-        {replaceReason}
-      />
-    </ExportSection>
-  {/if}
+  <ExportForm
+    scope={exporter.scope}
+    bind:replaceOriginal={exporter.replaceOriginal}
+    downloadLabel="Download ZIP"
+  />
 
   <Button
     size="small"
     color="primary"
     fullWidth
-    loading={busy}
-    leadingIcon={destination === 'immich' ? mdiCloudUpload : mdiFolderZip}
-    disabled={busy || selection.count === 0 || invalid}
-    onclick={() => void submit()}
+    loading={exporter.busy}
+    leadingIcon={exporter.icon}
+    disabled={exporter.disabled}
+    onclick={() => void exporter.submit()}
   >
-    {destination === 'immich'
-      ? `Export ${selection.count} to Immich`
-      : `Download ${selection.count} as ${label} ZIP`}
+    {exporter.label}
   </Button>
 
   <p class="text-[10px] leading-snug text-dark/65">

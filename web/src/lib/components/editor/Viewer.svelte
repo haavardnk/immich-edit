@@ -13,12 +13,20 @@
   import Notice from '#lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
-  import { fitScale, frameBox, nativeScale, placement } from '#lib/utils/viewGeometry.ts';
-  import { splitPosition, viewportTransform, zoomAtAnchor } from '#lib/utils/imageViewport.ts';
+  import { frameBox, placement } from '#lib/utils/viewGeometry.ts';
+  import {
+    clampView,
+    frameOffset,
+    scaleOf,
+    viewportMetrics,
+    viewportTransform
+  } from '#lib/utils/imageViewport.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
-
-  const WHEEL_STEP = 1.1;
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { clampedPoint } from '#lib/gestures/point.ts';
+  import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
@@ -29,19 +37,17 @@
   let splitNatW = $state(0);
   let splitNatH = $state(0);
   let dragging = $state(false);
-  let splitDragging = $state(false);
-  let lastX = 0;
-  let lastY = 0;
 
-  const fit = $derived(baseNat ? fitScale(viewBox.w, viewBox.h, baseNat.w, baseNat.h) : 0);
-  const unit = $derived(
-    baseNat ? nativeScale(Math.max(baseNat.w, baseNat.h), editor.sourceLong, dpr) || fit : 0
+  const metrics = $derived(
+    viewportMetrics(viewBox, baseNat ?? { w: 0, h: 0 }, editor.sourceLong, dpr)
   );
-  const scale = $derived(ui.fitMode ? fit : (ui.zoom / 100) * unit);
+  const view = $derived(clampView(metrics, ui.view));
 
   const frame = $derived.by(() => {
     if (!baseNat || viewBox.w <= 0 || viewBox.h <= 0) return null;
-    return frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, scale, ui.panX, ui.panY, dpr);
+    const offset = frameOffset(metrics, view);
+    const scale = scaleOf(metrics, view.zoom);
+    return frameBox(viewBox.w, viewBox.h, baseNat.w, baseNat.h, scale, offset.x, offset.y, dpr);
   });
 
   const viewPlace = $derived.by(() => {
@@ -58,50 +64,34 @@
     ui.greyCanvas ? 'ring-1 ring-white/10' : 'shadow-image ring-1 ring-white/10'
   );
 
-  function onPointerDown(e: PointerEvent): void {
-    if (!ui.zoomed) return;
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
+  const gestures = viewportGestures({
+    element: () => container,
+    metrics: () => metrics,
+    view: () => view,
+    apply: (next, _e, change) => ui.applyView(next, change),
+    dragging: (active) => (dragging = active),
+    doubleTap(e) {
+      if (ui.zoomed) ui.zoomFit();
+      else gestures.zoomAt(e, ui.zoomLevel, e);
+    }
+  });
 
-  function onPointerMove(e: PointerEvent): void {
-    if (!dragging) return;
-    ui.panX += e.clientX - lastX;
-    ui.panY += e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-  }
-
-  function onPointerUp(): void {
-    dragging = false;
-  }
-
-  function onSplitPointerDown(e: PointerEvent): void {
-    splitDragging = true;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    updateSplit(e);
-    e.stopPropagation();
-  }
-
-  function onSplitPointerMove(e: PointerEvent): void {
-    if (!splitDragging) return;
-    updateSplit(e);
-  }
-
-  function onSplitPointerUp(): void {
-    splitDragging = false;
-  }
+  const split = pointerDrag<true>({
+    start(e) {
+      updateSplit(e);
+      e.stopPropagation();
+      return true;
+    },
+    move: (e) => updateSplit(e)
+  });
 
   function updateSplit(e: PointerEvent): void {
     if (!splitWrap) return;
-    const rect = splitWrap.getBoundingClientRect();
-    editor.setSplitPos(splitPosition(e.clientX, rect.left, rect.width));
+    editor.setSplitPos(clampedPoint(e, splitWrap).x);
   }
 
   function onSplitKeyDown(e: KeyboardEvent): void {
-    const step = e.shiftKey ? 0.1 : 0.02;
+    const step = held('coarse', e) ? 0.1 : 0.02;
     if (e.key === 'ArrowLeft') editor.setSplitPos(editor.splitPos - step);
     else if (e.key === 'ArrowRight') editor.setSplitPos(editor.splitPos + step);
     else if (e.key === 'Home') editor.setSplitPos(0);
@@ -110,48 +100,7 @@
     e.preventDefault();
   }
 
-  function zoomAt(next: number, clientX: number, clientY: number): void {
-    const before = frame;
-    const prev = ui.zoom;
-    ui.userZoom(next);
-    if (!before || !container || ui.zoom === prev || !ui.zoomed) return;
-    const rect = container.getBoundingClientRect();
-    const pan = zoomAtAnchor(
-      viewBox.w,
-      viewBox.h,
-      before,
-      clientX - rect.left,
-      clientY - rect.top,
-      prev,
-      ui.zoom
-    );
-    ui.panX = pan.panX;
-    ui.panY = pan.panY;
-  }
-
-  function onWheel(e: WheelEvent): void {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      zoomAt(ui.zoom * (e.deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP), e.clientX, e.clientY);
-      return;
-    }
-    if (!ui.zoomed) return;
-    e.preventDefault();
-    ui.panX -= e.deltaX;
-    ui.panY -= e.deltaY;
-  }
-
-  function onDblClick(e: MouseEvent): void {
-    if (ui.zoomed) {
-      ui.zoomFit();
-      return;
-    }
-    zoomAt(ui.zoomLevel, e.clientX, e.clientY);
-  }
-
-  const viewTransform = $derived.by(() =>
-    viewportTransform(fit > 0 ? scale / fit : 1, ui.panX, ui.panY)
-  );
+  const viewTransform = $derived(viewportTransform(metrics, view));
 
   function measure(): void {
     if (!container) return;
@@ -161,7 +110,7 @@
   $effect(() => {
     const box = frame;
     if (!box) return;
-    editor.onViewChange({ frame: box, viewW: viewBox.w, viewH: viewBox.h, dpr });
+    editor.onViewChange({ frame: box, viewW: viewBox.w, viewH: viewBox.h, dpr }, metrics);
   });
 
   $effect(() => {
@@ -170,7 +119,7 @@
   });
 
   $effect(() => {
-    ui.setFitZoom(unit > 0 ? (100 * fit) / unit : 100);
+    ui.setFitZoom(metrics.fitZoom);
   });
 </script>
 
@@ -178,15 +127,10 @@
   bind:this={container}
   use:observeSize={measure}
   role="application"
-  class="editor-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+  class="editor-stage no-callout relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
-  onpointerdown={editor.geometrySession ? undefined : onPointerDown}
-  onpointermove={editor.geometrySession ? undefined : onPointerMove}
-  onpointerup={editor.geometrySession ? undefined : onPointerUp}
-  onpointercancel={editor.geometrySession ? undefined : onPointerUp}
-  onwheel={editor.geometrySession ? undefined : onWheel}
-  ondblclick={editor.geometrySession ? undefined : onDblClick}
+  {...editor.geometrySession ? {} : gestures.handlers}
 >
   {#if editor.geometrySession?.frameUrl}
     <CropOverlay />
@@ -239,10 +183,7 @@
           aria-valuemax="100"
           class="absolute top-1/2 w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white border-2 border-black/40 shadow-lg cursor-ew-resize flex items-center justify-center text-black/70 text-xs font-bold"
           style="left: {editor.splitPos * 100}%;"
-          onpointerdown={onSplitPointerDown}
-          onpointermove={onSplitPointerMove}
-          onpointerup={onSplitPointerUp}
-          onpointercancel={onSplitPointerUp}
+          {...split.on()}
           onkeydown={onSplitKeyDown}
         >
           ↔

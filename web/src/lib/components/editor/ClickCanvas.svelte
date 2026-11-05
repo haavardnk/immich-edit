@@ -13,6 +13,9 @@
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint, normalizedPoint } from '#lib/gestures/point.ts';
 
   let {
     img
@@ -72,15 +75,13 @@
   }
 
   function sceneUvAt(e: PointerEvent): [number, number] {
-    const bounds = (e.currentTarget as Element).getBoundingClientRect();
-    const du = (e.clientX - bounds.left) / Math.max(1, bounds.width);
-    const dv = (e.clientY - bounds.top) / Math.max(1, bounds.height);
-    return sceneUvFromDisplay(du, dv);
+    const p = normalizedPoint(e, e.currentTarget as Element);
+    return sceneUvFromDisplay(p.x, p.y);
   }
 
   function localPx(e: PointerEvent): [number, number] {
-    const bounds = (e.currentTarget as Element).getBoundingClientRect();
-    return [e.clientX - bounds.left, e.clientY - bounds.top];
+    const p = elementPoint(e, e.currentTarget as Element);
+    return [p.x, p.y];
   }
 
   function markerPos(x: number, y: number): { left: number; top: number } | null {
@@ -105,34 +106,42 @@
     return { left: bestLeft * rect.w, top: bestTop * rect.h };
   }
 
-  async function onPointerDown(e: PointerEvent): Promise<void> {
-    if (editor.maskGenerating) return;
-    e.preventDefault();
-    if (editor.clickTool.box) {
-      e.stopPropagation();
-      boxStart = localPx(e);
-      boxNow = boxStart;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      return;
-    }
+  async function addPoint(e: PointerEvent): Promise<void> {
     const [x, y] = sceneUvAt(e);
     if (x < 0 || y < 0 || x > 1 || y > 1) return;
-    const positive = !(e.button === 2 || e.shiftKey || editor.clickTool.negative);
+    const positive = !(e.button === 2 || held('exclude', e) || editor.clickTool.negative);
     await editor.addClickPoint(x, y, positive);
   }
 
-  function onPointerMove(e: PointerEvent): void {
-    if (!boxStart) return;
-    e.stopPropagation();
-    boxNow = localPx(e);
+  const boxDrag = pointerDrag<true>({
+    start(e) {
+      e.stopPropagation();
+      boxStart = localPx(e);
+      boxNow = boxStart;
+      return true;
+    },
+    move(e) {
+      if (!boxStart) return;
+      e.stopPropagation();
+      boxNow = localPx(e);
+    },
+    end(e) {
+      if (!boxStart || !boxNow) return;
+      e.stopPropagation();
+      void addBox(boxStart, boxNow);
+    }
+  });
+
+  function onPointerDown(e: PointerEvent): void {
+    if (editor.maskGenerating) return;
+    e.preventDefault();
+    if (editor.clickTool.box) boxDrag.begin(e);
+    else void addPoint(e);
   }
 
-  async function onPointerUp(e: PointerEvent): Promise<void> {
-    if (!boxStart || !boxNow) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    const [ax, ay] = boxStart;
-    const [bx, by] = boxNow;
+  async function addBox(from: [number, number], to: [number, number]): Promise<void> {
+    const [ax, ay] = from;
+    const [bx, by] = to;
     boxStart = null;
     boxNow = null;
     if (Math.abs(bx - ax) < MIN_DRAG_PX || Math.abs(by - ay) < MIN_DRAG_PX) return;
@@ -170,9 +179,7 @@
       ? 'wait'
       : 'crosshair'};"
     onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...boxDrag.follow}
     oncontextmenu={(e) => e.preventDefault()}
   >
     {#if dragRect}

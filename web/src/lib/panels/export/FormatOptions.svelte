@@ -10,10 +10,10 @@
     METADATA_OPTIONS,
     PNG_COMPRESSIONS,
     TIFF_COMPRESSIONS,
-    type ExportForm
+    type ExportFormValues
   } from './settings';
 
-  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
+  let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
   let showQuality = $derived(
     form.format === 'jpeg' ||

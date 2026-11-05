@@ -1,6 +1,6 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
-  import { SEGMENTED_GROUP_CLASS, SEGMENTED_ITEM_CLASS } from '#lib/components/browse/segmented.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import {
     browseControls,
     type SortDir,
@@ -60,7 +60,10 @@
   {open}
   align="end"
   onOpenChange={(v) => (open = v)}
+  appearance="panel"
   contentClass="flex min-w-55 flex-col gap-2.5 p-3"
+  sheetClass="flex flex-col gap-3 px-4 py-3"
+  title="Sort"
   tooltip={label}
 >
   {#snippet trigger(popoverProps)}
@@ -82,10 +85,10 @@
       }
       orientation="horizontal"
       aria-label="Sort by"
-      class="{SEGMENTED_GROUP_CLASS} h-10"
+      class={segmented.row.group}
     >
       {#each fields as field (field)}
-        <RadioGroup.Item value={field} class={SEGMENTED_ITEM_CLASS}>
+        <RadioGroup.Item value={field} class={segmented.row.radio}>
           {FIELDS[field]}
         </RadioGroup.Item>
       {/each}
@@ -97,10 +100,10 @@
       bind:value={() => browseControls.sortDir, (v) => browseControls.setSortDir(v as SortDir)}
       orientation="horizontal"
       aria-label="Order"
-      class="{SEGMENTED_GROUP_CLASS} h-10"
+      class={segmented.row.group}
     >
-      <RadioGroup.Item value="desc" class={SEGMENTED_ITEM_CLASS}>{directions.desc}</RadioGroup.Item>
-      <RadioGroup.Item value="asc" class={SEGMENTED_ITEM_CLASS}>{directions.asc}</RadioGroup.Item>
+      <RadioGroup.Item value="desc" class={segmented.row.radio}>{directions.desc}</RadioGroup.Item>
+      <RadioGroup.Item value="asc" class={segmented.row.radio}>{directions.asc}</RadioGroup.Item>
     </RadioGroup.Root>
   </div>
 </Popover>

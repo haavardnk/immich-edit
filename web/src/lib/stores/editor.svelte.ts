@@ -1,74 +1,74 @@
-import {
-  aiDenoiseActive,
-  neutralEdits,
-  isIdentity,
-  effectiveLens,
-  MAX_RETOUCH_STROKES,
-  type AspectLock,
-  type AsShotWhite,
-  type CropRect,
-  type DevelopSection,
-  type Edits,
-  type EditManifest,
-  type GeometryEdits,
-  type LensEdits,
-  type MaskComponent,
-  type MaskComponentKind,
-  type MaskComponentMode,
-  type MaskLayer,
-  type MaskedEditKey,
-  type RetouchMode,
-  type RetouchStroke,
-  type Vec2f
-} from '#lib/types/edits.ts';
-import { manifestToEdits } from '#lib/edits/manifest.ts';
-import type { PresetPreview } from '#lib/edits/applyPreset.ts';
-import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
-import { defaultLinear, maskCapacity } from '#lib/types/masks.ts';
-import type { BrushBuffer } from '#lib/utils/brush.ts';
-import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
-import * as develop from '#lib/stores/editor/develop.svelte.ts';
-import * as exportActions from '#lib/stores/editor/export.svelte.ts';
-import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
-import * as maskGen from '#lib/stores/editor/maskGen.ts';
-import * as metadata from '#lib/stores/editor/metadata.ts';
-import * as retouch from '#lib/stores/editor/retouch.ts';
-import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
-import * as upright from '#lib/stores/editor/upright.ts';
-import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
-import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
-import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
-import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
-import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
-import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
-import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
-import type { MaskWeightFrame, MaskStroke } from '#lib/stores/editor/maskWeight.svelte.ts';
-import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
-import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
-import { ViewportNav } from '#lib/stores/editor/viewport.ts';
-import type { PreviewMeta } from '#lib/types/preview.ts';
-import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
+import { getAsset } from '#lib/api/assets.ts';
 import { getEdits, type WhiteBalanceSample } from '#lib/api/edits.ts';
-import { type PreviewMode } from '#lib/api/preview.ts';
 import {
   type ColorSpaceOpt,
   type ExportOptions,
   type ImmichExportOptions
 } from '#lib/api/export.ts';
-import { getAsset } from '#lib/api/assets.ts';
+import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
-import type { LabelColor } from '#lib/stores/labels.ts';
+import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
+import { type PreviewMode } from '#lib/api/preview.ts';
+import type { PresetPreview } from '#lib/edits/applyPreset.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
-import { ui, type BrushTool, type RetouchTool } from '#lib/stores/ui.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
+import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
+import * as develop from '#lib/stores/editor/develop.svelte.ts';
+import * as exportActions from '#lib/stores/editor/export.svelte.ts';
+import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
+import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
+import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
+import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
+import * as maskGen from '#lib/stores/editor/maskGen.ts';
+import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
+import type { MaskStroke, MaskWeightFrame } from '#lib/stores/editor/maskWeight.svelte.ts';
+import * as metadata from '#lib/stores/editor/metadata.ts';
+import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
+import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
+import * as retouch from '#lib/stores/editor/retouch.ts';
+import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
+import * as upright from '#lib/stores/editor/upright.ts';
+import { ViewportNav } from '#lib/stores/editor/viewport.ts';
+import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
+import type { LabelColor } from '#lib/stores/labels.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
-import type { Roi } from '#lib/utils/viewGeometry.ts';
-import { errorMessage } from '#lib/utils/errors.ts';
+import { ui, type BrushTool, type RetouchTool } from '#lib/stores/ui.svelte.ts';
 import { loadFaceData } from '#lib/stores/zoomTargets.ts';
-import type { PanStep } from '#lib/utils/imageViewport.ts';
+import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
+import {
+  aiDenoiseActive,
+  effectiveLens,
+  isIdentity,
+  MAX_RETOUCH_STROKES,
+  neutralEdits,
+  type AspectLock,
+  type AsShotWhite,
+  type CropRect,
+  type DevelopSection,
+  type EditManifest,
+  type Edits,
+  type GeometryEdits,
+  type LensEdits,
+  type MaskComponent,
+  type MaskComponentKind,
+  type MaskComponentMode,
+  type MaskedEditKey,
+  type MaskLayer,
+  type RetouchMode,
+  type RetouchStroke,
+  type Vec2f
+} from '#lib/types/edits.ts';
+import { defaultLinear, maskCapacity } from '#lib/types/masks.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import type { PanStep, ViewportMetrics } from '#lib/utils/imageViewport.ts';
 import type { PerspectiveEdits } from '#lib/utils/perspective.ts';
-import type { UprightGuide } from '#lib/utils/upright.ts';
 import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+import type { UprightGuide } from '#lib/utils/upright.ts';
+import type { Roi } from '#lib/utils/viewGeometry.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -83,9 +83,13 @@ class EditorStore {
   }
 
   set meta(value: PreviewMeta | null) {
-    const wasRaw = this.previewMeta?.is_raw === true;
+    const wasRaw = this.isRaw;
     this.previewMeta = value;
     if ((value?.is_raw === true) !== wasRaw) this.syncAiDenoise();
+  }
+
+  get isRaw(): boolean {
+    return this.previewMeta?.is_raw === true;
   }
 
   lensProfile = $state<LensProfileMatch | null>(null);
@@ -102,7 +106,7 @@ class EditorStore {
   lensView: LensEdits = $derived(
     effectiveLens(
       this.edits.lens,
-      this.meta?.is_raw && this.lensProfile?.auto ? this.lensProfile.edits : null
+      this.isRaw && this.lensProfile?.auto ? this.lensProfile.edits : null
     )
   );
   lastImmichOpts: ImmichExportOptions | null = null;
@@ -194,7 +198,7 @@ class EditorStore {
   private history = new EditHistory(this);
   private saves = new SaveQueue(this);
   private previews = new PreviewEngine(this);
-  private viewport = new ViewportNav(this, () => this.previews.snapshot);
+  private viewport = new ViewportNav(this);
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
 
@@ -208,8 +212,7 @@ class EditorStore {
   }
 
   private syncAiDenoise(): void {
-    const raw = this.meta?.is_raw === true;
-    this.aiDenoise.sync(this.assetId, raw && aiDenoiseActive(this.edits.detail));
+    this.aiDenoise.sync(this.assetId, this.isRaw && aiDenoiseActive(this.edits.detail));
   }
 
   initialised = $state(false);
@@ -226,13 +229,14 @@ class EditorStore {
     this.previews.clearView();
   }
 
-  onViewChange = (snap: ViewSnapshot): void => {
+  onViewChange = (snap: ViewSnapshot, metrics: ViewportMetrics): void => {
+    this.viewport.setMetrics(metrics);
     this.previews.onViewChange(snap);
   };
 
   setBaseImage = (element: PreviewSurface | null): void => this.viewport.setBaseImage(element);
 
-  zoomCycle = (): void => this.viewport.zoomCycle();
+  cycleZoom = (): void => this.viewport.cycleZoom();
 
   panBy = (step: PanStep): void => this.viewport.panBy(step);
 

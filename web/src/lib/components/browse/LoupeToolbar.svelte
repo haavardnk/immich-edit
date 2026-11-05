@@ -1,49 +1,29 @@
 <script lang="ts">
-  import { browseView } from '#lib/stores/browseView.svelte.ts';
-  import { compare, type CompareMode } from '#lib/stores/compare.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
   import Popover from '#lib/components/Popover.svelte';
-  import MenuItem from '#lib/components/MenuItem.svelte';
-  import { hint, keysFor } from '#lib/shortcuts/labels.ts';
-  import { trashLabel } from '#lib/browse/trash.ts';
+  import CommandList from '#lib/components/CommandList.svelte';
+  import CommandIconButton from '#lib/components/CommandIconButton.svelte';
+  import { commandLabel } from '#lib/commands/command.ts';
+  import { loupeClose } from '#lib/commands/loupe/dismiss.ts';
+  import { loupeOpenEditor, loupeSingle } from '#lib/commands/loupe/navigation.ts';
+  import { LOUPE_MORE_MENU, LOUPE_VIEW_MODE_MENU } from '#lib/commands/menus.ts';
   import { Icon, IconButton } from '@immich/ui';
-  import {
-    mdiArrowLeft,
-    mdiCompare,
-    mdiContentDuplicate,
-    mdiFullscreen,
-    mdiImageOutline,
-    mdiTriangleOutline,
-    mdiInformationOutline,
-    mdiSkipNextOutline,
-    mdiKeyboardOutline,
-    mdiPencilOutline,
-    mdiDotsVertical,
-    mdiTrashCanOutline,
-    mdiViewGridOutline,
-    mdiCircleHalfFull
-  } from '@mdi/js';
+  import { mdiContentDuplicate, mdiDotsVertical } from '@mdi/js';
 
   type Props = {
     filename: string;
     copyBadge: string | null;
     multi: boolean;
     moreActive: boolean;
-    onSelectViewMode: (mode: CompareMode) => void;
-    onOpenEditor: () => void;
-    onTrash: () => void;
   };
 
-  let { filename, copyBadge, multi, moreActive, onSelectViewMode, onOpenEditor, onTrash }: Props =
-    $props();
+  let { filename, copyBadge, multi, moreActive }: Props = $props();
 
   let viewModeOpen = $state(false);
   let moreOpen = $state(false);
 
-  function selectViewMode(mode: CompareMode): void {
-    viewModeOpen = false;
-    onSelectViewMode(mode);
-  }
+  const viewMode = $derived(
+    LOUPE_VIEW_MODE_MENU.flat().find((command) => command.pressed?.()) ?? loupeSingle
+  );
 </script>
 
 <nav
@@ -51,16 +31,12 @@
   class="relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2"
 >
   <div class="flex min-w-0 items-center gap-2 overflow-hidden">
-    <IconButton
+    <CommandIconButton
+      command={loupeClose}
       class="shrink-0"
       size="small"
       variant="ghost"
-      color="secondary"
       shape="round"
-      icon={mdiArrowLeft}
-      title={hint('Back', 'loupeClose')}
-      aria-label={hint('Back', 'loupeClose')}
-      onclick={() => browseView.closeLoupe()}
     />
     <div class="min-w-0 border-l border-hairline pl-2">
       <h2 class="truncate text-xs font-semibold text-light-950/90">{filename}</h2>
@@ -84,7 +60,8 @@
       align="end"
       onOpenChange={(open) => (viewModeOpen = open)}
       contentClass="w-48 py-1"
-      tooltip={`View mode: ${compare.mode === 'single' ? 'Single' : compare.mode === 'compare' ? 'Compare' : 'Survey'}`}
+      title="View mode"
+      tooltip={`View mode: ${commandLabel(viewMode)}`}
     >
       {#snippet trigger(popoverProps)}
         <IconButton
@@ -92,48 +69,17 @@
           size="small"
           variant="ghost"
           color={multi ? 'primary' : 'secondary'}
-          icon={compare.mode === 'compare'
-            ? mdiCompare
-            : compare.mode === 'survey'
-              ? mdiViewGridOutline
-              : mdiImageOutline}
+          icon={viewMode.icon}
           title=""
           aria-label="View mode"
           aria-expanded={viewModeOpen}
         />
       {/snippet}
       <div class="flex flex-col">
-        <MenuItem
-          icon={mdiImageOutline}
-          label="Single photo"
-          pressed={compare.mode === 'single'}
-          onclick={() => selectViewMode('single')}
-        />
-        <MenuItem
-          icon={mdiCompare}
-          label="Compare"
-          keys={keysFor('enterCompare')}
-          pressed={compare.mode === 'compare'}
-          onclick={() => selectViewMode('compare')}
-        />
-        <MenuItem
-          icon={mdiViewGridOutline}
-          label="Survey"
-          keys={keysFor('enterSurvey')}
-          pressed={compare.mode === 'survey'}
-          onclick={() => selectViewMode('survey')}
-        />
+        <CommandList menu={LOUPE_VIEW_MODE_MENU} onrun={() => (viewModeOpen = false)} />
       </div>
     </Popover>
-    <IconButton
-      size="small"
-      variant="ghost"
-      color="secondary"
-      icon={mdiPencilOutline}
-      title={hint('Edit', 'openEditor')}
-      aria-label={hint('Edit', 'openEditor')}
-      onclick={onOpenEditor}
-    />
+    <CommandIconButton command={loupeOpenEditor} size="small" variant="ghost" />
     <Popover
       open={moreOpen}
       anchor="bottom"
@@ -154,74 +100,7 @@
         />
       {/snippet}
       <div class="flex flex-col">
-        <MenuItem
-          icon={mdiInformationOutline}
-          label="Info"
-          keys={keysFor('toggleInfo')}
-          pressed={browseView.loupeInfoOpen}
-          onclick={() => {
-            moreOpen = false;
-            browseView.toggleLoupeInfo();
-          }}
-        />
-        <MenuItem
-          icon={mdiFullscreen}
-          label="Fullscreen"
-          keys={keysFor('fullscreen')}
-          onclick={() => {
-            moreOpen = false;
-            ui.toggleFullscreen();
-          }}
-        />
-        <MenuItem
-          icon={mdiTriangleOutline}
-          label="Clipping overlay"
-          keys={keysFor('clipWarn')}
-          pressed={ui.clipWarn}
-          onclick={() => {
-            moreOpen = false;
-            ui.toggleClipWarn();
-          }}
-        />
-        <MenuItem
-          icon={mdiCircleHalfFull}
-          label="Grey background"
-          pressed={ui.greyCanvas}
-          onclick={() => {
-            moreOpen = false;
-            ui.toggleGreyCanvas();
-          }}
-        />
-        <MenuItem
-          icon={mdiSkipNextOutline}
-          label="Auto-advance"
-          pressed={browseView.loupeAutoAdvance}
-          onclick={() => {
-            moreOpen = false;
-            browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance);
-          }}
-        />
-        <div class="my-1 border-t border-dark/10"></div>
-        <MenuItem
-          icon={mdiTrashCanOutline}
-          label={trashLabel(copyBadge !== null)}
-          keys={keysFor('trash')}
-          disabled={multi}
-          onclick={() => {
-            moreOpen = false;
-            onTrash();
-          }}
-        />
-        <div class="my-1 border-t border-dark/10"></div>
-        <MenuItem
-          icon={mdiKeyboardOutline}
-          label="Keyboard shortcuts"
-          keys={keysFor('help')}
-          onclick={() => {
-            moreOpen = false;
-            ui.toggleKeybindsHelp();
-          }}
-        />
+        <CommandList menu={LOUPE_MORE_MENU} onrun={() => (moreOpen = false)} />
       </div>
     </Popover>
   </div>

@@ -40,7 +40,15 @@
   }
 </script>
 
-<Popover {open} anchor="top" align="end" {onOpenChange} appearance="control" tooltip="Zoom">
+<Popover
+  {open}
+  anchor="top"
+  align="end"
+  {onOpenChange}
+  appearance="control"
+  title="Zoom"
+  tooltip="Zoom"
+>
   {#snippet trigger(props)}
     <Button
       size="tiny"

@@ -69,6 +69,15 @@ describe('browseControls rejected', () => {
     browseControls.reset();
     expect(browseControls.filters.rejected).toBe('any');
   });
+
+  it('resetFilters clears the filters and keeps the sort', () => {
+    const sort = { ...browseControls.sort };
+    browseControls.filters.rejected = 'only';
+    browseControls.filters.rating = 3;
+    browseControls.resetFilters();
+    expect(browseControls.filters).toEqual(FILTER_DEFAULTS);
+    expect(browseControls.sort).toEqual(sort);
+  });
 });
 
 describe('browseControls sort families', () => {

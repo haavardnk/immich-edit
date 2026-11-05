@@ -1,12 +1,17 @@
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
+import FilterPanel from './filters/FilterPanel.svelte';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
+import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
+import { listenForCommands } from '#lib/commands/listen.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -17,19 +22,32 @@ vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/albums/a1'), params: {} }
 }));
 
-const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
+const setRating = vi.hoisted(() =>
+  vi.fn(async (_target: MetaTarget, _rating: number | null): Promise<MetaOutcome> => 'saved')
+);
 const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.fn() }));
 
 vi.mock('#lib/browse/copyPaste.ts', () => clipboard);
 
-vi.mock('#lib/browse/cull.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#lib/browse/cull.ts')>()),
-  rateAsset
+const copies = vi.hoisted(() => ({ createVirtualCopies: vi.fn() }));
+
+vi.mock('#lib/editor/copies.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/editor/copies.ts')>()),
+  createVirtualCopies: copies.createVirtualCopies
+}));
+
+vi.mock('#lib/browse/assetMeta.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/browse/assetMeta.ts')>()),
+  setRating
 }));
 
 type GridProps = ComponentProps<typeof AssetGrid>;
 
 const Host: Component<{ component: Component<GridProps>; props: GridProps }> = ComponentHost;
+
+type PanelProps = ComponentProps<typeof FilterPanel>;
+
+const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
 
 function asset(id: string): AssetSummary {
   return {
@@ -59,6 +77,10 @@ function render(props: Partial<GridProps> = {}): void {
   flushSync();
 }
 
+function ratedIds(): [string, number | null][] {
+  return setRating.mock.calls.map(([target, rating]) => [target.id, rating]);
+}
+
 function tiles(): HTMLElement[] {
   return [...scroller.querySelectorAll<HTMLElement>('[role="group"]')];
 }
@@ -79,11 +101,17 @@ function press(key: string, init: KeyboardEventInit = {}): void {
   flushSync();
 }
 
+let stopCommands = (): void => {};
+
 beforeEach(() => {
-  rateAsset.mockClear();
-  rateAsset.mockResolvedValue(true);
+  stopCommands = listenForCommands();
+  setRating.mockClear();
+  setRating.mockResolvedValue('saved');
   clipboard.copyEditsFrom.mockClear();
   clipboard.pasteEditsTo.mockClear();
+  copies.createVirtualCopies.mockReset();
+  ui.closeKeybindsHelp();
+  browseView.setFiltersOpen(false);
   selection.clear();
   browseView.setActive(null);
   browseControls.filters.rejected = 'any';
@@ -95,6 +123,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopCommands();
   if (component) void unmount(component);
   component = null;
   scroller.remove();
@@ -161,13 +190,65 @@ describe('AssetGrid', () => {
     browseView.setActive('a');
     render();
     press('3');
-    expect(rateAsset).not.toHaveBeenCalled();
+    expect(setRating).not.toHaveBeenCalled();
   });
 
   it('makes a ticked photo the active one', () => {
     render();
     click(selectButton(1));
     expect(browseView.activeId).toBe('b');
+  });
+
+  it("creates one virtual copy per Mod+' press, ignoring key repeat and presses while copying", async () => {
+    copies.createVirtualCopies.mockResolvedValue(undefined);
+    render();
+    click(selectButton(0));
+    press("'", { ctrlKey: true });
+    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
+    press("'", { ctrlKey: true, repeat: true });
+    expect(copies.createVirtualCopies).toHaveBeenCalledExactlyOnceWith(['a']);
+
+    let finish = (): void => {};
+    copies.createVirtualCopies.mockReturnValue(new Promise<void>((done) => (finish = done)));
+    press("'", { ctrlKey: true });
+    press("'", { ctrlKey: true });
+    finish();
+    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
+    expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
+  });
+
+  it('toggles the filter panel with Shift+F', async () => {
+    const panel = mount(PanelHost, { target, props: { component: FilterPanel, props: {} } });
+    render();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(true);
+    expect(document.querySelector('aside[aria-label="Filters"]')).not.toBeNull();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(false);
+    await unmount(panel);
+  });
+
+  it('swallows the help key while selecting all', async () => {
+    let loaded = (_: boolean): void => {};
+    render({ onLoadAll: () => new Promise<boolean>((done) => (loaded = done)) });
+    press('?', { shiftKey: true });
+    expect(ui.keybindsHelpOpen).toBe(true);
+    ui.closeKeybindsHelp();
+
+    press('a', { ctrlKey: true });
+    const help = new KeyboardEvent('keydown', {
+      key: '?',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.body.dispatchEvent(help);
+    flushSync();
+    expect(help.defaultPrevented).toBe(true);
+    expect(ui.keybindsHelpOpen).toBe(false);
+
+    loaded(true);
+    await vi.waitFor(() => expect(selection.count).toBe(3));
   });
 
   it.each([
@@ -196,14 +277,15 @@ describe('AssetGrid', () => {
   });
 
   it.each([
-    ['moves the tick to the next photo', true, ['b'], 'b'],
-    ['stays when the rating fails to save', false, ['a'], 'a']
-  ])('Shift+3 on one ticked photo %s', async (_name, ok, selected, active) => {
-    rateAsset.mockResolvedValue(ok);
+    ['moves the tick to the next photo', 'saved', ['b'], 'b'],
+    ['moves on even when Immich refuses the rating', 'failed', ['b'], 'b'],
+    ['stays when the rating is not written', 'skipped', ['a'], 'a']
+  ] as const)('Shift+3 on one ticked photo %s', async (_name, outcome, selected, active) => {
+    setRating.mockResolvedValue(outcome);
     render();
     click(selectButton(0));
     press('#', { code: 'Digit3', shiftKey: true });
-    await vi.waitFor(() => expect(rateAsset).toHaveBeenCalledWith('a', 3));
+    await vi.waitFor(() => expect(ratedIds()).toEqual([['a', 3]]));
     await Promise.resolve();
     flushSync();
     expect([...selection.selected]).toEqual(selected);
@@ -215,7 +297,7 @@ describe('AssetGrid', () => {
     click(selectButton(0));
     click(selectButton(1));
     press('#', { code: 'Digit3', shiftKey: true });
-    expect(rateAsset.mock.calls).toEqual([
+    expect(ratedIds()).toEqual([
       ['a', 3],
       ['b', 3]
     ]);

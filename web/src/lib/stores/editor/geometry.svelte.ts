@@ -64,6 +64,7 @@ const CROP_EPS = 1e-3;
 let frameKey: string | null = null;
 let frameAbort: AbortController | null = null;
 let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+let flushing: Promise<void> | null = null;
 
 export function ready(ctx: GeometryCtx): GeometrySession | null {
   const sess = ctx.geometrySession;
@@ -257,9 +258,9 @@ export function scheduleCropCommit(ctx: GeometryCtx): void {
   }, WHEEL_COMMIT_MS);
 }
 
-export async function endSession(ctx: GeometryCtx): Promise<void> {
+export function endSession(ctx: GeometryCtx): Promise<void> {
   const sess = ctx.geometrySession;
-  if (!sess) return;
+  if (!sess) return flushing ?? Promise.resolve();
   const pending = wheelTimer !== null;
   if (wheelTimer) clearTimeout(wheelTimer);
   wheelTimer = null;
@@ -268,7 +269,12 @@ export async function endSession(ctx: GeometryCtx): Promise<void> {
   frameKey = null;
   if (sess.frameUrl) revoke(sess.frameUrl);
   ctx.geometrySession = null;
-  if (pending) await commit(ctx, 'Crop', sess);
+  if (!pending) return flushing ?? Promise.resolve();
+  const flush = commit(ctx, 'Crop', sess).finally(() => {
+    if (flushing === flush) flushing = null;
+  });
+  flushing = flush;
+  return flush;
 }
 
 function turnedAspect(aspect: AspectLock): AspectLock {
@@ -341,7 +347,8 @@ export async function resetTransform(ctx: GeometryCtx): Promise<void> {
 }
 
 export function canReset(ctx: GeometryCtx): boolean {
-  return ctx.assetId !== null && !ctx.saving && !geometryIsIdentity(ctx.edits.geometry);
+  if (ctx.assetId === null || ctx.saving) return false;
+  return !geometryIsIdentity(ctx.edits.geometry) || !!ctx.geometrySession?.guides.length;
 }
 
 export async function reset(ctx: GeometryCtx): Promise<void> {
@@ -352,7 +359,7 @@ export async function reset(ctx: GeometryCtx): Promise<void> {
   ctx.edits = { ...ctx.edits, geometry: neutralGeometry() };
   if (ctx.geometrySession) resetDrafts(ctx.geometrySession, ctx.edits.geometry);
   await ctx.onCommit('Reset Geometry');
-  toasts.push('success', `Reset geometry. Undo with ${keysFor('undo')}.`, 3000);
+  toasts.push('success', `Reset geometry. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
 }
 
 export async function flipAspect(ctx: GeometryCtx): Promise<void> {

@@ -7,7 +7,7 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { fieldKey } from '#lib/browse/sortAssets.ts';
   import { arrangeLoaded } from '#lib/browse/loadedFilter.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
   import type { AssetSummary } from '#lib/types/album.ts';
 
   let loaded = $state<AssetSummary[]>([]);
@@ -44,7 +44,7 @@
     <p class="mt-1 max-w-xs text-xs">Pick a folder from the sidebar to browse its photos.</p>
   </div>
 {:else}
-  <BrowseShell
+  <BrowsePage
     title={folderPath}
     {assets}
     {loading}

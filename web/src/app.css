@@ -1,24 +1,10 @@
 @import '@immich/ui/theme/default.css';
+@import './fonts.css';
 
 @source '../node_modules/@immich/ui/dist';
 
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans%5BGRAD,opsz,wght%5D.ttf') format('truetype-variations');
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 106.25%;
-  size-adjust: 106.25%;
-}
-
-@font-face {
-  font-family: 'Google Sans Code';
-  src: url('/fonts/GoogleSansCode%5BMONO,wght%5D.ttf') format('truetype-variations');
-  font-weight: 300 800;
-  font-style: normal;
-  font-display: swap;
-}
+@custom-variant touch (&:where([data-layout="touch"], [data-layout="touch"] *));
+@custom-variant wide (&:where([data-wide], [data-wide] *));
 
 @theme {
   --font-sans: 'Google Sans', sans-serif;
@@ -66,6 +52,10 @@
 }
 
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   --color-slider-fill: var(--color-primary);
   --color-slider-track: color-mix(in srgb, var(--immich-ui-dark) 16%, transparent);
   --color-slider-marker: color-mix(in srgb, var(--immich-ui-dark) 40%, transparent);
@@ -282,6 +272,7 @@
     letter-spacing: 0;
     color: var(--immich-ui-dark);
     background-color: var(--immich-ui-light);
+    touch-action: manipulation;
   }
 
   button:not(:disabled),
@@ -326,6 +317,18 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+@utility safe-frame {
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+@utility app-frame {
+  @apply safe-frame h-dvh w-screen bg-light text-dark;
+}
+
+@utility no-callout {
+  -webkit-touch-callout: none;
 }
 
 @utility panel-action {

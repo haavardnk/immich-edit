@@ -22,6 +22,7 @@ pub mod immich_capabilities;
 pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;
+pub mod keyed_lock;
 pub mod login_limiter;
 pub mod login_session;
 pub mod lut_store;

@@ -3,6 +3,11 @@
   import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { DragKind } from '#lib/utils/maskDrag.ts';
+  import MaskHandle from './MaskHandle.svelte';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import type { MaskHandleSpec } from '#lib/types/maskHandle.ts';
 
   let {
     kind,
@@ -31,11 +36,11 @@
   function startMove(e: PointerEvent): void {
     const svg = (e.currentTarget as SVGElement).ownerSVGElement;
     if (!svg) return;
-    const r = svg.getBoundingClientRect();
+    const at = elementPoint(e, svg);
     onDrag(e, {
       kind: 'polygon-move',
       start: kind.points.map((p) => ({ ...p })),
-      downAtN: fromPx(e.clientX - r.left, e.clientY - r.top)
+      downAtN: fromPx(at.x, at.y)
     });
   }
 
@@ -60,6 +65,44 @@
     if (kind.points.length <= 3) return;
     onPoints(kind.points.filter((_, i) => i !== index));
   }
+
+  const handles = $derived(
+    spacedHandles<MaskHandleSpec>(handleHit(), [
+      ...kind.points.map((_, i) => {
+        const mid = midpoint(i);
+        return {
+          cx: mid.x,
+          cy: mid.y,
+          r: HANDLE_DOT.polygonMid,
+          hit: HANDLE_DOT.polygonMid,
+          fill: 'var(--color-image-light)',
+          fillOpacity: 0.6,
+          stroke: 'var(--color-mask-overlay)',
+          strokeWidth: 1.5,
+          cursor: 'copy',
+          label: 'Add polygon corner',
+          onpointerdown: (e: PointerEvent) => insertVertex(e, i)
+        };
+      }),
+      ...points.map((p, i) => ({
+        cx: p.x,
+        cy: p.y,
+        r: HANDLE_DOT.polygonCorner,
+        fill: 'var(--color-mask-overlay)',
+        stroke: 'var(--color-image-light)',
+        strokeWidth: 2,
+        cursor: 'move',
+        label: 'Polygon corner',
+        onpointerdown: (e: PointerEvent) =>
+          onDrag(e, {
+            kind: 'polygon-vertex',
+            index: i,
+            origin: kind.points[i] ?? { x: 0, y: 0 }
+          }),
+        ondblclick: (e: MouseEvent) => deleteVertex(e, i)
+      }))
+    ])
+  );
 </script>
 
 <g style="pointer-events: auto;">
@@ -75,38 +118,7 @@
     tabindex="-1"
     onpointerdown={startMove}
   />
-  {#each kind.points as _p, i (i)}
-    {@const mid = midpoint(i)}
-    <circle
-      cx={mid.x}
-      cy={mid.y}
-      r="5"
-      fill="var(--color-image-light)"
-      fill-opacity="0.6"
-      stroke="var(--color-mask-overlay)"
-      stroke-width="1.5"
-      style="cursor: copy;"
-      role="button"
-      aria-label="Add polygon corner"
-      tabindex="-1"
-      onpointerdown={(e) => insertVertex(e, i)}
-    />
-  {/each}
-  {#each points as p, i (i)}
-    <circle
-      cx={p.x}
-      cy={p.y}
-      r="7"
-      fill="var(--color-mask-overlay)"
-      stroke="var(--color-image-light)"
-      stroke-width="2"
-      style="cursor: move;"
-      role="button"
-      aria-label="Polygon corner"
-      tabindex="-1"
-      onpointerdown={(e) =>
-        onDrag(e, { kind: 'polygon-vertex', index: i, origin: kind.points[i] ?? { x: 0, y: 0 } })}
-      ondblclick={(e) => deleteVertex(e, i)}
-    />
+  {#each handles as handle, i (i)}
+    <MaskHandle {...handle} />
   {/each}
 </g>

@@ -2,14 +2,16 @@
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
   import MaskedEditSlider from './MaskedEditSlider.svelte';
+  import { MASK_AMOUNT, MASK_PARAM_ROWS } from '#lib/editor/params/masks.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
 
   let { layerId }: { layerId: string } = $props();
 
   const layer = $derived(editor.edits.masks.find((l) => l.id === layerId) ?? null);
-  const amountValue = $derived(layer?.amount ?? 1);
+  const amountValue = $derived(layer?.amount ?? MASK_AMOUNT.defaultValue);
   const isDefault = $derived(
-    amountValue === 1 && Object.values(layer?.edits ?? {}).every((v) => v === 0)
+    amountValue === MASK_AMOUNT.defaultValue &&
+      Object.values(layer?.edits ?? {}).every((v) => v === 0)
   );
 
   function onAmountLive(v: number): void {
@@ -40,54 +42,16 @@
   <SliderRow
     label="Amount"
     value={amountValue}
-    min={0}
-    max={1}
-    step={0.01}
-    defaultValue={1}
+    range={MASK_AMOUNT}
     onLive={onAmountLive}
     onCommit={commit}
     onDragStart={editor.holdMaskOverlay}
     onDragEnd={editor.releaseMaskOverlay}
-    format={(v: number) => v.toFixed(2)}
   />
-  <div class="border-t border-dark/5"></div>
-  <MaskedEditSlider
-    {layerId}
-    eKey="wb_temp"
-    label="Temperature"
-    min={-100}
-    max={100}
-    gradient="var(--gradient-temperature)"
-  />
-  <MaskedEditSlider
-    {layerId}
-    eKey="wb_tint"
-    label="Tint"
-    min={-100}
-    max={100}
-    gradient="var(--gradient-tint)"
-  />
-  <div class="border-t border-dark/5"></div>
-  <MaskedEditSlider
-    {layerId}
-    eKey="exposure_ev"
-    label="Exposure"
-    min={-5}
-    max={5}
-    step={0.05}
-    format={(v: number) => v.toFixed(2)}
-  />
-  <MaskedEditSlider {layerId} eKey="brightness" label="Brightness" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="contrast" label="Contrast" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="highlights" label="Highlights" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="shadows" label="Shadows" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="whites" label="Whites" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="blacks" label="Blacks" min={-100} max={100} />
-  <div class="border-t border-dark/5"></div>
-  <MaskedEditSlider {layerId} eKey="texture" label="Texture" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="clarity" label="Clarity" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="sharpen" label="Sharpening" min={-150} max={150} />
-  <div class="border-t border-dark/5"></div>
-  <MaskedEditSlider {layerId} eKey="saturation" label="Saturation" min={-100} max={100} />
-  <MaskedEditSlider {layerId} eKey="vibrance" label="Vibrance" min={-100} max={100} />
+  {#each MASK_PARAM_ROWS as row, index (index)}
+    <div class="border-t border-dark/5"></div>
+    {#each row as param (param.key)}
+      <MaskedEditSlider {layerId} {param} />
+    {/each}
+  {/each}
 </div>

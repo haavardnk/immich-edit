@@ -4,24 +4,24 @@
   import { untrack } from 'svelte';
   import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import { miredScale } from '#lib/components/editor/controls/sliderScale.ts';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
+  import {
+    KELVIN,
+    SHIFT_TEMPERATURE,
+    SHIFT_TINT,
+    TINT,
+    WHITE_BALANCE
+  } from '#lib/editor/params/whiteBalance.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import {
-    KELVIN_MAX,
-    KELVIN_MIN,
-    RELATIVE_LIMIT,
-    TINT_LIMIT,
     absoluteWhiteBalance,
-    asShotWhiteBalance,
     relativeShift,
     relativeWhiteBalance,
     resolveTemperature,
     whiteBalanceIsAsShot,
     type Temperature
   } from '#lib/types/edits.ts';
-
-  const kelvinScale = miredScale(KELVIN_MIN, KELVIN_MAX);
 
   const wb = $derived(editor.edits.basic.white_balance);
   const asShot = $derived(editor.asShot);
@@ -51,14 +51,14 @@
     editor.edits.basic.white_balance = relativeWhiteBalance(temp, tint);
     editor.onLive();
   }
-
-  function reset(): void {
-    editor.edits.basic.white_balance = asShotWhiteBalance();
-    void editor.onCommit('Reset White Balance');
-  }
 </script>
 
-<SectionHeader title="White Balance" section="white_balance" {modified} onReset={reset}>
+<SectionHeader
+  title="White Balance"
+  section="white_balance"
+  {modified}
+  onReset={() => commitSectionReset(WHITE_BALANCE)}
+>
   {#snippet actions()}
     <IconButton
       size="tiny"
@@ -90,24 +90,18 @@
     label="Temperature"
     commitAction="Temperature"
     value={kelvin}
-    min={KELVIN_MIN}
-    max={KELVIN_MAX}
-    scale={kelvinScale}
+    range={KELVIN}
     defaultValue={asShot?.kelvin ?? kelvin}
     disabled={pending}
-    format={(v: number) => `${v.toFixed(0)} K`}
-    gradient="var(--gradient-temperature)"
     onLive={(v: number) => setWhite({ kelvin: v, tint })}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={-TINT_LIMIT}
-    max={TINT_LIMIT}
+    range={TINT}
     defaultValue={asShot?.tint ?? tint}
     disabled={pending}
-    gradient="var(--gradient-tint)"
     onLive={(v: number) => setWhite({ kelvin, tint: v })}
   />
 {:else}
@@ -117,20 +111,16 @@
     label="Temperature"
     commitAction="Temperature"
     value={temp}
-    min={-RELATIVE_LIMIT}
-    max={RELATIVE_LIMIT}
+    range={SHIFT_TEMPERATURE}
     disabled={pending}
-    gradient="var(--gradient-temperature)"
     onLive={(v: number) => setShift(v, tint)}
   />
   <EditSlider
     label="Tint"
     commitAction="Tint"
     value={tint}
-    min={-RELATIVE_LIMIT}
-    max={RELATIVE_LIMIT}
+    range={SHIFT_TINT}
     disabled={pending}
-    gradient="var(--gradient-tint)"
     onLive={(v: number) => setShift(temp, v)}
   />
 {/if}

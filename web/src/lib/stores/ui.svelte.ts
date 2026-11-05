@@ -1,3 +1,14 @@
+import {
+  BRUSH_FLOW,
+  BRUSH_HARDNESS,
+  BRUSH_SIZE,
+  RETOUCH_HARDNESS,
+  RETOUCH_OPACITY,
+  RETOUCH_SIZE
+} from '#lib/editor/params/brush.ts';
+import type { ToolRange } from '#lib/editor/params/types.ts';
+import type { RetouchMode } from '#lib/types/edits.ts';
+import { withZoom, type View, type ViewChange, type ZoomedView } from '#lib/utils/imageViewport.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import {
   clampZoom,
@@ -6,7 +17,6 @@ import {
   readZoomLevel,
   writeZoomLevel
 } from '#lib/utils/zoomLevel.ts';
-import type { RetouchMode } from '#lib/types/edits.ts';
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
@@ -43,22 +53,31 @@ export interface RetouchTool {
   opacity: number;
 }
 
-const DEFAULT_BRUSH_TOOL: BrushTool = { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' };
-const DEFAULT_RETOUCH_TOOL: RetouchTool = { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 };
+const DEFAULT_BRUSH_TOOL: BrushTool = {
+  size: BRUSH_SIZE.defaultValue,
+  hardness: BRUSH_HARDNESS.defaultValue,
+  flow: BRUSH_FLOW.defaultValue,
+  mode: 'paint'
+};
+const DEFAULT_RETOUCH_TOOL: RetouchTool = {
+  mode: 'heal',
+  size: RETOUCH_SIZE.defaultValue,
+  hardness: RETOUCH_HARDNESS.defaultValue,
+  opacity: RETOUCH_OPACITY.defaultValue
+};
 
-function clampStored(value: unknown, min: number, max: number, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+function clampStored(value: unknown, { min, max, defaultValue }: ToolRange): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return defaultValue;
   return Math.min(max, Math.max(min, value));
 }
 
 function restoreBrushTool(
   stored: Partial<Record<keyof BrushTool, unknown>> | undefined
 ): BrushTool {
-  const d = DEFAULT_BRUSH_TOOL;
   return {
-    size: clampStored(stored?.size, 0.005, 0.5, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    flow: clampStored(stored?.flow, 0.01, 1, d.flow),
+    size: clampStored(stored?.size, BRUSH_SIZE),
+    hardness: clampStored(stored?.hardness, BRUSH_HARDNESS),
+    flow: clampStored(stored?.flow, BRUSH_FLOW),
     mode: stored?.mode === 'erase' ? 'erase' : 'paint'
   };
 }
@@ -66,12 +85,11 @@ function restoreBrushTool(
 function restoreRetouchTool(
   stored: Partial<Record<keyof RetouchTool, unknown>> | undefined
 ): RetouchTool {
-  const d = DEFAULT_RETOUCH_TOOL;
   return {
     mode: stored?.mode === 'clone' ? 'clone' : 'heal',
-    size: clampStored(stored?.size, 0.005, 0.3, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    opacity: clampStored(stored?.opacity, 0.05, 1, d.opacity)
+    size: clampStored(stored?.size, RETOUCH_SIZE),
+    hardness: clampStored(stored?.hardness, RETOUCH_HARDNESS),
+    opacity: clampStored(stored?.opacity, RETOUCH_OPACITY)
   };
 }
 
@@ -105,8 +123,8 @@ class UiStore {
   fitZoom = $state(100);
   fitMode = $state(true);
   zoomLevel = $state(readZoomLevel());
-  panX = $state(0);
-  panY = $state(0);
+  cx = $state(0.5);
+  cy = $state(0.5);
   keybindsHelpOpen = $state(false);
   metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
@@ -273,8 +291,7 @@ class UiStore {
   zoomFit = (): void => {
     this.fitMode = true;
     this.zoom = this.fitZoom;
-    this.panX = 0;
-    this.panY = 0;
+    this.centre();
   };
 
   toggleKeybindsHelp = (): void => {
@@ -297,14 +314,12 @@ class UiStore {
     this.metaPopover = null;
   };
 
-  closeMetadataPopovers = (): boolean => {
-    if (!this.metaPopover) return false;
-    this.metaPopover = null;
-    return true;
-  };
-
   get zoomed(): boolean {
     return this.zoom > this.fitZoom;
+  }
+
+  get view(): View {
+    return { zoom: this.fitMode ? null : this.zoom, cx: this.cx, cy: this.cy };
   }
 
   setFitZoom = (value: number): void => {
@@ -319,27 +334,44 @@ class UiStore {
   };
 
   setZoom = (value: number): void => {
-    this.fitMode = false;
-    this.zoom = clampZoom(value, this.fitZoom);
-    if (!this.zoomed) {
-      this.panX = 0;
-      this.panY = 0;
-    }
+    this.show(withZoom(this.view, value, this.fitZoom));
   };
 
   userZoom = (value: number): void => {
     this.setZoom(value);
-    if (!this.zoomed) return;
-    this.zoomLevel = this.zoom;
-    writeZoomLevel(this.zoom);
+    this.rememberZoomLevel(this.zoom);
   };
 
-  setView = (zoom: number, panX: number, panY: number): void => {
-    this.setZoom(zoom);
-    if (!this.zoomed) return;
-    this.panX = panX;
-    this.panY = panY;
+  setView = (view: View): void => {
+    if (view.zoom === null) {
+      this.zoomFit();
+      return;
+    }
+    this.show(withZoom(view, view.zoom, this.fitZoom));
   };
+
+  applyView = (view: View, change: ViewChange): void => {
+    this.setView(view);
+    if (change === 'zoom') this.rememberZoomLevel(this.zoom);
+  };
+
+  rememberZoomLevel = (zoom: number, fitZoom: number = this.fitZoom): void => {
+    if (zoom <= fitZoom) return;
+    this.zoomLevel = zoom;
+    writeZoomLevel(zoom);
+  };
+
+  private show(view: ZoomedView): void {
+    this.fitMode = false;
+    this.zoom = view.zoom;
+    this.cx = view.cx;
+    this.cy = view.cy;
+  }
+
+  private centre(): void {
+    this.cx = 0.5;
+    this.cy = 0.5;
+  }
 
   zoomNative = (): void => {
     this.userZoom(100);

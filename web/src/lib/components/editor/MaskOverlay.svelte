@@ -5,7 +5,7 @@
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { isKeybind } from '#lib/shortcuts/match.ts';
   import { isRadioGroupTarget, isTypingTarget } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import { type Vec2f } from '#lib/types/edits.ts';
   import {
@@ -20,6 +20,9 @@
   import MaskRadialHandles from './MaskRadialHandles.svelte';
   import MaskPolygonHandles from './MaskPolygonHandles.svelte';
   import MaskPolygonDraft from './MaskPolygonDraft.svelte';
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { clampedPoint, elementPoint } from '#lib/gestures/point.ts';
 
   let {
     img
@@ -57,14 +60,31 @@
     return { x: s[0], y: s[1] };
   }
 
-  let drag = $state<{ componentId: string; kind: DragKind } | null>(null);
+  type MaskDrag = { componentId: string; kind: DragKind };
+
+  const maskDrag = pointerDrag<MaskDrag, MaskDrag>({
+    start(e, target) {
+      e.preventDefault();
+      e.stopPropagation();
+      editor.setActiveMaskComponent(target.componentId);
+      return target;
+    },
+    move(e, current) {
+      if (!active) return;
+      const comp = active.components.find((c) => c.id === current.componentId);
+      if (!comp) return;
+      const at = elementPoint(e, e.currentTarget as SVGSVGElement);
+      const n = fromPx(at.x, at.y);
+      const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: held('constrain', e) });
+      if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
+    },
+    end() {
+      void editor.commitMasks();
+    }
+  });
 
   function startDrag(e: PointerEvent, componentId: string, kind: DragKind): void {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    editor.setActiveMaskComponent(componentId);
-    drag = { componentId, kind };
+    maskDrag.begin(e, { componentId, kind });
   }
 
   function selectOnly(e: PointerEvent, componentId: string): void {
@@ -78,7 +98,7 @@
       return false;
     const comp = active.components.find((c) => c.id === editor.activeMaskComponentId);
     if (!comp) return false;
-    const step = e.shiftKey ? 10 : 1;
+    const step = held('coarse', e) ? 10 : 1;
     const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
     const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
     const next = nudgedKind(comp.kind, dx, dy, toPx, fromPx);
@@ -90,7 +110,7 @@
   }
 
   function onKeyDown(e: KeyboardEvent): void {
-    if (isModalOpen()) return;
+    if (isAnyModalOpen()) return;
     if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
       e.preventDefault();
       editor.cancelColorPicker();
@@ -103,24 +123,6 @@
     e.preventDefault();
     void editor.removeMaskComponent(active.id, editor.activeMaskComponentId);
     toasts.push('info', `Shape deleted. Undo with ${keysFor('undo')}.`);
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (!drag || !active) return;
-    const current = drag;
-    const comp = active.components.find((c) => c.id === current.componentId);
-    if (!comp) return;
-    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const n = fromPx(e.clientX - r.left, e.clientY - r.top);
-    const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: e.shiftKey });
-    if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
-  }
-
-  function onPointerUp(e: PointerEvent): void {
-    if (!drag) return;
-    drag = null;
-    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
-    void editor.commitMasks();
   }
 
   function setPolygonPoints(componentId: string, points: Vec2f[]): void {
@@ -137,11 +139,9 @@
     if (!img || !editor.colorPicker?.ready) return;
     const size = surfaceSize(img);
     if (size.w < 1 || size.h < 1) return;
-    const bounds = img.getBoundingClientRect();
-    const u = clamp01((e.clientX - bounds.left) / Math.max(bounds.width, 1));
-    const v = clamp01((e.clientY - bounds.top) / Math.max(bounds.height, 1));
-    const sx = Math.min(size.w - 1, Math.floor(u * size.w));
-    const sy = Math.min(size.h - 1, Math.floor(v * size.h));
+    const at = clampedPoint(e, img);
+    const sx = Math.min(size.w - 1, Math.floor(at.x * size.w));
+    const sy = Math.min(size.h - 1, Math.floor(at.y * size.h));
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
@@ -179,9 +179,7 @@
     width="100%"
     height="100%"
     role="presentation"
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...maskDrag.follow}
   >
     {#each active.components as comp (comp.id)}
       {#if comp.enabled && activeCompId === comp.id}

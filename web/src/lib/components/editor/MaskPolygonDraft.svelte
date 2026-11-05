@@ -4,9 +4,11 @@
   import { isKeybind } from '#lib/shortcuts/match.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { yieldsToControl } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
   import type { Vec2f } from '#lib/types/edits.ts';
   import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { HANDLE_DOT } from '#lib/editor/handles.ts';
 
   let {
     draft,
@@ -25,15 +27,14 @@
   const points = $derived(draft.points.map((p) => toPx(p)));
 
   function pointerMove(e: PointerEvent): void {
-    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    cursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+    cursor = elementPoint(e, e.currentTarget as SVGSVGElement);
   }
 
   function place(e: PointerEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const p = fromPx(e.clientX - r.left, e.clientY - r.top);
+    const at = elementPoint(e, e.currentTarget as SVGSVGElement);
+    const p = fromPx(at.x, at.y);
     if (p.x < 0 || p.y < 0 || p.x > 1 || p.y > 1) return;
     if (draft.points.length >= MAX_POLYGON_POINTS) {
       toasts.push('info', `A polygon can have at most ${MAX_POLYGON_POINTS} corners.`);
@@ -51,7 +52,7 @@
   }
 
   function onKey(e: KeyboardEvent): void {
-    if (isModalOpen() || yieldsToControl(e)) return;
+    if (isAnyModalOpen() || yieldsToControl(e)) return;
     if (isKeybind(e, 'maskCancelDraw')) {
       e.preventDefault();
       editor.cancelPolygon();
@@ -110,7 +111,7 @@
       <circle
         cx={p.x}
         cy={p.y}
-        r={i === 0 ? 8 : 5}
+        r={i === 0 ? HANDLE_DOT.draftStart : HANDLE_DOT.draftPoint}
         fill={i === 0 ? 'var(--color-image-light)' : 'var(--color-image-dark)'}
         stroke="var(--color-image-light)"
         stroke-width="2"

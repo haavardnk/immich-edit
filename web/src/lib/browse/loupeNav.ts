@@ -79,11 +79,7 @@ export function leaveMulti(): void {
   if (id) browseView.openLoupe(id);
 }
 
-export function enterMulti(mode: MultiMode): void {
-  if (isMulti()) {
-    leaveMulti();
-    return;
-  }
+function enterMulti(mode: MultiMode): void {
   const members = neighbourMembers(mode, loadedIds(), browseView.loupeId);
   if (members.length < 2) {
     toasts.push('info', `${mode} needs two photos`);
