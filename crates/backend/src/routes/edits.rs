@@ -17,12 +17,17 @@ use crate::error::AppError;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
 use crate::routes::faces::normalize as normalize_face;
+use crate::routes::headers;
 use crate::services::edits_store::{
-    EditHistoryEntry, EditRecord, EditWrite, EditedAssetEntry, RestoreOutcome, WriteOutcome,
+    EditHistoryEntry, EditRecord, EditedAssetEntry, RestoreOutcome, WriteOutcome,
 };
 use crate::services::render::{AssetRevision, RenderError, RenderIdentity};
 use crate::services::white_balance::{self, WhiteBalanceSample};
 use crate::state::AppState;
+
+mod write;
+
+pub(crate) use write::write_manifest;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -193,48 +198,30 @@ pub async fn put(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-    headers: HeaderMap,
+    request_headers: HeaderMap,
     Json(body): Json<PutEditsBody>,
 ) -> Result<Response, AppError> {
     let (manifest, action) = body.split();
-    let if_match = headers
-        .get("if-match")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.trim_matches('"').to_string());
-    let asset = ctx.immich.asset(id.source()).await?;
-    let write = EditWrite {
+    let if_match = headers::if_match(&request_headers);
+    write_manifest(
+        &state,
+        &ctx,
+        id,
         manifest,
-        immich_updated_at: asset.updated_at,
-        immich_checksum: asset.checksum,
-        action: action.as_deref(),
-    };
-    let Some(expected) = if_match.as_deref() else {
-        let saved = state.edits.put(ctx.owner, id, write).await?;
-        return Ok(Json(saved).into_response());
-    };
-    let outcome = state
-        .edits
-        .put_if_match(ctx.owner, id, expected, write)
-        .await?;
-    match outcome {
-        WriteOutcome::Written(saved) => Ok(Json(saved).into_response()),
-        WriteOutcome::Conflict(current) => {
-            Ok((StatusCode::CONFLICT, Json(current)).into_response())
-        }
-    }
+        action.as_deref(),
+        if_match.as_deref(),
+    )
+    .await
 }
 
 pub async fn delete(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
-    headers: HeaderMap,
+    request_headers: HeaderMap,
     body: Option<Json<ActionBody>>,
 ) -> Result<Response, AppError> {
-    let if_match = headers
-        .get("if-match")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.trim_matches('"').to_string());
+    let if_match = headers::if_match(&request_headers);
     let action = body
         .and_then(|Json(b)| b.action)
         .unwrap_or_else(|| "Reset".to_string());

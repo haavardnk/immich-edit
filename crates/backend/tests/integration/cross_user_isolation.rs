@@ -871,6 +871,97 @@ async fn saved_views_are_scoped_to_the_owner() {
     }
 }
 
+#[tokio::test]
+async fn snapshots_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_for_admin(&server, id).await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let snapshots_uri = format!("/api/assets/{id}/snapshots");
+
+    let snapshot = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                &snapshots_uri,
+                serde_json::json!({ "name": "Owner look", "manifest": exposure_manifest(1.5) }),
+            ),
+            StatusCode::OK,
+            "owner create snapshot",
+        )
+        .await,
+    )
+    .await;
+    let snapshot_uri = format!("{snapshots_uri}/{}", snapshot["id"].as_str().unwrap());
+
+    let listed = body_json(
+        expect_status(
+            &member,
+            get(&snapshots_uri),
+            StatusCode::OK,
+            "member list snapshots",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's snapshots: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PATCH",
+            &snapshot_uri,
+            serde_json::json!({ "name": "stolen" }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member rename snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("POST", &format!("{snapshot_uri}/restore")),
+        StatusCode::NOT_FOUND,
+        "member restore snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("DELETE", &snapshot_uri),
+        StatusCode::NOT_FOUND,
+        "member delete snapshot",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get(&snapshots_uri),
+            StatusCode::OK,
+            "owner list snapshots",
+        )
+        .await,
+    )
+    .await;
+    if owned.as_array().map(Vec::len) != Some(1) || owned[0] != snapshot {
+        panic!("owner snapshots after member calls: {owned}");
+    }
+    let restored = body_json(
+        expect_status(
+            &admin,
+            empty_request("POST", &format!("{snapshot_uri}/restore")),
+            StatusCode::OK,
+            "owner restore snapshot",
+        )
+        .await,
+    )
+    .await;
+    if restored["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
+        panic!("owner restore body: {restored}");
+    }
+}
+
 #[cfg(feature = "ml")]
 async fn source_etag(app: &axum::Router, id: uuid::Uuid, what: &str) -> String {
     let resp = expect_status(
