@@ -11,6 +11,10 @@ export function folderCrumbs(path: string): FolderCrumb[] {
   return parts.map((name, index) => ({ name, path: `/${parts.slice(0, index + 1).join('/')}` }));
 }
 
+export function parentFolder(path: string): string {
+  return folderCrumbs(path).at(-2)?.path ?? '';
+}
+
 export function folderName(path: string): string {
   return folderCrumbs(path).at(-1)?.name ?? '';
 }

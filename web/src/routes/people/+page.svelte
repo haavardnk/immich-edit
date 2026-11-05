@@ -23,7 +23,7 @@
     {:else}
       <ul
         aria-label="People"
-        class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] justify-items-center gap-2 p-3 sm:p-5"
+        class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] justify-items-center gap-x-2 gap-y-4 p-4 sm:p-5"
       >
         {#each library.people as person (person.id)}
           <li><PersonFace {person} /></li>

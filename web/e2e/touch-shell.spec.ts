@@ -1,69 +1,19 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets, type InstallOpts } from './helpers';
+import { ASSET_SUMMARY, json, numberedAssets } from './helpers';
 import { drag, tapAt } from './touch';
-
-const PEOPLE = [
-  { id: 'person-ingrid', name: 'Ingrid', assetIds: [ASSET_SUMMARY.id] },
-  { id: 'person-lars', name: 'Lars', assetIds: [ASSET_SUMMARY.id] }
-];
-
-const ALBUMS = [
-  { id: 'album-lofoten', albumName: 'Lofoten winter', assetIds: ['a', 'b', 'c'] },
-  { id: 'album-family', albumName: 'Family', assetIds: ['a'] }
-];
-
-const TAGS = [
-  { id: 'tag-sky', name: 'Sky', value: 'Sky' },
-  { id: 'tag-reject', name: 'reject', value: 'immich-edit/reject' }
-];
-
-const EDITS = numberedAssets(5).map((asset, index) => ({
-  id: asset.id,
-  hash: `h${index}`,
-  updated_at: `2026-0${index + 1}-01T00:00:00Z`
-}));
-
-const FOLDERS = ['/photos/2026/Norway', '/photos/2026/Bergen', '/photos/2025'];
-
-async function open(page: Page, path: string, opts: InstallOpts = {}): Promise<void> {
-  await installMocks(page, { people: PEOPLE, albums: ALBUMS, tags: TAGS, edits: EDITS, ...opts });
-  await page.route('**/api/folders/paths', (route) => route.fulfill(json(FOLDERS)));
-  await page.route('**/api/folders/assets?*', (route) => route.fulfill(json([ASSET_SUMMARY])));
-  await page.goto(path);
-  await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
-}
-
-function tabBar(page: Page): Locator {
-  return page.getByRole('navigation', { name: 'Main' });
-}
-
-function tab(page: Page, name: string): Locator {
-  return tabBar(page).getByRole('link', { name, exact: true });
-}
-
-function drawer(page: Page): Locator {
-  return page.getByRole('dialog', { name: 'Account' });
-}
-
-async function expectTab(page: Page, name: string): Promise<void> {
-  await expect(tab(page, name)).toHaveAttribute('aria-current', 'page');
-  await expect(tabBar(page).locator('[aria-current="page"]')).toHaveCount(1);
-}
-
-async function openDrawer(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Account', exact: true }).tap();
-  const panel = drawer(page);
-  await expect(panel).toBeVisible();
-  await expect.poll(async () => (await panel.boundingBox())?.x ?? Number.NaN).toBeCloseTo(0, 0);
-  return panel;
-}
-
-async function expectTargets(locator: Locator, min: number): Promise<void> {
-  for (const element of await locator.all()) {
-    expect((await element.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(min);
-  }
-}
+import {
+  avatar,
+  backButton,
+  drawer,
+  EDITS,
+  expectTab,
+  expectTargets,
+  open,
+  openDrawer,
+  tab,
+  tabBar
+} from './touchShell';
 
 test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the tab bar switches tabs and marks the current one', async ({ page }) => {
@@ -160,6 +110,56 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
   });
 
+  test('taps and closing sheets leave no tooltip open', async ({ page }) => {
+    await page.clock.install();
+    await open(page, '/photos');
+    const tooltips = page.locator('.tooltip-content');
+    const expectNoTooltip = async () => {
+      await page.clock.runFor(1000);
+      await expect(tooltips).toBeHidden();
+      await expect(tooltips).toHaveCount(0);
+    };
+
+    const options = page
+      .locator('header[data-app-bar]')
+      .getByRole('button', { name: 'View options', exact: true });
+    await options.tap();
+    const sheet = page.getByRole('dialog', { name: 'View options' });
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect(options).toBeFocused();
+    await expectNoTooltip();
+
+    const filters = page.getByRole('button', { name: /^Filters/ });
+    await filters.tap();
+    const filterSheet = page.getByRole('dialog', { name: 'Filters' });
+    await expect(filterSheet).toBeVisible();
+    await filterSheet.getByRole('button', { name: 'Close filters' }).tap();
+    await expect(filterSheet).toBeHidden();
+    await expect(filters).toBeFocused();
+    await expectNoTooltip();
+
+    await tab(page, 'Library').tap();
+    await expect(page).toHaveURL('/library');
+    await expectNoTooltip();
+
+    await page.getByRole('link', { name: 'See all people' }).tap();
+    await expect(page).toHaveURL('/people');
+    await expectNoTooltip();
+
+    await backButton(page).tap();
+    await expect(page).toHaveURL('/library');
+    await expectNoTooltip();
+
+    const panel = await openDrawer(page);
+    await expectNoTooltip();
+    await panel.getByRole('button', { name: 'Close account menu' }).tap();
+    await expect(panel).toBeHidden();
+    await expect(avatar(page)).toBeFocused();
+    await expectNoTooltip();
+  });
+
   test('the drawer rows open Settings, Jobs and the theme', async ({ page }) => {
     await open(page, '/photos');
 
@@ -187,7 +187,8 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await panel.getByRole('button', { name: 'Settings', exact: true }).tap();
     await expect(page).toHaveURL('/settings');
     await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+    await expect(backButton(page)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0);
     await expect(tabBar(page).locator('[aria-current="page"]')).toHaveCount(0);
   });
 
@@ -438,6 +439,37 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
 
     await tab(page, 'Library').tap();
     await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(5);
+  });
+
+  test('a mouse hover after a tap still shows tooltips', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.clock.install();
+    await open(page, '/photos');
+    const tooltips = page.locator('.tooltip-content');
+
+    await tab(page, 'Library').tap();
+    await expect(page).toHaveURL('/library');
+    await page.clock.runFor(1000);
+    await expect(tooltips).toHaveCount(0);
+
+    const box = await avatar(page).boundingBox();
+    const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+    const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+    await page.mouse.move(x, y + 60);
+    await page.mouse.move(x, y, { steps: 4 });
+    await page.clock.runFor(1000);
+    await expect(tooltips.filter({ hasText: 'Account' })).toBeVisible();
+
+    await page.mouse.move(x, y + 300);
+    await expect(tooltips).toHaveCount(0);
+    await avatar(page).tap();
+    const panel = drawer(page);
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Close account menu' }).tap();
+    await expect(panel).toBeHidden();
+    await expect(avatar(page)).toBeFocused();
+    await page.clock.runFor(1000);
+    await expect(tooltips).toHaveCount(0);
   });
 });
 

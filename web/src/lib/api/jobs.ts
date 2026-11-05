@@ -72,6 +72,13 @@ export function isJobActive(status: JobStatus): boolean {
   return status === 'pending' || status === 'running';
 }
 
+export function splitJobs(list: readonly Job[]): { running: Job[]; finished: Job[] } {
+  return {
+    running: list.filter((job) => isJobActive(job.status)),
+    finished: list.filter((job) => !isJobActive(job.status))
+  };
+}
+
 export function jobNeedsAttention(job: Job): boolean {
   return !isJobActive(job.status) && (job.failed > 0 || job.status === 'failed');
 }

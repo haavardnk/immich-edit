@@ -118,7 +118,9 @@ test('settings fit the mobile viewport', async ({ page }) => {
   await page.goto('/settings');
 
   await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+  await expect(
+    page.locator('header[data-app-bar]').getByRole('button', { name: 'Back', exact: true })
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Diagnostics' })).toBeVisible();
   await expect(page.getByRole('button', { name: /App settings/ })).toHaveAttribute(
     'aria-expanded',

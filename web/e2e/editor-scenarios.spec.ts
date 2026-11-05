@@ -226,14 +226,16 @@ test('the copy dialog is a named modal that cancels back to the editor', async (
   await expect(dialog).toBeHidden();
 });
 
-test('narrow viewports show the desktop-required guard', async ({ page }) => {
+test('narrow viewports show the larger-screen guard with a way back', async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
 
-  await expect(page.getByRole('heading', { name: 'Desktop required' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page).toHaveURL('/photos');
 });
 
 test('deleting a preset requires explicit confirmation', async ({ page }) => {

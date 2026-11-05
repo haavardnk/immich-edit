@@ -30,9 +30,20 @@ export function jobsSummary(activeCount: number): string {
   return activeCount > 0 ? `${activeCount} active` : 'No active jobs';
 }
 
+function activeTotals(active: readonly Job[]): { done: number; total: number } {
+  return {
+    done: active.reduce((sum, job) => sum + job.completed + job.failed, 0),
+    total: active.reduce((sum, job) => sum + job.total, 0)
+  };
+}
+
+export function jobsProgressFraction(active: readonly Job[]): number {
+  const { done, total } = activeTotals(active);
+  return total > 0 ? Math.min(1, done / total) : 0;
+}
+
 export function jobsProgressText(active: readonly Job[]): string {
-  const done = active.reduce((sum, job) => sum + job.completed + job.failed, 0);
-  const total = active.reduce((sum, job) => sum + job.total, 0);
+  const { done, total } = activeTotals(active);
   const [only] = active;
   const subject =
     only && active.length === 1

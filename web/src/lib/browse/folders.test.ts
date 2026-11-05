@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { FolderNode } from '#lib/stores/library.svelte.ts';
-import { findFolder, folderCrumbs, folderHref, folderName, subfolders } from './folders';
+import {
+  findFolder,
+  folderCrumbs,
+  folderHref,
+  folderName,
+  parentFolder,
+  subfolders
+} from './folders';
 
 const TREE: FolderNode[] = [
   {
@@ -30,6 +37,12 @@ describe('folder paths', () => {
   it('names the current folder', () => {
     expect(folderName('/photos/2026/Norway')).toBe('Norway');
     expect(folderName('')).toBe('');
+  });
+
+  it('finds the folder one level up', () => {
+    expect(parentFolder('/photos/2026/Norway')).toBe('/photos/2026');
+    expect(parentFolder('/photos')).toBe('');
+    expect(parentFolder('')).toBe('');
   });
 
   it('builds folder links', () => {

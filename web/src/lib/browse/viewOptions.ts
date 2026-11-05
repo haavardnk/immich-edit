@@ -1,11 +1,13 @@
 import type { GridSize, TileInfo } from '#lib/stores/browseView.svelte.ts';
 
-export const GRID_SIZE_OPTIONS: readonly { value: GridSize; label: string }[] = [
-  { value: 'sm', label: 'S' },
-  { value: 'md', label: 'M' },
-  { value: 'lg', label: 'L' },
-  { value: 'xl', label: 'XL' }
-];
+export const GRID_SIZE_OPTIONS: readonly { value: GridSize; label: string; title: string }[] = (
+  [
+    ['sm', 'S'],
+    ['md', 'M'],
+    ['lg', 'L'],
+    ['xl', 'XL']
+  ] as const
+).map(([value, label]) => ({ value, label, title: `Thumbnail size ${label}` }));
 
 const TILE_INFO_LABELS: Readonly<Record<TileInfo, string>> = {
   none: 'hover only',

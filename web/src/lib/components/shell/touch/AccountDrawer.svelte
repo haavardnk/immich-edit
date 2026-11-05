@@ -17,8 +17,9 @@
   import { holdModalSheet } from '#lib/stores/overlays.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Avatar, Button, IconButton, LoadingSpinner } from '@immich/ui';
+  import { Avatar, Button, Icon, IconButton, LoadingSpinner } from '@immich/ui';
   import {
+    mdiChevronRight,
     mdiClose,
     mdiCogOutline,
     mdiFormatListChecks,
@@ -30,6 +31,8 @@
   import type { Attachment } from 'svelte/attachments';
 
   let panel: HTMLElement | null = null;
+
+  const DRAWER_ROW = 'touch:rounded-xl touch:border-b-0 touch:text-[15.5px]';
 
   const user = $derived(session.user);
 
@@ -137,13 +140,13 @@
             />
           </div>
           {#if user}
-            <div class="flex items-center gap-3 rounded-2xl bg-light-100 p-3.5">
-              <Avatar size="medium" name={user.name || user.email} />
+            <div class="flex items-center gap-3.5 rounded-2xl bg-light-100 p-3.5">
+              <Avatar size="large" class="size-13" name={user.name || user.email} />
               <div class="min-w-0 flex-1">
                 <div class="truncate text-base font-semibold text-light-950">
                   {user.name || user.email}
                 </div>
-                <div class="truncate text-sm text-dark/65">{user.email}</div>
+                <div class="truncate text-[13px] text-dark/65">{user.email}</div>
                 <div class="mt-1.5 flex flex-wrap gap-1.5">
                   <AccountBadges {user} />
                 </div>
@@ -151,17 +154,32 @@
             </div>
             <ImmichServerLine class="truncate px-3.5 pt-2.5 pb-1.5 text-[12.5px] text-dark/65" />
           {/if}
-          <div class="mt-3 flex flex-col">
-            <MenuRow icon={mdiCogOutline} label="Settings" onclick={openSettings} />
+          <div class="mt-3 flex flex-col gap-0.5">
+            <MenuRow
+              icon={mdiCogOutline}
+              label="Settings"
+              class={DRAWER_ROW}
+              onclick={openSettings}
+            >
+              <Icon
+                icon={mdiChevronRight}
+                size="20px"
+                class="shrink-0 text-dark/65"
+                aria-hidden="true"
+              />
+            </MenuRow>
             <MenuRow
               icon={mdiFormatListChecks}
               label="Jobs"
+              class={DRAWER_ROW}
               aria-label={jobsLabel}
               onclick={openJobs}
             >
               {#if jobs.activeCount > 0}
-                <span class="flex shrink-0 items-center gap-1.5 text-sm text-dark/65">
-                  <LoadingSpinner size="small" />
+                <span
+                  class="flex h-5.5 shrink-0 items-center gap-1 rounded-full bg-primary/20 ps-1 pe-2 text-xs font-semibold text-primary"
+                >
+                  <LoadingSpinner size="tiny" />
                   {jobs.activeCount}
                 </span>
               {/if}
@@ -173,6 +191,7 @@
               <MenuRow
                 icon={mdiKeyboardOutline}
                 label={help.label}
+                class={DRAWER_ROW}
                 keys={keysFor('help')}
                 onclick={openShortcuts}
               />
@@ -180,14 +199,14 @@
           </div>
           <div class="my-2 h-px bg-hairline"></div>
           <div class="flex flex-col gap-2 px-1 py-1">
-            <span class="text-xs font-medium text-dark/65">Theme</span>
-            <ThemeModeChoice label="Theme" />
+            <span class="text-xs text-dark/65">Theme</span>
+            <ThemeModeChoice label="Theme" fill />
           </div>
           <div class="my-2 h-px bg-hairline"></div>
           <Button
             variant="ghost"
             color="danger"
-            class="min-h-13 w-full justify-start gap-3.5 px-4 text-base font-normal"
+            class="min-h-13 w-full justify-start gap-3.5 rounded-xl px-4 text-[15.5px] font-normal"
             leadingIcon={mdiLogoutVariant}
             loading={signOutFlow.signingOut}
             disabled={signOutFlow.signingOut}

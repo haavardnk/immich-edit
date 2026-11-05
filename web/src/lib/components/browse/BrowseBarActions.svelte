@@ -5,6 +5,7 @@
   import { openFilterPanel } from '#lib/browse/filterPanel.ts';
   import { idName } from '#lib/browse/idOptions.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiDotsHorizontal, mdiFilterOutline } from '@mdi/js';
 
@@ -25,12 +26,13 @@
     shape="round"
     class="size-11"
     icon={mdiFilterOutline}
+    title={hint('Filters', 'toggleFilters')}
     aria-label={filtersLabel}
     onclick={openFilterPanel}
   />
   {#if filterCount > 0}
     <span
-      class="pointer-events-none absolute top-1 right-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 text-light"
+      class="pointer-events-none absolute top-1.25 right-0.75 h-4.25 min-w-4.25 rounded-full bg-primary px-1 text-center text-[11px] leading-4.25 font-bold text-light ring-2 ring-light"
       aria-hidden="true"
     >
       {filterCount}
@@ -45,6 +47,7 @@
   title="View options"
   contentClass="flex min-w-64 flex-col gap-3 p-3"
   sheetClass="flex flex-col gap-4 px-4 py-3"
+  tooltip="View options"
 >
   {#snippet trigger(popoverProps)}
     <IconButton
@@ -54,6 +57,7 @@
       shape="round"
       class="size-11"
       icon={mdiDotsHorizontal}
+      title=""
       aria-label="View options"
       {...popoverProps}
     />

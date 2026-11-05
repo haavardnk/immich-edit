@@ -6,12 +6,11 @@
   import { accountDrawer } from '#lib/components/shell/touch/accountDrawer.svelte.ts';
   import { hideBarsOnScroll } from '#lib/components/shell/touch/barsHide.ts';
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
+  import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { onDestroy, type Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
-
-  const TAB_BAR_BOTTOM = 'calc(3.5rem + 1px + var(--safe-bottom))';
 
   const hideBars = hideBarsOnScroll({
     enabled: () => layout.landscape,
