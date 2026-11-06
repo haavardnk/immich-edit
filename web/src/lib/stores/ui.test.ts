@@ -49,6 +49,7 @@ describe('editor layout persistence', () => {
       rightCollapsed: false,
       editorFilmstripCollapsed: false,
       loupeFilmstripCollapsed: false,
+      loupeCompactFilmstrip: false,
       developOpenPanels: ['curves', 'hsl'],
       brushTool: { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' },
       retouchTool: { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 },

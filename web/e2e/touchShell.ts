@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { bulkBar, tile } from './browse';
 import { ASSET_SUMMARY, installMocks, json, numberedAssets, type InstallOpts } from './helpers';
+import { tapCentre } from './touch';
 
 export const PEOPLE = [
   { id: 'person-ingrid', name: 'Ingrid', assetIds: [ASSET_SUMMARY.id] },
@@ -22,7 +24,7 @@ export const EDITS = numberedAssets(5).map((asset, index) => ({
   updated_at: `2026-0${index + 1}-01T00:00:00Z`
 }));
 
-export const FOLDERS = ['/photos/2026/Norway', '/photos/2026/Bergen', '/photos/2025'];
+const FOLDERS = ['/photos/2026/Norway', '/photos/2026/Bergen', '/photos/2025'];
 
 export async function mockLibrary(page: Page, opts: InstallOpts = {}): Promise<void> {
   await installMocks(page, { people: PEOPLE, albums: ALBUMS, tags: TAGS, edits: EDITS, ...opts });
@@ -52,8 +54,23 @@ export function avatar(page: Page): Locator {
   return page.getByRole('button', { name: 'Account', exact: true });
 }
 
+export function appBar(page: Page): Locator {
+  return page.locator('header[data-app-bar]');
+}
+
 export function backButton(page: Page): Locator {
-  return page.locator('header[data-app-bar]').getByRole('button', { name: 'Back', exact: true });
+  return appBar(page).getByRole('button', { name: 'Back', exact: true });
+}
+
+export async function tapTile(page: Page, name: string): Promise<void> {
+  await tapCentre(page, tile(page, name));
+}
+
+export async function selectTwo(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Select photos' }).tap();
+  await tapTile(page, 'IMG_0001.ARW');
+  await tapTile(page, 'IMG_0002.ARW');
+  await expect(appBar(page)).toContainText('2 selected');
 }
 
 export async function expectTab(page: Page, name: string): Promise<void> {
@@ -78,7 +95,7 @@ export async function expectTargets(locator: Locator, min: number): Promise<void
 export async function expectBarDockedUnderGrid(page: Page): Promise<void> {
   await expect
     .poll(async () => {
-      const bar = await page.getByRole('toolbar', { name: 'Selection actions' }).boundingBox();
+      const bar = await bulkBar(page).boundingBox();
       const column = await page.getByTestId('grid-column').boundingBox();
       if (!bar || !column) return false;
       const gaps = [bar.x - column.x, bar.width - column.width, bar.y - column.y - column.height];

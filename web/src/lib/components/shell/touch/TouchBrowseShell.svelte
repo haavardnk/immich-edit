@@ -8,10 +8,13 @@
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { provideTileOpen } from '#lib/browse/tileOpen.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { onDestroy, type Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
+
+  provideTileOpen('loupe');
 
   const selecting = $derived(bulkScope.selecting);
 

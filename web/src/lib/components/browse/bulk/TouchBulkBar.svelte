@@ -2,7 +2,7 @@
   import LabelSwatches from '#lib/components/LabelSwatches.svelte';
   import Popover from '#lib/components/Popover.svelte';
   import RatingSwatches from '#lib/components/RatingSwatches.svelte';
-  import BarAction from '#lib/components/browse/bulk/BarAction.svelte';
+  import BarAction from '#lib/components/browse/BarAction.svelte';
   import BulkAlbumBand from '#lib/components/browse/bulk/BulkAlbumBand.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
   import BulkExport from '#lib/components/browse/bulk/BulkExport.svelte';

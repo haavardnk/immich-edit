@@ -38,3 +38,7 @@ export async function pickSort(page: Page, name: string): Promise<void> {
   await page.locator('[data-popover-content]').getByRole('radio', { name, exact: true }).click();
   await page.keyboard.press('Escape');
 }
+
+export function loupeToolbar(page: Page): Locator {
+  return page.getByRole('navigation', { name: 'Loupe toolbar' });
+}

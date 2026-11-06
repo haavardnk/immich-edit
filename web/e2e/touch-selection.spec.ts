@@ -1,26 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import { DEFAULT_THRESHOLDS } from '../src/lib/gestures/thresholds';
+import { bulkBar, loupeToolbar, selectedNames, tile } from './browse';
 import { numberedAssets } from './helpers';
-import { datedAssets, dayShots } from './timeline';
-import { tapAt, touchDown, touchMoveTo, touchUp, type TouchPoint } from './touch';
-import { expectBarDockedUnderGrid, open, tabBar } from './touchShell';
+import { datedAssets, dayShots, openTouchTimeline } from './timeline';
+import { longPressUntil, touchDown, touchMoveTo, touchUp, type TouchPoint } from './touch';
+import { appBar, expectBarDockedUnderGrid, open, selectTwo, tabBar, tapTile } from './touchShell';
 
 const ASSETS = datedAssets([
   ...dayShots('2026-10-31', 10, 'Bergen'),
   ...dayShots('2026-10-30', 10, 'Ålesund')
 ]);
 
-test.use({ timezoneId: 'UTC' });
+const MOCKS = { assets: ASSETS, metadataPushConsented: true };
 
-async function openPhotos(page: Page, from?: string): Promise<void> {
-  await page.clock.setFixedTime(new Date('2026-11-05T12:00:00Z'));
-  await page.addInitScript(() => {
-    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
-  });
-  await open(page, from ?? '/photos', { assets: ASSETS });
-  if (from) await page.goto('/photos');
-  await expect(page.getByTestId('day-header').first()).toBeVisible();
-}
+test.use({ timezoneId: 'UTC' });
 
 function entryIndex(page: Page): Promise<number> {
   return page.evaluate(() => navigation.currentEntry?.index ?? -1);
@@ -34,14 +27,10 @@ function entryId(page: Page): Promise<string> {
   return page.evaluate(() => navigation.currentEntry?.id ?? '');
 }
 
-function tile(page: Page, name: string) {
-  return page.locator(`[data-name="${name}"]`);
-}
-
-async function corner(page: Page, name: string): Promise<TouchPoint> {
+async function centre(page: Page, name: string): Promise<TouchPoint> {
   const box = await tile(page, name).boundingBox();
   if (!box) throw new Error(`no tile ${name}`);
-  return { x: box.x + 20, y: box.y + 20 };
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 async function holdPastLongPress(page: Page, point: TouchPoint): Promise<void> {
@@ -54,27 +43,6 @@ async function holdPastLongPress(page: Page, point: TouchPoint): Promise<void> {
   }, DEFAULT_THRESHOLDS.longPressMs);
   await touchDown(page, point);
   await expect.poll(() => page.evaluate(() => Reflect.get(window, 'longPressElapsed'))).toBe(true);
-}
-
-async function tapTile(page: Page, name: string): Promise<void> {
-  const at = await corner(page, name);
-  await tapAt(page, at.x, at.y);
-}
-
-function appBar(page: Page) {
-  return page.locator('header[data-app-bar]');
-}
-
-function bulkBar(page: Page) {
-  return page.getByRole('toolbar', { name: 'Selection actions' });
-}
-
-async function selectedNames(page: Page): Promise<string[]> {
-  return page.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>('[role="group"][data-selected]')]
-      .map((node) => node.getAttribute('data-name') ?? '')
-      .sort()
-  );
 }
 
 async function rowGap(page: Page): Promise<TouchPoint> {
@@ -95,19 +63,10 @@ async function rowGap(page: Page): Promise<TouchPoint> {
   return gap;
 }
 
-async function selectTwo(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Select photos' }).tap();
-  await tapTile(page, 'IMG_0001.ARW');
-  await tapTile(page, 'IMG_0002.ARW');
-  await expect(appBar(page)).toContainText('2 selected');
-}
-
 test.describe('touch selection', () => {
   test('@touch a long press picks the photo and enters select mode', async ({ page }) => {
-    await openPhotos(page);
-    await touchDown(page, await corner(page, 'IMG_0003.ARW'));
-    await expect(appBar(page)).toContainText('1 selected');
-    await touchUp(page);
+    await openTouchTimeline(page, MOCKS);
+    await longPressUntil(page, tile(page, 'IMG_0003.ARW'), appBar(page).getByText('1 selected'));
 
     await expect(page).toHaveURL(/\/photos$/);
     await expect(tile(page, 'IMG_0003.ARW')).toHaveAttribute('data-selected', 'true');
@@ -118,10 +77,10 @@ test.describe('touch selection', () => {
   });
 
   test('@touch dragging on after the long press selects the range in between', async ({ page }) => {
-    await openPhotos(page);
-    await touchDown(page, await corner(page, 'IMG_0001.ARW'));
+    await openTouchTimeline(page, MOCKS);
+    await touchDown(page, await centre(page, 'IMG_0001.ARW'));
     await expect(appBar(page)).toContainText('1 selected');
-    await touchMoveTo(page, await corner(page, 'IMG_0005.ARW'));
+    await touchMoveTo(page, await centre(page, 'IMG_0005.ARW'));
     await expect(page.getByText('+4 in range')).toBeVisible();
     await expect(tile(page, 'IMG_0003.ARW')).toHaveAttribute('data-range-preview', 'true');
     await expect(appBar(page)).toContainText('5 selected');
@@ -141,7 +100,7 @@ test.describe('touch selection', () => {
   test('@touch a long press in a gap between photos leaves the touch to scrolling', async ({
     page
   }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     const gap = await rowGap(page);
     await page.evaluate(() => {
       const seen: boolean[] = [];
@@ -165,10 +124,10 @@ test.describe('touch selection', () => {
     expect(await selectedNames(page)).toEqual([]);
   });
 
-  test('@touch a corner tap outside select mode opens the photo instead of picking it', async ({
+  test('@touch a tap outside select mode opens the loupe instead of picking it', async ({
     page
   }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     const check = tile(page, 'IMG_0002.ARW').getByRole('button', { name: 'Select', exact: true });
     await expect(check).toHaveCount(0);
 
@@ -178,11 +137,13 @@ test.describe('touch selection', () => {
     await expect(check).toHaveCount(0);
 
     await tapTile(page, 'IMG_0002.ARW');
-    await expect(page).toHaveURL(/\/assets\//);
+    await expect(loupeToolbar(page).getByRole('heading')).toHaveText('IMG_0002.ARW');
+    await expect(page).toHaveURL(/\/photos$/);
+    expect(await selectedNames(page)).toEqual([]);
   });
 
   test('@touch Select enters select mode, taps toggle and the X leaves it', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await page.getByRole('button', { name: 'Select photos' }).tap();
     await expect(appBar(page)).toContainText('0 selected');
     await expect(bulkBar(page)).toBeVisible();
@@ -200,7 +161,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch @touch-smoke Back leaves select mode and stays on the page', async ({ page }) => {
-    await openPhotos(page, '/albums');
+    await openTouchTimeline(page, MOCKS, '/albums');
     await page.getByRole('button', { name: 'Select photos' }).tap();
     await expect(bulkBar(page)).toBeVisible();
 
@@ -215,7 +176,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch Back drops the picked photos with select mode', async ({ page }) => {
-    await openPhotos(page, '/albums');
+    await openTouchTimeline(page, MOCKS, '/albums');
     await selectTwo(page);
 
     await page.goBack();
@@ -262,7 +223,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch the X leaves no extra Back step behind', async ({ page }) => {
-    await openPhotos(page, '/albums');
+    await openTouchTimeline(page, MOCKS, '/albums');
     const before = await entryIndex(page);
     await page.getByRole('button', { name: 'Select photos' }).tap();
     await expect.poll(() => entryIndex(page)).toBe(before + 1);
@@ -277,7 +238,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch a filter removed while selecting stays removed', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await page.goto('/photos?city=Bergen');
     await expect(tile(page, 'IMG_0001.ARW')).toBeVisible();
     const before = await entryIndex(page);
@@ -297,7 +258,7 @@ test.describe('touch selection', () => {
   test('@touch @tablet leaving the page from select mode stays on the new page', async ({
     page
   }) => {
-    await openPhotos(page, '/albums');
+    await openTouchTimeline(page, MOCKS, '/albums');
     const before = await entryIndex(page);
     await page.getByRole('button', { name: 'Select photos' }).tap();
     await expect(bulkBar(page)).toBeVisible();
@@ -325,7 +286,7 @@ test.describe('touch selection', () => {
   test('@touch Back leaves select mode entered on an entry left from before a reload', async ({
     page
   }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await page.goto('/photos?city=Bergen');
     await expect(tile(page, 'IMG_0001.ARW')).toBeVisible();
     const before = await entryIndex(page);
@@ -356,7 +317,7 @@ test.describe('touch selection', () => {
   test('@touch @phone the bulk bar takes the tab bar place with the phone actions', async ({
     page
   }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await expect(tabBar(page)).toBeVisible();
     await selectTwo(page);
 
@@ -374,7 +335,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch @tablet the bulk bar docks under the grid column with Tags', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
 
     await expectBarDockedUnderGrid(page);
@@ -382,7 +343,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch Rate opens a picker that rates every selected photo', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
     await bulkBar(page).getByRole('button', { name: 'Rate', exact: true }).tap();
     await page.getByRole('radio', { name: '3 stars' }).last().tap();
@@ -393,7 +354,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch No rating clears the rating of every selected photo', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
     const rate = bulkBar(page).getByRole('button', { name: 'Rate', exact: true });
     await rate.tap();
@@ -408,7 +369,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch Album opens the album sheet for the selection', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
     await bulkBar(page).getByRole('button', { name: 'Album', exact: true }).tap();
     const sheet = page.getByRole('dialog', { name: 'Add to album' });
@@ -422,7 +383,7 @@ test.describe('touch selection', () => {
   test('@touch More lists the remaining actions and keeps the selection on Cancel', async ({
     page
   }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
     await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
 
@@ -450,7 +411,7 @@ test.describe('touch selection', () => {
   });
 
   test('@touch @phone Tags in More opens the tag sheet', async ({ page }) => {
-    await openPhotos(page);
+    await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
     await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
     await page

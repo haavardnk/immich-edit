@@ -35,6 +35,23 @@ export async function tapAt(page: Page, x: number, y: number): Promise<void> {
   await dispatch(page, 'touchEnd', []);
 }
 
+export async function tapCentre(page: Page, target: Locator): Promise<void> {
+  const box = await target.boundingBox();
+  if (!box) throw new Error('nothing to tap');
+  await tapAt(page, box.x + box.width / 2, box.y + box.height / 2);
+}
+
+export async function openTileLoupe(page: Page, tile: Locator): Promise<void> {
+  await tile.waitFor();
+  if ((await page.locator('html').getAttribute('data-layout')) === 'touch') {
+    const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    await (coarse ? tapCentre(page, tile) : tile.click());
+    return;
+  }
+  await tile.hover();
+  await tile.getByRole('button', { name: 'Quick review' }).click();
+}
+
 export async function longPress(page: Page, x: number, y: number, ms = 700): Promise<void> {
   await dispatch(page, 'touchStart', [{ x, y }]);
   await page.waitForTimeout(ms);
