@@ -238,10 +238,13 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
 
   test('defaults to the phone row height and remembers a chosen size', async ({ page }) => {
     await open(page, '/photos', { assets: ASSETS });
-    await page.locator('header[data-app-bar]').getByRole('button', { name: 'View options' }).tap();
-    const sizes = page
-      .getByRole('dialog', { name: 'View options' })
-      .getByRole('radiogroup', { name: 'Thumbnail size' });
+    await page
+      .locator('header[data-app-bar]')
+      .getByRole('button', { name: 'View & filters', exact: true })
+      .tap();
+    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    await sheet.getByRole('button', { name: 'View', exact: true }).tap();
+    const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
     await expect(sizes.getByRole('radio', { name: 'L', exact: true })).toBeChecked();
 
     await sizes.getByRole('radio', { name: 'S', exact: true }).tap();

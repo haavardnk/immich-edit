@@ -130,7 +130,7 @@
   }
 
   function openSheet(): void {
-    open = true;
+    setOpen(true);
     flushSync();
     sheetInput?.focus({ preventScroll: true });
   }
@@ -166,7 +166,7 @@
   }
 
   function sheetOpenChange(next: boolean): void {
-    open = next;
+    setOpen(next);
     commitTyped(next);
   }
 </script>

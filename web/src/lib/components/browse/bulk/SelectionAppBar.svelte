@@ -2,6 +2,7 @@
   import FilterToggle from '#lib/components/browse/FilterToggle.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { closeOnBack } from '#lib/utils/backLayer.svelte.ts';
   import { Button, IconButton } from '@immich/ui';
@@ -43,4 +44,4 @@
     Select all
   </Button>
 {/if}
-<FilterToggle class="hidden wide:block" />
+<FilterToggle label={VIEW_AND_FILTERS} class="hidden wide:block" />

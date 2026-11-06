@@ -219,7 +219,10 @@ describe('AssetGrid', () => {
   });
 
   it('toggles the filter panel with Shift+F', async () => {
-    const panel = mount(PanelHost, { target, props: { component: FilterPanel, props: {} } });
+    const panel = mount(PanelHost, {
+      target,
+      props: { component: FilterPanel, props: { sortBasis: 'capture' } }
+    });
     render();
     press('F', { shiftKey: true });
     expect(browseView.filtersOpen).toBe(true);

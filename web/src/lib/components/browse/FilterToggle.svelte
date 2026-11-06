@@ -3,16 +3,25 @@
   import { openFilterPanel } from '#lib/browse/filterPanel.ts';
   import { idName } from '#lib/browse/idOptions.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiFilterOutline } from '@mdi/js';
 
-  let { size = 'medium', class: className = '' }: { size?: 'small' | 'medium'; class?: string } =
-    $props();
+  let {
+    size = 'medium',
+    label = 'Filters',
+    class: className = ''
+  }: { size?: 'small' | 'medium'; label?: string; class?: string } = $props();
 
   const filterCount = $derived(activeFilterChips(browseControls.filters, idName).length);
-  const filtersLabel = $derived(filterCount > 0 ? `Filters (${filterCount} active)` : 'Filters');
+  const filtersLabel = $derived(filterCount > 0 ? `${label} (${filterCount} active)` : label);
   const large = $derived(size === 'medium');
+
+  function toggle(): void {
+    if (browseView.filtersOpen) browseView.setFiltersOpen(false);
+    else void openFilterPanel();
+  }
 </script>
 
 <div class="relative {className}">
@@ -24,9 +33,10 @@
     shape={large ? 'round' : undefined}
     class={large ? 'size-11' : ''}
     icon={mdiFilterOutline}
-    title={hint('Filters', 'toggleFilters')}
+    title={hint(label, 'toggleFilters')}
     aria-label={filtersLabel}
-    onclick={openFilterPanel}
+    aria-expanded={browseView.filtersOpen}
+    onclick={toggle}
   />
   {#if filterCount > 0}
     <span

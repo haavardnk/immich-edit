@@ -71,11 +71,12 @@ describe('browse view persistence', () => {
     browseView.setFiltersOpen(true);
     browseView.setFilterSection('library', true);
     browseView.setFilterSection('place', true);
+    browseView.setFilterSection('view', true);
     browseView.setFilterSection('library', false);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
       filtersOpen: true,
-      filterSections: ['place'],
+      filterSections: ['place', 'view'],
       gridSizeChoice: 'lg',
       loupeAutoAdvance: true,
       loupeInfoOpen: true,
@@ -84,12 +85,12 @@ describe('browse view persistence', () => {
   });
 
   it('restores the filter panel and drops unknown sections', async () => {
-    stubStorage({ filtersOpen: true, filterSections: ['camera', 'lens', 'date'] });
+    stubStorage({ filtersOpen: true, filterSections: ['view', 'camera', 'lens', 'date'] });
 
     const { browseView } = await import('./browseView.svelte');
 
     expect(browseView.filtersOpen).toBe(true);
-    expect(browseView.filterSections).toEqual(['camera', 'date']);
+    expect(browseView.filterSections).toEqual(['view', 'camera', 'date']);
   });
 
   it('keeps the compact filter sheet transient and the docked panel persisted', async () => {
