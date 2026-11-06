@@ -16,3 +16,7 @@ export function listPeople(): Promise<PersonSummary[]> {
 export function personThumbUrl(id: string): string {
   return url`/api/people/${id}/thumb`;
 }
+
+export function personName(person: PersonSummary): string {
+  return person.name || 'Unknown';
+}

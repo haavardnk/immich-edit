@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { personThumbUrl, type PersonSummary } from '#lib/api/people.ts';
+  import { personThumbUrl, personName, type PersonSummary } from '#lib/api/people.ts';
+  import HighlightedText from '#lib/components/HighlightedText.svelte';
   import TooltipLink from '#lib/components/TooltipLink.svelte';
 
-  let { person }: { person: PersonSummary } = $props();
+  let { person, query = '' }: { person: PersonSummary; query?: string } = $props();
 
-  const name = $derived(person.name || 'Unknown');
+  const name = $derived(personName(person));
 </script>
 
 <TooltipLink
@@ -17,5 +18,7 @@
   >
     <img src={personThumbUrl(person.id)} alt="" loading="lazy" class="size-full object-cover" />
   </span>
-  <span data-truncate class="w-full truncate text-xs text-light-950">{name}</span>
+  <span data-truncate class="w-full truncate text-xs text-light-950"
+    ><HighlightedText text={name} {query} /></span
+  >
 </TooltipLink>
