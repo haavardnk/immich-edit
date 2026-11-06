@@ -9,7 +9,7 @@ import {
 import { LABEL_NAMES, type LabelColor } from '#lib/stores/labels.ts';
 import { ratingOp, ratingStars } from '#lib/browse/rating.ts';
 import { EXIF_LABELS, exifSummary, type ExifFilterKey } from '#lib/browse/exifFilters.ts';
-import { ID_EXCLUSIONS, idChipLabel, type IdFilterKey } from '#lib/browse/idFilters.ts';
+import { ID_EXCLUSIONS, idChipLabel, idSummary, type IdFilterKey } from '#lib/browse/idFilters.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 export interface FilterChip {
@@ -20,7 +20,7 @@ export interface FilterChip {
 
 export type FilterNameOf = (key: IdFilterKey, id: string) => string;
 
-type ChipValue = Omit<FilterChip, 'key'>;
+type ChipValue = Omit<FilterChip, 'key'> & { value?: string };
 type ChipBuilder = (filters: BrowseFilters, nameOf: FilterNameOf) => ChipValue;
 
 const VISIBILITY_LABELS: Record<BrowseFilters['visibility'], string> = {
@@ -53,13 +53,21 @@ function labelChip(label: LabelFilter): ChipValue {
 }
 
 function idChip(key: IdFilterKey): ChipBuilder {
-  return (filters, nameOf) => ({
-    label: idChipLabel(key, filters[key], (id) => nameOf(key, id))
-  });
+  return (filters, nameOf) => {
+    const name = (id: string): string => nameOf(key, id);
+    const { ids, match } = filters[key];
+    return {
+      label: idChipLabel(key, filters[key], name),
+      ...(match === 'all' ? { value: idSummary(ids, name) } : {})
+    };
+  };
 }
 
 function exifChip(key: ExifFilterKey): ChipBuilder {
-  return (filters) => ({ label: `${EXIF_LABELS[key]}: ${exifSummary(filters[key])}` });
+  return (filters) => {
+    const value = exifSummary(filters[key]);
+    return { label: `${EXIF_LABELS[key]}: ${value}`, value };
+  };
 }
 
 const CHIPS: Record<FilterKey, ChipBuilder> = {
@@ -105,11 +113,20 @@ export function filterChip(
   nameOf: FilterNameOf
 ): FilterChip | undefined {
   if (isDefaultFilter(filters, key)) return undefined;
-  return { key, ...CHIPS[key](filters, nameOf) };
+  const { label, color } = CHIPS[key](filters, nameOf);
+  return color ? { key, label, color } : { key, label };
 }
 
 export function activeFilterChips(filters: BrowseFilters, nameOf: FilterNameOf): FilterChip[] {
   return CHIP_ORDER.flatMap((key) => filterChip(filters, key, nameOf) ?? []);
+}
+
+export function activeFilterValues(filters: BrowseFilters, nameOf: FilterNameOf): string[] {
+  return CHIP_ORDER.flatMap((key) => {
+    if (isDefaultFilter(filters, key)) return [];
+    const { label, value } = CHIPS[key](filters, nameOf);
+    return [value ?? label];
+  });
 }
 
 export function withoutFilter(filters: BrowseFilters, key: FilterKey): BrowseFilters {

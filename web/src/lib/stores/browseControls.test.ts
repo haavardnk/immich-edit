@@ -202,6 +202,63 @@ describe('browseControls sort families', () => {
     controls.enter(null, FILTER_DEFAULTS);
     expect(controls.sortFamily).toBe('timeline');
   });
+
+  it('applies a sort to another family and remembers it', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('timeline', FILTER_DEFAULTS);
+    controls.applySort({ field: 'added', direction: 'asc' }, 'collection');
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+    controls.enter('collection', FILTER_DEFAULTS);
+    expect(controls.sort).toEqual({ field: 'added', direction: 'asc' });
+    const reloaded = new BrowseControlsStore();
+    reloaded.enter('collection', FILTER_DEFAULTS);
+    expect(reloaded.sort).toEqual({ field: 'added', direction: 'asc' });
+  });
+
+  it('holds a queued sort until its family takes new filters', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('timeline', FILTER_DEFAULTS);
+    controls.queueSort({ field: 'added', direction: 'asc' }, 'timeline');
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+    controls.applyFilters({ ...FILTER_DEFAULTS, favoriteOnly: true });
+    expect(controls.sort).toEqual({ field: 'added', direction: 'asc' });
+    expect(controls.filters.favoriteOnly).toBe(true);
+  });
+
+  it('applies a queued sort when the target family is entered', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('timeline', FILTER_DEFAULTS);
+    controls.queueSort({ field: 'added', direction: 'asc' }, 'collection');
+    controls.applyFilters({ ...FILTER_DEFAULTS, favoriteOnly: true });
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+    controls.enter('collection', FILTER_DEFAULTS);
+    expect(controls.sort).toEqual({ field: 'added', direction: 'asc' });
+    controls.settleQueuedSort(true);
+    controls.setSortDir('desc');
+    controls.enter('collection', FILTER_DEFAULTS);
+    expect(controls.sort).toEqual({ field: 'added', direction: 'desc' });
+  });
+
+  it('settles or drops a queued sort that nothing took', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('timeline', FILTER_DEFAULTS);
+    controls.queueSort({ field: 'added', direction: 'asc' }, 'timeline');
+    controls.settleQueuedSort(false);
+    controls.applyFilters(FILTER_DEFAULTS);
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'desc' });
+    controls.queueSort({ field: 'added', direction: 'asc' }, 'timeline');
+    controls.settleQueuedSort(true);
+    expect(controls.sort).toEqual({ field: 'added', direction: 'asc' });
+  });
+
+  it('lets a manual sort change cancel the queued one', () => {
+    const controls = new BrowseControlsStore();
+    controls.enter('timeline', FILTER_DEFAULTS);
+    controls.queueSort({ field: 'added', direction: 'asc' }, 'timeline');
+    controls.setSortDir('asc');
+    controls.settleQueuedSort(true);
+    expect(controls.sort).toEqual({ field: 'taken', direction: 'asc' });
+  });
 });
 
 describe('browseControls filter', () => {

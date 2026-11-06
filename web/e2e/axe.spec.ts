@@ -57,6 +57,30 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   expect(await audit(page)).toEqual([]);
 });
 
+test('saved views and the save form have no serious accessibility violations', async ({ page }) => {
+  await installMocks(page, {
+    savedViews: [
+      {
+        id: 'view-1',
+        name: 'Favorites',
+        url: '/photos?favorite=1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      }
+    ]
+  });
+  await page.goto('/photos?favorite=1');
+
+  const panel = await openFilters(page);
+  await panel.getByRole('button', { name: 'Save view', exact: true }).click();
+  await expect(panel.getByRole('textbox', { name: 'View name' })).toBeFocused();
+  const saved = page.getByRole('list', { name: 'Saved views' }).getByRole('link');
+  await expect(saved).toHaveAttribute('aria-current', 'page');
+  await expect(saved).toHaveAttribute('tabindex', '0');
+  await expect(saved).not.toHaveAttribute('type');
+  expect(await audit(page)).toEqual([]);
+});
+
 test('the loupe and mobile action menu have no serious accessibility violations', async ({
   page
 }) => {
