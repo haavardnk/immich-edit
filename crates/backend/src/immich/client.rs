@@ -7,7 +7,7 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
+    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, Partner, PeopleResponse,
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
     TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
 };
@@ -415,6 +415,17 @@ impl ImmichClient {
             .query(&[("timeBucket", bucket)]);
         let bytes = send(self.authed(req)).await?;
         parse_json(&bytes)
+    }
+
+    pub async fn timeline_partners(&self) -> ImmichResult<Vec<Partner>> {
+        let url = self.url("api/partners")?;
+        let req = self.http.get(url).query(&[("direction", "shared-with")]);
+        let bytes = send(self.authed(req)).await?;
+        let partners: Vec<Partner> = parse_json(&bytes)?;
+        Ok(partners
+            .into_iter()
+            .filter(|partner| partner.in_timeline)
+            .collect())
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
