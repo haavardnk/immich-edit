@@ -12,6 +12,8 @@ import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
 import { listenForCommands } from '#lib/commands/listen.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { gridSizeHud } from '#lib/browse/gridSizeHud.svelte.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -128,6 +130,10 @@ afterEach(() => {
   component = null;
   scroller.remove();
   window.getSelection()?.removeAllRanges();
+  editedThumbs.remove('b');
+  browseView.setTileInfo('badges');
+  browseView.setGridSize('md');
+  gridSizeHud.hide();
 });
 
 describe('AssetGrid', () => {
@@ -325,5 +331,108 @@ describe('AssetGrid', () => {
     expect(tags()?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[aria-label="Albums"]')?.disabled).toBe(false);
+  });
+
+  it('marks edited photos in badges and name-and-date, never in hover-only', () => {
+    editedThumbs.upsert('b', 'h1', 'u1');
+    render();
+    const marked = (): boolean[] =>
+      tiles().map((tile) => tile.querySelector('[role="img"][aria-label="Edited"]') !== null);
+
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('full');
+    flushSync();
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('none');
+    flushSync();
+    expect(marked()).toEqual([false, false, false]);
+  });
+
+  it('steps the thumbnail size from the keyboard and shows the size HUD', () => {
+    render();
+    const status = (): Element | null =>
+      document.querySelector('[role="status"]:has([data-testid="grid-size-hud"])');
+    const live = Array.from(document.querySelectorAll('[role="status"]'));
+    expect(status()).toBeNull();
+
+    press('=');
+    expect(browseView.gridSize).toBe('lg');
+    expect(live).toContain(status());
+    const hud = document.querySelector('[data-testid="grid-size-hud"]');
+    expect(hud?.textContent).toContain('220 px');
+    expect(hud?.textContent).toContain('Ctrl scroll · pinch');
+
+    press('-');
+    press('-');
+    expect(browseView.gridSize).toBe('sm');
+    expect(document.querySelector('[data-testid="grid-size-hud"]')?.textContent).toContain(
+      '110 px'
+    );
+  });
+
+  function dated(id: string, at: string, city: string | null = null): AssetSummary {
+    return {
+      ...asset(id),
+      fileCreatedAt: at,
+      localDateTime: at,
+      exifInfo: { city }
+    } as AssetSummary;
+  }
+
+  const days = [
+    dated('a', '2025-07-04T18:00:00Z', 'Bergen'),
+    dated('b', '2025-07-04T09:00:00Z', 'Bergen'),
+    dated('c', '2025-07-03T12:00:00Z')
+  ];
+
+  function headers(): HTMLElement[] {
+    return [...scroller.querySelectorAll<HTMLElement>('[data-testid="day-header"]')];
+  }
+
+  it('puts day headers over each capture day only when asked', () => {
+    render({ assets: days });
+    expect(headers()).toEqual([]);
+    if (component) void unmount(component);
+    render({ assets: days, dayHeaders: true });
+    expect(headers().map((header) => header.querySelector('h2')?.textContent)).toEqual([
+      'Friday 4 July 2025',
+      'Thursday 3 July 2025'
+    ]);
+    expect(headers()[0]?.textContent).toContain('Bergen · 2');
+  });
+
+  it('selects and deselects a whole day from its header circle', async () => {
+    render({ assets: days, dayHeaders: true });
+    const circle = (): HTMLElement => {
+      const button = headers()[0]?.querySelector<HTMLElement>('button');
+      if (!button) throw new Error('no day circle');
+      return button;
+    };
+    expect(circle().getAttribute('aria-label')).toBe('Select day');
+
+    click(circle());
+    await vi.waitFor(() => expect([...selection.selected]).toEqual(['a', 'b']));
+    flushSync();
+    expect(circle().getAttribute('aria-label')).toBe('Deselect day');
+
+    click(circle());
+    await vi.waitFor(() => expect(selection.active).toBe(false));
+  });
+
+  it('says when earlier photos are loading above the grid', () => {
+    render({ loadingPrevious: true });
+    const status = [...document.querySelectorAll('[role="status"]')].map((node) =>
+      node.textContent?.trim()
+    );
+    expect(status).toContain('Loading earlier photos…');
+  });
+
+  it('offers Select all while only earlier photos are missing', () => {
+    render({ onLoadPrevious: () => {} });
+    click(selectButton(0));
+    click(selectButton(1));
+    click(selectButton(2));
+    const bar = document.querySelector('[aria-label="Selection actions"]');
+    expect(bar?.textContent).toContain('Select all');
   });
 });

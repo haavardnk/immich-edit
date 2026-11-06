@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import BackButton from '#lib/components/shell/BackButton.svelte';
-  import AvatarButton from '#lib/components/shell/touch/AvatarButton.svelte';
+  import AvatarButton from '#lib/components/shell/account/AvatarButton.svelte';
   import { isTabRoot } from '#lib/components/shell/touch/navTabs.ts';
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import type { Snippet } from 'svelte';

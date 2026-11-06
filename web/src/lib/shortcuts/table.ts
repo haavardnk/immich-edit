@@ -137,6 +137,14 @@ export const KEYBINDS = [
     display: '− / +'
   },
   {
+    id: 'gridWheelZoom',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Change the thumbnail size around the pointer',
+    display: (mac: boolean) => `${keyLabel('Mod', mac)} scroll · pinch`
+  },
+  {
     id: 'gridTileInfo',
     keys: ['i'],
     contexts: ['grid'],

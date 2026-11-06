@@ -4,6 +4,7 @@
   import type { Snippet } from 'svelte';
   import DesktopBrowseShell from '#lib/components/shell/desktop/DesktopBrowseShell.svelte';
   import TouchBrowseShell from '#lib/components/shell/touch/TouchBrowseShell.svelte';
+  import WideBrowseShell from '#lib/components/shell/wide/WideBrowseShell.svelte';
   import KeybindsHelp from './KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
@@ -48,6 +49,10 @@
     <TouchBrowseShell>
       {@render children()}
     </TouchBrowseShell>
+  {:else if layout.wide}
+    <WideBrowseShell>
+      {@render children()}
+    </WideBrowseShell>
   {:else}
     <DesktopBrowseShell>
       {@render children()}

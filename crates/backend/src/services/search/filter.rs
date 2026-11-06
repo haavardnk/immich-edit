@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -24,6 +24,8 @@ pub struct BrowseFilter {
     pub ocr: Option<String>,
     pub taken_after: Option<DateTime<Utc>>,
     pub taken_before: Option<DateTime<Utc>>,
+    #[serde(skip)]
+    pub taken_until: Option<DateTime<Utc>>,
     pub rejected: Option<Rejected>,
     pub label: Option<Label>,
     pub make: ExifMatch,
@@ -62,6 +64,16 @@ impl BrowseFilter {
         .into_iter()
         .filter_map(|(field, text)| Some((field, text.as_deref()?.trim())))
         .filter(|(_, text)| !text.is_empty())
+    }
+
+    pub fn taken_through_millis(&self) -> Option<DateTime<Utc>> {
+        let last_millisecond = self
+            .taken_until
+            .map(|until| until - TimeDelta::milliseconds(1));
+        [self.taken_before, last_millisecond]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     pub fn added_bounds(&self) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {

@@ -13,6 +13,18 @@ export function jobKindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind;
 }
 
+const KIND_VERBS: Record<string, string> = {
+  [JOB_KINDS.exportImmich]: 'Exporting',
+  [JOB_KINDS.downloadZip]: 'Zipping',
+  [JOB_KINDS.applyPreset]: 'Applying preset',
+  [JOB_KINDS.pasteEdits]: 'Pasting edits',
+  [JOB_KINDS.resetEdits]: 'Resetting edits'
+};
+
+export function jobKindVerb(kind: string): string {
+  return KIND_VERBS[kind] ?? jobKindLabel(kind);
+}
+
 export function jobProgress(job: Job): number {
   if (!job.total) return 0;
   return Math.round(((job.completed + job.failed) / job.total) * 100);
@@ -45,9 +57,10 @@ export function jobsProgressFraction(active: readonly Job[]): number {
 export function jobsProgressText(active: readonly Job[]): string {
   const { done, total } = activeTotals(active);
   const [only] = active;
-  const subject =
-    only && active.length === 1
-      ? jobKindLabel(only.kind)
-      : `${countOf(active.length, 'job')} running`;
-  return total > 0 ? `${subject} · ${done} of ${total}` : subject;
+  if (only && active.length === 1) {
+    const verb = jobKindVerb(only.kind);
+    return total > 0 ? `${verb} ${done} of ${total}` : verb;
+  }
+  const jobCount = countOf(active.length, 'job');
+  return total > 0 ? `${jobCount} · ${done} of ${total}` : `${jobCount} running`;
 }

@@ -1,16 +1,17 @@
 use axum::Json;
 use axum::extract::State;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::asset_key::AssetKey;
 use crate::error::AppError;
-use crate::immich::dto::{AssetSummary, SearchStatistics};
+use crate::immich::dto::SearchStatistics;
 use crate::routes::auth::AuthCtx;
 use crate::services::copy_expand::expand_assets;
 use crate::services::search::filter::BrowseFilter;
+use crate::services::search::months::{self, MonthCounts};
 use crate::services::search::query::{CountQuery, PageQuery, SmartQuery, Sort};
 use crate::services::search::suggestions::{self, SuggestionQuery};
-use crate::services::search::window::{self, MAX_RADIUS};
+use crate::services::search::window::{self, Reach, Window};
 use crate::services::search::{SearchPage, Searcher};
 use crate::state::AppState;
 
@@ -18,22 +19,22 @@ use crate::state::AppState;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowBody {
     asset_id: AssetKey,
-    radius: u32,
+    #[serde(default)]
+    radius: Option<u32>,
+    #[serde(default)]
+    before: Option<u32>,
+    #[serde(default)]
+    after: Option<u32>,
     #[serde(default)]
     filter: BrowseFilter,
     #[serde(default)]
     sort: Sort,
 }
 
-#[derive(Serialize)]
-pub struct SearchWindow {
-    items: Vec<AssetSummary>,
-}
-
 pub async fn searcher(state: &AppState, ctx: &AuthCtx) -> Searcher {
     Searcher::connect(
         &state.capabilities,
-        &state.timelines,
+        &state.search_caches,
         ctx.owner,
         ctx.server_epoch,
         &ctx.immich,
@@ -70,6 +71,16 @@ pub async fn statistics(
     Ok(Json(SearchStatistics { total }))
 }
 
+pub async fn months(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Json(query): Json<CountQuery>,
+) -> Result<Json<MonthCounts>, AppError> {
+    let searcher = searcher(&state, &ctx).await;
+    let counts = months::count(&searcher, &query.filter).await?;
+    Ok(Json(counts))
+}
+
 pub async fn suggestions(
     ctx: AuthCtx,
     Json(query): Json<SuggestionQuery>,
@@ -81,15 +92,11 @@ pub async fn window(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Json(body): Json<WindowBody>,
-) -> Result<Json<SearchWindow>, AppError> {
-    if !(1..=MAX_RADIUS).contains(&body.radius) {
-        return Err(AppError::BadRequest(format!(
-            "radius must be 1 to {MAX_RADIUS}"
-        )));
-    }
+) -> Result<Json<Window>, AppError> {
+    let reach = Reach::parse(body.radius, body.before, body.after)?;
     let searcher = searcher(&state, &ctx).await;
     let anchor = body.asset_id.source();
-    let items = window::around(&searcher, &body.filter, body.sort, anchor, body.radius).await?;
-    let items = expand_assets(&state.edits, ctx.owner, items).await?;
-    Ok(Json(SearchWindow { items }))
+    let mut window = window::around(&searcher, &body.filter, body.sort, anchor, reach).await?;
+    window.items = expand_assets(&state.edits, ctx.owner, window.items).await?;
+    Ok(Json(window))
 }

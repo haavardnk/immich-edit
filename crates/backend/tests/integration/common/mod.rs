@@ -27,7 +27,7 @@ use immich_edit_backend::services::preview_scopes::PreviewScopeStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
-use immich_edit_backend::services::search::TimelineCache;
+use immich_edit_backend::services::search::SearchCaches;
 use immich_edit_backend::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::segment::SegmentService;
@@ -177,7 +177,7 @@ pub async fn test_state(server: &MockServer) -> AppState {
         denoise,
         tag_counts: AssetCountCache::new(Scope::Tag),
         people_counts: AssetCountCache::new(Scope::Person),
-        timelines: TimelineCache::default(),
+        search_caches: SearchCaches::default(),
         stack_locks: Default::default(),
         export_output_locks: Default::default(),
     }

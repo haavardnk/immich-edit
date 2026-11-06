@@ -65,7 +65,7 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Result<Map<String, Value>, Ap
     if let Some(after) = filter.taken_after {
         body.insert("takenAfter".into(), timestamp(after));
     }
-    if let Some(before) = filter.taken_before {
+    if let Some(before) = filter.taken_through_millis() {
         body.insert("takenBefore".into(), timestamp(before));
     }
     for (field, values) in filter.exif_values() {
@@ -209,6 +209,30 @@ mod tests {
         });
         if page(&query, &ids, 2).ok() != Some(expected) {
             panic!("flat body was {:?}", page(&query, &ids, 2));
+        }
+    }
+
+    #[test]
+    fn an_exclusive_taken_end_becomes_the_last_millisecond_before_it() {
+        let march = Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap();
+        let april = Utc.with_ymd_and_hms(2024, 4, 1, 0, 0, 0).unwrap();
+        let picked = Utc.with_ymd_and_hms(2024, 3, 15, 22, 59, 59).unwrap();
+        let cases = [
+            (None, "2024-03-31T23:59:59.999Z"),
+            (Some(picked), "2024-03-15T22:59:59.000Z"),
+        ];
+        for (taken_before, last) in cases {
+            let filter_by = BrowseFilter {
+                taken_after: Some(march),
+                taken_before,
+                taken_until: Some(april),
+                ..BrowseFilter::default()
+            };
+            let expected = json!({ "takenAfter": "2024-03-01T00:00:00.000Z", "takenBefore": last });
+            let body = count(&filter_by, &Ids::default()).ok();
+            if body != Some(expected) {
+                panic!("month flat body was {body:?}");
+            }
         }
     }
 
