@@ -20,8 +20,10 @@ function attachHost(): GridHost['holdAnchor'] {
     items: () => [],
     selectingAll: () => false,
     selectAll: async () => true,
+    cancelSelectAll: () => {},
     move: () => {},
     reveal: () => {},
+    scrollTo: () => {},
     focusBulkBar: () => {},
     holdAnchor
   });

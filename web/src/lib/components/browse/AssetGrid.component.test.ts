@@ -348,4 +348,70 @@ describe('AssetGrid', () => {
       '110 px'
     );
   });
+
+  function dated(id: string, at: string, city: string | null = null): AssetSummary {
+    return {
+      ...asset(id),
+      fileCreatedAt: at,
+      localDateTime: at,
+      exifInfo: { city }
+    } as AssetSummary;
+  }
+
+  const days = [
+    dated('a', '2025-07-04T18:00:00Z', 'Bergen'),
+    dated('b', '2025-07-04T09:00:00Z', 'Bergen'),
+    dated('c', '2025-07-03T12:00:00Z')
+  ];
+
+  function headers(): HTMLElement[] {
+    return [...scroller.querySelectorAll<HTMLElement>('[data-testid="day-header"]')];
+  }
+
+  it('puts day headers over each capture day only when asked', () => {
+    render({ assets: days });
+    expect(headers()).toEqual([]);
+    if (component) void unmount(component);
+    render({ assets: days, dayHeaders: true });
+    expect(headers().map((header) => header.querySelector('h2')?.textContent)).toEqual([
+      'Friday 4 July 2025',
+      'Thursday 3 July 2025'
+    ]);
+    expect(headers()[0]?.textContent).toContain('Bergen · 2');
+  });
+
+  it('selects and deselects a whole day from its header circle', async () => {
+    render({ assets: days, dayHeaders: true });
+    const circle = (): HTMLElement => {
+      const button = headers()[0]?.querySelector<HTMLElement>('button');
+      if (!button) throw new Error('no day circle');
+      return button;
+    };
+    expect(circle().getAttribute('aria-label')).toBe('Select day');
+
+    click(circle());
+    await vi.waitFor(() => expect([...selection.selected]).toEqual(['a', 'b']));
+    flushSync();
+    expect(circle().getAttribute('aria-label')).toBe('Deselect day');
+
+    click(circle());
+    await vi.waitFor(() => expect(selection.active).toBe(false));
+  });
+
+  it('says when earlier photos are loading above the grid', () => {
+    render({ loadingPrevious: true });
+    const status = [...document.querySelectorAll('[role="status"]')].map((node) =>
+      node.textContent?.trim()
+    );
+    expect(status).toContain('Loading earlier photos…');
+  });
+
+  it('offers Select all while only earlier photos are missing', () => {
+    render({ onLoadPrevious: () => {} });
+    click(selectButton(0));
+    click(selectButton(1));
+    click(selectButton(2));
+    const bar = document.querySelector('[aria-label="Selection actions"]');
+    expect(bar?.textContent).toContain('Select all');
+  });
 });

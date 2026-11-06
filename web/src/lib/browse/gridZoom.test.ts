@@ -4,6 +4,7 @@ import {
   anchoredViewTop,
   assetIndexAt,
   gridAnchor,
+  prependedAnchor,
   scaleStepper,
   WHEEL_IDLE_MS,
   WHEEL_NOTCH_MS,
@@ -162,5 +163,25 @@ describe('zoom anchor', () => {
   it('gives no anchor or position for a photo that is not in the layout', () => {
     expect(gridAnchor(before, 999, 0, 0)).toBeNull();
     expect(anchoredViewTop(before, { index: 999, ratio: 0, offset: 0 })).toBeNull();
+  });
+});
+
+describe('prependedAnchor', () => {
+  const anchor = { id: 'c', index: 1, ratio: 0.25, offset: 40 };
+
+  it('moves the top tile to its new index when photos arrive before the old first one', () => {
+    expect(prependedAnchor(['x', 'y', 'b', 'c'], 'b', anchor)).toEqual({
+      index: 3,
+      ratio: 0.25,
+      offset: 40
+    });
+  });
+
+  it('leaves appends, replacements and unknown tiles alone', () => {
+    expect(prependedAnchor(['b', 'c', 'd'], 'b', anchor)).toBeNull();
+    expect(prependedAnchor(['p', 'q'], 'b', anchor)).toBeNull();
+    expect(prependedAnchor(['x', 'b'], 'b', anchor)).toBeNull();
+    expect(prependedAnchor(['x', 'b', 'c'], null, anchor)).toBeNull();
+    expect(prependedAnchor(['x', 'b', 'c'], 'b', null)).toBeNull();
   });
 });

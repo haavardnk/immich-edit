@@ -76,3 +76,19 @@ export interface SearchPage {
   items: AssetSummary[];
   nextCursor: string | null;
 }
+
+export interface WindowReach {
+  before: number;
+  after: number;
+}
+
+export interface SearchWindow {
+  items: AssetSummary[];
+  hasBefore: boolean;
+  hasAfter: boolean;
+}
+
+export interface MonthCount {
+  month: string;
+  count: number;
+}

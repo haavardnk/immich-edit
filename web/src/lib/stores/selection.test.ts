@@ -65,3 +65,20 @@ describe('forget', () => {
     expect(selection.anchorId).toBeNull();
   });
 });
+
+describe('setMany', () => {
+  it('adds a block and anchors on its last photo', () => {
+    selection.toggle('a');
+    selection.setMany(['c', 'd'], true);
+    expect([...selection.selected].sort()).toEqual(['a', 'c', 'd']);
+    expect(selection.anchorId).toBe('d');
+    selection.range(ids, 'e');
+    expect([...selection.selected].sort()).toEqual(['a', 'c', 'd', 'e']);
+  });
+
+  it('removes a block and keeps the rest', () => {
+    selection.selectLoaded(['a', 'b', 'c']);
+    selection.setMany(['b', 'c'], false);
+    expect([...selection.selected]).toEqual(['a']);
+  });
+});

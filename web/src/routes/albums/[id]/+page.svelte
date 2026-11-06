@@ -5,6 +5,7 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
+  import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
@@ -18,7 +19,7 @@
       void album.load(current);
       browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
-      void feed.fetchPage(true);
+      void feed.resume(resumeId(page.url));
     });
   });
 
@@ -26,13 +27,10 @@
 </script>
 
 <BrowsePage
+  {feed}
   title={album.current?.albumName ?? 'Album'}
-  assets={feed.assets}
-  loading={(album.loading && !album.current) || (feed.loading && !feed.loadedOnce)}
+  loading={album.loading && !album.current}
   loadingLabel="Loading album…"
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}
   onRetry={() => {

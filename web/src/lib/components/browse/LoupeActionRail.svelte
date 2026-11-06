@@ -8,6 +8,7 @@
   import CullControls from '#lib/components/CullControls.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import { NOT_OWNER } from '#lib/browse/ownership.ts';
+
   import type { CullActions, CullState } from '#lib/browse/cullState.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { Icon, IconButton } from '@immich/ui';
@@ -27,8 +28,6 @@
     actions: CullActions;
     tags: TagRef[];
     multi: boolean;
-    position: number;
-    count: number;
     canDrop: boolean;
     zoom: number;
     fitZoom: number;
@@ -46,8 +45,6 @@
     actions,
     tags,
     multi,
-    position,
-    count,
     canDrop,
     zoom,
     fitZoom,
@@ -84,10 +81,10 @@
     </DisabledReason>
   </div>
   <div class="flex items-center gap-1">
-    <div
-      class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65"
-    >
-      {#if multi}
+    {#if multi}
+      <div
+        class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65"
+      >
         <Icon
           icon={compare.mode === 'compare' ? mdiCompare : mdiViewGridOutline}
           size="13px"
@@ -97,10 +94,8 @@
         <span class="font-medium text-light-950/85">
           {compare.mode === 'compare' ? 'Compare' : 'Survey'}
         </span>
-        <span class="h-3 w-px bg-light-950/15"></span>
-      {/if}
-      <span class="tabular-nums">{position} of {count}</span>
-    </div>
+      </div>
+    {/if}
     {#if multi}
       <IconButton
         size="tiny"

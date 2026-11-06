@@ -15,6 +15,7 @@ import { ApiError, url } from '#lib/api/client.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 
@@ -139,6 +140,7 @@ class JobsStore {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
       void editedThumbs.refresh();
     }
+    monthCounts.invalidate();
     if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
     this.disconnect(job.id);
     this.stopFallback(job.id);
