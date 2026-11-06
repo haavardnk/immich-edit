@@ -257,6 +257,7 @@
             <LoupeActionRail
               cull={cullState(asset)}
               tags={currentTags}
+              fileName={asset.originalFileName}
               {multi}
               {zoom}
               fitZoom={focusedFitZoom}

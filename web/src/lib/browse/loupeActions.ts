@@ -17,6 +17,7 @@ import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
 import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { currentPath, isEditorPath } from '#lib/utils/route.ts';
@@ -107,6 +108,12 @@ export const loupeCullActions: CullActions = {
   reject: rejectFocused,
   label: labelFocused
 };
+
+export function tagFocusedRecent(slot: number): void {
+  const id = loupeFocusedId();
+  const tag = recentTags.tags[slot];
+  if (id && tag) void loupeTags.add(id, tag);
+}
 
 export function trashFocused(): void {
   const asset = loupeAsset();
