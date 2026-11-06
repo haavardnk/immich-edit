@@ -1,3 +1,4 @@
+import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
 import { gridCommand, type GridCommandSpec } from '#lib/commands/grid/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
@@ -16,14 +17,17 @@ export const GRID_SELECTION_COMMANDS: readonly Command[] = [
   gridCommand({
     id: 'grid.clearSelection',
     bind: 'gridClearSelection',
-    yields: () => !selection.active,
-    run: () => selection.clear()
+    yields: (host) => !selection.selecting && !host.dragging(),
+    run: (host) => {
+      if (host.dragging()) host.cancelDrag();
+      else selection.clear();
+    }
   }),
   gridCommand({
     id: 'grid.focusBulkBar',
     bind: 'focusBulkBar',
     yields: () => !selection.active,
-    run: (host) => host.focusBulkBar()
+    run: () => bulkActions.focusBar()
   }),
   gridCommand({
     id: 'grid.selectAll',

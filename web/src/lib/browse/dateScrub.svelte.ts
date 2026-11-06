@@ -6,6 +6,7 @@ import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import type { JumpOptions } from '#lib/stores/browseFeed.svelte.ts';
 import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { hapticTick } from '#lib/utils/haptics.ts';
 import type { BrowseFilter } from '#lib/types/search.ts';
 import {
   anchorFilter,
@@ -27,7 +28,6 @@ export type ScrubFeed = {
 };
 
 export const KEY_IDLE_MS = 400;
-const TICK_MS = 8;
 const JUMP_FAILURE = 'Jump to date';
 
 const KEY_STEPS: Readonly<Record<string, readonly ['month' | 'year' | 'edge', number]>> = {
@@ -40,10 +40,6 @@ const KEY_STEPS: Readonly<Record<string, readonly ['month' | 'year' | 'edge', nu
   Home: ['edge', -1],
   End: ['edge', 1]
 };
-
-function tick(): void {
-  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(TICK_MS);
-}
 
 export class DateScrub {
   preview = $state<ScrubPoint | null>(null);
@@ -104,7 +100,7 @@ export class DateScrub {
     const point = monthAt(this.model, fraction);
     this.preview = point;
     if (!point || point.index === this.#seeked) return;
-    if (this.#seeked >= 0 && pointerType === 'touch') tick();
+    if (this.#seeked >= 0 && pointerType === 'touch') hapticTick();
     this.#seeked = point.index;
     this.seekLoaded(point.index);
   }

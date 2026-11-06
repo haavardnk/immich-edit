@@ -81,7 +81,10 @@ export async function tileTopAt(
       ([px, py]) => {
         const tile = document.elementFromPoint(px, py)?.closest('[role="group"]');
         if (!(tile instanceof HTMLElement)) return { name: '', top: Number.NaN };
-        return { name: tile.title, top: tile.getBoundingClientRect().top };
+        return {
+          name: tile.getAttribute('data-name') ?? '',
+          top: tile.getBoundingClientRect().top
+        };
       },
       [x, y] as const
     );
@@ -91,7 +94,7 @@ export async function tileTopAt(
 
 export async function tileTop(page: Page, name: string): Promise<number> {
   return page.evaluate((title) => {
-    const tile = document.querySelector(`[role="group"][title="${title}"]`);
+    const tile = document.querySelector(`[data-name="${title}"]`);
     return tile ? tile.getBoundingClientRect().top : Number.NaN;
   }, name);
 }

@@ -27,7 +27,7 @@ test('each thumbnail info mode shows more than the last', async ({ page }) => {
     assets: [{ ...ASSET_SUMMARY, isFavorite: true, exifInfo: { rating: 3 } }]
   });
   await page.goto('/photos');
-  const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+  const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
   const heart = tile.getByRole('img', { name: 'Favorite' });
   const row = tile.getByTestId('tile-info');
   const name = tile.getByTestId('tile-name');
@@ -59,7 +59,7 @@ test('clicking a star on a hovered tile rates that photo', async ({ page }) => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/photos');
-  const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+  const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
   const update = page.waitForRequest(
     (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_SUMMARY.id}`)
   );
@@ -88,7 +88,7 @@ for (const path of ['/edited', '/folders?path=%2Fphotos']) {
       localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
     });
     await page.goto(path);
-    const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+    const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
     const update = page.waitForRequest(
       (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_SUMMARY.id}`)
     );
@@ -106,8 +106,8 @@ test('a ticked photo hides its stars off hover and the arrows still move', async
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/photos');
-  const first = page.locator('div[title="IMG_0001.ARW"]');
-  const second = page.locator('div[title="IMG_0002.ARW"]');
+  const first = page.locator('[data-name="IMG_0001.ARW"]');
+  const second = page.locator('[data-name="IMG_0002.ARW"]');
 
   await first.hover();
   await first.getByRole('button', { name: 'Select', exact: true }).click();
@@ -180,7 +180,7 @@ test('select all loads every page and enables local actions', async ({ page }) =
   await expect.poll(() => releasePages.has(2)).toBe(true);
   releasePages.get(2)?.();
   await expect(page.getByText('2 selected')).toBeVisible();
-  await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator('[data-name="IMG_0002.ARW"]')).toHaveAttribute('data-selected', 'true');
   await expect.poll(() => releasePages.has(3)).toBe(true);
   releasePages.get(3)?.();
   await expect(page.getByText('3 selected')).toBeVisible();

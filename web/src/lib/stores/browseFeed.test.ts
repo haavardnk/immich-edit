@@ -132,7 +132,7 @@ describe('BrowseFeed pagination', () => {
     const fetcher = vi.fn(async () => result(null));
     const feed = new BrowseFeed({ baseFilter: () => ({}), includeStats: false, fetcher });
     feed.watchFilterChange();
-    selection.selectLoaded(['a', 'b']);
+    selection.replace(['a', 'b']);
 
     browseControls.filters.filename = 'portrait';
     feed.watchFilterChange();

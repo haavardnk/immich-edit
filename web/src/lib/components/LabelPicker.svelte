@@ -1,15 +1,10 @@
 <script lang="ts">
+  import LabelSwatches from '#lib/components/LabelSwatches.svelte';
   import Popover from '#lib/components/Popover.svelte';
-  import {
-    LABEL_COLORS,
-    LABEL_NAMES,
-    LABEL_TEXT,
-    labelKey,
-    type LabelColor
-  } from '#lib/stores/labels.ts';
+  import { LABEL_NAMES, type LabelColor } from '#lib/stores/labels.ts';
+  import { labelLook } from '#lib/browse/bulk/bulkMarks.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiCircle, mdiCircleOffOutline, mdiCircleOutline } from '@mdi/js';
 
   let {
     label,
@@ -24,11 +19,6 @@
   } = $props();
 
   let open = $state(false);
-
-  function title(color: LabelColor): string {
-    const key = labelKey(color);
-    return key ? `${LABEL_NAMES[color]} label (${key})` : `${LABEL_NAMES[color]} label`;
-  }
 
   function pick(color: LabelColor | null): void {
     open = false;
@@ -51,35 +41,13 @@
       data-label={label ?? undefined}
       variant="ghost"
       color="secondary"
-      class={label ? LABEL_TEXT[label] : ''}
-      icon={label ? mdiCircle : mdiCircleOutline}
+      class={labelLook(label).tone}
+      icon={labelLook(label).icon}
       title=""
       aria-label={label ? `${LABEL_NAMES[label]} label` : 'Colour label'}
       aria-expanded={open}
       {disabled}
     />
   {/snippet}
-  {#each LABEL_COLORS as color (color)}
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      class={LABEL_TEXT[color]}
-      icon={mdiCircle}
-      title={title(color)}
-      aria-label={`${LABEL_NAMES[color]} label`}
-      aria-pressed={label === color}
-      onclick={() => pick(color)}
-    />
-  {/each}
-  <IconButton
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    icon={mdiCircleOffOutline}
-    title="No label"
-    aria-label="No label"
-    aria-pressed={label === null}
-    onclick={() => pick(null)}
-  />
+  <LabelSwatches {label} onpick={pick} />
 </Popover>

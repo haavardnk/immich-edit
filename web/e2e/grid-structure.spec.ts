@@ -14,7 +14,7 @@ async function tileAt(page: Page, x: number, y: number): Promise<string> {
     page.evaluate(
       ([px, py]) => {
         const tile = document.elementFromPoint(px, py)?.closest('[role="group"]');
-        return tile instanceof HTMLElement ? tile.title : '';
+        return tile instanceof HTMLElement ? (tile.getAttribute('data-name') ?? '') : '';
       },
       [x, y] as const
     );
@@ -23,7 +23,7 @@ async function tileAt(page: Page, x: number, y: number): Promise<string> {
 }
 
 async function tileBox(page: Page, name: string): Promise<{ top: number; height: number }> {
-  const box = await page.locator(`[role="group"][title="${name}"]`).boundingBox();
+  const box = await page.locator(`[data-name="${name}"]`).boundingBox();
   return { top: box?.y ?? Number.NaN, height: box?.height ?? Number.NaN };
 }
 
@@ -168,7 +168,7 @@ test.describe('grid sizing on desktop', () => {
     const marks = page.locator('[role="group"]').getByRole('img', { name: 'Edited', exact: true });
     await expect(marks).toHaveCount(2);
     await expect(
-      page.locator('[role="group"][title="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' })
+      page.locator('[data-name="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' })
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Thumbnail info: badges' }).click();

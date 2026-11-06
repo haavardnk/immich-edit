@@ -7,18 +7,27 @@
     title,
     count,
     actions,
+    touchActions,
     compactActions,
-    bar
+    bar,
+    selecting
   }: {
     title: string;
     count?: string;
     actions?: Snippet;
+    touchActions?: Snippet;
     compactActions?: Snippet;
     bar?: Snippet;
+    selecting?: Snippet;
   } = $props();
 </script>
 
-{#if layout.compact}
+{#if selecting && layout.mode === 'touch'}
+  <header class="flex h-13 shrink-0 items-center gap-1 bg-light px-1.5" data-app-bar>
+    <h1 class="sr-only">{title}</h1>
+    {@render selecting()}
+  </header>
+{:else if layout.compact}
   <TouchAppBar {title} {count} actions={compactActions} {bar} />
 {:else}
   <header
@@ -34,6 +43,9 @@
     {#if actions}
       <div class="flex shrink-0 items-center gap-1.5">
         {@render actions()}
+        {#if touchActions && layout.mode === 'touch'}
+          {@render touchActions()}
+        {/if}
       </div>
     {/if}
   </header>

@@ -34,6 +34,7 @@
     selected = false,
     rangePreview = false,
     selectionActive = false,
+    selectMode = false,
     onToggle,
     onRange,
     onPreview,
@@ -48,6 +49,7 @@
     selected?: boolean;
     rangePreview?: boolean;
     selectionActive?: boolean;
+    selectMode?: boolean;
     onToggle?: () => void;
     onRange?: () => void;
     onPreview?: () => void;
@@ -76,6 +78,13 @@
   const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
   const markClass = $derived(info === 'none' ? hoverOnly : '');
   const nameClass = $derived(info === 'full' ? '' : hoverOnly);
+  const checkClass = $derived(
+    marked || selectMode
+      ? 'opacity-100'
+      : selectionActive
+        ? 'opacity-0 group-hover:opacity-100 touch:opacity-100'
+        : 'opacity-0 group-hover:opacity-100 touch:hidden'
+  );
   const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
 
   function onClick(e: MouseEvent): void {
@@ -125,7 +134,7 @@
   class:rounded-md={selected}
   data-selected={selected || undefined}
   data-range-preview={rangePreview || undefined}
-  title={asset.originalFileName}
+  data-name={asset.originalFileName}
 >
   <a
     href={editorHref(asset.id, `${page.url.pathname}${page.url.search}`)}
@@ -154,9 +163,7 @@
     onclick={onCheckbox}
     aria-label={selected ? 'Deselect' : 'Select'}
     aria-pressed={selected}
-    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-150 hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {marked
-      ? 'opacity-100'
-      : 'opacity-0 group-hover:opacity-100'}"
+    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-150 hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checkClass}"
     class:border-primary={marked}
     class:bg-primary={marked}
   >
@@ -198,35 +205,37 @@
       {/if}
     </div>
   {/if}
-  <div
-    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100"
-  >
-    <IconButton
-      type="button"
-      size="small"
-      shape="round"
-      variant="ghost"
-      color="secondary"
-      class="text-white drop-shadow-md bg-black/40 hover:bg-black/70"
-      icon={mdiEyeOutline}
-      title={hint('Quick review', 'openLoupe')}
-      aria-label="Quick review"
-      onclick={onLoupeClick}
-    />
-    {#if copyBadge && onDeleteCopy}
-      <DeleteConfirmation
-        bind:pending={pendingDelete}
-        label="Delete copy"
-        title="Delete this virtual copy"
-        confirmLabel="Confirm delete copy"
+  {#if !selectMode}
+    <div
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100"
+    >
+      <IconButton
+        type="button"
         size="small"
-        round
-        deleteClass="drop-shadow-md bg-black/40 text-white hover:bg-black/70 hover:text-red-400"
-        confirmClass="drop-shadow-md bg-red-500/80 text-white hover:bg-red-500"
-        onconfirm={onDeleteCopy}
+        shape="round"
+        variant="ghost"
+        color="secondary"
+        class="text-white drop-shadow-md bg-black/40 hover:bg-black/70"
+        icon={mdiEyeOutline}
+        title={hint('Quick review', 'openLoupe')}
+        aria-label="Quick review"
+        onclick={onLoupeClick}
       />
-    {/if}
-  </div>
+      {#if copyBadge && onDeleteCopy}
+        <DeleteConfirmation
+          bind:pending={pendingDelete}
+          label="Delete copy"
+          title="Delete this virtual copy"
+          confirmLabel="Confirm delete copy"
+          size="small"
+          round
+          deleteClass="drop-shadow-md bg-black/40 text-white hover:bg-black/70 hover:text-red-400"
+          confirmClass="drop-shadow-md bg-red-500/80 text-white hover:bg-red-500"
+          onconfirm={onDeleteCopy}
+        />
+      {/if}
+    </div>
+  {/if}
   <div
     data-testid="tile-info"
     class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 flex-col justify-end gap-0.5 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {rowPinned
