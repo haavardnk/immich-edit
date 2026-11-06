@@ -27,6 +27,7 @@
     cull: CullState;
     actions: CullActions;
     tags: TagRef[];
+    fileName?: string;
     multi: boolean;
     canDrop: boolean;
     zoom: number;
@@ -44,6 +45,7 @@
     cull,
     actions,
     tags,
+    fileName,
     multi,
     canDrop,
     zoom,
@@ -60,12 +62,14 @@
 
 <nav
   aria-label="Photo actions"
-  class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
+  class="relative grid h-9 shrink-0 items-center border-t border-hairline bg-editor-chrome px-2 {multi
+    ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+    : 'grid-cols-[minmax(0,1fr)_auto_auto]'}"
 >
   <div class="min-w-0 overflow-hidden">
     <DisabledReason locked={!cull.owned} reason={NOT_OWNER} class="flex min-w-0 items-center gap-2">
       <CullControls {...cull} starSize={16} {actions} />
-      <div class="min-w-0">
+      <div class="flex min-w-0 flex-1">
         <TagPicker
           {tags}
           disabled={!cull.owned}
@@ -76,6 +80,7 @@
           onRemove={onRemoveTag}
           onCreate={onCreateTag}
           anchor="bottom"
+          subtitle={fileName}
         />
       </div>
     </DisabledReason>

@@ -62,16 +62,17 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Loupe
 
-| Keys                                          | Action                         | Available in                   |
-| --------------------------------------------- | ------------------------------ | ------------------------------ |
-| `←` / `→`                                     | Previous / next photo          | Loupe                          |
-| `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓` | Nudge a zoomed photo           | Loupe, Compare, Survey, Editor |
-| `Home` / `End`                                | First / last photo             | Loupe                          |
-| `Z` / `Space`                                 | Toggle zoom                    | Loupe, Compare, Survey, Editor |
-| `I`                                           | Toggle the info panel          | Loupe, Compare, Survey, Editor |
-| `Shift+T`                                     | Toggle the tags panel          | Loupe, Editor                  |
-| `J`                                           | Toggle the clipping indicators | Loupe, Compare, Survey, Editor |
-| `Esc`                                         | Close the loupe                | Loupe                          |
+| Keys                                                                          | Action                           | Available in                   |
+| ----------------------------------------------------------------------------- | -------------------------------- | ------------------------------ |
+| `←` / `→`                                                                     | Previous / next photo            | Loupe                          |
+| `Shift+←` / `Shift+→` / `Shift+↑` / `Shift+↓`                                 | Nudge a zoomed photo             | Loupe, Compare, Survey, Editor |
+| `Home` / `End`                                                                | First / last photo               | Loupe                          |
+| `Z` / `Space`                                                                 | Toggle zoom                      | Loupe, Compare, Survey, Editor |
+| `I`                                                                           | Toggle the info panel            | Loupe, Compare, Survey, Editor |
+| `Shift+T`                                                                     | Toggle the tags panel            | Loupe, Editor                  |
+| `Alt+1` / `Alt+2` / `Alt+3` / `Alt+4` / `Alt+5` / `Alt+6` / `Alt+7` / `Alt+8` | Add one of the eight recent tags | Loupe, Compare, Survey         |
+| `J`                                                                           | Toggle the clipping indicators   | Loupe, Compare, Survey, Editor |
+| `Esc`                                                                         | Close the loupe                  | Loupe                          |
 
 ## Compare
 
