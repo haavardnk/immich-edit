@@ -101,7 +101,7 @@ describe('ExportForm layout parity', () => {
   ])('matches the bulk Immich options for %s', async (_, owners) => {
     const assets = owners.map((owner, i) => asset(`a${i}`, { ownerId: owner }));
     browsing.set(assets);
-    selection.selectLoaded(assets.map((a) => a.id));
+    selection.replace(assets.map((a) => a.id));
     immichCapabilities.trash = true;
     exportSettings.destination = 'immich';
     const found = await layoutControls([

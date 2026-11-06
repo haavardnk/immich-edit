@@ -228,6 +228,7 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
+  metadataPushConsented?: boolean;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -237,6 +238,11 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       (stored) => localStorage.setItem('immich-edit:renderer', stored),
       JSON.stringify({ choice })
     );
+  }
+  if (opts.metadataPushConsented) {
+    await page.addInitScript(() => {
+      localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    });
   }
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];

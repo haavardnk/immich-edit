@@ -26,7 +26,7 @@ async function openGrid(page: Page): Promise<void> {
 }
 
 async function selectTile(page: Page, name: string): Promise<void> {
-  await page.locator(`div[title="${name}"]`).getByLabel('Select', { exact: true }).click();
+  await page.locator(`[data-name="${name}"]`).getByLabel('Select', { exact: true }).click();
 }
 
 async function openSurvey(page: Page): Promise<void> {

@@ -316,29 +316,29 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
   await installMocks(page);
 
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'Select photos' }).click();
+  await page
+    .locator('[data-name]')
+    .first()
+    .click({ position: { x: 20, y: 20 } });
 
-  const bulkBar = page.getByRole('navigation').filter({ hasText: '1 selected' });
-  const bulkSurfaceFits = (): Promise<boolean> =>
-    bulkBar.evaluate((element) => {
-      const surface = element.parentElement;
-      if (!surface) return false;
-      const bounds = surface.getBoundingClientRect();
-      return bounds.left >= 0 && bounds.right <= window.innerWidth;
-    });
-  const clearSelection = page.getByRole('button', { name: 'Clear selection' });
-  const tags = page.getByRole('button', { name: 'Tags', exact: true });
-  await expect.poll(bulkSurfaceFits).toBe(true);
-  await expect(clearSelection).toBeInViewport();
-  await tags.scrollIntoViewIfNeeded();
-  await expect(tags).toBeInViewport();
-  await expect(clearSelection).toBeInViewport();
+  const bulkBar = page.getByRole('toolbar', { name: 'Selection actions' });
+  await expect(page.locator('header[data-app-bar]')).toContainText('1 selected');
+  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+  for (const name of ['Rate', 'Label', 'Reject', 'Album', 'Export', 'More']) {
+    await expect(bulkBar.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+  }
+  const bounds = await bulkBar.boundingBox();
+  expect(bounds?.x).toBe(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBe(390);
 
-  await tags.click();
+  await bulkBar.getByRole('button', { name: 'More', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'More actions' })
+    .getByRole('button', { name: 'Tags' })
+    .click();
   await expect(page.getByRole('button', { name: 'Add to selected' })).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Remove from selected' })).toBeInViewport();
-  await expect(clearSelection).toBeInViewport();
-  await expect.poll(bulkSurfaceFits).toBe(true);
 });
 
 for (const size of [

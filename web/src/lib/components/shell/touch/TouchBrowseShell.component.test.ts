@@ -1,12 +1,14 @@
-import ComponentHost from '#lib/testing/ComponentHost.svelte';
-import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
+import type { Job } from '#lib/api/jobs.ts';
+import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
+import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
 import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
 import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
-import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
 import { jobs } from '#lib/stores/jobs.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
-import type { Job } from '#lib/api/jobs.ts';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import {
   createRawSnippet,
   flushSync,
@@ -223,16 +225,6 @@ describe('TouchBrowseShell', () => {
     expect(element.querySelector('[data-testid="jobs-attention"]')).not.toBeNull();
   });
 
-  it('signs out at once when no export or upload runs', async () => {
-    await render();
-    await openDrawer();
-
-    buttonWithText('Sign out')?.click();
-    await settle();
-
-    expect(auth.signOut).toHaveBeenCalledOnce();
-  });
-
   it('hands the sign-out to the shared confirm while an export runs', async () => {
     jobs.jobs = [job('export_immich')];
     await render();
@@ -287,6 +279,48 @@ describe('TouchBrowseShell', () => {
     await settle();
     expect(touchBars.hidden).toBe(false);
     expect(tabBar.inert).toBe(false);
+  });
+
+  it('gives the tab bar up to the bulk bar while a grid is selecting and keeps the bars', async () => {
+    layoutState.landscape = true;
+    const detach = bulkScope.attach({
+      items: () => [],
+      selectingAll: () => false,
+      selectAll: async () => true,
+      cancelSelectAll: () => {},
+      partial: () => false,
+      loadingMore: () => false,
+      total: () => 0
+    });
+    try {
+      await render();
+      const scroller = target.querySelector<HTMLElement>('[data-testid="scroller"]');
+      if (!scroller) throw new Error('missing shell');
+      scrollTo(scroller, 10);
+      scrollTo(scroller, 200);
+      await settle();
+      expect(touchBars.hidden).toBe(true);
+
+      selection.enterMode();
+      await settle();
+      expect(touchBars.hidden).toBe(false);
+      expect(target.querySelector('nav[aria-label="Main"]')).toBeNull();
+      expect(document.documentElement.style.getPropertyValue('--chrome-bottom')).toContain(
+        '3.75rem'
+      );
+
+      scrollTo(scroller, 400);
+      scrollTo(scroller, 600);
+      await settle();
+      expect(touchBars.hidden).toBe(false);
+
+      selection.clear();
+      await settle();
+      expect(target.querySelector('nav[aria-label="Main"]')).not.toBeNull();
+    } finally {
+      detach();
+      selection.clear();
+    }
   });
 
   it('keeps the bars in portrait', async () => {

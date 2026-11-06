@@ -14,6 +14,7 @@ import type { AssetSummary } from '#lib/types/album.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
+import BulkBar from './bulk/BulkBar.svelte';
 import FilterPanel from './filters/FilterPanel.svelte';
 
 vi.mock('$app/navigation', () => ({
@@ -48,6 +49,10 @@ type GridProps = ComponentProps<typeof AssetGrid>;
 
 const Host: Component<{ component: Component<GridProps>; props: GridProps }> = ComponentHost;
 
+type BarProps = ComponentProps<typeof BulkBar>;
+
+const BarHost: Component<{ component: Component<BarProps>; props: BarProps }> = ComponentHost;
+
 type PanelProps = ComponentProps<typeof FilterPanel>;
 
 const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
@@ -57,11 +62,16 @@ const assets = [asset('a'), asset('b'), asset('c')];
 let scroller: HTMLDivElement;
 let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
+let bar: Record<string, unknown> | null = null;
 
 function render(props: Partial<GridProps> = {}): void {
   component = mount(Host, {
     target,
     props: { component: AssetGrid, props: { assets, ...props } }
+  });
+  bar ??= mount(BarHost, {
+    target: document.body,
+    props: { component: BulkBar, props: { placement: 'float' } }
   });
   flushSync();
 }
@@ -115,6 +125,8 @@ afterEach(() => {
   stopCommands();
   if (component) void unmount(component);
   component = null;
+  if (bar) void unmount(bar);
+  bar = null;
   scroller.remove();
   window.getSelection()?.removeAllRanges();
   editedThumbs.remove('b');
@@ -126,7 +138,11 @@ afterEach(() => {
 describe('AssetGrid', () => {
   it('renders a tile per asset', () => {
     render();
-    expect(tiles().map((tile) => tile.title)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(tiles().map((tile) => tile.getAttribute('data-name'))).toEqual([
+      'a.jpg',
+      'b.jpg',
+      'c.jpg'
+    ]);
   });
 
   it('toggles selection from a tile checkbox', () => {

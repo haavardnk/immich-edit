@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gestureArbiter } from '#lib/gestures/arbiter.ts';
 import { longPressRecognizer } from '#lib/gestures/longPress.ts';
+import type { Point } from '#lib/gestures/point.ts';
 import type { PointerSample } from '#lib/gestures/pointers.ts';
 
 function at(clientX: number, clientY: number, timeStamp: number): PointerSample {
   return { pointerId: 1, pointerType: 'touch', clientX, clientY, timeStamp };
 }
 
-function setup() {
-  const spec = { start: vi.fn(), move: vi.fn(), end: vi.fn(), cancel: vi.fn() };
+function setup(accepts?: (point: Point) => boolean) {
+  const spec = { accepts, start: vi.fn(), move: vi.fn(), end: vi.fn(), cancel: vi.fn() };
   const recognizer = longPressRecognizer(spec);
   const arbiter = gestureArbiter([recognizer]);
   return { spec, recognizer, arbiter };
@@ -26,6 +27,20 @@ describe('longPressRecognizer', () => {
     vi.advanceTimersByTime(1);
     expect(spec.start).toHaveBeenCalledExactlyOnceWith({ x: 20, y: 30 });
     expect(arbiter.locked()).toBe(recognizer);
+  });
+
+  it('leaves the gesture unclaimed when the held point is rejected', () => {
+    const accepts = vi.fn(() => false);
+    const { spec, arbiter } = setup(accepts);
+    arbiter.down(at(20, 30, 0));
+    vi.advanceTimersByTime(500);
+    expect(accepts).toHaveBeenCalledExactlyOnceWith({ x: 20, y: 30 });
+    expect(spec.start).not.toHaveBeenCalled();
+    expect(arbiter.locked()).toBeNull();
+    arbiter.move(at(20, 120, 600));
+    arbiter.up(at(20, 120, 700));
+    expect(spec.move).not.toHaveBeenCalled();
+    expect(spec.end).not.toHaveBeenCalled();
   });
 
   it('reports moves while held and ends on release', () => {

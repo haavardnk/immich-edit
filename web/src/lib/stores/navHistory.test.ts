@@ -158,6 +158,26 @@ describe('navHistory without the Navigation API', () => {
     navHistory.record(step('popstate', '/assets/b', '/albums/x', -1));
     expect(navHistory.previousIs('/albums/x')).toBe(false);
   });
+
+  it('ignores the shallow entry a back layer pushes', () => {
+    navHistory.record(step('enter', null, '/photos'));
+    browser.length += 1;
+    navHistory.record({ ...step('goto', '/photos', '/photos'), shallow: true });
+    expect(navHistory.canPop()).toBe(false);
+
+    push('link', '/photos', '/people');
+    expect(navHistory.canPop()).toBe(true);
+    expect(navHistory.previousIs('/photos')).toBe(true);
+  });
+
+  it('does not count a replace after a back layer entry as a push', () => {
+    navHistory.record(step('enter', null, '/photos'));
+    browser.length += 1;
+    navHistory.record({ ...step('goto', '/photos', '/photos'), shallow: true });
+
+    navHistory.record(step('goto', '/photos', '/people'));
+    expect(navHistory.canPop()).toBe(false);
+  });
 });
 
 describe('navHistory with the Navigation API', () => {

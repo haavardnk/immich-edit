@@ -1,6 +1,7 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import ContainerHarness from '#lib/testing/ContainerHarness.svelte';
+import { isAnyModalOpen } from '#lib/stores/overlays.ts';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -188,19 +189,40 @@ describe('Popover presentation', () => {
     expect(popoverContent()).toBeNull();
   });
 
-  it('opens a control popover as a non-modal sheet on touch', async () => {
+  it('opens a control popover as a modal sheet with its title, a close and a light scrim', async () => {
     layoutState.mode = 'touch';
     const { onOpenChange } = await render('control');
     button('Toggle').click();
     await settle();
-    expect(popoverContent()?.getAttribute('role')).toBe('dialog');
-    expect(popoverContent()?.getAttribute('aria-modal')).toBe('false');
-    expect(document.querySelector('[data-dialog-overlay]')).toBeNull();
+    const content = popoverContent();
+    expect(content?.getAttribute('role')).toBe('dialog');
+    expect(content?.getAttribute('aria-modal')).toBe('true');
+    expect(content && dialogName(content)).toBe('Popover title');
+    expect(
+      document.getElementById(content?.getAttribute('aria-labelledby') ?? '')?.className
+    ).not.toContain('sr-only');
+    expect(document.querySelector('[data-dialog-overlay]')?.className).toContain('bg-black/20');
     expect(hasButton('Cancel')).toBe(false);
-    button('Toggle').click();
+    expect(hasButton('Done')).toBe(false);
+    button('Close').click();
     await settle();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(popoverContent()).toBeNull();
+  });
+
+  it('holds keys for itself and closes a control sheet on Escape', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange } = await render('control');
+    button('Toggle').click();
+    await settle();
+    expect(isAnyModalOpen()).toBe(true);
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(popoverContent()).toBeNull();
+    expect(isAnyModalOpen()).toBe(false);
   });
 });
 

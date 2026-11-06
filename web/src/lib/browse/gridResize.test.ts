@@ -24,7 +24,8 @@ function attachHost(): GridHost['holdAnchor'] {
     move: () => {},
     reveal: () => {},
     scrollTo: () => {},
-    focusBulkBar: () => {},
+    dragging: () => false,
+    cancelDrag: () => {},
     holdAnchor
   });
   return holdAnchor;

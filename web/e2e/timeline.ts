@@ -1,5 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { numberedAssets, type MockAssetSummary } from './helpers';
+import { installMocks, numberedAssets, type InstallOpts, type MockAssetSummary } from './helpers';
+import { open } from './touchShell';
+
+const NOW = new Date('2026-11-05T12:00:00Z');
 
 export type Shot = { at: string; city?: string | null };
 
@@ -55,14 +58,27 @@ export async function smallPages(page: Page, size: number): Promise<PageLog> {
   return log;
 }
 
-export function dayHeader(page: Page, title: string): Locator {
-  return page.getByTestId('day-header').filter({ has: page.getByRole('heading', { name: title }) });
+export async function openTimeline(page: Page, opts: InstallOpts, height = 900): Promise<void> {
+  await page.setViewportSize({ width: 1440, height });
+  await page.clock.setFixedTime(NOW);
+  await installMocks(page, opts);
+  await page.goto('/photos');
+  await expect(page.getByTestId('day-header').first()).toBeVisible();
 }
 
-export async function scroller(page: Page): Promise<Locator> {
-  const element = page.getByTestId('browse-scroller');
-  await expect(element).toBeVisible();
-  return element;
+export async function openTouchTimeline(
+  page: Page,
+  opts: InstallOpts,
+  from?: string
+): Promise<void> {
+  await page.clock.setFixedTime(NOW);
+  await open(page, from ?? '/photos', opts);
+  if (from) await page.goto('/photos');
+  await expect(page.getByTestId('day-header').first()).toBeVisible();
+}
+
+export function dayHeader(page: Page, title: string): Locator {
+  return page.getByTestId('day-header').filter({ has: page.getByRole('heading', { name: title }) });
 }
 
 export async function scrollGridTo(page: Page, top: number): Promise<void> {
@@ -81,7 +97,10 @@ export async function tileTopAt(
       ([px, py]) => {
         const tile = document.elementFromPoint(px, py)?.closest('[role="group"]');
         if (!(tile instanceof HTMLElement)) return { name: '', top: Number.NaN };
-        return { name: tile.title, top: tile.getBoundingClientRect().top };
+        return {
+          name: tile.getAttribute('data-name') ?? '',
+          top: tile.getBoundingClientRect().top
+        };
       },
       [x, y] as const
     );
@@ -91,7 +110,7 @@ export async function tileTopAt(
 
 export async function tileTop(page: Page, name: string): Promise<number> {
   return page.evaluate((title) => {
-    const tile = document.querySelector(`[role="group"][title="${title}"]`);
+    const tile = document.querySelector(`[data-name="${title}"]`);
     return tile ? tile.getBoundingClientRect().top : Number.NaN;
   }, name);
 }

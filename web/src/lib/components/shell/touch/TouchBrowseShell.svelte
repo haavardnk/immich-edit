@@ -7,13 +7,16 @@
   import { hideBarsOnScroll } from '#lib/components/shell/touch/barsHide.ts';
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { onDestroy, type Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
 
+  const selecting = $derived(bulkScope.selecting);
+
   const hideBars = hideBarsOnScroll({
-    enabled: () => layout.landscape,
+    enabled: () => layout.landscape && !selecting,
     route: () => page.url.pathname,
     onChange: touchBars.set
   });
@@ -35,7 +38,9 @@
   <main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-light">
     {@render children()}
   </main>
-  <BottomNav />
+  {#if !selecting}
+    <BottomNav />
+  {/if}
 </div>
 <JobsPill />
 <AccountDrawer />
