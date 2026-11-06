@@ -43,6 +43,13 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   ],
   '/src/lib/components/browse/LoupePaneGrid.svelte': ['bg-black/50', 'bg-black/75', 'text-white'],
   '/src/lib/components/browse/PreviewStatusChip.svelte': ['bg-black/70', 'text-white/85'],
+  '/src/lib/components/browse/RatingHud.svelte': [
+    'bg-black/70',
+    'bg-white/15',
+    'text-white',
+    'text-white/45',
+    'text-white/70'
+  ],
   '/src/lib/components/editor/BrushCanvas.svelte': ['border-white/90', 'rgb(', 'rgba('],
   '/src/lib/components/editor/ClickCanvas.svelte': [
     'bg-black/70',

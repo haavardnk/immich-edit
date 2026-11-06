@@ -139,7 +139,6 @@ test('keyboard focus never paints a ring inside a pane', async ({ page }) => {
 
 test('auto-advance swaps the rated pane for the next photo', async ({ page }) => {
   await openCompare(page);
-  await page.getByRole('button', { name: 'More loupe actions' }).click();
   await page.getByRole('button', { name: 'Auto-advance', exact: true }).click();
 
   await page.keyboard.press('3');
