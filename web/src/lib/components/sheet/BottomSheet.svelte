@@ -21,9 +21,8 @@
     subtitle,
     titleHidden = false,
     modal = true,
+    scrim = 'dim',
     dismissable = true,
-    dismissOnOutside,
-    outsideExempt = null,
     detents = ['content'],
     detent = $bindable(0),
     detentLabels,
@@ -41,9 +40,8 @@
     subtitle?: string;
     titleHidden?: boolean;
     modal?: boolean;
+    scrim?: 'dim' | 'light';
     dismissable?: boolean;
-    dismissOnOutside?: boolean;
-    outsideExempt?: HTMLElement | null;
     detents?: readonly Detent[];
     detent?: number;
     detentLabels?: readonly string[];
@@ -68,7 +66,7 @@
   let focusInside = $state(false);
   let closing = false;
 
-  const outsideCloses = $derived(dismissOnOutside ?? (modal && dismissable));
+  const outsideCloses = $derived(modal && dismissable);
   const escapeCloses = $derived(dismissable && (modal || focusInside));
   const headerRow = $derived(!titleHidden || header !== undefined || close !== undefined);
   const steppable = $derived(detents.length > 1);
@@ -142,7 +140,6 @@
 
   function outside(event: Event): void {
     event.preventDefault();
-    if (event.target instanceof Node && outsideExempt?.contains(event.target)) return;
     void requestClose();
   }
 
@@ -178,7 +175,7 @@
 <Dialog.Root bind:open={() => open, () => undefined}>
   <Dialog.Portal>
     {#if modal}
-      <SheetScrim />
+      <SheetScrim tone={scrim} />
     {/if}
     {#if open}
       <div
