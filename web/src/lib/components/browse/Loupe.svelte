@@ -23,7 +23,14 @@
   import { putBounded } from '#lib/utils/boundedRecord.ts';
   import { loadFaceData } from '#lib/stores/zoomTargets.ts';
   import { ZoomCycle } from '#lib/stores/zoomCycle.ts';
-  import { FIT_VIEW, withZoom, type View, type ViewportMetrics } from '#lib/utils/imageViewport.ts';
+  import {
+    FIT_VIEW,
+    isZoomed,
+    panByStep,
+    withZoom,
+    type View,
+    type ViewportMetrics
+  } from '#lib/utils/imageViewport.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
@@ -94,7 +101,11 @@
     loupeHost.attach({
       cycleZoom: () => zoomCycle.next(),
       panBy: (dx, dy) => {
-        if (focusedId) paneGrid?.panBy(focusedId, dx, dy);
+        const id = focusedId;
+        const metrics = id ? paneMetrics[id] : null;
+        if (!id || !metrics) return;
+        const view = compare.viewOf(id);
+        if (isZoomed(metrics, view)) compare.applyView(id, panByStep(metrics, view, [dx, dy]));
       }
     })
   );
@@ -126,7 +137,7 @@
     if (id) untrack(() => browsing.prefetchNear(id));
   });
 
-  let paneGrid = $state<ReturnType<typeof LoupePaneGrid>>();
+  let scrim = $state<HTMLDivElement | null>(null);
 
   function setZoom(value: number): void {
     const id = focusedId;
@@ -191,10 +202,15 @@
 
 {#if asset}
   <div
-    class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas {layout.compact
+    class="fixed inset-0 z-40 flex min-w-0 flex-col {layout.compact
       ? 'pr-(--safe-right) pl-(--safe-left)'
       : 'safe-frame'}"
   >
+    <div
+      bind:this={scrim}
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 -z-10 bg-image-canvas"
+    ></div>
     {#if !ui.fullscreen && !layout.compact}
       {#if touch}
         <WideLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} />
@@ -210,11 +226,11 @@
           style={gridStyle}
         >
           <LoupePaneGrid
-            bind:this={paneGrid}
             {panes}
             {focusedId}
             {multi}
             {canDrop}
+            scrim={() => scrim}
             onView={applyPaneView}
             onSize={(size) => (paneMaxEdge = size)}
             onMetrics={setPaneMetrics}

@@ -96,6 +96,14 @@ export async function touchDown(page: Page, point: TouchPoint): Promise<void> {
   await dispatch(page, 'touchStart', [point]);
 }
 
+export async function twoFingerTap(page: Page, center: TouchPoint, spread = 80): Promise<void> {
+  await dispatch(page, 'touchStart', [
+    { x: center.x - spread / 2, y: center.y },
+    { x: center.x + spread / 2, y: center.y }
+  ]);
+  await dispatch(page, 'touchEnd', []);
+}
+
 export async function touchMoveTo(page: Page, point: TouchPoint): Promise<void> {
   await dispatch(page, 'touchMove', [point]);
 }

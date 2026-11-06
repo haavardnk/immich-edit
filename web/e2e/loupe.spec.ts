@@ -139,6 +139,25 @@ test('F toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
+test('a mouse drag at fit never swipes to another photo', async ({ page }) => {
+  await openLoupe(page);
+  const pane = page.getByRole('button', { name: 'Zoom in' });
+  const box = await pane.boundingBox();
+  if (!box) throw new Error('no loupe pane');
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 300, y, { steps: 10 });
+  const track = page.getByTestId('loupe-track');
+  expect(await track.evaluate((element: HTMLElement) => element.style.transform)).toBe('');
+  await page.mouse.up();
+
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toContainText(LOUPE_IMAGE);
+  await expect(pane).toHaveAccessibleName('Zoom in');
+});
+
 test('the shortcuts dialog lists the loupe gestures', async ({ page }) => {
   await openLoupe(page);
 

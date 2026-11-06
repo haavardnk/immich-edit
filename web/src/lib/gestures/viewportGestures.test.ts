@@ -29,12 +29,14 @@ function pointer(
   currentTarget: Element,
   clientX: number,
   clientY: number,
-  pointerId = 1
+  pointerId = 1,
+  pointerType = 'mouse'
 ): PointerEvent {
   return {
     currentTarget,
     target: currentTarget,
     pointerId,
+    pointerType,
     clientX,
     clientY,
     shiftKey: false,
@@ -184,6 +186,23 @@ describe('viewportGestures tap', () => {
     handlers.onpointerup(pointer(target, 300, 300, 1));
     expect(tap).toHaveBeenCalledOnce();
     expect(dragging.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('ignores presses from pointer types it is not given', () => {
+    const tap = vi.fn();
+    const press = vi.fn();
+    const { handlers, applied } = setup(ZOOMED, { tap, press, pointerTypes: ['mouse', 'pen'] });
+    const target = captureTarget();
+    handlers.onpointerdown(pointer(target, 300, 300, 1, 'touch'));
+    handlers.onpointermove(pointer(target, 460, 180, 1, 'touch'));
+    handlers.onpointerup(pointer(target, 460, 180, 1, 'touch'));
+    expect(press).not.toHaveBeenCalled();
+    expect(tap).not.toHaveBeenCalled();
+    expect(applied).toEqual([]);
+
+    handlers.onpointerdown(pointer(target, 300, 300, 2, 'pen'));
+    handlers.onpointerup(pointer(target, 300, 300, 2, 'pen'));
+    expect(tap).toHaveBeenCalledOnce();
   });
 
   it('does not tap a cancelled press', () => {

@@ -177,7 +177,15 @@ function loadedPane(view: View, onView: PaneProps['onView'], sourceLong?: number
 }
 
 function pointer(pane: HTMLElement, type: string, pointerId = 1, clientX = 100): void {
-  pane.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId, clientX, clientY: 100 }));
+  pane.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true,
+      pointerId,
+      pointerType: 'mouse',
+      clientX,
+      clientY: 100
+    })
+  );
   flushSync();
 }
 
