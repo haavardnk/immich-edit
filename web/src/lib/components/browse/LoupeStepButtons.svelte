@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { stepLoupe } from '#lib/browse/loupeNav.ts';
+  import { canStepLoupe, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { IconButton } from '@immich/ui';
@@ -7,11 +7,9 @@
 
   let { currentId, multi }: { currentId: string | null; multi: boolean } = $props();
 
-  const hasPrev = $derived(
-    !multi && currentId ? browsing.prevOf(currentId) !== null || browsing.hasPrevious : false
-  );
+  const hasPrev = $derived(!multi && currentId !== null && canStepLoupe(currentId, -1));
   const atLoadedEnd = $derived(currentId ? browsing.nextOf(currentId) === null : false);
-  const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
+  const hasNext = $derived(!multi && currentId !== null && canStepLoupe(currentId, 1));
   const edge =
     'absolute top-1/2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70 touch:size-11';
 </script>

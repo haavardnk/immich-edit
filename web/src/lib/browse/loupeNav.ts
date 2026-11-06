@@ -26,6 +26,12 @@ function walk(from: string, steps: number, delta: number): string {
   return cursor;
 }
 
+export function canStepLoupe(id: string, delta: number): boolean {
+  return delta > 0
+    ? browsing.nextOf(id) !== null || browsing.hasMore
+    : browsing.prevOf(id) !== null || browsing.hasPrevious;
+}
+
 export function stepLoupe(delta: number): void {
   const from = browseView.loupeId;
   if (!from) return;
