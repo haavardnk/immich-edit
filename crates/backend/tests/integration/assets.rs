@@ -2,7 +2,7 @@ use crate::common::*;
 use axum::http::{HeaderValue, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{self, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
@@ -117,6 +117,46 @@ async fn asset_detail_returns_exif_and_favorite() {
     }
     if json["ownerId"] != test_user_id().to_string() {
         panic!("owner: {json}");
+    }
+    if json["originalPath"] != "/library/2026/01/DSC0001.ARW" {
+        panic!("path: {json}");
+    }
+    if json["exifInfo"]["description"] != "Harbour at dawn" || json["exifInfo"]["latitude"] != 59.91
+    {
+        panic!("description and place: {json}");
+    }
+}
+
+#[tokio::test]
+async fn asset_update_forwards_a_description_for_the_source() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path(format!("/api/assets/{}", asset_id())))
+        .and(matchers::body_json(json!({ "description": "Fjord" })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": asset_id(),
+            "originalFileName": "DSC0001.ARW",
+            "exifInfo": { "description": "Fjord" },
+            "tags": []
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let resp = test_app(&server)
+        .await
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/assets/{}_1", asset_id()),
+            json!({ "description": "Fjord" }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json["exifInfo"]["description"] != "Fjord" || json["copyOf"] != asset_id().to_string() {
+        panic!("body: {json}");
     }
 }
 

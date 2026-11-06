@@ -200,7 +200,7 @@ describe('Loupe', () => {
     expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
   });
 
-  it('describes the photo with the editor EXIF rows and closes the info panel', () => {
+  it('docks the info panel beside the photo and closes it from the toolbar or its close button', () => {
     const taken = '2024-05-06T07:08:09Z';
     browsing.patch('b', {
       localDateTime: '2024-05-06T09:08:09.000Z',
@@ -210,18 +210,23 @@ describe('Loupe', () => {
         fileSizeInByte: 2 * 1024 * 1024
       } as ExifInfo
     });
-    if (!browseView.loupeInfoOpen) browseView.toggleLoupeInfo();
     render();
+    const toggle = query('nav[aria-label="Loupe toolbar"] button[aria-label^="Info"]');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    toggle?.click();
+    flushSync();
 
-    const info = query('section[aria-label="Photo info"]');
+    const info = query('aside[aria-label="Info"]');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
     expect(info?.textContent).toContain('b.jpg');
     expect(info?.textContent).toContain(
       new Date('2024-05-06T09:08:09Z').toLocaleString(undefined, { timeZone: 'UTC' })
     );
-    expect(info?.textContent).toContain('2.0 MB');
+    expect(info?.textContent).toContain('2.0 MB · JPG');
 
     query('button[aria-label="Close info"]')?.click();
     flushSync();
-    expect(query('section[aria-label="Photo info"]')).toBeNull();
+    expect(query('aside[aria-label="Info"]')).toBeNull();
+    expect(browseView.loupeInfoOpen).toBe(false);
   });
 });

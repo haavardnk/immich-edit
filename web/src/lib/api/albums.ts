@@ -5,6 +5,10 @@ export function listAlbums(): Promise<AlbumSummary[]> {
   return getJson('/api/albums');
 }
 
+export function albumsWithAsset(assetId: string): Promise<AlbumSummary[]> {
+  return getJson(url`/api/albums?assetId=${assetId}`);
+}
+
 export function getAlbum(id: string): Promise<AlbumDetail> {
   return getJson(url`/api/albums/${id}`);
 }

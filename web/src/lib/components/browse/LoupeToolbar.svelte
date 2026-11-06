@@ -6,6 +6,7 @@
   import { commandLabel } from '#lib/commands/command.ts';
   import { loupeClose } from '#lib/commands/loupe/dismiss.ts';
   import { loupeOpenEditor, loupeSingle } from '#lib/commands/loupe/navigation.ts';
+  import { loupeInfo } from '#lib/commands/loupe/view.ts';
   import { LOUPE_MORE_MENU, LOUPE_VIEW_MODE_MENU } from '#lib/commands/menus.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiContentDuplicate, mdiDotsVertical } from '@mdi/js';
@@ -82,6 +83,7 @@
       </div>
     </Popover>
     <CommandIconButton command={loupeOpenEditor} size="small" variant="ghost" />
+    <CommandIconButton command={loupeInfo} size="small" variant="ghost" />
     <Popover
       open={moreOpen}
       anchor="bottom"

@@ -4,6 +4,12 @@ export function paneColumns(count: number): number {
   return count <= 4 ? 2 : 3;
 }
 
+export const INFO_SHEET_SHARE = 0.55;
+
+export function sheetInsetStyle(below: number): string {
+  return `padding-bottom: max(0px, calc(${Math.round(INFO_SHEET_SHARE * 100)}dvh - ${Math.round(below)}px));`;
+}
+
 export function paneGridStyle(multi: boolean, count: number): string {
   if (!multi || count === 0) return '';
   return `grid-template-columns: repeat(${Math.min(paneColumns(count), count)}, minmax(0, 1fr));`;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { paneColumns, paneGridStyle, switchMembers } from './loupeLayout';
+import { paneColumns, paneGridStyle, sheetInsetStyle, switchMembers } from './loupeLayout';
 
 const IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
 
@@ -11,6 +11,13 @@ describe('paneColumns', () => {
     [9, 3]
   ])('lays %i panes out in %i columns', (count, expected) => {
     expect(paneColumns(count)).toBe(expected);
+  });
+});
+
+describe('sheetInsetStyle', () => {
+  it('lifts the photo above the info sheet less whatever already sits below it', () => {
+    expect(sheetInsetStyle(119.6)).toBe('padding-bottom: max(0px, calc(55dvh - 120px));');
+    expect(sheetInsetStyle(0)).toBe('padding-bottom: max(0px, calc(55dvh - 0px));');
   });
 });
 

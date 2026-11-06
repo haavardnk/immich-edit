@@ -32,6 +32,12 @@ pub struct AssetSummary {
     pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
+    #[serde(
+        rename = "originalPath",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_path: Option<String>,
     #[serde(rename = "type", default)]
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]
@@ -63,6 +69,12 @@ pub struct AssetDetail {
     pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
+    #[serde(
+        rename = "originalPath",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_path: Option<String>,
     #[serde(rename = "type", default)]
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]

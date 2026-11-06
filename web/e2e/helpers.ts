@@ -482,18 +482,22 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
-    if (p === '/api/albums')
+    if (p === '/api/albums') {
+      const holding = url.searchParams.get('assetId')?.split('_')[0];
       return route.fulfill(
         json(
-          albums.map(({ id, albumName, assetIds }) => ({
-            id,
-            albumName,
-            assetCount: assetIds.length,
-            albumThumbnailAssetId: null,
-            updatedAt: null
-          }))
+          albums
+            .filter(({ assetIds }) => !holding || assetIds.includes(holding))
+            .map(({ id, albumName, assetIds }) => ({
+              id,
+              albumName,
+              assetCount: assetIds.length,
+              albumThumbnailAssetId: null,
+              updatedAt: null
+            }))
         )
       );
+    }
     if (p === '/api/tags') {
       if (method === 'PUT') {
         const values = (req.postDataJSON() as { tags: string[] }).tags;
