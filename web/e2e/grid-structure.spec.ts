@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { sizeButton } from './browse';
 import { installMocks, numberedAssets } from './helpers';
 import { datedAssets, dayShots } from './timeline';
 import { pinch } from './touch';
@@ -41,10 +42,6 @@ async function scrollGrid(page: Page, top: number): Promise<void> {
 async function anchorRatio(page: Page, name: string, y: number): Promise<number> {
   const box = await tileBox(page, name);
   return (y - box.top) / box.height;
-}
-
-function sizeButton(page: Page, size: string) {
-  return page.getByRole('button', { name: `Thumbnail size ${size}`, exact: true });
 }
 
 async function wheelBurst(page: Page, x: number, y: number, count: number): Promise<void> {

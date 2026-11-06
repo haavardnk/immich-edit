@@ -28,3 +28,13 @@ export async function selectedNames(page: Page): Promise<string[]> {
       .sort()
   );
 }
+
+export function sizeButton(page: Page, size: string): Locator {
+  return page.getByRole('button', { name: `Thumbnail size ${size}`, exact: true });
+}
+
+export async function pickSort(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: /^Sort:/ }).click();
+  await page.locator('[data-popover-content]').getByRole('radio', { name, exact: true }).click();
+  await page.keyboard.press('Escape');
+}

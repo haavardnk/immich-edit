@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { pickSort } from './browse';
 import { ASSET_SUMMARY, installMocks, json, openFilters } from './helpers';
 
 const OLD_ID = '00000000-0000-0000-0000-000000000001';
@@ -42,12 +43,6 @@ async function expectOrder(page: Page, ids: string[]): Promise<void> {
       )
     )
     .toEqual(ids);
-}
-
-async function pickSort(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: /^Sort:/ }).click();
-  await page.locator('[data-popover-content]').getByRole('radio', { name, exact: true }).click();
-  await page.keyboard.press('Escape');
 }
 
 test('collections open oldest first while the timeline opens newest first', async ({ page }) => {

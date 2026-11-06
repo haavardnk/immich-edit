@@ -2,6 +2,7 @@
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
   import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
   import ViewSection from '#lib/components/browse/filters/ViewSection.svelte';
+  import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
   import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -15,13 +16,19 @@
   let {
     favoriteLocked = false,
     count,
-    sortBasis
-  }: { favoriteLocked?: boolean; count?: number; sortBasis: 'capture' | 'edit' | null } = $props();
+    sortBasis,
+    title
+  }: {
+    favoriteLocked?: boolean;
+    count?: number;
+    sortBasis: 'capture' | 'edit' | null;
+    title: string;
+  } = $props();
 
   let panel = $state<HTMLElement | null>(null);
 
   const touch = $derived(layout.mode === 'touch');
-  const title = $derived(touch ? VIEW_AND_FILTERS : 'Filters');
+  const heading = $derived(touch ? VIEW_AND_FILTERS : 'Filters');
 
   async function close(): Promise<void> {
     const hadFocus = panel?.contains(document.activeElement) ?? false;
@@ -35,44 +42,52 @@
 </script>
 
 {#if layout.compact}
-  <FilterSheet {favoriteLocked} {count} {sortBasis} />
+  <FilterSheet {favoriteLocked} {count} {sortBasis} {title} />
 {:else if browseView.filtersOpen}
-  <aside
-    bind:this={panel}
-    id="browse-filters"
-    aria-label={title}
-    class="flex w-80 shrink-0 flex-col border-l border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
-  >
-    <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3">
-      <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold text-light-950/90">{title}</h2>
-      <Button
-        size="tiny"
-        variant="ghost"
-        color="secondary"
-        class="h-8 bg-transparent hover:bg-light-950/6"
-        leadingIcon={mdiRestore}
-        aria-label="Reset all filters"
-        disabled={!browseControls.isFiltered}
-        onclick={() => browseControls.resetFilters()}
+  <SaveViewScope {title}>
+    {#snippet children(saveButton, saveEntry)}
+      <aside
+        bind:this={panel}
+        id="browse-filters"
+        aria-label={heading}
+        class="flex w-80 shrink-0 flex-col border-l border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
       >
-        Reset
-      </Button>
-      <IconButton
-        id="browse-filters-close"
-        size="small"
-        variant="ghost"
-        color="secondary"
-        icon={mdiClose}
-        title={hint('Close', 'toggleFilters')}
-        aria-label="Close filter panel"
-        onclick={close}
-      />
-    </div>
-    <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
-      {#if touch}
-        <ViewSection {sortBasis} />
-      {/if}
-      <FilterSections {favoriteLocked} />
-    </div>
-  </aside>
+        <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3">
+          <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold text-light-950/90">
+            {heading}
+          </h2>
+          {@render saveButton(false)}
+          <Button
+            size="tiny"
+            variant="ghost"
+            color="secondary"
+            class="h-8 bg-transparent hover:bg-light-950/6"
+            leadingIcon={mdiRestore}
+            aria-label="Reset all filters"
+            disabled={!browseControls.isFiltered}
+            onclick={() => browseControls.resetFilters()}
+          >
+            Reset
+          </Button>
+          <IconButton
+            id="browse-filters-close"
+            size="small"
+            variant="ghost"
+            color="secondary"
+            icon={mdiClose}
+            title={hint('Close', 'toggleFilters')}
+            aria-label="Close filter panel"
+            onclick={close}
+          />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+          {@render saveEntry()}
+          {#if touch}
+            <ViewSection {sortBasis} />
+          {/if}
+          <FilterSections {favoriteLocked} />
+        </div>
+      </aside>
+    {/snippet}
+  </SaveViewScope>
 {/if}

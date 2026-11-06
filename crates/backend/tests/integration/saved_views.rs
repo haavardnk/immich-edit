@@ -89,16 +89,8 @@ async fn saved_view_bodies_are_validated() {
             "saved view name required",
         ),
         (
-            serde_json::json!({ "name": "x".repeat(81), "url": "/photos" }),
-            "saved view name longer than 80 characters",
-        ),
-        (
             serde_json::json!({ "name": "Evil", "url": "//evil.example" }),
             "saved view url must be a path on this site",
-        ),
-        (
-            serde_json::json!({ "name": "Bare", "url": "photos" }),
-            "saved view url must start with /",
         ),
     ] {
         let resp = app

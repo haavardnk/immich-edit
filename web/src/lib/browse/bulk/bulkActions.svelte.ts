@@ -18,6 +18,7 @@ import { trash } from '#lib/stores/trash.svelte.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
 import type { TagRef } from '#lib/types/asset.ts';
+import { firstFocusable } from '#lib/utils/focusable.ts';
 import type { Attachment } from 'svelte/attachments';
 
 class BulkActions {
@@ -36,7 +37,7 @@ class BulkActions {
   };
 
   focusBar = (): void => {
-    this.#bar?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus();
+    if (this.#bar) firstFocusable(this.#bar)?.focus();
   };
 
   run = async (write: (ids: string[]) => Promise<unknown>): Promise<void> => {
