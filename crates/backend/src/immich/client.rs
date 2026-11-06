@@ -172,6 +172,11 @@ impl ImmichClient {
         self.get_json("api/albums").await
     }
 
+    pub async fn albums_with_asset(&self, asset: Uuid) -> ImmichResult<Vec<AlbumSummary>> {
+        self.get_json_query("api/albums", &[("assetId", &asset.to_string())])
+            .await
+    }
+
     pub async fn create_album(&self, name: &str) -> ImmichResult<AlbumSummary> {
         self.post_json("api/albums", &serde_json::json!({ "albumName": name }))
             .await
@@ -434,8 +439,16 @@ impl ImmichClient {
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
+        self.get_json_query(path, &[]).await
+    }
+
+    async fn get_json_query<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> ImmichResult<T> {
         let url = self.url(path)?;
-        let bytes = send(self.authed(self.http.get(url))).await?;
+        let bytes = send(self.authed(self.http.get(url).query(query))).await?;
         parse_json(&bytes)
     }
 
