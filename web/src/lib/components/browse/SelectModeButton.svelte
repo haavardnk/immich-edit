@@ -2,17 +2,14 @@
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiCheckboxMarkedOutline } from '@mdi/js';
-
-  let { size = 'medium', class: className = '' }: { size?: 'small' | 'medium'; class?: string } =
-    $props();
 </script>
 
 <IconButton
-  {size}
+  size="medium"
   variant="ghost"
   color="secondary"
   shape="round"
-  class={className}
+  class="size-11"
   icon={mdiCheckboxMarkedOutline}
   title="Select photos"
   aria-label="Select photos"

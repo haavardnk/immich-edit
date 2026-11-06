@@ -150,7 +150,7 @@ test.describe('touch search field on a small phone', { tag: ['@touch', '@phone']
     expect((cancelBox?.x ?? 0) + (cancelBox?.width ?? 0)).toBeLessThanOrEqual(360);
     const options = await page
       .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'View options' })
+      .getByRole('button', { name: 'Select photos' })
       .boundingBox();
     expect((options?.x ?? 0) + (options?.width ?? 0)).toBeLessThanOrEqual(360);
     const room = await field.evaluate((input) => {

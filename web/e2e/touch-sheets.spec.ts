@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets, openFilters } from './helpers';
 import { drag, longPress } from './touch';
+import { open } from './touchShell';
 
 const CAMERA_ASSETS = numberedAssets(3).map((asset, index) => ({
   ...asset,
@@ -73,48 +74,24 @@ async function dragHandle(page: Page, sheet: Locator, distance: number): Promise
 }
 
 test.describe('touch sheets', { tag: '@touch' }, () => {
-  test('a panel popover opens as a bottom sheet with Done', { tag: '@phone' }, async ({ page }) => {
-    await openBrowse(page);
+  test('a panel popover opens as a bottom sheet with Done', async ({ page }) => {
+    await open(page, '/albums');
 
-    await page.getByRole('button', { name: 'View options', exact: true }).tap();
-    const sheet = page.getByRole('dialog', { name: 'View options' });
+    await page.getByRole('button', { name: /^Sort albums/ }).tap();
+    const sheet = page.getByRole('dialog', { name: 'Sort albums' });
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute('data-popover-content');
     await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
     await expect(sheet.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
     await expectAtBottom(page, sheet);
 
-    const oldest = sheet.getByRole('radio', { name: 'Oldest first', exact: true });
-    await oldest.tap();
-    await expect(oldest).toBeChecked();
+    const count = sheet.getByRole('radio', { name: 'Photo count', exact: true });
+    await count.tap();
+    await expect(count).toBeChecked();
 
     await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(sheet).toBeHidden();
   });
-
-  test(
-    'the sort popover opens as a bottom sheet with Done',
-    { tag: '@tablet' },
-    async ({ page }) => {
-      await openBrowse(page);
-
-      await page.getByRole('button', { name: /^Sort:/ }).tap();
-      const sheet = page.getByRole('dialog', { name: 'Sort' });
-      await expect(sheet).toBeVisible();
-      await expect(sheet).toHaveAttribute('data-popover-content');
-      await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
-      await expect(sheet.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
-      await expectAtBottom(page, sheet);
-
-      await sheet.getByRole('radio', { name: 'Oldest first', exact: true }).tap();
-      await expect(page.locator('button[aria-label="Sort: date taken, oldest first"]')).toHaveCount(
-        1
-      );
-
-      await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
-      await expect(sheet).toBeHidden();
-    }
-  );
 
   test('a command menu opens as an action sheet with Cancel', async ({ page }) => {
     await openLoupe(page);

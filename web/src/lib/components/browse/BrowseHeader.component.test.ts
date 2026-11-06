@@ -20,8 +20,10 @@ const Host: Component<{ component: Component<HeaderProps>; props: HeaderProps }>
 let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
 
-function render(compact: boolean): void {
-  resetLayout({ mode: compact ? 'touch' : 'desktop' });
+function render(mode: 'desktop' | 'phone' | 'wide'): void {
+  resetLayout(
+    mode === 'desktop' ? {} : { mode: 'touch', wide: mode === 'wide', landscape: mode === 'wide' }
+  );
   component = mount(Host, {
     target,
     props: { component: BrowseHeader, props: { title: 'Photos', totalCount: 12 } }
@@ -48,33 +50,44 @@ afterEach(() => {
 
 describe('BrowseHeader', () => {
   it('shows the desktop toolbar inline', () => {
-    render(false);
+    render('desktop');
 
     expect(target.querySelector('h1')?.textContent).toBe('Photos');
     expect(target.textContent).toContain('12 photos');
     expect(labelled('Thumbnail size S')).not.toBeNull();
     expect(labelled('Thumbnail info: badges')).not.toBeNull();
+    expect(labelled('Filters')).not.toBeNull();
     expect(labelled('Account')).toBeNull();
-    expect(labelled('View options')).toBeNull();
+    expect(labelled('Select photos')).toBeNull();
   });
 
-  it('shows the touch app bar with the avatar, Filter and the view options', () => {
-    render(true);
+  it('shows the touch app bar with the avatar, one View & filters button and Select', () => {
+    render('phone');
 
     expect(target.querySelector('h1')?.textContent).toBe('Photos');
     expect(target.textContent).toContain('12 photos');
     expect(labelled('Account')).not.toBeNull();
-    expect(labelled('Filters')).not.toBeNull();
-    expect(labelled('View options')).not.toBeNull();
+    expect(labelled('View & filters')).not.toBeNull();
+    expect(labelled('Select photos')).not.toBeNull();
+    expect(labelled('View options')).toBeNull();
     expect(labelled('Thumbnail size S')).toBeNull();
   });
 
+  it('trades the inline view controls for the touch actions on a wide touch screen', () => {
+    render('wide');
+
+    expect(labelled('View & filters')).not.toBeNull();
+    expect(labelled('Select photos')).not.toBeNull();
+    expect(labelled('Thumbnail size S')).toBeNull();
+    expect(labelled('Account')).toBeNull();
+  });
+
   it('counts the active filters on the touch Filter badge and lists their chips', () => {
-    render(true);
+    render('phone');
     browseControls.applyFilters({ ...FILTER_DEFAULTS, favoriteOnly: true, make: ['SONY'] });
     flushSync();
 
-    expect(labelled('Filters (2 active)')).not.toBeNull();
+    expect(labelled('View & filters (2 active)')).not.toBeNull();
     expect(target.querySelectorAll('[aria-label="Active filters"] [role="listitem"]')).toHaveLength(
       2
     );

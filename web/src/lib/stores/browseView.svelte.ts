@@ -1,6 +1,6 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
+import { isPanelSectionId, type PanelSectionId } from '#lib/browse/filterSections.ts';
 import {
   dayHeaderHeight,
   defaultGridSize,
@@ -19,7 +19,7 @@ const STORAGE_KEY = 'immich-edit:browseView';
 
 type Persisted = {
   filtersOpen: boolean;
-  filterSections: FilterSectionId[];
+  filterSections: PanelSectionId[];
   gridSizeChoice?: GridSize;
   loupeAutoAdvance: boolean;
   loupeInfoOpen: boolean;
@@ -37,7 +37,7 @@ class BrowseViewStore {
   #filtersDocked = $state(false);
   #filtersSheet = $state(false);
   #filtersCompact = $state(false);
-  filterSections = $state<FilterSectionId[]>([]);
+  filterSections = $state<PanelSectionId[]>([]);
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
   private gridAnchors = new Map<string, TileAnchor>();
@@ -53,7 +53,7 @@ class BrowseViewStore {
       this.tileInfo = stored.tileInfo;
     if (typeof stored?.filtersOpen === 'boolean') this.#filtersDocked = stored.filtersOpen;
     if (Array.isArray(stored?.filterSections))
-      this.filterSections = stored.filterSections.filter(isFilterSectionId);
+      this.filterSections = stored.filterSections.filter(isPanelSectionId);
   }
 
   private persist(): void {
@@ -124,7 +124,7 @@ class BrowseViewStore {
     this.#filtersSheet = false;
   }
 
-  setFilterSection(id: FilterSectionId, open: boolean): void {
+  setFilterSection(id: PanelSectionId, open: boolean): void {
     const rest = this.filterSections.filter((section) => section !== id);
     this.filterSections = open ? [...rest, id] : rest;
     this.persist();

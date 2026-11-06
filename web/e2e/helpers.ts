@@ -828,10 +828,9 @@ export async function gotoAsset(page: Page): Promise<void> {
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
-  await page.getByRole('button', { name: /^Filters/ }).click();
-  const panel = page
-    .getByRole('complementary', { name: 'Filters' })
-    .or(page.getByRole('dialog', { name: 'Filters' }));
+  await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
+  const name = /^(View & filters|Filters)$/;
+  const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
   for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
   return panel;
 }
