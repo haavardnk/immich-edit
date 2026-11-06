@@ -108,6 +108,17 @@ export function wheelZoom(zoom: number, deltaY: number): number {
   return zoom * (deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP);
 }
 
+export function pinchView(
+  metrics: ViewportMetrics,
+  start: View,
+  scale: number,
+  anchor: Point,
+  pan: Point
+): View {
+  const zoom = (start.zoom ?? metrics.fitZoom) * scale;
+  return panByPixels(metrics, zoomAround(metrics, start, zoom, anchor), pan.x, pan.y);
+}
+
 export function panByPixels(metrics: ViewportMetrics, view: View, dx: number, dy: number): View {
   const from = clampView(metrics, view);
   const frame = frameSize(metrics, from.zoom);

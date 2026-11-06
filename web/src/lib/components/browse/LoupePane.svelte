@@ -12,7 +12,6 @@
     clampView,
     FIT_VIEW,
     isZoomed,
-    panByStep,
     viewportMetrics,
     viewportTransform,
     zoomRatio,
@@ -24,6 +23,8 @@
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
   import PreviewStatusChip from '#lib/components/browse/PreviewStatusChip.svelte';
+  import { loupeGestures } from '#lib/browse/loupeGestures.ts';
+  import type { LoupeStage } from '#lib/browse/loupeStage.ts';
 
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
@@ -42,7 +43,8 @@
     onSize,
     sourceLong,
     onMetrics,
-    onImage
+    onImage,
+    stage = null
   }: {
     assetId: string;
     thumbhash?: string | null;
@@ -58,6 +60,7 @@
     sourceLong?: number | null;
     onMetrics?: (metrics: ViewportMetrics) => void;
     onImage?: (element: HTMLImageElement) => void;
+    stage?: LoupeStage | null;
   } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
@@ -105,11 +108,6 @@
     if (preview) previewed = sizeOf(id, preview);
   }
 
-  export function panBy(fx: number, fy: number): void {
-    if (!zoomed) return;
-    onView(panByStep(metrics, shown, [fx, fy]));
-  }
-
   const gestures = viewportGestures({
     element: () => container,
     metrics: () => metrics,
@@ -125,7 +123,18 @@
       if (!wasFocused) return;
       if (zoomed) onView(FIT_VIEW, held('solo', e));
       else gestures.zoomAt(e, ui.zoomLevel, e);
-    }
+    },
+    pointerTypes: ['mouse', 'pen']
+  });
+
+  const touchGestures = loupeGestures({
+    element: () => container,
+    metrics: () => metrics,
+    view: () => shown,
+    apply: (next) => onView(next),
+    focus: () => onFocus?.(),
+    zoomLevel: () => ui.zoomLevel,
+    stage: () => stage
   });
 
   $effect(() => {
@@ -155,6 +164,7 @@
       : 'border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
     : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
   {...gestures.handlers}
+  {@attach touchGestures}
 >
   {#if badge !== undefined}
     <span
