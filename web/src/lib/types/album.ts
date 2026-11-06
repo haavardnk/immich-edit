@@ -28,6 +28,7 @@ export interface AssetSummary {
   createdAt?: string | null;
   updatedAt: string | null;
   checksum: string | null;
+  thumbhash?: string | null;
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
   tags: TagRef[];

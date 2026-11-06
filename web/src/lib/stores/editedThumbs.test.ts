@@ -12,11 +12,11 @@ describe('edited thumbnail URLs', () => {
     const items = [{ id: 'a1', hash: 'h1', updated_at: '2026-01-01T00:00:00Z' }];
     mockedList.mockResolvedValueOnce({ render_revision: 'd1-l1', items });
     await editedThumbs.refresh();
-    const before = assetThumbUrl('a1');
+    const before = assetThumbUrl({ id: 'a1' });
 
     mockedList.mockResolvedValueOnce({ render_revision: 'd1-l0', items });
     await editedThumbs.refresh();
-    const after = assetThumbUrl('a1');
+    const after = assetThumbUrl({ id: 'a1' });
 
     expect(before).toContain('h=h1');
     expect(after).toContain('h=h1');
@@ -27,12 +27,12 @@ describe('edited thumbnail URLs', () => {
     const pending = [{ id: 'a1', hash: 'h1', updated_at: 'u', revision: 'd1-l1-dn' }];
     mockedList.mockResolvedValueOnce({ render_revision: 'd1-l1', items: pending });
     await editedThumbs.refresh();
-    const before = assetThumbUrl('a1');
+    const before = assetThumbUrl({ id: 'a1' });
 
     const ready = [{ id: 'a1', hash: 'h1', updated_at: 'u', revision: 'd1-l1-dnab' }];
     mockedList.mockResolvedValueOnce({ render_revision: 'd1-l1', items: ready });
     await editedThumbs.refresh();
-    const after = assetThumbUrl('a1');
+    const after = assetThumbUrl({ id: 'a1' });
 
     expect(before).toContain('r=d1-l1-dn&');
     expect(after).toContain('r=d1-l1-dnab&');
@@ -45,10 +45,10 @@ describe('edited thumbnail URLs', () => {
     ];
     mockedList.mockResolvedValueOnce({ render_revision: 'd1-l1', items });
     await editedThumbs.refresh();
-    expect(assetThumbUrl('a2')).toContain('r=d1-l1&');
+    expect(assetThumbUrl({ id: 'a2' })).toContain('r=d1-l1&');
 
     editedThumbs.upsert('a1', 'h3', 'u2');
-    expect(assetThumbUrl('a1')).toContain('h=h3&r=d1-l1&');
+    expect(assetThumbUrl({ id: 'a1' })).toContain('h=h3&r=d1-l1&');
   });
 
   it('keep a save that lands while a refresh is in flight', async () => {

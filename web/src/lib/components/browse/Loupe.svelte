@@ -18,6 +18,7 @@
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { paneGridStyle } from '#lib/browse/loupeLayout.ts';
   import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
+  import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { putBounded } from '#lib/utils/boundedRecord.ts';
   import { loadFaceData } from '#lib/stores/zoomTargets.ts';
@@ -67,8 +68,13 @@
     apply: (id, view) => compare.applyView(id, view)
   });
 
+  const preloader = new ImagePreloader();
+  const stepShown: StepFn = (id, direction) =>
+    direction > 0 ? browsing.nextOf(id) : browsing.prevOf(id);
+
   onDestroy(() => {
     ui.fullscreen = false;
+    preloader.keep([]);
   });
 
   onMount(() =>
@@ -104,13 +110,9 @@
   }
 
   $effect(() => {
-    if (multi || !currentId) return;
-    for (const neighbor of [browsing.nextOf(currentId), browsing.prevOf(currentId)]) {
-      if (neighbor) {
-        const img = new Image();
-        img.src = persistedPreviewUrl(neighbor.id, paneMaxEdge, ui.clipWarn);
-      }
-    }
+    const id = multi ? null : currentId;
+    const render = (neighbour: string) => persistedPreviewUrl(neighbour, paneMaxEdge, ui.clipWarn);
+    preloader.keep(id ? preloadUrls(browsing.find(id) ?? { id }, stepShown, render) : []);
   });
 
   $effect(() => {

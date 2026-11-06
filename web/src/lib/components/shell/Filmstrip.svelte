@@ -4,7 +4,7 @@
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { assetPlaceholder, assetThumbUrl } from '#lib/api/assets.ts';
   import { createFilmstripLayout, visibleFilmstripRange } from '#lib/browse/filmstripLayout.ts';
   import { isRejected } from '#lib/browse/reject.ts';
   import { LABEL_NAMES, LABEL_TEXT, labelOf, type LabelColor } from '#lib/stores/labels.ts';
@@ -166,13 +166,14 @@
                         aria-label={asset.originalFileName}
                       >
                         <img
-                          src={assetThumbUrl(asset.id)}
+                          src={assetThumbUrl(asset)}
                           alt=""
                           loading="lazy"
-                          class="w-full h-full object-cover transition-[opacity,filter] {isCurrent ||
+                          class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent ||
                           isMember
                             ? 'opacity-100'
                             : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
+                          style:background-image={assetPlaceholder(asset)}
                           class:grayscale={rejected}
                         />
                         {#if paneNumber > 0}
@@ -222,12 +223,13 @@
                     title={asset.originalFileName}
                   >
                     <img
-                      src={assetThumbUrl(asset.id)}
+                      src={assetThumbUrl(asset)}
                       alt=""
                       loading="lazy"
-                      class="w-full h-full object-cover transition-[opacity,filter] {isCurrent
+                      class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent
                         ? 'opacity-100'
                         : 'opacity-65 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
+                      style:background-image={assetPlaceholder(asset)}
                       class:grayscale={rejected}
                     />
                     {@render badges(
