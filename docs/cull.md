@@ -130,6 +130,12 @@ the selected photos; the arrow keys select one:
 | `U` | Clear favorite and reject |
 | `6` to `9` | Set the red, yellow, green or blue label; the same key again clears it |
 
+In the loupe, compare and survey, a new rating shows over the photo for a moment. The
+**Auto-advance** button in the loupe toolbar moves on to the next photo after every rating,
+favorite, reject or label: the overlay then names the change, adds "next photo" and fills a short
+bar before the step, so you see what you set. Moving to another photo yourself during the bar
+cancels the step. `Shift` with a digit moves on the same way.
+
 A photo has at most one color label: red, yellow, green, blue or purple. Purple has no key; pick
 it, or any other label, with the label button beside reject in the loupe, the editor and the
 selection bar. Tiles and filmstrip thumbnails show the label as a colored dot, and the **Label**

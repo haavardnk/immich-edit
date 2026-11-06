@@ -1,5 +1,6 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
+  import AutoAdvancePill from '#lib/components/browse/AutoAdvancePill.svelte';
   import CommandList from '#lib/components/CommandList.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import { commandLabel } from '#lib/commands/command.ts';
@@ -28,7 +29,7 @@
 
 <nav
   aria-label="Loupe toolbar"
-  class="relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2"
+  class="@container relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2"
 >
   <div class="flex min-w-0 items-center gap-2 overflow-hidden">
     <CommandIconButton
@@ -54,6 +55,7 @@
   </div>
 
   <div class="flex min-w-0 items-center justify-end gap-0.5">
+    <AutoAdvancePill class="me-1.5" />
     <Popover
       open={viewModeOpen}
       anchor="bottom"
