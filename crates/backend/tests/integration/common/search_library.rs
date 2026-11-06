@@ -221,6 +221,12 @@ fn compare(op: &str, bound: &Value, field: fn(&Photo) -> DateTime<Utc>) -> Optio
     Some(condition)
 }
 
+pub fn feed(photos: &[Photo], ascending: bool) -> Vec<Uuid> {
+    let mut sorted = photos.to_vec();
+    sort(&mut sorted, ascending);
+    sorted.iter().map(|photo| photo.id).collect()
+}
+
 pub async fn mount(server: &MockServer, api_key: &str, photos: Vec<Photo>) -> Shelf {
     mount_slow(server, api_key, photos, Duration::ZERO).await
 }
