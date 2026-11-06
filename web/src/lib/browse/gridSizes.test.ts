@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dayHeaderHeight,
   defaultGridSize,
   gridRowHeight,
   GRID_SIZES,
@@ -31,5 +32,12 @@ describe('grid sizes', () => {
     expect(isGridSize('xl')).toBe(true);
     expect(isGridSize('huge')).toBe(false);
     expect(isGridSize(undefined)).toBe(false);
+  });
+});
+
+describe('day header height', () => {
+  it('is shorter on touch', () => {
+    expect(dayHeaderHeight('desktop')).toBe(42);
+    expect(dayHeaderHeight('touch')).toBe(34);
   });
 });

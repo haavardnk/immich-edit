@@ -1,43 +1,40 @@
 <script lang="ts">
-  import { flushSync, onMount, untrack } from 'svelte';
-  import { afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
-  import AssetTile from './AssetTile.svelte';
+  import GridDayHeaders from '#lib/components/browse/GridDayHeaders.svelte';
   import GridSizeHud from '#lib/components/browse/GridSizeHud.svelte';
-  import BulkActionBar from './bulk/BulkActionBar.svelte';
+  import GridTiles from '#lib/components/browse/GridTiles.svelte';
+  import BulkActionBar from '#lib/components/browse/bulk/BulkActionBar.svelte';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { hides } from '#lib/browse/loadedFilter.ts';
-  import { trash } from '#lib/stores/trash.svelte.ts';
-  import { isCopy } from '#lib/browse/assetKey.ts';
-  import { browseTarget, setRating } from '#lib/browse/assetMeta.ts';
-  import { gridCurrent, openMulti } from '#lib/browse/gridActions.ts';
+  import { openMulti } from '#lib/browse/gridActions.ts';
   import { gridHost } from '#lib/commands/grid/gridHost.ts';
-  import {
-    createAssetGridLayout,
-    verticalAssetIndex,
-    visibleAssetRange,
-    type AssetGridBox
-  } from '#lib/browse/assetGridLayout.ts';
-  import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
-  import { stepGrid } from '#lib/browse/gridResize.ts';
-  import { anchoredViewTop, scaleStepper, zoomAnchor } from '#lib/browse/gridZoom.ts';
-  import { listenGridZoom } from '#lib/browse/gridZoomInput.ts';
-  import { gestures } from '#lib/gestures/gestures.ts';
-  import { pinchRecognizer, type PinchUpdate } from '#lib/gestures/pinch.ts';
-  import type { Point } from '#lib/gestures/point.ts';
+  import { visibleAssetRange, type AssetGridBox } from '#lib/browse/assetGridLayout.ts';
+  import { createDayGridLayout } from '#lib/browse/dayLayout.ts';
+  import { groupDays } from '#lib/browse/dayGroups.ts';
+  import { GridScroll } from '#lib/browse/gridScroll.svelte.ts';
+  import { GridSelectAll } from '#lib/browse/gridSelectAll.svelte.ts';
+  import { gridMover } from '#lib/browse/gridMove.ts';
+  import { gridPinch, watchGridZoom } from '#lib/browse/gridPinch.ts';
 
   let {
     assets,
     loadingMore = false,
+    loadingPrevious = false,
+    dayHeaders = false,
     onLoadMore,
+    onLoadPrevious,
     onLoadAll
   }: {
     assets: AssetSummary[];
     loadingMore?: boolean;
+    loadingPrevious?: boolean;
+    dayHeaders?: boolean;
     onLoadMore?: () => void;
+    onLoadPrevious?: () => void;
     onLoadAll?: () => Promise<boolean>;
   } = $props();
 
@@ -46,335 +43,113 @@
   const OVERSCAN = 2;
 
   let root: HTMLDivElement | undefined = $state();
-  let scrollParent: HTMLElement | null = null;
-  let gridWidth = $state(0);
-  let parentHeight = $state(0);
-  let viewTop = $state(0);
-  let scrollKey = '';
-  let pendingRestore: number | null = null;
-  let revealOnReturn = false;
-  let loupeWasOpen = false;
-  let extendKey = $state(false);
-  let hoveredId = $state<string | null>(null);
-  let selectingAll = $state(false);
   let bulkBar: BulkActionBar | undefined = $state();
 
   const items = $derived(assets.filter((a) => !hides(browseControls.filters, a)));
 
+  const days = $derived(dayHeaders ? groupDays(items) : null);
+
+  const scroll = new GridScroll({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    gap: GAP,
+    loadMore: () => onLoadMore,
+    loadPrevious: () => onLoadPrevious,
+    loadingMore: () => loadingMore,
+    loadingPrevious: () => loadingPrevious
+  });
+
   const layout = $derived.by(() => {
-    const inner = Math.max(0, gridWidth - PAD * 2);
-    const geometry = createAssetGridLayout(items, inner, browseView.rowHeight, GAP);
+    const geometry = createDayGridLayout(items, days, {
+      width: Math.max(0, scroll.width - PAD * 2),
+      rowHeight: browseView.rowHeight,
+      gap: GAP,
+      headerHeight: browseView.dayHeaderHeight
+    });
     return { ...geometry, totalHeight: PAD * 2 + geometry.height };
   });
 
-  const view = $derived.by(() => {
-    return visibleAssetRange(layout, viewTop - PAD, viewTop + parentHeight - PAD, OVERSCAN);
-  });
+  const view = $derived(
+    visibleAssetRange(layout, scroll.viewTop - PAD, scroll.viewTop + scroll.height - PAD, OVERSCAN)
+  );
 
-  const visibleAssets = $derived(
+  const tiles = $derived(
     items
       .slice(view.startIndex, view.endIndex)
       .map((asset, offset) => ({ asset, box: layout.boxes[view.startIndex + offset] }))
       .filter((item): item is { asset: AssetSummary; box: AssetGridBox } => item.box !== undefined)
   );
 
-  const extending = $derived(extendKey || latched('extend'));
-
-  const rangePreview = $derived.by(() => {
-    if (selectingAll || !extending || !hoveredId) return null;
-    return selection.rangeTarget(
-      items.map((asset) => asset.id),
-      hoveredId
-    );
+  const selectAll = new GridSelectAll({
+    items: () => items,
+    loadingMore: () => loadingMore,
+    loadAll: () => onLoadAll
   });
 
-  function findScrollParent(el: HTMLElement): HTMLElement | null {
-    let p = el.parentElement;
-    while (p) {
-      const oy = getComputedStyle(p).overflowY;
-      if (oy === 'auto' || oy === 'scroll') return p;
-      p = p.parentElement;
-    }
-    return null;
-  }
-
-  function measure(): void {
-    if (!root || !scrollParent) return;
-    gridWidth = root.clientWidth;
-    parentHeight = scrollParent.clientHeight;
-    viewTop = scrollParent.getBoundingClientRect().top - root.getBoundingClientRect().top;
-  }
-
-  function onResize(): void {
-    measure();
-    restoreScroll();
-  }
-
-  function saveScroll(): void {
-    if (!scrollParent || !scrollKey || pendingRestore !== null) return;
-    browseView.setGridScroll(scrollKey, scrollParent.scrollTop);
-  }
-
-  function onScroll(): void {
-    measure();
-    saveScroll();
-    if (onLoadMore && !loadingMore && layout.totalHeight - (viewTop + parentHeight) < 400) {
-      onLoadMore();
-    }
-  }
-
-  function restoreScroll(): void {
-    if (!scrollParent || pendingRestore === null) return;
-    const maxTop = Math.max(0, scrollParent.scrollHeight - scrollParent.clientHeight);
-    if (pendingRestore > maxTop + 1) {
-      if (onLoadMore && !loadingMore) onLoadMore();
-      return;
-    }
-    scrollParent.scrollTop = Math.min(pendingRestore, maxTop);
-    pendingRestore = null;
-    measure();
-  }
-
-  function ensureVisible(id: string): void {
-    const idx = items.findIndex((a) => a.id === id);
-    if (idx < 0 || !scrollParent) return;
-    const box = layout.boxes[idx];
-    if (!box) return;
-    const rowTop = PAD + box.top;
-    const rowBottom = rowTop + box.height;
-    if (rowTop < viewTop) {
-      scrollParent.scrollTop -= viewTop - rowTop + GAP;
-    } else if (rowBottom > viewTop + parentHeight) {
-      scrollParent.scrollTop += rowBottom - (viewTop + parentHeight) + GAP;
-    }
-  }
-
-  function centerIfHidden(box: AssetGridBox): void {
-    const rowTop = PAD + box.top;
-    if (rowTop + box.height > viewTop && rowTop < viewTop + parentHeight) return;
-    const center = rowTop + box.height / 2 - parentHeight / 2;
-    pendingRestore = Math.min(Math.max(0, center), Math.max(0, layout.totalHeight - parentHeight));
-    restoreScroll();
-  }
-
-  function revealActive(): boolean {
-    const id = browseView.activeId;
-    if (!id) return true;
-    const box = layout.boxes[items.findIndex((a) => a.id === id)];
-    if (box) {
-      centerIfHidden(box);
-      return true;
-    }
-    if (!onLoadMore) return true;
-    if (!loadingMore) onLoadMore();
-    return false;
-  }
-
-  function moveIndex(key: string): number {
-    if (key === 'Home') return 0;
-    if (key === 'End') return items.length - 1;
-    const cursor = selection.active ? gridCurrent(items) : browseView.activeId;
-    const index = cursor ? items.findIndex((asset) => asset.id === cursor) : -1;
-    if (index < 0 || !selection.active) return Math.max(0, index);
-    if (key === 'ArrowRight') return index + 1;
-    if (key === 'ArrowLeft') return index - 1;
-    const rows = key.startsWith('Page')
-      ? Math.max(1, Math.floor(parentHeight / browseView.rowHeight))
-      : 1;
-    return verticalAssetIndex(layout, index, key === 'ArrowUp' || key === 'PageUp' ? -rows : rows);
-  }
-
-  function move(key: string, extend: boolean): void {
-    const target = items[Math.min(items.length - 1, Math.max(0, moveIndex(key)))];
-    if (!target) return;
-    if (extend && selection.active)
-      selection.range(
-        items.map((asset) => asset.id),
-        target.id
-      );
-    else selection.selectLoaded([target.id]);
-    browseView.setActive(target.id);
-    ensureVisible(target.id);
-  }
-
-  async function selectAll(): Promise<boolean> {
-    if (loadingMore || selectingAll) return false;
-    selectingAll = true;
-    try {
-      if (onLoadAll && !(await onLoadAll())) return false;
-      selection.selectLoaded(items.map((asset) => asset.id));
-      return true;
-    } finally {
-      selectingAll = false;
-    }
-  }
-
-  function trackExtend(e: KeyboardEvent): void {
-    extendKey = keyHeld('extend', e);
-  }
-
-  function inScroller(at: Point | null): at is Point {
-    if (!at || !scrollParent) return false;
-    const box = scrollParent.getBoundingClientRect();
-    return at.y >= box.top && at.y <= box.bottom && at.x >= box.left && at.x <= box.right;
-  }
-
-  function holdAnchor(at: Point | null): () => void {
-    if (!root || !scrollParent) return () => {};
-    measure();
-    const origin = root.getBoundingClientRect();
-    const anchor = zoomAnchor(layout, {
-      point: inScroller(at) ? { x: at.x - origin.left - PAD, y: at.y - origin.top - PAD } : null,
-      activeIndex: items.findIndex((asset) => asset.id === browseView.activeId),
-      viewTop: viewTop - PAD,
-      viewHeight: parentHeight
-    });
-    if (!anchor) return () => {};
-    pendingRestore = null;
-    return () => {
-      flushSync();
-      measure();
-      const top = anchoredViewTop(layout, anchor);
-      if (top === null || !scrollParent) return;
-      scrollParent.scrollTop += top - (viewTop - PAD);
-      measure();
-    };
-  }
-
-  const pinchSteps = scaleStepper();
-
-  function pinchStep(pinch: PinchUpdate): void {
-    stepGrid(pinchSteps.to(pinch.scale), { anchor: { x: pinch.x, y: pinch.y } });
-  }
-
-  const pinchZoom = gestures({
-    touchAction: 'pan-y',
-    pointerTypes: ['touch'],
-    recognizers: [
-      pinchRecognizer({
-        enabled: () => browseView.loupeId === null && !selectingAll,
-        start: (pinch) => {
-          pinchSteps.start();
-          pinchStep(pinch);
-        },
-        move: pinchStep
-      })
-    ]
+  const move = gridMover({
+    items: () => items,
+    layout: () => layout,
+    viewHeight: () => scroll.height,
+    reveal: scroll.ensureVisible
   });
 
-  function clearRangePreview(): void {
-    extendKey = false;
-    hoveredId = null;
-  }
-
-  afterNavigate(() => {
-    const path = `${window.location.pathname}${window.location.search}`;
-    if (scrollKey && scrollKey !== path) {
-      scrollKey = path;
-      browseView.setLastGridPath(path);
-    }
-    restoreScroll();
-  });
+  const pinchZoom = gridPinch(() => browseView.loupeId === null && !selectAll.busy);
 
   onMount(() =>
     gridHost.attach({
       items: () => items,
-      selectingAll: () => selectingAll,
-      selectAll,
+      selectingAll: () => selectAll.busy,
+      selectAll: selectAll.run,
       move,
-      reveal: ensureVisible,
+      reveal: scroll.ensureVisible,
+      scrollTo: scroll.scrollToAsset,
       focusBulkBar: () => bulkBar?.focusFirst(),
-      holdAnchor
+      holdAnchor: scroll.holdAnchor
     })
   );
 
   onMount(() => {
-    const path = `${window.location.pathname}${window.location.search}`;
-    if (browseView.lastGridPath !== path) selection.clear();
-    else revealOnReturn = true;
     if (!root) return;
-    scrollKey = path;
-    browseView.setLastGridPath(scrollKey);
-    const savedTop = browseView.getGridScroll(scrollKey);
-    pendingRestore = savedTop > 0 ? savedTop : null;
-    scrollParent = findScrollParent(root);
-    const parentResize = scrollParent ? observeSize(scrollParent, onResize) : undefined;
-    const stopZoom = scrollParent
-      ? listenGridZoom(scrollParent, (steps, at) => stepGrid(steps, { anchor: at, hud: at }))
-      : undefined;
-    if (scrollParent) {
-      scrollParent.addEventListener('scroll', onScroll, { passive: true });
-    }
+    const detach = scroll.attach(root);
+    const scroller = scroll.parent;
+    const stopZoom = scroller ? watchGridZoom(scroller) : undefined;
     return () => {
-      parentResize?.destroy?.();
       stopZoom?.();
-      scrollParent?.removeEventListener('scroll', onScroll);
+      detach();
     };
-  });
-
-  $effect(() => {
-    const _tracked = items.length;
-    measure();
-    restoreScroll();
-    if (revealOnReturn && pendingRestore === null && items.length > 0)
-      revealOnReturn = !untrack(revealActive);
-  });
-
-  $effect(() => {
-    const open = browseView.loupeId !== null;
-    if (loupeWasOpen && !open) untrack(revealActive);
-    loupeWasOpen = open;
   });
 </script>
 
-<svelte:window onkeydown={trackExtend} onkeyup={trackExtend} onblur={clearRangePreview} />
-
+{#if loadingPrevious}
+  <div class="pointer-events-none sticky top-0 z-10 h-0">
+    <div
+      class="mx-auto mt-2 w-max rounded-full bg-light-50 px-3 py-1 text-xs text-dark/65 shadow-md"
+      role="status"
+    >
+      Loading earlier photos…
+    </div>
+  </div>
+{/if}
 <div
   bind:this={root}
-  use:observeSize={onResize}
+  use:observeSize={scroll.onResize}
   {@attach pinchZoom}
   class="relative"
   style:height="{layout.totalHeight}px"
 >
-  {#each visibleAssets as item (item.asset.id)}
-    <div
-      class="absolute"
-      style:top="{PAD + item.box.top}px"
-      style:left="{PAD + item.box.left}px"
-      style:width="{item.box.width}px"
-      style:height="{item.box.height}px"
-    >
-      <AssetTile
-        asset={item.asset}
-        info={browseView.tileInfo}
-        selected={selectingAll || selection.has(item.asset.id)}
-        rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
-        selectionActive={selection.active || selectingAll}
-        onToggle={() => {
-          if (selectingAll) return;
-          selection.toggle(item.asset.id);
-          if (selection.has(item.asset.id)) browseView.setActive(item.asset.id);
-        }}
-        onPreview={() => (hoveredId = item.asset.id)}
-        onPreviewEnd={() => {
-          if (hoveredId === item.asset.id) hoveredId = null;
-        }}
-        onRange={() => {
-          if (selectingAll) return;
-          selection.range(
-            items.map((a) => a.id),
-            item.asset.id
-          );
-        }}
-        onActivate={() => browseView.setActive(item.asset.id)}
-        onLoupe={() => browseView.openLoupe(item.asset.id)}
-        onRate={(rating) => void setRating(browseTarget(item.asset.id), rating)}
-        onDeleteCopy={isCopy(item.asset.id)
-          ? () => void trash.removeCopy(item.asset.id)
-          : undefined}
-      />
-    </div>
-  {/each}
+  {#if days}
+    <GridDayHeaders
+      headers={layout.headers}
+      {days}
+      {items}
+      startIndex={view.startIndex}
+      endIndex={view.endIndex}
+      pad={PAD}
+      locked={selectAll.busy}
+    />
+  {/if}
+  <GridTiles {items} {tiles} pad={PAD} selectingAll={selectAll.busy} />
 </div>
 {#if loadingMore}
   <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
@@ -387,8 +162,8 @@
   selectedIds={[...selection.selected]}
   onClear={selection.clear}
   onMulti={(mode) => openMulti(mode, items)}
-  onSelectAll={selectAll}
-  hasMore={onLoadMore !== undefined}
+  onSelectAll={selectAll.run}
+  hasMore={onLoadMore !== undefined || onLoadPrevious !== undefined}
   {loadingMore}
-  {selectingAll}
+  selectingAll={selectAll.busy}
 />

@@ -296,21 +296,28 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           body: opts.previewBody
         }
       : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
-  const searchResult = (body: Record<string, unknown>) => {
-    const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
-    const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
+  type DatedFilter = { takenAfter?: string; takenBefore?: string };
+  type Listed = MockAssetSummary & { copyOf?: string; tags: MockTag[] };
+  const takenWithin = (a: MockAssetSummary, filter: DatedFilter): boolean => {
+    const at = Date.parse(a.fileCreatedAt);
+    if (filter.takenAfter && at < Date.parse(filter.takenAfter)) return false;
+    return !filter.takenBefore || at <= Date.parse(filter.takenBefore);
+  };
+  const matching = (body: Record<string, unknown>, pageAssets: MockAssetSummary[]): Listed[] => {
     const filter = (body.filter ?? {}) as {
       scope?: { tag?: string };
       albums?: IdSet;
       people?: IdSet;
       tags?: IdSet;
     } & ManagedFilter &
-      ExifFilter;
+      ExifFilter &
+      DatedFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
-    const items = expanded(ordered(body.sort as MockSort, pageAssets))
+    return expanded(ordered(body.sort as MockSort, pageAssets))
       .filter((a) => !trashed.has(a.id.split('_')[0] ?? a.id))
-      .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
+      .filter((a) => takenWithin(a, filter))
+      .map((a): Listed => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
       .filter((a) => matchesManagedTags(a.tags, filter))
       .filter((a) =>
@@ -322,9 +329,56 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       .filter((a) => matchesExif(a, filter))
       .filter((a) => matchesPeople(a.id.split('_')[0] ?? a.id, filter.people))
       .filter((a) => matchesAlbums(a.id.split('_')[0] ?? a.id, filter.albums));
-    const nextCursor =
-      opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
+  };
+  const masterRuns = (items: Listed[]): Listed[][] =>
+    items.reduce<Listed[][]>((runs, item) => {
+      const last = runs.at(-1);
+      if (item.copyOf && last) last.push(item);
+      else runs.push([item]);
+      return runs;
+    }, []);
+  const searchResult = (body: Record<string, unknown>) => {
+    const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
+    if (opts.searchPages) {
+      const items = matching(body, opts.searchPages[pageNumber - 1] ?? []);
+      const nextCursor = pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
+      return { items, nextCursor };
+    }
+    const size = typeof body.size === 'number' ? body.size : Number.POSITIVE_INFINITY;
+    const runs = masterRuns(matching(body, assets));
+    const items = runs.slice((pageNumber - 1) * size, pageNumber * size).flat();
+    const nextCursor = pageNumber * size < runs.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
+  };
+  const searchWindow = (body: Record<string, unknown>) => {
+    const reach = (key: 'before' | 'after'): number => {
+      const value = body[key] ?? body.radius ?? 250;
+      return typeof value === 'number' ? value : 250;
+    };
+    const runs = masterRuns(matching({ ...body, size: undefined }, assets));
+    const anchor = String(body.assetId).split('_')[0];
+    const at = runs.findIndex((run) => run[0]?.id === anchor);
+    if (at < 0) return { items: [], hasBefore: false, hasAfter: false };
+    const start = Math.max(0, at - reach('before'));
+    const end = Math.min(runs.length, at + reach('after') + 1);
+    return {
+      items: runs.slice(start, end).flat(),
+      hasBefore: start > 0,
+      hasAfter: end < runs.length
+    };
+  };
+  const searchMonths = (body: Record<string, unknown>) => {
+    const counts = new Map<string, number>();
+    for (const a of matching({ ...body, sort: { field: 'taken', direction: 'desc' } }, assets)) {
+      if (a.copyOf) continue;
+      const month = new Date(a.fileCreatedAt).toISOString().slice(0, 7);
+      counts.set(month, (counts.get(month) ?? 0) + 1);
+    }
+    return {
+      months: [...counts]
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([month, count]) => ({ month, count }))
+    };
   };
 
   await page.route('**/api/**', async (route) => {
@@ -400,16 +454,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(suggestions(assets, req.postDataJSON())));
     }
     if (p === '/api/search/window') {
-      const body = req.postDataJSON() as {
-        assetId: string;
-        radius: number;
-        sort?: MockSort;
-      };
-      const feed = ordered(body.sort);
-      const at = feed.findIndex((a) => a.id === body.assetId.split('_')[0]);
-      const items =
-        at < 0 ? [] : expanded(feed.slice(Math.max(0, at - body.radius), at + body.radius + 1));
-      return route.fulfill(json({ items }));
+      return route.fulfill(
+        json(searchWindow((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
+    }
+    if (p === '/api/search/months') {
+      return route.fulfill(
+        json(searchMonths((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
     }
     if (p === '/api/edits') {
       const entries = opts.edits ?? [];

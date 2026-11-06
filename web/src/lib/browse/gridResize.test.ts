@@ -22,6 +22,7 @@ function attachHost(): GridHost['holdAnchor'] {
     selectAll: async () => true,
     move: () => {},
     reveal: () => {},
+    scrollTo: () => {},
     focusBulkBar: () => {},
     holdAnchor
   });

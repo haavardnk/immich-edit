@@ -128,7 +128,14 @@ test.describe('grid sizing on desktop', () => {
     expect(box?.x ?? Number.NaN).toBeLessThan(x);
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThan(x);
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(y + 60);
-    await expect(page.locator('[role="group"]').first()).toHaveCSS('height', /^(2|3)\d\d/);
+    await expect
+      .poll(() =>
+        page
+          .locator('[role="group"]')
+          .first()
+          .evaluate((node) => node.getBoundingClientRect().height)
+      )
+      .toBeGreaterThan(250);
 
     await page.clock.runFor(1000);
     await expect(hud(page)).toBeHidden();

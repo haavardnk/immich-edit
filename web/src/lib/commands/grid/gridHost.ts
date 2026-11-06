@@ -8,6 +8,7 @@ export interface GridHost {
   selectAll: () => Promise<boolean>;
   move: (key: string, extend: boolean) => void;
   reveal: (id: string) => void;
+  scrollTo: (id: string) => void;
   focusBulkBar: () => void;
   holdAnchor: (at: Point | null) => () => void;
 }

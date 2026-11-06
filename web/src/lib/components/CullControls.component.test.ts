@@ -63,8 +63,6 @@ function layouts(subject: AssetDetail): Layout<'body' | 'editor bottom bar' | 'l
         actions,
         tags: subject.tags ?? [],
         multi: false,
-        position: 1,
-        count: 1,
         canDrop: false,
         zoom: 1,
         fitZoom: 1,

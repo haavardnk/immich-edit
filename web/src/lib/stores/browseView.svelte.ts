@@ -2,12 +2,14 @@ import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
 import {
+  dayHeaderHeight,
   defaultGridSize,
   gridRowHeight,
   isGridSize,
   type GridSize
 } from '#lib/browse/gridSizes.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
+import type { TileAnchor } from '#lib/browse/gridZoom.ts';
 
 export type TileInfo = 'none' | 'badges' | 'full';
 
@@ -38,7 +40,7 @@ class BrowseViewStore {
   filterSections = $state<FilterSectionId[]>([]);
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
-  private gridScroll = new Map<string, number>();
+  private gridAnchors = new Map<string, TileAnchor>();
 
   constructor() {
     const stored = readStored<Persisted>(STORAGE_KEY);
@@ -71,6 +73,10 @@ class BrowseViewStore {
 
   get rowHeight(): number {
     return gridRowHeight(this.gridSize, layout.mode);
+  }
+
+  get dayHeaderHeight(): number {
+    return dayHeaderHeight(layout.mode);
   }
 
   setGridSize(size: GridSize): void {
@@ -132,14 +138,14 @@ class BrowseViewStore {
     this.lastGridPath = path;
   }
 
-  setGridScroll(key: string, top: number): void {
+  setGridAnchor(key: string, anchor: TileAnchor | null): void {
     if (!key) return;
-    this.gridScroll.set(key, Math.max(0, top));
+    if (anchor) this.gridAnchors.set(key, anchor);
+    else this.gridAnchors.delete(key);
   }
 
-  getGridScroll(key: string): number {
-    if (!key) return 0;
-    return this.gridScroll.get(key) ?? 0;
+  getGridAnchor(key: string): TileAnchor | null {
+    return this.gridAnchors.get(key) ?? null;
   }
 
   resetLoupeView(): void {

@@ -92,7 +92,7 @@ describe('browsing store', () => {
       null,
       null
     ]);
-    expect([browsing.positionOf('c'), browsing.count]).toEqual([2, 8]);
+    expect(browsing.count).toBe(8);
     browseControls.reset();
   });
 });

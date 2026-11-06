@@ -16,7 +16,7 @@ const CHORD_CHECKS = [
 ];
 
 const WINDOW_KEY_LISTENERS = [
-  '/src/lib/components/browse/AssetGrid.svelte',
+  '/src/lib/components/browse/GridTiles.svelte',
   '/src/lib/components/editor/ClickCanvas.svelte',
   '/src/lib/components/editor/MaskOverlay.svelte',
   '/src/lib/components/editor/MaskPolygonDraft.svelte',

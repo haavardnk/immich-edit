@@ -18,6 +18,15 @@ const ROW_HEIGHTS: Readonly<Record<LayoutMode, Readonly<Record<GridSize, number>
   touch: { sm: 56, md: 80, lg: 112, xl: 160 }
 };
 
+const DAY_HEADER_HEIGHTS: Readonly<Record<LayoutMode, number>> = {
+  desktop: 42,
+  touch: 34
+};
+
+export function dayHeaderHeight(mode: LayoutMode): number {
+  return DAY_HEADER_HEIGHTS[mode];
+}
+
 export function isGridSize(value: unknown): value is GridSize {
   return GRID_SIZES.some((size) => size === value);
 }
