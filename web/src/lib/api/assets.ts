@@ -12,6 +12,7 @@ export function getAsset(id: string): Promise<AssetDetail> {
 export interface AssetUpdate {
   isFavorite?: boolean;
   rating?: number | null;
+  description?: string;
 }
 
 export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail> {

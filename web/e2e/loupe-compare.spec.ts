@@ -43,7 +43,7 @@ test('the compare rail toggles sync and keeps two panes', async ({ page }) => {
 
 test('I shows the focused pane in the info panel', async ({ page }) => {
   await openCompare(page);
-  const info = page.getByRole('region', { name: 'Photo info' });
+  const info = page.getByRole('complementary', { name: 'Info' });
 
   await page.keyboard.press('i');
   await page.getByRole('img', { name: 'IMG_0001.ARW' }).click();

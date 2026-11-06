@@ -2,6 +2,7 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import Popover from '#lib/components/Popover.svelte';
+  import AddChip from '#lib/components/AddChip.svelte';
   import { library } from '#lib/stores/library.svelte.ts';
   import type { TagSummary } from '#lib/api/tags.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -25,6 +26,7 @@
     disabled = false,
     anchor = 'top',
     align = 'start',
+    addLabel,
     rootClass = 'flex min-w-0 items-center gap-1.5 overflow-hidden',
     pillsClass = 'flex items-center gap-1 overflow-x-auto scrollbar-hidden min-w-0'
   }: {
@@ -38,6 +40,7 @@
     disabled?: boolean;
     anchor?: Anchor;
     align?: Align;
+    addLabel?: string;
     rootClass?: string;
     pillsClass?: string;
   } = $props();
@@ -120,20 +123,24 @@
     sheetClass="flex flex-col"
     sheetPicker
     title="Tags"
-    tooltip={hint('Tags', 'toggleTags')}
+    tooltip={addLabel ? undefined : hint('Tags', 'toggleTags')}
   >
     {#snippet trigger(popoverProps)}
-      <IconButton
-        size="tiny"
-        variant={open ? 'filled' : 'ghost'}
-        color={open ? 'primary' : 'secondary'}
-        class="shrink-0"
-        icon={mdiPlus}
-        title=""
-        aria-label={hint('Tags', 'toggleTags')}
-        {...popoverProps}
-        {disabled}
-      />
+      {#if addLabel}
+        <AddChip label={addLabel} aria-label="{addLabel} tags" {...popoverProps} {disabled} />
+      {:else}
+        <IconButton
+          size="tiny"
+          variant={open ? 'filled' : 'ghost'}
+          color={open ? 'primary' : 'secondary'}
+          class="shrink-0"
+          icon={mdiPlus}
+          title=""
+          aria-label={hint('Tags', 'toggleTags')}
+          {...popoverProps}
+          {disabled}
+        />
+      {/if}
     {/snippet}
     <SearchableSelect
       options={allTags}

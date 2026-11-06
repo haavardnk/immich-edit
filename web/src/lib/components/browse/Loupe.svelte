@@ -16,7 +16,7 @@
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
-  import { paneGridStyle } from '#lib/browse/loupeLayout.ts';
+  import { paneGridStyle, sheetInsetStyle } from '#lib/browse/loupeLayout.ts';
   import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
@@ -31,11 +31,11 @@
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
   import RatingHud from '#lib/components/browse/RatingHud.svelte';
-  import ExifRows from '#lib/components/ExifRows.svelte';
+  import LoupeInfo from '#lib/components/browse/info/LoupeInfo.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import ContextMenuItem from '#lib/components/ContextMenuItem.svelte';
-  import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
+  import { mdiChevronLeft, mdiChevronRight, mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -50,7 +50,11 @@
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : FIT_VIEW);
-  const gridStyle = $derived(paneGridStyle(multi, panes.length));
+  let belowPanes = $state(0);
+  const gridStyle = $derived(
+    paneGridStyle(multi, panes.length) +
+      (browseView.loupeInfoSheet && !ui.fullscreen ? sheetInsetStyle(belowPanes) : '')
+  );
   const moreActive = $derived(ui.clipWarn);
   const canDrop = $derived(canDropPane());
 
@@ -183,122 +187,106 @@
       <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
     {/if}
 
-    <div
-      class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
-      style={gridStyle}
-    >
-      <LoupePaneGrid
-        bind:this={paneGrid}
-        {panes}
-        {focusedId}
-        {multi}
-        {canDrop}
-        onView={applyPaneView}
-        onSize={(size) => (paneMaxEdge = size)}
-        onMetrics={setPaneMetrics}
-        onImage={setPaneImage}
-      />
-
-      <RatingHud />
-
-      {#if hasPrev && !ui.fullscreen}
-        <IconButton
-          type="button"
-          size="medium"
-          variant="ghost"
-          color="secondary"
-          shape="round"
-          class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-          icon={mdiChevronLeft}
-          title={hint('Previous', 'loupeNav')}
-          aria-label="Previous"
-          onclick={() => stepLoupe(-1)}
-        />
-      {/if}
-      {#if hasNext && !ui.fullscreen}
-        <IconButton
-          type="button"
-          size="medium"
-          variant="ghost"
-          color="secondary"
-          shape="round"
-          class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-          icon={mdiChevronRight}
-          title={hint('Next', 'loupeNav')}
-          aria-label="Next"
-          loading={atLoadedEnd && browsing.loadingMore}
-          onclick={() => stepLoupe(1)}
-        />
-      {/if}
-
-      {#if browseView.loupeInfoOpen && !ui.fullscreen}
-        <section
-          aria-label="Photo info"
-          class="absolute top-2 right-2 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/95 dark:border-gray-700 dark:bg-gray-900/95 p-3 shadow-xl"
+    <div class="flex min-h-0 flex-1">
+      <div class="flex min-w-0 flex-1 flex-col">
+        <div
+          class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
+          style={gridStyle}
         >
-          <div class="flex items-start gap-2">
-            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-light-950/90">
-              {asset.originalFileName}
-            </span>
+          <LoupePaneGrid
+            bind:this={paneGrid}
+            {panes}
+            {focusedId}
+            {multi}
+            {canDrop}
+            onView={applyPaneView}
+            onSize={(size) => (paneMaxEdge = size)}
+            onMetrics={setPaneMetrics}
+            onImage={setPaneImage}
+          />
+
+          <RatingHud />
+
+          {#if hasPrev && !ui.fullscreen}
             <IconButton
-              size="tiny"
+              type="button"
+              size="medium"
               variant="ghost"
               color="secondary"
               shape="round"
-              class="-mt-2 -me-2"
-              icon={mdiClose}
-              title={hint('Close', 'toggleInfo')}
-              aria-label="Close info"
-              onclick={() => browseView.toggleLoupeInfo()}
+              class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
+              icon={mdiChevronLeft}
+              title={hint('Previous', 'loupeNav')}
+              aria-label="Previous"
+              onclick={() => stepLoupe(-1)}
+            />
+          {/if}
+          {#if hasNext && !ui.fullscreen}
+            <IconButton
+              type="button"
+              size="medium"
+              variant="ghost"
+              color="secondary"
+              shape="round"
+              class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
+              icon={mdiChevronRight}
+              title={hint('Next', 'loupeNav')}
+              aria-label="Next"
+              loading={atLoadedEnd && browsing.loadingMore}
+              onclick={() => stepLoupe(1)}
+            />
+          {/if}
+
+          {#if ui.fullscreen}
+            <IconButton
+              size="small"
+              variant="filled"
+              color="primary"
+              shape="round"
+              class="fixed top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-40 shadow-lg"
+              icon={mdiFullscreenExit}
+              title={hint('Exit fullscreen', 'fullscreen')}
+              aria-label={hint('Exit fullscreen', 'fullscreen')}
+              onclick={ui.toggleFullscreen}
+            />
+          {/if}
+        </div>
+
+        {#if !ui.fullscreen}
+          <div class="flex shrink-0 flex-col" bind:offsetHeight={belowPanes}>
+            <LoupeActionRail
+              cull={cullState(asset)}
+              tags={currentTags}
+              {multi}
+              {zoom}
+              fitZoom={focusedFitZoom}
+              fitMode={paneView.zoom === null}
+              actions={loupeCullActions}
+              onAddTag={addTag}
+              onRemoveTag={removeTag}
+              onCreateTag={createAndAddTag}
+              onZoom={setZoom}
+              onFit={fitZoom}
+              {canDrop}
+              onDrop={dropFocusedPane}
+            />
+
+            <Filmstrip
+              currentId={focusedId}
+              highlightIds={compare.members}
+              onSelect={pickFromStrip}
+              resizable
+              size={72}
+              showBadges
+              collapsed={ui.loupeFilmstripCollapsed}
+              menu={stripMenu}
             />
           </div>
-          <ExifRows {asset} />
-        </section>
-      {/if}
-
-      {#if ui.fullscreen}
-        <IconButton
-          size="small"
-          variant="filled"
-          color="primary"
-          shape="round"
-          class="fixed top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-40 shadow-lg"
-          icon={mdiFullscreenExit}
-          title={hint('Exit fullscreen', 'fullscreen')}
-          aria-label={hint('Exit fullscreen', 'fullscreen')}
-          onclick={ui.toggleFullscreen}
-        />
+        {/if}
+      </div>
+      {#if !ui.fullscreen}
+        <LoupeInfo {asset} />
       {/if}
     </div>
-
-    {#if !ui.fullscreen}
-      <LoupeActionRail
-        cull={cullState(asset)}
-        tags={currentTags}
-        {multi}
-        {zoom}
-        fitZoom={focusedFitZoom}
-        fitMode={paneView.zoom === null}
-        actions={loupeCullActions}
-        onAddTag={addTag}
-        onRemoveTag={removeTag}
-        onCreateTag={createAndAddTag}
-        onZoom={setZoom}
-        onFit={fitZoom}
-        {canDrop}
-        onDrop={dropFocusedPane}
-      />
-
-      <Filmstrip
-        currentId={focusedId}
-        highlightIds={compare.members}
-        onSelect={pickFromStrip}
-        resizable
-        size={72}
-        showBadges
-        collapsed={ui.loupeFilmstripCollapsed}
-        menu={stripMenu}
-      />
-    {/if}
   </div>
 {/if}

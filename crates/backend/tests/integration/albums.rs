@@ -94,6 +94,49 @@ async fn lists_albums() {
 }
 
 #[tokio::test]
+async fn lists_the_albums_holding_an_asset_by_its_source() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/albums"))
+        .and(matchers::query_param("assetId", asset_id().to_string()))
+        .and(header("x-api-key", TEST_API_KEY))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([{
+            "id": album_id(),
+            "albumName": "Bergen 2026",
+            "assetCount": 148,
+            "albumThumbnailAssetId": asset_id()
+        }])))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(get(&format!("/api/albums?assetId={}_2", asset_id())))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json[0]["albumName"] != "Bergen 2026" || json[0]["assetCount"] != 148 {
+        panic!("body: {json}");
+    }
+}
+
+#[tokio::test]
+async fn album_list_rejects_a_malformed_asset_id() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(get("/api/albums?assetId=not-an-id"))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::BAD_REQUEST {
+        panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
 async fn album_detail_returns_metadata_without_assets() {
     let server = MockServer::start().await;
     mock_album_detail(&server).await;
