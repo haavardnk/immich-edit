@@ -22,7 +22,7 @@
   <div class="no-callout h-8 w-8 flex-none overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
     {#if album.albumThumbnailAssetId}
       <img
-        src={assetThumbUrl(album.albumThumbnailAssetId)}
+        src={assetThumbUrl({ id: album.albumThumbnailAssetId })}
         alt=""
         loading="lazy"
         class="w-full h-full object-cover"

@@ -20,7 +20,7 @@
   >
     {#if album.albumThumbnailAssetId}
       <img
-        src={assetThumbUrl(album.albumThumbnailAssetId)}
+        src={assetThumbUrl({ id: album.albumThumbnailAssetId })}
         alt=""
         loading="lazy"
         class="size-full object-cover transition-transform group-hover:scale-[1.02]"
