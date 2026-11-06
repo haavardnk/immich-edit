@@ -51,15 +51,22 @@ describe('FilterSections layout parity', () => {
         layout(
           'panel',
           FilterPanel,
-          { favoriteLocked: locked, sortBasis: 'capture' },
-          { exclude: [button('Reset all filters'), button('Close filter panel')] }
+          { favoriteLocked: locked, sortBasis: 'capture', title: 'Photos' },
+          {
+            exclude: [
+              button('Save view'),
+              button('Reset all filters'),
+              button('Close filter panel')
+            ]
+          }
         ),
         layout(
           'sheet',
           FilterSheet,
-          { favoriteLocked: locked, count: 3, sortBasis: 'capture' },
+          { favoriteLocked: locked, count: 3, sortBasis: 'capture', title: 'Photos' },
           {
             exclude: [
+              button('Save view'),
               button('Reset all filters'),
               button('Close view & filters'),
               button('Show 3 photos'),
@@ -78,11 +85,17 @@ describe('FilterSections layout parity', () => {
 });
 
 describe('FilterSheet view section', () => {
-  it('leads with View, summarised while collapsed and holding the view options when open', async () => {
-    const destroy = renderLayout(layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture' }));
+  it('leads with View, summarised while collapsed and open, holding the view options when open', async () => {
+    const destroy = renderLayout(
+      layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture', title: 'Photos' })
+    );
     try {
       await settle();
-      const triggers = [...document.querySelectorAll('[role="dialog"] [aria-expanded]')];
+      const triggers = [
+        ...document.querySelectorAll(
+          '[role="dialog"] [aria-expanded]:not([aria-label="Save view"])'
+        )
+      ];
       const view = triggers.find((element) => element.getAttribute('aria-label') === 'View');
       expect(view).toBe(triggers[0]);
       const summary = document.getElementById(view?.getAttribute('aria-describedby') ?? '');
@@ -91,7 +104,7 @@ describe('FilterSheet view section', () => {
 
       browseView.setFilterSection('view', true);
       await settle();
-      expect(view?.getAttribute('aria-describedby')).toBeNull();
+      expect(view?.getAttribute('aria-describedby')).toBe(summary?.id);
       expect(names()).toEqual(
         expect.arrayContaining(['Date taken', 'Newest first', 'XL', 'Name and date'])
       );

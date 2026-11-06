@@ -3,6 +3,7 @@
   import AlbumCard from '#lib/components/library/AlbumCard.svelte';
   import AlbumSortMenu from '#lib/components/library/AlbumSortMenu.svelte';
   import LibraryLoad from '#lib/components/library/LibraryLoad.svelte';
+  import ListFilter from '#lib/components/library/ListFilter.svelte';
   import PageFrame from '#lib/components/shell/PageFrame.svelte';
   import { sortAlbums, type AlbumSort } from '#lib/browse/albumSort.ts';
   import { library } from '#lib/stores/library.svelte.ts';
@@ -27,14 +28,25 @@
     {#if albums.length === 0}
       <p class="px-6 py-16 text-center text-sm text-dark/65" role="status">No albums</p>
     {:else}
-      <ul
-        aria-label="Albums"
-        class="grid grid-cols-2 gap-x-3 gap-y-4.5 px-4 pt-1.5 pb-4 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4 sm:p-5"
+      <ListFilter
+        items={albums}
+        nameOf={(a) => a.albumName}
+        noun={{ one: 'album', many: 'albums' }}
+        class="px-4 sm:px-5"
       >
-        {#each albums as album (album.id)}
-          <li class="min-w-0"><AlbumCard {album} /></li>
-        {/each}
-      </ul>
+        {#snippet children(visible, query)}
+          {#if visible.length > 0}
+            <ul
+              aria-label="Albums"
+              class="grid grid-cols-2 gap-x-3 gap-y-4.5 px-4 pt-1.5 pb-4 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-4 sm:p-5"
+            >
+              {#each visible as album (album.id)}
+                <li class="min-w-0"><AlbumCard {album} {query} /></li>
+              {/each}
+            </ul>
+          {/if}
+        {/snippet}
+      </ListFilter>
     {/if}
   </LibraryLoad>
 </PageFrame>

@@ -13,6 +13,8 @@
   import { ID_EXCLUSIONS, ID_FILTERS } from '#lib/browse/idFilters.ts';
   import { supportsFilter } from '#lib/browse/browseRoutes.ts';
   import { FILTER_SECTIONS, sectionModified, withoutSection } from '#lib/browse/filterSections.ts';
+  import { filterSummary } from '#lib/browse/filterSummary.ts';
+  import { idName } from '#lib/browse/idOptions.ts';
   import { browseControls, type FilterKey } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
 
@@ -33,6 +35,7 @@
   <Disclosure
     open={openSections.has(section.id)}
     title={section.title}
+    summary={filterSummary(filters, section, idName, supports)}
     modified={sectionModified(filters, section)}
     onReset={() => browseControls.applyFilters(withoutSection(filters, section))}
     onOpenChange={(open) => browseView.setFilterSection(section.id, open)}

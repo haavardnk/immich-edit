@@ -3,6 +3,7 @@ import { browseControls, type BrowseFilters } from '#lib/stores/browseControls.s
 import { labelOf } from '#lib/stores/labels.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { BrowseFilter } from '#lib/types/search.ts';
+import { foldText } from '#lib/utils/textMatch.ts';
 import { EXIF_FILTERS } from './exifFilters';
 import { ratingHides } from './rating';
 import { isRejected } from './reject';
@@ -28,8 +29,6 @@ export const LOADED_FILTERS: (keyof BrowseFilters)[] = [
   'city'
 ];
 
-const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-
 function within(value: number | null | undefined, min?: number, max?: number): boolean {
   if (min === undefined && max === undefined) return true;
   if (value == null) return false;
@@ -39,7 +38,7 @@ function within(value: number | null | undefined, min?: number, max?: number): b
 export function keepsLoaded(filter: BrowseFilter, asset: AssetSummary): boolean {
   if (filter.favorite && !asset.isFavorite) return false;
   const name = filter.filename?.trim();
-  if (name && !fold(asset.originalFileName).includes(fold(name))) return false;
+  if (name && !foldText(asset.originalFileName).includes(foldText(name))) return false;
   const after = filter.takenAfter ? Date.parse(filter.takenAfter) : undefined;
   const before = filter.takenBefore ? Date.parse(filter.takenBefore) : undefined;
   if (!within(timeOf(asset.fileCreatedAt), after, before)) return false;

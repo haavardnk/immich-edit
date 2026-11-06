@@ -194,6 +194,29 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
     ).toHaveText(['Make: FUJIFILM']);
   });
+
+  test('a multi-select picker keeps its search after a pick', async ({ page }) => {
+    await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
+    await page.goto('/photos');
+    await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
+
+    await openFilters(page, 'Camera');
+    const make = page.getByRole('button', { name: 'Make', exact: true });
+    await make.tap();
+    const sheet = page.getByRole('dialog', { name: 'Make' });
+    const search = sheet.getByRole('combobox', { name: 'Make' });
+    await search.fill('son');
+    await sheet.getByRole('option', { name: 'SONY' }).tap();
+
+    await expect(search).toHaveValue('son');
+    await expect(sheet.getByRole('option')).toHaveText(['SONY']);
+    await sheet.getByRole('button', { name: 'close', exact: true }).tap();
+    await expect(sheet).toBeHidden();
+
+    await make.tap();
+    await expect(search).toHaveValue('');
+    await expect(sheet.getByRole('option')).toHaveText(['SONY', 'FUJIFILM']);
+  });
 });
 
 test.describe('touch sheets on WebKit', { tag: '@touch-smoke' }, () => {

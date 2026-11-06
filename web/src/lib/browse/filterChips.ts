@@ -1,12 +1,15 @@
 import {
   FILTER_DEFAULTS,
+  isDefaultFilter,
   type BrowseFilters,
-  type FilterKey
+  type FilterKey,
+  type LabelFilter,
+  type RejectedFilter
 } from '#lib/stores/browseControls.svelte.ts';
 import { LABEL_NAMES, type LabelColor } from '#lib/stores/labels.ts';
 import { ratingOp, ratingStars } from '#lib/browse/rating.ts';
-import { EXIF_FILTERS, EXIF_LABELS, exifSummary } from '#lib/browse/exifFilters.ts';
-import { ID_FILTERS, idChipLabel, type IdFilterKey } from '#lib/browse/idFilters.ts';
+import { EXIF_LABELS, exifSummary, type ExifFilterKey } from '#lib/browse/exifFilters.ts';
+import { ID_EXCLUSIONS, idChipLabel, idSummary, type IdFilterKey } from '#lib/browse/idFilters.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 export interface FilterChip {
@@ -15,13 +18,25 @@ export interface FilterChip {
   color?: LabelColor;
 }
 
+export type FilterNameOf = (key: IdFilterKey, id: string) => string;
+
+type ChipValue = Omit<FilterChip, 'key'> & { value?: string };
+type ChipBuilder = (filters: BrowseFilters, nameOf: FilterNameOf) => ChipValue;
+
 const VISIBILITY_LABELS: Record<BrowseFilters['visibility'], string> = {
   timeline: 'Timeline',
   archive: 'Archived',
   hidden: 'Hidden'
 };
 
+const REJECTED_LABELS: Record<RejectedFilter, string> = {
+  any: 'Rejected shown',
+  hide: 'No rejected',
+  only: 'Rejected only'
+};
+
 function ratingLabel(rating: BrowseFilters['rating']): string {
+  if (rating === 'any') return 'Any rating';
   if (rating === 'unrated') return 'Unrated';
   const stars = ratingStars(rating);
   const name = countOf(stars, 'star');
@@ -31,50 +46,87 @@ function ratingLabel(rating: BrowseFilters['rating']): string {
   return name;
 }
 
-export function activeFilterChips(
+function labelChip(label: LabelFilter): ChipValue {
+  if (label === 'any') return { label: 'Any label' };
+  if (label === 'none') return { label: 'No label' };
+  return { label: `${LABEL_NAMES[label]} label`, color: label };
+}
+
+function idChip(key: IdFilterKey): ChipBuilder {
+  return (filters, nameOf) => {
+    const name = (id: string): string => nameOf(key, id);
+    const { ids, match } = filters[key];
+    return {
+      label: idChipLabel(key, filters[key], name),
+      ...(match === 'all' ? { value: idSummary(ids, name) } : {})
+    };
+  };
+}
+
+function exifChip(key: ExifFilterKey): ChipBuilder {
+  return (filters) => {
+    const value = exifSummary(filters[key]);
+    return { label: `${EXIF_LABELS[key]}: ${value}`, value };
+  };
+}
+
+const CHIPS: Record<FilterKey, ChipBuilder> = {
+  visibility: (filters) => ({ label: VISIBILITY_LABELS[filters.visibility] }),
+  rating: (filters) => ({ label: ratingLabel(filters.rating) }),
+  favoriteOnly: () => ({ label: 'Favorites' }),
+  notInAlbum: () => ({ label: ID_EXCLUSIONS.albums.label }),
+  untagged: () => ({ label: ID_EXCLUSIONS.tags.label }),
+  noPeople: () => ({ label: ID_EXCLUSIONS.people.label }),
+  albums: idChip('albums'),
+  people: idChip('people'),
+  tags: idChip('tags'),
+  rejected: (filters) => ({ label: REJECTED_LABELS[filters.rejected] }),
+  label: (filters) => labelChip(filters.label),
+  filename: (filters) => ({ label: `Name: ${filters.filename}` }),
+  minSize: (filters) => ({ label: `≥ ${filters.minSize} MB` }),
+  maxSize: (filters) => ({ label: `≤ ${filters.maxSize} MB` }),
+  takenAfter: (filters) => ({ label: `After ${filters.takenAfter}` }),
+  takenBefore: (filters) => ({ label: `Before ${filters.takenBefore}` }),
+  addedAfter: (filters) => ({ label: `Added after ${filters.addedAfter}` }),
+  addedBefore: (filters) => ({ label: `Added before ${filters.addedBefore}` }),
+  make: exifChip('make'),
+  model: exifChip('model'),
+  lensModel: exifChip('lensModel'),
+  country: exifChip('country'),
+  state: exifChip('state'),
+  city: exifChip('city')
+};
+
+const CHIP_ORDER = Object.keys(CHIPS) as FilterKey[];
+
+export function filterValueLabel(
   filters: BrowseFilters,
-  nameOf: (key: IdFilterKey, id: string) => string
-): FilterChip[] {
-  const chips: FilterChip[] = [];
-  if (filters.visibility !== FILTER_DEFAULTS.visibility)
-    chips.push({ key: 'visibility', label: VISIBILITY_LABELS[filters.visibility] });
-  if (filters.rating !== FILTER_DEFAULTS.rating)
-    chips.push({ key: 'rating', label: ratingLabel(filters.rating) });
-  if (filters.favoriteOnly) chips.push({ key: 'favoriteOnly', label: 'Favorites' });
-  if (filters.notInAlbum) chips.push({ key: 'notInAlbum', label: 'Not in any album' });
-  if (filters.untagged) chips.push({ key: 'untagged', label: 'Untagged' });
-  if (filters.noPeople) chips.push({ key: 'noPeople', label: 'No people' });
-  for (const key of ID_FILTERS) {
-    if (filters[key].ids.length > 0)
-      chips.push({ key, label: idChipLabel(key, filters[key], (id) => nameOf(key, id)) });
-  }
-  if (filters.rejected !== 'any')
-    chips.push({
-      key: 'rejected',
-      label: filters.rejected === 'hide' ? 'No rejected' : 'Rejected only'
-    });
-  if (filters.label === 'none') chips.push({ key: 'label', label: 'No label' });
-  else if (filters.label !== 'any')
-    chips.push({
-      key: 'label',
-      label: `${LABEL_NAMES[filters.label]} label`,
-      color: filters.label
-    });
-  if (filters.filename) chips.push({ key: 'filename', label: `Name: ${filters.filename}` });
-  if (filters.minSize !== null) chips.push({ key: 'minSize', label: `≥ ${filters.minSize} MB` });
-  if (filters.maxSize !== null) chips.push({ key: 'maxSize', label: `≤ ${filters.maxSize} MB` });
-  if (filters.takenAfter) chips.push({ key: 'takenAfter', label: `After ${filters.takenAfter}` });
-  if (filters.takenBefore)
-    chips.push({ key: 'takenBefore', label: `Before ${filters.takenBefore}` });
-  if (filters.addedAfter)
-    chips.push({ key: 'addedAfter', label: `Added after ${filters.addedAfter}` });
-  if (filters.addedBefore)
-    chips.push({ key: 'addedBefore', label: `Added before ${filters.addedBefore}` });
-  for (const key of EXIF_FILTERS) {
-    if (filters[key].length > 0)
-      chips.push({ key, label: `${EXIF_LABELS[key]}: ${exifSummary(filters[key])}` });
-  }
-  return chips;
+  key: FilterKey,
+  nameOf: FilterNameOf
+): string {
+  return CHIPS[key](filters, nameOf).label;
+}
+
+export function filterChip(
+  filters: BrowseFilters,
+  key: FilterKey,
+  nameOf: FilterNameOf
+): FilterChip | undefined {
+  if (isDefaultFilter(filters, key)) return undefined;
+  const { label, color } = CHIPS[key](filters, nameOf);
+  return color ? { key, label, color } : { key, label };
+}
+
+export function activeFilterChips(filters: BrowseFilters, nameOf: FilterNameOf): FilterChip[] {
+  return CHIP_ORDER.flatMap((key) => filterChip(filters, key, nameOf) ?? []);
+}
+
+export function activeFilterValues(filters: BrowseFilters, nameOf: FilterNameOf): string[] {
+  return CHIP_ORDER.flatMap((key) => {
+    if (isDefaultFilter(filters, key)) return [];
+    const { label, value } = CHIPS[key](filters, nameOf);
+    return [value ?? label];
+  });
 }
 
 export function withoutFilter(filters: BrowseFilters, key: FilterKey): BrowseFilters {
