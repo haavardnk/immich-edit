@@ -21,7 +21,7 @@ export class GridSelectAll {
     try {
       const loadAll = this.#src.loadAll();
       if (loadAll && !(await loadAll())) return false;
-      selection.selectLoaded(this.#src.items().map((asset) => asset.id));
+      selection.replace(this.#src.items().map((asset) => asset.id));
       return true;
     } finally {
       this.busy = false;

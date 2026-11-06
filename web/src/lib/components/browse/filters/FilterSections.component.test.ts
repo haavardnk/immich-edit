@@ -1,6 +1,13 @@
 import { FILTER_SECTIONS } from '#lib/browse/filterSections.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { layout, layoutControls, type ControlRef } from '#lib/testing/layoutParity.ts';
+import {
+  controls,
+  layout,
+  layoutControls,
+  renderLayout,
+  settle,
+  type ControlRef
+} from '#lib/testing/layoutParity.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FilterPanel from './FilterPanel.svelte';
 import FilterSections from './FilterSections.svelte';
@@ -44,15 +51,20 @@ describe('FilterSections layout parity', () => {
         layout(
           'panel',
           FilterPanel,
-          { favoriteLocked: locked },
+          { favoriteLocked: locked, sortBasis: 'capture' },
           { exclude: [button('Reset all filters'), button('Close filter panel')] }
         ),
         layout(
           'sheet',
           FilterSheet,
-          { favoriteLocked: locked, count: 3 },
+          { favoriteLocked: locked, count: 3, sortBasis: 'capture' },
           {
-            exclude: [button('Reset all filters'), button('Close filters'), button('Show 3 photos')]
+            exclude: [
+              button('Reset all filters'),
+              button('Close view & filters'),
+              button('Show 3 photos'),
+              button('View')
+            ]
           }
         )
       ]);
@@ -64,3 +76,31 @@ describe('FilterSections layout parity', () => {
     }
   );
 });
+
+describe('FilterSheet view section', () => {
+  it('leads with View, summarised while collapsed and holding the view options when open', async () => {
+    const destroy = renderLayout(layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture' }));
+    try {
+      await settle();
+      const triggers = [...document.querySelectorAll('[role="dialog"] [aria-expanded]')];
+      const view = triggers.find((element) => element.getAttribute('aria-label') === 'View');
+      expect(view).toBe(triggers[0]);
+      const summary = document.getElementById(view?.getAttribute('aria-describedby') ?? '');
+      expect(summary?.textContent.trim()).toMatch(/^Date taken, newest · (S|M|L|XL) · Badges$/);
+      expect(names()).not.toContain('XL');
+
+      browseView.setFilterSection('view', true);
+      await settle();
+      expect(view?.getAttribute('aria-describedby')).toBeNull();
+      expect(names()).toEqual(
+        expect.arrayContaining(['Date taken', 'Newest first', 'XL', 'Name and date'])
+      );
+    } finally {
+      await destroy();
+    }
+  });
+});
+
+function names(): string[] {
+  return controls(document.body).map((control) => control.name);
+}

@@ -14,7 +14,7 @@ async function tileAt(page: Page, x: number, y: number): Promise<string> {
     page.evaluate(
       ([px, py]) => {
         const tile = document.elementFromPoint(px, py)?.closest('[role="group"]');
-        return tile instanceof HTMLElement ? tile.title : '';
+        return tile instanceof HTMLElement ? (tile.getAttribute('data-name') ?? '') : '';
       },
       [x, y] as const
     );
@@ -23,7 +23,7 @@ async function tileAt(page: Page, x: number, y: number): Promise<string> {
 }
 
 async function tileBox(page: Page, name: string): Promise<{ top: number; height: number }> {
-  const box = await page.locator(`[role="group"][title="${name}"]`).boundingBox();
+  const box = await page.locator(`[data-name="${name}"]`).boundingBox();
   return { top: box?.y ?? Number.NaN, height: box?.height ?? Number.NaN };
 }
 
@@ -168,7 +168,7 @@ test.describe('grid sizing on desktop', () => {
     const marks = page.locator('[role="group"]').getByRole('img', { name: 'Edited', exact: true });
     await expect(marks).toHaveCount(2);
     await expect(
-      page.locator('[role="group"][title="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' })
+      page.locator('[data-name="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' })
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Thumbnail info: badges' }).click();
@@ -212,10 +212,13 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
 
   test('defaults to the phone row height and remembers a chosen size', async ({ page }) => {
     await open(page, '/photos', { assets: ASSETS });
-    await page.locator('header[data-app-bar]').getByRole('button', { name: 'View options' }).tap();
-    const sizes = page
-      .getByRole('dialog', { name: 'View options' })
-      .getByRole('radiogroup', { name: 'Thumbnail size' });
+    await page
+      .locator('header[data-app-bar]')
+      .getByRole('button', { name: 'View & filters', exact: true })
+      .tap();
+    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    await sheet.getByRole('button', { name: 'View', exact: true }).tap();
+    const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
     await expect(sizes.getByRole('radio', { name: 'L', exact: true })).toBeChecked();
 
     await sizes.getByRole('radio', { name: 'S', exact: true }).tap();

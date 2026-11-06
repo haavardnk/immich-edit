@@ -47,7 +47,8 @@ beforeEach(() => {
     move: () => {},
     reveal: () => {},
     scrollTo,
-    focusBulkBar: () => {},
+    dragging: () => false,
+    cancelDrag: () => {},
     holdAnchor: () => () => {}
   });
 });

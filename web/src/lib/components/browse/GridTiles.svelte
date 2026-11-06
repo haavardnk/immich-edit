@@ -13,12 +13,14 @@
     items,
     tiles,
     pad,
-    selectingAll
+    selectingAll,
+    dragPreview = null
   }: {
     items: readonly AssetSummary[];
     tiles: readonly { asset: AssetSummary; box: AssetGridBox }[];
     pad: number;
     selectingAll: boolean;
+    dragPreview?: ReadonlySet<string> | null;
   } = $props();
 
   let extendKey = $state(false);
@@ -27,7 +29,9 @@
   const extending = $derived(extendKey || latched('extend'));
 
   const rangePreview = $derived.by(() => {
-    if (selectingAll || !extending || !hoveredId) return null;
+    if (selectingAll) return null;
+    if (dragPreview) return dragPreview;
+    if (!extending || !hoveredId) return null;
     return selection.rangeTarget(
       items.map((asset) => asset.id),
       hoveredId
@@ -59,7 +63,8 @@
       info={browseView.tileInfo}
       selected={selectingAll || selection.has(item.asset.id)}
       rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
-      selectionActive={selection.active || selectingAll}
+      selectionActive={selection.selecting || selectingAll}
+      selectMode={selection.mode}
       onToggle={() => {
         if (selectingAll) return;
         selection.toggle(item.asset.id);

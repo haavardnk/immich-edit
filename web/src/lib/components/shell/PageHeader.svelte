@@ -7,19 +7,31 @@
     title,
     count,
     actions,
+    touchActions,
     compactActions,
-    bar
+    bar,
+    selecting
   }: {
     title: string;
     count?: string;
     actions?: Snippet;
+    touchActions?: Snippet;
     compactActions?: Snippet;
     bar?: Snippet;
+    selecting?: Snippet;
   } = $props();
+
+  const headerActions = $derived(layout.mode === 'touch' ? (touchActions ?? actions) : actions);
+  const appBarActions = $derived(compactActions ?? touchActions);
 </script>
 
-{#if layout.compact}
-  <TouchAppBar {title} {count} actions={compactActions} {bar} />
+{#if selecting && layout.mode === 'touch'}
+  <header class="flex h-13 shrink-0 items-center gap-1 bg-light px-1.5" data-app-bar>
+    <h1 class="sr-only">{title}</h1>
+    {@render selecting()}
+  </header>
+{:else if layout.compact}
+  <TouchAppBar {title} {count} actions={appBarActions} {bar} />
 {:else}
   <header
     class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5"
@@ -31,9 +43,9 @@
         <p class="shrink-0 text-[10px] text-dark/65">{count}</p>
       {/if}
     </div>
-    {#if actions}
+    {#if headerActions}
       <div class="flex shrink-0 items-center gap-1.5">
-        {@render actions()}
+        {@render headerActions()}
       </div>
     {/if}
   </header>

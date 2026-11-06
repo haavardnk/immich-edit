@@ -28,3 +28,9 @@ describe('multiMembers', () => {
     expect(multiMembers('survey', IDS, new Set(), 'k')).toEqual(['k']);
   });
 });
+
+describe('multiMembers with a pane cap', () => {
+  it('surveys only the first picks that fit', () => {
+    expect(multiMembers('survey', IDS, new Set(IDS), null, 4)).toEqual(IDS.slice(0, 4));
+  });
+});

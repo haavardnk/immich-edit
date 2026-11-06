@@ -10,7 +10,7 @@ import { multiMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
 import { nextRatingFromKey } from '#lib/browse/ratingShortcuts.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { compare } from '#lib/stores/compare.svelte.ts';
+import { compare, MAX_PANES } from '#lib/stores/compare.svelte.ts';
 import { labelOf, nextLabelFromKey, type LabelColor } from '#lib/stores/labels.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -92,18 +92,23 @@ export function rateAndAdvance(
   const following = items[items.findIndex((asset) => asset.id === only) + 1];
   void setRating(browseTarget(only), rating).then((outcome) => {
     if (outcome === 'skipped' || !following) return;
-    selection.selectLoaded([following.id]);
+    selection.replace([following.id]);
     browseView.setActive(following.id);
     reveal(following.id);
   });
 }
 
-export function openMulti(mode: MultiMode, items: readonly AssetSummary[]): void {
+export function openMulti(
+  mode: MultiMode,
+  items: readonly AssetSummary[],
+  panes: number = MAX_PANES
+): void {
   const members = multiMembers(
     mode,
     items.map((asset) => asset.id),
     selection.selected,
-    gridCurrent(items)
+    gridCurrent(items),
+    panes
   );
   const first = members[0];
   if (members.length < 2 || !first) {

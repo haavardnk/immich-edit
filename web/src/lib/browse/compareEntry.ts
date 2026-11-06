@@ -7,11 +7,12 @@ const SURVEY_FALLBACK = 6;
 export function multiMembers(
   mode: MultiMode,
   orderedIds: string[],
-  selected: Set<string>,
-  currentId: string | null
+  selected: ReadonlySet<string>,
+  currentId: string | null,
+  panes: number = MAX_PANES
 ): string[] {
   const picked = orderedIds.filter((id) => selected.has(id));
-  if (picked.length >= 2) return picked.slice(0, mode === 'compare' ? 2 : MAX_PANES);
+  if (picked.length >= 2) return picked.slice(0, mode === 'compare' ? 2 : panes);
   return neighbourMembers(mode, orderedIds, currentId);
 }
 

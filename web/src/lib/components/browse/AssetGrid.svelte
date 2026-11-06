@@ -3,25 +3,30 @@
   import { observeSize } from '#lib/actions/observeSize.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import GridDayHeaders from '#lib/components/browse/GridDayHeaders.svelte';
+  import MarqueeBox from '#lib/components/browse/MarqueeBox.svelte';
   import GridSizeHud from '#lib/components/browse/GridSizeHud.svelte';
   import GridTiles from '#lib/components/browse/GridTiles.svelte';
-  import BulkActionBar from '#lib/components/browse/bulk/BulkActionBar.svelte';
+  import RangeBubble from '#lib/components/browse/RangeBubble.svelte';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { hides } from '#lib/browse/loadedFilter.ts';
-  import { openMulti } from '#lib/browse/gridActions.ts';
   import { gridHost } from '#lib/commands/grid/gridHost.ts';
   import { visibleAssetRange, type AssetGridBox } from '#lib/browse/assetGridLayout.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { createDayGridLayout } from '#lib/browse/dayLayout.ts';
   import { groupDays } from '#lib/browse/dayGroups.ts';
+  import { GridMarquee } from '#lib/browse/gridMarquee.svelte.ts';
   import { GridScroll } from '#lib/browse/gridScroll.svelte.ts';
   import { GridSelectAll } from '#lib/browse/gridSelectAll.svelte.ts';
   import { gridMover } from '#lib/browse/gridMove.ts';
   import { gridPinch, watchGridZoom } from '#lib/browse/gridPinch.ts';
+  import { TouchRange } from '#lib/browse/touchRange.svelte.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
 
   let {
     assets,
+    total,
     loadingMore = false,
     loadingPrevious = false,
     dayHeaders = false,
@@ -30,6 +35,7 @@
     onLoadAll
   }: {
     assets: AssetSummary[];
+    total?: number;
     loadingMore?: boolean;
     loadingPrevious?: boolean;
     dayHeaders?: boolean;
@@ -43,7 +49,6 @@
   const OVERSCAN = 2;
 
   let root: HTMLDivElement | undefined = $state();
-  let bulkBar: BulkActionBar | undefined = $state();
 
   const items = $derived(assets.filter((a) => !hides(browseControls.filters, a)));
 
@@ -94,7 +99,34 @@
     reveal: scroll.ensureVisible
   });
 
-  const pinchZoom = gridPinch(() => browseView.loupeId === null && !selectAll.busy);
+  const idle = (): boolean => browseView.loupeId === null && !selectAll.busy;
+
+  const marquee = new GridMarquee({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    enabled: idle
+  });
+
+  const range = new TouchRange({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    root: () => root ?? null,
+    scroller: () => scroll.parent
+  });
+
+  const rangeBox = $derived.by(() => {
+    const target = range.target;
+    if (!target || range.added <= 0) return null;
+    return layout.boxes[items.findIndex((asset) => asset.id === target)] ?? null;
+  });
+
+  const touchGestures = gestures({
+    touchAction: 'pan-y',
+    pointerTypes: ['touch'],
+    recognizers: [gridPinch(idle), range.recognizer(idle)]
+  });
 
   onMount(() =>
     gridHost.attach({
@@ -104,8 +136,23 @@
       move,
       reveal: scroll.ensureVisible,
       scrollTo: scroll.scrollToAsset,
-      focusBulkBar: () => bulkBar?.focusFirst(),
-      holdAnchor: scroll.holdAnchor
+      holdAnchor: scroll.holdAnchor,
+      dragging: () => marquee.dragging || range.dragging,
+      cancelDrag: () => {
+        marquee.cancel();
+        range.cancel();
+      }
+    })
+  );
+
+  onMount(() =>
+    bulkScope.attach({
+      items: () => items,
+      selectingAll: () => selectAll.busy,
+      selectAll: selectAll.run,
+      partial: () => onLoadMore !== undefined || onLoadPrevious !== undefined,
+      loadingMore: () => loadingMore,
+      total: () => total
     })
   );
 
@@ -114,8 +161,12 @@
     const detach = scroll.attach(root);
     const scroller = scroll.parent;
     const stopZoom = scroller ? watchGridZoom(scroller) : undefined;
+    const stopMarquee = scroller ? marquee.attach(root, scroller) : undefined;
     return () => {
+      stopMarquee?.();
       stopZoom?.();
+      range.cancel();
+      selection.exitMode();
       detach();
     };
   });
@@ -134,8 +185,9 @@
 <div
   bind:this={root}
   use:observeSize={scroll.onResize}
-  {@attach pinchZoom}
-  class="relative"
+  {@attach touchGestures}
+  {@attach range.guard}
+  class="relative select-none"
   style:height="{layout.totalHeight}px"
 >
   {#if days}
@@ -149,21 +201,13 @@
       locked={selectAll.busy}
     />
   {/if}
-  <GridTiles {items} {tiles} pad={PAD} selectingAll={selectAll.busy} />
+  <GridTiles {items} {tiles} pad={PAD} selectingAll={selectAll.busy} dragPreview={range.preview} />
+  <MarqueeBox {marquee} />
+  {#if rangeBox}
+    <RangeBubble box={rangeBox} pad={PAD} added={range.added} />
+  {/if}
 </div>
 {#if loadingMore}
   <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
 {/if}
 <GridSizeHud />
-
-<BulkActionBar
-  bind:this={bulkBar}
-  assets={items}
-  selectedIds={[...selection.selected]}
-  onClear={selection.clear}
-  onMulti={(mode) => openMulti(mode, items)}
-  onSelectAll={selectAll.run}
-  hasMore={onLoadMore !== undefined || onLoadPrevious !== undefined}
-  {loadingMore}
-  selectingAll={selectAll.busy}
-/>

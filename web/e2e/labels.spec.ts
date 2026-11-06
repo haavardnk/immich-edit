@@ -26,7 +26,7 @@ async function openGrid(page: Page, opts: InstallOpts = {}): Promise<TagChange[]
   return changes;
 }
 
-const firstTile = (page: Page) => page.locator('div[title="IMG_0001.ARW"]');
+const firstTile = (page: Page) => page.locator('[data-name="IMG_0001.ARW"]');
 
 test('number keys set, swap and clear a label on the selected photo', async ({ page }) => {
   const changes = await openGrid(page);
@@ -67,7 +67,7 @@ test('the label filter asks the server for one color', async ({ page }) => {
   await expect(chips.locator('svg.text-green-500')).toHaveCount(1);
   await expect.poll(() => filters.at(-1)?.label).toBe('green');
   await expect(page.getByText('1 photo', { exact: true })).toBeVisible();
-  await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveCount(0);
+  await expect(page.locator('[data-name="IMG_0002.ARW"]')).toHaveCount(0);
 });
 
 test('the loupe picker sets purple, which has no key', async ({ page }) => {
@@ -84,7 +84,7 @@ test('the loupe picker sets purple, which has no key', async ({ page }) => {
 test('the bulk bar labels every selected photo', async ({ page }) => {
   const changes = await openGrid(page);
   for (const name of ['IMG_0001.ARW', 'IMG_0002.ARW']) {
-    await page.locator(`div[title="${name}"]`).getByRole('button', { name: 'Select' }).click();
+    await page.locator(`[data-name="${name}"]`).getByRole('button', { name: 'Select' }).click();
   }
 
   const toolbar = page.getByRole('toolbar', { name: 'Selection actions' });

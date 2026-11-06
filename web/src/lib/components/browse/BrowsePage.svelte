@@ -1,6 +1,7 @@
 <script lang="ts">
   import AssetGrid from '#lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '#lib/components/browse/BrowseHeader.svelte';
+  import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
   import FilterPanel from '#lib/components/browse/filters/FilterPanel.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import DateScrubber from '#lib/components/browse/scrubber/DateScrubber.svelte';
@@ -148,6 +149,7 @@
               <AssetGrid
                 {assets}
                 {dayHeaders}
+                total={headerTotal}
                 loadingMore={feed?.loadingMore}
                 loadingPrevious={feed?.loadingPrevious}
                 onLoadMore={feed?.hasMore ? () => void feed.loadMore() : undefined}
@@ -155,13 +157,15 @@
                 onLoadAll={feed ? () => feed.loadAll() : undefined}
               />
             </div>
+            <BulkBar placement="float" />
           </div>
           {#if timeline}
             <DateScrubber feed={timeline} {scroller} />
           {/if}
         </div>
+        <BulkBar placement="dock" />
       {/if}
     {/if}
   </div>
-  <FilterPanel {favoriteLocked} count={headerTotal} />
+  <FilterPanel {favoriteLocked} count={headerTotal} {sortBasis} />
 </div>
