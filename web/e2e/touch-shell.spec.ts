@@ -83,6 +83,17 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(sheet).toBeVisible();
     const view = sheet.getByRole('button', { name: 'View', exact: true });
     await expect(view).toHaveAccessibleDescription('Date taken, newest · L · Badges');
+    await expect(
+      sheet.getByRole('button', { name: 'Camera', exact: true })
+    ).toHaveAccessibleDescription('Make: SONY');
+    await expect(
+      sheet.getByRole('button', { name: 'Place', exact: true })
+    ).toHaveAccessibleDescription('Any place');
+    const reset = sheet.getByRole('button', { name: 'Reset Camera panel' });
+    await expect(reset.locator('svg')).toBeVisible();
+    await expect(reset.locator('span')).toBeHidden();
+    await expect(reset).not.toHaveAttribute('title');
+    await expectTargets(reset, 44);
     await view.tap();
     await expect(sheet.getByRole('radiogroup', { name: 'Sort by' })).toBeVisible();
     await sheet

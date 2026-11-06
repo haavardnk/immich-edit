@@ -129,7 +129,18 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   await panel.getByRole('radio', { name: '3 stars' }).click();
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
   await expect(chips).toHaveText(['≥ 3 stars', 'Name: DSC']);
+  await expect(
+    panel.getByRole('button', { name: 'Rating & label', exact: true })
+  ).toHaveAccessibleDescription('≥ 3 stars');
+  await expect(
+    panel.getByRole('button', { name: 'Library', exact: true })
+  ).toHaveAccessibleDescription('Timeline · rejected shown');
   const reset = panel.getByRole('button', { name: 'Reset Rating & label panel' });
+  await expect(reset).not.toHaveAttribute('title');
+  await reset.hover();
+  await expect(
+    page.locator('.tooltip-content', { hasText: 'Reset Rating & label panel' })
+  ).toBeVisible();
   await reset.click();
   await expect(chips).toHaveText(['Name: DSC']);
   await expect(reset).toHaveCount(0);

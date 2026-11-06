@@ -78,7 +78,7 @@ describe('FilterSections layout parity', () => {
 });
 
 describe('FilterSheet view section', () => {
-  it('leads with View, summarised while collapsed and holding the view options when open', async () => {
+  it('leads with View, summarised while collapsed and open, holding the view options when open', async () => {
     const destroy = renderLayout(layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture' }));
     try {
       await settle();
@@ -91,7 +91,7 @@ describe('FilterSheet view section', () => {
 
       browseView.setFilterSection('view', true);
       await settle();
-      expect(view?.getAttribute('aria-describedby')).toBeNull();
+      expect(view?.getAttribute('aria-describedby')).toBe(summary?.id);
       expect(names()).toEqual(
         expect.arrayContaining(['Date taken', 'Newest first', 'XL', 'Name and date'])
       );

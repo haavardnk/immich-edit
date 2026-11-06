@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { activeFilterChips, photoCountLabel, showPhotosLabel, withoutFilter } from './filterChips';
+import {
+  activeFilterChips,
+  filterValueLabel,
+  photoCountLabel,
+  showPhotosLabel,
+  withoutFilter
+} from './filterChips';
 import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 
 const NAMES: Record<string, string> = { a1: 'Summer', p1: 'Ann', p2: 'Bo', t1: 'Trips/Rome' };
@@ -94,6 +100,15 @@ describe('browse filter chips', () => {
     ['all', ['gone'], 'People: Unknown person']
   ] as const)('labels people matching %s %j as %s', (match, ids, label) => {
     expect(chipsOf({ ...FILTER_DEFAULTS, people: { ids: [...ids], match } })[0]?.label).toBe(label);
+  });
+
+  it.each([
+    ['visibility', 'Timeline'],
+    ['rejected', 'Rejected shown'],
+    ['rating', 'Any rating'],
+    ['label', 'Any label']
+  ] as const)('labels the default %s as %s', (key, label) => {
+    expect(filterValueLabel(FILTER_DEFAULTS, key, () => '')).toBe(label);
   });
 
   it('removes one filter and keeps the rest', () => {
