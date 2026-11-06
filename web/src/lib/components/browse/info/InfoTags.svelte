@@ -28,8 +28,8 @@
       anchor="bottom"
       align="end"
       addLabel="Add"
-      rootClass="flex min-w-0 flex-wrap items-center gap-1.5"
-      pillsClass="flex min-w-0 flex-wrap items-center gap-1"
+      subtitle={asset.originalFileName}
+      wrap
     />
   </DisabledReason>
 </InfoSection>
