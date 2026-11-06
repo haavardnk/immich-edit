@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FILTER_SECTIONS, sectionModified, withoutSection } from './filterSections';
+import {
+  FILTER_SECTIONS,
+  isFilterSectionId,
+  isPanelSectionId,
+  sectionModified,
+  withoutSection
+} from './filterSections';
 import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 
 const section = (id: string) => {
@@ -45,5 +51,12 @@ describe('filter panel sections', () => {
       favoriteOnly: true,
       country: ['Norway']
     });
+  });
+
+  it('knows the view section beside the filter sections', () => {
+    expect(isPanelSectionId('view')).toBe(true);
+    expect(isPanelSectionId('camera')).toBe(true);
+    expect(isPanelSectionId('lens')).toBe(false);
+    expect(isFilterSectionId('view')).toBe(false);
   });
 });

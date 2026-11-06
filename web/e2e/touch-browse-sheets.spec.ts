@@ -78,11 +78,11 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     const count = page.locator('header[data-app-bar]').getByText(/^\d+ photos?$/);
     await expect(count).toHaveText('3 photos');
 
-    const toggle = page.getByRole('button', { name: /^Filters/ });
+    const toggle = page.getByRole('button', { name: /^View & filters/ });
     await toggle.tap();
-    await expectLargeDetent(page, 'Filters');
-    const sheet = page.getByRole('dialog', { name: 'Filters' });
-    await expect(page.getByRole('complementary', { name: 'Filters' })).toHaveCount(0);
+    await expectLargeDetent(page, 'View & filters');
+    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    await expect(page.getByRole('complementary', { name: /filters/i })).toHaveCount(0);
     await expect(sheet.getByRole('button', { name: 'Show 3 photos' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Reset all filters' })).toBeDisabled();
 
@@ -101,19 +101,19 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(none).toBeEnabled();
     await none.tap();
     await expect(sheet).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Filters (1 active)' })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'View & filters (1 active)' })).toBeFocused();
 
-    await page.getByRole('button', { name: 'Filters (1 active)' }).tap();
+    await page.getByRole('button', { name: 'View & filters (1 active)' }).tap();
     await expect(
       page
-        .getByRole('dialog', { name: 'Filters' })
+        .getByRole('dialog', { name: 'View & filters' })
         .getByRole('button', { name: 'Rating & label', exact: true })
     ).toHaveAttribute('aria-expanded', 'true');
     await page
-      .getByRole('dialog', { name: 'Filters' })
-      .getByRole('button', { name: 'Close filters' })
+      .getByRole('dialog', { name: 'View & filters' })
+      .getByRole('button', { name: 'Close view & filters' })
       .tap();
-    await expect(page.getByRole('dialog', { name: 'Filters' })).toBeHidden();
+    await expect(page.getByRole('dialog', { name: 'View & filters' })).toBeHidden();
   });
 
   test('the jobs pill opens a sheet with running jobs first', async ({ page }) => {

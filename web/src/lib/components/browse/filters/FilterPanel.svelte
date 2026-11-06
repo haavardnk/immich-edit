@@ -1,6 +1,8 @@
 <script lang="ts">
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
   import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
+  import ViewSection from '#lib/components/browse/filters/ViewSection.svelte';
+  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { filterPanelHost } from '#lib/commands/grid/filterPanelHost.ts';
@@ -10,9 +12,16 @@
   import { mdiClose, mdiRestore } from '@mdi/js';
   import { onMount, tick } from 'svelte';
 
-  let { favoriteLocked = false, count }: { favoriteLocked?: boolean; count?: number } = $props();
+  let {
+    favoriteLocked = false,
+    count,
+    sortBasis
+  }: { favoriteLocked?: boolean; count?: number; sortBasis: 'capture' | 'edit' | null } = $props();
 
   let panel = $state<HTMLElement | null>(null);
+
+  const touch = $derived(layout.mode === 'touch');
+  const title = $derived(touch ? VIEW_AND_FILTERS : 'Filters');
 
   async function close(): Promise<void> {
     const hadFocus = panel?.contains(document.activeElement) ?? false;
@@ -26,16 +35,16 @@
 </script>
 
 {#if layout.compact}
-  <FilterSheet {favoriteLocked} {count} />
+  <FilterSheet {favoriteLocked} {count} {sortBasis} />
 {:else if browseView.filtersOpen}
   <aside
     bind:this={panel}
     id="browse-filters"
-    aria-label="Filters"
+    aria-label={title}
     class="flex w-80 shrink-0 flex-col border-l border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
   >
     <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3">
-      <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold text-light-950/90">Filters</h2>
+      <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold text-light-950/90">{title}</h2>
       <Button
         size="tiny"
         variant="ghost"
@@ -60,6 +69,9 @@
       />
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+      {#if touch}
+        <ViewSection {sortBasis} />
+      {/if}
       <FilterSections {favoriteLocked} />
     </div>
   </aside>

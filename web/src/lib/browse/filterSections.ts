@@ -38,6 +38,16 @@ export function isFilterSectionId(value: unknown): value is FilterSectionId {
   return FILTER_SECTIONS.some((section) => section.id === value);
 }
 
+export const VIEW_SECTION = { id: 'view', title: 'View' } as const;
+
+export const VIEW_AND_FILTERS = 'View & filters';
+
+export type PanelSectionId = FilterSectionId | typeof VIEW_SECTION.id;
+
+export function isPanelSectionId(value: unknown): value is PanelSectionId {
+  return value === VIEW_SECTION.id || isFilterSectionId(value);
+}
+
 export function sectionModified(filters: BrowseFilters, section: FilterSection): boolean {
   return section.keys.some((key) => !isDefaultFilter(filters, key));
 }

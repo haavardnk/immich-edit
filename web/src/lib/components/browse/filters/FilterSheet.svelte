@@ -1,23 +1,30 @@
 <script lang="ts">
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
+  import ViewSection from '#lib/components/browse/filters/ViewSection.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { showPhotosLabel } from '#lib/browse/filterChips.ts';
+  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { Button } from '@immich/ui';
 
-  let { favoriteLocked = false, count }: { favoriteLocked?: boolean; count?: number } = $props();
+  let {
+    favoriteLocked = false,
+    count,
+    sortBasis
+  }: { favoriteLocked?: boolean; count?: number; sortBasis: 'capture' | 'edit' | null } = $props();
 </script>
 
 {#if browseView.filtersOpen}
   <BottomSheet
     open
     onOpenChange={(open) => browseView.setFiltersOpen(open)}
-    title="Filters"
+    title={VIEW_AND_FILTERS}
     close="icon"
-    closeLabel="Close filters"
+    closeLabel="Close {VIEW_AND_FILTERS.toLowerCase()}"
     detents={[{ fraction: 1 }]}
   >
+    <ViewSection {sortBasis} />
     <FilterSections {favoriteLocked} />
     {#snippet footer()}
       <div class="flex w-full gap-2.5">
