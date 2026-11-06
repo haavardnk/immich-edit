@@ -145,6 +145,26 @@ describe('browse view persistence', () => {
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ loupeInfoOpen: false });
   });
 
+  it('keeps one loupe filmstrip choice for compact touch and one for the other layouts', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+    const { ui } = await import('#lib/stores/ui.svelte.ts');
+
+    expect(browseView.loupeFilmstripShown).toBe(true);
+    browseView.setCompact(true);
+    expect(browseView.loupeFilmstripShown).toBe(false);
+
+    browseView.toggleLoupeFilmstrip();
+    expect(browseView.loupeFilmstripShown).toBe(true);
+    expect(ui.loupeFilmstripCollapsed).toBe(false);
+
+    browseView.setCompact(false);
+    browseView.toggleLoupeFilmstrip();
+    expect(browseView.loupeFilmstripShown).toBe(false);
+    browseView.setCompact(true);
+    expect(browseView.loupeFilmstripShown).toBe(true);
+  });
+
   it('cycles the tile info through none, badges and full', async () => {
     stubStorage({ tileInfo: 'full' });
     const { browseView } = await import('./browseView.svelte');

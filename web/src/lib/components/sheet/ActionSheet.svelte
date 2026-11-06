@@ -56,6 +56,10 @@
     if (element) {
       element.dataset.leaving = '';
       await afterTransition(element);
+      if (frame !== element) {
+        closing = false;
+        return;
+      }
     }
     onOpenChange(false);
     await tick();

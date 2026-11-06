@@ -23,11 +23,11 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-async function render(kind: HarnessProps['kind']) {
+async function render(kind: HarnessProps['kind'], closeOnRow = false) {
   const spies = { onClose: vi.fn(), onOpenChange: vi.fn(), onRow: vi.fn() };
   component = mount(Host, {
     target,
-    props: { component: ContainerHarness, props: { kind, ...spies } }
+    props: { component: ContainerHarness, props: { kind, closeOnRow, ...spies } }
   });
   await settle();
   return spies;
@@ -170,6 +170,25 @@ describe('Popover presentation', () => {
     await settle();
     expect(onRow).not.toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('keeps a menu reopened while the previous action sheet was still leaving', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange, onRow } = await render('menu', true);
+    button('Toggle').click();
+    await settle();
+    popoverContent()?.setAttribute('style', 'transition-duration: 300ms');
+    button('Run row').click();
+    await settle();
+    expect(onRow).toHaveBeenCalled();
+    expect(popoverContent()).toBeNull();
+
+    button('Toggle').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    expect(popoverContent()).not.toBeNull();
   });
 
   it('opens a panel as a modal bottom sheet with Done on touch', async () => {

@@ -10,7 +10,13 @@ import {
 } from '#lib/commands/editor/view.ts';
 import { loupeTrash } from '#lib/commands/loupe/culling.ts';
 import { loupeCompare, loupeSingle, loupeSurvey } from '#lib/commands/loupe/navigation.ts';
-import { loupeClipWarn, loupeFullscreen } from '#lib/commands/loupe/view.ts';
+import {
+  loupeAutoAdvance,
+  loupeClipWarn,
+  loupeFilmstrip,
+  loupeFullscreen,
+  loupeZoom
+} from '#lib/commands/loupe/view.ts';
 import type { IconCommand } from '#lib/commands/types.ts';
 
 export type Menu = readonly (readonly IconCommand[])[];
@@ -21,6 +27,20 @@ export const LOUPE_MORE_MENU: Menu = [
   [loupeFullscreen, loupeClipWarn, greyCanvas],
   [loupeTrash],
   [help]
+];
+
+export const LOUPE_PHONE_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  [loupeZoom, loupeFilmstrip, loupeFullscreen, loupeClipWarn, greyCanvas],
+  LOUPE_VIEW_MODE_MENU.flat(),
+  [loupeTrash]
+];
+
+export const LOUPE_WIDE_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  LOUPE_VIEW_MODE_MENU.flat(),
+  [loupeFullscreen, loupeClipWarn, greyCanvas],
+  [loupeTrash]
 ];
 
 export const EDITOR_VERSION_MENU: Menu = [[virtualCopy]];

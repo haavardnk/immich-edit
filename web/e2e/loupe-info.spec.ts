@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
 import type { MockAlbum } from './searchMocks';
+import { openTileLoupe } from './touch';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 const PATH = '/library/2026/10/IMG_0001.ARW';
@@ -47,7 +48,7 @@ async function openLoupe(page: Page, list: MockAlbum[] = albums()): Promise<void
   });
   await page.goto('/search?q=IMG');
   await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
 

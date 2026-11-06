@@ -2,7 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { DEFAULT_THRESHOLDS } from '../src/lib/gestures/thresholds';
 import { numberedAssets } from './helpers';
 import { datedAssets, dayShots } from './timeline';
-import { tapAt, touchDown, touchMoveTo, touchUp, type TouchPoint } from './touch';
+import {
+  longPressUntil,
+  tapCentre,
+  touchDown,
+  touchMoveTo,
+  touchUp,
+  type TouchPoint
+} from './touch';
 import { expectBarDockedUnderGrid, open, tabBar } from './touchShell';
 
 const ASSETS = datedAssets([
@@ -38,10 +45,10 @@ function tile(page: Page, name: string) {
   return page.locator(`[data-name="${name}"]`);
 }
 
-async function corner(page: Page, name: string): Promise<TouchPoint> {
+async function centre(page: Page, name: string): Promise<TouchPoint> {
   const box = await tile(page, name).boundingBox();
   if (!box) throw new Error(`no tile ${name}`);
-  return { x: box.x + 20, y: box.y + 20 };
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 async function holdPastLongPress(page: Page, point: TouchPoint): Promise<void> {
@@ -57,8 +64,7 @@ async function holdPastLongPress(page: Page, point: TouchPoint): Promise<void> {
 }
 
 async function tapTile(page: Page, name: string): Promise<void> {
-  const at = await corner(page, name);
-  await tapAt(page, at.x, at.y);
+  await tapCentre(page, tile(page, name));
 }
 
 function appBar(page: Page) {
@@ -105,9 +111,7 @@ async function selectTwo(page: Page): Promise<void> {
 test.describe('touch selection', () => {
   test('@touch a long press picks the photo and enters select mode', async ({ page }) => {
     await openPhotos(page);
-    await touchDown(page, await corner(page, 'IMG_0003.ARW'));
-    await expect(appBar(page)).toContainText('1 selected');
-    await touchUp(page);
+    await longPressUntil(page, tile(page, 'IMG_0003.ARW'), appBar(page).getByText('1 selected'));
 
     await expect(page).toHaveURL(/\/photos$/);
     await expect(tile(page, 'IMG_0003.ARW')).toHaveAttribute('data-selected', 'true');
@@ -119,9 +123,9 @@ test.describe('touch selection', () => {
 
   test('@touch dragging on after the long press selects the range in between', async ({ page }) => {
     await openPhotos(page);
-    await touchDown(page, await corner(page, 'IMG_0001.ARW'));
+    await touchDown(page, await centre(page, 'IMG_0001.ARW'));
     await expect(appBar(page)).toContainText('1 selected');
-    await touchMoveTo(page, await corner(page, 'IMG_0005.ARW'));
+    await touchMoveTo(page, await centre(page, 'IMG_0005.ARW'));
     await expect(page.getByText('+4 in range')).toBeVisible();
     await expect(tile(page, 'IMG_0003.ARW')).toHaveAttribute('data-range-preview', 'true');
     await expect(appBar(page)).toContainText('5 selected');
@@ -165,7 +169,7 @@ test.describe('touch selection', () => {
     expect(await selectedNames(page)).toEqual([]);
   });
 
-  test('@touch a corner tap outside select mode opens the photo instead of picking it', async ({
+  test('@touch a tap outside select mode opens the loupe instead of picking it', async ({
     page
   }) => {
     await openPhotos(page);
@@ -178,7 +182,11 @@ test.describe('touch selection', () => {
     await expect(check).toHaveCount(0);
 
     await tapTile(page, 'IMG_0002.ARW');
-    await expect(page).toHaveURL(/\/assets\//);
+    await expect(
+      page.getByRole('navigation', { name: 'Loupe toolbar' }).getByRole('heading')
+    ).toHaveText('IMG_0002.ARW');
+    await expect(page).toHaveURL(/\/photos$/);
+    expect(await selectedNames(page)).toEqual([]);
   });
 
   test('@touch Select enters select mode, taps toggle and the X leaves it', async ({ page }) => {

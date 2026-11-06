@@ -5,17 +5,20 @@
   import { labelLook } from '#lib/browse/bulk/bulkMarks.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
+  import type { Snippet } from 'svelte';
 
   let {
     label,
     onchange,
     disabled = false,
-    size = 'tiny'
+    size = 'tiny',
+    trigger: customTrigger
   }: {
     label: LabelColor | null;
     onchange: (color: LabelColor | null) => void;
     disabled?: boolean;
     size?: 'tiny' | 'small' | 'medium';
+    trigger?: Snippet<[Record<string, unknown>]>;
   } = $props();
 
   let open = $state(false);
@@ -32,22 +35,28 @@
   appearance="control"
   anchor="top"
   title="Colour label"
-  tooltip={hint(label ? `${LABEL_NAMES[label]} label` : 'Colour label', 'label')}
+  tooltip={customTrigger
+    ? undefined
+    : hint(label ? `${LABEL_NAMES[label]} label` : 'Colour label', 'label')}
 >
   {#snippet trigger(popoverProps)}
-    <IconButton
-      {...popoverProps}
-      {size}
-      data-label={label ?? undefined}
-      variant="ghost"
-      color="secondary"
-      class={labelLook(label).tone}
-      icon={labelLook(label).icon}
-      title=""
-      aria-label={label ? `${LABEL_NAMES[label]} label` : 'Colour label'}
-      aria-expanded={open}
-      {disabled}
-    />
+    {#if customTrigger}
+      {@render customTrigger(popoverProps)}
+    {:else}
+      <IconButton
+        {...popoverProps}
+        {size}
+        data-label={label ?? undefined}
+        variant="ghost"
+        color="secondary"
+        class={labelLook(label).tone}
+        icon={labelLook(label).icon}
+        title=""
+        aria-label={label ? `${LABEL_NAMES[label]} label` : 'Colour label'}
+        aria-expanded={open}
+        {disabled}
+      />
+    {/if}
   {/snippet}
   <LabelSwatches {label} onpick={pick} />
 </Popover>

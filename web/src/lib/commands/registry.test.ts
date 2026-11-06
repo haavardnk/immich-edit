@@ -118,6 +118,18 @@ describe('command registry', () => {
         ['loupe.trash'],
         ['app.help']
       ],
+      LOUPE_PHONE_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        ['loupe.zoom', 'loupe.filmstrip', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.single', 'loupe.compare', 'loupe.survey'],
+        ['loupe.trash']
+      ],
+      LOUPE_WIDE_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        ['loupe.single', 'loupe.compare', 'loupe.survey'],
+        ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.trash']
+      ],
       EDITOR_VERSION_MENU: [['editor.virtualCopy']],
       EDITOR_VIEW_MENU: [
         [
