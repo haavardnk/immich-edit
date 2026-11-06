@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Tooltip } from '@immich/ui';
   import { ContextMenu as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
 
@@ -23,7 +23,7 @@
     <span class="min-w-0 flex-1 truncate">{@render children()}</span>
   </MenuRow>
 {:else}
-  <Tooltip text={title}>
+  <ElementTooltip text={title}>
     {#snippet child({ props })}
       <Bits.Item
         {...props}
@@ -34,5 +34,5 @@
         {@render children()}
       </Bits.Item>
     {/snippet}
-  </Tooltip>
+  </ElementTooltip>
 {/if}

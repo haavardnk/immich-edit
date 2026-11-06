@@ -1,13 +1,18 @@
 <script lang="ts">
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { isTruncated } from '#lib/utils/truncation.ts';
-  import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
   let {
     text,
+    force = false,
     child: trigger
-  }: { text: string; child: Snippet<[{ props: Record<string, unknown> }]> } = $props();
+  }: {
+    text: string;
+    force?: boolean;
+    child: Snippet<[{ props: Record<string, unknown> }]>;
+  } = $props();
 
   let truncated = $state(false);
 
@@ -18,8 +23,8 @@
   const measuring = { onpointerenter: measure, onfocus: measure };
 </script>
 
-<Tooltip {text} disabled={truncated ? undefined : true}>
+<ElementTooltip {text} disabled={truncated || force ? undefined : true}>
   {#snippet child({ props })}
     {@render trigger({ props: mergeProps(measuring, props) })}
   {/snippet}
-</Tooltip>
+</ElementTooltip>

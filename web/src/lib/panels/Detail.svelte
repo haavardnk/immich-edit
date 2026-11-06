@@ -1,5 +1,6 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
@@ -13,7 +14,6 @@
     sharpenRadius
   } from '#lib/editor/params/detail.ts';
   import { NEUTRAL_DETAIL } from '#lib/types/edits.ts';
-  import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import NoiseReductionSection from './detail/NoiseReductionSection.svelte';
 
@@ -41,7 +41,7 @@
       modified={sharpenModified}
       onReset={() => commitSectionReset(SHARPENING)}
     />
-    <Tooltip
+    <ElementTooltip
       text={editor.isRaw
         ? 'Compensates for sensor and anti-aliasing filter blur'
         : 'Only available for raw files'}
@@ -55,7 +55,7 @@
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
     <ParamSlider param={captureCornerBoost} />
   </div>
   <div class="flex flex-col gap-1 py-1.5">

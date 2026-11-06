@@ -1,7 +1,7 @@
 <script lang="ts">
   import { mergeProps } from 'bits-ui';
-  import { Tooltip } from '@immich/ui';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
@@ -43,7 +43,7 @@
     onReset={() => commitSectionReset(NOISE_REDUCTION)}
   />
   <div role="group" aria-label="AI Denoise" class="flex flex-col gap-1">
-    <Tooltip
+    <ElementTooltip
       text={editor.isRaw
         ? 'Removes noise with a neural network, once per photo at full resolution'
         : 'Only available for raw files'}
@@ -57,7 +57,7 @@
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
     <ParamSlider param={aiDenoiseStrength} />
     <ParamSlider param={aiDenoiseDetail} />
     {#if editor.isRaw && aiDenoiseActive(editor.edits.detail)}
