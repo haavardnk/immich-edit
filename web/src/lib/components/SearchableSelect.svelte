@@ -6,7 +6,7 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { pickerHost } from '#lib/components/sheet/pickerHost.ts';
-  import { flushSync, type Snippet } from 'svelte';
+  import { flushSync, untrack, type Snippet } from 'svelte';
 
   let {
     options,
@@ -66,7 +66,9 @@
   let anchor = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
   let sheetInput = $state<HTMLInputElement | null>(null);
+  let pinned = $state(untrack(() => new Set(selected)));
 
+  const keepsQuery = $derived(multiple && !closeOnSelect && !hideSelected);
   const selectedSet = $derived(new Set(selected));
   const selectedItem = $derived(
     multiple ? null : (options.find((item) => selectedSet.has(getId(item))) ?? null)
@@ -79,9 +81,14 @@
   const createValue = $derived(input.trim());
   const suggestions = $derived.by(() => {
     const query = input.trim().toLowerCase();
-    return options
+    const matches = options
       .filter((item) => !hideSelected || !selectedSet.has(getId(item)))
       .filter((item) => !query || getSearchText(item).toLowerCase().includes(query));
+    if (!keepsQuery) return matches;
+    return [
+      ...matches.filter((item) => pinned.has(getId(item))),
+      ...matches.filter((item) => !pinned.has(getId(item)))
+    ];
   });
   const canCreate = $derived(
     onCreate != null &&
@@ -97,11 +104,19 @@
     color === 'neutral' ? 'data-selected:bg-light-950/6' : 'data-selected:bg-primary-200'
   );
 
+  function setOpen(next: boolean): void {
+    if (next && !open) {
+      pinned = new Set(selected);
+      input = '';
+    }
+    open = next;
+  }
+
   function change(value: string[]): void {
     const next = multiple ? value : value.slice(-1);
     selected = next;
-    input = '';
-    open = !closeOnSelect;
+    if (!keepsQuery) input = '';
+    setOpen(!closeOnSelect);
     onSelectedChange?.(next);
   }
 
@@ -110,12 +125,12 @@
   }
 
   function focusInput(): void {
-    open = true;
+    setOpen(true);
     queueMicrotask(() => inputElement?.focus());
   }
 
   function openSheet(): void {
-    open = true;
+    setOpen(true);
     flushSync();
     sheetInput?.focus({ preventScroll: true });
   }
@@ -132,7 +147,7 @@
     if (!onCreate || !canCreate) return;
     await onCreate(createValue);
     input = '';
-    open = !closeOnSelect;
+    setOpen(!closeOnSelect);
   }
 
   function createOnEnter(event: KeyboardEvent): void {
@@ -151,7 +166,7 @@
   }
 
   function sheetOpenChange(next: boolean): void {
-    open = next;
+    setOpen(next);
     commitTyped(next);
   }
 </script>
@@ -318,7 +333,7 @@
     type="multiple"
     {disabled}
     bind:value={selected}
-    bind:open
+    bind:open={() => open, setOpen}
     inputValue={inputText}
     onValueChange={change}
     onOpenChange={commitTyped}

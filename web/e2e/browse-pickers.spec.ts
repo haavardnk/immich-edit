@@ -283,6 +283,28 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await expect(page.getByRole('option')).toHaveText(['Bergen']);
 });
 
+test('a searched pick stays in view and opens first next time', async ({ page }) => {
+  const assets = ['Sweden', 'Norway', 'Japan'].map((country, index) => ({
+    ...PAGED_ASSETS[index],
+    exifInfo: { country }
+  }));
+  await installMocks(page, { structuredSearch: true, assets });
+  await page.goto('/photos');
+
+  await openFilters(page, 'Place');
+  const country = page.getByRole('combobox', { name: 'Country' });
+  await country.click();
+  await country.pressSequentially('nor');
+  await page.getByRole('option', { name: 'Norway' }).click();
+  await expect(country).toHaveValue('nor');
+  await expect(page.getByRole('option')).toHaveText(['Norway']);
+  await page.keyboard.press('Escape');
+
+  await country.click();
+  await expect(country).toHaveValue('');
+  await expect(page.getByRole('option')).toHaveText(['Norway', 'Japan', 'Sweden']);
+});
+
 test('filter pickers join the list edge they open on', async ({ page }) => {
   await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
   await page.setViewportSize({ width: 1280, height: 570 });
