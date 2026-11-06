@@ -48,7 +48,7 @@ describe('grid actions', () => {
   });
 
   it('prefers the active photo when it is selected, else the first selected one', () => {
-    selection.selectLoaded(['b', 'c']);
+    selection.replace(['b', 'c']);
     expect(gridCurrent(ITEMS)).toBe('b');
     browseView.setActive('c');
     expect(gridCurrent(ITEMS)).toBe('c');
@@ -57,22 +57,22 @@ describe('grid actions', () => {
   });
 
   it('toggles a shared rating and treats a mixed one as unset', () => {
-    selection.selectLoaded(['a', 'b']);
+    selection.replace(['a', 'b']);
     expect(nextTargetRating(ITEMS, '3')).toBeNull();
-    selection.selectLoaded(['a', 'c']);
+    selection.replace(['a', 'c']);
     expect(nextTargetRating(ITEMS, '3')).toBe(3);
   });
 
   it('offers no label without targets and clears a shared one', () => {
     const items = [summary('a', null, [RED]), summary('b', null, [RED])];
     expect(nextTargetLabel(items, '6')).toBeUndefined();
-    selection.selectLoaded(['a', 'b']);
+    selection.replace(['a', 'b']);
     expect(nextTargetLabel(items, '6')).toBeNull();
   });
 
   it('moves a single selection to the next photo after rating it', async () => {
     const reveal = vi.fn();
-    selection.selectLoaded(['a']);
+    selection.replace(['a']);
     rateAndAdvance(ITEMS, 4, reveal);
     await settle();
     expect(meta.setRating).toHaveBeenCalledOnce();
@@ -83,7 +83,7 @@ describe('grid actions', () => {
 
   it('rates a multi-selection without moving it', async () => {
     const reveal = vi.fn();
-    selection.selectLoaded(['a', 'b']);
+    selection.replace(['a', 'b']);
     rateAndAdvance(ITEMS, 4, reveal);
     await settle();
     expect(meta.setRating).toHaveBeenCalledTimes(2);
@@ -92,7 +92,7 @@ describe('grid actions', () => {
   });
 
   it('opens a comparison of the selection in the loupe', () => {
-    selection.selectLoaded(['a', 'c']);
+    selection.replace(['a', 'c']);
     openMulti('compare', ITEMS);
     expect(browseView.loupeId).toBe('a');
     expect(compare.mode).toBe('compare');

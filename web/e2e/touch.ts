@@ -1,4 +1,4 @@
-import type { CDPSession, Page } from '@playwright/test';
+import { expect, type CDPSession, type Locator, type Page } from '@playwright/test';
 
 export type TouchPoint = { x: number; y: number };
 
@@ -39,6 +39,18 @@ export async function longPress(page: Page, x: number, y: number, ms = 700): Pro
   await dispatch(page, 'touchStart', [{ x, y }]);
   await page.waitForTimeout(ms);
   await dispatch(page, 'touchEnd', []);
+}
+
+export async function longPressUntil(page: Page, target: Locator, shown: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
+  const box = await target.boundingBox();
+  if (!box) throw new Error('nothing to press');
+  await dispatch(page, 'touchStart', [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }]);
+  try {
+    await expect(shown).toBeVisible();
+  } finally {
+    await dispatch(page, 'touchEnd', []);
+  }
 }
 
 export async function drag(

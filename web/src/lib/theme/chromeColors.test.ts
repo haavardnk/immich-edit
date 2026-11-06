@@ -77,7 +77,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
 
 const SCRIMS: Record<string, string[]> = {
   '/src/lib/components/jobs/JobsDrawer.svelte': ['bg-black/60'],
-  '/src/lib/components/sheet/SheetScrim.svelte': ['bg-black/60']
+  '/src/lib/components/sheet/SheetScrim.svelte': ['bg-black/20', 'bg-black/60']
 };
 
 function isScanned(path: string): boolean {

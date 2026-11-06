@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMocks } from './helpers';
 import { datedAssets, dayHeader, dayShots } from './timeline';
-import { open } from './touchShell';
+import { expectBarDockedUnderGrid, open } from './touchShell';
 
 const ASSETS = datedAssets([
   ...dayShots('2026-10-31', 4, 'Bergen'),
@@ -53,9 +53,12 @@ test('date taken groups the grid by capture day with place and count', async ({ 
     /Friday 30 October\s*Ålesund · 5/,
     /Friday 4 July 2025\s*4\s*$/
   ]);
-  const header = await dayHeader(page, 'Friday 30 October').boundingBox();
-  const firstOfDay = await page.getByRole('link', { name: 'IMG_0007.ARW' }).boundingBox();
-  expect(firstOfDay?.y ?? 0).toBeGreaterThan((header?.y ?? 0) + (header?.height ?? 0) - 1);
+  const headerToFirstPhoto = async (): Promise<number> => {
+    const header = await dayHeader(page, 'Friday 30 October').boundingBox();
+    const firstOfDay = await page.getByRole('link', { name: 'IMG_0007.ARW' }).boundingBox();
+    return (firstOfDay?.y ?? 0) - ((header?.y ?? 0) + (header?.height ?? 0));
+  };
+  await expect.poll(headerToFirstPhoto).toBeGreaterThan(-1);
 });
 
 test('other sorts keep the flat grid', async ({ page }) => {
@@ -141,7 +144,7 @@ test.describe('touch', () => {
       (box?.x ?? 0) + (box?.width ?? 0) - 12
     );
 
-    await page.getByRole('button', { name: 'Select', exact: true }).first().tap();
+    await page.getByRole('button', { name: 'Select photos' }).tap();
     await expect(selectedCount(page)).toBeVisible();
     const circle = dayHeader(page, 'Friday 30 October').getByRole('button', { name: 'Select day' });
     await expect(circle).toBeVisible();
@@ -150,7 +153,7 @@ test.describe('touch', () => {
     expect(target?.width).toBeGreaterThanOrEqual(44);
 
     await circle.tap();
-    await expect(selectedCount(page)).toContainText('6 selected');
-    await expectBarInGridColumn(page);
+    await expect(page.locator('header[data-app-bar]')).toContainText('5 selected');
+    await expectBarDockedUnderGrid(page);
   });
 });

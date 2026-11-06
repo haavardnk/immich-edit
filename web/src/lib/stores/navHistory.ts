@@ -79,6 +79,7 @@ class NavHistory {
     const length = historyLength();
     const pushed = length > this.#length;
     this.#length = length;
+    if (navigation.shallow) return;
     if (navigation.type === 'enter' || navigation.type === 'popstate') this.#previous = null;
     else if (pushed) this.#previous = keyOf(navigation.from);
     this.#depth = nextDepth(this.#depth, {

@@ -10,6 +10,7 @@ import {
 import { thresholds } from '#lib/gestures/thresholds.ts';
 
 export type LongPressSpec = RecognizerOptions & {
+  accepts?: (point: Point) => boolean;
   start?: (point: Point) => void;
   move?: (point: Point) => void;
   end?: (point: Point) => void;
@@ -39,7 +40,7 @@ export function longPressRecognizer(spec: LongPressSpec): Recognizer {
   function fire(current: Hold, host: RecognizerHost): void {
     current.timer = null;
     if (hold !== current) return;
-    if (!host.claim()) {
+    if (spec.accepts?.(current.point) === false || !host.claim()) {
       reset();
       return;
     }

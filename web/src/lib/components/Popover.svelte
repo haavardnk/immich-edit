@@ -6,7 +6,6 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { providePickerHost } from '#lib/components/sheet/pickerHost.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import { createAttachmentKey, type Attachment } from 'svelte/attachments';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
@@ -49,21 +48,11 @@
   );
 
   let tooltipOpen = $state(false);
-  let triggerElement = $state<HTMLElement | null>(null);
-
-  const triggerRef: Attachment<HTMLElement> = (element) => {
-    triggerElement = element;
-    return () => {
-      if (triggerElement === element) triggerElement = null;
-    };
-  };
-  const triggerKey = createAttachmentKey();
 
   const sheetTriggerProps = $derived({
     'aria-haspopup': 'dialog',
     'aria-expanded': open,
-    onclick: () => onOpenChange(!open),
-    [triggerKey]: triggerRef
+    onclick: () => onOpenChange(!open)
   });
 
   providePickerHost({
@@ -118,10 +107,10 @@
       {open}
       {onOpenChange}
       title={title ?? 'Options'}
-      titleHidden
-      modal={false}
-      dismissOnOutside
-      outsideExempt={triggerElement}
+      titleHidden={title === undefined}
+      close="icon"
+      closeLabel="Close"
+      scrim="light"
       bodyClass="flex flex-wrap items-center justify-center gap-1 px-4 py-3 {sheetClass}"
       data-popover-content
     >
