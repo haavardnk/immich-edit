@@ -7,6 +7,7 @@
     label,
     iconClass = '',
     blocked = false,
+    badge = 0,
     class: className = '',
     ...rest
   }: {
@@ -14,6 +15,7 @@
     label: string;
     iconClass?: string;
     blocked?: boolean;
+    badge?: number;
     class?: string;
   } & Omit<HTMLButtonAttributes, 'children' | 'color' | 'size' | 'type' | 'class'> = $props();
 </script>
@@ -29,6 +31,19 @@
     ? 'opacity-50'
     : ''} {className}"
 >
-  <Icon {icon} size="22px" class={iconClass} aria-hidden="true" />
+  <span class="relative flex">
+    <Icon {icon} size="22px" class={iconClass} aria-hidden="true" />
+    {#if badge > 0}
+      <span
+        class="absolute -top-1.5 -right-2.5 h-4 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-bold text-light"
+        aria-hidden="true"
+      >
+        {badge}
+      </span>
+    {/if}
+  </span>
   <span class="whitespace-nowrap">{label}</span>
+  {#if badge > 0}
+    <span class="sr-only">({badge})</span>
+  {/if}
 </Button>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
@@ -10,14 +10,13 @@
     loupeAsset,
     loupeCullActions,
     loupeFocusedId,
-    openInEditor
+    loupeTagActions
   } from '#lib/browse/loupeActions.ts';
   import { loupeHost } from '#lib/commands/loupe/loupeHost.ts';
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { paneGridStyle, sheetInsetStyle } from '#lib/browse/loupeLayout.ts';
-  import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
@@ -25,17 +24,23 @@
   import { loadFaceData } from '#lib/stores/zoomTargets.ts';
   import { ZoomCycle } from '#lib/stores/zoomCycle.ts';
   import { FIT_VIEW, withZoom, type View, type ViewportMetrics } from '#lib/utils/imageViewport.ts';
-  import type { TagRef } from '#lib/types/asset.ts';
-  import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
   import RatingHud from '#lib/components/browse/RatingHud.svelte';
   import LoupeInfo from '#lib/components/browse/info/LoupeInfo.svelte';
+  import CompactLoupeBar from '#lib/components/browse/CompactLoupeBar.svelte';
+  import LoupeCullBar from '#lib/components/browse/LoupeCullBar.svelte';
+  import LoupeEditPill from '#lib/components/browse/LoupeEditPill.svelte';
+  import LoupeFilmstrip from '#lib/components/browse/LoupeFilmstrip.svelte';
+  import LoupePaneControls from '#lib/components/browse/LoupePaneControls.svelte';
+  import LoupeStepButtons from '#lib/components/browse/LoupeStepButtons.svelte';
+  import LoupeViewTools from '#lib/components/browse/LoupeViewTools.svelte';
+  import WideLoupeBar from '#lib/components/browse/WideLoupeBar.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
-  import ContextMenuItem from '#lib/components/ContextMenuItem.svelte';
-  import { mdiChevronLeft, mdiChevronRight, mdiFullscreenExit } from '@mdi/js';
+  import { mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -55,7 +60,8 @@
     paneGridStyle(multi, panes.length) +
       (browseView.loupeInfoSheet && !ui.fullscreen ? sheetInsetStyle(belowPanes) : '')
   );
-  const moreActive = $derived(ui.clipWarn);
+  const touch = $derived(layout.mode === 'touch');
+  const moreActive = $derived(ui.clipWarn || (touch && browseView.loupeAutoAdvance));
   const canDrop = $derived(canDropPane());
 
   let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
@@ -109,18 +115,6 @@
     untrack(() => ratingHud.follow(id));
   });
 
-  function addTag(tag: TagRef): Promise<void> {
-    return focusedId ? loupeTags.add(focusedId, tag) : Promise.resolve();
-  }
-
-  function removeTag(tagId: string): Promise<void> {
-    return focusedId ? loupeTags.remove(focusedId, tagId) : Promise.resolve();
-  }
-
-  function createAndAddTag(value: string): Promise<TagRef | null> {
-    return focusedId ? loupeTags.createAndAdd(focusedId, value) : Promise.resolve(null);
-  }
-
   $effect(() => {
     const id = multi ? null : currentId;
     const render = (neighbour: string) => persistedPreviewUrl(neighbour, paneMaxEdge, ui.clipWarn);
@@ -162,29 +156,51 @@
     paneImages = next.record;
     paneImageOrder = next.order;
   }
-
-  const hasPrev = $derived(
-    !multi && currentId ? browsing.prevOf(currentId) !== null || browsing.hasPrevious : false
-  );
-  const atLoadedEnd = $derived(currentId ? browsing.nextOf(currentId) === null : false);
-  const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
 </script>
 
-{#snippet stripMenu(id: string)}
-  {@const paneAction = multi && compare.members.includes(id) ? 'Remove from' : 'Add to'}
-  {@const paneLabel = `${paneAction} ${compare.mode === 'survey' ? 'survey' : 'compare'}`}
-  <ContextMenuItem title={hint('Open in editor', 'openEditor')} onSelect={() => openInEditor(id)}>
-    Open in editor
-  </ContextMenuItem>
-  <ContextMenuItem disabled={!multi && id === currentId} onSelect={() => pickFromStrip(id, true)}>
-    {paneLabel}
-  </ContextMenuItem>
+{#snippet viewTools()}
+  {#if multi}
+    <LoupePaneControls {canDrop} onDrop={dropFocusedPane} />
+  {/if}
+  <LoupeViewTools
+    {zoom}
+    fitZoom={focusedFitZoom}
+    fitMode={paneView.zoom === null}
+    onZoom={setZoom}
+    onFit={fitZoom}
+  />
+{/snippet}
+
+{#snippet editPill()}
+  <LoupeEditPill />
+{/snippet}
+
+{#snippet cullBar(density: 'stacked' | 'row', trailing: Snippet)}
+  {#if asset}
+    <LoupeCullBar
+      cull={cullState(asset)}
+      actions={loupeCullActions}
+      tags={currentTags}
+      tagActions={loupeTagActions}
+      fileName={asset.originalFileName}
+      {density}
+      {trailing}
+    />
+  {/if}
 {/snippet}
 
 {#if asset}
-  <div class="safe-frame fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
-    {#if !ui.fullscreen}
-      <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
+  <div
+    class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas {layout.compact
+      ? 'pr-(--safe-right) pl-(--safe-left)'
+      : 'safe-frame'}"
+  >
+    {#if !ui.fullscreen && !layout.compact}
+      {#if touch}
+        <WideLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} />
+      {:else}
+        <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
+      {/if}
     {/if}
 
     <div class="flex min-h-0 flex-1">
@@ -207,37 +223,12 @@
 
           <RatingHud />
 
-          {#if hasPrev && !ui.fullscreen}
-            <IconButton
-              type="button"
-              size="medium"
-              variant="ghost"
-              color="secondary"
-              shape="round"
-              class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-              icon={mdiChevronLeft}
-              title={hint('Previous', 'loupeNav')}
-              aria-label="Previous"
-              onclick={() => stepLoupe(-1)}
-            />
-          {/if}
-          {#if hasNext && !ui.fullscreen}
-            <IconButton
-              type="button"
-              size="medium"
-              variant="ghost"
-              color="secondary"
-              shape="round"
-              class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-              icon={mdiChevronRight}
-              title={hint('Next', 'loupeNav')}
-              aria-label="Next"
-              loading={atLoadedEnd && browsing.loadingMore}
-              onclick={() => stepLoupe(1)}
-            />
-          {/if}
-
-          {#if ui.fullscreen}
+          {#if !ui.fullscreen}
+            {#if layout.compact}
+              <CompactLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} />
+            {/if}
+            <LoupeStepButtons {currentId} {multi} />
+          {:else}
             <IconButton
               size="small"
               variant="filled"
@@ -254,34 +245,34 @@
 
         {#if !ui.fullscreen}
           <div class="flex shrink-0 flex-col" bind:offsetHeight={belowPanes}>
-            <LoupeActionRail
-              cull={cullState(asset)}
-              tags={currentTags}
-              fileName={asset.originalFileName}
-              {multi}
-              {zoom}
-              fitZoom={focusedFitZoom}
-              fitMode={paneView.zoom === null}
-              actions={loupeCullActions}
-              onAddTag={addTag}
-              onRemoveTag={removeTag}
-              onCreateTag={createAndAddTag}
-              onZoom={setZoom}
-              onFit={fitZoom}
-              {canDrop}
-              onDrop={dropFocusedPane}
-            />
-
-            <Filmstrip
-              currentId={focusedId}
-              highlightIds={compare.members}
-              onSelect={pickFromStrip}
-              resizable
-              size={72}
-              showBadges
-              collapsed={ui.loupeFilmstripCollapsed}
-              menu={stripMenu}
-            />
+            {#if !touch}
+              <LoupeActionRail
+                cull={cullState(asset)}
+                tags={currentTags}
+                fileName={asset.originalFileName}
+                {multi}
+                {zoom}
+                fitZoom={focusedFitZoom}
+                fitMode={paneView.zoom === null}
+                actions={loupeCullActions}
+                onAddTag={loupeTagActions.add}
+                onRemoveTag={loupeTagActions.remove}
+                onCreateTag={loupeTagActions.create}
+                onZoom={setZoom}
+                onFit={fitZoom}
+                {canDrop}
+                onDrop={dropFocusedPane}
+              />
+              <LoupeFilmstrip {focusedId} {currentId} {multi} />
+            {:else if layout.compact}
+              {#if browseView.loupeFilmstripShown}
+                <LoupeFilmstrip {focusedId} {currentId} {multi} />
+              {/if}
+              {@render cullBar('stacked', editPill)}
+            {:else}
+              {@render cullBar('row', viewTools)}
+              <LoupeFilmstrip {focusedId} {currentId} {multi} />
+            {/if}
           </div>
         {/if}
       </div>

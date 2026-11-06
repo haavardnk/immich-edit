@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, DEFAULT_APPEARANCE, gotoAsset, installMocks, openFilters } from './helpers';
+import { openTileLoupe } from './touch';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -89,7 +90,7 @@ test('the loupe and mobile action menu have no serious accessibility violations'
   await page.goto('/photos');
   await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
-  await page.getByLabel('Quick review').click();
+  await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await page.getByRole('button', { name: 'More loupe actions' }).click();
   await expect(page.getByRole('button', { name: /^Clipping overlay/ })).toBeVisible();
 

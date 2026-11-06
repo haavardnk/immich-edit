@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { isManagedTag, userTags } from '#lib/browse/managedTags.ts';
+  import { isManagedTag } from '#lib/browse/managedTags.ts';
   import AddChip from '#lib/components/AddChip.svelte';
-  import Popover from '#lib/components/Popover.svelte';
   import TagChip from '#lib/components/tags/TagChip.svelte';
   import TagChipStrip from '#lib/components/tags/TagChipStrip.svelte';
-  import TagPickerBody from '#lib/components/tags/TagPickerBody.svelte';
-  import { layout } from '#lib/device/layout.svelte.ts';
+  import TagPickerPopover from '#lib/components/tags/TagPickerPopover.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { library } from '#lib/stores/library.svelte.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { TagRef } from '#lib/types/asset.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiPlus, mdiTagOutline } from '@mdi/js';
-  import { onMount } from 'svelte';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
@@ -47,12 +42,6 @@
     wrap?: boolean;
   } = $props();
 
-  onMount(() => {
-    library.ensureTags().catch((e: unknown) => toasts.fail('tags', e));
-  });
-
-  const sheet = $derived(layout.mode === 'touch');
-  const allTags = $derived(userTags(library.tags ?? []));
   const visibleTags = $derived(tags.filter((t) => !isManagedTag(t)));
 
   function more(): void {
@@ -61,17 +50,19 @@
 </script>
 
 {#snippet picker(hidden: number)}
-  <Popover
-    open={open && !disabled}
+  <TagPickerPopover
+    {tags}
+    {open}
+    {onToggle}
+    {onClose}
+    {onAdd}
+    {onRemove}
+    {onCreate}
+    {disabled}
     {anchor}
     {align}
-    onOpenChange={(v) => (v ? onToggle() : onClose())}
-    appearance="panel"
-    contentClass="flex w-72 flex-col max-h-[min(28rem,var(--bits-popover-content-available-height))]!"
-    sheetClass="flex flex-col"
-    sheetPicker
-    title="Tags"
     {subtitle}
+    showApplied={hidden > 0}
     tooltip={addLabel ? undefined : hint('Tags', 'toggleTags')}
   >
     {#snippet trigger(popoverProps)}
@@ -91,18 +82,7 @@
         />
       {/if}
     {/snippet}
-    <TagPickerBody
-      all={allTags}
-      applied={visibleTags}
-      showApplied={sheet || hidden > 0}
-      numbered={!sheet || layout.hasKeyboard}
-      {disabled}
-      autofocus={!sheet}
-      {onAdd}
-      {onRemove}
-      {onCreate}
-    />
-  </Popover>
+  </TagPickerPopover>
 {/snippet}
 
 <div class="flex min-w-0 items-center gap-1.5 {wrap ? 'flex-wrap' : 'flex-1 overflow-hidden'}">

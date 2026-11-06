@@ -20,6 +20,7 @@ import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
 import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 import { currentPath, isEditorPath } from '#lib/utils/route.ts';
 import { goto } from '$app/navigation';
 
@@ -107,6 +108,27 @@ export const loupeCullActions: CullActions = {
   favorite: favoriteFocused,
   reject: rejectFocused,
   label: labelFocused
+};
+
+export interface TagActions {
+  add: (tag: TagRef) => Promise<void>;
+  remove: (tagId: string) => Promise<void>;
+  create: (value: string) => Promise<TagRef | null>;
+}
+
+export const loupeTagActions: TagActions = {
+  add: (tag) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.add(id, tag) : Promise.resolve();
+  },
+  remove: (tagId) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.remove(id, tagId) : Promise.resolve();
+  },
+  create: (value) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.createAndAdd(id, value) : Promise.resolve(null);
+  }
 };
 
 export function tagFocusedRecent(slot: number): void {

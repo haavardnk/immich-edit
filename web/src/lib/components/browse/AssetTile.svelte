@@ -41,6 +41,7 @@
     onPreviewEnd,
     onActivate,
     onLoupe,
+    onOpen,
     onDeleteCopy,
     onRate
   }: {
@@ -56,6 +57,7 @@
     onPreviewEnd?: () => void;
     onActivate?: () => void;
     onLoupe?: () => void;
+    onOpen?: () => void;
     onDeleteCopy?: () => void;
     onRate?: (rating: number | null) => void;
   } = $props();
@@ -104,6 +106,9 @@
       return;
     }
     onActivate?.();
+    if (!onOpen) return;
+    e.preventDefault();
+    onOpen();
   }
 
   function onLoupeClick(e: MouseEvent): void {
@@ -207,7 +212,7 @@
   {/if}
   {#if !selectMode}
     <div
-      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100"
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100 touch:hidden"
     >
       <IconButton
         type="button"

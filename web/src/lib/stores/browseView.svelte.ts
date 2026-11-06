@@ -9,6 +9,7 @@ import {
   type GridSize
 } from '#lib/browse/gridSizes.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
 import type { TileAnchor } from '#lib/browse/gridZoom.ts';
 
 export type TileInfo = 'none' | 'badges' | 'full';
@@ -109,6 +110,14 @@ class BrowseViewStore {
 
   toggleLoupeInfo(): void {
     this.setLoupeInfoOpen(!this.loupeInfoOpen);
+  }
+
+  get loupeFilmstripShown(): boolean {
+    return this.#compact ? ui.loupeCompactFilmstrip : !ui.loupeFilmstripCollapsed;
+  }
+
+  toggleLoupeFilmstrip(): void {
+    ui.toggleLoupeFilmstrip(this.#compact);
   }
 
   cycleTileInfo(): void {
