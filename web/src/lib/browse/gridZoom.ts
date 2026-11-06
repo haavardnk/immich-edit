@@ -12,6 +12,8 @@ const PAGE_PX = 800;
 
 export type GridAnchor = { index: number; ratio: number; offset: number };
 
+export type TileAnchor = GridAnchor & { id: string };
+
 export type AnchorRequest = {
   point: Point | null;
   activeIndex: number;
@@ -120,4 +122,15 @@ export function anchoredViewTop(layout: AssetGridLayout, anchor: GridAnchor): nu
   const box = layout.boxes[anchor.index];
   if (!box) return null;
   return box.top + anchor.ratio * box.height - anchor.offset;
+}
+
+export function prependedAnchor(
+  ids: readonly string[],
+  previousFirst: string | null,
+  anchor: TileAnchor | null
+): GridAnchor | null {
+  if (!anchor || previousFirst === null || ids[0] === previousFirst) return null;
+  if (ids.indexOf(previousFirst) <= 0) return null;
+  const index = ids.indexOf(anchor.id);
+  return index < 0 ? null : { index, ratio: anchor.ratio, offset: anchor.offset };
 }

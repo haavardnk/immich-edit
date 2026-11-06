@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMocks, numberedAssets } from './helpers';
+import { datedAssets, dayShots } from './timeline';
 import { pinch } from './touch';
 import { open } from './touchShell';
 
@@ -128,7 +129,14 @@ test.describe('grid sizing on desktop', () => {
     expect(box?.x ?? Number.NaN).toBeLessThan(x);
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThan(x);
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(y + 60);
-    await expect(page.locator('[role="group"]').first()).toHaveCSS('height', /^(2|3)\d\d/);
+    await expect
+      .poll(() =>
+        page
+          .locator('[role="group"]')
+          .first()
+          .evaluate((node) => node.getBoundingClientRect().height)
+      )
+      .toBeGreaterThan(250);
 
     await page.clock.runFor(1000);
     await expect(hud(page)).toBeHidden();
@@ -179,14 +187,14 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(first).toBeVisible();
     expect((await first.boundingBox())?.height ?? 0).toBeGreaterThan(100);
 
-    await scrollGrid(page, 1500);
+    await scrollGrid(page, 4000);
     const centre = { x: 196, y: 420 };
     const anchor = await tileAt(page, centre.x, centre.y);
     const ratio = await anchorRatio(page, anchor, centre.y);
 
     await pinch(page, centre, 300, 90);
 
-    await expect(hud(page)).toContainText('56 px');
+    await expect(hud(page)).toContainText('72 px');
     await expect.poll(async () => (await first.boundingBox())?.height ?? 0).toBeLessThan(100);
     await expect.poll(() => anchorRatio(page, anchor, centre.y)).toBeCloseTo(ratio, 1);
     const box = await hud(page).boundingBox();
@@ -199,8 +207,33 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
 
     await pinch(page, centre, 90, 300);
 
-    await expect(hud(page)).toContainText('160 px');
+    await expect(hud(page)).toContainText('220 px');
     await expect.poll(async () => (await first.boundingBox())?.height ?? 0).toBeGreaterThan(100);
+  });
+
+  test('L rows of mixed photos stay near the phone row height', async ({ page }) => {
+    await open(page, '/photos', {
+      assets: datedAssets([...dayShots('2026-10-31', 15), ...dayShots('2026-10-30', 15)])
+    });
+    await expect(page.locator('[role="group"]').first()).toBeVisible();
+    const rows = await page.evaluate(() => {
+      const heights = new Map<number, { height: number; count: number }>();
+      for (const node of document.querySelectorAll<HTMLElement>('[role="group"][title]')) {
+        const box = node.getBoundingClientRect();
+        const top = Math.round(box.top);
+        const row = heights.get(top) ?? { height: box.height, count: 0 };
+        heights.set(top, { height: row.height, count: row.count + 1 });
+      }
+      return [...heights.entries()].sort(([a], [b]) => a - b).map(([, row]) => row);
+    });
+    const full = rows.slice(0, -1);
+
+    expect(full.length).toBeGreaterThan(3);
+    for (const row of full) {
+      expect(row.height).toBeGreaterThan(140 * 0.75);
+      expect(row.height).toBeLessThan(140 * 1.3);
+    }
+    expect(full.every((row) => row.count >= 2)).toBe(true);
   });
 
   test('defaults to the phone row height and remembers a chosen size', async ({ page }) => {
@@ -212,7 +245,7 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(sizes.getByRole('radio', { name: 'L', exact: true })).toBeChecked();
 
     await sizes.getByRole('radio', { name: 'S', exact: true }).tap();
-    await expect(hud(page)).toContainText('56 px');
+    await expect(hud(page)).toContainText('72 px');
     await page.reload();
     await expect(page.locator('[role="group"]').first()).toBeVisible();
     expect((await page.locator('[role="group"]').first().boundingBox())?.height ?? 0).toBeLessThan(

@@ -13,8 +13,8 @@ afterEach(() => {
   layoutMock.resetLayout();
 });
 
-function onLayout(mode: LayoutMode, wide = false): void {
-  layoutMock.resetLayout({ mode, wide });
+function onLayout(mode: LayoutMode, wide = false, phone = false): void {
+  layoutMock.resetLayout({ mode, wide, phone });
 }
 
 function stubStorage(initial?: unknown): Map<string, string> {
@@ -131,17 +131,21 @@ describe('browse view persistence', () => {
 
 describe('grid size per layout', () => {
   it.each([
-    ['desktop', false, 'md', 150],
-    ['touch', false, 'lg', 112],
-    ['touch', true, 'xl', 160]
-  ] as const)('defaults on %s (wide %s) to %s at %i px', async (mode, wide, size, height) => {
-    stubStorage();
-    onLayout(mode, wide);
-    const { browseView } = await import('./browseView.svelte');
+    ['desktop', false, false, 'md', 150],
+    ['touch', false, false, 'lg', 112],
+    ['touch', false, true, 'lg', 140],
+    ['touch', true, false, 'xl', 160]
+  ] as const)(
+    'defaults on %s (wide %s, phone %s) to %s at %i px',
+    async (mode, wide, phone, size, height) => {
+      stubStorage();
+      onLayout(mode, wide, phone);
+      const { browseView } = await import('./browseView.svelte');
 
-    expect(browseView.gridSize).toBe(size);
-    expect(browseView.rowHeight).toBe(height);
-  });
+      expect(browseView.gridSize).toBe(size);
+      expect(browseView.rowHeight).toBe(height);
+    }
+  );
 
   it('follows the layout until the user chooses and leaves the default unstored', async () => {
     const values = stubStorage();

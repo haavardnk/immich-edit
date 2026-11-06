@@ -1,4 +1,5 @@
 import { hides } from '#lib/browse/loadedFilter.ts';
+import type { WindowEnd } from '#lib/browse/feedWindow.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 
@@ -6,8 +7,12 @@ const PREFETCH_WINDOW = 10;
 
 export interface BrowsePager {
   readonly hasMore: boolean;
+  readonly hasPrevious: boolean;
   readonly loadingMore: boolean;
   loadMore(): Promise<boolean>;
+  loadPrevious(): Promise<boolean>;
+  loadEdge(end: WindowEnd): Promise<boolean>;
+  jumpTo(assetId: string, options?: { failure?: string | null }): Promise<boolean>;
 }
 
 export interface RemovedAsset {
@@ -38,6 +43,10 @@ class BrowsingStore {
     return this.pager?.hasMore ?? false;
   }
 
+  get hasPrevious(): boolean {
+    return this.pager?.hasPrevious ?? false;
+  }
+
   get loadingMore(): boolean {
     return this.pager?.loadingMore ?? false;
   }
@@ -59,9 +68,23 @@ class BrowsingStore {
     return this.pager?.loadMore() ?? Promise.resolve(false);
   }
 
+  requestPrevious(): Promise<boolean> {
+    return this.pager?.loadPrevious() ?? Promise.resolve(false);
+  }
+
+  requestEdge(end: WindowEnd): Promise<boolean> {
+    return this.pager?.loadEdge(end) ?? Promise.resolve(false);
+  }
+
+  requestReveal(id: string): Promise<boolean> {
+    return this.pager?.jumpTo(id, { failure: null }) ?? Promise.resolve(false);
+  }
+
   prefetchNear(id: string): void {
     const idx = this.assets.findIndex((a) => a.id === id);
-    if (idx >= 0 && this.assets.length - idx <= PREFETCH_WINDOW) void this.requestMore();
+    if (idx < 0) return;
+    if (this.assets.length - idx <= PREFETCH_WINDOW) void this.requestMore();
+    if (idx < PREFETCH_WINDOW && this.hasPrevious) void this.requestPrevious();
   }
 
   find(id: string): AssetSummary | null {
@@ -116,11 +139,6 @@ class BrowsingStore {
       added += 1;
     }
     if (this.total !== undefined) this.total += added;
-  }
-
-  positionOf(id: string): number {
-    const idx = this.assets.findIndex((a) => a.id === id);
-    return this.assets.slice(0, idx + 1).filter((asset) => this.shows(asset)).length;
   }
 
   prevOf(id: string): AssetSummary | null {
