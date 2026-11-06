@@ -1,5 +1,5 @@
 use crate::common::*;
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -31,6 +31,37 @@ async fn asset_thumb_proxies_bytes_and_content_type() {
             panic!("{query}: not jpeg soi");
         }
     }
+}
+
+#[tokio::test]
+async fn asset_thumb_caches_privately_and_revalidates_by_etag() {
+    let server = MockServer::start().await;
+    mock_thumb(&server, "preview").await;
+    let app = test_app(&server).await;
+    let uri = format!("/api/assets/{}/thumb?size=preview", asset_id());
+
+    let resp = app.clone().oneshot(get(&uri)).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        header_str(&resp, "cache-control").as_deref(),
+        Some("private, max-age=0, must-revalidate")
+    );
+    let etag = header_str(&resp, "etag").unwrap();
+    assert!(etag.len() > 2 && etag.starts_with('"') && etag.ends_with('"'));
+
+    let mut req = get(&uri);
+    req.headers_mut()
+        .insert("if-none-match", HeaderValue::from_str(&etag).unwrap());
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_MODIFIED);
+    assert_eq!(header_str(&resp, "etag").as_deref(), Some(etag.as_str()));
+    assert!(body_bytes(resp).await.is_empty());
+
+    let mut req = get(&uri);
+    req.headers_mut()
+        .insert("if-none-match", HeaderValue::from_static("\"stale\""));
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
 }
 
 #[tokio::test]

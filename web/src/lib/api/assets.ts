@@ -32,6 +32,10 @@ export function thumbUrl(id: string, size: 'thumbnail' | 'preview' = 'thumbnail'
   return url`/api/assets/${id}/thumb?size=${size}`;
 }
 
+export function immichPreviewUrl(id: string): string {
+  return thumbUrl(sourceId(id), 'preview');
+}
+
 export function editedThumbUrl(id: string, hash: string, revision: string, size = 400): string {
   return url`/api/assets/${id}/edited-thumb?h=${hash}&r=${revision}&size=${size}`;
 }
