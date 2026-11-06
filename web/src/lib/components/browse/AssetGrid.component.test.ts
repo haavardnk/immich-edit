@@ -242,7 +242,7 @@ describe('AssetGrid', () => {
   it('toggles the filter panel with Shift+F', async () => {
     const panel = mount(PanelHost, {
       target,
-      props: { component: FilterPanel, props: { sortBasis: 'capture' } }
+      props: { component: FilterPanel, props: { sortBasis: 'capture', title: 'Photos' } }
     });
     render();
     press('F', { shiftKey: true });

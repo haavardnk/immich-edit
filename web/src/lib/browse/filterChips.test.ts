@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFilterChips,
+  activeFilterValues,
   filterValueLabel,
   photoCountLabel,
   showPhotosLabel,
@@ -109,6 +110,25 @@ describe('browse filter chips', () => {
     ['label', 'Any label']
   ] as const)('labels the default %s as %s', (key, label) => {
     expect(filterValueLabel(FILTER_DEFAULTS, key, () => '')).toBe(label);
+  });
+
+  it('names active values without their field where the value says enough', () => {
+    const values = activeFilterValues(
+      {
+        ...FILTER_DEFAULTS,
+        rating: '3+',
+        people: { ids: ['p1'], match: 'all' },
+        tags: { ids: ['t1'], match: 'none' },
+        model: ['X-T5'],
+        country: ['Norway']
+      },
+      (_, id) => NAMES[id] ?? 'Unknown'
+    );
+    expect(values).toEqual(['≥ 3 stars', 'Ann', 'Without tags: Trips/Rome', 'X-T5', 'Norway']);
+  });
+
+  it('names no values for the default filters', () => {
+    expect(activeFilterValues(FILTER_DEFAULTS, () => '')).toEqual([]);
   });
 
   it('removes one filter and keeps the rest', () => {

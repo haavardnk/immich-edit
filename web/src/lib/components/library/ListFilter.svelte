@@ -6,6 +6,7 @@
     listFilterStatus,
     type ListNoun
   } from '#lib/browse/listFilter.ts';
+  import { firstFocusable } from '#lib/utils/focusable.ts';
   import { Icon } from '@immich/ui';
   import { mdiMagnify } from '@mdi/js';
   import type { Snippet } from 'svelte';
@@ -42,7 +43,7 @@
       return;
     }
     if (event.key !== 'ArrowDown') return;
-    const first = rows?.querySelector<HTMLElement>('a[href], button:not([disabled])');
+    const first = rows ? firstFocusable(rows) : null;
     if (!first) return;
     event.preventDefault();
     first.focus();

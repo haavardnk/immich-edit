@@ -2,13 +2,16 @@
   import { onMount, untrack } from 'svelte';
   import { page } from '$app/state';
   import { library } from '#lib/stores/library.svelte.ts';
+  import { savedViews } from '#lib/stores/savedViews.svelte.ts';
   import { sidebar, type SidebarSectionId } from '#lib/stores/sidebar.svelte.ts';
   import AlbumList from '#lib/components/library/AlbumList.svelte';
   import PeopleList from '#lib/components/library/PeopleList.svelte';
   import TagList from '#lib/components/library/TagList.svelte';
   import FolderTree from '#lib/components/library/FolderTree.svelte';
+  import SavedViewList from '#lib/components/savedViews/SavedViewList.svelte';
   import SidebarLink from './SidebarLink.svelte';
   import SidebarSection from './SidebarSection.svelte';
+  import SidebarHeading from '#lib/components/shell/SidebarHeading.svelte';
   import { COLLECTIONS } from '#lib/components/library/collections.ts';
   import { mdiImageMultipleOutline, mdiImageAlbum } from '@mdi/js';
 
@@ -28,6 +31,7 @@
   onMount(() => {
     void library.load();
     void library.loadCounts();
+    void savedViews.ensure();
   });
 </script>
 
@@ -35,11 +39,7 @@
   aria-label="Library"
   class="flex h-full w-64 min-h-0 flex-col overflow-hidden bg-light-50 text-dark wide:w-full"
 >
-  <div
-    class="shrink-0 px-5 pb-2 pt-5 text-[10px] font-semibold uppercase text-dark/65 dark:text-light-950/35 wide:hidden"
-  >
-    Library
-  </div>
+  <SidebarHeading class="shrink-0 wide:hidden">Library</SidebarHeading>
   <div class="flex-1 min-h-0 space-y-1 overflow-y-auto scrollbar-hidden pe-5 wide:px-2.5">
     <SidebarLink
       href="/photos"
@@ -104,5 +104,9 @@
       active={currentPath === edited.href}
       hideZero
     />
+    {#if savedViews.views.length > 0}
+      <SidebarHeading class="wide:px-3">Saved</SidebarHeading>
+      <SavedViewList variant="sidebar" />
+    {/if}
   </div>
 </aside>

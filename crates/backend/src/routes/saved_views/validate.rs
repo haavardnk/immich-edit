@@ -28,7 +28,21 @@ pub fn url(url: &str) -> Result<(), String> {
     if url.contains('#') {
         return Err("saved view url must not contain a fragment".into());
     }
+    if path_of(url).split('/').any(is_dot_segment) {
+        return Err("saved view url must not contain . or .. segments".into());
+    }
     Ok(())
+}
+
+fn path_of(url: &str) -> &str {
+    url.split_once('?').map_or(url, |(path, _)| path)
+}
+
+fn is_dot_segment(segment: &str) -> bool {
+    matches!(
+        segment.to_ascii_lowercase().replace("%2e", ".").as_str(),
+        "." | ".."
+    )
 }
 
 #[cfg(test)]
@@ -98,6 +112,38 @@ mod tests {
     fn a_url_has_no_backslash() {
         assert!(url_error("/a\\b").contains("backslash"));
         assert!(url_error("/a?q=\\").contains("backslash"));
+    }
+
+    #[test]
+    fn a_url_has_no_dot_segments() {
+        for candidate in [
+            "/.",
+            "/..",
+            "/./photos",
+            "/photos/../albums",
+            "/a/..//evil.example",
+            "/.//evil.example",
+            "/%2e//evil.example",
+            "/%2E%2e/x",
+            "/.%2E",
+            "/photos/.?q=1",
+        ] {
+            assert!(url_error(candidate).contains(". or .."), "{candidate}");
+        }
+    }
+
+    #[test]
+    fn dots_inside_a_segment_or_the_query_are_kept() {
+        for candidate in [
+            "/photos/a.b",
+            "/photos/...",
+            "/.well",
+            "/search?q=..",
+            "/search?q=/../x",
+            "/folders?path=/a/./b",
+        ] {
+            assert!(url(candidate).is_ok(), "{candidate}");
+        }
     }
 
     #[test]

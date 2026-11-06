@@ -100,6 +100,10 @@ async fn saved_view_bodies_are_validated() {
             serde_json::json!({ "name": "Bare", "url": "photos" }),
             "saved view url must start with /",
         ),
+        (
+            serde_json::json!({ "name": "Dots", "url": "/a/..//evil.example" }),
+            "saved view url must not contain . or .. segments",
+        ),
     ] {
         let resp = app
             .clone()

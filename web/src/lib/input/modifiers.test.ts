@@ -6,6 +6,7 @@ import {
   keyHeld,
   latch,
   latched,
+  plainClick,
   type ModifierKeys,
   type ModifierRole
 } from './modifiers.svelte.ts';
@@ -105,5 +106,21 @@ describe('latch', () => {
     expect(latched('constrain')).toBe(true);
     clear();
     expect(latched('constrain')).toBe(false);
+  });
+});
+
+describe('plainClick', () => {
+  it('accepts an unmodified primary click', () => {
+    expect(plainClick({ ...NONE, button: 0 })).toBe(true);
+  });
+
+  it.each([
+    ['a middle click', { button: 1 }],
+    ['shift', { button: 0, shiftKey: true }],
+    ['alt', { button: 0, altKey: true }],
+    ['ctrl', { button: 0, ctrlKey: true }],
+    ['meta', { button: 0, metaKey: true }]
+  ])('leaves %s to the browser', (_, over) => {
+    expect(plainClick({ ...NONE, ...over })).toBe(false);
   });
 });

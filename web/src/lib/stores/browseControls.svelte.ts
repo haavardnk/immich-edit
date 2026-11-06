@@ -144,8 +144,25 @@ export class BrowseControlsStore {
   }
 
   private setSort(sort: SearchSort): void {
+    this.queuedSort = null;
+    this.applySort(sort, this.family);
+  }
+
+  private queuedSort: { sort: SearchSort; family: SortFamily } | null = null;
+
+  queueSort(sort: SearchSort, family: SortFamily): void {
+    this.queuedSort = { sort: { ...sort }, family };
+  }
+
+  settleQueuedSort(apply: boolean): void {
+    const queued = this.queuedSort;
+    this.queuedSort = null;
+    if (queued && apply) this.applySort(queued.sort, queued.family);
+  }
+
+  applySort(sort: SearchSort, family: SortFamily): void {
     const next = { ...this.sortByFamily };
-    next[this.family] = sort;
+    next[family] = { ...sort };
     this.sortByFamily = next;
     writeStored(SORT_KEY, next);
   }
@@ -198,6 +215,7 @@ export class BrowseControlsStore {
   }
 
   applyFilters(filters: BrowseFilters): void {
+    if (this.queuedSort?.family === this.family) this.settleQueuedSort(true);
     this.filters = { ...filters };
   }
 
