@@ -227,6 +227,37 @@ test('Shift+digit rates and advances with auto-advance off', async ({ page }) =>
   await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
 });
 
+test('the rating HUD names the rating and auto-advance steps once after its bar', async ({
+  page
+}) => {
+  await page.clock.install();
+  await openLoupe(page, { assets: numberedAssets(3, { exifInfo: ASSET_EXIF }) });
+  const hud = page.getByTestId('rating-hud');
+  const pill = page.getByRole('button', { name: 'Auto-advance', exact: true });
+
+  await page.keyboard.press('3');
+  await expect(hud).toHaveText(/^\s*3 stars\s*$/);
+  await expect(page.getByTestId('rating-hud-progress')).toHaveCount(0);
+  await page.clock.runFor(1300);
+  await expect(hud).toBeHidden();
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+
+  await expect(pill).toHaveAttribute('aria-pressed', 'false');
+  await pill.click();
+  await expect(pill).toHaveAttribute('aria-pressed', 'true');
+
+  await page.keyboard.press('4');
+  await expect(hud).toContainText('4 stars');
+  await expect(hud).toContainText('· next photo');
+  await expect(page.getByTestId('rating-hud-progress')).toBeVisible();
+  await page.clock.runFor(800);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(hud).toBeHidden();
+  await page.clock.runFor(3000);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toHaveCount(0);
+});
+
 test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ page }) => {
   await openLoupe(page, { previewBody: makePng(60, 40) });
   const image = page.getByRole('img', { name: LOUPE_IMAGE });

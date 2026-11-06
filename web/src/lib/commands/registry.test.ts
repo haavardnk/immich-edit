@@ -113,7 +113,7 @@ describe('command registry', () => {
     expect(ids).toEqual({
       LOUPE_VIEW_MODE_MENU: [['loupe.single', 'loupe.compare', 'loupe.survey']],
       LOUPE_MORE_MENU: [
-        ['loupe.info', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas', 'loupe.autoAdvance'],
+        ['loupe.info', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
         ['loupe.trash'],
         ['app.help']
       ],

@@ -20,6 +20,7 @@
   import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+  import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
   import { putBounded } from '#lib/utils/boundedRecord.ts';
   import { loadFaceData } from '#lib/stores/zoomTargets.ts';
   import { ZoomCycle } from '#lib/stores/zoomCycle.ts';
@@ -29,6 +30,7 @@
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
+  import RatingHud from '#lib/components/browse/RatingHud.svelte';
   import ExifRows from '#lib/components/ExifRows.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
@@ -49,7 +51,7 @@
   );
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : FIT_VIEW);
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
-  const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
+  const moreActive = $derived(ui.clipWarn);
   const canDrop = $derived(canDropPane());
 
   let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
@@ -75,6 +77,7 @@
   onDestroy(() => {
     ui.fullscreen = false;
     preloader.keep([]);
+    ratingHud.clear();
   });
 
   onMount(() =>
@@ -95,6 +98,11 @@
   $effect(() => {
     const id = focusedId;
     if (id) void loupeTags.ensure(id);
+  });
+
+  $effect(() => {
+    const id = focusedId;
+    untrack(() => ratingHud.follow(id));
   });
 
   function addTag(tag: TagRef): Promise<void> {
@@ -190,6 +198,8 @@
         onMetrics={setPaneMetrics}
         onImage={setPaneImage}
       />
+
+      <RatingHud />
 
       {#if hasPrev && !ui.fullscreen}
         <IconButton
