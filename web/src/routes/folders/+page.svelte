@@ -3,7 +3,7 @@
   import { onMount, untrack } from 'svelte';
   import { loadFolderAssets } from '#lib/browse/sources.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
-  import { folderName, subfolders } from '#lib/browse/folders.ts';
+  import { allFolders, folderName, subfolders } from '#lib/browse/folders.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { library } from '#lib/stores/library.svelte.ts';
@@ -13,6 +13,7 @@
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
   import FolderCrumbs from '#lib/components/library/FolderCrumbs.svelte';
   import FolderRows from '#lib/components/library/FolderRows.svelte';
+  import ListFilter from '#lib/components/library/ListFilter.svelte';
   import type { AssetSummary } from '#lib/types/album.ts';
 
   let loaded = $state<AssetSummary[]>([]);
@@ -21,7 +22,7 @@
 
   const queryPath = $derived(page.url.searchParams.get('path') ?? '');
   const assets = $derived(arrangeLoaded(loaded, fieldKey(browseControls.sortField)));
-  const children = $derived(subfolders(library.folderTree, folderPath));
+  const childFolders = $derived(subfolders(library.folderTree, folderPath));
 
   async function loadFolder(path: string): Promise<void> {
     folderPath = path;
@@ -59,8 +60,19 @@
 {/snippet}
 
 {#snippet lead()}
-  <FolderRows folders={children} />
-  {#if children.length > 0 && assets.length > 0}
+  {#key folderPath}
+    <ListFilter
+      items={allFolders(childFolders)}
+      nameOf={(node) => node.name}
+      noun={{ one: 'folder', many: 'folders' }}
+      class="px-3 sm:px-5 touch:px-4"
+    >
+      {#snippet children(visible, query)}
+        <FolderRows folders={query ? visible : childFolders} {query} />
+      {/snippet}
+    </ListFilter>
+  {/key}
+  {#if childFolders.length > 0 && assets.length > 0}
     <div
       class="flex items-baseline justify-between border-t border-hairline px-3 pt-3 pb-1 sm:px-5 touch:px-4"
     >
