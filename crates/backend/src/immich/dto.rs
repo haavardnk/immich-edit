@@ -339,6 +339,13 @@ pub struct TimeBucketAssets {
     pub created_at: Vec<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Partner {
+    pub id: Uuid,
+    #[serde(rename = "inTimeline", default)]
+    pub in_timeline: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchStatistics {
     #[serde(default)]
