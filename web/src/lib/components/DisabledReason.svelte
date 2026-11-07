@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import type { Snippet } from 'svelte';
 
   let {
@@ -10,10 +10,10 @@
   }: { locked: boolean; reason: string; class?: string; children: Snippet } = $props();
 </script>
 
-<Tooltip text={reason} disabled={!locked}>
+<ElementTooltip text={reason} disabled={!locked}>
   {#snippet child({ props })}
     <div {...props} class="{className} {locked ? 'cursor-not-allowed *:pointer-events-none' : ''}">
       {@render children()}
     </div>
   {/snippet}
-</Tooltip>
+</ElementTooltip>

@@ -4,7 +4,7 @@
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { NEUTRAL_DETAIL, neutralSharpenAmount } from '#lib/types/edits.ts';
-  import { Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { mergeProps } from 'bits-ui';
   import NoiseReductionSection from './detail/NoiseReductionSection.svelte';
 
@@ -51,7 +51,7 @@
       modified={sharpenModified}
       onReset={resetSharpen}
     />
-    <Tooltip
+    <ElementTooltip
       text={isRaw
         ? 'Compensates for sensor and anti-aliasing filter blur'
         : 'Only available for raw files'}
@@ -65,7 +65,7 @@
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
     <EditSlider
       label="Corner Boost"
       commitAction="Capture Corner Boost"

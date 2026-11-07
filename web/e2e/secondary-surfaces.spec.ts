@@ -211,7 +211,9 @@ test('jobs drawer stays bounded and restores focus', async ({ page }) => {
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText('completed', { exact: true })).toBeVisible();
   await expect(drawer.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
-  await expect(drawer.getByRole('link', { name: 'Download ZIP' })).toBeVisible();
+  const download = drawer.getByRole('link', { name: 'Download ZIP' });
+  await expect(download).toBeVisible();
+  await expect(download).not.toHaveAttribute('type');
 
   const bounds = await drawer.boundingBox();
   expect(bounds).not.toBeNull();

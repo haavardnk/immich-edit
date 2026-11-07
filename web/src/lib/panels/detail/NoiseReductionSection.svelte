@@ -1,6 +1,6 @@
 <script lang="ts">
   import { mergeProps } from 'bits-ui';
-  import { Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
@@ -37,7 +37,7 @@
 <div class="flex flex-col gap-1 py-1.5">
   <SectionHeader title="Noise Reduction" section="noise_reduction" {modified} onReset={reset} />
   <div role="group" aria-label="AI Denoise" class="flex flex-col gap-1">
-    <Tooltip
+    <ElementTooltip
       text={isRaw
         ? 'Removes noise with a neural network, once per photo at full resolution'
         : 'Only available for raw files'}
@@ -51,7 +51,7 @@
           {...mergeProps(props, { tabindex: -1 })}
         />
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
     <EditSlider
       label="Strength"
       commitAction="AI Denoise Strength"

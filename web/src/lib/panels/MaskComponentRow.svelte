@@ -3,7 +3,8 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
   import { kindIcon, MODES } from './maskTools';
-  import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
+  import { Button, Icon, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {
     mdiAutoFix,
@@ -75,14 +76,14 @@
     {label}
   </Button>
   {#if index === 0}
-    <Tooltip text="The first shape starts the mask">
+    <ElementTooltip text="The first shape starts the mask">
       {#snippet child({ props })}
         <span
           {...mergeProps(props, { tabindex: -1 })}
           class="shrink-0 text-[9px] uppercase tracking-wider text-dark/65">Base</span
         >
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
   {/if}
   <IconButton
     size="tiny"
