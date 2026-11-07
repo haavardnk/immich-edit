@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { paneColumns, paneGridStyle, sheetInsetStyle, switchMembers } from './loupeLayout';
+import { describe, expect, it } from 'vitest';
+import {
+  paneColumns,
+  paneGridStyle,
+  paneWindow,
+  sheetInsetStyle,
+  switchMembers
+} from './loupeLayout';
 
 const IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'];
 
@@ -12,6 +18,35 @@ describe('paneColumns', () => {
   ])('lays %i panes out in %i columns', (count, expected) => {
     expect(paneColumns(count)).toBe(expected);
   });
+
+  it.each([
+    [2, 1],
+    [3, 2],
+    [4, 2]
+  ])('stacks %i panes in %i columns on a portrait phone', (count, expected) => {
+    expect(paneColumns(count, true)).toBe(expected);
+  });
+});
+
+describe('paneWindow', () => {
+  it('shows every member while they fit the layout', () => {
+    expect(paneWindow(6, 5, 9)).toEqual({ start: 0, end: 6 });
+    expect(paneWindow(4, 0, 4)).toEqual({ start: 0, end: 4 });
+  });
+
+  it('slides a narrower window so it ends at a focused pane beyond it', () => {
+    expect(paneWindow(6, 5, 4)).toEqual({ start: 2, end: 6 });
+    expect(paneWindow(6, 4, 4)).toEqual({ start: 1, end: 5 });
+  });
+
+  it('keeps the window at the start while the focused pane is inside it', () => {
+    expect(paneWindow(6, 0, 4)).toEqual({ start: 0, end: 4 });
+    expect(paneWindow(6, 3, 4)).toEqual({ start: 0, end: 4 });
+  });
+
+  it('is empty without members', () => {
+    expect(paneWindow(0, 0, 4)).toEqual({ start: 0, end: 0 });
+  });
 });
 
 describe('sheetInsetStyle', () => {
@@ -22,14 +57,21 @@ describe('sheetInsetStyle', () => {
 });
 
 describe('paneGridStyle', () => {
+  const grid = (columns: number, rows: number): string =>
+    `grid-template-columns: repeat(${columns}, minmax(0, 1fr)); grid-template-rows: repeat(${rows}, minmax(0, 1fr));`;
+
   it.each([
-    [false, 3, ''],
-    [true, 0, ''],
-    [true, 1, 'grid-template-columns: repeat(1, minmax(0, 1fr));'],
-    [true, 3, 'grid-template-columns: repeat(2, minmax(0, 1fr));'],
-    [true, 6, 'grid-template-columns: repeat(3, minmax(0, 1fr));']
-  ])('multi=%s with %i panes', (multi, count, expected) => {
-    expect(paneGridStyle(multi, count)).toBe(expected);
+    [false, 3, false, ''],
+    [true, 0, false, ''],
+    [true, 1, false, grid(1, 1)],
+    [true, 2, false, grid(2, 1)],
+    [true, 3, false, grid(2, 2)],
+    [true, 6, false, grid(3, 2)],
+    [true, 9, false, grid(3, 3)],
+    [true, 2, true, grid(1, 2)],
+    [true, 4, true, grid(2, 2)]
+  ])('multi=%s with %i panes, stacked=%s', (multi, count, stacked, expected) => {
+    expect(paneGridStyle(multi, count, stacked)).toBe(expected);
   });
 });
 

@@ -5,8 +5,6 @@
   import { compare } from '#lib/stores/compare.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
-    canDropPane,
-    dropFocusedPane,
     loupeAsset,
     loupeCullActions,
     loupeFocusedId,
@@ -16,7 +14,7 @@
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
-  import { paneGridStyle, sheetInsetStyle } from '#lib/browse/loupeLayout.ts';
+  import { paneGridStyle, paneWindow, sheetInsetStyle } from '#lib/browse/loupeLayout.ts';
   import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
@@ -42,10 +40,12 @@
   import LoupeEditPill from '#lib/components/browse/LoupeEditPill.svelte';
   import LoupeFilmstrip from '#lib/components/browse/LoupeFilmstrip.svelte';
   import LoupePaneControls from '#lib/components/browse/LoupePaneControls.svelte';
+  import LoupePaneRail from '#lib/components/browse/LoupePaneRail.svelte';
   import LoupeStepButtons from '#lib/components/browse/LoupeStepButtons.svelte';
   import LoupeViewTools from '#lib/components/browse/LoupeViewTools.svelte';
   import WideLoupeBar from '#lib/components/browse/WideLoupeBar.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
+  import { paneDrop, panePromote } from '#lib/commands/loupe/panes.ts';
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
 
@@ -55,7 +55,10 @@
 
   const currentId = $derived(browseView.loupeId);
   const multi = $derived(compare.mode !== 'single');
-  const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
+  const shown = $derived(paneWindow(compare.members.length, compare.focusIndex, compare.paneLimit));
+  const panes = $derived(
+    multi ? compare.members.slice(shown.start, shown.end) : currentId ? [currentId] : []
+  );
   const focusedId = $derived(loupeFocusedId());
   const asset = $derived(loupeAsset());
   const copyBadge = $derived(
@@ -63,13 +66,19 @@
   );
   const paneView = $derived(focusedId ? compare.viewOf(focusedId) : FIT_VIEW);
   let belowPanes = $state(0);
+  const touch = $derived(layout.mode === 'touch');
+  const stacked = $derived(layout.compact && !layout.landscape);
+  const underBar = $derived(layout.compact && !ui.fullscreen);
+  const paneArea = $derived(
+    multi
+      ? `grid gap-1.5 bg-neutral-950 p-1.5 ${underBar ? 'pt-[calc(3.5rem+var(--safe-top))]' : ''}`
+      : 'flex'
+  );
   const gridStyle = $derived(
-    paneGridStyle(multi, panes.length) +
+    paneGridStyle(multi, panes.length, stacked) +
       (browseView.loupeInfoSheet && !ui.fullscreen ? sheetInsetStyle(belowPanes) : '')
   );
-  const touch = $derived(layout.mode === 'touch');
   const moreActive = $derived(ui.clipWarn || (touch && browseView.loupeAutoAdvance));
-  const canDrop = $derived(canDropPane());
 
   let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
@@ -171,7 +180,7 @@
 
 {#snippet viewTools()}
   {#if multi}
-    <LoupePaneControls {canDrop} onDrop={dropFocusedPane} />
+    <LoupePaneControls variant="pill" />
   {/if}
   <LoupeViewTools
     {zoom}
@@ -221,15 +230,14 @@
 
     <div class="flex min-h-0 flex-1">
       <div class="flex min-w-0 flex-1 flex-col">
-        <div
-          class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
-          style={gridStyle}
-        >
+        <div class="relative min-h-0 flex-1 {paneArea}" style={gridStyle}>
           <LoupePaneGrid
             {panes}
             {focusedId}
+            first={multi ? shown.start : 0}
             {multi}
-            {canDrop}
+            paneActions={touch ? [panePromote] : [panePromote, paneDrop]}
+            pills={touch}
             scrim={() => scrim}
             onView={applyPaneView}
             onSize={(size) => (paneMaxEdge = size)}
@@ -241,7 +249,7 @@
 
           {#if !ui.fullscreen}
             {#if layout.compact}
-              <CompactLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} />
+              <CompactLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} {multi} />
             {/if}
             <LoupeStepButtons {currentId} {multi} />
           {:else}
@@ -276,11 +284,12 @@
                 onCreateTag={loupeTagActions.create}
                 onZoom={setZoom}
                 onFit={fitZoom}
-                {canDrop}
-                onDrop={dropFocusedPane}
               />
               <LoupeFilmstrip {focusedId} {currentId} {multi} />
             {:else if layout.compact}
+              {#if multi}
+                <LoupePaneRail fileName={asset.originalFileName} />
+              {/if}
               {#if browseView.loupeFilmstripShown}
                 <LoupeFilmstrip {focusedId} {currentId} {multi} />
               {/if}

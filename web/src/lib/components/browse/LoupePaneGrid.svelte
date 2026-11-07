@@ -2,18 +2,22 @@
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
   import type { View, ViewportMetrics } from '#lib/utils/imageViewport.ts';
-  import { hint } from '#lib/shortcuts/labels.ts';
   import type { LoupeStage } from '#lib/browse/loupeStage.ts';
   import LoupePane from '#lib/components/browse/LoupePane.svelte';
   import LoupeSwipeTrack from '#lib/components/browse/LoupeSwipeTrack.svelte';
-  import { IconButton } from '@immich/ui';
-  import { mdiArrowCollapseLeft, mdiClose } from '@mdi/js';
+  import { isRejected } from '#lib/browse/reject.ts';
+  import { paneDrop, panePromote } from '#lib/commands/loupe/panes.ts';
+  import type { IconCommand } from '#lib/commands/types.ts';
+  import CommandIconButton from '#lib/components/CommandIconButton.svelte';
+  import CommandPill from '#lib/components/CommandPill.svelte';
 
   let {
     panes,
     focusedId,
+    first,
     multi,
-    canDrop,
+    paneActions,
+    pills,
     scrim,
     onView,
     onSize,
@@ -22,14 +26,18 @@
   }: {
     panes: string[];
     focusedId: string | null;
+    first: number;
     multi: boolean;
-    canDrop: boolean;
+    paneActions: readonly IconCommand[];
+    pills: boolean;
     scrim: () => HTMLElement | null;
     onView: (id: string, view: View, solo?: boolean) => void;
     onSize: (maxEdge: number) => void;
     onMetrics: (id: string, metrics: ViewportMetrics) => void;
     onImage: (id: string, element: HTMLImageElement) => void;
   } = $props();
+
+  const onPhoto = 'absolute top-2 right-2 z-10 bg-black/50 text-white hover:bg-black/75';
 </script>
 
 {#snippet pane(id: string, index: number, stage: LoupeStage | null)}
@@ -40,13 +48,9 @@
     view={compare.viewOf(id)}
     focused={id === focusedId}
     showFocus={multi}
-    badge={compare.mode === 'compare'
-      ? index === 0
-        ? 'Select'
-        : 'Candidate'
-      : multi
-        ? String(index + 1)
-        : undefined}
+    badge={multi ? String(index + 1) : undefined}
+    caption={compare.mode === 'compare' ? (index === 0 ? 'Select' : 'Candidate') : undefined}
+    rejected={multi && paneAsset !== undefined && isRejected(paneAsset)}
     onFocus={() => (compare.focusIndex = index)}
     onView={(next, solo) => onView(id, next, solo)}
     {onSize}
@@ -61,34 +65,30 @@
 {/snippet}
 
 {#if multi}
-  {#each panes as id, index (id)}
+  {#each panes as id, offset (id)}
+    {@const index = first + offset}
     <div class="group relative flex min-h-0 min-w-0 flex-1">
       {@render pane(id, index, null)}
-      {#if compare.mode === 'compare' && index > 0 && id === focusedId}
-        <IconButton
-          type="button"
+      {#if compare.mode === 'compare' && index > 0 && id === focusedId && paneActions.includes(panePromote)}
+        {#if pills}
+          <CommandPill command={panePromote} long class="{onPhoto} h-11 gap-1.5 px-3.5" />
+        {:else}
+          <CommandIconButton
+            command={panePromote}
+            size="small"
+            variant="ghost"
+            shape="round"
+            class={onPhoto}
+          />
+        {/if}
+      {:else if compare.mode === 'survey' && paneActions.includes(paneDrop)}
+        <CommandIconButton
+          command={paneDrop}
+          before={() => (compare.focusIndex = index)}
           size="small"
           variant="ghost"
-          color="secondary"
           shape="round"
-          class="absolute top-2 right-2 z-10 bg-black/50 text-white hover:bg-black/75"
-          icon={mdiArrowCollapseLeft}
-          title={hint('Make select', 'panePromote')}
-          aria-label="Make select"
-          onclick={() => compare.promote(index)}
-        />
-      {:else if compare.mode === 'survey' && canDrop}
-        <IconButton
-          type="button"
-          size="small"
-          variant="ghost"
-          color="secondary"
-          shape="round"
-          class="absolute top-2 right-2 z-10 bg-black/50 text-white opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-black/75 focus-visible:opacity-100"
-          icon={mdiClose}
-          title={hint('Drop this photo', 'paneDrop')}
-          aria-label="Drop from survey"
-          onclick={() => compare.drop(index)}
+          class="{onPhoto} opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
         />
       {/if}
     </div>

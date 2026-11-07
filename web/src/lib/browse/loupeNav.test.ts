@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { browsing, type BrowsePager } from '#lib/stores/browsing.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -207,5 +207,29 @@ describe('loupe navigation', () => {
     pickFromStrip('a', true);
     expect(compare.mode).toBe('single');
     expect(browseView.loupeId).toBe('b');
+  });
+
+  describe('with a four-pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => {
+      release = compare.limitBy(() => 4);
+      load(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+      browseView.openLoupe('a');
+    });
+
+    afterEach(() => release());
+
+    it('surveys at most four photos', () => {
+      selectViewMode('survey');
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('refuses a fifth pane from the strip and says why', () => {
+      selectViewMode('survey');
+      pickFromStrip('e', true);
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+      expect(toasts.items.map((t) => t.message)).toEqual(['Survey holds up to 4 photos']);
+    });
   });
 });

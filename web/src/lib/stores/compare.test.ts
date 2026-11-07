@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { paneWindow } from '#lib/browse/loupeLayout.ts';
 import { FIT_VIEW } from '#lib/utils/imageViewport.ts';
-import { compare } from './compare.svelte';
+import { compare, MAX_PANES } from './compare.svelte';
 
 describe('compare store', () => {
   beforeEach(() => compare.exit());
@@ -75,6 +76,61 @@ describe('compare store', () => {
     compare.enter('survey', members);
     compare.addMember(added);
     expect(compare.members).toEqual(members);
+  });
+
+  describe('under a layout pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => (release = compare.limitBy(() => 4)));
+    afterEach(() => release());
+
+    it('caps survey members on entry but never compare', () => {
+      compare.enter('survey', ['a', 'b', 'c', 'd', 'e', 'f'], 5);
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+      expect(compare.focusIndex).toBe(3);
+      expect(compare.startCount).toBe(4);
+      compare.enter('compare', ['a', 'b']);
+      expect(compare.members).toEqual(['a', 'b']);
+    });
+
+    it('reports full and refuses a fifth pane', () => {
+      compare.enter('survey', ['a', 'b', 'c']);
+      expect(compare.full).toBe(false);
+      compare.addMember('d');
+      expect(compare.full).toBe(true);
+      compare.addMember('e');
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('never lifts the limit past nine panes and restores it on release', () => {
+      const lift = compare.limitBy(() => 20);
+      expect(compare.paneLimit).toBe(MAX_PANES);
+      lift();
+      expect(compare.paneLimit).toBe(MAX_PANES);
+      release = compare.limitBy(() => 4);
+      expect(compare.paneLimit).toBe(4);
+    });
+
+    it('keeps every member when the layout narrows mid-survey and shows the focused window', () => {
+      let limit = MAX_PANES;
+      release();
+      release = compare.limitBy(() => limit);
+      compare.enter('survey', ['a', 'b', 'c', 'd', 'e', 'f'], 5);
+      expect(compare.full).toBe(false);
+
+      limit = 4;
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+      expect(compare.full).toBe(true);
+      compare.addMember('g');
+      expect(compare.members).toHaveLength(6);
+      const shown = paneWindow(compare.members.length, compare.focusIndex, compare.paneLimit);
+      expect(compare.members.slice(shown.start, shown.end)).toEqual(['c', 'd', 'e', 'f']);
+
+      limit = MAX_PANES;
+      expect(compare.full).toBe(false);
+      compare.addMember('g');
+      expect(compare.members).toHaveLength(7);
+    });
   });
 
   it('a replacement member inherits the view of the photo it replaced', () => {

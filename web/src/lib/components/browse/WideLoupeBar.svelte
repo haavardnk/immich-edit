@@ -4,6 +4,7 @@
   import { LOUPE_WIDE_MORE_MENU } from '#lib/commands/menus.ts';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import LoupeEditPill from '#lib/components/browse/LoupeEditPill.svelte';
+  import LoupeModeSwitch from '#lib/components/browse/LoupeModeSwitch.svelte';
   import LoupeMoreMenu from '#lib/components/browse/LoupeMoreMenu.svelte';
   import LoupeTitle from '#lib/components/browse/LoupeTitle.svelte';
   import { mdiDotsHorizontal } from '@mdi/js';
@@ -17,7 +18,7 @@
 
 <nav
   aria-label="Loupe toolbar"
-  class="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-hairline bg-editor-chrome px-2"
+  class="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-hairline bg-editor-chrome px-2"
 >
   <div class="flex min-w-0 items-center gap-1">
     <CommandIconButton
@@ -29,7 +30,8 @@
     />
     <LoupeTitle {filename} {copyBadge} class="text-light-950/90" />
   </div>
-  <div class="flex items-center gap-1">
+  <LoupeModeSwitch class="w-80 text-light-950/90" />
+  <div class="flex items-center justify-end gap-1">
     <CommandIconButton
       command={loupeInfo}
       size="medium"

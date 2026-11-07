@@ -63,7 +63,6 @@ function layouts(subject: AssetDetail): Layout<'body' | 'editor bottom bar' | 'l
         actions,
         tags: subject.tags ?? [],
         multi: false,
-        canDrop: false,
         zoom: 1,
         fitZoom: 1,
         fitMode: true,
@@ -71,8 +70,7 @@ function layouts(subject: AssetDetail): Layout<'body' | 'editor bottom bar' | 'l
         onRemoveTag: () => Promise.resolve(),
         onCreateTag: () => Promise.resolve(null),
         onZoom: noop,
-        onFit: noop,
-        onDrop: noop
+        onFit: noop
       },
       { exclude: [button('Tags (Shift+T)'), button('Zoom'), button('Collapse filmstrip')] }
     )

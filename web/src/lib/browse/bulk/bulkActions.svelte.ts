@@ -10,7 +10,6 @@ import * as bulkMeta from '#lib/browse/bulkMeta.ts';
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
 import { pasteEditsTo } from '#lib/browse/copyPaste.ts';
 import { openMulti } from '#lib/browse/gridActions.ts';
-import { MAX_PANES } from '#lib/stores/compare.svelte.ts';
 import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
@@ -108,8 +107,8 @@ class BulkActions {
     return false;
   };
 
-  multi = (mode: MultiMode, panes: number = MAX_PANES): void => {
-    openMulti(mode, bulkScope.items, panes);
+  multi = (mode: MultiMode): void => {
+    openMulti(mode, bulkScope.items);
   };
 
   selectAll = async (): Promise<void> => {

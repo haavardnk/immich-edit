@@ -16,7 +16,6 @@
     tags: TagRef[];
     fileName?: string;
     multi: boolean;
-    canDrop: boolean;
     zoom: number;
     fitZoom: number;
     fitMode: boolean;
@@ -25,7 +24,6 @@
     onCreateTag: (value: string) => Promise<TagRef | null>;
     onZoom: (value: number) => void;
     onFit: () => void;
-    onDrop: () => void;
   };
 
   let {
@@ -34,7 +32,6 @@
     tags,
     fileName,
     multi,
-    canDrop,
     zoom,
     fitZoom,
     fitMode,
@@ -42,8 +39,7 @@
     onRemoveTag,
     onCreateTag,
     onZoom,
-    onFit,
-    onDrop
+    onFit
   }: Props = $props();
 </script>
 
@@ -74,7 +70,7 @@
   </div>
   <div class="flex items-center gap-1">
     {#if multi}
-      <LoupePaneControls {canDrop} {onDrop} />
+      <LoupePaneControls />
     {/if}
   </div>
   <div class="col-start-3 flex min-w-0 items-center justify-end gap-0.5">

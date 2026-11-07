@@ -6,6 +6,7 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
+  import { countOf } from '#lib/utils/plural.ts';
 
   let {
     focusedId,
@@ -15,12 +16,21 @@
 </script>
 
 {#snippet stripMenu(id: string)}
-  {@const paneAction = multi && compare.members.includes(id) ? 'Remove from' : 'Add to'}
-  {@const paneLabel = `${paneAction} ${compare.mode === 'survey' ? 'survey' : 'compare'}`}
+  {@const member = multi && compare.members.includes(id)}
+  {@const paneLabel = `${member ? 'Remove from' : 'Add to'} ${compare.mode === 'survey' ? 'survey' : 'compare'}`}
+  {@const full = !member && multi && compare.full}
   <ContextMenuItem title={hint('Open in editor', 'openEditor')} onSelect={() => openInEditor(id)}>
     Open in editor
   </ContextMenuItem>
-  <ContextMenuItem disabled={!multi && id === currentId} onSelect={() => pickFromStrip(id, true)}>
+  <ContextMenuItem
+    disabled={(!multi && id === currentId) || full}
+    detail={member
+      ? undefined
+      : full
+        ? `${countOf(compare.paneLimit, 'pane')} max`
+        : countOf(multi ? compare.members.length + 1 : 2, 'pane')}
+    onSelect={() => pickFromStrip(id, true)}
+  >
     {paneLabel}
   </ContextMenuItem>
 {/snippet}

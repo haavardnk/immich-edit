@@ -95,4 +95,14 @@ describe('CommandIconButton', () => {
     button.click();
     expect(hold.run).toHaveBeenCalledOnce();
   });
+
+  it('runs the before hook ahead of the command', () => {
+    const order: string[] = [];
+    const button = render({
+      command: command({ run: () => order.push('run') }),
+      before: () => order.push('before')
+    });
+    button.click();
+    expect(order).toEqual(['before', 'run']);
+  });
 });

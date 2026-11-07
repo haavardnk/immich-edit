@@ -13,6 +13,7 @@ export interface Command {
   id: string;
   contexts: readonly KeybindContext[];
   label?: string | (() => string);
+  short?: string;
   icon?: string;
   bind?: KeybindId;
   gate?: KeyGate;

@@ -9,7 +9,7 @@ import {
 } from '#lib/browse/assetMeta.ts';
 import type { CullKind } from '#lib/browse/cullMark.ts';
 import { cullState, type CullActions } from '#lib/browse/cullState.ts';
-import { advanceFocused, stepLoupe } from '#lib/browse/loupeNav.ts';
+import { advanceFocused, dropPane, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -34,11 +34,11 @@ export function loupeAsset(): AssetSummary | null {
 }
 
 export function canDropPane(): boolean {
-  return compare.members.length > (compare.mode === 'compare' ? 2 : 1);
+  return compare.members.length > 1;
 }
 
 export function dropFocusedPane(): void {
-  if (canDropPane()) compare.drop(compare.focusIndex);
+  if (canDropPane()) dropPane(compare.focusIndex);
 }
 
 function advanceFrom(id: string): void {
