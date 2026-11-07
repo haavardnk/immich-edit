@@ -3,6 +3,7 @@
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mdiCheck, mdiChevronDown, mdiClose, mdiMagnify, mdiPlus } from '@mdi/js';
   import { Combobox } from 'bits-ui';
+  import { untrack } from 'svelte';
 
   let {
     options,
@@ -56,7 +57,9 @@
   let open = $state(false);
   let anchor = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
+  let pinned = $state(untrack(() => new Set(selected)));
 
+  const keepsQuery = $derived(multiple && !closeOnSelect && !hideSelected);
   const selectedSet = $derived(new Set(selected));
   const selectedItem = $derived(
     multiple ? null : (options.find((item) => selectedSet.has(getId(item))) ?? null)
@@ -69,9 +72,14 @@
   const createValue = $derived(input.trim());
   const suggestions = $derived.by(() => {
     const query = input.trim().toLowerCase();
-    return options
+    const matches = options
       .filter((item) => !hideSelected || !selectedSet.has(getId(item)))
       .filter((item) => !query || getSearchText(item).toLowerCase().includes(query));
+    if (!keepsQuery) return matches;
+    return [
+      ...matches.filter((item) => pinned.has(getId(item))),
+      ...matches.filter((item) => !pinned.has(getId(item)))
+    ];
   });
   const canCreate = $derived(
     onCreate != null &&
@@ -79,16 +87,24 @@
       !options.some((option) => getLabel(option).toLowerCase() === createValue.toLowerCase())
   );
 
+  function setOpen(next: boolean): void {
+    if (next && !open) {
+      pinned = new Set(selected);
+      input = '';
+    }
+    open = next;
+  }
+
   function change(value: string[]): void {
     const next = multiple ? value : value.slice(-1);
     selected = next;
-    input = '';
-    open = !closeOnSelect;
+    if (!keepsQuery) input = '';
+    setOpen(!closeOnSelect);
     onSelectedChange?.(next);
   }
 
   function focusInput(): void {
-    open = true;
+    setOpen(true);
     queueMicrotask(() => inputElement?.focus());
   }
 
@@ -104,7 +120,7 @@
     if (!onCreate || !canCreate) return;
     await onCreate(createValue);
     input = '';
-    open = !closeOnSelect;
+    setOpen(!closeOnSelect);
   }
 
   function createOnEnter(event: KeyboardEvent): void {
@@ -135,7 +151,7 @@
   type="multiple"
   {disabled}
   bind:value={selected}
-  bind:open
+  bind:open={() => open, setOpen}
   inputValue={inputText}
   onValueChange={change}
   onOpenChange={commitTyped}
