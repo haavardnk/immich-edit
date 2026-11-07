@@ -53,6 +53,7 @@
 
 :root {
   --app-height: min(100vh, calc(100dvh + env(safe-area-inset-top, 0px)));
+  --sheet-gap: 8px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

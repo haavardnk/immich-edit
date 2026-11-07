@@ -1,6 +1,6 @@
 <script lang="ts">
   import MenuItem from '#lib/components/MenuItem.svelte';
-  import { commandLabel, isEnabled, pressHandlers } from '#lib/commands/command.ts';
+  import { commandLabel, isEnabled, isShown, pressHandlers } from '#lib/commands/command.ts';
   import type { Menu } from '#lib/commands/menus.ts';
   import type { Command, IconCommand } from '#lib/commands/types.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
@@ -12,6 +12,10 @@
   };
 
   let { menu, onrun, rowClass }: Props = $props();
+
+  const groups = $derived(
+    menu.map((group) => group.filter(isShown)).filter((group) => group.length > 0)
+  );
 </script>
 
 {#snippet row(command: IconCommand)}
@@ -25,7 +29,7 @@
   />
 {/snippet}
 
-{#each menu as group, index (index)}
+{#each groups as group, index (index)}
   {#if index > 0}
     <div class="my-1 border-t border-dark/10"></div>
   {/if}

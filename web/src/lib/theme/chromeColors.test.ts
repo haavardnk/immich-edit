@@ -30,7 +30,6 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'text-white/75',
     'via-black/55'
   ],
-  '/src/lib/components/browse/CompactLoupeBar.svelte': ['from-black/60', 'text-white'],
   '/src/lib/components/browse/Loupe.svelte': ['bg-neutral-950'],
   '/src/lib/components/browse/LoupePane.svelte': [
     'bg-neutral-950/85',

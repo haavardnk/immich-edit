@@ -4,7 +4,20 @@
   import type { Snippet } from 'svelte';
   import { segmented } from '#lib/components/segmented.ts';
 
-  type Option = { value: T; label: string; icon?: string; title?: string };
+  type Option = { value: T; label: string; icon?: string; title?: string; disabled?: boolean };
+
+  const LOOKS = {
+    panel: {
+      group: `${segmented.text.group} grid touch:h-12`,
+      item: `${segmented.text.radio} gap-1.5 px-3 touch:h-11 touch:text-xs`,
+      icon: 'shrink-0'
+    },
+    photo: {
+      group: segmented.photo.group,
+      item: segmented.photo.radio,
+      icon: segmented.photo.icon
+    }
+  } as const;
 
   let {
     options,
@@ -13,6 +26,7 @@
     onChange,
     status,
     fill = false,
+    appearance = 'panel',
     children
   }: {
     options: readonly Option[];
@@ -21,32 +35,32 @@
     onChange: (value: T) => void;
     status?: string;
     fill?: boolean;
+    appearance?: keyof typeof LOOKS;
     children?: Snippet;
   } = $props();
+
+  const look = $derived(LOOKS[appearance]);
+
+  function pick(picked: string): void {
+    const option = options.find((candidate) => candidate.value === picked);
+    if (option) onChange(option.value);
+  }
 </script>
 
 {#snippet item(option: Option, props: Record<string, unknown>)}
-  <RadioGroup.Item
-    {...props}
-    value={option.value}
-    class="{segmented.text.radio} gap-1.5 px-3 touch:h-11 touch:text-xs"
-  >
+  <RadioGroup.Item {...props} value={option.value} disabled={option.disabled} class={look.item}>
     {#if option.icon}
-      <Icon icon={option.icon} size="16px" class="shrink-0" aria-hidden="true" />
+      <Icon icon={option.icon} size="16px" class={look.icon} aria-hidden="true" />
     {/if}
     {option.label}
   </RadioGroup.Item>
 {/snippet}
 
 <RadioGroup.Root
-  {value}
-  onValueChange={(picked) => {
-    const option = options.find((candidate) => candidate.value === picked);
-    if (option) onChange(option.value);
-  }}
+  bind:value={() => value, pick}
   orientation="horizontal"
   aria-label={label}
-  class="{segmented.text.group} grid touch:h-12 {fill ? 'w-full' : 'w-fit'}"
+  class="{look.group} {fill ? 'w-full' : 'w-fit'}"
   style="grid-template-columns: repeat({options.length}, minmax(0, 1fr));"
 >
   {#each options as option (option.value)}

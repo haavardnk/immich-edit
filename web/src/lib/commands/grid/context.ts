@@ -7,6 +7,8 @@ export interface GridCommandSpec {
   id: string;
   bind: KeybindId;
   contexts?: readonly KeybindContext[];
+  shown?: () => boolean;
+  unavailable?: () => string | null;
   yields?: (host: GridHost, trigger: CommandTrigger) => boolean;
   run: (host: GridHost, trigger?: CommandTrigger) => void;
 }
@@ -19,6 +21,8 @@ export function gridCommand(spec: GridCommandSpec): Command {
     gate: 'outsideControls',
     active: () => browseView.loupeId === null && gridHost.get() !== null,
     enabled: () => !gridHost.get()?.selectingAll(),
+    shown: spec.shown,
+    unavailable: spec.unavailable,
     yields: (trigger) => {
       const host = gridHost.get();
       if (!host || host.selectingAll()) return false;
