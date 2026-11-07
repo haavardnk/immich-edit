@@ -39,6 +39,7 @@ import {
   clearFlags,
   setFavorite,
   setLabel,
+  setDescription,
   setRating,
   toggleFavorite,
   toggleReject,
@@ -123,6 +124,36 @@ describe('setRating', () => {
     browsing.set([element]);
     await setRating(browseTarget('a'), 3);
     expect(element.exifInfo?.rating).toBe(3);
+  });
+});
+
+describe('setDescription', () => {
+  it('writes a changed description and shows it at once', async () => {
+    browsing.set([asset('a')]);
+    expect(await setDescription(browseTarget('a'), 'Fløyen at dusk')).toBe('saved');
+    expect(h.updateAsset).toHaveBeenCalledWith('a', { description: 'Fløyen at dusk' });
+    expect(browsing.assets[0]?.exifInfo?.description).toBe('Fløyen at dusk');
+    expect(browsing.assets[0]?.exifInfo?.rating).toBeNull();
+  });
+
+  it('skips an unchanged description and a photo shared by someone else', async () => {
+    browsing.set([
+      { ...asset('a'), exifInfo: { description: 'Same' } as never },
+      { ...asset('b'), ownerId: 'someone-else' }
+    ]);
+    expect(await setDescription(browseTarget('a'), 'Same')).toBe('skipped');
+    expect(await setDescription(browseTarget('b'), 'New')).toBe('skipped');
+    expect(h.updateAsset).not.toHaveBeenCalled();
+  });
+
+  it('restores the old description when Immich refuses', async () => {
+    browsing.set([{ ...asset('a'), exifInfo: { description: 'Old' } as never }]);
+    const boom = new Error('boom');
+    h.updateAsset.mockImplementationOnce(() => Promise.reject(boom));
+    const { target, failures } = recordingTarget('a');
+    expect(await setDescription(target, 'New')).toBe('failed');
+    expect(browsing.assets[0]?.exifInfo?.description).toBe('Old');
+    expect(failures).toEqual([['description', boom]]);
   });
 });
 

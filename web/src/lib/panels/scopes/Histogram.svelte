@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Histogram } from '#lib/types/preview.ts';
-  import { Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { mergeProps } from 'bits-ui';
 
   let {
@@ -96,7 +96,7 @@
     {/each}
   </div>
   {#if shadowClip > 0.1}
-    <Tooltip text="Shadow clipping">
+    <ElementTooltip text="Shadow clipping">
       {#snippet child({ props })}
         <div
           {...mergeProps(props, { tabindex: -1 })}
@@ -105,10 +105,10 @@
           ▼
         </div>
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
   {/if}
   {#if highlightClip > 0.1}
-    <Tooltip text="Highlight clipping">
+    <ElementTooltip text="Highlight clipping">
       {#snippet child({ props })}
         <div
           {...mergeProps(props, { tabindex: -1 })}
@@ -117,6 +117,6 @@
           ▲
         </div>
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
   {/if}
 </div>

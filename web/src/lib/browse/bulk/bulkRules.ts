@@ -1,7 +1,5 @@
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
 
-export const TOUCH_PANES = 4;
-
 export function scopeLine(
   loaded: number,
   total: number | undefined,

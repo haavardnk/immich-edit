@@ -10,9 +10,10 @@
     color?: Color;
     shape?: Shape;
     class?: string;
+    before?: () => void;
   };
 
-  let { command, color = 'secondary', ...rest }: Props = $props();
+  let { command, color = 'secondary', before, ...rest }: Props = $props();
 
   const pressed = $derived(command.pressed?.());
   const item = $derived({
@@ -25,4 +26,4 @@
   } as const);
 </script>
 
-<IconButton {...rest} {...item} {...pressHandlers(command)} />
+<IconButton {...rest} {...item} {...pressHandlers(command, before)} />

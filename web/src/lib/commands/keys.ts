@@ -3,7 +3,7 @@ import type { KeybindContext } from '#lib/shortcuts/table.ts';
 import { isRadioGroupTarget, isTypingTarget, yieldsToControl } from '#lib/shortcuts/targets.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
-import { isAnyModalOpen } from '#lib/stores/overlays.ts';
+import { escapeTaken, isAnyModalOpen } from '#lib/stores/overlays.ts';
 import { isEnabled } from '#lib/commands/command.ts';
 import type { Command, CommandTrigger, KeyGate } from '#lib/commands/types.ts';
 
@@ -42,7 +42,7 @@ export function createKeyDispatcher(commands: readonly Command[]): KeyDispatcher
 
   return {
     keydown: (e, contexts) => {
-      if (isAnyModalOpen()) return;
+      if (isAnyModalOpen() || escapeTaken(e)) return;
       const trigger = { key: e.key, code: e.code, shiftKey: e.shiftKey, repeat: e.repeat };
       const command = resolve(e, contexts, trigger);
       if (!command || !passes(command.gate ?? 'default', e) || command.yields?.(trigger)) return;

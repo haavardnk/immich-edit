@@ -6,6 +6,7 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { providePickerHost } from '#lib/components/sheet/pickerHost.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
+  import { holdEscape } from '#lib/stores/overlays.ts';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
@@ -23,6 +24,7 @@
     sheetClass = '',
     sheetPicker = false,
     title,
+    subtitle,
     tooltip,
     customAnchor
   }: {
@@ -37,6 +39,7 @@
     sheetClass?: string;
     sheetPicker?: boolean;
     title?: string;
+    subtitle?: string;
     tooltip?: string;
     customAnchor?: HTMLElement | null;
   } = $props();
@@ -63,6 +66,10 @@
 
   $effect(() => {
     if (open) tooltipOpen = false;
+  });
+
+  $effect(() => {
+    if (open && layout.mode !== 'touch') return holdEscape();
   });
 </script>
 
@@ -94,6 +101,7 @@
       {open}
       {onOpenChange}
       title={title ?? 'Options'}
+      {subtitle}
       titleHidden={title === undefined}
       close="done"
       detents={sheetPicker ? [{ fraction: 1 }] : undefined}

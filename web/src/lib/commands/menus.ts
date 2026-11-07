@@ -13,8 +13,10 @@ import { loupeCompare, loupeSingle, loupeSurvey } from '#lib/commands/loupe/navi
 import {
   loupeAutoAdvance,
   loupeClipWarn,
+  loupeFilmstrip,
   loupeFullscreen,
-  loupeInfo
+  loupeInfo,
+  loupeZoom
 } from '#lib/commands/loupe/view.ts';
 import type { IconCommand } from '#lib/commands/types.ts';
 
@@ -23,9 +25,36 @@ export type Menu = readonly (readonly IconCommand[])[];
 export const LOUPE_VIEW_MODE_MENU: Menu = [[loupeSingle, loupeCompare, loupeSurvey]];
 
 export const LOUPE_MORE_MENU: Menu = [
-  [loupeInfo, loupeFullscreen, loupeClipWarn, greyCanvas, loupeAutoAdvance],
+  [loupeFullscreen, loupeClipWarn, greyCanvas],
   [loupeTrash],
   [help]
+];
+
+const LOUPE_PHONE_VIEW: readonly IconCommand[] = [
+  loupeZoom,
+  loupeFilmstrip,
+  loupeFullscreen,
+  loupeClipWarn,
+  greyCanvas
+];
+
+export const LOUPE_PHONE_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  LOUPE_PHONE_VIEW,
+  [loupeCompare, loupeSurvey],
+  [loupeTrash]
+];
+
+export const LOUPE_PHONE_MULTI_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  [loupeInfo, ...LOUPE_PHONE_VIEW],
+  [loupeTrash]
+];
+
+export const LOUPE_WIDE_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  [loupeFullscreen, loupeClipWarn, greyCanvas],
+  [loupeTrash]
 ];
 
 export const EDITOR_VERSION_MENU: Menu = [[virtualCopy]];

@@ -97,7 +97,7 @@ describe('browse view persistence', () => {
     const values = stubStorage({ filtersOpen: true });
     const { browseView } = await import('./browseView.svelte');
 
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(true);
     expect(browseView.filtersOpen).toBe(false);
 
     browseView.setFiltersOpen(true);
@@ -105,18 +105,64 @@ describe('browse view persistence', () => {
     expect(values.get(storageKey)).toBe(JSON.stringify({ filtersOpen: true }));
 
     browseView.setFiltersOpen(false);
-    browseView.setFiltersCompact(false);
+    browseView.setCompact(false);
     expect(browseView.filtersOpen).toBe(true);
 
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(true);
     browseView.setFiltersOpen(true);
-    browseView.setFiltersCompact(false);
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(false);
+    browseView.setCompact(true);
     expect(browseView.filtersOpen).toBe(false);
 
-    browseView.setFiltersCompact(false);
+    browseView.setCompact(false);
     browseView.setFiltersOpen(false);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+  });
+
+  it('keeps the compact info sheet transient and the docked info panel persisted', async () => {
+    const values = stubStorage({ loupeInfoOpen: true });
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setCompact(true);
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.toggleLoupeInfo();
+    expect(browseView.loupeInfoOpen).toBe(true);
+    expect(values.get(storageKey)).toBe(JSON.stringify({ loupeInfoOpen: true }));
+
+    browseView.openLoupe('a');
+    browseView.closeLoupe();
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.toggleLoupeInfo();
+    browseView.setCompact(false);
+    browseView.setCompact(true);
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.setCompact(false);
+    expect(browseView.loupeInfoOpen).toBe(true);
+    browseView.setLoupeInfoOpen(false);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ loupeInfoOpen: false });
+  });
+
+  it('keeps one loupe filmstrip choice for compact touch and one for the other layouts', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+    const { ui } = await import('#lib/stores/ui.svelte.ts');
+
+    expect(browseView.loupeFilmstripShown).toBe(true);
+    browseView.setCompact(true);
+    expect(browseView.loupeFilmstripShown).toBe(false);
+
+    browseView.toggleLoupeFilmstrip();
+    expect(browseView.loupeFilmstripShown).toBe(true);
+    expect(ui.loupeFilmstripCollapsed).toBe(false);
+
+    browseView.setCompact(false);
+    browseView.toggleLoupeFilmstrip();
+    expect(browseView.loupeFilmstripShown).toBe(false);
+    browseView.setCompact(true);
+    expect(browseView.loupeFilmstripShown).toBe(true);
   });
 
   it('cycles the tile info through none, badges and full', async () => {

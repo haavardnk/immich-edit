@@ -11,6 +11,7 @@ import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { ExifInfo } from '#lib/types/asset.ts';
 import { listenForCommands } from '#lib/commands/listen.ts';
+import { ADVANCE_MS, ratingHud } from '#lib/browse/ratingHud.svelte.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -125,6 +126,43 @@ describe('Loupe', () => {
     expect(query('nav[aria-label="Loupe toolbar"] h2')?.textContent).toBe('c.jpg');
   });
 
+  it('cancels a pending auto-advance when the loupe moves by hand', () => {
+    vi.useFakeTimers();
+    try {
+      render();
+      const step = vi.fn();
+      ratingHud.show(
+        'b',
+        'rating',
+        { rating: 2, isFavorite: false, rejected: false, label: null, owned: true },
+        step
+      );
+      flushSync();
+      expect(query('[data-testid="rating-hud"]')?.textContent).toContain('2 stars');
+      press('ArrowRight');
+      vi.advanceTimersByTime(ADVANCE_MS * 2);
+      expect(step).not.toHaveBeenCalled();
+      expect(ratingHud.shown).toBeNull();
+      expect(browseView.loupeId).toBe('c');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('toggles auto-advance from the toolbar pill', () => {
+    browseView.setLoupeAutoAdvance(false);
+    render();
+    const pill = [...target.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Auto-advance'
+    );
+    expect(pill?.getAttribute('aria-pressed')).toBe('false');
+    pill?.click();
+    flushSync();
+    expect(browseView.loupeAutoAdvance).toBe(true);
+    expect(pill?.getAttribute('aria-pressed')).toBe('true');
+    browseView.setLoupeAutoAdvance(false);
+  });
+
   it('keeps fullscreen on Shift+Escape', () => {
     render();
     ui.fullscreen = true;
@@ -162,7 +200,7 @@ describe('Loupe', () => {
     expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
   });
 
-  it('describes the photo with the editor EXIF rows and closes the info panel', () => {
+  it('docks the info panel beside the photo and closes it from the toolbar or its close button', () => {
     const taken = '2024-05-06T07:08:09Z';
     browsing.patch('b', {
       localDateTime: '2024-05-06T09:08:09.000Z',
@@ -172,18 +210,23 @@ describe('Loupe', () => {
         fileSizeInByte: 2 * 1024 * 1024
       } as ExifInfo
     });
-    if (!browseView.loupeInfoOpen) browseView.toggleLoupeInfo();
     render();
+    const toggle = query('nav[aria-label="Loupe toolbar"] button[aria-label^="Info"]');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    toggle?.click();
+    flushSync();
 
-    const info = query('section[aria-label="Photo info"]');
+    const info = query('aside[aria-label="Info"]');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
     expect(info?.textContent).toContain('b.jpg');
     expect(info?.textContent).toContain(
       new Date('2024-05-06T09:08:09Z').toLocaleString(undefined, { timeZone: 'UTC' })
     );
-    expect(info?.textContent).toContain('2.0 MB');
+    expect(info?.textContent).toContain('2.0 MB · JPG');
 
     query('button[aria-label="Close info"]')?.click();
     flushSync();
-    expect(query('section[aria-label="Photo info"]')).toBeNull();
+    expect(query('aside[aria-label="Info"]')).toBeNull();
+    expect(browseView.loupeInfoOpen).toBe(false);
   });
 });

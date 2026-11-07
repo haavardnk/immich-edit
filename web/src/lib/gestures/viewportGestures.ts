@@ -1,5 +1,6 @@
 import { pointerDrag, type DragHandlers } from '#lib/gestures/drag.ts';
 import { centredPoint, type ClientPoint, type Point } from '#lib/gestures/point.ts';
+import type { PointerKind } from '#lib/gestures/pointers.ts';
 import { DEFAULT_THRESHOLDS } from '#lib/gestures/thresholds.ts';
 import { held } from '#lib/input/modifiers.svelte.ts';
 import {
@@ -21,6 +22,7 @@ export type ViewportGestureSpec = {
   dragging?: (active: boolean) => void;
   tap?: (e: PointerEvent) => void;
   doubleTap?: (e: MouseEvent) => void;
+  pointerTypes?: readonly PointerKind[];
 };
 
 export type ViewportHandlers = DragHandlers & {
@@ -64,6 +66,16 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
 
   function pressed(e: PointerEvent): Press | null {
     return press && press.pointerId === e.pointerId ? press : null;
+  }
+
+  function accepts(e: PointerEvent): boolean {
+    return !spec.pointerTypes || spec.pointerTypes.some((kind) => kind === e.pointerType);
+  }
+
+  function only(handler: (e: PointerEvent) => void): (e: PointerEvent) => void {
+    return (e) => {
+      if (accepts(e)) handler(e);
+    };
   }
 
   function onpointermove(e: PointerEvent): void {
@@ -110,11 +122,11 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
 
   return {
     handlers: {
-      onpointerdown: (e) => void drag.begin(e),
-      onpointermove,
-      onpointerup,
-      onpointercancel,
-      onlostpointercapture: drag.follow.onlostpointercapture,
+      onpointerdown: only((e) => void drag.begin(e)),
+      onpointermove: only(onpointermove),
+      onpointerup: only(onpointerup),
+      onpointercancel: only(onpointercancel),
+      onlostpointercapture: only(drag.follow.onlostpointercapture),
       onwheel,
       ondblclick: (e) => spec.doubleTap?.(e)
     },

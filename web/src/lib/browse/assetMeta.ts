@@ -25,7 +25,7 @@ export type AssetMeta = Pick<AssetSummary, 'ownerId' | 'isFavorite' | 'exifInfo'
 
 export type MetaFields = Partial<Pick<AssetMeta, 'isFavorite' | 'exifInfo' | 'tags'>>;
 
-export type MetaKind = 'rating' | 'favorite' | 'label' | 'reject' | 'tag';
+export type MetaKind = 'rating' | 'favorite' | 'label' | 'reject' | 'tag' | 'description';
 
 export type MetaOutcome = 'skipped' | 'saved' | 'failed';
 
@@ -53,6 +53,7 @@ interface LabelValue {
 
 export const flagSlots = slotQueue<boolean>();
 const ratingSlots = slotQueue<number | null>();
+const descriptionSlots = slotQueue<string>();
 const labelSlots = slotQueue<LabelValue>();
 
 const TAG_UNAVAILABLE = 'could not create tag';
@@ -94,9 +95,26 @@ export function setRating(target: MetaTarget, rating: number | null): Promise<Me
     slot: 'rating',
     from: asset.exifInfo?.rating ?? null,
     to: rating,
-    fields: (current, value) => ({ exifInfo: withRating(current.exifInfo, value) }),
+    fields: (current, value) => ({ exifInfo: withExif(current.exifInfo, { rating: value }) }),
     write: () => updateAsset(target.id, { rating })
   }));
+}
+
+export function setDescription(target: MetaTarget, description: string): Promise<MetaOutcome> {
+  return changeMeta(target, 'description', (asset): MetaChange<string> | null => {
+    const from = asset.exifInfo?.description ?? '';
+    if (from === description) return null;
+    return {
+      slots: descriptionSlots,
+      slot: 'description',
+      from,
+      to: description,
+      fields: (current, value) => ({
+        exifInfo: withExif(current.exifInfo, { description: value })
+      }),
+      write: () => updateAsset(target.id, { description })
+    };
+  });
 }
 
 export function setFavorite(target: MetaTarget, value: boolean): Promise<MetaOutcome> {
@@ -237,8 +255,8 @@ function markRejected(id: string, tag: TagRef, value: boolean): void {
   else rejected.remove(id);
 }
 
-function withRating(exif: ExifInfo | null, rating: number | null): ExifInfo {
-  if (exif) return { ...exif, rating };
+function withExif(exif: ExifInfo | null, change: Partial<ExifInfo>): ExifInfo {
+  if (exif) return { ...exif, ...change };
   return {
     make: null,
     model: null,
@@ -255,7 +273,11 @@ function withRating(exif: ExifInfo | null, rating: number | null): ExifInfo {
     orientation: null,
     dateTimeOriginal: null,
     timeZone: null,
-    rating,
-    fileSizeInByte: null
+    rating: null,
+    fileSizeInByte: null,
+    description: null,
+    latitude: null,
+    longitude: null,
+    ...change
   };
 }

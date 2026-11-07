@@ -8,11 +8,10 @@ export function multiMembers(
   mode: MultiMode,
   orderedIds: string[],
   selected: ReadonlySet<string>,
-  currentId: string | null,
-  panes: number = MAX_PANES
+  currentId: string | null
 ): string[] {
   const picked = orderedIds.filter((id) => selected.has(id));
-  if (picked.length >= 2) return picked.slice(0, mode === 'compare' ? 2 : panes);
+  if (picked.length >= 2) return picked.slice(0, mode === 'compare' ? 2 : MAX_PANES);
   return neighbourMembers(mode, orderedIds, currentId);
 }
 

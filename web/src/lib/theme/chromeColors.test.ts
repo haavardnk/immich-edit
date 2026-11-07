@@ -12,7 +12,7 @@ const LITERALS = [
   new RegExp(`\\b${UTILITY}-(?:neutral|zinc|slate|stone)-\\d+(?:/\\d+)?`, 'g'),
   new RegExp(`\\b${UTILITY}-white(?:/\\d+)?(?![\\w-])`, 'g'),
   new RegExp(`\\b${UTILITY}-black(?![\\w/-])`, 'g'),
-  /(?<!dark:)\bbg-black\/\d+/g,
+  new RegExp(`(?<!dark:)\\b${UTILITY}-black/\\d+`, 'g'),
   /#[0-9a-fA-F]{3,8}\b/g,
   /rgba?\(/g
 ];
@@ -24,16 +24,14 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'bg-black/55',
     'bg-black/70',
     'border-white',
+    'from-black/90',
     'text-white',
     'text-white/70',
-    'text-white/75'
+    'text-white/75',
+    'via-black/55'
   ],
-  '/src/lib/components/browse/Loupe.svelte': [
-    'bg-black/40',
-    'bg-black/70',
-    'bg-neutral-950',
-    'text-white'
-  ],
+  '/src/lib/components/browse/CompactLoupeBar.svelte': ['from-black/60', 'text-white'],
+  '/src/lib/components/browse/Loupe.svelte': ['bg-neutral-950'],
   '/src/lib/components/browse/LoupePane.svelte': [
     'bg-neutral-950/85',
     'border-white/20',
@@ -42,6 +40,19 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'text-white/90'
   ],
   '/src/lib/components/browse/LoupePaneGrid.svelte': ['bg-black/50', 'bg-black/75', 'text-white'],
+  '/src/lib/components/browse/LoupeStepButtons.svelte': [
+    'bg-black/40',
+    'bg-black/70',
+    'text-white'
+  ],
+  '/src/lib/components/browse/PreviewStatusChip.svelte': ['bg-black/70', 'text-white/85'],
+  '/src/lib/components/browse/RatingHud.svelte': [
+    'bg-black/70',
+    'bg-white/15',
+    'text-white',
+    'text-white/45',
+    'text-white/70'
+  ],
   '/src/lib/components/editor/BrushCanvas.svelte': ['border-white/90', 'rgb(', 'rgba('],
   '/src/lib/components/editor/ClickCanvas.svelte': [
     'bg-black/70',
@@ -49,9 +60,16 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'ring-white/60',
     'text-white'
   ],
-  '/src/lib/components/editor/CropOverlay.svelte': ['bg-white', 'border-white/90', 'rgb('],
+  '/src/lib/components/editor/CropOverlay.svelte': [
+    'bg-white',
+    'border-black/60',
+    'border-white/90',
+    'rgb('
+  ],
+  '/src/lib/components/editor/PerspectiveCorners.svelte': ['border-black/60'],
   '/src/lib/components/editor/UprightGuides.svelte': [
     'bg-black/70',
+    'border-black/60',
     'border-white/40',
     'rgb(',
     'text-white'
@@ -61,7 +79,9 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'bg-black/70',
     'bg-white',
     'bg-white/90',
+    'border-black/40',
     'ring-white/10',
+    'text-black/70',
     'text-white',
     'text-white/85'
   ],
@@ -70,8 +90,8 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'text-white',
     'text-white/60'
   ],
-  '/src/lib/components/preset/PresetTile.svelte': ['bg-black/55', 'text-white/90'],
-  '/src/lib/components/shell/Filmstrip.svelte': ['text-white'],
+  '/src/lib/components/preset/PresetTile.svelte': ['bg-black/55', 'from-black/80', 'text-white/90'],
+  '/src/lib/components/shell/Filmstrip.svelte': ['from-black/75', 'text-white'],
   '/src/lib/panels/MaskRangeControls.svelte': ['rgb(']
 };
 

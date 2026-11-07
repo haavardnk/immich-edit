@@ -1,4 +1,4 @@
-import type { CDPSession, Page } from '@playwright/test';
+import type { CDPSession, Locator, Page } from '@playwright/test';
 
 export type TouchPoint = { x: number; y: number };
 
@@ -33,6 +33,23 @@ function between(from: TouchPoint, to: TouchPoint, t: number): TouchPoint {
 export async function tapAt(page: Page, x: number, y: number): Promise<void> {
   await dispatch(page, 'touchStart', [{ x, y }]);
   await dispatch(page, 'touchEnd', []);
+}
+
+export async function tapCentre(page: Page, target: Locator): Promise<void> {
+  const box = await target.boundingBox();
+  if (!box) throw new Error('nothing to tap');
+  await tapAt(page, box.x + box.width / 2, box.y + box.height / 2);
+}
+
+export async function openTileLoupe(page: Page, tile: Locator): Promise<void> {
+  await tile.waitFor();
+  if ((await page.locator('html').getAttribute('data-layout')) === 'touch') {
+    const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+    await (coarse ? tapCentre(page, tile) : tile.click());
+    return;
+  }
+  await tile.hover();
+  await tile.getByRole('button', { name: 'Quick review' }).click();
 }
 
 export async function longPress(page: Page, x: number, y: number, ms = 700): Promise<void> {
@@ -77,6 +94,14 @@ export async function pinch(
 
 export async function touchDown(page: Page, point: TouchPoint): Promise<void> {
   await dispatch(page, 'touchStart', [point]);
+}
+
+export async function twoFingerTap(page: Page, center: TouchPoint, spread = 80): Promise<void> {
+  await dispatch(page, 'touchStart', [
+    { x: center.x - spread / 2, y: center.y },
+    { x: center.x + spread / 2, y: center.y }
+  ]);
+  await dispatch(page, 'touchEnd', []);
 }
 
 export async function touchMoveTo(page: Page, point: TouchPoint): Promise<void> {

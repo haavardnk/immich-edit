@@ -5,6 +5,7 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { neighbourMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
 import { switchMembers } from '#lib/browse/loupeLayout.ts';
+import { countOf } from '#lib/utils/plural.ts';
 
 function isMulti(): boolean {
   return compare.mode !== 'single';
@@ -24,6 +25,12 @@ function walk(from: string, steps: number, delta: number): string {
     cursor = next.id;
   }
   return cursor;
+}
+
+export function canStepLoupe(id: string, delta: number): boolean {
+  return delta > 0
+    ? browsing.nextOf(id) !== null || browsing.hasMore
+    : browsing.prevOf(id) !== null || browsing.hasPrevious;
 }
 
 export function stepLoupe(delta: number): void {
@@ -112,11 +119,21 @@ export function selectViewMode(mode: CompareMode): void {
   compare.enter(mode, members);
 }
 
+export function dropPane(index: number): void {
+  const id = compare.members[index];
+  if (id === undefined) return;
+  if (compare.members.length > 2) return compare.drop(index);
+  browseView.openLoupe(compare.members.find((member) => member !== id) ?? id);
+}
+
 function togglePane(id: string): void {
   const at = compare.members.indexOf(id);
-  if (at < 0) return compare.addMember(id);
-  if (compare.members.length > 2) return compare.drop(at);
-  browseView.openLoupe(compare.members.find((member) => member !== id) ?? id);
+  if (at >= 0) return dropPane(at);
+  if (compare.full) {
+    toasts.push('info', `Survey holds up to ${countOf(compare.paneLimit, 'photo')}`);
+    return;
+  }
+  compare.addMember(id);
 }
 
 export function pickFromStrip(id: string, additive: boolean): void {

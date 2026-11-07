@@ -10,6 +10,7 @@ export function getAsset(id: string): Promise<AssetDetail> {
 export interface AssetUpdate {
   isFavorite?: boolean;
   rating?: number | null;
+  description?: string;
 }
 
 export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail> {
@@ -30,6 +31,10 @@ export async function warmFrames(ids: string[]): Promise<void> {
 
 export function thumbUrl(id: string, size: 'thumbnail' | 'preview' = 'thumbnail'): string {
   return url`/api/assets/${id}/thumb?size=${size}`;
+}
+
+export function immichPreviewUrl(id: string): string {
+  return thumbUrl(sourceId(id), 'preview');
 }
 
 export function editedThumbUrl(id: string, hash: string, revision: string, size = 400): string {

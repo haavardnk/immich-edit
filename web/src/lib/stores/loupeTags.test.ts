@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   addTagToAsset: vi.fn((_tagId: string, _assetId: string) => Promise.resolve()),
-  removeTagFromAsset: vi.fn((_tagId: string, _assetId: string) => Promise.resolve())
+  removeTagFromAsset: vi.fn((_tagId: string, _assetId: string) => Promise.resolve()),
+  getAsset: vi.fn((_id: string): Promise<{ tags: TagRef[] }> => Promise.resolve({ tags: [] }))
 }));
 
 vi.mock('#lib/api/tags.ts', () => ({
@@ -12,7 +13,7 @@ vi.mock('#lib/api/tags.ts', () => ({
   removeTagFromAsset: h.removeTagFromAsset,
   upsertTags: vi.fn()
 }));
-vi.mock('#lib/api/assets.ts', () => ({ updateAsset: vi.fn(), getAsset: vi.fn() }));
+vi.mock('#lib/api/assets.ts', () => ({ updateAsset: vi.fn(), getAsset: h.getAsset }));
 vi.mock('#lib/stores/metadataConsent.svelte.ts', () => ({
   metadataConsent: { gate: () => Promise.resolve(true) }
 }));
@@ -24,14 +25,17 @@ vi.mock('#lib/browse/reject.ts', async (orig) => {
   };
 });
 
-import { clearFlags, setLabel, toggleReject } from '#lib/browse/assetMeta.ts';
+import { browseTarget, clearFlags, setLabel, toggleReject } from '#lib/browse/assetMeta.ts';
+import { addTag, removeTag } from '#lib/browse/tagOps.ts';
 import { browsing } from './browsing.svelte';
 import { loupeTags } from './loupeTags.svelte';
 import { rejected } from './rejected.svelte';
 import { session } from './session.svelte';
+import { tagCache } from './tagCache.svelte';
 
 const sunset: TagRef = { id: 't1', name: 'sunset', value: 'sunset' };
 const beach: TagRef = { id: 't2', name: 'beach', value: 'beach' };
+const dusk: TagRef = { id: 't3', name: 'dusk', value: 'dusk' };
 
 function summary(id: string): AssetSummary {
   return {
@@ -57,7 +61,7 @@ beforeEach(() => {
   session.clear();
   rejected.reset();
   browsing.set([summary('a')]);
-  loupeTags.set('a', [sunset, beach]);
+  tagCache.set('a', [sunset, beach]);
 });
 
 describe('loupeTags', () => {
@@ -87,7 +91,7 @@ describe('loupeTags', () => {
   });
 
   it('adds a tag to the cached tags and the list', async () => {
-    loupeTags.set('a', [sunset]);
+    tagCache.set('a', [sunset]);
     await loupeTags.add('a', beach);
     expect(h.addTagToAsset).toHaveBeenCalledWith('t2', 'a');
     expect(ids(loupeTags.tagsOf('a'))).toEqual(['t1', 't2']);
@@ -98,6 +102,33 @@ describe('loupeTags', () => {
     await loupeTags.remove('a', 't1');
     expect(h.removeTagFromAsset).toHaveBeenCalledWith('t1', 'a');
     expect(ids(loupeTags.tagsOf('a'))).toEqual(['t2']);
+  });
+
+  it('keeps a tag removed outside the loupe out of the next loupe write', async () => {
+    expect(await removeTag(browseTarget('a'), 't1')).toBe('saved');
+    await loupeTags.add('a', dusk);
+    expect(ids(loupeTags.tagsOf('a'))).toEqual(['t2', 't3']);
+    expect(ids(browsing.find('a')?.tags ?? [])).toEqual(['t2', 't3']);
+  });
+
+  it('keeps a tag added outside the loupe in the next loupe write', async () => {
+    expect(await addTag(browseTarget('a'), dusk)).toBe('saved');
+    await loupeTags.remove('a', 't1');
+    expect(ids(loupeTags.tagsOf('a'))).toEqual(['t2', 't3']);
+    expect(ids(browsing.find('a')?.tags ?? [])).toEqual(['t2', 't3']);
+  });
+
+  it('keeps a tag added while the photo tags are still loading', async () => {
+    browsing.set([summary('c')]);
+    let finish: (tags: TagRef[]) => void = () => {};
+    h.getAsset.mockImplementationOnce(
+      () => new Promise((resolve) => (finish = (tags) => resolve({ tags })))
+    );
+    const loading = loupeTags.ensure('c');
+    expect(await addTag(browseTarget('c'), dusk)).toBe('saved');
+    finish([sunset]);
+    await loading;
+    expect(ids(loupeTags.tagsOf('c'))).toEqual(['t1', 't3']);
   });
 
   it('leaves an uncached photo to the list', async () => {

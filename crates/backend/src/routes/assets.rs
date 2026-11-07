@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query};
-use axum::http::{StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
@@ -10,7 +10,10 @@ use crate::error::AppError;
 use crate::immich::client::ThumbSize;
 use crate::immich::dto::AssetDetail;
 use crate::routes::auth::AuthCtx;
-use crate::routes::headers;
+use crate::routes::headers::{self, attach_validators, etag_matches};
+use crate::services::blob_store::content_hash;
+
+const THUMB_ETAG_LEN: usize = 32;
 
 pub async fn detail(ctx: AuthCtx, Path(id): Path<AssetKey>) -> Result<Json<AssetDetail>, AppError> {
     let asset = ctx.immich.asset(id.source()).await?;
@@ -44,11 +47,19 @@ pub async fn thumbnail(
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
     Query(q): Query<ThumbQuery>,
+    request_headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let (bytes, content_type) = ctx.immich.thumbnail(id.source(), q.size).await?;
+    let etag = headers::etag(&content_hash(&bytes)[..THUMB_ETAG_LEN])?;
+    if etag_matches(&request_headers, &etag) {
+        let mut resp = StatusCode::NOT_MODIFIED.into_response();
+        attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
+        return Ok(resp);
+    }
     let mut resp = Response::new(Body::from(bytes));
     *resp.status_mut() = StatusCode::OK;
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, headers::header_value(&content_type)?);
+    attach_validators(&mut resp, etag, headers::CACHE_REVALIDATE);
     Ok(resp.into_response())
 }

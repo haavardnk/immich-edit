@@ -10,7 +10,7 @@ import * as bulkMeta from '#lib/browse/bulkMeta.ts';
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
 import { pasteEditsTo } from '#lib/browse/copyPaste.ts';
 import { openMulti } from '#lib/browse/gridActions.ts';
-import { MAX_PANES } from '#lib/stores/compare.svelte.ts';
+import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -63,8 +63,12 @@ class BulkActions {
 
   createCopies = (): Promise<void> => this.run(virtualCopies.create);
 
-  setTags = (tags: TagRef[], add: boolean): Promise<boolean> =>
-    this.#report((ids) => (add ? bulkMeta.addTags(ids, tags) : bulkMeta.removeTags(ids, tags)));
+  setTags = (tags: TagRef[], add: boolean): Promise<boolean> => {
+    if (add) for (const tag of tags) recentTags.record(tag);
+    return this.#report((ids) =>
+      add ? bulkMeta.addTags(ids, tags) : bulkMeta.removeTags(ids, tags)
+    );
+  };
 
   addToAlbums = (albumIds: readonly string[]): Promise<boolean> =>
     this.#report((ids) => addToAlbums(ids, albumIds));
@@ -103,8 +107,8 @@ class BulkActions {
     return false;
   };
 
-  multi = (mode: MultiMode, panes: number = MAX_PANES): void => {
-    openMulti(mode, bulkScope.items, panes);
+  multi = (mode: MultiMode): void => {
+    openMulti(mode, bulkScope.items);
   };
 
   selectAll = async (): Promise<void> => {

@@ -1,5 +1,5 @@
 import { openInEditor } from '#lib/browse/loupeActions.ts';
-import { paneColumns } from '#lib/browse/loupeLayout.ts';
+import { paneColumns, paneWindow } from '#lib/browse/loupeLayout.ts';
 import { openFirstLoupe, openLastLoupe, selectViewMode, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { loupeCommand } from '#lib/commands/loupe/context.ts';
 import type { Command, CommandTrigger } from '#lib/commands/types.ts';
@@ -13,7 +13,8 @@ function toEdge(trigger?: CommandTrigger): void {
 function surveyStep(key: string): number {
   if (key === 'ArrowRight') return 1;
   if (key === 'ArrowLeft') return -1;
-  const cols = paneColumns(compare.members.length);
+  const shown = paneWindow(compare.members.length, compare.focusIndex, compare.paneLimit);
+  const cols = paneColumns(shown.end - shown.start);
   return key === 'ArrowDown' ? cols : -cols;
 }
 
@@ -32,6 +33,7 @@ export const loupeSingle = loupeCommand({
   id: 'loupe.single',
   contexts: ['loupe'],
   label: 'Single photo',
+  short: 'Single',
   icon: mdiImageOutline,
   ...viewMode('single')
 });

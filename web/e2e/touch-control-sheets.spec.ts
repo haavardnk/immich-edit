@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { datedAssets, dayShots } from './timeline';
-import { tapAt } from './touch';
+import { tapCentre } from './touch';
 import { open } from './touchShell';
 
 const ASSETS = datedAssets([
@@ -24,9 +24,7 @@ function tile(page: Page, name: string): Locator {
 }
 
 async function tapTile(page: Page, name: string): Promise<void> {
-  const box = await tile(page, name).boundingBox();
-  if (!box) throw new Error(`no tile ${name}`);
-  await tapAt(page, box.x + 20, box.y + 20);
+  await tapCentre(page, tile(page, name));
 }
 
 function appBar(page: Page): Locator {
@@ -89,7 +87,7 @@ test.describe('touch control sheets', { tag: '@touch' }, () => {
         tile(page, 'IMG_0003.ARW').boundingBox(),
         sheet.boundingBox()
       ]);
-      expect((box?.y ?? 0) + 20).toBeLessThan(sheetBox?.y ?? 0);
+      expect((box?.y ?? 0) + (box?.height ?? 0) / 2).toBeLessThan(sheetBox?.y ?? 0);
       await tapTile(page, 'IMG_0003.ARW');
 
       await expect(sheet).toBeHidden();

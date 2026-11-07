@@ -1,7 +1,7 @@
 import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
 import { KEYBINDS, type Keybind, type KeybindContext } from '#lib/shortcuts/table.ts';
 import { describe, expect, it, vi } from 'vitest';
-import { commandLabel } from './command';
+import { commandLabel, commandShortLabel } from './command';
 import * as menus from './menus';
 import { COMMANDS } from './registry';
 import type { Command } from './types';
@@ -34,6 +34,17 @@ describe('command registry', () => {
     const ids = COMMANDS.map((command) => command.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const command of COMMANDS) expect(commandLabel(command), command.id).not.toBe(command.id);
+  });
+
+  it('names menus in full and compact controls by a shorter label', () => {
+    const single = COMMANDS.find((command) => command.id === 'loupe.single');
+    expect(single && commandLabel(single)).toBe('Single photo');
+    expect(single && commandShortLabel(single)).toBe('Single');
+    for (const command of COMMANDS.filter((entry) => entry.short)) {
+      expect(commandShortLabel(command).length, command.id).toBeLessThan(
+        commandLabel(command).length
+      );
+    }
   });
 
   it('binds only keyed shortcuts, in contexts the shortcut lists', () => {
@@ -113,9 +124,32 @@ describe('command registry', () => {
     expect(ids).toEqual({
       LOUPE_VIEW_MODE_MENU: [['loupe.single', 'loupe.compare', 'loupe.survey']],
       LOUPE_MORE_MENU: [
-        ['loupe.info', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas', 'loupe.autoAdvance'],
+        ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
         ['loupe.trash'],
         ['app.help']
+      ],
+      LOUPE_PHONE_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        ['loupe.zoom', 'loupe.filmstrip', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.compare', 'loupe.survey'],
+        ['loupe.trash']
+      ],
+      LOUPE_PHONE_MULTI_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        [
+          'loupe.info',
+          'loupe.zoom',
+          'loupe.filmstrip',
+          'loupe.fullscreen',
+          'loupe.clipWarn',
+          'app.greyCanvas'
+        ],
+        ['loupe.trash']
+      ],
+      LOUPE_WIDE_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.trash']
       ],
       EDITOR_VERSION_MENU: [['editor.virtualCopy']],
       EDITOR_VIEW_MENU: [

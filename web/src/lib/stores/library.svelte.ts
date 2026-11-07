@@ -6,6 +6,7 @@ import { folderPaths } from '#lib/api/folders.ts';
 import { searchStatistics } from '#lib/api/search.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 
 export type LibraryView = 'albums' | 'folders' | 'people' | 'favorites' | 'tags';
@@ -127,6 +128,7 @@ class LibraryStore {
         break;
       case 'tags':
         this.tags = await listTags();
+        recentTags.keep(this.tags);
         break;
       case 'folders': {
         const paths = await folderPaths();

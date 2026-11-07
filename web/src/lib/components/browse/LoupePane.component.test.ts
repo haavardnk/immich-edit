@@ -23,7 +23,43 @@ afterEach(() => {
 });
 
 describe('LoupePane', () => {
-  it('shows the thumbnail and a busy pane until the preview loads', () => {
+  it('numbers a pane, names its compare role and dims a rejected photo', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: {
+          assetId: 'a',
+          alt: 'a.jpg',
+          view: FIT_VIEW,
+          onView: () => {},
+          badge: '2',
+          caption: 'Candidate',
+          rejected: true
+        }
+      }
+    });
+    flushSync();
+    const pane = target.querySelector<HTMLElement>('[role="button"]');
+    expect(pane?.textContent).toContain('2');
+    expect(pane?.textContent).toContain('Candidate');
+    expect(target.querySelector('[role="img"][aria-label="Rejected"]')).not.toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).toContain('grayscale');
+  });
+
+  it('leaves a kept photo undimmed', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {}, badge: '1' }
+      }
+    });
+    flushSync();
+    expect(target.querySelector('[aria-label="Rejected"]')).toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).not.toContain('grayscale');
+  });
+  it('shows the Immich preview and a busy pane until the render loads', () => {
     component = mount(Host, {
       target,
       props: {
@@ -34,13 +70,86 @@ describe('LoupePane', () => {
     flushSync();
     const pane = target.querySelector<HTMLElement>('[role="button"]');
     expect(pane?.getAttribute('aria-busy')).toBe('true');
-    expect(target.querySelector('[data-testid="loupe-underlay"]')).not.toBeNull();
+    expect(immichPreview()?.getAttribute('src')).toBe('/api/assets/a/thumb?size=preview');
 
     target.querySelector('img[alt="a.jpg"]')?.dispatchEvent(new Event('load'));
     flushSync();
 
     expect(pane?.getAttribute('aria-busy')).toBe('false');
-    expect(target.querySelector('[data-testid="loupe-underlay"]')).toBeNull();
+    expect(immichPreview()).toBeNull();
+  });
+
+  it('zooms the Immich preview with the pane before the render loads', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: { assetId: 'a', alt: 'a.jpg', view: ZOOMED, onView: () => {}, sourceLong: 4000 }
+      }
+    });
+    flushSync();
+    const preview = immichPreview();
+    if (!preview) throw new Error('no Immich preview');
+    Object.defineProperty(preview, 'naturalWidth', { value: 1440 });
+    Object.defineProperty(preview, 'naturalHeight', { value: 720 });
+    preview.dispatchEvent(new Event('load'));
+    flushSync();
+
+    const style = preview.getAttribute('style') ?? '';
+    expect(style).toContain('scale(');
+    expect(target.querySelector('img[alt="a.jpg"]')?.getAttribute('style')).toBe(style);
+  });
+
+  it('flags a slow render after a short delay', () => {
+    vi.useFakeTimers();
+    try {
+      component = mount(Host, {
+        target,
+        props: {
+          component: LoupePane,
+          props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {} }
+        }
+      });
+      flushSync();
+      const status = target.querySelector('[role="status"]');
+      expect(status?.textContent?.trim()).toBe('');
+
+      vi.advanceTimersByTime(399);
+      flushSync();
+      expect(status?.textContent?.trim()).toBe('');
+
+      vi.advanceTimersByTime(1);
+      flushSync();
+      expect(status?.textContent?.trim()).toBe('Immich preview · rendering');
+
+      target.querySelector('img[alt="a.jpg"]')?.dispatchEvent(new Event('load'));
+      flushSync();
+      expect(status?.textContent?.trim()).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never flags a render that loads quickly', () => {
+    vi.useFakeTimers();
+    try {
+      component = mount(Host, {
+        target,
+        props: {
+          component: LoupePane,
+          props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {} }
+        }
+      });
+      flushSync();
+      vi.advanceTimersByTime(200);
+      target.querySelector('img[alt="a.jpg"]')?.dispatchEvent(new Event('load'));
+      flushSync();
+      vi.advanceTimersByTime(1000);
+      flushSync();
+      expect(target.querySelector('[data-testid="preview-status"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('zooms in at the pointer on a modifier wheel', () => {
@@ -79,6 +188,10 @@ describe('LoupePane', () => {
   });
 });
 
+function immichPreview(): HTMLImageElement | null {
+  return target.querySelector<HTMLImageElement>('[data-testid="loupe-immich-preview"]');
+}
+
 function loadedPane(view: View, onView: PaneProps['onView'], sourceLong?: number): HTMLElement {
   component = mount(Host, {
     target,
@@ -100,7 +213,15 @@ function loadedPane(view: View, onView: PaneProps['onView'], sourceLong?: number
 }
 
 function pointer(pane: HTMLElement, type: string, pointerId = 1, clientX = 100): void {
-  pane.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId, clientX, clientY: 100 }));
+  pane.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true,
+      pointerId,
+      pointerType: 'mouse',
+      clientX,
+      clientY: 100
+    })
+  );
   flushSync();
 }
 

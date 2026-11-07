@@ -8,6 +8,10 @@ export function commandLabel(command: Command): string {
   return label ?? bind?.label ?? command.id;
 }
 
+export function commandShortLabel(command: Command): string {
+  return command.short ?? commandLabel(command);
+}
+
 export function isEnabled(command: Command): boolean {
   return command.enabled?.() ?? true;
 }

@@ -29,7 +29,7 @@ const memoryStorage: Storage = {
   }
 };
 
-vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+globalThis.ResizeObserver = ResizeObserverStub;
 vi.stubGlobal('localStorage', memoryStorage);
 
 window.matchMedia = (query: string): MediaQueryList =>
