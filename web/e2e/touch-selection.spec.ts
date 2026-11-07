@@ -441,7 +441,6 @@ test.describe('touch selection', () => {
       'Apply preset',
       'Reset edits',
       'Compare',
-      'Survey',
       'Favorite',
       'Create virtual copy',
       'Move to trash'

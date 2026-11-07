@@ -1,7 +1,8 @@
 import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
+import { compare, COMPARE_PANES } from '#lib/stores/compare.svelte.ts';
 import { KEYBINDS, type Keybind, type KeybindContext } from '#lib/shortcuts/table.ts';
 import { describe, expect, it, vi } from 'vitest';
-import { commandLabel } from './command';
+import { commandLabel, commandShortLabel, commandTitle, isEnabled, isShown } from './command';
 import * as menus from './menus';
 import { COMMANDS } from './registry';
 import type { Command } from './types';
@@ -35,6 +36,33 @@ describe('command registry', () => {
     const ids = COMMANDS.map((command) => command.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const command of COMMANDS) expect(commandLabel(command), command.id).not.toBe(command.id);
+  });
+
+  it('names menus in full and compact controls by a shorter label', () => {
+    const single = COMMANDS.find((command) => command.id === 'loupe.single');
+    expect(single && commandLabel(single)).toBe('Single photo');
+    expect(single && commandShortLabel(single)).toBe('Single');
+    for (const command of COMMANDS.filter((entry) => entry.short)) {
+      expect(commandShortLabel(command).length, command.id).toBeLessThan(
+        commandLabel(command).length
+      );
+    }
+  });
+
+  it('hides survey and says why on a layout that holds two panes', () => {
+    const surveys = COMMANDS.filter(({ id }) => id === 'loupe.survey' || id === 'grid.survey');
+    expect(surveys).toHaveLength(2);
+    const release = compare.limitBy(() => COMPARE_PANES);
+    try {
+      for (const command of surveys) {
+        expect(isShown(command), command.id).toBe(false);
+        expect(isEnabled(command), command.id).toBe(false);
+        expect(commandTitle(command), command.id).toBe('Survey needs a larger screen');
+      }
+    } finally {
+      release();
+    }
+    for (const command of surveys) expect(isEnabled(command), command.id).toBe(true);
   });
 
   it('binds only keyed shortcuts, in contexts the shortcut lists', () => {
@@ -121,12 +149,23 @@ describe('command registry', () => {
       LOUPE_PHONE_MORE_MENU: [
         ['loupe.autoAdvance'],
         ['loupe.zoom', 'loupe.filmstrip', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
-        ['loupe.single', 'loupe.compare', 'loupe.survey'],
+        ['loupe.compare', 'loupe.survey'],
+        ['loupe.trash']
+      ],
+      LOUPE_PHONE_MULTI_MORE_MENU: [
+        ['loupe.autoAdvance'],
+        [
+          'loupe.info',
+          'loupe.zoom',
+          'loupe.filmstrip',
+          'loupe.fullscreen',
+          'loupe.clipWarn',
+          'app.greyCanvas'
+        ],
         ['loupe.trash']
       ],
       LOUPE_WIDE_MORE_MENU: [
         ['loupe.autoAdvance'],
-        ['loupe.single', 'loupe.compare', 'loupe.survey'],
         ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
         ['loupe.trash']
       ],

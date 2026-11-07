@@ -24,6 +24,42 @@ afterEach(() => {
 });
 
 describe('LoupePane', () => {
+  it('numbers a pane, names its compare role and dims a rejected photo', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: {
+          assetId: 'a',
+          alt: 'a.jpg',
+          view: FIT_VIEW,
+          onView: () => {},
+          badge: '2',
+          caption: 'Candidate',
+          rejected: true
+        }
+      }
+    });
+    flushSync();
+    const pane = target.querySelector<HTMLElement>('[role="button"]');
+    expect(pane?.textContent).toContain('2');
+    expect(pane?.textContent).toContain('Candidate');
+    expect(target.querySelector('[role="img"][aria-label="Rejected"]')).not.toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).toContain('grayscale');
+  });
+
+  it('leaves a kept photo undimmed', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {}, badge: '1' }
+      }
+    });
+    flushSync();
+    expect(target.querySelector('[aria-label="Rejected"]')).toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).not.toContain('grayscale');
+  });
   it('shows the Immich preview and a busy pane until the render loads', () => {
     component = mount(Host, {
       target,

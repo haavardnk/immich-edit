@@ -13,11 +13,13 @@ export interface Command {
   id: string;
   contexts: readonly KeybindContext[];
   label?: string | (() => string);
+  short?: string;
   icon?: string;
   bind?: KeybindId;
   gate?: KeyGate;
   active?: (trigger: CommandTrigger) => boolean;
   enabled?: () => boolean;
+  shown?: () => boolean;
   pressed?: () => boolean;
   unavailable?: () => string | null;
   yields?: (trigger: CommandTrigger) => boolean;

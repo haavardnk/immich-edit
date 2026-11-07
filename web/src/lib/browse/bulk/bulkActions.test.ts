@@ -82,9 +82,9 @@ describe('bulkActions', () => {
     expect(bulkActions.busy).toBe(false);
   });
 
-  it('opens compare and survey over the listed photos with the pane cap', () => {
-    bulkActions.multi('survey', 4);
-    expect(grid.openMulti).toHaveBeenCalledWith('survey', ITEMS, 4);
+  it('opens compare and survey over the listed photos', () => {
+    bulkActions.multi('survey');
+    expect(grid.openMulti).toHaveBeenCalledWith('survey', ITEMS);
   });
 
   it('asks to trash only the picked photos', () => {

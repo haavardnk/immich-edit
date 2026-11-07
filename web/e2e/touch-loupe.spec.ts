@@ -101,6 +101,20 @@ test.describe('the touch loupe on a phone', { tag: ['@touch', '@phone'] }, () =>
     await expect(tile(page, 'IMG_0002.ARW')).toBeInViewport();
   });
 
+  test('the photo sits between the top bar and the cull bar', async ({ page }) => {
+    await openLoupe(page);
+    const pane = page.getByRole('button', { name: 'Zoom in' });
+    const [bar, photo, cull] = await Promise.all([
+      topBar(page).boundingBox(),
+      pane.boundingBox(),
+      cullBar(page).boundingBox()
+    ]);
+    const viewport = page.viewportSize();
+    expect(photo?.y ?? 0).toBeGreaterThanOrEqual((bar?.y ?? 0) + (bar?.height ?? 0) - 1);
+    expect((photo?.y ?? 0) + (photo?.height ?? 0)).toBeLessThanOrEqual((cull?.y ?? 0) + 1);
+    expect((cull?.y ?? 0) + (cull?.height ?? 0)).toBeCloseTo(viewport?.height ?? 0, 0);
+  });
+
   test('Edit opens the photo in the editor', async ({ page }) => {
     await openLoupe(page);
     await cullBar(page).getByRole('button', { name: 'Edit', exact: true }).tap();

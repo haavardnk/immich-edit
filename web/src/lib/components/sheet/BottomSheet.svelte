@@ -179,7 +179,7 @@
     {/if}
     {#if open}
       <div
-        class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+8px)]"
+        class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+var(--sheet-gap))]"
         style:top="{inset.top}px"
         style:bottom="{inset.bottom}px"
       >

@@ -53,6 +53,17 @@ describe('CommandList', () => {
     expect(sequence).toEqual(['A', 'B', '|', 'C', '|', 'D']);
   });
 
+  it('leaves out hidden rows and the groups they empty', () => {
+    const hidden = { shown: () => false };
+    render({
+      menu: [[command('A'), command('B', hidden)], [command('C', hidden)], [command('D')]]
+    });
+    const sequence = [...target.querySelectorAll('button, div.border-t')].map((element) =>
+      element.tagName === 'BUTTON' ? element.getAttribute('aria-label') : '|'
+    );
+    expect(sequence).toEqual(['A', '|', 'D']);
+  });
+
   it('labels rows from the command and shows bound keys', () => {
     render({
       menu: [[command('undo', { label: () => 'Dynamic', bind: 'undo' }), command('plain')]]

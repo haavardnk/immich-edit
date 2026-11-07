@@ -15,6 +15,7 @@ import {
   loupeClipWarn,
   loupeFilmstrip,
   loupeFullscreen,
+  loupeInfo,
   loupeZoom
 } from '#lib/commands/loupe/view.ts';
 import type { IconCommand } from '#lib/commands/types.ts';
@@ -29,16 +30,29 @@ export const LOUPE_MORE_MENU: Menu = [
   [help]
 ];
 
+const LOUPE_PHONE_VIEW: readonly IconCommand[] = [
+  loupeZoom,
+  loupeFilmstrip,
+  loupeFullscreen,
+  loupeClipWarn,
+  greyCanvas
+];
+
 export const LOUPE_PHONE_MORE_MENU: Menu = [
   [loupeAutoAdvance],
-  [loupeZoom, loupeFilmstrip, loupeFullscreen, loupeClipWarn, greyCanvas],
-  LOUPE_VIEW_MODE_MENU.flat(),
+  LOUPE_PHONE_VIEW,
+  [loupeCompare, loupeSurvey],
+  [loupeTrash]
+];
+
+export const LOUPE_PHONE_MULTI_MORE_MENU: Menu = [
+  [loupeAutoAdvance],
+  [loupeInfo, ...LOUPE_PHONE_VIEW],
   [loupeTrash]
 ];
 
 export const LOUPE_WIDE_MORE_MENU: Menu = [
   [loupeAutoAdvance],
-  LOUPE_VIEW_MODE_MENU.flat(),
   [loupeFullscreen, loupeClipWarn, greyCanvas],
   [loupeTrash]
 ];

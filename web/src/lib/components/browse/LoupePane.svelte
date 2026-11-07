@@ -25,9 +25,12 @@
   import PreviewStatusChip from '#lib/components/browse/PreviewStatusChip.svelte';
   import { loupeGestures } from '#lib/browse/loupeGestures.ts';
   import type { LoupeStage } from '#lib/browse/loupeStage.ts';
+  import { coverageOf, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
+  import { Icon } from '@immich/ui';
 
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
+  const rejectedMark = rejectMark(coverageOf(true));
 
   let {
     assetId,
@@ -38,6 +41,8 @@
     focused = false,
     showFocus = false,
     badge,
+    caption,
+    rejected = false,
     onView,
     onFocus,
     onSize,
@@ -54,6 +59,8 @@
     focused?: boolean;
     showFocus?: boolean;
     badge?: string;
+    caption?: string;
+    rejected?: boolean;
     onView: (view: View, solo?: boolean) => void;
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
@@ -85,6 +92,7 @@
   const loading = $derived(rendered?.id !== assetId);
   const rendering = $derived(loading && sources.render !== null);
   const transform = $derived(viewportTransform(metrics, shown));
+  const dim = $derived(rejected ? 'opacity-40 grayscale' : '');
 
   function quantize(value: number): number {
     return SIZES.find((size) => size >= value) ?? MAX_SIZE;
@@ -166,14 +174,34 @@
   {...gestures.handlers}
   {@attach touchGestures}
 >
-  {#if badge !== undefined}
-    <span
-      class="pointer-events-none absolute top-2 left-2 z-10 min-w-6 rounded-md border px-1.5 text-center text-[11px] leading-5 font-semibold shadow-md backdrop-blur-sm {focused
-        ? 'border-primary bg-primary text-neutral-950'
-        : 'border-white/20 bg-neutral-950/85 text-white/90'}"
-    >
-      {badge}
-    </span>
+  {#if badge !== undefined || rejected}
+    <div class="pointer-events-none absolute top-2 left-2 z-10 flex items-center gap-1">
+      {#if badge !== undefined}
+        <span
+          class="min-w-6 rounded-full border px-1.5 text-center text-[11px] leading-5 font-semibold shadow-md backdrop-blur-sm {focused
+            ? 'border-primary bg-primary text-neutral-950'
+            : 'border-white/20 bg-neutral-950/85 text-white/90'}"
+        >
+          {badge}
+        </span>
+      {/if}
+      {#if caption}
+        <span
+          class="rounded-md border border-white/20 bg-neutral-950/85 px-1.5 text-[11px] leading-5 font-semibold text-white/90 shadow-md backdrop-blur-sm"
+        >
+          {caption}
+        </span>
+      {/if}
+      {#if rejected}
+        <span
+          role="img"
+          aria-label="Rejected"
+          class="grid size-[22px] place-items-center rounded-full border border-white/20 bg-neutral-950/85 shadow-md {rejectedMark.tone}"
+        >
+          <Icon icon={rejectedMark.icon} size="16px" aria-hidden="true" />
+        </span>
+      {/if}
+    </div>
   {/if}
   {#if box.w > 0}
     {#key assetId}
@@ -184,7 +212,7 @@
           alt=""
           draggable="false"
           data-testid="loupe-immich-preview"
-          class="pointer-events-none absolute inset-0 h-full w-full object-contain select-none"
+          class="pointer-events-none absolute inset-0 h-full w-full object-contain select-none {dim}"
           style={transform}
           onload={() => onPreview(assetId)}
         />
@@ -196,7 +224,7 @@
           {src}
           {alt}
           draggable="false"
-          class="relative max-w-full max-h-full object-contain select-none"
+          class="relative max-w-full max-h-full object-contain select-none {dim}"
           style={transform}
           onload={() => onRender(assetId, src)}
           onerror={() => (failedSrc = src)}

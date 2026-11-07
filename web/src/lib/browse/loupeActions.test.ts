@@ -9,6 +9,7 @@ import { goto } from '$app/navigation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   canDropPane,
+  dropFocusedPane,
   leaveLoupeOnEditorPath,
   loupeFocusedId,
   openInEditor,
@@ -94,11 +95,17 @@ describe('loupe actions', () => {
     expect(loupeFocusedId()).toBe('c');
   });
 
-  it('keeps two panes in compare and one in survey', () => {
-    compare.enter('compare', ['a', 'b']);
-    expect(canDropPane()).toBe(false);
-    compare.enter('survey', ['a', 'b']);
+  it('drops a pane while more than one remains, leaving two panes for the survivor', () => {
+    compare.enter('compare', ['a', 'b'], 1);
     expect(canDropPane()).toBe(true);
+    dropFocusedPane();
+    expect(compare.mode).toBe('single');
+    expect(browseView.loupeId).toBe('a');
+    compare.enter('survey', ['a', 'b', 'c']);
+    dropFocusedPane();
+    expect(compare.members).toEqual(['b', 'c']);
+    compare.keepOnly(0);
+    expect(canDropPane()).toBe(false);
   });
 
   it('shows the rating and advances after the countdown only when auto-advance is on', async () => {

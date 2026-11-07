@@ -1,78 +1,32 @@
 <script lang="ts">
-  import { hint } from '#lib/shortcuts/labels.ts';
+  import { commandShortLabel } from '#lib/commands/command.ts';
+  import { loupeCompare, loupeSurvey } from '#lib/commands/loupe/navigation.ts';
+  import { PANE_ACTIONS } from '#lib/commands/loupe/panes.ts';
+  import CommandIconButton from '#lib/components/CommandIconButton.svelte';
+  import CommandPill from '#lib/components/CommandPill.svelte';
   import { compare } from '#lib/stores/compare.svelte.ts';
-  import { Icon, IconButton } from '@immich/ui';
-  import {
-    mdiArrowCollapseLeft,
-    mdiCheckboxMarkedCircleOutline,
-    mdiClose,
-    mdiCompare,
-    mdiLink,
-    mdiLinkOff,
-    mdiViewGridOutline
-  } from '@mdi/js';
+  import { Icon } from '@immich/ui';
 
-  let { canDrop, onDrop }: { canDrop: boolean; onDrop: () => void } = $props();
+  let { variant = 'icon' }: { variant?: 'icon' | 'pill' } = $props();
 
-  const button = 'touch:size-11';
+  const mode = $derived(compare.mode === 'compare' ? loupeCompare : loupeSurvey);
+  const actions = $derived(
+    PANE_ACTIONS.filter((command) => command.contexts.some((context) => context === compare.mode))
+  );
 </script>
 
-<div
-  class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65 touch:h-9 touch:text-xs"
->
-  <Icon
-    icon={compare.mode === 'compare' ? mdiCompare : mdiViewGridOutline}
-    size="13px"
-    class="text-primary"
-    aria-hidden="true"
-  />
-  <span class="font-medium text-light-950/85">
-    {compare.mode === 'compare' ? 'Compare' : 'Survey'}
-  </span>
-</div>
-<IconButton
-  size="tiny"
-  variant="ghost"
-  color={compare.syncView ? 'primary' : 'secondary'}
-  class={button}
-  icon={compare.syncView ? mdiLink : mdiLinkOff}
-  title={hint('Sync zoom and pan', 'paneSync')}
-  aria-label="Sync zoom and pan"
-  aria-pressed={compare.syncView}
-  onclick={() => (compare.syncView = !compare.syncView)}
-/>
-{#if compare.mode === 'compare'}
-  <IconButton
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    class={button}
-    icon={mdiArrowCollapseLeft}
-    title={hint('Make select', 'panePromote')}
-    aria-label="Make select"
-    disabled={compare.focusIndex === 0}
-    onclick={() => compare.promote(compare.focusIndex)}
-  />
+{#if variant === 'pill'}
+  {#each actions as command (command.id)}
+    <CommandPill {command} />
+  {/each}
 {:else}
-  <IconButton
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    class={button}
-    icon={mdiCheckboxMarkedCircleOutline}
-    title={hint('Keep only this photo', 'surveyKeep')}
-    aria-label="Keep only this photo"
-    onclick={() => compare.keepOnly(compare.focusIndex)}
-  />
+  <div
+    class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65 touch:h-9 touch:text-xs"
+  >
+    <Icon icon={mode.icon} size="13px" class="text-primary" aria-hidden="true" />
+    <span class="font-medium text-light-950/85">{commandShortLabel(mode)}</span>
+  </div>
+  {#each actions as command (command.id)}
+    <CommandIconButton {command} size="tiny" variant="ghost" class="touch:size-11" />
+  {/each}
 {/if}
-<IconButton
-  size="tiny"
-  variant="ghost"
-  color="secondary"
-  class={button}
-  icon={mdiClose}
-  title={hint('Drop this photo', 'paneDrop')}
-  aria-label="Drop this photo"
-  disabled={!canDrop}
-  onclick={onDrop}
-/>

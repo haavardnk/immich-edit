@@ -17,7 +17,7 @@
   import BulkAlbumBand from './BulkAlbumBand.svelte';
   import { Button, IconButton } from '@immich/ui';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
-  import { MAX_PANES } from '#lib/stores/compare.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
   import { mergeProps } from 'bits-ui';
   import {
     mdiClose,
@@ -35,7 +35,7 @@
   const photos = $derived(scope.targetCount === 1 ? 'this photo' : 'selected photos');
 
   function multiTitle(mode: MultiMode): string {
-    const detail = multiDetail(mode, scope.count, MAX_PANES);
+    const detail = multiDetail(mode, scope.count, compare.paneLimit);
     const label = mode === 'compare' ? 'Compare' : 'Survey';
     return hint(
       detail ? `${label} the ${detail}` : `${label} selected`,
