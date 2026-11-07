@@ -9,6 +9,7 @@
   } from '#lib/api/jobs.ts';
   import { jobKindLabel, jobProgress } from './jobFormat';
   import Notice from '#lib/components/Notice.svelte';
+  import IconLink from '#lib/components/IconLink.svelte';
   import {
     mdiClose,
     mdiChevronDown,
@@ -135,7 +136,7 @@
                   />
                 {/if}
                 {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
-                  <IconButton
+                  <IconLink
                     size="small"
                     variant="ghost"
                     color="secondary"
@@ -143,7 +144,6 @@
                     icon={mdiDownload}
                     href={jobDownloadUrl(job.id)}
                     download
-                    title="Download ZIP"
                     aria-label="Download ZIP"
                   />
                 {/if}

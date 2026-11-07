@@ -2,7 +2,8 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import { nextRatingFromKey } from '#lib/browse/ratingShortcuts.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Icon, Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
+  import { Icon } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiStar, mdiStarOutline } from '@mdi/js';
 
@@ -54,7 +55,7 @@
   }
 </script>
 
-<Tooltip text={tooltip}>
+<ElementTooltip text={tooltip}>
   {#snippet child({ props })}
     <div
       {...mergeProps(props, {
@@ -89,4 +90,4 @@
       {/each}
     </div>
   {/snippet}
-</Tooltip>
+</ElementTooltip>

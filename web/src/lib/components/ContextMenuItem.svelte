@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Tooltip } from '@immich/ui';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { ContextMenu as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
@@ -16,7 +16,7 @@
   } = $props();
 </script>
 
-<Tooltip text={title}>
+<ElementTooltip text={title}>
   {#snippet child({ props })}
     <Bits.Item
       {...props}
@@ -27,4 +27,4 @@
       {@render children()}
     </Bits.Item>
   {/snippet}
-</Tooltip>
+</ElementTooltip>

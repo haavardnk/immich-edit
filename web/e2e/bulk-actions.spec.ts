@@ -249,6 +249,8 @@ test('one selected photo gets its name and an editor link instead of compare', a
   const bar = page.getByRole('toolbar', { name: 'Selection actions' });
   await expect(bar.getByText(first.originalFileName)).toBeVisible();
   await expect(bar.getByRole('button', { name: /^(Compare|Survey) selected$/ })).toHaveCount(0);
-  await bar.getByRole('link', { name: 'Open in editor' }).click();
+  const open = bar.getByRole('link', { name: 'Open in editor' });
+  await expect(open).not.toHaveAttribute('type');
+  await open.click();
   await expect(page).toHaveURL(new RegExp(`/assets/${first.id}`));
 });

@@ -1,10 +1,11 @@
 <script lang="ts">
   import EditableLabel from '#lib/components/EditableLabel.svelte';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { maskedEditsIsZero, type MaskLayer } from '#lib/types/edits.ts';
   import type { MaskCapacity } from '#lib/types/masks.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Button, IconButton, Tooltip } from '@immich/ui';
+  import { Button, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {
     mdiChevronDown,
@@ -93,7 +94,7 @@
       <span class="truncate">{layer.name}</span>
     </Button>
   {/if}
-  <Tooltip text="{countOf(layer.components.length, 'shape')} in this mask">
+  <ElementTooltip text="{countOf(layer.components.length, 'shape')} in this mask">
     {#snippet child({ props })}
       <span
         {...mergeProps(props, { tabindex: -1 })}
@@ -102,16 +103,16 @@
         {layer.components.length}
       </span>
     {/snippet}
-  </Tooltip>
+  </ElementTooltip>
   {#if !maskedEditsIsZero(layer.edits)}
-    <Tooltip text="This mask has adjustments">
+    <ElementTooltip text="This mask has adjustments">
       {#snippet child({ props })}
         <span
           {...mergeProps(props, { tabindex: -1 })}
           class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70"
         ></span>
       {/snippet}
-    </Tooltip>
+    </ElementTooltip>
   {/if}
   <IconButton
     size="tiny"

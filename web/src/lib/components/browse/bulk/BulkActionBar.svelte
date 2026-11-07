@@ -16,6 +16,7 @@
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
+  import IconLink from '#lib/components/IconLink.svelte';
   import {
     LABEL_NAMES,
     labelOf,
@@ -311,12 +312,12 @@
       >
         <span class="mx-1 h-5 w-px shrink-0 bg-dark/10" aria-hidden="true"></span>
         {#if single}
-          <IconButton
+          <IconLink
             size="medium"
             variant="ghost"
             color="secondary"
             icon={mdiImageEditOutline}
-            title={hint('Open in editor', 'openEditor')}
+            tooltip={hint('Open in editor', 'openEditor')}
             aria-label="Open in editor"
             href={editorHref(single.id, `${page.url.pathname}${page.url.search}`)}
           />
