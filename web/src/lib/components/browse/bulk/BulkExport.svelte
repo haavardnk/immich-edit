@@ -3,7 +3,9 @@
   import ExportForm from '#lib/panels/export/ExportForm.svelte';
   import { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
 
-  const exporter = new BulkExporter();
+  let { onStarted }: { onStarted: () => void } = $props();
+
+  const exporter = new BulkExporter(() => onStarted());
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
@@ -28,8 +30,4 @@
   >
     {exporter.label}
   </Button>
-
-  <p class="text-[10px] leading-snug text-dark/65">
-    Runs as a background job. Track progress in the Jobs panel.
-  </p>
 </div>

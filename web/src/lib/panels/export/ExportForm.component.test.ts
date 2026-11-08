@@ -61,7 +61,7 @@ function layouts(
     layout(
       'bulk export',
       BulkExport,
-      {},
+      { onStarted: () => {} },
       { exclude: [button(immich ? 'Export 0 to Immich' : 'Download 0 as JPEG ZIP')] }
     )
   ];
@@ -103,7 +103,12 @@ describe('ExportForm layout parity', () => {
       layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
       layout('notice', ProofMismatchNotice, {}),
       layout('editor panel', Export, {}, { exclude: [button('Export JPEG')] }),
-      layout('bulk export', BulkExport, {}, { exclude: [button('Download 0 as JPEG ZIP')] })
+      layout(
+        'bulk export',
+        BulkExport,
+        { onStarted: () => {} },
+        { exclude: [button('Download 0 as JPEG ZIP')] }
+      )
     ]);
     expect(found.notice).toEqual([{ role: 'button', name: 'Export Display P3' }]);
     expect(found['editor panel']).toEqual(mergeControls(found.form, found.notice));
@@ -124,7 +129,12 @@ describe('ExportForm layout parity', () => {
         scope: exportScope({ assets, count: assets.length, trashOn: true }),
         downloadLabel: 'Download ZIP'
       }),
-      layout('bulk export', BulkExport, {}, { exclude: [button('Export 2 to Immich')] })
+      layout(
+        'bulk export',
+        BulkExport,
+        { onStarted: () => {} },
+        { exclude: [button('Export 2 to Immich')] }
+      )
     ]);
     const replace = found.body.find((control) => control.name === 'Replace original');
     expect(replace?.disabled).toBe(owners.includes('me') ? undefined : true);
