@@ -38,7 +38,7 @@
 </script>
 
 <div class="app-frame flex flex-col overflow-hidden pb-0!" {@attach hideBars}>
-  <main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-light">
+  <main data-page class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-light">
     {@render children()}
   </main>
   {#if !selecting}

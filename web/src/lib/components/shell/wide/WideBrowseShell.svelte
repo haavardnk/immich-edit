@@ -46,7 +46,7 @@
     </div>
     <SidebarFoot />
   </div>
-  <main class="flex h-full min-w-0 flex-1 flex-col bg-light">
+  <main data-page class="flex h-full min-w-0 flex-1 flex-col bg-light">
     {@render children()}
   </main>
 </div>
