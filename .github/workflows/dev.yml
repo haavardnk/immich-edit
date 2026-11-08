@@ -1,0 +1,36 @@
+name: Dev
+
+on:
+  push:
+    tags: [dev]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          echo "version=${tag#v}+dev.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: version
+    concurrency:
+      group: dev
+      cancel-in-progress: true
+    uses: ./.github/workflows/image.yml
+    permissions:
+      contents: write
+      packages: write
+    secrets: inherit
+    with:
+      ref: ${{ github.sha }}
+      version: ${{ needs.version.outputs.version }}
+      tests: skip
+      tags: type=raw,value=dev
