@@ -118,7 +118,7 @@ test('editor and loupe use the same black image canvas', async ({ page }) => {
   expect((await metricsOf(page.getByRole('application'))).background).toBe(canvas);
 
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
 
   const loupeCanvases = page.locator('.bg-image-canvas');
@@ -923,7 +923,7 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
 test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await installMocks(page, { assets: numberedAssets(2) });
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
   await page.getByRole('button', { name: 'Thumbnail size XL' }).hover();
   await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();

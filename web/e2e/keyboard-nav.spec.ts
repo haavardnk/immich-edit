@@ -74,7 +74,7 @@ test('the rating radiogroup keeps its arrow keys from the editor keymap', async 
   });
 
   await page.goto('/photos');
-  const link = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const link = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await link.evaluate((el) => (el as HTMLAnchorElement).click());
   await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
 

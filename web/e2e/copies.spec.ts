@@ -61,8 +61,8 @@ test('a virtual copy shows up beside its master in the grid', async ({ page }) =
   await createCopy(page);
 
   await page.goto('/photos');
-  const master = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
-  const copy = page.locator(`a[href^="/assets/${ASSET_ID}_1?"]`).first();
+  const master = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
+  const copy = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}_1?"]`).first();
   await expect(master).toBeVisible();
   await expect(copy).toBeVisible();
 });
@@ -75,7 +75,7 @@ test('the loupe header marks a virtual copy', async ({ page }) => {
   await createCopy(page);
 
   await page.goto('/photos');
-  const copy = page.locator(`a[href^="/assets/${ASSET_ID}_1?"]`).first();
+  const copy = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}_1?"]`).first();
   await expect(copy).toBeVisible();
 
   await page.getByLabel('Quick review').first().click();
@@ -96,13 +96,17 @@ test('the grid delete button drops a virtual copy after a confirm click', async 
   await createCopy(page);
 
   await page.goto('/photos');
-  const copy = page.locator(`a[href^="/assets/${ASSET_ID}_1?"]`).first();
+  const copy = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}_1?"]`).first();
   await expect(copy).toBeVisible();
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first()).toBeVisible();
+  await expect(
+    page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first()
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete copy' }).click();
   await page.getByRole('button', { name: 'Confirm delete copy' }).click();
 
   await expect(copy).toHaveCount(0);
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first()).toBeVisible();
+  await expect(
+    page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first()
+  ).toBeVisible();
 });

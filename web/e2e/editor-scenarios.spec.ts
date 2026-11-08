@@ -113,7 +113,7 @@ test('split view toggles from the editor menu and reveals the slider', async ({ 
 test('editor and loupe keep independent filmstrip visibility', async ({ page }) => {
   await installMocks(page);
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
     'aria-pressed',
@@ -173,7 +173,9 @@ test('editor and loupe layout choices survive reload', async ({ page }) => {
 
   await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
   await page.getByRole('button', { name: /^Back/ }).click();
-  await page.locator(`a[href^="/assets/${ASSET_ID}?"]`).evaluate((element) => element.click());
+  await page
+    .locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)
+    .evaluate((element) => element.click());
   await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 });
 

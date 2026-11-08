@@ -33,7 +33,7 @@ const OLDEST_FIRST = [OLD_ID, MID_ID, NEW_ID];
 const NEWEST_FIRST = [NEW_ID, MID_ID, OLD_ID];
 
 async function expectOrder(page: Page, ids: string[]): Promise<void> {
-  const tiles = page.locator('a[href^="/assets/"]');
+  const tiles = page.locator('[role="group"] > a[href^="/assets/"]');
   await expect(tiles).toHaveCount(ids.length);
   await expect
     .poll(() =>

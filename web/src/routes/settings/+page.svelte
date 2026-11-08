@@ -11,6 +11,8 @@
   import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
   import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
+  import BrowsingSection from '#lib/components/settings/BrowsingSection.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
   import InstallSection from '#lib/components/settings/InstallSection.svelte';
   import { install } from '#lib/pwa/install.svelte.ts';
@@ -156,12 +158,17 @@
 
     <SettingsGroup
       title="Appearance"
-      description="Choose light, dark or system mode and a theme for each."
+      description={layout.mode === 'desktop'
+        ? 'Choose the theme and what a click on a photo opens.'
+        : 'Choose light, dark or system mode and a theme for each.'}
       icon={mdiPaletteOutline}
       open={appearanceOpen}
       onOpenChange={(open) => (appearanceOpen = open)}
     >
       <AppearanceSection />
+      {#if layout.mode === 'desktop'}
+        <BrowsingSection />
+      {/if}
     </SettingsGroup>
 
     <SettingsGroup

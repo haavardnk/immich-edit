@@ -228,6 +228,8 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
+  clickTarget?: 'editor' | 'loupe';
+  onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
 }
 
@@ -254,6 +256,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
   let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
+  let preferences: Record<string, unknown> = {
+    click_target: opts.clickTarget ?? 'editor',
+    pinned_settings: null,
+    mask_overlay_color: null,
+    shortcuts: {},
+    desktop_sections: null,
+    touch_subviews: null
+  };
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();
   const tagList: MockTag[] = [...(opts.tags ?? [])];
@@ -581,6 +591,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         opts.onAppearance?.(appearance);
       }
       return route.fulfill(json(appearance));
+    }
+    if (p === '/api/preferences') {
+      if (method === 'PATCH') {
+        const patch = req.postDataJSON() as Record<string, unknown>;
+        opts.onPreferences?.(patch);
+        preferences = { ...preferences, ...patch };
+      }
+      return route.fulfill(json(preferences));
     }
     if (p === '/api/export-presets') {
       if (method === 'POST') {

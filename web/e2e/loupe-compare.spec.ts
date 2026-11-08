@@ -23,7 +23,7 @@ async function openCompare(page: Page): Promise<void> {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await page.keyboard.press('c');
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();

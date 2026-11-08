@@ -5,7 +5,7 @@ test('photos → asset → export tab', async ({ page }) => {
   await installMocks(page);
 
   await page.goto('/photos');
-  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const tile = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(tile).toBeVisible();
   const box = await tile.boundingBox();
   if (!box) throw new Error('tile has no bounding box');
@@ -32,11 +32,13 @@ test('photos grid restores scroll after editor back', async ({ page }) => {
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(500);
   const href = await scroller.evaluate((el) => {
     const top = el.getBoundingClientRect().top;
-    const links = [...el.querySelectorAll<HTMLAnchorElement>('a[href^="/assets/"]')];
+    const links = [
+      ...el.querySelectorAll<HTMLAnchorElement>('[role="group"] > a[href^="/assets/"]')
+    ];
     return links.find((a) => a.getBoundingClientRect().top >= top)?.getAttribute('href') ?? null;
   });
   if (!href) throw new Error('no tile in view');
-  const link = page.locator(`a[href="${href}"]`);
+  const link = page.locator(`[role="group"] > a[href="${href}"]`);
   const before = await scroller.evaluate((el) => el.scrollTop);
 
   await link.evaluate((el) => (el as HTMLAnchorElement).click());
@@ -58,7 +60,7 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
   });
 
   await page.goto('/photos');
-  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const tile = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(tile).toBeVisible();
   await tile.evaluate((el) => (el as HTMLAnchorElement).click());
   await page.waitForURL(new RegExp(`/assets/${ASSET_ID}\\?`));
@@ -91,7 +93,7 @@ async function expectTileRevealed(page: Page, name: string): Promise<void> {
 test('closing the loupe reveals the photo it ended on', async ({ page }) => {
   await installMocks(page, { assets: numberedAssets(80) });
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
 
   for (let step = 0; step < 59; step += 1) await page.keyboard.press('ArrowRight');
@@ -104,7 +106,7 @@ test('closing the loupe reveals the photo it ended on', async ({ page }) => {
 test('editor back reveals the photo reached with the arrow keys', async ({ page }) => {
   await installMocks(page, { assets: numberedAssets(80) });
   await page.goto('/photos');
-  const tile = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const tile = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(tile).toBeVisible();
   await tile.evaluate((el) => (el as HTMLAnchorElement).click());
   await page.waitForURL(new RegExp(`/assets/${ASSET_ID}\\?`));
@@ -133,7 +135,7 @@ test('back returns to the grid and the first arrow picks up the photo left open'
   });
 
   await page.goto('/search?q=IMG');
-  const first = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const first = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await expect(first).toBeVisible();
   await first.evaluate((el) => (el as HTMLAnchorElement).click());
   await page.waitForURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
