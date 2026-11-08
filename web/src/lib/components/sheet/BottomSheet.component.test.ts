@@ -161,6 +161,38 @@ describe('BottomSheet', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it('slides out before unmounting when the parent closes it', async () => {
+    await render();
+    const panel = sheet().firstElementChild;
+    if (!(panel instanceof HTMLElement)) throw new Error('no panel');
+    panel.style.transitionDuration = '300ms';
+    button('Parent toggle').click();
+    await settle();
+    expect(sheet()).toBe(panel.parentElement);
+    expect(panel.dataset.leaving).toBe('');
+    expect(document.querySelector('[data-dialog-overlay]')?.hasAttribute('data-leaving')).toBe(
+      true
+    );
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+  });
+
+  it('stays open when reopened while its own close was still sliding out', async () => {
+    const { onOpenChange } = await render();
+    const panel = sheet().firstElementChild;
+    if (!(panel instanceof HTMLElement)) throw new Error('no panel');
+    panel.style.transitionDuration = '300ms';
+    button('close').click();
+    button('Parent toggle').click();
+    await settle();
+    button('Parent toggle').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await settle();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(sheet()).toBeTruthy();
+    expect(panel.dataset.leaving).toBeUndefined();
+  });
+
   it('closes a modal sheet on Escape', async () => {
     const { onOpenChange } = await render();
     expect(sheet().getAttribute('aria-modal')).toBe('true');

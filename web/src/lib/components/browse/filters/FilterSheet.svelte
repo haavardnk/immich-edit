@@ -3,6 +3,7 @@
   import ViewSection from '#lib/components/browse/filters/ViewSection.svelte';
   import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { showPhotosLabel } from '#lib/browse/filterChips.ts';
   import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
@@ -20,14 +21,17 @@
     sortBasis: 'capture' | 'edit' | null;
     title: string;
   } = $props();
+
+  const sheet = presence(() => browseView.filtersOpen);
 </script>
 
-{#if browseView.filtersOpen}
+{#if sheet.mounted}
   <SaveViewScope {title}>
     {#snippet children(saveButton, saveEntry)}
       <BottomSheet
-        open
+        open={browseView.filtersOpen}
         onOpenChange={(open) => browseView.setFiltersOpen(open)}
+        onExited={sheet.exited}
         title={VIEW_AND_FILTERS}
         close="icon"
         closeLabel="Close {VIEW_AND_FILTERS.toLowerCase()}"

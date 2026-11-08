@@ -5,6 +5,7 @@
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { providePickerHost } from '#lib/components/sheet/pickerHost.ts';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { holdEscape } from '#lib/stores/overlays.ts';
 
@@ -51,6 +52,7 @@
   );
 
   let tooltipOpen = $state(false);
+  const sheet = presence(() => open);
 
   const sheetTriggerProps = $derived({
     'aria-haspopup': 'dialog',
@@ -86,20 +88,22 @@
 
 {#if layout.mode === 'touch'}
   {@render tooltipTrigger(sheetTriggerProps)}
-  {#if open && appearance === 'menu'}
+  {#if sheet.mounted && appearance === 'menu'}
     <ActionSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Menu'}
       caption={title !== undefined}
       data-popover-content
     >
       {@render children()}
     </ActionSheet>
-  {:else if open && appearance === 'panel'}
+  {:else if sheet.mounted && appearance === 'panel'}
     <BottomSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Options'}
       {subtitle}
       titleHidden={title === undefined}
@@ -110,10 +114,11 @@
     >
       {@render children()}
     </BottomSheet>
-  {:else if open}
+  {:else if sheet.mounted}
     <BottomSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Options'}
       titleHidden={title === undefined}
       close="icon"

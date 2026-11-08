@@ -58,8 +58,8 @@
         directions: ['left'],
         move: ({ dx }) => follow(dx),
         end: ({ direction }) => {
+          settle();
           if (direction === 'left') accountDrawer.close();
-          else settle();
         },
         cancel: settle
       })
@@ -122,7 +122,8 @@
       {#snippet child({ props })}
         <div
           {...props}
-          class="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col overflow-y-auto rounded-e-3xl bg-light-50 pt-[calc(var(--safe-top)+16px)] pr-3 pb-[calc(var(--safe-bottom)+16px)] pl-[calc(var(--safe-left)+12px)] text-dark shadow-popover outline-none starting:-translate-x-full motion-safe:transition-[translate] motion-safe:duration-300 motion-safe:ease-out"
+          style:pointer-events={'data-ending-style' in props ? 'none' : 'auto'}
+          class="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col overflow-y-auto rounded-e-3xl bg-light-50 pt-[calc(var(--safe-top)+16px)] pr-3 pb-[calc(var(--safe-bottom)+16px)] pl-[calc(var(--safe-left)+12px)] text-dark shadow-popover outline-none starting:[translate:-100%_0] data-ending-style:-translate-x-full motion-safe:transition-[translate] motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-ending-style:duration-base motion-safe:data-ending-style:ease-exit"
           {@attach bindPanel}
           {@attach swipeClose}
         >

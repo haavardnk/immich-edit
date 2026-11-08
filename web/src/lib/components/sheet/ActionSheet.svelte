@@ -4,7 +4,7 @@
   import { holdModalSheet } from '#lib/stores/overlays.ts';
   import { Button } from '@immich/ui';
   import { Dialog } from 'bits-ui';
-  import { tick, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import type { HTMLAttributes } from 'svelte/elements';
 
@@ -13,11 +13,13 @@
     onOpenChange,
     title,
     caption = false,
+    onExited,
     children,
     ...rest
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onExited?: () => void;
     title: string;
     caption?: boolean;
     children: Snippet;
@@ -25,7 +27,9 @@
 
   let frame: HTMLElement | null = null;
   let content = $state<HTMLElement | null>(null);
+  let leaving = $state(false);
   let closing = false;
+  let opened = 0;
 
   const frameRef: Attachment<HTMLElement> = (element) => {
     frame = element;
@@ -52,19 +56,23 @@
   async function requestClose(): Promise<void> {
     if (closing || !open) return;
     closing = true;
+    const session = opened;
     const element = frame;
     if (element) {
-      element.dataset.leaving = '';
+      leaving = true;
+      await tick();
       await afterTransition(element);
+      if (session !== opened) return;
       if (frame !== element) {
         closing = false;
+        leaving = false;
         return;
       }
     }
     onOpenChange(false);
     await tick();
     closing = false;
-    if (element) delete element.dataset.leaving;
+    leaving = false;
   }
 
   function dismiss(event: Event): void {
@@ -77,15 +85,29 @@
     content?.focus({ preventScroll: true });
   }
 
+  $effect.pre(() => {
+    if (!open) return;
+    untrack(() => {
+      opened += 1;
+      closing = false;
+      leaving = false;
+    });
+  });
+
   $effect(() => {
     if (!open) return;
     return holdModalSheet();
   });
 </script>
 
-<Dialog.Root bind:open={() => open, () => undefined}>
+<Dialog.Root
+  bind:open={() => open, () => undefined}
+  onOpenChangeComplete={(next) => {
+    if (!next) onExited?.();
+  }}
+>
   <Dialog.Portal>
-    <SheetScrim />
+    <SheetScrim {leaving} />
     <Dialog.Content
       bind:ref={content}
       interactOutsideBehavior="close"
@@ -95,11 +117,14 @@
       onOpenAutoFocus={autoFocus}
     >
       {#snippet child({ props })}
+        {@const ending = 'data-ending-style' in props}
         <div
           {...rest}
           {...props}
+          data-leaving={leaving || ending ? '' : undefined}
+          style:pointer-events={ending ? 'none' : 'auto'}
           tabindex="-1"
-          class="fixed right-[calc(var(--safe-right)+8px)] bottom-[calc(var(--safe-bottom)+8px)] left-[calc(var(--safe-left)+8px)] z-50 mx-auto flex max-h-[calc(var(--app-height)-var(--safe-top)-var(--safe-bottom)-16px)] max-w-lg flex-col gap-2 outline-none starting:translate-y-[150%] data-leaving:translate-y-[150%] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out"
+          class="fixed right-[calc(var(--safe-right)+8px)] bottom-[calc(var(--safe-bottom)+8px)] left-[calc(var(--safe-left)+8px)] z-50 mx-auto flex max-h-[calc(var(--app-height)-var(--safe-top)-var(--safe-bottom)-16px)] max-w-lg flex-col gap-2 outline-none starting:[translate:0_150%] data-leaving:translate-y-[150%] motion-safe:transition-transform motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit"
           {@attach frameRef}
         >
           <div class="flex min-h-0 flex-col overflow-hidden rounded-[14px] bg-light-100 text-dark">

@@ -28,6 +28,7 @@
 </script>
 
 <button type="button">Outside</button>
+<button type="button" onclick={() => (open = !open)}>Parent toggle</button>
 <output data-testid="detent">{detent}</output>
 <BottomSheet
   {open}
