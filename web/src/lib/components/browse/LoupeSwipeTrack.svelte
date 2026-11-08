@@ -1,6 +1,7 @@
 <script lang="ts">
   import { immichPreviewUrl } from '#lib/api/assets.ts';
   import { canStepLoupe, stepLoupe } from '#lib/browse/loupeNav.ts';
+  import { captureLoupe } from '#lib/browse/loupeZoom.ts';
   import { LoupeStage } from '#lib/browse/loupeStage.ts';
   import { SWIPE_GAP } from '#lib/browse/loupeSwipe.ts';
   import { runCommand } from '#lib/commands/command.ts';
@@ -34,7 +35,10 @@
     hasNeighbour: (delta) => neighbours.some((item) => item.side === delta && item.asset !== null),
     current: () => browseView.loupeId,
     step: stepLoupe,
-    dismiss: () => runCommand(loupeClose),
+    dismiss: () => {
+      captureLoupe(id);
+      runCommand(loupeClose);
+    },
     openInfo: () => browseView.setLoupeInfoOpen(true),
     reducedMotion: () => prefersReducedMotion.current
   });

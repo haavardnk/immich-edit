@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { onNavigate } from '$app/navigation';
   import type { Snippet } from 'svelte';
   import DesktopBrowseShell from '#lib/components/shell/desktop/DesktopBrowseShell.svelte';
@@ -18,6 +18,7 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
+  import { zoomOut } from '#lib/browse/loupeZoom.ts';
   import { onEditorRoute } from '#lib/utils/route.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
@@ -28,6 +29,8 @@
 
   const onEditor = $derived(onEditorRoute());
   const peeked = $derived(peek.id ? browsing.find(peek.id) : null);
+
+  let loupeShown: string | null = null;
 
   onMount(() => {
     void editedThumbs.loadOnce();
@@ -42,6 +45,13 @@
 
   $effect.pre(() => {
     browseView.setCompact(layout.compact);
+  });
+
+  $effect.pre(() => {
+    const id = browseView.loupeId;
+    const closed = loupeShown;
+    loupeShown = id;
+    if (closed && !id && untrack(() => browseView.editorReturnLoupeId) === null) zoomOut(closed);
   });
 
   $effect(() => {

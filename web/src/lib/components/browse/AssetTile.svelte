@@ -151,6 +151,7 @@
   data-selected={selected || undefined}
   data-range-preview={rangePreview || undefined}
   data-name={asset.originalFileName}
+  data-asset-id={asset.id}
 >
   <a
     {href}

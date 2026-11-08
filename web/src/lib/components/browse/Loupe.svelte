@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
@@ -30,6 +31,7 @@
     type ViewportMetrics
   } from '#lib/utils/imageViewport.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
+  import { zoomIn } from '#lib/browse/loupeZoom.ts';
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
@@ -145,6 +147,8 @@
 
   let scrim = $state<HTMLDivElement | null>(null);
 
+  const enter: Attachment<HTMLElement> = (root) => untrack(() => zoomIn(currentId, root));
+
   function setZoom(value: number): void {
     const id = focusedId;
     if (!id) return;
@@ -211,9 +215,11 @@
     class="fixed inset-0 z-40 flex min-w-0 flex-col {layout.compact
       ? 'pr-(--safe-right) pl-(--safe-left)'
       : 'safe-frame'} {touch ? '[--color-editor-chrome:var(--color-light)]' : ''}"
+    {@attach enter}
   >
     <div
       bind:this={scrim}
+      data-loupe-scrim
       aria-hidden="true"
       class="pointer-events-none absolute inset-0 -z-10 bg-image-canvas"
     ></div>
