@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { jobDownloadUrl, isJobActive, jobNeedsAttention, type Job } from '#lib/api/jobs.ts';
+  import {
+    jobDownloadUrl,
+    isJobActive,
+    jobNeedsAttention,
+    zipReady,
+    type Job
+  } from '#lib/api/jobs.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { jobKindLabel, jobOutcome, jobProgress } from './jobFormat';
   import { Button, IconButton, ProgressBar, ToastContainer, type Color } from '@immich/ui';
@@ -13,9 +19,7 @@
     active ? 'primary' : failed ? 'danger' : job.status === 'cancelled' ? 'secondary' : 'success'
   );
   const label = $derived(jobKindLabel(job.kind));
-  const zip = $derived(
-    job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0
-  );
+  const zip = $derived(zipReady(job));
 </script>
 
 <div role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'}>

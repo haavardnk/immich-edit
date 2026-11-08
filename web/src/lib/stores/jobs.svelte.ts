@@ -3,16 +3,19 @@ import {
   clearJobs,
   getJob,
   isJobActive,
+  jobDownloadUrl,
   JOB_KINDS,
   jobNeedsAttention,
   listJobs,
   splitJobs,
   TRANSFER_JOB_KINDS,
+  zipReady,
   type Job,
   type JobItem
 } from '#lib/api/jobs.ts';
 import { ApiError, url } from '#lib/api/client.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
+import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
@@ -55,6 +58,7 @@ class JobsStore {
   attention = $state(false);
   expanded = $state<string | null>(null);
 
+  private downloads = new Set<string>();
   private sources = new Map<string, EventSource>();
   private streamErrors = new Map<string, number>();
   private fallbacks = new Map<string, ReturnType<typeof setTimeout>>();
@@ -125,6 +129,10 @@ class JobsStore {
     else this.settle(job);
   };
 
+  downloadWhenDone = (id: string): void => {
+    this.downloads.add(id);
+  };
+
   unwatch = (id: string): void => {
     this.watched = this.watched.filter((w) => w !== id);
   };
@@ -142,6 +150,7 @@ class JobsStore {
     }
     monthCounts.invalidate();
     if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
+    if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
     this.disconnect(job.id);
     this.stopFallback(job.id);
     this.settle(job);

@@ -5,7 +5,8 @@
     jobDownloadUrl,
     type Job,
     type JobItem,
-    type JobItemStatus
+    type JobItemStatus,
+    zipReady
   } from '#lib/api/jobs.ts';
   import { jobEtaText, jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
   import Notice from '#lib/components/Notice.svelte';
@@ -102,7 +103,7 @@
         aria-label="Cancel job"
       />
     {/if}
-    {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
+    {#if zipReady(job)}
       <IconLink
         size="small"
         variant="ghost"

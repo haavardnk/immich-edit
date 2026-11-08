@@ -7,13 +7,14 @@ export async function runBulkJob(
   create: (assetIds: string[]) => Promise<Job>,
   error: string,
   assetIds: string[] = [...selection.selected]
-): Promise<boolean> {
-  if (assetIds.length === 0) return false;
+): Promise<Job | null> {
+  if (assetIds.length === 0) return null;
   try {
-    jobs.track(await create(assetIds));
-    return true;
+    const job = await create(assetIds);
+    jobs.track(job);
+    return job;
   } catch (e) {
     toasts.fail(error, e, 6000);
-    return false;
+    return null;
   }
 }

@@ -51,7 +51,7 @@
     </Tabs.Content>
     <Tabs.Content value="export" class="min-h-0 flex-1 overflow-y-auto py-2">
       {#if tab === 'export'}
-        <BulkExportPanel />
+        <BulkExportPanel onStarted={onClose} />
       {/if}
     </Tabs.Content>
   </Tabs.Root>

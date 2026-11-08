@@ -85,6 +85,10 @@ export function jobNeedsAttention(job: Job): boolean {
   return !isJobActive(job.status) && (job.failed > 0 || job.status === 'failed');
 }
 
+export function zipReady(job: Job): boolean {
+  return job.kind === JOB_KINDS.downloadZip && job.status === 'completed' && job.completed > 0;
+}
+
 export function listJobs(): Promise<Job[]> {
   return getJson('/api/jobs');
 }
