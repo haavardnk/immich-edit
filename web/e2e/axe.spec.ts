@@ -88,7 +88,7 @@ test('the loupe and mobile action menu have no serious accessibility violations'
   await page.setViewportSize({ width: 390, height: 844 });
   await installMocks(page);
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
   await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await page.getByRole('button', { name: 'More loupe actions' }).click();

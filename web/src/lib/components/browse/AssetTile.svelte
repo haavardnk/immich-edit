@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import IconLink from '#lib/components/IconLink.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
@@ -24,6 +25,7 @@
     mdiEyeOutline,
     mdiCloseCircle,
     mdiContentDuplicate,
+    mdiPencilOutline,
     mdiTuneVariant
   } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
@@ -78,6 +80,13 @@
   const rowPinned = $derived(
     info === 'full' || (info === 'badges' && (copyBadge !== null || rating > 0))
   );
+  const hoverButton = {
+    size: 'small',
+    shape: 'round',
+    variant: 'ghost',
+    color: 'secondary',
+    class: 'text-white drop-shadow-md bg-black/40 hover:bg-black/70'
+  } as const;
   const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
   const markClass = $derived(info === 'none' ? hoverOnly : '');
   const nameClass = $derived(info === 'full' ? '' : hoverOnly);
@@ -89,6 +98,7 @@
         : 'opacity-0 group-hover:opacity-100 touch:hidden'
   );
   const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
+  const href = $derived(editorHref(asset.id, `${page.url.pathname}${page.url.search}`));
 
   function onClick(e: MouseEvent): void {
     if (held('extend', e)) {
@@ -143,7 +153,7 @@
   data-name={asset.originalFileName}
 >
   <a
-    href={editorHref(asset.id, `${page.url.pathname}${page.url.search}`)}
+    {href}
     onclick={onClick}
     aria-label={asset.originalFileName}
     class="block h-full w-full outline-none transition-[padding] duration-200 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
@@ -218,18 +228,25 @@
     <div
       class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100 touch:hidden"
     >
-      <IconButton
-        type="button"
-        size="small"
-        shape="round"
-        variant="ghost"
-        color="secondary"
-        class="text-white drop-shadow-md bg-black/40 hover:bg-black/70"
-        icon={mdiEyeOutline}
-        title={hint('Quick review', 'openLoupe')}
-        aria-label="Quick review"
-        onclick={onLoupeClick}
-      />
+      {#if onOpen}
+        <IconLink
+          {...hoverButton}
+          icon={mdiPencilOutline}
+          {href}
+          tooltip={hint('Edit', 'openEditor')}
+          aria-label="Edit"
+          onclick={() => onActivate?.()}
+        />
+      {:else}
+        <IconButton
+          {...hoverButton}
+          type="button"
+          icon={mdiEyeOutline}
+          title={hint('Quick review', 'openLoupe')}
+          aria-label="Quick review"
+          onclick={onLoupeClick}
+        />
+      {/if}
       {#if copyBadge && onDeleteCopy}
         <DeleteConfirmation
           bind:pending={pendingDelete}

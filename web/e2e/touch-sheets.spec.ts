@@ -28,7 +28,9 @@ async function openLoupe(page: Page): Promise<void> {
   });
   await page.goto('/search?q=IMG');
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
-  await expect(page.locator(`a[href^="/assets/${ASSET_SUMMARY.id}?"]`)).toBeVisible();
+  await expect(
+    page.locator(`[role="group"] > a[href^="/assets/${ASSET_SUMMARY.id}?"]`)
+  ).toBeVisible();
   await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }

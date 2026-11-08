@@ -1,13 +1,14 @@
+import type { ClickTarget } from '#lib/api/preferences.ts';
+import { preferences } from '#lib/stores/preferences.svelte.ts';
 import { getContext, setContext } from 'svelte';
-
-export type TileOpen = 'editor' | 'loupe';
 
 const KEY = Symbol('tileOpen');
 
-export function provideTileOpen(open: TileOpen): void {
+export function provideTileOpen(open: ClickTarget): void {
   setContext(KEY, open);
 }
 
-export function tileOpen(): TileOpen {
-  return getContext<TileOpen | undefined>(KEY) ?? 'editor';
+export function tileOpen(): () => ClickTarget {
+  const fixed = getContext<ClickTarget | undefined>(KEY);
+  return () => fixed ?? preferences.clickTarget;
 }

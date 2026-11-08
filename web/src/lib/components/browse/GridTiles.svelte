@@ -24,7 +24,8 @@
     dragPreview?: ReadonlySet<string> | null;
   } = $props();
 
-  const opensLoupe = tileOpen() === 'loupe';
+  const opens = tileOpen();
+  const opensLoupe = $derived(opens() === 'loupe');
 
   let extendKey = $state(false);
   let hoveredId = $state<string | null>(null);

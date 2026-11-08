@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, installMocks, numberedAssets, openFilters } from './helpers';
 
-const TILE = `a[href^="/assets/${ASSET_ID}?"]`;
+const TILE = `[role="group"] > a[href^="/assets/${ASSET_ID}?"]`;
 
 function filename(body: Record<string, unknown> | null): unknown {
   return (body?.filter as { filename?: string } | undefined)?.filename;
@@ -189,7 +189,7 @@ test('smart search hides rejects in the browser and matches exact ratings', asyn
       { ...rejected, tags: [{ id: 'r', name: 'reject', value: 'immich-edit/reject' }] }
     ]
   });
-  const tile = (id: string) => page.locator(`a[href^="/assets/${id}?"]`);
+  const tile = (id: string) => page.locator(`[role="group"] > a[href^="/assets/${id}?"]`);
 
   await page.goto('/search?q=red%20car&rating=4%2B');
   await expect(tile(rejected.id)).toBeVisible();
