@@ -3,6 +3,7 @@
   import type { AssetGridBox } from '#lib/browse/assetGridLayout.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { browseTarget, setRating } from '#lib/browse/assetMeta.ts';
+  import { peek } from '#lib/browse/peek.svelte.ts';
   import { tileOpen } from '#lib/browse/tileOpen.ts';
   import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -74,9 +75,13 @@
         selection.toggle(item.asset.id);
         if (selection.has(item.asset.id)) browseView.setActive(item.asset.id);
       }}
-      onPreview={() => (hoveredId = item.asset.id)}
+      onPreview={() => {
+        hoveredId = item.asset.id;
+        peek.hover(item.asset.id);
+      }}
       onPreviewEnd={() => {
         if (hoveredId === item.asset.id) hoveredId = null;
+        peek.leave(item.asset.id);
       }}
       onRange={() => {
         if (selectingAll) return;

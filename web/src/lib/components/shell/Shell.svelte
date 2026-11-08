@@ -12,6 +12,9 @@
   import SignOutConfirm from './SignOutConfirm.svelte';
   import JobsDrawer from '#lib/components/jobs/JobsDrawer.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
+  import PeekView from '#lib/components/browse/PeekView.svelte';
+  import { peek } from '#lib/browse/peek.svelte.ts';
+  import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
@@ -23,6 +26,7 @@
   let { children }: { children: Snippet } = $props();
 
   const onEditor = $derived(onEditorRoute());
+  const peeked = $derived(peek.id ? browsing.find(peek.id) : null);
 
   onMount(() => {
     void editedThumbs.loadOnce();
@@ -30,6 +34,7 @@
   });
 
   onNavigate(({ to }) => {
+    peek.hide();
     if (to) leaveLoupeOnEditorPath(to.url.pathname);
   });
 
@@ -68,4 +73,7 @@
 <SignOutConfirm />
 {#if browseView.loupeId}
   <Loupe />
+{/if}
+{#if peeked}
+  <PeekView asset={peeked} />
 {/if}

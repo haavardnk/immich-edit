@@ -11,6 +11,7 @@ export interface GridCommandSpec {
   unavailable?: () => string | null;
   yields?: (host: GridHost, trigger: CommandTrigger) => boolean;
   run: (host: GridHost, trigger?: CommandTrigger) => void;
+  release?: () => void;
 }
 
 export function gridCommand(spec: GridCommandSpec): Command {
@@ -31,6 +32,7 @@ export function gridCommand(spec: GridCommandSpec): Command {
     run: (trigger) => {
       const host = gridHost.get();
       if (host) spec.run(host, trigger);
-    }
+    },
+    release: spec.release
   };
 }

@@ -44,6 +44,12 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'bg-black/70',
     'text-white'
   ],
+  '/src/lib/components/browse/PeekView.svelte': [
+    'bg-black/90',
+    'text-white',
+    'text-white/40',
+    'text-white/85'
+  ],
   '/src/lib/components/browse/PreviewStatusChip.svelte': ['bg-black/70', 'text-white/85'],
   '/src/lib/components/browse/RatingHud.svelte': [
     'bg-black/70',
