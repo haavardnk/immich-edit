@@ -1,4 +1,5 @@
 import type { MetaOutcome } from '#lib/browse/assetMeta.ts';
+import { peek } from '#lib/browse/peek.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { labelTagValue } from '#lib/stores/labels.ts';
@@ -8,6 +9,7 @@ import type { TagRef } from '#lib/types/asset.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   gridCurrent,
+  gridTargets,
   nextTargetLabel,
   nextTargetRating,
   openMulti,
@@ -45,6 +47,29 @@ describe('grid actions', () => {
     selection.clear();
     browseView.setActive(null);
     browseView.closeLoupe();
+    peek.hide();
+  });
+
+  it('acts on the peeked photo instead of the selection', () => {
+    selection.replace(['a', 'b']);
+    peek.show('c');
+    expect(gridTargets()).toEqual(['c']);
+    expect(gridCurrent(ITEMS)).toBe('c');
+    expect(nextTargetRating(ITEMS, '5')).toBeNull();
+    peek.hide();
+    expect(gridTargets()).toEqual(['a', 'b']);
+  });
+
+  it('moves the peek, not the selection, after rating the peeked photo', async () => {
+    const reveal = vi.fn();
+    selection.replace(['c']);
+    peek.show('a');
+    rateAndAdvance(ITEMS, 4, reveal);
+    await settle();
+    expect(meta.setRating).toHaveBeenCalledOnce();
+    expect(peek.id).toBe('b');
+    expect([...selection.selected]).toEqual(['c']);
+    expect(reveal).not.toHaveBeenCalled();
   });
 
   it('prefers the active photo when it is selected, else the first selected one', () => {
