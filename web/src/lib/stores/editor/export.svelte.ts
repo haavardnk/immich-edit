@@ -1,7 +1,7 @@
 import { getAsset } from '#lib/api/assets.ts';
 import {
   downloadExport,
-  EXTENSION_BY_FORMAT,
+  downloadName,
   uploadToImmich,
   type ExportOptions,
   type ImmichExportOptions
@@ -39,7 +39,7 @@ export async function onExport(ctx: ExportCtx, opts: ExportOptions): Promise<voi
   ctx.lastDownload = null;
   try {
     const download = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), opts);
-    const name = download.filename ?? `${ctx.assetId}.${EXTENSION_BY_FORMAT[opts.format]}`;
+    const name = downloadName(ctx.assetId, download, opts.format);
     downloadBlob(download.blob, name);
     ctx.lastDownload = {
       kind: 'success',

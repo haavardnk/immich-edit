@@ -9,14 +9,10 @@
 </script>
 
 <div class="flex flex-col gap-1 px-3 py-1.5">
-  <div class="text-[11px] text-dark/65 select-none">
-    {exporter.summary}
-  </div>
-
   <ExportForm
     scope={exporter.scope}
     bind:replaceOriginal={exporter.replaceOriginal}
-    downloadLabel="Download ZIP"
+    downloadLabel={exporter.downloadLabel}
   />
 
   <Button
