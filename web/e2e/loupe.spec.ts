@@ -226,6 +226,17 @@ test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ p
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 
+test('filmstrip thumbs with a context menu stay in the tab order', async ({ page }) => {
+  await openLoupe(page);
+  const strip = page.getByTestId('filmstrip-scroll');
+  const first = strip.getByRole('button', { name: LOUPE_IMAGE, exact: true });
+  const next = strip.getByRole('button', { name: NEXT_IMAGE, exact: true });
+
+  await first.focus();
+  await page.keyboard.press('Tab');
+  await expect(next).toBeFocused();
+});
+
 test('the filmstrip context menu opens a photo in the editor', async ({ page }) => {
   await openLoupe(page);
   const strip = page.getByTestId('filmstrip-scroll');

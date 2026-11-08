@@ -11,12 +11,17 @@
     children: Snippet;
     disabled?: boolean;
   } = $props();
+
+  function nativeFocus(props: Record<string, unknown>): Record<string, unknown> {
+    const { tabindex: _tabindex, ...rest } = props;
+    return rest;
+  }
 </script>
 
 <Bits.Root>
   <Bits.Trigger {disabled}>
     {#snippet child({ props })}
-      {@render trigger(props)}
+      {@render trigger(nativeFocus(props))}
     {/snippet}
   </Bits.Trigger>
   <Bits.Portal>
