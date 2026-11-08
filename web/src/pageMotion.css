@@ -1,0 +1,114 @@
+:root[data-page-motion] [data-page] {
+  view-transition-name: page;
+}
+
+:root[data-page-motion]::view-transition-old(root),
+:root[data-page-motion]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+:root[data-page-motion]::view-transition-group(page) {
+  overflow: clip;
+}
+
+:root[data-page-motion='fade']::view-transition-old(page) {
+  mix-blend-mode: normal;
+  animation: page-fade-out var(--transition-duration-fast) var(--ease-exit) both;
+}
+
+:root[data-page-motion='fade']::view-transition-new(page) {
+  mix-blend-mode: normal;
+  animation: page-through-in var(--transition-duration-slow) var(--ease-emphasized) both;
+}
+
+:root[data-page-motion='push']::view-transition-old(page),
+:root[data-page-motion='push']::view-transition-new(page),
+:root[data-page-motion='pop']::view-transition-old(page),
+:root[data-page-motion='pop']::view-transition-new(page) {
+  mix-blend-mode: normal;
+  animation-duration: var(--transition-duration-slow);
+  animation-timing-function: var(--ease-emphasized);
+  animation-fill-mode: both;
+}
+
+:root[data-page-motion='push']::view-transition-old(page) {
+  animation-name: page-out-start;
+}
+
+:root[data-page-motion='push']::view-transition-new(page) {
+  animation-name: page-in-end;
+}
+
+:root[data-page-motion='pop']::view-transition-old(page) {
+  z-index: 1;
+  animation-name: page-out-end;
+}
+
+:root[data-page-motion='pop']::view-transition-new(page) {
+  animation-name: page-in-start;
+}
+
+:root[data-page-motion='rise']::view-transition-old(page),
+:root[data-page-motion='sink']::view-transition-old(page) {
+  animation: page-fade-out var(--transition-duration-fast) var(--ease-exit) both;
+}
+
+:root[data-page-motion='rise']::view-transition-new(page) {
+  animation: page-rise-in var(--transition-duration-base) var(--ease-standard) both;
+}
+
+:root[data-page-motion='sink']::view-transition-new(page) {
+  animation: page-sink-in var(--transition-duration-base) var(--ease-standard) both;
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-through-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes page-in-end {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-out-start {
+  to {
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes page-out-end {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-in-start {
+  from {
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes page-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes page-sink-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}

@@ -22,6 +22,7 @@
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
+  import { animatePageChange } from '#lib/navigation/pageTransition.ts';
 
   let { children }: { children: Snippet } = $props();
 
@@ -33,9 +34,10 @@
     void jobs.load();
   });
 
-  onNavigate(({ to }) => {
+  onNavigate((navigation) => {
     peek.hide();
-    if (to) leaveLoupeOnEditorPath(to.url.pathname);
+    if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
+    return animatePageChange(navigation, layout.compact);
   });
 
   $effect.pre(() => {

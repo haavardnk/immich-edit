@@ -1,5 +1,6 @@
 @import '@immich/ui/theme/default.css';
 @import './fonts.css';
+@import './pageMotion.css';
 
 @source '../node_modules/@immich/ui/dist';
 
