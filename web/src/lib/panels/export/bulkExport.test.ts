@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
   createZipExportJob: vi.fn(),
   runBulkJob: vi.fn(),
   showJob: vi.fn(),
-  downloadWhenDone: vi.fn()
+  downloadWhenDone: vi.fn(),
+  downloadStoredExport: vi.fn(),
+  downloadBlob: vi.fn()
 }));
 
 vi.mock('#lib/api/jobs.ts', async (original) => ({
@@ -14,6 +16,11 @@ vi.mock('#lib/api/jobs.ts', async (original) => ({
   createZipExportJob: mocks.createZipExportJob
 }));
 vi.mock('#lib/api/bulkJob.ts', () => ({ runBulkJob: mocks.runBulkJob }));
+vi.mock('#lib/api/export.ts', async (original) => ({
+  ...(await original<typeof import('#lib/api/export.ts')>()),
+  downloadStoredExport: mocks.downloadStoredExport
+}));
+vi.mock('#lib/utils/download.ts', () => ({ downloadBlob: mocks.downloadBlob }));
 vi.mock('#lib/stores/jobs.svelte.ts', () => ({
   jobs: { showJob: mocks.showJob, downloadWhenDone: mocks.downloadWhenDone }
 }));
@@ -25,7 +32,8 @@ import { exportScope, uploadOptions } from '#lib/panels/export/scope.ts';
 import { baseOptions } from '#lib/panels/export/settings.ts';
 import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
-import { mdiCloudUpload, mdiFolderZip } from '@mdi/js';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { mdiCloudUpload, mdiDownload, mdiFolderZip } from '@mdi/js';
 
 const OPEN_SCOPE = exportScope({ assets: [], count: 2, trashOn: true });
 
@@ -51,6 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  toasts.items = [];
   selection.clear();
   exportSettings.destination = 'download';
   immichCapabilities.trash = false;
@@ -90,10 +99,14 @@ describe('BulkExporter', () => {
     expect(exporter.disabled).toBe(true);
 
     selection.toggle('a');
+    expect(exporter.label).toBe('Download JPEG');
+    expect(exporter.icon).toBe(mdiDownload);
+    expect(exporter.downloadLabel).toBe('Download');
+
     selection.toggle('b');
-    expect(exporter.summary).toBe('2 assets selected');
     expect(exporter.label).toBe('Download 2 as JPEG ZIP');
     expect(exporter.icon).toBe(mdiFolderZip);
+    expect(exporter.downloadLabel).toBe('Download ZIP');
     expect(exporter.disabled).toBe(false);
 
     exportSettings.destination = 'immich';
@@ -132,7 +145,7 @@ describe('BulkExporter', () => {
   });
 
   it('closes its container and opens the job once it is queued', async () => {
-    selection.toggle('a');
+    selection.replace(['a', 'b']);
     const started = vi.fn();
     const exporter = new BulkExporter(started);
 
@@ -144,5 +157,35 @@ describe('BulkExporter', () => {
     await exporter.submit();
     expect(started).toHaveBeenCalledOnce();
     expect(mocks.showJob).toHaveBeenCalledOnce();
+  });
+
+  it('downloads a single photo directly with the form settings', async () => {
+    selection.replace(['a']);
+    const blob = new Blob(['jpg']);
+    mocks.downloadStoredExport.mockResolvedValue({
+      blob,
+      filename: 'IMG_1_edit.jpg',
+      warnings: []
+    });
+    const started = vi.fn();
+
+    await new BulkExporter(started).submit();
+    expect(mocks.downloadStoredExport).toHaveBeenCalledWith('a', baseOptions(exportSettings.form));
+    expect(mocks.downloadBlob).toHaveBeenCalledWith(blob, 'IMG_1_edit.jpg');
+    expect(mocks.runBulkJob).not.toHaveBeenCalled();
+    expect(started).toHaveBeenCalledOnce();
+    expect(toasts.items.map((toast) => toast.message)).toEqual(['Saved IMG_1_edit.jpg']);
+  });
+
+  it('keeps the sheet open when a single download fails', async () => {
+    selection.replace(['a']);
+    mocks.downloadStoredExport.mockRejectedValue(new Error('boom'));
+    const started = vi.fn();
+    const exporter = new BulkExporter(started);
+
+    await exporter.submit();
+    expect(started).not.toHaveBeenCalled();
+    expect(exporter.busy).toBe(false);
+    expect(toasts.items.map((toast) => toast.message)).toEqual(['Export failed: boom']);
   });
 });

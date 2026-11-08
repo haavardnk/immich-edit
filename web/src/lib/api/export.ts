@@ -164,36 +164,53 @@ export function dispositionFilename(header: string | null): string | null {
   return /filename="([^"]*)"/i.exec(header)?.[1] ?? null;
 }
 
-export async function downloadExport(
+export function downloadName(
   assetId: string,
-  edits: Edits,
-  opts: ExportOptions
-): Promise<ExportDownload> {
-  const base = url`/api/assets/${assetId}/export`;
-  const resp = isIdentity(edits)
-    ? await request(base + queryString(opts))
-    : await request(base, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          edits,
-          format: opts.format,
-          quality: opts.quality,
-          metadata: opts.metadata,
-          bit_depth: opts.bitDepth,
-          png_compression: opts.pngCompression,
-          tiff_compression: opts.tiffCompression,
-          lossless: opts.lossless,
-          color_space: opts.colorSpace,
-          filename_template: opts.filenameTemplate,
-          ...finishParams(opts)
-        })
-      });
+  download: ExportDownload,
+  format: ExportFormat
+): string {
+  return download.filename ?? `${assetId}.${EXTENSION_BY_FORMAT[format]}`;
+}
+
+async function readDownload(resp: Response): Promise<ExportDownload> {
   return {
     blob: await resp.blob(),
     filename: dispositionFilename(resp.headers.get('content-disposition')),
     warnings: headerWarnings(resp.headers.get('x-export-warnings'))
   };
+}
+
+export async function downloadStoredExport(
+  assetId: string,
+  opts: ExportOptions
+): Promise<ExportDownload> {
+  return readDownload(await request(exportUrlPersisted(assetId, opts)));
+}
+
+export async function downloadExport(
+  assetId: string,
+  edits: Edits,
+  opts: ExportOptions
+): Promise<ExportDownload> {
+  if (isIdentity(edits)) return downloadStoredExport(assetId, opts);
+  const resp = await request(url`/api/assets/${assetId}/export`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      edits,
+      format: opts.format,
+      quality: opts.quality,
+      metadata: opts.metadata,
+      bit_depth: opts.bitDepth,
+      png_compression: opts.pngCompression,
+      tiff_compression: opts.tiffCompression,
+      lossless: opts.lossless,
+      color_space: opts.colorSpace,
+      filename_template: opts.filenameTemplate,
+      ...finishParams(opts)
+    })
+  });
+  return readDownload(resp);
 }
 
 export type StackPrimary = 'edited' | 'original';

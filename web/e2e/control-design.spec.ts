@@ -925,7 +925,7 @@ test('bulk export shows the neutral filename template field for both destination
   ).toBe(true);
   await expectPrimaryFocusRing(page, template);
 
-  await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
+  await dialog.getByRole('radio', { name: 'Download', exact: true }).click();
   await expect(template).toBeVisible();
 });
 
