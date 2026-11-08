@@ -2,6 +2,7 @@
   import { ContextMenu as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { clickGuard } from '#lib/gestures/clickGuard.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
@@ -24,6 +25,7 @@
   }
 
   let open = $state(false);
+  const sheet = presence(() => open);
 
   const touch = $derived(layout.mode === 'touch');
   const guard = clickGuard();
@@ -49,8 +51,13 @@
 
 {#if touch}
   {@render trigger(touchTriggerProps)}
-  {#if open}
-    <ActionSheet {open} onOpenChange={(next) => (open = next)} title="Actions">
+  {#if sheet.mounted}
+    <ActionSheet
+      {open}
+      onOpenChange={(next) => (open = next)}
+      onExited={sheet.exited}
+      title="Actions"
+    >
       {@render children()}
     </ActionSheet>
   {/if}

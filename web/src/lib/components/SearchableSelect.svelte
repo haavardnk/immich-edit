@@ -6,6 +6,7 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { pickerHost } from '#lib/components/sheet/pickerHost.ts';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { flushSync, untrack, type Snippet } from 'svelte';
 
   let {
@@ -63,6 +64,7 @@
 
   let input = $state('');
   let open = $state(false);
+  const sheet = presence(() => open);
   let anchor = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
   let sheetInput = $state<HTMLInputElement | null>(null);
@@ -316,10 +318,11 @@
       />
     {/if}
   </div>
-  {#if open}
+  {#if sheet.mounted}
     <BottomSheet
       {open}
       onOpenChange={sheetOpenChange}
+      onExited={sheet.exited}
       title={label}
       close="icon"
       detents={[{ fraction: 1 }]}

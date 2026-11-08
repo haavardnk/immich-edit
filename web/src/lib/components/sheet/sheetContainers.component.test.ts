@@ -57,6 +57,10 @@ function popoverContent(): Element | null {
   return document.querySelector('[data-popover-content]');
 }
 
+async function exited(find: () => Element | null): Promise<void> {
+  await vi.waitFor(() => expect(find()).toBeNull());
+}
+
 function dialogName(dialog: Element): string {
   const id = dialog.getAttribute('aria-labelledby');
   return id ? (document.getElementById(id)?.textContent.trim() ?? '') : '';
@@ -158,7 +162,7 @@ describe('Popover presentation', () => {
     await settle();
     expect(onRow).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
-    expect(popoverContent()).toBeNull();
+    await exited(popoverContent);
   });
 
   it('closes the action sheet from Cancel', async () => {
@@ -181,7 +185,7 @@ describe('Popover presentation', () => {
     button('Run row').click();
     await settle();
     expect(onRow).toHaveBeenCalled();
-    expect(popoverContent()).toBeNull();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
 
     button('Toggle').click();
     await settle();
@@ -273,7 +277,7 @@ describe('ContextMenu presentation', () => {
     row?.click();
     await settle();
     expect(onRow).toHaveBeenCalled();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await exited(() => document.querySelector('[role="dialog"]'));
   });
 
   it('opens the action sheet from the context menu key on touch', async () => {
@@ -286,7 +290,7 @@ describe('ContextMenu presentation', () => {
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     button('Cancel').click();
     await settle();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await exited(() => document.querySelector('[role="dialog"]'));
   });
 
   it('does not open on a short touch press', async () => {

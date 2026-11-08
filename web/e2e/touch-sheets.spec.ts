@@ -42,6 +42,27 @@ async function openShortcuts(page: Page): Promise<Locator> {
   return sheet;
 }
 
+async function countSlideIns(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    root.dataset.slideIns = '0';
+    if (root.dataset.slideWatch) return;
+    root.dataset.slideWatch = '';
+    document.addEventListener(
+      'transitionrun',
+      (event) => {
+        if (event.propertyName !== 'translate') return;
+        root.dataset.slideIns = String(Number(root.dataset.slideIns ?? 0) + 1);
+      },
+      true
+    );
+  });
+}
+
+async function slideIns(page: Page): Promise<number> {
+  return Number(await page.locator('html').getAttribute('data-slide-ins'));
+}
+
 async function expectAtBottom(page: Page, sheet: Locator): Promise<void> {
   const box = await sheet.boundingBox();
   const viewport = page.viewportSize();
@@ -225,6 +246,21 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
 });
 
 test.describe('touch sheets on WebKit', { tag: '@touch-smoke' }, () => {
+  test('a sheet and the account drawer slide in', async ({ page }) => {
+    await openBrowse(page);
+    await countSlideIns(page);
+
+    const sheet = await openShortcuts(page);
+    await expect.poll(() => slideIns(page)).toBeGreaterThan(0);
+    await sheet.getByRole('button', { name: 'close', exact: true }).tap();
+    await expect(sheet).toBeHidden();
+
+    await countSlideIns(page);
+    await page.getByRole('button', { name: 'Account', exact: true }).tap();
+    await expect(page.getByRole('dialog', { name: 'Account' })).toBeVisible();
+    await expect.poll(() => slideIns(page)).toBeGreaterThan(0);
+  });
+
   test('a dialog opens as a sheet and closes from its close button', async ({ page }) => {
     await openBrowse(page);
 

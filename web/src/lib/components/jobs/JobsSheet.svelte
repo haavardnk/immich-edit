@@ -4,16 +4,20 @@
   import JobListActions from '#lib/components/jobs/JobListActions.svelte';
   import { jobsSummary } from '#lib/components/jobs/jobFormat.ts';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
+
+  const sheet = presence(() => jobs.open);
 </script>
 
 {#snippet actions()}
   <JobListActions />
 {/snippet}
 
-{#if jobs.open}
+{#if sheet.mounted}
   <BottomSheet
-    open
+    open={jobs.open}
     onOpenChange={(open) => !open && jobs.close()}
+    onExited={sheet.exited}
     title="Jobs"
     subtitle={jobsSummary(jobs.activeCount)}
     close="icon"
