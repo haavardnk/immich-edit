@@ -52,6 +52,35 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 
+async function countGhosts(page: Page): Promise<() => Promise<number>> {
+  await page.evaluate(() => {
+    let count = 0;
+    Reflect.set(window, '__ghosts', count);
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of record.addedNodes) if (node instanceof HTMLImageElement) count += 1;
+      Reflect.set(window, '__ghosts', count);
+    }).observe(document.body, { childList: true });
+  });
+  return () => page.evaluate(() => Number(Reflect.get(window, '__ghosts')));
+}
+
+test('the loupe zooms out of its tile and back into it', async ({ page }) => {
+  await installMocks(page, { assets: ASSETS });
+  await page.goto('/search?q=IMG');
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  const ghosts = await countGhosts(page);
+
+  await page.getByLabel('Quick review').first().click();
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+  await expect.poll(ghosts).toBe(1);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
+  await expect.poll(ghosts).toBe(2);
+  await expect(page.locator('body > img')).toHaveCount(0);
+});
+
 test('the loupe paints the Immich preview while the render is pending', async ({ page }) => {
   let release = (): void => {};
   const rendered = new Promise<void>((resolve) => (release = resolve));
