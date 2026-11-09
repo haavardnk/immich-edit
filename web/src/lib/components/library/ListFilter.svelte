@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import TextInput from '#lib/components/TextInput.svelte';
+  import SearchField from '#lib/components/SearchField.svelte';
   import {
     filterByName,
     listFilterShown,
@@ -7,8 +7,6 @@
     type ListNoun
   } from '#lib/browse/listFilter.ts';
   import { firstFocusable } from '#lib/utils/focusable.ts';
-  import { Icon } from '@immich/ui';
-  import { mdiMagnify } from '@mdi/js';
   import type { Snippet } from 'svelte';
 
   let {
@@ -35,13 +33,6 @@
   const label = $derived(`Filter ${noun.many}`);
 
   function onkeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      if (query) query = '';
-      else input?.blur();
-      return;
-    }
     if (event.key !== 'ArrowDown') return;
     const first = rows ? firstFocusable(rows) : null;
     if (!first) return;
@@ -50,24 +41,9 @@
   }
 </script>
 
-{#snippet searchIcon(_disabled: boolean)}
-  <Icon icon={mdiMagnify} size="60%" class="text-dark/65" aria-hidden />
-{/snippet}
-
 {#if available}
   <div class="py-1 {className}">
-    <TextInput
-      bind:ref={input}
-      bind:value={query}
-      type="text"
-      size="tiny"
-      autocomplete="off"
-      placeholder={label}
-      aria-label={label}
-      leadingIcon={searchIcon}
-      class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! [&_input]:h-7.5 [&_input]:text-[13px] touch:[&_input]:h-11 touch:[&_input]:text-[15px]"
-      {onkeydown}
-    />
+    <SearchField bind:ref={input} bind:value={query} {label} {onkeydown} />
   </div>
 {/if}
 <div bind:this={rows} class="contents">
