@@ -30,7 +30,7 @@ export interface Setting {
 
 export interface SettingMatch {
   setting: Setting;
-  highlight: readonly [number, number] | null;
+  highlight: Highlight | null;
 }
 
 export interface SettingGroup {
@@ -131,18 +131,22 @@ function buildSettings(): Setting[] {
 
 export const SETTINGS: readonly Setting[] = buildSettings();
 
-type Ranked = { setting: Setting; highlight: readonly [number, number] | null; rank: number };
+export type Highlight = readonly [number, number];
+
+type Ranked = { setting: Setting; highlight: Highlight | null; rank: number };
+
+export function textMatch(text: string, query: string): Highlight | null {
+  const needle = query.trim().toLowerCase();
+  const at = text.toLowerCase().indexOf(needle);
+  return at >= 0 ? [at, at + needle.length] : null;
+}
 
 function rank(setting: Setting, needle: string, tokens: readonly string[]): Ranked | null {
-  const label = setting.label.toLowerCase();
-  const at = label.indexOf(needle);
-  if (at >= 0) {
-    const wordStart = at === 0 || label[at - 1] === ' ';
-    return {
-      setting,
-      highlight: [at, at + needle.length],
-      rank: at === 0 ? 0 : wordStart ? 1 : 2
-    };
+  const highlight = textMatch(setting.label, needle);
+  if (highlight) {
+    const [at] = highlight;
+    const wordStart = at === 0 || setting.label[at - 1] === ' ';
+    return { setting, highlight, rank: at === 0 ? 0 : wordStart ? 1 : 2 };
   }
   if (tokens.every((token) => setting.terms.includes(token))) {
     return { setting, highlight: null, rank: 3 };

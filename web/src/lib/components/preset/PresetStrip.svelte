@@ -7,7 +7,7 @@
   import SavePresetDialog from './SavePresetDialog.svelte';
   import { presetThumbUrl, type Preset } from '#lib/api/presets.ts';
   import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
-  import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+  import { defaultApplyOptions } from '#lib/edits/applyPreset.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
@@ -15,11 +15,7 @@
   import { mdiPlus, mdiUpload } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
 
-  let applyOptions = $state<ApplyPresetOptions>({
-    includeGeometry: false,
-    includeMasks: false,
-    amount: LOOK_AMOUNT_FULL
-  });
+  let applyOptions = $state<ApplyPresetOptions>(defaultApplyOptions());
   let pickedGroup = $state<string | null>(null);
   let dialog = $state<{ preset?: Preset } | null>(null);
   const tileWidth = $derived(Math.round(ui.filmstripHeight * 1.5));

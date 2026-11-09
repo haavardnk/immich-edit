@@ -12,6 +12,7 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
+  import CommandPalette from './CommandPalette.svelte';
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -53,3 +54,4 @@
     {/if}
   </div>
 </div>
+<CommandPalette />

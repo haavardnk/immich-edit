@@ -2,14 +2,9 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { scopes } from '#lib/stores/scopes.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import {
-    developPanels,
-    openDevelopPanels,
-    SCOPES_PANEL,
-    type PanelDef
-  } from '#lib/panels/registry.ts';
+  import { developPanels, openDevelopPanels, SCOPES_PANEL } from '#lib/panels/registry.ts';
   import { setDevelopPanel } from '#lib/panels/developPanels.ts';
-  import { resetDevelopPanel } from '#lib/panels/panelReset.ts';
+  import { commitPanelReset } from '#lib/components/editor/controls/paramReset.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
   import Disclosure from '#lib/components/Disclosure.svelte';
   import { provideSettingFilter } from '#lib/components/editor/controls/settingFilter.ts';
@@ -30,11 +25,6 @@
         (!settingSearch.filtering || matchedPanels.has(panel.id))
     )
   );
-
-  function resetPanel(panel: PanelDef): void {
-    editor.edits = resetDevelopPanel(editor.edits, panel.id, editor.isRaw);
-    void editor.onCommit(`Reset ${panel.title}`);
-  }
 </script>
 
 {#if !scopes.pinned && !ui.developModifiedOnly && !settingSearch.filtering}
@@ -55,7 +45,7 @@
         open={settingSearch.filtering || openPanels.has(panel.id)}
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
-        onReset={() => resetPanel(panel)}
+        onReset={() => commitPanelReset(panel)}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
         <div class="bg-recess px-3 pb-2 pt-1">

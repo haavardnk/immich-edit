@@ -7,6 +7,7 @@ class SettingSearchStore {
   matches: SettingMatch[] = $derived(searchSettings(this.query));
   matched = $derived(new Set(this.matches.map((match) => match.setting.id)));
   filtering = $derived(this.query.trim() !== '');
+  paletteOpen = $state(false);
 
   shows = (id: string): boolean => !this.filtering || this.matched.has(id);
 

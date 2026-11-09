@@ -95,3 +95,46 @@ test.describe('settings filter on desktop', () => {
     await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
   });
 });
+
+test.describe('command palette on desktop', () => {
+  function palette(page: Page): Locator {
+    return page.getByRole('dialog', { name: 'Search settings and actions' });
+  }
+
+  test('jumps to a setting, focuses it and runs actions', async ({ page }) => {
+    await installMocks(page);
+    await page.goto(`/assets/${ASSET_ID}`);
+    await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
+
+    await page.keyboard.press('ControlOrMeta+k');
+    const input = palette(page).getByRole('combobox', { name: 'Search settings and actions' });
+    await expect(input).toBeFocused();
+    await input.fill('aqua sat');
+    await expect(palette(page).getByRole('option', { name: /Aqua saturation/ })).toBeVisible();
+    await input.press('Enter');
+
+    await expect(palette(page)).toHaveCount(0);
+    const row = page.locator('[data-setting="hsl_aqua_sat"]');
+    await expect(page.getByRole('radio', { name: 'Aqua' })).toBeChecked();
+    await expect(row.getByRole('slider', { name: 'Saturation' })).toBeFocused();
+    await expect(row).toHaveAttribute('data-flash', '');
+
+    await page.keyboard.press('ArrowRight');
+    await expect(row.getByRole('button', { name: 'Edit Saturation value' })).toHaveText('1');
+
+    await page.keyboard.press('ControlOrMeta+k');
+    await palette(page).getByRole('combobox').fill('grey');
+    await palette(page).getByRole('option', { name: 'Grey background' }).click();
+    await expect(palette(page)).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(palette(page)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(palette(page)).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+k');
+    await palette(page).getByRole('combobox').fill('exp');
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(palette(page)).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(palette(page)).toBeVisible();
+  });
+});

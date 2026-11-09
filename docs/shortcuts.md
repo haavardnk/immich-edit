@@ -132,6 +132,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+Tab`    | Hide or show every panel                                | Editor              |
 | `W`            | Pick white balance from a neutral area                  | Editor              |
 | `Ctrl+U`       | Auto adjust                                             | Editor              |
+| `Ctrl+K`       | Search settings, presets and actions                    | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
 | `Ctrl+C`       | Copy edits                                              | Editor, Grid, Loupe |
 | `Ctrl+V`       | Paste edits                                             | Editor, Grid, Loupe |

@@ -550,6 +550,13 @@ export const KEYBINDS = [
     label: 'Auto adjust'
   },
   {
+    id: 'searchSettings',
+    keys: ['Mod+k'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Search settings, presets and actions'
+  },
+  {
     id: 'resetEdits',
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],

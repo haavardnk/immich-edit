@@ -8,6 +8,7 @@ import {
   mdiTuneVariant,
   mdiViewGridOutline
 } from '@mdi/js';
+import { flushSync } from 'svelte';
 
 export type TouchMode = 'presets' | EditorTab;
 
@@ -35,6 +36,11 @@ export function openTouchMode(mode: TouchMode): void {
   }
   ui.presetStrip = false;
   ui.openTab(mode);
+}
+
+export function openTouchSearch(): void {
+  openTouchMode('develop');
+  flushSync(touchUi.openSearch);
 }
 
 export function retapTouchMode(event: MouseEvent, mode: TouchMode): void {

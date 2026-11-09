@@ -3,7 +3,7 @@
   import { presets } from '#lib/stores/presets.svelte.ts';
   import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
-  import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+  import { defaultApplyOptions } from '#lib/edits/applyPreset.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import PresetApplyOptions from '#lib/components/preset/ApplyOptions.svelte';
   import PresetPicker from '#lib/components/preset/PresetPicker.svelte';
@@ -11,11 +11,7 @@
   import { mdiAutoFix } from '@mdi/js';
 
   let presetId = $state<string | null>(null);
-  let applyOptions = $state<ApplyPresetOptions>({
-    includeGeometry: false,
-    includeMasks: false,
-    amount: LOOK_AMOUNT_FULL
-  });
+  let applyOptions = $state<ApplyPresetOptions>(defaultApplyOptions());
   $effect(() => {
     if (!presets.loaded && !presets.loading) void presets.load();
   });

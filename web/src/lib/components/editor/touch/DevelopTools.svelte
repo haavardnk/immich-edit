@@ -1,16 +1,15 @@
 <script lang="ts">
   import { commandLabel, commandTitle, isEnabled, runCommand } from '#lib/commands/command.ts';
   import { autoAdjust, resetDevelop } from '#lib/commands/editor/edits.ts';
-  import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiMagnify } from '@mdi/js';
-  import { flushSync } from 'svelte';
+  import { openTouchSearch } from './modes';
 
   let { size = 'medium' }: { size?: 'small' | 'medium' } = $props();
 
   function search(event: MouseEvent): void {
     event.stopPropagation();
-    flushSync(touchUi.openSearch);
+    openTouchSearch();
   }
 </script>
 

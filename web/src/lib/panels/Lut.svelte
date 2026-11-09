@@ -1,7 +1,7 @@
 <script lang="ts">
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
+  import { commitLut, commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import FileImportButton from '#lib/components/FileImportButton.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
@@ -39,9 +39,8 @@
   }
 
   function select(id: string | null): void {
-    editor.edits.color.lut_3d.lut_id = id;
     pendingDelete = false;
-    void editor.onCommit(id ? 'Select LUT' : 'Remove LUT');
+    commitLut(id);
   }
 
   async function importFile(file: File): Promise<void> {
