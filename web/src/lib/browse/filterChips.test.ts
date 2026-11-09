@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFilterChips,
+  activeFilterCount,
   activeFilterValues,
   filterValueLabel,
   photoCountLabel,
@@ -60,12 +61,9 @@ describe('browse filter chips', () => {
       'No rejected',
       'Green label',
       'Name: DSC',
-      '≥ 25 MB',
-      '≤ 100 MB',
-      'After 2024-01-01',
-      'Before 2024-12-31',
-      'Added after 2025-01-01',
-      'Added before 2025-02-01',
+      '25–100 MB',
+      '2024',
+      'Added 1 Jan 2025 – 1 Feb 2025',
       'Make: SONY',
       'Lens: FE 35mm F1.8 +2',
       'Country: Norway',
@@ -129,6 +127,41 @@ describe('browse filter chips', () => {
 
   it('names no values for the default filters', () => {
     expect(activeFilterValues(FILTER_DEFAULTS, () => '')).toEqual([]);
+  });
+
+  it.each<[Partial<BrowseFilters>, string]>([
+    [{ takenAfter: '2026-10-24' }, 'From 24 Oct 2026'],
+    [{ takenBefore: '2026-10-24' }, 'Until 24 Oct 2026'],
+    [{ takenAfter: '2026-10-01', takenBefore: '2026-10-31' }, 'Oct 2026'],
+    [{ addedAfter: '2026-10-24' }, 'Added from 24 Oct 2026'],
+    [{ maxSize: 1 }, '< 1 MB'],
+    [{ minSize: 50 }, '> 50 MB'],
+    [{ minSize: 25 }, '≥ 25 MB'],
+    [{ maxSize: 100 }, '≤ 100 MB']
+  ])('pairs range ends %j into one chip %s', (filters, label) => {
+    expect(chipsOf({ ...FILTER_DEFAULTS, ...filters }).map((chip) => chip.label)).toEqual([label]);
+  });
+
+  it('counts a paired range once', () => {
+    expect(
+      activeFilterCount({
+        ...FILTER_DEFAULTS,
+        takenAfter: '2026-10-01',
+        takenBefore: '2026-10-31',
+        minSize: 1,
+        maxSize: 10,
+        rating: 5
+      })
+    ).toBe(3);
+    expect(activeFilterCount(FILTER_DEFAULTS)).toBe(0);
+  });
+
+  it('removes both ends of a paired range', () => {
+    const filters = { ...FILTER_DEFAULTS, minSize: 1, maxSize: 10, rating: 2 as const };
+    expect(withoutFilter(filters, 'minSize')).toEqual({ ...FILTER_DEFAULTS, rating: 2 });
+    expect(withoutFilter({ ...FILTER_DEFAULTS, takenBefore: '2026-01-01' }, 'takenBefore')).toEqual(
+      FILTER_DEFAULTS
+    );
   });
 
   it('removes one filter and keeps the rest', () => {

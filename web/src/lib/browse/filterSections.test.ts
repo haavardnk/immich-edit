@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FILTER_SECTIONS,
-  isFilterSectionId,
-  isPanelSectionId,
-  sectionModified,
-  withoutSection
-} from './filterSections';
-import { FILTER_DEFAULTS, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
-
-const section = (id: string) => {
-  const found = FILTER_SECTIONS.find((s) => s.id === id);
-  if (!found) throw new Error(`missing section ${id}`);
-  return found;
-};
+import { FILTER_SECTIONS, isFilterSectionId } from './filterSections';
+import { FILTER_DEFAULTS } from '#lib/stores/browseControls.svelte.ts';
 
 describe('filter panel sections', () => {
   it('place every filter in exactly one section', () => {
@@ -21,42 +9,9 @@ describe('filter panel sections', () => {
     expect([...keys].sort()).toEqual(Object.keys(FILTER_DEFAULTS).sort());
   });
 
-  it.each<[string, Partial<BrowseFilters>]>([
-    ['library', { rejected: 'hide' }],
-    ['collections', { untagged: true }],
-    ['rating', { label: 'none' }],
-    ['date', { takenBefore: '2024-01-01' }],
-    ['file', { filename: 'DSC' }],
-    ['camera', { lensModel: ['FE 35mm F1.8'] }],
-    ['place', { city: ['Bergen'] }]
-  ])('marks %s modified only by its own filters', (id, change) => {
-    const filters = { ...FILTER_DEFAULTS, ...change };
-
-    expect(FILTER_SECTIONS.filter((s) => sectionModified(filters, s)).map((s) => s.id)).toEqual([
-      id
-    ]);
-  });
-
-  it('resets one section and keeps the others', () => {
-    const filters: BrowseFilters = {
-      ...FILTER_DEFAULTS,
-      favoriteOnly: true,
-      make: ['SONY'],
-      model: ['ILCE-7M3'],
-      country: ['Norway']
-    };
-
-    expect(withoutSection(filters, section('camera'))).toEqual({
-      ...FILTER_DEFAULTS,
-      favoriteOnly: true,
-      country: ['Norway']
-    });
-  });
-
-  it('knows the view section beside the filter sections', () => {
-    expect(isPanelSectionId('view')).toBe(true);
-    expect(isPanelSectionId('camera')).toBe(true);
-    expect(isPanelSectionId('lens')).toBe(false);
+  it('knows only the filter sections', () => {
+    expect(isFilterSectionId('camera')).toBe(true);
     expect(isFilterSectionId('view')).toBe(false);
+    expect(isFilterSectionId('lens')).toBe(false);
   });
 });

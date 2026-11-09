@@ -1,51 +1,36 @@
 <script lang="ts">
-  import { segmented } from '#lib/components/segmented.ts';
-  import { browseControls, type LabelFilter } from '#lib/stores/browseControls.svelte.ts';
+  import Chip from '#lib/components/chips/Chip.svelte';
+  import IconToggle from '#lib/components/chips/IconToggle.svelte';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '#lib/stores/labels.ts';
-  import { Icon, Tooltip } from '@immich/ui';
-  import { RadioGroup } from 'bits-ui';
-  import { mdiCircle, mdiCircleOffOutline } from '@mdi/js';
+  import { mdiCircleOffOutline } from '@mdi/js';
+
+  const label = $derived(browseControls.filters.label);
 </script>
 
-<div class="flex flex-col gap-1">
-  <span class="editor-compact-label select-none">Label</span>
-  <RadioGroup.Root
-    bind:value={
-      () => browseControls.filters.label, (v) => (browseControls.filters.label = v as LabelFilter)
-    }
-    orientation="horizontal"
-    aria-label="Label"
-    class={segmented.text.group}
-  >
-    <div class="flex shrink-0 gap-0.5">
-      <RadioGroup.Item value="any" class="{segmented.text.radio} px-2">Any</RadioGroup.Item>
-      <Tooltip text="No label">
-        {#snippet child({ props })}
-          <RadioGroup.Item
-            {...props}
-            value="none"
-            aria-label="No label"
-            class="{segmented.text.radio} px-2"
-          >
-            <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
-          </RadioGroup.Item>
-        {/snippet}
-      </Tooltip>
-    </div>
-    <span class="my-1 w-px shrink-0 bg-gray-300 dark:bg-gray-600" aria-hidden="true"></span>
+<div class="flex items-center gap-2">
+  <div role="group" aria-label="Label" class="-ml-1 flex touch:-ml-2.5">
     {#each LABEL_COLORS as color (color)}
-      <Tooltip text={`${LABEL_NAMES[color]} label`}>
-        {#snippet child({ props })}
-          <RadioGroup.Item
-            {...props}
-            value={color}
-            aria-label={`${LABEL_NAMES[color]} label`}
-            class="{segmented.text.radio} flex-1"
-          >
-            <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
-          </RadioGroup.Item>
-        {/snippet}
-      </Tooltip>
+      <IconToggle
+        pressed={label === color}
+        onPressedChange={(pressed) => (browseControls.filters.label = pressed ? color : 'any')}
+        label="{LABEL_NAMES[color]} label"
+      >
+        <span
+          class="size-3.5 rounded-full bg-current ring-offset-2 ring-offset-light group-aria-pressed:ring-[1.5px] group-aria-pressed:ring-light-950 touch:size-5.5 touch:group-aria-pressed:ring-2 {LABEL_TEXT[
+            color
+          ]}"
+          aria-hidden="true"
+        ></span>
+      </IconToggle>
     {/each}
-  </RadioGroup.Root>
+  </div>
+  <span class="flex-1"></span>
+  <Chip
+    pressed={label === 'none'}
+    onPressedChange={(pressed) => (browseControls.filters.label = pressed ? 'none' : 'any')}
+    icon={mdiCircleOffOutline}
+  >
+    No label
+  </Chip>
 </div>

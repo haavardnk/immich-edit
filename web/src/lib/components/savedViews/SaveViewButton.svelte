@@ -43,7 +43,9 @@
     size="tiny"
     variant="ghost"
     color={open ? 'primary' : 'secondary'}
-    class="h-8 {open ? 'bg-primary/10' : 'bg-transparent hover:bg-light-950/6'}"
+    class="h-8 shrink-0 whitespace-nowrap {open
+      ? 'bg-primary/10'
+      : 'bg-transparent hover:bg-light-950/6'}"
     leadingIcon={mdiBookmarkOutline}
     aria-expanded={open}
     aria-controls={open ? controls : undefined}

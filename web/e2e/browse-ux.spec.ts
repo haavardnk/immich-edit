@@ -151,12 +151,9 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   await expectTooltip(sort, /^Sort: date/);
 
   const panel = await openFilters(page, 'Rating & label');
-  await expectTooltip(panel.getByRole('radio', { name: 'Green label' }), 'Green label');
-  await expectTooltip(panel.getByRole('radio', { name: '3 stars' }), '3 stars');
-  await expectTooltip(
-    page.getByRole('button', { name: /^Rating match/ }),
-    'Match ratings at least the selected stars'
-  );
+  await expectTooltip(panel.getByRole('button', { name: 'Green label' }), 'Green label');
+  await expectTooltip(panel.getByRole('button', { name: '3 stars' }), '3 stars');
+  await expectTooltip(panel.getByRole('button', { name: '3 stars' }), '3 stars');
 });
 
 test('select all loads every page and enables local actions', async ({ page }) => {
@@ -237,7 +234,7 @@ test('changing a browse filter clears hidden selection', async ({ page }) => {
   await expect(page.getByText('1 selected')).toBeVisible();
 
   await openFilters(page, 'File');
-  await page.getByLabel('Filename').fill('portrait');
+  await page.getByRole('textbox', { name: 'Name contains' }).fill('portrait');
 
   await expect(page.getByText('1 selected')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Clear selection' })).toBeHidden();
@@ -251,7 +248,6 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
 
   await page.getByRole('button', { name: 'View & filters', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'View & filters' });
-  await sheet.getByRole('button', { name: 'View', exact: true }).click();
   const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
   for (const size of ['S', 'M', 'L', 'XL']) {
     await expect(sizes.getByRole('radio', { name: size, exact: true })).toBeInViewport();

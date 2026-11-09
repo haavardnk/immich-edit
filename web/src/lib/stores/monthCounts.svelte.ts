@@ -5,6 +5,7 @@ export const MONTHS_REFRESH_MS = 300;
 
 export class MonthCountsStore {
   months = $state.raw<MonthCount[]>([]);
+  loaded = $state(false);
   #key = '';
   #filter: BrowseFilter | null = null;
   #stale = false;
@@ -15,7 +16,10 @@ export class MonthCountsStore {
   ensure(filter: BrowseFilter): void {
     const key = JSON.stringify(filter);
     if (key === this.#key && !this.#stale) return;
-    if (key !== this.#key) this.months = [];
+    if (key !== this.#key) {
+      this.months = [];
+      this.loaded = false;
+    }
     this.#key = key;
     this.#filter = filter;
     this.#stale = false;
@@ -25,6 +29,7 @@ export class MonthCountsStore {
       .then((result) => {
         if (request !== this.#request) return;
         this.months = Array.isArray(result.months) ? result.months : [];
+        this.loaded = true;
       })
       .catch(() => {
         if (request !== this.#request) return;

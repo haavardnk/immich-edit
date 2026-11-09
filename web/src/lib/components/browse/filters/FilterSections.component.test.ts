@@ -1,4 +1,5 @@
 import { FILTER_SECTIONS } from '#lib/browse/filterSections.ts';
+import { GRID_SIZE_OPTIONS, TILE_INFO_OPTIONS } from '#lib/browse/viewOptions.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import {
   controls,
@@ -20,6 +21,13 @@ vi.mock('$app/state', () => ({
 }));
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
+const radio = (name: string): ControlRef => ({ role: 'radio', name });
+
+const VIEW_BLOCK = [
+  ...['Taken', 'Added', 'Newest', 'Oldest'],
+  ...GRID_SIZE_OPTIONS.map((option) => option.label),
+  ...TILE_INFO_OPTIONS.map((option) => option.label)
+].map(radio);
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -70,7 +78,7 @@ describe('FilterSections layout parity', () => {
               button('Reset all filters'),
               button('Close view & filters'),
               button('Show 3 photos'),
-              button('View')
+              ...VIEW_BLOCK
             ]
           }
         )
@@ -84,30 +92,21 @@ describe('FilterSections layout parity', () => {
   );
 });
 
-describe('FilterSheet view section', () => {
-  it('leads with View, summarised while collapsed and open, holding the view options when open', async () => {
+describe('FilterSheet view block', () => {
+  it('leads with sort, order, size and thumbnail info above the filters', async () => {
     const destroy = renderLayout(
       layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture', title: 'Photos' })
     );
     try {
       await settle();
-      const triggers = [
-        ...document.querySelectorAll(
-          '[role="dialog"] [aria-expanded]:not([aria-label="Save view"])'
-        )
-      ];
-      const view = triggers.find((element) => element.getAttribute('aria-label') === 'View');
-      expect(view).toBe(triggers[0]);
-      const summary = document.getElementById(view?.getAttribute('aria-describedby') ?? '');
-      expect(summary?.textContent.trim()).toMatch(/^Date taken, newest · (S|M|L|XL) · Badges$/);
-      expect(names()).not.toContain('XL');
-
-      browseView.setFilterSection('view', true);
-      await settle();
-      expect(view?.getAttribute('aria-describedby')).toBe(summary?.id);
-      expect(names()).toEqual(
-        expect.arrayContaining(['Date taken', 'Newest first', 'XL', 'Name and date'])
+      const groups = [...document.querySelectorAll('[role="dialog"] [role="radiogroup"]')].map(
+        (group) => group.getAttribute('aria-label')
       );
+      expect(groups.slice(0, 4)).toEqual(['Sort by', 'Order', 'Thumbnail size', 'Thumbnail info']);
+      expect(names()).toEqual(
+        expect.arrayContaining(['Taken', 'Newest', 'XL', 'Name and date', 'Reset all filters'])
+      );
+      expect(names()).not.toContain('View');
     } finally {
       await destroy();
     }

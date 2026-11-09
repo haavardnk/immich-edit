@@ -7,7 +7,7 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { pickerHost } from '#lib/components/sheet/pickerHost.ts';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
-  import { flushSync, untrack, type Snippet } from 'svelte';
+  import { flushSync, type Snippet } from 'svelte';
 
   let {
     options,
@@ -20,7 +20,6 @@
     getSearchText = getLabel,
     placeholder = 'Search…',
     label = placeholder,
-    summary = '',
     compact = false,
     multiple = true,
     color = 'primary',
@@ -43,7 +42,6 @@
     getSearchText?: (item: T) => string;
     placeholder?: string;
     label?: string;
-    summary?: string;
     compact?: boolean;
     multiple?: boolean;
     color?: 'primary' | 'neutral';
@@ -68,29 +66,19 @@
   let anchor = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
   let sheetInput = $state<HTMLInputElement | null>(null);
-  let pinned = $state(untrack(() => new Set(selected)));
-
-  const keepsQuery = $derived(multiple && !closeOnSelect && !hideSelected);
   const selectedSet = $derived(new Set(selected));
   const selectedItem = $derived(
     multiple ? null : (options.find((item) => selectedSet.has(getId(item))) ?? null)
   );
-  const selectedLabel = $derived(
-    multiple ? (selected.length > 0 ? summary : '') : selectedItem ? getLabel(selectedItem) : ''
-  );
+  const selectedLabel = $derived(selectedItem ? getLabel(selectedItem) : '');
   const inputText = $derived(open ? input : selectedLabel);
   const searchPlaceholder = $derived(placeholder.replace(/^(Add|Choose|Select) /, 'Search '));
   const createValue = $derived(input.trim());
   const suggestions = $derived.by(() => {
     const query = input.trim().toLowerCase();
-    const matches = options
+    return options
       .filter((item) => !hideSelected || !selectedSet.has(getId(item)))
       .filter((item) => !query || getSearchText(item).toLowerCase().includes(query));
-    if (!keepsQuery) return matches;
-    return [
-      ...matches.filter((item) => pinned.has(getId(item))),
-      ...matches.filter((item) => !pinned.has(getId(item)))
-    ];
   });
   const canCreate = $derived(
     onCreate != null &&
@@ -107,17 +95,14 @@
   );
 
   function setOpen(next: boolean): void {
-    if (next && !open) {
-      pinned = new Set(selected);
-      input = '';
-    }
+    if (next && !open) input = '';
     open = next;
   }
 
   function change(value: string[]): void {
     const next = multiple ? value : value.slice(-1);
     selected = next;
-    if (!keepsQuery) input = '';
+    input = '';
     setOpen(!closeOnSelect);
     onSelectedChange?.(next);
   }

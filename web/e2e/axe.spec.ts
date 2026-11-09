@@ -54,7 +54,10 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await page.goto('/photos');
 
   await openFilters(page, 'Date', 'File', 'Camera', 'Place');
-  await expect(page.getByRole('button', { name: 'City', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Place', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
   expect(await audit(page)).toEqual([]);
 });
 
