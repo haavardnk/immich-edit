@@ -56,7 +56,7 @@
       d: curvePath(plot, getCurve(ch))
     }))
   );
-  const shown = $derived(activeCurve[dragging ?? selected ?? -1] ?? null);
+  const shown = $derived(dragging === null ? null : (activeCurve[dragging] ?? null));
   const right = $derived(plot.width - plot.pad);
   const bottom = $derived(plot.height - plot.pad);
 

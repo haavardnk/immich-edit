@@ -13,13 +13,12 @@ async function openCurves(page: Page): Promise<Locator> {
   return plot;
 }
 
-function readout(page: Page): Locator {
-  return page.locator('[data-curve-readout]');
+function outValue(page: Page): Locator {
+  return page.getByRole('button', { name: 'Edit Out value' });
 }
 
 async function output(page: Page): Promise<number> {
-  const text = (await readout(page).first().textContent()) ?? '';
-  return Number(/Out (\d+)/.exec(text)?.[1] ?? NaN);
+  return Number(await outValue(page).first().textContent());
 }
 
 test.describe('wide curve on desktop', () => {
@@ -32,14 +31,16 @@ test.describe('wide curve on desktop', () => {
     const x = box.x + box.width * 0.5;
     const y = box.y + box.height * 0.5;
     await page.mouse.click(x, y);
-    await expect(readout(page)).toHaveText(/In \d+ · Out \d+/);
+    await expect(outValue(page)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Undo/ })).toBeEnabled();
     const start = await output(page);
 
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(x, y - 60, { steps: 6 });
+    await expect(page.locator('[data-curve-readout]')).toHaveText(/In \d+ · Out \d+/);
     await page.mouse.up();
+    await expect(page.locator('[data-curve-readout]')).toHaveCount(0);
     const coarse = (await output(page)) - start;
     expect(coarse).toBeGreaterThan(60);
 
@@ -53,10 +54,16 @@ test.describe('wide curve on desktop', () => {
     expect(fine).toBeGreaterThan(coarse * 0.15);
     expect(fine).toBeLessThan(coarse * 0.35);
 
+    await outValue(page).click();
+    await page.getByRole('textbox', { name: 'Out value' }).fill('200');
+    await page.keyboard.press('Enter');
+    await expect(outValue(page)).toHaveText('200');
+
     const point = await plot.locator('circle').nth(2).boundingBox();
     if (!point) throw new Error('no point');
     await page.mouse.dblclick(point.x + point.width / 2, point.y + point.height / 2);
-    await expect(readout(page)).toHaveCount(0);
+    await expect(outValue(page)).toHaveCount(0);
+    await expect(page.getByText('Click the curve to add a point')).toBeVisible();
     await expect(plot.locator('circle')).toHaveCount(2);
   });
 
@@ -76,7 +83,7 @@ test.describe('wide curve on desktop', () => {
     const redBox = await red.boundingBox();
     if (!redBox) throw new Error('no plot');
     await page.mouse.click(redBox.x + redBox.width * 0.5, redBox.y + redBox.height * 0.3);
-    await expect(popout.locator('[data-curve-readout]')).toBeVisible();
+    await expect(popout.getByRole('button', { name: 'Edit Out value' })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(popout).toHaveCount(0);

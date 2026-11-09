@@ -43,7 +43,7 @@ export const TOUCH_VIEW_PARTS: Readonly<Record<TouchViewKey, readonly ViewPart[]
     part(ParamSection, { section: PRESENCE, params: [vibrance, saturation] })
   ],
   'color/mix': [only(HslPanel)],
-  'color/grading': [only(ColorGradingPanel)],
+  'color/grading': [part(ColorGradingPanel, { single: true })],
   'color/bw': [only(BwPanel)],
   'effects/basic': [
     part(ParamSection, { section: PRESENCE, params: [texture, clarity, dehaze] }),

@@ -10,6 +10,7 @@
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import CurvesCanvas from './curves/CurvesCanvas.svelte';
+  import CurvePointBar from './curves/CurvePointBar.svelte';
   import { CHANNEL_LABELS } from './curves/curves';
 
   let selected = $state<number | null>(null);
@@ -83,4 +84,5 @@
   </div>
 
   <CurvesCanvas {channel} bind:selected />
+  <CurvePointBar {channel} bind:selected />
 </div>
