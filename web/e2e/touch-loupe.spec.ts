@@ -101,6 +101,30 @@ test.describe('the touch loupe on a phone', { tag: ['@touch', '@phone'] }, () =>
     await expect(tile(page, 'IMG_0002.ARW')).toBeInViewport();
   });
 
+  test('a narrow filmstrip thumb shows its whole rating', async ({ page }) => {
+    await open(page, '/photos', {
+      assets: numberedAssets(4, {
+        exifInfo: { exifImageWidth: 2000, exifImageHeight: 6000, rating: 3 }
+      })
+    });
+    await tapCentre(page, tile(page, 'IMG_0002.ARW'));
+    await topBar(page).getByRole('button', { name: 'More loupe actions' }).tap();
+    await page
+      .getByRole('dialog', { name: 'Menu' })
+      .getByRole('button', { name: 'Show filmstrip', exact: true })
+      .tap();
+
+    const thumb = page
+      .getByTestId('filmstrip-scroll')
+      .getByRole('button', { name: 'IMG_0003.ARW' });
+    const badge = thumb.getByRole('img', { name: '3 stars' });
+    await expect(badge).toBeVisible();
+    const [outer, inner] = await Promise.all([thumb.boundingBox(), badge.boundingBox()]);
+    expect((inner?.x ?? 0) + (inner?.width ?? 0)).toBeLessThanOrEqual(
+      (outer?.x ?? 0) + (outer?.width ?? 0)
+    );
+  });
+
   test('the photo sits between the top bar and the cull bar', async ({ page }) => {
     await openLoupe(page);
     const pane = page.getByRole('button', { name: 'Zoom in' });

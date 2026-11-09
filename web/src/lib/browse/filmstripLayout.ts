@@ -1,5 +1,7 @@
 import { assetAspectRatio, type GridAsset } from './assetGridLayout';
 
+export const MIN_THUMB_ASPECT = 0.5;
+
 export type FilmstripBox = {
   left: number;
   width: number;
@@ -18,7 +20,7 @@ export function createFilmstripLayout(
 ): FilmstripLayout {
   let left = padding;
   const boxes = assets.map((asset) => {
-    const width = height * assetAspectRatio(asset);
+    const width = height * Math.max(assetAspectRatio(asset), MIN_THUMB_ASPECT);
     const box = { left, width };
     left += width + gap;
     return box;
