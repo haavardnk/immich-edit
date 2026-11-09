@@ -1,34 +1,37 @@
+import { cappedDpr, DESKTOP_BUDGET, type RenderBudget } from '#lib/render/budget.ts';
 import type { Rect } from '#lib/utils/viewGeometry.ts';
-
-export const LIVE_EDGE = 1600;
-export const MAX_EDGE = 4096;
 
 export type ViewSnapshot = { frame: Rect; viewW: number; viewH: number; dpr: number };
 
-export function baseEdge(snap: ViewSnapshot | null): number {
-  if (!snap) return LIVE_EDGE;
-  const long = Math.round(Math.max(snap.frame.width, snap.frame.height) * snap.dpr);
-  return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, long));
+function clampEdge(edge: number, budget: RenderBudget): number {
+  return Math.max(budget.liveEdge, Math.min(budget.maxEdge, edge));
 }
 
-export function fitEdge(snap: ViewSnapshot | null): number {
-  if (!snap || snap.frame.width <= 0 || snap.frame.height <= 0) return LIVE_EDGE;
+export function baseEdge(snap: ViewSnapshot | null, budget = DESKTOP_BUDGET): number {
+  if (!snap) return budget.liveEdge;
+  const long = Math.max(snap.frame.width, snap.frame.height) * cappedDpr(snap.dpr, budget);
+  return clampEdge(Math.round(long), budget);
+}
+
+export function fitEdge(snap: ViewSnapshot | null, budget = DESKTOP_BUDGET): number {
+  if (!snap || snap.frame.width <= 0 || snap.frame.height <= 0) return budget.liveEdge;
   const fit = Math.min(1, snap.viewW / snap.frame.width, snap.viewH / snap.frame.height);
-  const long = Math.max(snap.frame.width, snap.frame.height) * fit * snap.dpr;
-  return Math.max(LIVE_EDGE, Math.min(MAX_EDGE, Math.round(long)));
+  const long = Math.max(snap.frame.width, snap.frame.height) * fit * cappedDpr(snap.dpr, budget);
+  return clampEdge(Math.round(long), budget);
 }
 
-export function dragEdge(snap: ViewSnapshot | null): number {
+export function dragEdge(snap: ViewSnapshot | null, budget = DESKTOP_BUDGET): number {
   const long = Math.round(Math.max(snap?.viewW ?? 0, snap?.viewH ?? 0));
-  return long > 0 ? Math.min(LIVE_EDGE, long) : LIVE_EDGE;
+  return long > 0 ? Math.min(budget.liveEdge, long) : budget.liveEdge;
 }
 
-export function largestEdge(snap: ViewSnapshot | null): number {
-  const view = Math.round(Math.max(snap?.viewW ?? 0, snap?.viewH ?? 0) * (snap?.dpr ?? 1));
-  return Math.max(fitEdge(snap), view);
+export function largestEdge(snap: ViewSnapshot | null, budget = DESKTOP_BUDGET): number {
+  const long = Math.max(snap?.viewW ?? 0, snap?.viewH ?? 0);
+  const view = Math.round(long * cappedDpr(snap?.dpr ?? 1, budget));
+  return Math.max(fitEdge(snap, budget), view);
 }
 
-export function windowEdge(): number {
+export function windowEdge(budget = DESKTOP_BUDGET): number {
   const long = Math.max(globalThis.innerWidth || 0, globalThis.innerHeight || 0);
-  return Math.round(long * (globalThis.devicePixelRatio || 1));
+  return Math.round(long * cappedDpr(globalThis.devicePixelRatio || 1, budget));
 }

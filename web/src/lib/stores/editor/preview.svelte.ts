@@ -30,14 +30,18 @@ import {
   fitEdge,
   largestEdge,
   windowEdge,
-  LIVE_EDGE,
-  MAX_EDGE,
   type ViewSnapshot
 } from './previewEdge';
+import { budgetFor, type RenderBudget } from '#lib/render/budget.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 import { measureServerTick } from './serverTick';
 import { ViewTiles } from './viewTiles.svelte';
 
 const VIEW_DEBOUNCE_MS = 150;
+
+function pageHidden(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+}
 
 export interface PreviewFrame {
   bitmap: ImageBitmap;
@@ -102,12 +106,12 @@ export class PreviewEngine {
     });
     this.original = new OriginalPreview(ctx, {
       proof: () => this.proofOptions(),
-      edge: () => baseEdge(this.viewSnap)
+      edge: () => baseEdge(this.viewSnap, this.budget)
     });
-    this.weight = new MaskWeight(ctx, () => baseEdge(this.viewSnap));
+    this.weight = new MaskWeight(ctx, () => baseEdge(this.viewSnap, this.budget));
     this.client = new ClientPreview(ctx, {
       proof: () => this.proofOptions(),
-      baseEdge: () => fitEdge(this.viewSnap),
+      baseEdge: () => fitEdge(this.viewSnap, this.budget),
       onBaseIdle: () => this.baseIdle(),
       onSourceLong: (long) => {
         this.tiles.srcLong = long;
@@ -118,6 +122,20 @@ export class PreviewEngine {
       },
       refreshOriginal: () => this.original.refresh()
     });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => this.resume());
+    }
+  }
+
+  private get budget(): RenderBudget {
+    return budgetFor(layout.mode);
+  }
+
+  private resume(): void {
+    const next = this.deferred;
+    if (pageHidden() || !next) return;
+    this.deferred = null;
+    this.submitBase(next);
   }
 
   private flight = new SingleFlight<BaseArgs, { url: string; metaId: string | null }>(
@@ -186,10 +204,10 @@ export class PreviewEngine {
     if (this.viewBlocked() || !this.client.refreshTile(this.snapshotEdits())) this.clearView();
     if (this.dragging) {
       this.draggedLive = true;
-      this.submitBase(this.settledArgs(dragEdge(this.viewSnap)));
+      this.submitBase(this.settledArgs(dragEdge(this.viewSnap, this.budget)));
       return;
     }
-    this.submitBase(this.settledArgs(baseEdge(this.viewSnap)));
+    this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
     this.scheduleIdle();
   }
 
@@ -217,21 +235,21 @@ export class PreviewEngine {
     this.clearView();
     this.submitBase({
       edits: this.snapshotEdits(),
-      maxEdge: this.dragging ? dragEdge(this.viewSnap) : LIVE_EDGE,
+      maxEdge: this.dragging ? dragEdge(this.viewSnap, this.budget) : this.budget.liveEdge,
       previewMode: mode
     });
   }
 
   refreshBase(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
-    this.submitBase(this.settledArgs(baseEdge(this.viewSnap)));
+    this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
   }
 
   loadPersisted(): void {
     if (!this.ctx.assetId) return;
     const prev = this.ctx.previewUrl;
     this.ctx.previewUrl =
-      persistedPreviewUrl(this.ctx.assetId, MAX_EDGE, ui.clipWarn) + `&_=${Date.now()}`;
+      persistedPreviewUrl(this.ctx.assetId, this.budget.maxEdge, ui.clipWarn) + `&_=${Date.now()}`;
     if (prev?.startsWith('blob:')) revoke(prev);
     this.dropFrame();
   }
@@ -240,7 +258,7 @@ export class PreviewEngine {
     this.clearView();
     this.ctx.splitMode = !this.ctx.splitMode;
     if (this.ctx.splitMode) {
-      this.submitBase(this.settledArgs(baseEdge(this.viewSnap)));
+      this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
       this.original.refresh();
     } else {
       this.original.drop();
@@ -251,7 +269,7 @@ export class PreviewEngine {
   reproof(): void {
     if (!this.ctx.initialised || !this.ctx.assetId) return;
     this.clearView();
-    this.submitBase(this.settledArgs(baseEdge(this.viewSnap)));
+    this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
     this.scheduleIdle();
     if (this.ctx.splitMode) this.original.refresh(true);
   }
@@ -332,10 +350,14 @@ export class PreviewEngine {
   private submitBase(args: BaseArgs): void {
     this.previewing = !previewModeIsNone(args.previewMode);
     this.lastBase = args;
+    if (pageHidden()) {
+      this.deferred = args;
+      return;
+    }
     if (this.client.unbound) {
       const binding = renderer.bind({
-        benchmarkEdge: fitEdge(this.viewSnap),
-        maxEdge: Math.max(largestEdge(this.viewSnap), windowEdge())
+        benchmarkEdge: fitEdge(this.viewSnap, this.budget),
+        maxEdge: Math.max(largestEdge(this.viewSnap, this.budget), windowEdge(this.budget))
       });
       if (binding.kind === 'wait') {
         this.deferred = args;
@@ -370,7 +392,7 @@ export class PreviewEngine {
   private fireIdle(): void {
     if (!this.ctx.initialised) return;
     if (this.ctx.splitMode) {
-      this.submitBase(this.settledArgs(baseEdge(this.viewSnap)));
+      this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
       return;
     }
     if (this.viewBlocked()) return;

@@ -188,8 +188,9 @@ export class ClientPreview {
 
   private onError(err: unknown): void {
     if (err instanceof ApiError && err.code === 'superseded') return;
-    if (!(err instanceof ApiError || err instanceof NetworkError)) renderer.fail(err);
-    this.bound = null;
+    const recreate =
+      !(err instanceof ApiError || err instanceof NetworkError) && renderer.fail(err);
+    this.bound = recreate ? undefined : null;
     this.lanes();
     this.cancelTile();
     this.ctx.pending = false;

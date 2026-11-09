@@ -219,6 +219,36 @@ describe('renderer speed gate', () => {
     expect(renderer.bind(NEED).kind).toBe('server');
   });
 
+  it('re-creates the browser renderer once after the page was hidden', async () => {
+    const listeners: (() => void)[] = [];
+    const page = {
+      visibilityState: 'visible',
+      addEventListener: (_: string, fn: () => void) => listeners.push(fn)
+    };
+    vi.stubGlobal('document', page);
+    gpu.start.mockResolvedValue(fakeClient(TEN_MS_PER_MP));
+    const { renderer } = await load({ choice: 'browser' });
+    const hide = (): void => {
+      page.visibilityState = 'hidden';
+      listeners.forEach((fn) => fn());
+      page.visibilityState = 'visible';
+      listeners.forEach((fn) => fn());
+    };
+
+    const first = renderer.bind(NEED);
+    if (first.kind === 'wait') await first.ready;
+    hide();
+    expect(renderer.fail(new Error('device lost'))).toBe(true);
+    const again = renderer.bind(NEED);
+    expect(again.kind).toBe('wait');
+    if (again.kind === 'wait') await again.ready;
+    expect(gpu.start).toHaveBeenCalledTimes(2);
+
+    hide();
+    expect(renderer.fail(new Error('device lost'))).toBe(false);
+    expect(renderer.bind(NEED).kind).toBe('server');
+  });
+
   it('ignores unknown stored values', async () => {
     const { renderer } = await load({ choice: 'gpu', browserMs: -1, serverMs: 'fast' });
 
