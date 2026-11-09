@@ -143,53 +143,48 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(page.getByText(/not in this view/)).toHaveCount(0);
   });
 
-  test('the editor guard explains itself and goes back', async ({ page }) => {
+  test('the touch editor opens and goes back', async ({ page }) => {
     await open(page, '/library');
     await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
     await expect(page).toHaveURL(/\/assets\//);
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
-    await expect(page.getByText('Editing needs a larger screen for now.')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
 
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/library');
   });
 
-  test('the editor guard Back returns after an in-app asset change without looping', async ({
-    page
-  }) => {
+  test('editor Back returns after an in-app asset change without looping', async ({ page }) => {
     const [first, second] = numberedAssets(2);
     await open(page, '/albums/album-family', { assets: numberedAssets(2) });
     await tapCentre(page, page.locator(`[data-name="${first.originalFileName}"]`));
     await page.getByRole('button', { name: 'Edit', exact: true }).tap();
     await expect(page).toHaveURL(new RegExp(`/assets/${first.id}\\?from=`));
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
 
     await page.keyboard.press('ArrowRight');
     await expect(page).toHaveURL(new RegExp(`/assets/${second.id}\\?from=`));
 
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/albums/album-family');
     await back(page, '/albums');
     await expect(avatar(page)).toBeVisible();
   });
 
-  test('the editor guard Back on a deep-linked asset replaces it with the grid', async ({
-    page
-  }) => {
+  test('editor Back on a deep-linked asset replaces it with the grid', async ({ page }) => {
     const [first] = numberedAssets(1);
     const from = encodeURIComponent('/albums/album-family');
     await open(page, `/assets/${first.id}?from=${from}`, { assets: numberedAssets(2) });
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/albums/album-family');
     await back(page, '/albums');
   });
 
-  test('the editor guard Back without a return path goes to photos', async ({ page }) => {
+  test('editor Back without a return path goes to photos', async ({ page }) => {
     await open(page, `/assets/${ASSET_ID}`);
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/photos');
   });
 });

@@ -8,6 +8,7 @@ import type { Command } from '#lib/commands/types.ts';
 import { editorAssetId, leaveEditor, selectedShapeNudges } from '#lib/commands/editor/context.ts';
 import { returnPath } from '#lib/utils/route.ts';
 import { mdiArrowLeft } from '@mdi/js';
+import { layout } from '#lib/device/layout.svelte.ts';
 
 function openInEditor(id: string): void {
   void goto(editorHref(id, returnPath()), { replace: true });
@@ -38,7 +39,7 @@ export const editorBack = {
   label: 'Back',
   icon: mdiArrowLeft,
   bind: 'backToGrid',
-  run: () => leaveEditor(editorAssetId())
+  run: () => leaveEditor(editorAssetId(), layout.mode === 'touch' ? 'return' : 'push')
 } satisfies Command;
 
 export const NAVIGATION_COMMANDS: readonly Command[] = [

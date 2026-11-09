@@ -422,13 +422,14 @@ for (const size of [
   { width: 767, height: 800 },
   { width: 390, height: 844 }
 ]) {
-  test(`the editor guard fits ${size.width}x${size.height}`, async ({ page }) => {
+  test(`the touch editor fits ${size.width}x${size.height}`, async ({ page }) => {
     await page.setViewportSize(size);
     await installMocks(page);
 
     await page.goto(`/assets/${ASSET_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Editor modes' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeHidden();
     expect(await sidewaysScrollers(page)).toEqual([]);
   });
