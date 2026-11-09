@@ -621,6 +621,17 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     transform: scale(1.14);
     box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
   }
+  [data-layout='touch'] .slider-range {
+    height: 24px;
+  }
+  [data-layout='touch'] .slider-range::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+  }
+  [data-layout='touch'] .slider-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
   .slider-range:focus-visible {
     outline: none;
   }

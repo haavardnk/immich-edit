@@ -36,7 +36,9 @@
 
 {#if frame}
   {#key frame.colorSpace}
-    <canvas bind:this={element} data-testid={testid} class={className} {style}>{alt}</canvas>
+    <canvas bind:this={element} data-testid={testid} data-photo-layer class={className} {style}
+      >{alt}</canvas
+    >
   {/key}
 {:else if url}
   <img
@@ -44,6 +46,7 @@
     src={url}
     {alt}
     data-testid={testid}
+    data-photo-layer
     class={className}
     style="{style} image-orientation: none;"
     draggable="false"

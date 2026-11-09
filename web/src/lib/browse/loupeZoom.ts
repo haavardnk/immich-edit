@@ -1,4 +1,5 @@
 import { boxFrame, containBox, onScreen, type Box } from '#lib/browse/zoomGeometry.ts';
+import { cssToken, tokenMs } from '#lib/motion/tokens.ts';
 import { prefersReducedMotion } from 'svelte/motion';
 
 type Shot = { id: string; box: Box; src: string; backdrop: number };
@@ -17,18 +18,12 @@ function animated(): boolean {
   return typeof Element.prototype.animate === 'function' && !prefersReducedMotion.current;
 }
 
-function token(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
 function timing(
   duration: string,
   easing: string,
   fill: FillMode = 'backwards'
 ): KeyframeAnimationOptions {
-  const value = token(duration);
-  const ms = value.endsWith('ms') ? Number.parseFloat(value) : Number.parseFloat(value) * 1000;
-  return { duration: Number.isFinite(ms) ? ms : 0, easing: token(easing) || 'ease', fill };
+  return { duration: tokenMs(duration), easing: cssToken(easing) || 'ease', fill };
 }
 
 function boxOf(element: Element): Box {

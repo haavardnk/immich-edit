@@ -2,6 +2,7 @@ import { restoreBrowse } from '#lib/browse/restore.ts';
 import { warmNeighbours } from '#lib/editor/neighbours.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
 import { returnPath } from '#lib/utils/route.ts';
 import { onDestroy, onMount, untrack } from 'svelte';
 import { on } from 'svelte/events';
@@ -25,6 +26,14 @@ export function runEditorRoute(id: () => string): void {
     const shown = editor.previewUrl !== null || editor.previewFrame !== null;
     if (!current || !shown || current === warmedFor) return;
     if (warmNeighbours(current)) warmedFor = current;
+  });
+
+  $effect(() => {
+    if (ui.editorTab !== 'masks') {
+      editor.setActiveLayer(null);
+      editor.setActiveMaskComponent(null);
+    }
+    if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
   });
 
   $effect(() => on(window, 'beforeunload', guardPendingSave));

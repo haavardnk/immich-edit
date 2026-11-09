@@ -73,7 +73,10 @@ export const TOUCH_GROUPS: readonly TouchGroup[] = [
   {
     id: 'light',
     label: 'Light',
-    views: [{ id: 'tone', label: 'Tone', params: flat(TONE) }]
+    views: [
+      { id: 'tone', label: 'Tone', params: flat(TONE) },
+      { id: 'curve', label: 'Curve', params: [] }
+    ]
   },
   {
     id: 'color',
@@ -113,6 +116,9 @@ export const TOUCH_GROUPS: readonly TouchGroup[] = [
   {
     id: 'profile',
     label: 'Profile',
-    views: [{ id: 'lut', label: 'LUT', params: flat(LUT) }]
+    views: [
+      { id: 'camera', label: 'Camera', params: [] },
+      { id: 'lut', label: 'LUT', params: flat(LUT) }
+    ]
   }
 ];

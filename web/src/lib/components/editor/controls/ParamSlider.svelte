@@ -3,8 +3,11 @@
   import { paramDefault } from '#lib/editor/params/define.ts';
   import type { ParamDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { sliderFocus } from './sliderFocus';
 
   let { param, disabled = false }: { param: ParamDef; disabled?: boolean } = $props();
+
+  const focus = sliderFocus();
 </script>
 
 <EditSlider
@@ -19,4 +22,5 @@
   disabled={disabled || (param.inactive?.(editor.edits, editor.isRaw) ?? false)}
   gradient={param.liveGradient?.(editor.edits) ?? param.gradient}
   previewMode={param.previewMode}
+  onLabelTap={focus ? () => focus.focus(param) : undefined}
 />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SheetHandle from '#lib/components/sheet/SheetHandle.svelte';
   import SheetScrim from '#lib/components/sheet/SheetScrim.svelte';
   import { sheetMotion } from '#lib/components/sheet/sheetMotion.ts';
   import { nextDetent, resolveDetents, type Detent } from '#lib/components/sheet/sheetSnap.ts';
@@ -55,8 +56,6 @@
     children: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'title'> = $props();
 
-  const uid = $props.id();
-  const valueId = `${uid}-detent`;
   const guard = clickGuard();
   const inset = viewportInset();
 
@@ -252,23 +251,7 @@
                     bind:offsetHeight={topHeight}
                     {@attach guard.attachment}
                   >
-                    <div class="flex justify-center pt-1" {@attach handleDrag}>
-                      <button
-                        type="button"
-                        data-sheet-handle
-                        aria-label="Resize sheet"
-                        aria-describedby={steppable ? valueId : undefined}
-                        aria-hidden={steppable ? undefined : 'true'}
-                        tabindex={steppable ? 0 : -1}
-                        class="relative flex h-5 w-24 cursor-grab items-center justify-center rounded-full outline-none before:absolute before:inset-x-0 before:-inset-y-3 focus-visible:ring-2 focus-visible:ring-primary"
-                        onclick={step}
-                      >
-                        <span class="h-1 w-9 rounded-full bg-light-950/25"></span>
-                      </button>
-                      {#if steppable}
-                        <span id={valueId} class="sr-only">{detentText}</span>
-                      {/if}
-                    </div>
+                    <SheetHandle {steppable} {detentText} drag={handleDrag} onstep={step} />
                     {#if headerRow}
                       <div
                         class="flex min-h-12 items-center gap-1 border-b border-hairline pr-1.5 pl-4"

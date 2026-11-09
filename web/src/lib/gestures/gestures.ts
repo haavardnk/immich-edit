@@ -6,6 +6,7 @@ import type { Attachment } from 'svelte/attachments';
 export type GesturesSpec = Omit<ArbiterOptions, 'onOwnerChange'> & {
   recognizers: readonly Recognizer[];
   touchAction?: string | null;
+  accept?: (target: EventTarget | null) => boolean;
 };
 
 function sampleOf(e: PointerEvent): PointerSample {
@@ -74,7 +75,7 @@ export function gestures(spec: GesturesSpec): Attachment<HTMLElement> {
     }
 
     function down(e: PointerEvent): void {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || spec.accept?.(e.target) === false) return;
       settle();
       arbiter.down(sampleOf(e));
     }

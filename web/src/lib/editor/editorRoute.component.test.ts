@@ -9,6 +9,9 @@ const stores = vi.hoisted(() => ({
     previewUrl: null as string | null,
     previewFrame: null,
     saving: false,
+    activeRetouchId: null as string | null,
+    setActiveLayer: vi.fn(),
+    setActiveMaskComponent: vi.fn(),
     load: vi.fn((_id: string) => Promise.resolve()),
     endGeometrySession: vi.fn(() => Promise.resolve()),
     unload: vi.fn()

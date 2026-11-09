@@ -13,7 +13,8 @@
     gradient,
     disabled = false,
     previewMode,
-    onLive = editor.onLive
+    onLive = editor.onLive,
+    onLabelTap
   }: {
     label: string;
     commitAction: string;
@@ -24,6 +25,7 @@
     disabled?: boolean;
     previewMode?: PreviewMode;
     onLive?: (value: number) => void;
+    onLabelTap?: () => void;
   } = $props();
 </script>
 
@@ -36,6 +38,7 @@
   {gradient}
   {disabled}
   {onLive}
+  {onLabelTap}
   onCommit={editor.onCommit}
   onPreviewStart={previewMode ? () => editor.onPreview(previewMode) : undefined}
   onPreviewEnd={previewMode ? editor.endPreview : undefined}

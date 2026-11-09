@@ -1,24 +1,25 @@
 <script lang="ts">
   import ParamSlider from './ParamSlider.svelte';
   import SectionHeader from './SectionHeader.svelte';
-  import { commitSectionReset } from './paramReset';
-  import { paramsModified } from '#lib/editor/params/define.ts';
-  import type { SectionDef } from '#lib/editor/params/types.ts';
+  import { commitParamReset, commitSectionReset } from './paramReset';
+  import { paramsModified, sectionLabel } from '#lib/editor/params/define.ts';
+  import type { ParamDef, SectionDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
 
-  let { section }: { section: SectionDef } = $props();
+  let { section, params: subset }: { section: SectionDef; params?: readonly ParamDef[] } = $props();
 
-  const params = $derived(section.rows.flat());
+  const rows = $derived(subset ? [subset] : section.rows);
+  const params = $derived(rows.flat());
   const modified = $derived(paramsModified(editor.edits, params, editor.isRaw));
+
+  function reset(): void {
+    if (subset) commitParamReset(subset, `Reset ${sectionLabel(section)}`);
+    else commitSectionReset(section);
+  }
 </script>
 
-<SectionHeader
-  title={section.title}
-  section={section.id}
-  {modified}
-  onReset={() => commitSectionReset(section)}
-/>
-{#each section.rows as row, index (index)}
+<SectionHeader title={section.title} section={section.id} {modified} onReset={reset} />
+{#each rows as row, index (index)}
   {#if index > 0}
     <div class="border-t border-dark/10"></div>
   {/if}

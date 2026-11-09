@@ -227,6 +227,18 @@ describe('gestures attachment', () => {
     expect(calls).toEqual(['down 2 5']);
   });
 
+  it('starts only on pointers whose target it accepts', () => {
+    const { calls, recognizer } = recorder();
+    const { element, child } = mount({
+      recognizers: [recognizer],
+      accept: (target) => target === element
+    });
+    pointer(child, 'pointerdown', 0);
+    pointer(child, 'pointerup', 0);
+    pointer(element, 'pointerdown', 5, { pointerId: 2 });
+    expect(calls).toEqual(['down 2 5']);
+  });
+
   it('cancels on a lost capture of its own element only', () => {
     const cancel = vi.fn();
     const { element, child } = mount({ recognizers: [panRecognizer({ cancel })] });
