@@ -1,11 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { activeTab, NAV_TABS } from '#lib/components/shell/touch/navTabs.ts';
+  import { tabMemory } from '#lib/components/shell/touch/tabMemory.svelte.ts';
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { Icon } from '@immich/ui';
 
   const current = $derived(activeTab(page.url.pathname));
+
+  $effect(() => tabMemory.visit(page.url));
 </script>
 
 <nav
@@ -18,7 +21,7 @@
   {#each NAV_TABS as tab (tab.id)}
     {@const active = current === tab.id}
     <a
-      href={tab.href}
+      href={tabMemory.href(tab, page.url)}
       aria-current={active ? 'page' : undefined}
       class="group flex h-15 min-w-0 flex-1 items-center justify-center outline-none"
     >

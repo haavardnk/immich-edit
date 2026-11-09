@@ -1,8 +1,8 @@
 import { mdiBookshelf, mdiImageAlbum, mdiImageMultipleOutline, mdiMagnify } from '@mdi/js';
 
-type NavTabId = 'photos' | 'albums' | 'search' | 'library';
+export type NavTabId = 'photos' | 'albums' | 'search' | 'library';
 
-type NavTab = {
+export type NavTab = {
   id: NavTabId;
   href: string;
   label: string;
@@ -33,4 +33,10 @@ export function isTabRoot(pathname: string): boolean {
 
 export function activeTab(pathname: string): NavTabId | null {
   return TAB_ROOTS.find(({ roots }) => roots.some((root) => within(pathname, root)))?.tab ?? null;
+}
+
+export function crossesTabs(from: string, to: string): boolean {
+  const before = activeTab(from);
+  const after = activeTab(to);
+  return before !== null && after !== null && before !== after;
 }

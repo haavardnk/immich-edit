@@ -18,7 +18,7 @@ import { sourceId } from '#lib/browse/assetKey.ts';
 import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
+import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 
@@ -148,7 +148,7 @@ class JobsStore {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
       void editedThumbs.refresh();
     }
-    monthCounts.invalidate();
+    libraryChanged();
     if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
     if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
     this.disconnect(job.id);

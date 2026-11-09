@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeTab, isTabRoot } from './navTabs';
+import { activeTab, crossesTabs, isTabRoot } from './navTabs';
 
 describe('activeTab', () => {
   it.each([
@@ -39,5 +39,15 @@ describe('isTabRoot', () => {
     ['/settings', false]
   ])('treats %s as a tab root: %s', (pathname, root) => {
     expect(isTabRoot(pathname)).toBe(root);
+  });
+});
+
+describe('crossesTabs', () => {
+  it('is true only between two different tabs', () => {
+    expect(crossesTabs('/photos', '/albums/a1')).toBe(true);
+    expect(crossesTabs('/albums', '/albums/a1')).toBe(false);
+    expect(crossesTabs('/library', '/favorites')).toBe(false);
+    expect(crossesTabs('/settings', '/albums/a1')).toBe(false);
+    expect(crossesTabs('/albums/a1', '/settings')).toBe(false);
   });
 });

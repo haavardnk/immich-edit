@@ -2,6 +2,7 @@ import { addAssetsToAlbum, removeAssetsFromAlbum } from '#lib/api/albums.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { assetAlbums } from '#lib/stores/assetAlbums.svelte.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -24,6 +25,7 @@ export async function addToAlbums(
     }
   }
   assetAlbums.forget(ids);
+  libraryChanged();
   if (failed > 0) {
     toasts.push('warn', `${failed} album additions failed`, { ttlMs: 6000 });
     return false;
@@ -39,6 +41,7 @@ export async function removeFromAlbum(ids: string[], album: AlbumSummary): Promi
   try {
     const results = await removeAssetsFromAlbum(album.id, ids);
     assetAlbums.forget(ids);
+    libraryChanged();
     const removed = new Set(results.filter((r) => r.success).map((r) => r.id));
     browsing.assets
       .filter((a) => removed.has(sourceId(a.id)))

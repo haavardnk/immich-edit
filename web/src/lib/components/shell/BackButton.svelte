@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { backParent } from '#lib/components/shell/backParent.ts';
+  import { crossesTabs } from '#lib/components/shell/touch/navTabs.ts';
   import { navHistory } from '#lib/stores/navHistory.ts';
   import { Button, IconButton } from '@immich/ui';
   import { mdiArrowLeft } from '@mdi/js';
@@ -9,7 +10,11 @@
 
   function back(): void {
     if (onBack) onBack();
-    else navHistory.back(backParent(page.url));
+    else
+      navHistory.back(
+        backParent(page.url),
+        (previous) => !crossesTabs(new URL(previous, page.url.origin).pathname, page.url.pathname)
+      );
   }
 </script>
 

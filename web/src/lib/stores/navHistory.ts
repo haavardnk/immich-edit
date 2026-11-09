@@ -94,14 +94,19 @@ class NavHistory {
 
   canPop = (): boolean => hasInAppPrevious(currentEntry()?.index ?? null, this.#depth);
 
-  previousIs = (target: string): boolean => {
+  previousKey = (): string | null => {
     const previous = apiPreviousKey();
-    const key = previous === undefined ? (this.canPop() ? this.#previous : null) : previous;
+    return previous === undefined ? (this.canPop() ? this.#previous : null) : previous;
+  };
+
+  previousIs = (target: string): boolean => {
+    const key = this.previousKey();
     return key !== null && key === targetKey(target);
   };
 
-  back = (parent: string): void => {
-    if (this.canPop()) {
+  back = (parent: string, within: (previous: string) => boolean = () => true): void => {
+    const previous = this.previousKey();
+    if (this.canPop() && (previous === null || within(previous))) {
       history.back();
       return;
     }

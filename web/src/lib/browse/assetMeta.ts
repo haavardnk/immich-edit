@@ -2,7 +2,7 @@ import { updateAsset } from '#lib/api/assets.ts';
 import { addTagToAsset, removeTagFromAsset } from '#lib/api/tags.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
+import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { rejected } from '#lib/stores/rejected.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { ensureRejectTag, isRejected, setRejectedTags } from '#lib/browse/reject.ts';
@@ -203,7 +203,7 @@ async function commit<V>(
     write: change.write
   });
   if (result.ok) {
-    monthCounts.invalidate();
+    libraryChanged();
     return 'saved';
   }
   target.fail(kind, result.error);

@@ -25,6 +25,7 @@ import {
   windowEdges,
   type WindowEnd
 } from '#lib/browse/feedWindow.ts';
+import { feedCache, type FeedSnapshot } from '#lib/browse/feedCache.ts';
 
 const JUMP_REACH: WindowReach = { before: 100, after: 400 };
 const EDGE_REACH: WindowReach = { before: 400, after: 0 };
@@ -39,6 +40,7 @@ export type JumpOptions = { reach?: WindowReach; failure?: string | null };
 
 export interface BrowseFeedOptions {
   baseFilter: () => BrowseFilter;
+  cacheScope?: () => string;
   flatOnly?: () => boolean;
   includeStats?: boolean;
   fetcher?: (filter: BrowseFilter, cursor: string | undefined) => Promise<SearchPage>;
@@ -86,6 +88,7 @@ export class BrowseFeed implements BrowsePager {
   #jump = 0;
   #countToken = 0;
   #countKey: string | null = null;
+  #cacheKey: string | null = null;
   private prevKey = '';
   private reqId = 0;
   private loadingAll = false;
@@ -132,6 +135,69 @@ export class BrowseFeed implements BrowsePager {
     return browseControls.serverFilterKey(this.opts.flatOnly?.());
   }
 
+  private cacheKey(): string {
+    return JSON.stringify([
+      this.opts.cacheScope?.() ?? null,
+      this.opts.baseFilter(),
+      this.serverKey(),
+      browseControls.sort
+    ]);
+  }
+
+  open(anchor: string | null): Promise<boolean> {
+    const key = this.cacheKey();
+    const cached = feedCache.take(key);
+    if (!cached) return this.resume(anchor);
+    this.adopt(cached);
+    this.#cacheKey = key;
+    return Promise.resolve(true);
+  }
+
+  close(): void {
+    const key = this.#cacheKey;
+    if (key && this.loadedOnce && !this.loading) feedCache.put(key, this.snapshot());
+    this.#cacheKey = null;
+    this.reqId += 1;
+    this.#jump += 1;
+    this.#countToken += 1;
+    this.pendingMore = null;
+    this.pendingPrevious = null;
+  }
+
+  private snapshot(): FeedSnapshot {
+    return {
+      assets: this.assets,
+      nextCursor: this.nextCursor,
+      totalCount: this.totalCount,
+      windowed: this.windowed,
+      before: this.#before,
+      after: this.#after
+    };
+  }
+
+  private adopt(snapshot: FeedSnapshot): void {
+    this.reqId += 1;
+    this.#jump += 1;
+    this.leaveWindow();
+    this.loading = false;
+    this.loadingMore = false;
+    this.loadedOnce = true;
+    this.nextCursor = snapshot.nextCursor;
+    this.windowed = snapshot.windowed;
+    this.#before = snapshot.before;
+    this.#after = snapshot.after;
+    this.prevKey = this.serverKey();
+    this.publish(snapshot.assets);
+    if (snapshot.totalCount === undefined) {
+      this.startCount(this.currentFilter());
+      return;
+    }
+    this.#countToken += 1;
+    this.#countKey = this.serverKey();
+    this.totalCount = snapshot.totalCount;
+    browsing.total = snapshot.totalCount;
+  }
+
   private leaveWindow(): void {
     this.windowed = false;
     this.#before = false;
@@ -167,7 +233,9 @@ export class BrowseFeed implements BrowsePager {
     const req = (this.reqId += 1);
     const filter = this.currentFilter();
     const cursor = initial ? undefined : (this.nextCursor ?? undefined);
+    const key = initial ? this.cacheKey() : this.#cacheKey;
     if (initial) {
+      this.#cacheKey = null;
       if (!this.loadedOnce) this.loading = true;
       this.nextCursor = null;
       this.leaveWindow();
@@ -187,6 +255,7 @@ export class BrowseFeed implements BrowsePager {
         const items = stampCullTags(result.items);
         this.publish(initial ? items : [...this.assets, ...items]);
         this.nextCursor = result.nextCursor;
+        this.#cacheKey = key;
         return true;
       })
       .catch((e) => {
@@ -222,6 +291,7 @@ export class BrowseFeed implements BrowsePager {
     const current = () => jump === this.#jump && req === this.reqId;
     const failure = options.failure === undefined ? 'Jump to photo' : options.failure;
     const filter = this.currentFilter();
+    const key = this.cacheKey();
     const fetchWindowed = this.opts.windowFetcher ?? fetchWindow;
     if (!this.loadedOnce) this.loading = true;
     try {
@@ -236,6 +306,7 @@ export class BrowseFeed implements BrowsePager {
       }
       if (this.collapsed(result)) return (await this.fetchPage(true)) ? 'accepted' : 'failed';
       this.acceptWindow(result);
+      this.#cacheKey = key;
       return 'accepted';
     } catch (e) {
       if (!current()) return 'stale';

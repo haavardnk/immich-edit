@@ -233,6 +233,7 @@ test('the editor round trip after a jump returns to the same photos without pagi
   await expect.poll(() => tileTop(page, seen.name)).toBeLessThan(seen.top);
   const before = { name: seen.name, top: await tileTop(page, seen.name) };
   const metadataBefore = log.metadata.length;
+  const windowsBefore = log.windows.length;
 
   await page
     .getByRole('link', { name: before.name })
@@ -243,9 +244,7 @@ test('the editor round trip after a jump returns to the same photos without pagi
 
   await expect.poll(() => tileTop(page, before.name)).toBeCloseTo(before.top, 0);
   expect(log.metadata.slice(metadataBefore).filter((body) => body.size !== 1)).toEqual([]);
-  expect(log.windows.at(-1)).toMatchObject({
-    assetId: ASSETS.find((a) => a.originalFileName === before.name)?.id
-  });
+  expect(log.windows.length).toBe(windowsBefore);
 });
 
 test.describe('touch scrubber', () => {
