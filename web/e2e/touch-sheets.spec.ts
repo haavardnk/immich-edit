@@ -1,12 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets, openFilters } from './helpers';
-import { drag, longPress, openTileLoupe } from './touch';
+import { openBrowse } from './browse';
+import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets } from './helpers';
+import { drag, longPress, openTileLoupe, tapCentre } from './touch';
 import { open } from './touchShell';
-
-const CAMERA_ASSETS = numberedAssets(3).map((asset, index) => ({
-  ...asset,
-  exifInfo: { make: index === 1 ? 'FUJIFILM' : 'SONY' }
-}));
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 const LOUPE_ASSETS = [
@@ -14,18 +10,8 @@ const LOUPE_ASSETS = [
   { ...ASSET_SUMMARY, id: SECOND_ID, originalFileName: 'IMG_0002.ARW', exifInfo: ASSET_EXIF }
 ];
 
-async function openBrowse(page: Page, assets?: typeof CAMERA_ASSETS): Promise<void> {
-  await installMocks(page, assets ? { assets } : {});
-  await page.goto('/photos');
-  await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
-  await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
-}
-
 async function openLoupe(page: Page): Promise<void> {
-  await installMocks(page, { assets: LOUPE_ASSETS });
-  await page.addInitScript(() => {
-    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
-  });
+  await installMocks(page, { assets: LOUPE_ASSETS, metadataPushConsented: true });
   await page.goto('/search?q=IMG');
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
   await expect(
@@ -159,7 +145,7 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
   });
 
   test('a dialog opens as a bottom sheet that Escape closes', async ({ page }) => {
-    await openBrowse(page);
+    await openBrowse(page, 'touch');
 
     const sheet = await openShortcuts(page);
     await expect(sheet).toHaveAttribute('aria-modal', 'true');
@@ -171,7 +157,7 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
   });
 
   test('dragging the handle down dismisses a dialog sheet', async ({ page }) => {
-    await openBrowse(page);
+    await openBrowse(page, 'touch');
 
     const sheet = await openShortcuts(page);
     await dragHandle(page, sheet, 400);
@@ -179,7 +165,7 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
   });
 
   test('a short drag on the handle settles the sheet back', async ({ page }) => {
-    await openBrowse(page);
+    await openBrowse(page, 'touch');
 
     const sheet = await openShortcuts(page);
     const handle = sheet.locator('[data-sheet-handle]');
@@ -196,62 +182,51 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
   });
 
   test('a searchable select opens a full-height picker with its search field', async ({ page }) => {
-    await openBrowse(page, CAMERA_ASSETS);
+    await installMocks(page, {
+      assets: numberedAssets(2),
+      presets: [
+        { id: 'preset-warm', name: 'Warm', group_name: null, manifest: { ops: {} } },
+        { id: 'preset-cool', name: 'Cool', group_name: null, manifest: { ops: {} } }
+      ]
+    });
+    await page.goto('/photos');
+    await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
+    await page.getByRole('button', { name: 'Select photos' }).tap();
+    await tapCentre(page, page.locator('[data-name="IMG_0001.ARW"]'));
+    const bar = page.getByRole('toolbar', { name: 'Selection actions' });
+    await bar.getByRole('button', { name: 'More', exact: true }).tap();
+    await page
+      .getByRole('dialog', { name: 'More actions' })
+      .getByRole('button', { name: 'Apply preset' })
+      .tap();
+    await page.getByRole('button', { name: 'Select a preset…' }).tap();
 
-    await openFilters(page, 'Camera');
-    await page.getByRole('button', { name: 'Make', exact: true }).tap();
-
-    const sheet = page.getByRole('dialog', { name: 'Make' });
+    const sheet = page.getByRole('dialog', { name: 'Select a preset…' });
     await expect(sheet).toBeVisible();
     await expectAtBottom(page, sheet);
     const box = await sheet.boundingBox();
     const viewport = page.viewportSize();
     expect((box?.height ?? 0) / (viewport?.height ?? 1)).toBeGreaterThan(0.85);
 
-    const search = sheet.getByRole('combobox', { name: 'Make' });
+    const search = sheet.getByRole('combobox', { name: 'Select a preset…' });
     await expect(search).toBeVisible();
-
-    await search.fill('fuji');
-    await expect(sheet.getByRole('option')).toHaveText(['FUJIFILM']);
-    await sheet.getByRole('option', { name: 'FUJIFILM' }).tap();
+    await search.fill('war');
+    await expect(sheet.getByRole('option')).toHaveText(['Warm']);
+    await sheet.getByRole('option', { name: 'Warm' }).tap();
 
     await expect(sheet).toBeHidden();
-    await expect(
-      page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
-    ).toHaveText(['Make: FUJIFILM']);
-  });
-
-  test('a multi-select picker keeps its search after a pick', async ({ page }) => {
-    await installMocks(page, { structuredSearch: true, assets: CAMERA_ASSETS });
-    await page.goto('/photos');
-    await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
-
-    await openFilters(page, 'Camera');
-    const make = page.getByRole('button', { name: 'Make', exact: true });
-    await make.tap();
-    const sheet = page.getByRole('dialog', { name: 'Make' });
-    const search = sheet.getByRole('combobox', { name: 'Make' });
-    await search.fill('son');
-    await sheet.getByRole('option', { name: 'SONY' }).tap();
-
-    await expect(search).toHaveValue('son');
-    await expect(sheet.getByRole('option')).toHaveText(['SONY']);
-    await sheet.getByRole('button', { name: 'close', exact: true }).tap();
-    await expect(sheet).toBeHidden();
-
-    await make.tap();
-    await expect(search).toHaveValue('');
-    await expect(sheet.getByRole('option')).toHaveText(['SONY', 'FUJIFILM']);
+    await expect(page.getByRole('button', { name: 'Select a preset…' })).toContainText('Warm');
   });
 });
 
 test.describe('touch sheets on WebKit', { tag: '@touch-smoke' }, () => {
   test('a sheet and the account drawer slide in', async ({ page }) => {
-    await openBrowse(page);
+    await openBrowse(page, 'touch');
     await countSlideIns(page);
 
     const sheet = await openShortcuts(page);
     await expect.poll(() => slideIns(page)).toBeGreaterThan(0);
+    await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
     await sheet.getByRole('button', { name: 'close', exact: true }).tap();
     await expect(sheet).toBeHidden();
 
@@ -259,14 +234,5 @@ test.describe('touch sheets on WebKit', { tag: '@touch-smoke' }, () => {
     await page.getByRole('button', { name: 'Account', exact: true }).tap();
     await expect(page.getByRole('dialog', { name: 'Account' })).toBeVisible();
     await expect.poll(() => slideIns(page)).toBeGreaterThan(0);
-  });
-
-  test('a dialog opens as a sheet and closes from its close button', async ({ page }) => {
-    await openBrowse(page);
-
-    const sheet = await openShortcuts(page);
-    await expect(sheet.locator('[data-sheet-handle]')).toBeAttached();
-    await sheet.getByRole('button', { name: 'close', exact: true }).tap();
-    await expect(sheet).toBeHidden();
   });
 });

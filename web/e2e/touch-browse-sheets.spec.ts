@@ -87,7 +87,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(sheet.getByRole('button', { name: 'Reset all filters' })).toBeDisabled();
 
     await sheet.getByRole('button', { name: 'Rating & label', exact: true }).tap();
-    await sheet.getByRole('radio', { name: 'Green label' }).tap();
+    await sheet.getByRole('button', { name: 'Green label' }).tap();
     await expect(sheet.getByRole('button', { name: 'Show 1 photo' })).toBeVisible();
     await expect(count).toHaveText('1 photo');
     expect(await seriousViolations(page)).toEqual([]);
@@ -96,7 +96,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(sheet.getByRole('button', { name: 'Show 3 photos' })).toBeVisible();
     await expect(count).toHaveText('3 photos');
 
-    await sheet.getByRole('radio', { name: 'Red label' }).tap();
+    await sheet.getByRole('button', { name: 'Red label' }).tap();
     const none = sheet.getByRole('button', { name: 'Show 0 photos', exact: true });
     await expect(none).toBeEnabled();
     await none.tap();

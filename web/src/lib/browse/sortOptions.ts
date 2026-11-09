@@ -32,9 +32,29 @@ export const SORT_DIRECTION_LABELS: Readonly<Record<SortField, Readonly<Record<S
     size: { desc: 'Largest first', asc: 'Smallest first' }
   };
 
+export const SORT_FIELD_SHORT: Readonly<Record<SortField, string>> = {
+  taken: 'Taken',
+  added: 'Added',
+  rating: 'Rating',
+  size: 'Size'
+};
+
+export const SORT_DIRECTION_SHORT: Readonly<Record<SortField, Readonly<Record<SortDir, string>>>> =
+  {
+    taken: { desc: 'Newest', asc: 'Oldest' },
+    added: { desc: 'Newest', asc: 'Oldest' },
+    rating: { desc: 'Highest', asc: 'Lowest' },
+    size: { desc: 'Largest', asc: 'Smallest' }
+  };
+
 export const EDIT_SORT_LABELS: Readonly<Record<SortDir, string>> = {
   desc: 'Newest edit first',
   asc: 'Oldest edit first'
+};
+
+export const EDIT_SORT_SHORT: Readonly<Record<SortDir, string>> = {
+  desc: 'Newest',
+  asc: 'Oldest'
 };
 
 export const EDIT_SORT_ICONS: Readonly<Record<SortDir, string>> = {

@@ -4,9 +4,11 @@ import { listSummary } from './listSummary';
 export type ExifFilterKey = SuggestionField;
 type SuggestionParent = Exclude<keyof SuggestionQuery, 'field'>;
 
-export const CAMERA_FILTERS: ExifFilterKey[] = ['make', 'model', 'lensModel'];
+export type ExifPath = [ExifFilterKey, ...ExifFilterKey[]];
 
-export const PLACE_FILTERS: ExifFilterKey[] = ['country', 'state', 'city'];
+export const CAMERA_FILTERS: ExifPath = ['make', 'model', 'lensModel'];
+
+export const PLACE_FILTERS: ExifPath = ['country', 'state', 'city'];
 
 export const EXIF_FILTERS: ExifFilterKey[] = [...CAMERA_FILTERS, ...PLACE_FILTERS];
 

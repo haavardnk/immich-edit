@@ -80,7 +80,7 @@ test('a restored grid keeps the filters that were active when the editor opened'
 
   await page.goto('/photos');
   await openFilters(page, 'File');
-  await page.getByLabel('Filename').fill('IMG_0001');
+  await page.getByRole('textbox', { name: 'Name contains' }).fill('IMG_0001');
   await expect(page).toHaveURL(/\/photos\?filename=IMG_0001$/);
   await expect.poll(() => names).toContain('IMG_0001');
 
@@ -106,13 +106,13 @@ test('filters live in the URL, survive a reload and step with Back and Forward',
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
 
   const panel = await openFilters(page, 'Library', 'Rating & label', 'File');
-  await panel.getByRole('checkbox', { name: 'Favorites only' }).click();
+  await panel.getByRole('button', { name: 'Favorites only' }).click();
   await expect(page).toHaveURL(/\/photos\?favorite=1$/);
-  await panel.getByRole('radio', { name: '3 stars' }).click();
+  await panel.getByRole('button', { name: '3 stars' }).click();
   await expect(page).toHaveURL(/\/photos\?favorite=1&rating=3$/);
-  await panel.getByLabel('Filename').fill('IMG');
+  await panel.getByRole('textbox', { name: 'Name contains' }).fill('IMG');
   await expect(page).toHaveURL(/&filename=IMG$/);
-  await panel.getByLabel('Filename').fill('IMG_0001');
+  await panel.getByRole('textbox', { name: 'Name contains' }).fill('IMG_0001');
   await expect(page).toHaveURL(/\/photos\?favorite=1&rating=3&filename=IMG_0001$/);
 
   await page.reload();

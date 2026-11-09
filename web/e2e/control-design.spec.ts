@@ -947,59 +947,37 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Clipping overlay' })).toContainText('J');
 });
 
-test('browse filter panel controls share the dense inspector row', async ({ page }) => {
+test('browse filter chips and fields keep the dense desktop sizes', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
-  await page.goto('/photos');
+  await page.goto('/photos?minsize=25');
 
-  const panel = await openFilters(page, 'Library', 'Date', 'Camera', 'Place', 'File');
-  const visibility = panel.getByRole('combobox', { name: 'Visibility', exact: true });
-  const takenAfter = panel.getByRole('group', { name: 'Taken after' });
-  const controls = [
-    visibility,
-    panel.getByRole('combobox', { name: 'Rejected', exact: true }),
-    takenAfter,
-    panel.getByRole('group', { name: 'Taken before' }),
-    panel.getByLabel('Filename'),
-    panel.getByLabel('Min size (MB)'),
-    panel.getByRole('combobox', { name: 'Make' }),
-    panel.getByRole('combobox', { name: 'City' })
+  const panel = await openFilters(page, 'Library', 'Date', 'File');
+  const chips = [
+    panel.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: 'Timeline' }),
+    panel.getByRole('radiogroup', { name: 'Rejected' }).getByRole('radio', { name: 'Hide' }),
+    panel.getByRole('button', { name: 'Favorites only' }),
+    panel.getByRole('group', { name: 'File size' }).getByRole('button', { name: '1–10 MB' })
   ];
-  for (const control of controls) {
-    expect((await control.boundingBox())?.height).toBe(28);
+  for (const chip of chips) {
+    expect((await chip.boundingBox())?.height).toBe(26);
+  }
+  expect((await panel.getByRole('textbox', { name: 'Name contains' }).boundingBox())?.height).toBe(
+    30
+  );
+
+  await panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' }).click();
+  const from = panel.getByRole('group', { name: 'From' });
+  for (const field of [
+    from,
+    panel.getByRole('group', { name: 'To' }),
+    panel.getByLabel('Min size (MB)')
+  ]) {
+    expect((await field.boundingBox())?.height).toBe(28);
   }
   const neutral = await resolvedColor(page, '--color-neutral-800');
-  expect(
-    await visibility
-      .locator('div')
-      .first()
-      .evaluate((element) => getComputedStyle(element).backgroundColor)
-  ).toBe(neutral);
-  expect(await takenAfter.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
-    neutral
-  );
-  const looks = await Promise.all(
-    [
-      takenAfter,
-      containerOf(panel.getByLabel('Filename')),
-      containerOf(panel.getByRole('combobox', { name: 'Make' }))
-    ].map((box) =>
-      box.evaluate((element) => {
-        const text = element.querySelector('input, [data-segment]');
-        const spreads = [
-          ...getComputedStyle(element).boxShadow.matchAll(/0px 0px 0px (\d+(?:\.\d+)?)px/g)
-        ].map((m) => Number(m[1]));
-        const inset = text
-          ? text.getBoundingClientRect().left -
-            element.getBoundingClientRect().left +
-            parseFloat(getComputedStyle(text).paddingLeft)
-          : -1;
-        return { ring: Math.max(0, ...spreads), inset };
-      })
-    )
-  );
-  expect(looks).toEqual(Array(3).fill({ ring: 0, inset: 16 }));
+  expect(await from.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(neutral);
 
-  const day = takenAfter.locator('[data-segment="day"]');
+  const day = from.locator('[data-segment="day"]');
   await day.focus();
   expect(
     await day.evaluate((element) => {

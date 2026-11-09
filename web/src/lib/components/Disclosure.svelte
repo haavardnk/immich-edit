@@ -1,5 +1,4 @@
 <script lang="ts">
-  import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiChevronDown, mdiChevronRight, mdiRestore } from '@mdi/js';
   import { Collapsible } from 'bits-ui';
@@ -10,7 +9,6 @@
   let {
     open,
     title,
-    summary,
     onOpenChange,
     modified = false,
     onReset,
@@ -19,7 +17,6 @@
   }: {
     open: boolean;
     title: string;
-    summary?: string;
     onOpenChange: (open: boolean) => void;
     modified?: boolean;
     onReset?: () => void;
@@ -28,49 +25,24 @@
   } = $props();
 
   const rootClass = $derived(variant === 'section' ? 'border-t border-hairline' : '');
-  const summaryShown = $derived(summary !== undefined);
   const resetShown = $derived(modified && onReset !== undefined);
   const triggerClass = $derived(
     variant === 'section'
-      ? `group relative flex w-full items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none touch:h-14 touch:gap-3 touch:px-4 touch:text-[15.5px] touch:font-medium touch:text-light-950 ${summaryShown ? 'h-9.5' : 'h-8'} ${resetShown ? 'pr-8 touch:pr-14' : ''} ${open ? 'bg-light-950/4 text-dark' : 'text-dark/65 hover:bg-light-950/3 hover:text-dark'}`
+      ? `group relative flex w-full items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none touch:h-14 touch:gap-3 touch:px-4 touch:text-[15.5px] touch:font-medium touch:text-light-950 h-8 ${resetShown ? 'pr-8 touch:pr-14' : ''} ${open ? 'bg-light-950/4 text-dark' : 'text-dark/65 hover:bg-light-950/3 hover:text-dark'}`
       : 'flex h-6 items-center gap-1 rounded px-1 text-[10px] font-medium text-dark/65 transition-colors select-none hover:bg-ghost hover:text-dark'
   );
-  const resetTop = $derived(summaryShown ? 'top-1.75' : 'top-1');
   const iconSize = $derived(variant === 'section' ? 14 : 12);
-  const summaryId = $props.id();
-  const summaryTone = $derived(modified ? 'text-primary' : 'text-dark/65');
 </script>
 
 <Collapsible.Root bind:open={() => open, onOpenChange} class="relative {rootClass}">
-  <Collapsible.Trigger
-    class={triggerClass}
-    aria-label={summary === undefined ? undefined : title}
-    aria-describedby={summaryShown ? summaryId : undefined}
-  >
+  <Collapsible.Trigger class={triggerClass}>
     <Icon
       icon={open ? mdiChevronDown : mdiChevronRight}
       size={`${iconSize}px`}
       class="text-dark/35 transition-colors group-hover:text-dark/60"
       aria-hidden="true"
     />
-    {#if summaryShown}
-      <span class="flex min-w-0 flex-col items-start leading-tight">
-        {title}
-        <TruncationTooltip text={summary ?? ''}>
-          {#snippet child({ props })}
-            <span
-              {...props}
-              id={summaryId}
-              class="max-w-full truncate text-[10px] font-normal {summaryTone} touch:text-[13px]"
-            >
-              {summary}
-            </span>
-          {/snippet}
-        </TruncationTooltip>
-      </span>
-    {:else}
-      {title}
-    {/if}
+    {title}
     {#if modified && !onReset}
       <span class="ml-auto size-1.5 rounded-full bg-primary" aria-label="Modified"></span>
     {/if}
@@ -81,7 +53,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="group/reset absolute {resetTop} right-0.75 size-6 p-0 touch:top-1.5 touch:right-1 touch:size-11"
+      class="group/reset absolute top-1 right-0.75 size-6 p-0 touch:top-1.5 touch:right-1 touch:size-11"
       title="Reset {title} panel"
       aria-label="Reset {title} panel"
       onclick={onReset}

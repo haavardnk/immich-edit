@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { activeFilterChips } from '#lib/browse/filterChips.ts';
+  import { activeFilterCount } from '#lib/browse/filterChips.ts';
   import { openFilterPanel } from '#lib/browse/filterPanel.ts';
-  import { idName } from '#lib/browse/idOptions.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -14,7 +13,7 @@
     class: className = ''
   }: { size?: 'small' | 'medium'; label?: string; class?: string } = $props();
 
-  const filterCount = $derived(activeFilterChips(browseControls.filters, idName).length);
+  const filterCount = $derived(activeFilterCount(browseControls.filters));
   const filtersLabel = $derived(filterCount > 0 ? `${label} (${filterCount} active)` : label);
   const large = $derived(size === 'medium');
 

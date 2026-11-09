@@ -1,8 +1,11 @@
 <script lang="ts">
+  import FilterCount from '#lib/components/browse/filters/FilterCount.svelte';
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
   import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
-  import ViewSection from '#lib/components/browse/filters/ViewSection.svelte';
+  import FiltersHeading from '#lib/components/browse/filters/FiltersHeading.svelte';
+  import ViewBlock from '#lib/components/browse/filters/ViewBlock.svelte';
   import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
+  import { activeFilterCount } from '#lib/browse/filterChips.ts';
   import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -29,6 +32,7 @@
 
   const touch = $derived(layout.mode === 'touch');
   const heading = $derived(touch ? VIEW_AND_FILTERS : 'Filters');
+  const active = $derived(activeFilterCount(browseControls.filters));
 
   async function close(): Promise<void> {
     const hadFocus = panel?.contains(document.activeElement) ?? false;
@@ -50,25 +54,34 @@
         bind:this={panel}
         id="browse-filters"
         aria-label={heading}
-        class="flex w-80 shrink-0 flex-col border-l border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
+        class="flex w-80 shrink-0 flex-col border-l touch:w-90 border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
       >
-        <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3">
-          <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold text-light-950/90">
-            {heading}
-          </h2>
-          {@render saveButton(false)}
-          <Button
-            size="tiny"
-            variant="ghost"
-            color="secondary"
-            class="h-8 bg-transparent hover:bg-light-950/6"
-            leadingIcon={mdiRestore}
-            aria-label="Reset all filters"
-            disabled={!browseControls.isFiltered}
-            onclick={() => browseControls.resetFilters()}
+        <div
+          class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3 touch:h-13 touch:pl-4"
+        >
+          <h2
+            class="flex flex-1 items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap text-light-950/90 touch:text-base"
           >
-            Reset
-          </Button>
+            {heading}
+            {#if !touch}
+              <FilterCount count={active} />
+            {/if}
+          </h2>
+          {@render saveButton(touch)}
+          {#if !touch}
+            <Button
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              class="h-8 shrink-0 bg-transparent hover:bg-light-950/6"
+              leadingIcon={mdiRestore}
+              aria-label="Reset all filters"
+              disabled={active === 0}
+              onclick={() => browseControls.resetFilters()}
+            >
+              Reset
+            </Button>
+          {/if}
           <IconButton
             id="browse-filters-close"
             size="small"
@@ -83,7 +96,8 @@
         <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
           {@render saveEntry()}
           {#if touch}
-            <ViewSection {sortBasis} />
+            <ViewBlock {sortBasis} />
+            <FiltersHeading />
           {/if}
           <FilterSections {favoriteLocked} />
         </div>

@@ -51,6 +51,19 @@ describe('MonthCountsStore', () => {
     expect(store.months).toEqual(july);
   });
 
+  it('is loaded only once the answer for the current filter arrives', async () => {
+    searchMonths.mockResolvedValue({ months: july });
+    const store = new MonthCountsStore();
+    store.ensure({});
+    expect(store.loaded).toBe(false);
+    await flush();
+    expect(store.loaded).toBe(true);
+    store.ensure({ favorite: true });
+    expect(store.loaded).toBe(false);
+    await flush();
+    expect(store.loaded).toBe(true);
+  });
+
   it('treats a malformed answer as no months', async () => {
     searchMonths.mockResolvedValue({});
     const store = new MonthCountsStore();

@@ -65,7 +65,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     page
   }) => {
     await open(page, '/photos?make=SONY', {
-      assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY' } }]
+      assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY', model: 'ILCE-7M3' } }]
     });
 
     const bar = page.locator('header[data-app-bar]');
@@ -81,21 +81,21 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await bar.getByRole('button', { name: 'View & filters (1 active)' }).tap();
     const sheet = page.getByRole('dialog', { name: 'View & filters' });
     await expect(sheet).toBeVisible();
-    const view = sheet.getByRole('button', { name: 'View', exact: true });
-    await expect(view).toHaveAccessibleDescription('Date taken, newest · L · Badges');
-    await expect(
-      sheet.getByRole('button', { name: 'Camera', exact: true })
-    ).toHaveAccessibleDescription('Make: SONY');
+    await expect(sheet.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
+    const camera = sheet.getByRole('button', { name: 'Camera', exact: true });
+    await expect(camera).toHaveAccessibleDescription('SONY');
     await expect(
       sheet.getByRole('button', { name: 'Place', exact: true })
-    ).toHaveAccessibleDescription('Any place');
-    const reset = sheet.getByRole('button', { name: 'Reset Camera panel' });
-    await expect(reset.locator('svg')).toBeVisible();
-    await expect(reset.locator('span')).toBeHidden();
-    await expect(reset).not.toHaveAttribute('title');
-    await expectTargets(reset, 44);
-    await view.tap();
-    await expect(sheet.getByRole('radiogroup', { name: 'Sort by' })).toBeVisible();
+    ).toHaveAccessibleDescription('');
+    await expect(sheet.getByRole('button', { name: /^Reset .* panel$/ })).toHaveCount(0);
+    await expectTargets(camera, 44);
+    await camera.tap();
+    const models = sheet.getByRole('group', { name: 'Models' }).getByRole('button');
+    await expect(models).toHaveText(['ILCE-7M3']);
+    await expectTargets(models, 40);
+    await expect(
+      sheet.getByRole('radiogroup', { name: 'Sort by' }).getByRole('radio', { checked: true })
+    ).toHaveText('Taken');
     await sheet
       .getByRole('radiogroup', { name: 'Thumbnail size' })
       .getByRole('radio', { name: 'XL', exact: true })
@@ -108,8 +108,6 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
       .getByRole('radio', { name: 'Name and date' })
       .tap();
     await expect(page.getByTestId('tile-name').first()).toBeVisible();
-    await view.tap();
-    await expect(view).toHaveAccessibleDescription('Date taken, newest · XL · Name and date');
     await sheet.getByRole('button', { name: 'Close view & filters' }).tap();
     await expect(sheet).toBeHidden();
   });
