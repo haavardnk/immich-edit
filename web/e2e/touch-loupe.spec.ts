@@ -1,25 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { loupeToolbar, tile } from './browse';
 import { numberedAssets } from './helpers';
-import { longPress, tapCentre } from './touch';
-import { open } from './touchShell';
+import { longPress } from './touch';
+import { open, tapTile } from './touchShell';
 
 const ASSETS = numberedAssets(6);
 const [, SECOND] = ASSETS;
 
 async function openPhotos(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
-  });
-  await open(page, '/photos', { assets: ASSETS });
+  await open(page, '/photos', { assets: ASSETS, metadataPushConsented: true });
   await expect(tile(page, 'IMG_0002.ARW')).toBeVisible();
-}
-
-function tile(page: Page, name: string): Locator {
-  return page.locator(`[role="group"][data-name="${name}"]`);
-}
-
-function topBar(page: Page): Locator {
-  return page.getByRole('navigation', { name: 'Loupe toolbar' });
 }
 
 function cullBar(page: Page): Locator {
@@ -28,8 +18,8 @@ function cullBar(page: Page): Locator {
 
 async function openLoupe(page: Page): Promise<void> {
   await openPhotos(page);
-  await tapCentre(page, tile(page, 'IMG_0002.ARW'));
-  await expect(topBar(page).getByRole('heading')).toHaveText('IMG_0002.ARW');
+  await tapTile(page, 'IMG_0002.ARW');
+  await expect(loupeToolbar(page).getByRole('heading')).toHaveText('IMG_0002.ARW');
 }
 
 async function expectTapTarget(target: Locator): Promise<void> {
@@ -75,7 +65,7 @@ test.describe('the touch loupe on a phone', { tag: ['@touch', '@phone'] }, () =>
     page
   }) => {
     await openLoupe(page);
-    await topBar(page).getByRole('button', { name: 'More loupe actions' }).tap();
+    await loupeToolbar(page).getByRole('button', { name: 'More loupe actions' }).tap();
     const sheet = page.getByRole('dialog', { name: 'Menu' });
     for (const name of ['Toggle zoom', 'Show filmstrip', 'Fullscreen', 'Compare']) {
       await expect(sheet.getByRole('button', { name, exact: true })).toBeVisible();
@@ -85,27 +75,51 @@ test.describe('the touch loupe on a phone', { tag: ['@touch', '@phone'] }, () =>
 
     await cullBar(page).getByRole('radio', { name: '4 stars' }).tap();
     await expect(page.getByTestId('rating-hud')).toContainText('4 stars · next photo');
-    await expect(topBar(page).getByRole('heading')).toHaveText('IMG_0003.ARW');
+    await expect(loupeToolbar(page).getByRole('heading')).toHaveText('IMG_0003.ARW');
   });
 
   test('the more menu shows the filmstrip and Back returns to the grid', async ({ page }) => {
     await openLoupe(page);
-    await topBar(page).getByRole('button', { name: 'More loupe actions' }).tap();
+    await loupeToolbar(page).getByRole('button', { name: 'More loupe actions' }).tap();
     const sheet = page.getByRole('dialog', { name: 'Menu' });
     await sheet.getByRole('button', { name: 'Show filmstrip', exact: true }).tap();
     await expect(sheet).toBeHidden();
     await expect(page.getByTestId('filmstrip-scroll')).toBeVisible();
 
-    await topBar(page).getByRole('button', { name: /^Back/ }).tap();
-    await expect(topBar(page)).toHaveCount(0);
+    await loupeToolbar(page).getByRole('button', { name: /^Back/ }).tap();
+    await expect(loupeToolbar(page)).toHaveCount(0);
     await expect(tile(page, 'IMG_0002.ARW')).toBeInViewport();
+  });
+
+  test('a narrow filmstrip thumb shows its whole rating', async ({ page }) => {
+    await open(page, '/photos', {
+      assets: numberedAssets(4, {
+        exifInfo: { exifImageWidth: 2000, exifImageHeight: 6000, rating: 3 }
+      })
+    });
+    await tapTile(page, 'IMG_0002.ARW');
+    await loupeToolbar(page).getByRole('button', { name: 'More loupe actions' }).tap();
+    await page
+      .getByRole('dialog', { name: 'Menu' })
+      .getByRole('button', { name: 'Show filmstrip', exact: true })
+      .tap();
+
+    const thumb = page
+      .getByTestId('filmstrip-scroll')
+      .getByRole('button', { name: 'IMG_0003.ARW' });
+    const badge = thumb.getByRole('img', { name: '3 stars' });
+    await expect(badge).toBeVisible();
+    const [outer, inner] = await Promise.all([thumb.boundingBox(), badge.boundingBox()]);
+    expect((inner?.x ?? 0) + (inner?.width ?? 0)).toBeLessThanOrEqual(
+      (outer?.x ?? 0) + (outer?.width ?? 0)
+    );
   });
 
   test('the photo sits between the top bar and the cull bar', async ({ page }) => {
     await openLoupe(page);
     const pane = page.getByRole('button', { name: 'Zoom in' });
     const [bar, photo, cull] = await Promise.all([
-      topBar(page).boundingBox(),
+      loupeToolbar(page).boundingBox(),
       pane.boundingBox(),
       cullBar(page).boundingBox()
     ]);
@@ -127,7 +141,9 @@ test.describe('the touch loupe on a tablet', { tag: ['@touch', '@tablet'] }, () 
     await openLoupe(page);
     const bar = cullBar(page);
     await expect(bar).toHaveAttribute('data-density', 'row');
-    await expect(topBar(page).getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+    await expect(
+      loupeToolbar(page).getByRole('button', { name: 'Edit', exact: true })
+    ).toBeVisible();
     await expect(bar.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
     await expect(bar.getByRole('button', { name: /^Collapse filmstrip/ })).toHaveAttribute(
       'aria-pressed',

@@ -11,10 +11,11 @@
   import { editorHref } from '#lib/editor/navigation.ts';
   import BottomPanelResizeHandle from './BottomPanelResizeHandle.svelte';
   import ContextMenu from '#lib/components/ContextMenu.svelte';
+  import RatingBadge from '#lib/components/browse/RatingBadge.svelte';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
-  import { mdiCircle, mdiCloseCircle, mdiHeart, mdiStar } from '@mdi/js';
+  import { mdiCircle, mdiCloseCircle, mdiHeart } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
@@ -119,6 +120,16 @@
   {/if}
 {/snippet}
 
+{#snippet stars(rating: number)}
+  {#if rating > 0}
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-0 flex items-end bg-linear-to-t from-black/75 to-transparent px-1 pt-3 pb-1 text-white drop-shadow-md"
+    >
+      <RatingBadge {rating} class="font-semibold" />
+    </div>
+  {/if}
+{/snippet}
+
 {#if assets.length > 0}
   <div
     class="relative flex-none border-t border-light-950/12 bg-editor-chrome dark:shadow-filmstrip"
@@ -190,22 +201,7 @@
                           showBadges && rejected,
                           labelOf(asset)
                         )}
-                        {#if showBadges && rating > 0}
-                          <div
-                            class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
-                          >
-                            <div class="flex items-center gap-0.5">
-                              {#each [1, 2, 3, 4, 5] as n (n)}
-                                <Icon
-                                  icon={mdiStar}
-                                  size="9px"
-                                  class={n <= rating ? 'opacity-100' : 'opacity-30'}
-                                  aria-hidden="true"
-                                />
-                              {/each}
-                            </div>
-                          </div>
-                        {/if}
+                        {@render stars(showBadges ? rating : 0)}
                       </button>
                     {/snippet}
                     {@render menu?.(asset.id)}
@@ -237,22 +233,7 @@
                       showBadges && rejected,
                       labelOf(asset)
                     )}
-                    {#if showBadges && rating > 0}
-                      <div
-                        class="absolute inset-x-0 bottom-0 flex items-end px-1 pb-1 pt-3 bg-linear-to-t from-black/75 to-transparent text-white drop-shadow-md pointer-events-none"
-                      >
-                        <div class="flex items-center gap-0.5">
-                          {#each [1, 2, 3, 4, 5] as n (n)}
-                            <Icon
-                              icon={mdiStar}
-                              size="9px"
-                              class={n <= rating ? 'opacity-100' : 'opacity-30'}
-                              aria-hidden="true"
-                            />
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
+                    {@render stars(showBadges ? rating : 0)}
                   </a>
                 {/if}
               {/each}

@@ -3,6 +3,7 @@
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
+  import RatingBadge from '#lib/components/browse/RatingBadge.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
@@ -13,14 +14,12 @@
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
-  import { countOf } from '#lib/utils/plural.ts';
   import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiHeart,
     mdiCircle,
-    mdiStar,
     mdiCheck,
     mdiEyeOutline,
     mdiCloseCircle,
@@ -300,16 +299,10 @@
         </span>
       {/if}
       {#if rating > 0 && (!onRate || info !== 'full')}
-        <span
-          role="img"
-          aria-label={countOf(rating, 'star')}
-          class="shrink-0 items-center gap-0.5 text-[10px] {onRate
-            ? 'flex group-hover:hidden group-has-[:focus-visible]:hidden'
-            : 'flex'}"
-        >
-          <Icon icon={mdiStar} size="11px" aria-hidden="true" />
+        <RatingBadge
           {rating}
-        </span>
+          class={onRate ? 'group-hover:hidden group-has-[:focus-visible]:hidden' : ''}
+        />
       {/if}
     </div>
   </div>
