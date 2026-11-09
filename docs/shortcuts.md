@@ -151,6 +151,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Double-click the label`            | Reset one slider                                                                | Editor       |
 | `Alt + drag`                        | Preview the mask or radius a slider drives while you drag it                    | Editor       |
 | `Shift + click the reset button`    | Reset every band or channel at once, on HSL and Curves                          | Editor       |
+| `Alt + drag a curve point`          | Move a curve point at a quarter of the speed                                    | Editor       |
 
 ## Geometry
 

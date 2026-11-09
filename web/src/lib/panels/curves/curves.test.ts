@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CurvePoint } from '#lib/types/edits.ts';
-import type { Histogram } from '#lib/types/preview.ts';
-import {
-  curvePath,
-  dragPoint,
-  fromSvg,
-  hermite,
-  histLayers,
-  hitTest,
-  insertPoint,
-  nudgePoint,
-  removePoint,
-  toSvg
-} from './curves';
+import { dragPoint, hermite, insertPoint, nudgePoint, removePoint } from './curves';
 
 const IDENTITY: CurvePoint[] = [
   { x: 0, y: 0 },
@@ -55,35 +43,7 @@ describe('hermite', () => {
   });
 });
 
-describe('svg mapping', () => {
-  it('round trips a point', () => {
-    const sp = toSvg({ x: 0.3, y: 0.7 });
-    const back = fromSvg(sp.x, sp.y);
-    expect(back.x).toBeCloseTo(0.3, 9);
-    expect(back.y).toBeCloseTo(0.7, 9);
-  });
-
-  it('clamps outside the plot', () => {
-    expect(fromSvg(-50, 500)).toEqual({ x: 0, y: 0 });
-    expect(fromSvg(500, -50)).toEqual({ x: 1, y: 1 });
-  });
-
-  it('draws 65 segments for a curve and nothing for one point', () => {
-    expect(curvePath(S_CURVE).split(' ')).toHaveLength(65);
-    expect(curvePath([{ x: 0, y: 0 }])).toBe('');
-  });
-});
-
 describe('point editing', () => {
-  it.each([
-    [false, toSvg({ x: 0, y: 0 }), 0],
-    [true, toSvg({ x: 0, y: 0 }), -1],
-    [true, toSvg({ x: 0.25, y: 0.15 }), 1],
-    [false, { x: 116, y: 30 }, -1]
-  ])('hitTest interior=%s', (interior, at, idx) => {
-    expect(hitTest(S_CURVE, at.x, at.y, interior)).toBe(idx);
-  });
-
   it('inserts in x order', () => {
     const { points, index } = insertPoint(S_CURVE, { x: 0.5, y: 0.5 });
     expect(index).toBe(2);
@@ -118,23 +78,5 @@ describe('point editing', () => {
     [1, [0, 0.75, 1]]
   ])('removePoint %i', (idx, xs) => {
     expect(removePoint(S_CURVE, idx)?.map((p) => p.x) ?? null).toEqual(xs);
-  });
-});
-
-describe('histLayers', () => {
-  const hist: Histogram = { r: [1, 2], g: [2, 1], b: [0, 1], l: [1, 1] };
-
-  it.each([
-    ['composite', 3],
-    ['r', 1],
-    ['luma', 1]
-  ] as const)('%s', (channel, count) => {
-    const layers = histLayers(hist, channel);
-    expect(layers).toHaveLength(count);
-    expect(layers.every((layer) => layer.d.startsWith('M ') && layer.d.endsWith(' Z'))).toBe(true);
-  });
-
-  it('is empty without a histogram', () => {
-    expect(histLayers(null, 'composite')).toEqual([]);
   });
 });

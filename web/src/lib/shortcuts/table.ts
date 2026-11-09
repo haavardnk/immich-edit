@@ -659,6 +659,14 @@ export const KEYBINDS = [
     label: 'Reset every band or channel at once, on HSL and Curves',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + click the reset button`
   },
+  {
+    id: 'curveFineDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Move a curve point at a quarter of the speed',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a curve point`
+  },
 
   {
     id: 'straighten',

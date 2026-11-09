@@ -12,11 +12,13 @@ import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import LensBlurPanel from './LensBlur.svelte';
 import EffectsPanel from './Effects.svelte';
+import CurvePopOutButton from './curves/CurvePopOutButton.svelte';
 
 export interface PanelDef {
   id: DesktopPanelId;
   title: string;
   component: Component;
+  actions?: Component;
   defaultOpen: boolean;
 }
 
@@ -36,12 +38,17 @@ const COMPONENTS: Record<DesktopPanelId, Component> = {
   effects: EffectsPanel
 };
 
+const ACTIONS: Partial<Record<DesktopPanelId, Component>> = {
+  curves: CurvePopOutButton
+};
+
 const DEFAULT_OPEN: readonly DesktopPanelId[] = ['basic'];
 
 export const developPanels: PanelDef[] = DESKTOP_PANELS.map(({ id, title }) => ({
   id,
   title,
   component: COMPONENTS[id],
+  actions: ACTIONS[id],
   defaultOpen: DEFAULT_OPEN.includes(id)
 }));
 

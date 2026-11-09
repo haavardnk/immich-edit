@@ -13,6 +13,7 @@
     modified = false,
     onReset,
     variant = 'section',
+    actions,
     children
   }: {
     open: boolean;
@@ -21,6 +22,7 @@
     modified?: boolean;
     onReset?: () => void;
     variant?: Variant;
+    actions?: Snippet;
     children: Snippet;
   } = $props();
 
@@ -47,6 +49,15 @@
       <span class="ml-auto size-1.5 rounded-full bg-primary" aria-label="Modified"></span>
     {/if}
   </Collapsible.Trigger>
+  {#if actions}
+    <div
+      class="absolute top-1 flex items-center {resetShown
+        ? 'right-7.5 touch:right-13'
+        : 'right-0.75 touch:right-1'}"
+    >
+      {@render actions()}
+    </div>
+  {/if}
   {#if resetShown}
     <Button
       type="button"
