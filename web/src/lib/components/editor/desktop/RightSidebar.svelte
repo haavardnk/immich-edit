@@ -18,6 +18,8 @@
   import MasksPanel from '#lib/panels/Masks.svelte';
   import RetouchPanel from '#lib/panels/Retouch.svelte';
   import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
+  import SearchField from '#lib/components/SearchField.svelte';
+  import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 
   const editorTabs: { id: EditorTab; label: string }[] = [
     { id: 'develop', label: 'Develop' },
@@ -76,6 +78,9 @@
       {#if ui.editorTab === 'develop'}
         <div class="flex shrink-0 items-center gap-1.5 border-b border-hairline px-3 py-1.5">
           <DevelopActions />
+        </div>
+        <div class="shrink-0 border-b border-hairline px-3 py-1.5">
+          <SearchField bind:value={settingSearch.query} label="Search settings" />
         </div>
         {#if scopes.pinned}
           <div class="shrink-0">

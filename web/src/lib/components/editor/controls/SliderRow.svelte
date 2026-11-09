@@ -29,7 +29,8 @@
     onDragEnd,
     onLabelTap,
     disabled = false,
-    commitAction
+    commitAction,
+    setting
   }: {
     label: string;
     value: number;
@@ -46,6 +47,7 @@
     onLabelTap?: () => void;
     disabled?: boolean;
     commitAction?: string;
+    setting?: string;
   } = $props();
 
   const { min, max, step, scale } = $derived(range);
@@ -229,6 +231,7 @@
 </script>
 
 <div
+  data-setting={setting}
   class="panel-row group h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-light-950/3 touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem] {disabled
     ? 'pointer-events-none opacity-50'
     : ''}"

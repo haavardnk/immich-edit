@@ -7,6 +7,8 @@
   import TransformPanel from '#lib/panels/Transform.svelte';
   import DevelopViews from './DevelopViews.svelte';
   import GroupChips from './GroupChips.svelte';
+  import SettingsSearch from './SettingsSearch.svelte';
+  import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { touchMode } from './modes';
 
   let { stacked = false, onretap }: { stacked?: boolean; onretap?: () => void } = $props();
@@ -19,8 +21,12 @@
     <PresetStrip />
   </div>
 {:else if mode === 'develop'}
-  <GroupChips grid={stacked} {onretap} />
-  <DevelopViews {stacked} />
+  {#if touchUi.searching}
+    <SettingsSearch />
+  {:else}
+    <GroupChips grid={stacked} {onretap} />
+    <DevelopViews {stacked} />
+  {/if}
 {:else}
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 scrollbar-hidden">
     {#if mode === 'geometry'}

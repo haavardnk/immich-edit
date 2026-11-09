@@ -16,6 +16,7 @@
   import TouchPanel from './TouchPanel.svelte';
   import Tray from './Tray.svelte';
   import { focusAdjust } from './focusAdjust';
+  import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -25,6 +26,14 @@
   const chrome = $derived(!ui.fullscreen && !focused);
   const width = $derived(arrangement === 'inspector' ? 'w-90' : 'w-75');
   let available = $state(0);
+  let bar = $state(0);
+  const keyboard = viewportInset();
+  const lift = $derived(touchUi.searching ? bar : 0);
+  const docked = $derived(touchUi.searching ? available + keyboard.bottom - bar : available);
+
+  $effect(() => {
+    if (touchUi.searching) return keyboard.watch(windowViewport());
+  });
 
   function adjust(): ViewerAdjust | null {
     const param = focused;
@@ -72,7 +81,7 @@
     {#if stack}
       {#if chrome}
         {#if !ui.rightCollapsed}
-          <Tray {available} />
+          <Tray {available} {docked} {lift} />
         {/if}
       {/if}
     {:else if chrome}
@@ -93,8 +102,11 @@
   {#if stack}
     {#if focused}
       <FocusBar param={focused} />
-    {:else if chrome}
-      <ModeBar />
+    {:else if chrome && !touchUi.searching}
+      <div class="shrink-0" bind:clientHeight={bar}><ModeBar /></div>
     {/if}
+  {/if}
+  {#if touchUi.searching}
+    <div class="shrink-0" style:height="{keyboard.bottom}px"></div>
   {/if}
 </div>

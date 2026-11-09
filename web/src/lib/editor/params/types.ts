@@ -22,6 +22,7 @@ export interface ParamDef extends ParamRange, ParamAccess {
   label: string;
   history: string;
   synonyms: readonly string[];
+  subgroup?: string;
   defaultValue: number;
   rawDefaultValue?: number;
   inactive?: (edits: Edits, isRaw: boolean) => boolean;
@@ -42,6 +43,7 @@ export interface SectionDef {
   id: DevelopSection;
   title: string;
   history?: string;
+  synonyms?: readonly string[];
   rows: readonly (readonly ParamDef[])[];
   clear?: (edits: Edits) => void;
 }
@@ -69,6 +71,7 @@ export interface TouchView {
   id: string;
   label: string;
   params: readonly ParamDef[];
+  sections?: readonly SectionDef[];
 }
 
 export type TouchGroupId = 'light' | 'color' | 'effects' | 'detail' | 'optics' | 'profile';

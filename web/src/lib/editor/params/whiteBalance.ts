@@ -34,6 +34,7 @@ export const SHIFT_TINT: ParamRange = { ...signedRange(RELATIVE_LIMIT), gradient
 export const WHITE_BALANCE: SectionDef = {
   id: 'white_balance',
   title: 'White Balance',
+  synonyms: ['WB', 'temperature', 'tint', 'kelvin', 'warm', 'cool'],
   rows: [],
   clear: (edits) => {
     edits.basic.white_balance = asShotWhiteBalance();

@@ -51,6 +51,7 @@ export class TouchUiStore {
   detents = $state<Record<string, TrayDetent>>({});
   raised = $state<Record<string, TrayDetent>>({});
   focused = $state<string | null>(null);
+  searching = $state(false);
   filmstrip = $state(true);
 
   constructor() {
@@ -100,6 +101,15 @@ export class TouchUiStore {
   raise = (): void => {
     const key = this.viewKey;
     if (this.detent === 'peek') this.setDetent(this.raised[key] ?? defaultDetent(key));
+  };
+
+  openSearch = (): void => {
+    this.searching = true;
+    this.raise();
+  };
+
+  closeSearch = (): void => {
+    this.searching = false;
   };
 
   focus = (id: string | null): void => {

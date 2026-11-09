@@ -14,7 +14,8 @@
     disabled = false,
     previewMode,
     onLive = editor.onLive,
-    onLabelTap
+    onLabelTap,
+    setting
   }: {
     label: string;
     commitAction: string;
@@ -26,6 +27,7 @@
     previewMode?: PreviewMode;
     onLive?: (value: number) => void;
     onLabelTap?: () => void;
+    setting?: string;
   } = $props();
 </script>
 
@@ -39,6 +41,7 @@
   {disabled}
   {onLive}
   {onLabelTap}
+  {setting}
   onCommit={editor.onCommit}
   onPreviewStart={previewMode ? () => editor.onPreview(previewMode) : undefined}
   onPreviewEnd={previewMode ? editor.endPreview : undefined}

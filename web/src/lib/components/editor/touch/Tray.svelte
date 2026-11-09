@@ -16,12 +16,15 @@
   const MIN_PHOTO = 200;
   const LABELS = ['Peek', 'Compact', 'Expanded'] as const;
 
-  let { available }: { available: number } = $props();
+  let { available, docked, lift }: { available: number; docked: number; lift: number } = $props();
 
   const guard = clickGuard();
   const heights = $derived.by(() => {
-    const expanded = Math.max(PEEK, Math.min(available * EXPANDED_SHARE, available - MIN_PHOTO));
-    return [PEEK, Math.min(COMPACT, expanded), expanded];
+    const expanded = Math.max(PEEK, Math.min(docked * EXPANDED_SHARE, docked - MIN_PHOTO));
+    const ceiling = Math.max(PEEK, available - MIN_PHOTO);
+    return [PEEK, Math.min(COMPACT, expanded), expanded].map((height) =>
+      Math.min(height + lift, ceiling)
+    );
   });
   const current = $derived(TRAY_DETENTS.indexOf(touchUi.detent));
   const rest = $derived(available > 0 ? (heights[current] ?? PEEK) : PEEK);

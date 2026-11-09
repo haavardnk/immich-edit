@@ -47,7 +47,10 @@
   }
 </script>
 
-<div class="flex h-6 items-center justify-between border-b border-light-950/6">
+<div
+  data-setting={section ? `section:${section}` : undefined}
+  class="flex h-6 items-center justify-between border-b border-light-950/6"
+>
   {#if section && modified}
     <Button
       type="button"

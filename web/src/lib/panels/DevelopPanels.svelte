@@ -12,10 +12,24 @@
   import { resetDevelopPanel } from '#lib/panels/panelReset.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
   import Disclosure from '#lib/components/Disclosure.svelte';
+  import { provideSettingFilter } from '#lib/components/editor/controls/settingFilter.ts';
+  import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
   import ScopesSection from './scopes/ScopesSection.svelte';
+
+  provideSettingFilter(settingSearch);
 
   const openPanels = $derived(openDevelopPanels(ui.developOpenPanels));
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
+  const matchedPanels = $derived(
+    new Set(settingSearch.matches.map((match) => match.setting.panel))
+  );
+  const shownPanels = $derived(
+    developPanels.filter(
+      (panel) =>
+        (!ui.developModifiedOnly || modifiedPanels.has(panel.id)) &&
+        (!settingSearch.filtering || matchedPanels.has(panel.id))
+    )
+  );
 
   function resetPanel(panel: PanelDef): void {
     editor.edits = resetDevelopPanel(editor.edits, panel.id, editor.isRaw);
@@ -23,20 +37,22 @@
   }
 </script>
 
-{#if !scopes.pinned && !ui.developModifiedOnly}
+{#if !scopes.pinned && !ui.developModifiedOnly && !settingSearch.filtering}
   <ScopesSection
     open={openPanels.has(SCOPES_PANEL)}
     onOpenChange={(open) => setDevelopPanel(SCOPES_PANEL, open)}
   />
 {/if}
-{#if ui.developModifiedOnly && modifiedPanels.size === 0}
-  <div class="px-4 py-8 text-center text-xs text-dark/65">No modified adjustments</div>
+{#if shownPanels.length === 0}
+  <div class="px-4 py-8 text-center text-xs text-dark/65">
+    {settingSearch.filtering ? 'No matching settings' : 'No modified adjustments'}
+  </div>
 {:else}
-  {#each developPanels as panel (panel.id)}
-    {#if !ui.developModifiedOnly || modifiedPanels.has(panel.id)}
-      {@const Comp = panel.component}
+  {#each shownPanels as panel (panel.id)}
+    {@const Comp = panel.component}
+    <div data-panel={panel.id}>
       <Disclosure
-        open={openPanels.has(panel.id)}
+        open={settingSearch.filtering || openPanels.has(panel.id)}
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
         onReset={() => resetPanel(panel)}
@@ -46,7 +62,7 @@
           <Comp />
         </div>
       </Disclosure>
-    {/if}
+    </div>
   {/each}
 {/if}
 <div class="h-8"></div>
