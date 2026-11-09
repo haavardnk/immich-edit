@@ -17,8 +17,9 @@
     untrack(() => {
       browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
-      void feed.resume(resumeId(page.url));
+      void feed.open(resumeId(page.url));
     });
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());

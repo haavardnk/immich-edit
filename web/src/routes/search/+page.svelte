@@ -45,8 +45,9 @@
       selection.clear();
       browseControls.enter(null, readFilterParams(page.url));
       feed.reset();
-      if (query) void feed.fetchPage(true);
+      if (query) void feed.open(null);
     });
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());
