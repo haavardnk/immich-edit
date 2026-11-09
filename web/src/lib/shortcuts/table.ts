@@ -602,6 +602,40 @@ export const KEYBINDS = [
       `${formatChord('Shift+ArrowLeft', mac)} / ${formatChord('Shift+ArrowRight', mac)}`
   },
   {
+    id: 'sliderFineStep',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Move a focused slider by its finest step',
+    display: (mac: boolean) =>
+      `${formatChord('Alt+ArrowLeft', mac)} / ${formatChord('Alt+ArrowRight', mac)}`
+  },
+  {
+    id: 'sliderWheel',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust the slider under the pointer once it has rested there, ten steps or fine',
+    display: (mac: boolean) =>
+      `Wheel, ${keyLabel('Shift', mac)} + wheel, ${keyLabel('Alt', mac)} + wheel`
+  },
+  {
+    id: 'sliderScrub',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust a slider from its current value; move away from the track to slow down',
+    display: 'Drag the label or track'
+  },
+  {
+    id: 'sliderTypedValue',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Type a value, or +5, x1.5 or /2 to change the current one',
+    display: 'Click the value'
+  },
+  {
     id: 'sliderReset',
     keys: [],
     contexts: ['editor'],

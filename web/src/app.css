@@ -599,6 +599,7 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
 
 @layer components {
   .slider-range {
+    --slider-thumb: 11px;
     width: 100%;
     height: 14px;
     appearance: none;
@@ -613,8 +614,8 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   }
   .slider-range::-webkit-slider-thumb {
     appearance: none;
-    width: 11px;
-    height: 11px;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
     border-radius: 50%;
     background: var(--color-image-light);
     border: 2px solid var(--color-slider-fill);
@@ -628,8 +629,8 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
   }
   .slider-range::-moz-range-thumb {
-    width: 11px;
-    height: 11px;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
     border-radius: 50%;
     background: var(--color-image-light);
     border: 2px solid var(--color-slider-fill);
@@ -643,15 +644,8 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
   }
   [data-layout='touch'] .slider-range {
+    --slider-thumb: 18px;
     height: 24px;
-  }
-  [data-layout='touch'] .slider-range::-webkit-slider-thumb {
-    width: 18px;
-    height: 18px;
-  }
-  [data-layout='touch'] .slider-range::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
   }
   .slider-range:focus-visible {
     outline: none;

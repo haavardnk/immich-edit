@@ -9,6 +9,7 @@
   import GroupChips from './GroupChips.svelte';
   import SettingsSearch from './SettingsSearch.svelte';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
+  import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
   import { touchMode } from './modes';
 
   let { stacked = false, onretap }: { stacked?: boolean; onretap?: () => void } = $props();
@@ -24,7 +25,9 @@
   {#if touchUi.searching}
     <SettingsSearch />
   {:else}
-    <GroupChips grid={stacked} {onretap} />
+    {#if stacked || !valueEntry.target}
+      <GroupChips grid={stacked} {onretap} />
+    {/if}
     <DevelopViews {stacked} />
   {/if}
 {:else}

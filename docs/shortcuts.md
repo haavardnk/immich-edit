@@ -141,12 +141,16 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Sliders
 
-| Keys                             | Action                                                       | Available in |
-| -------------------------------- | ------------------------------------------------------------ | ------------ |
-| `Shift+← / Shift+→`              | Move a focused slider ten steps                              | Editor       |
-| `Double-click the label`         | Reset one slider                                             | Editor       |
-| `Alt + drag`                     | Preview the mask or radius a slider drives while you drag it | Editor       |
-| `Shift + click the reset button` | Reset every band or channel at once, on HSL and Curves       | Editor       |
+| Keys                                | Action                                                                          | Available in |
+| ----------------------------------- | ------------------------------------------------------------------------------- | ------------ |
+| `Shift+← / Shift+→`                 | Move a focused slider ten steps                                                 | Editor       |
+| `Alt+← / Alt+→`                     | Move a focused slider by its finest step                                        | Editor       |
+| `Wheel, Shift + wheel, Alt + wheel` | Adjust the slider under the pointer once it has rested there, ten steps or fine | Editor       |
+| `Drag the label or track`           | Adjust a slider from its current value; move away from the track to slow down   | Editor       |
+| `Click the value`                   | Type a value, or +5, x1.5 or /2 to change the current one                       | Editor       |
+| `Double-click the label`            | Reset one slider                                                                | Editor       |
+| `Alt + drag`                        | Preview the mask or radius a slider drives while you drag it                    | Editor       |
+| `Shift + click the reset button`    | Reset every band or channel at once, on HSL and Curves                          | Editor       |
 
 ## Geometry
 

@@ -7,6 +7,7 @@
   import { panRecognizer } from '#lib/gestures/pan.ts';
   import { reveal } from '#lib/motion/reveal.ts';
   import { touchUi, TRAY_DETENTS } from '#lib/stores/touchUi.svelte.ts';
+  import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
   import { untrack } from 'svelte';
   import TouchPanel from './TouchPanel.svelte';
 
@@ -14,20 +15,25 @@
   const COMPACT = 350;
   const EXPANDED_SHARE = 0.62;
   const MIN_PHOTO = 200;
+  const ENTRY = 260;
   const LABELS = ['Peek', 'Compact', 'Expanded'] as const;
 
   let { available, docked, lift }: { available: number; docked: number; lift: number } = $props();
 
   const guard = clickGuard();
+  const ceiling = $derived(Math.max(PEEK, available - MIN_PHOTO));
   const heights = $derived.by(() => {
     const expanded = Math.max(PEEK, Math.min(docked * EXPANDED_SHARE, docked - MIN_PHOTO));
-    const ceiling = Math.max(PEEK, available - MIN_PHOTO);
     return [PEEK, Math.min(COMPACT, expanded), expanded].map((height) =>
       Math.min(height + lift, ceiling)
     );
   });
   const current = $derived(TRAY_DETENTS.indexOf(touchUi.detent));
-  const rest = $derived(available > 0 ? (heights[current] ?? PEEK) : PEEK);
+  const entry = $derived(valueEntry.target !== null);
+  const rest = $derived.by(() => {
+    if (available <= 0) return PEEK;
+    return entry ? Math.min(ENTRY, ceiling) : (heights[current] ?? PEEK);
+  });
 
   function snap(index: number): void {
     const detent = TRAY_DETENTS[index];
@@ -71,12 +77,10 @@
     const height = rest;
     const detent = touchUi.detent;
     if (motion.dragging()) return;
-    if (detent === settled) {
-      motion.rest(height);
-      return;
-    }
+    const moved = !entry && detent !== settled;
     settled = detent;
-    void motion.settle(height);
+    if (moved) void motion.settle(height);
+    else motion.rest(height);
   });
 </script>
 

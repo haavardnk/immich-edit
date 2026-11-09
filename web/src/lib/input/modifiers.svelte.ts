@@ -14,6 +14,7 @@ const ROLES = {
   pan: 'mod',
   zoom: 'mod',
   coarse: 'shift',
+  fine: 'alt',
   exclude: 'shift',
   sample: 'alt',
   extend: 'shift',
@@ -76,6 +77,10 @@ export function heldAlone(role: ModifierRole, e: ModifierKeys): boolean {
   return held(role, e) && !KEYS.some((key) => key !== own && down(key, e));
 }
 
+export function unmodified(e: ModifierKeys): boolean {
+  return !KEYS.some((key) => down(key, e));
+}
+
 export function plainClick(e: ModifierKeys & { button: number }): boolean {
-  return e.button === 0 && !KEYS.some((key) => down(key, e));
+  return e.button === 0 && unmodified(e);
 }

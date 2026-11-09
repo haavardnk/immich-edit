@@ -9,12 +9,14 @@
   import type { ViewerAdjust } from '#lib/editor/viewerGestures.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
+  import { valueEntry, type ValueEntryTarget } from '#lib/stores/valueEntry.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import FocusBar from './FocusBar.svelte';
   import ModeBar from './ModeBar.svelte';
   import TouchEditorBar from './TouchEditorBar.svelte';
   import TouchPanel from './TouchPanel.svelte';
   import Tray from './Tray.svelte';
+  import ValueKeypad from './ValueKeypad.svelte';
   import { focusAdjust } from './focusAdjust';
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
 
@@ -26,13 +28,23 @@
   const chrome = $derived(!ui.fullscreen && !focused);
   const width = $derived(arrangement === 'inspector' ? 'w-90' : 'w-75');
   let available = $state(0);
+  let region = $state<HTMLElement>();
   let bar = $state(0);
   const keyboard = viewportInset();
   const lift = $derived(touchUi.searching ? bar : 0);
   const docked = $derived(touchUi.searching ? available + keyboard.bottom - bar : available);
 
+  const bottom = $derived(
+    focused ? 'focus' : valueEntry.target ? 'entry' : chrome && !touchUi.searching ? 'modes' : null
+  );
+
   $effect(() => {
     if (touchUi.searching) return keyboard.watch(windowViewport());
+  });
+
+  $effect(() => {
+    void bottom;
+    if (region) available = region.clientHeight;
   });
 
   function adjust(): ViewerAdjust | null {
@@ -46,6 +58,12 @@
   }
 </script>
 
+{#snippet keypad(entry: ValueEntryTarget)}
+  {#key entry}
+    <ValueKeypad target={entry} />
+  {/key}
+{/snippet}
+
 <div
   class="app-frame flex flex-col overflow-hidden bg-editor-chrome {stack ? 'pb-0!' : ''}"
   data-arrangement={arrangement}
@@ -56,7 +74,11 @@
   {#if chrome && arrangement !== 'side'}
     <TouchEditorBar filename={arrangement === 'inspector'} />
   {/if}
-  <div class="flex min-h-0 flex-1 {stack ? 'flex-col' : 'flex-row'}" bind:clientHeight={available}>
+  <div
+    class="flex min-h-0 flex-1 {stack ? 'flex-col' : 'flex-row'}"
+    bind:this={region}
+    bind:clientHeight={available}
+  >
     <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <Viewer ontap={tapPhoto} {adjust} />
       {#if editor.showingOriginal}
@@ -93,6 +115,9 @@
         >
           <div class="flex min-h-0 shrink-0 flex-col {width}">
             <TouchPanel stacked={arrangement === 'inspector'} />
+            {#if valueEntry.target}
+              {@render keypad(valueEntry.target)}
+            {/if}
           </div>
         </aside>
       {/if}
@@ -102,6 +127,8 @@
   {#if stack}
     {#if focused}
       <FocusBar param={focused} />
+    {:else if valueEntry.target}
+      {@render keypad(valueEntry.target)}
     {:else if chrome && !touchUi.searching}
       <div class="shrink-0" bind:clientHeight={bar}><ModeBar /></div>
     {/if}

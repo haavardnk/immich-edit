@@ -1,44 +1,49 @@
 import { describe, expect, it } from 'vitest';
 import { arrowStepValue } from './sliderKeys';
 
-const base = { key: 'ArrowRight', shiftKey: true, altKey: false, ctrlKey: false, metaKey: false };
+const NONE = { key: 'ArrowRight', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false };
+const SHIFT = { ...NONE, shiftKey: true };
+const ALT = { ...NONE, altKey: true };
+const EXPOSURE = { min: -5, max: 5, step: 0.05, fineStep: 0.01, coarseStep: 0.5 };
+const PERCENT = { min: -100, max: 100, step: 1, fineStep: 1, coarseStep: 10 };
 
 describe('arrowStepValue', () => {
   it.each([
-    ['ArrowRight', 1, 10, 0, 10],
-    ['ArrowUp', 1, 10, 0, 10],
-    ['ArrowLeft', 1, 10, 0, -10],
-    ['ArrowDown', 1, 10, 0, -10],
-    ['ArrowRight', 0.05, 0.5, 0.35, 0.85],
-    ['ArrowLeft', 0.05, 0.5, 0.35, -0.15],
-    ['ArrowRight', 0.01, 0.1, 0.07, 0.17]
-  ])('%s with step %s moves %s to %s', (key, step, coarseStep, value, expected) => {
-    expect(arrowStepValue({ ...base, key }, { value, min: -100, max: 100, step, coarseStep })).toBe(
-      expected
-    );
+    ['ArrowRight', 0, 0.05],
+    ['ArrowUp', 0, 0.05],
+    ['ArrowLeft', 0.35, 0.3],
+    ['ArrowDown', 0.35, 0.3]
+  ])('plain %s moves %s one step to %s', (key, value, expected) => {
+    expect(arrowStepValue({ ...NONE, key }, { ...EXPOSURE, value })).toBe(expected);
+  });
+
+  it.each([
+    ['ArrowRight', 0.35, 0.85],
+    ['ArrowLeft', 0.35, -0.15]
+  ])('shift %s moves %s ten steps to %s', (key, value, expected) => {
+    expect(arrowStepValue({ ...SHIFT, key }, { ...EXPOSURE, value })).toBe(expected);
+  });
+
+  it.each([
+    ['ArrowRight', 0.35, 0.36],
+    ['ArrowLeft', 0.35, 0.34]
+  ])('alt %s moves %s one fine step to %s', (key, value, expected) => {
+    expect(arrowStepValue({ ...ALT, key }, { ...EXPOSURE, value })).toBe(expected);
   });
 
   it.each([
     ['clamps at the maximum', 'ArrowRight', 96, 100],
     ['clamps at the minimum', 'ArrowLeft', -96, -100]
   ])('%s', (_name, key, value, expected) => {
-    expect(
-      arrowStepValue({ ...base, key }, { value, min: -100, max: 100, step: 1, coarseStep: 10 })
-    ).toBe(expected);
+    expect(arrowStepValue({ ...SHIFT, key }, { ...PERCENT, value })).toBe(expected);
   });
 
   it.each([
-    ['plain arrow keys stay native', { shiftKey: false }],
-    ['alt is reserved for preview drag', { altKey: true }],
+    ['shift with alt is no step', { shiftKey: true, altKey: true }],
     ['ctrl belongs to the browser', { ctrlKey: true }],
     ['meta belongs to the browser', { metaKey: true }],
     ['non-arrow keys are ignored', { key: 'Home' }]
   ])('%s', (_name, event) => {
-    expect(
-      arrowStepValue(
-        { ...base, ...event },
-        { value: 0, min: -100, max: 100, step: 1, coarseStep: 10 }
-      )
-    ).toBeNull();
+    expect(arrowStepValue({ ...NONE, ...event }, { ...PERCENT, value: 0 })).toBeNull();
   });
 });

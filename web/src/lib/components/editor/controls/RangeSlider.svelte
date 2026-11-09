@@ -6,6 +6,7 @@
     min,
     max,
     step = 1,
+    fineStep = step,
     coarseStep = step * 10,
     defaultValue,
     label,
@@ -23,6 +24,7 @@
     min: number;
     max: number;
     step?: number;
+    fineStep?: number;
     coarseStep?: number;
     defaultValue?: number;
     label: string;
@@ -57,7 +59,7 @@
 
   function onKeyDown(event: KeyboardEvent): void {
     if (disabled || !input) return;
-    const next = arrowStepValue(event, { value, min, max, step, coarseStep });
+    const next = arrowStepValue(event, { value, min, max, step, fineStep, coarseStep });
     if (next === null || next === value) return;
     event.preventDefault();
     input.value = String(next);
@@ -80,7 +82,7 @@
   {title}
   {min}
   {max}
-  {step}
+  step={fineStep}
   {disabled}
   {value}
   {onpointerdown}

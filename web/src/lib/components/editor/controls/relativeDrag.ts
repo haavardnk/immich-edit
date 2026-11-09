@@ -1,5 +1,6 @@
 import type { ParamRange } from '#lib/editor/params/types.ts';
 import { SCALE_POSITIONS } from './sliderScale';
+import { clampTo, settleValue } from './sliderStep';
 
 export const FINE_FROM = 40;
 export const FINE_SPAN = 80;
@@ -23,19 +24,6 @@ export function dragPosition(
   return Math.min(track.max, Math.max(track.min, next));
 }
 
-function decimals(step: number): number {
-  const text = String(step);
-  const dot = text.indexOf('.');
-  return dot < 0 ? 0 : text.length - dot - 1;
-}
-
-export function snapToStep(value: number, min: number, step: number): number {
-  if (step <= 0) return value;
-  const snapped = min + Math.round((value - min) / step) * step;
-  const rounded = Number(snapped.toFixed(decimals(step)));
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
-
 export function dragBounds(range: ParamRange): { min: number; max: number } {
   return range.scale ? { min: 0, max: SCALE_POSITIONS } : { min: range.min, max: range.max };
 }
@@ -45,9 +33,6 @@ export function positionOf(value: number, range: ParamRange): number {
 }
 
 export function valueAt(position: number, range: ParamRange): number {
-  const raw = range.scale
-    ? range.scale.fromPosition(Math.round(position))
-    : snapToStep(position, range.min, range.step);
-  const clamped = Math.min(range.max, Math.max(range.min, raw));
-  return Object.is(clamped, -0) ? 0 : clamped;
+  if (!range.scale) return settleValue(position, range);
+  return clampTo(range.scale.fromPosition(Math.round(position)), range.min, range.max);
 }
