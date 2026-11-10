@@ -834,6 +834,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json([]));
     }
 
+    if (p.match(/^\/api\/assets\/[^/]+\/snapshots$/) && method === 'GET') {
+      return route.fulfill(json([]));
+    }
+
     if (p.match(/^\/api\/assets\/[^/]+\/edits\/restore$/)) {
       if (opts.onRestore) return opts.onRestore(route);
       return route.fulfill(json(null));

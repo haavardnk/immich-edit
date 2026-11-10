@@ -24,8 +24,9 @@ pub struct CreateSnapshotBody {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct RenameSnapshotBody {
-    pub name: String,
+pub struct UpdateSnapshotBody {
+    pub name: Option<String>,
+    pub manifest: Option<EditManifest>,
 }
 
 #[derive(Debug, Serialize)]
@@ -80,16 +81,27 @@ pub async fn create(
     Ok(Json(snapshot.into()))
 }
 
-pub async fn rename(
+pub async fn update(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path((id, snapshot_id)): Path<(AssetKey, Uuid)>,
-    Json(body): Json<RenameSnapshotBody>,
+    Json(body): Json<UpdateSnapshotBody>,
 ) -> Result<Json<SnapshotItem>, AppError> {
-    let name = snapshot_name(&body.name)?;
+    if body.name.is_none() && body.manifest.is_none() {
+        return Err(AppError::BadRequest(
+            "snapshot update needs a name or a manifest".into(),
+        ));
+    }
+    let name = body.name.as_deref().map(snapshot_name).transpose()?;
     state
         .edits
-        .rename_snapshot(ctx.owner, id, snapshot_id, &name)
+        .update_snapshot(
+            ctx.owner,
+            id,
+            snapshot_id,
+            name.as_deref(),
+            body.manifest.as_ref(),
+        )
         .await?
         .map(|snapshot| Json(snapshot.into()))
         .ok_or(AppError::NotFound)

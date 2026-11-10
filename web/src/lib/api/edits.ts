@@ -30,29 +30,18 @@ export function getEdits(assetId: string): Promise<EditRecord> {
   return getJson(url`/api/assets/${assetId}/edits`);
 }
 
-export async function putEdits(
-  assetId: string,
-  edits: Edits,
-  baseHash?: string,
-  action?: string
-): Promise<EditRecord> {
+type WriteMethod = 'POST' | 'PUT' | 'DELETE';
+
+async function conditionalWrite<T>(
+  method: WriteMethod,
+  path: string,
+  body: unknown,
+  baseHash?: string
+): Promise<T> {
   const headers: Record<string, string> = {};
   if (baseHash) headers['if-match'] = baseHash;
   try {
-    const saved = await sendJson<EditRecord>(
-      'PUT',
-      url`/api/assets/${assetId}/edits`,
-      { manifest: editsToManifest(edits), action: action ?? null },
-      { headers }
-    );
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('immich-edit:edits-saved', {
-          detail: { id: assetId, hash: saved.hash, updated_at: saved.updated_at }
-        })
-      );
-    }
-    return saved;
+    return await sendJson<T>(method, path, body, { headers });
   } catch (e) {
     if (e instanceof ApiError && e.status === 409) {
       throw new ConflictError(e.message, e.body as EditRecord | undefined);
@@ -61,29 +50,56 @@ export async function putEdits(
   }
 }
 
+function announce(assetId: string, saved: EditRecord | null): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    saved
+      ? new CustomEvent('immich-edit:edits-saved', {
+          detail: { id: assetId, hash: saved.hash, updated_at: saved.updated_at }
+        })
+      : new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } })
+  );
+}
+
+export async function writeEdits(
+  assetId: string,
+  method: WriteMethod,
+  path: string,
+  body: unknown,
+  baseHash?: string
+): Promise<EditRecord> {
+  const saved = await conditionalWrite<EditRecord>(method, path, body, baseHash);
+  announce(assetId, saved);
+  return saved;
+}
+
+export function putEdits(
+  assetId: string,
+  edits: Edits,
+  baseHash?: string,
+  action?: string
+): Promise<EditRecord> {
+  return writeEdits(
+    assetId,
+    'PUT',
+    url`/api/assets/${assetId}/edits`,
+    { manifest: editsToManifest(edits), action: action ?? null },
+    baseHash
+  );
+}
+
 export async function deleteEdits(
   assetId: string,
   action?: string,
   baseHash?: string
 ): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (baseHash) headers['if-match'] = baseHash;
-  try {
-    await sendJson<void>(
-      'DELETE',
-      url`/api/assets/${assetId}/edits`,
-      { action: action ?? null },
-      { headers }
-    );
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 409) {
-      throw new ConflictError(e.message, e.body as EditRecord | undefined);
-    }
-    throw e;
-  }
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } }));
-  }
+  await conditionalWrite<void>(
+    'DELETE',
+    url`/api/assets/${assetId}/edits`,
+    { action: action ?? null },
+    baseHash
+  );
+  announce(assetId, null);
 }
 
 export function autoEdits(assetId: string, context: Edits): Promise<Edits> {
@@ -147,18 +163,6 @@ export async function restoreEdits(assetId: string, entryId: number): Promise<Ed
     url`/api/assets/${assetId}/edits/restore`,
     { entry_id: entryId }
   );
-  if (typeof window !== 'undefined') {
-    if (saved) {
-      window.dispatchEvent(
-        new CustomEvent('immich-edit:edits-saved', {
-          detail: { id: assetId, hash: saved.hash, updated_at: saved.updated_at }
-        })
-      );
-    } else {
-      window.dispatchEvent(
-        new CustomEvent('immich-edit:edits-deleted', { detail: { id: assetId } })
-      );
-    }
-  }
+  announce(assetId, saved ?? null);
   return saved ?? null;
 }

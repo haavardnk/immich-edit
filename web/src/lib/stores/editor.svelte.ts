@@ -30,6 +30,7 @@ import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.sve
 import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
 import * as retouch from '#lib/stores/editor/retouch.ts';
 import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
+import { SnapshotStore } from '#lib/stores/editor/snapshots.svelte.ts';
 import * as upright from '#lib/stores/editor/upright.ts';
 import { ViewportNav } from '#lib/stores/editor/viewport.ts';
 import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
@@ -196,12 +197,13 @@ class EditorStore {
     ui.setRetouchTool(tool);
   }
 
-  private history = new EditHistory(this);
   private saves = new SaveQueue(this);
+  private history = new EditHistory(this, this.saves);
   private previews = new PreviewEngine(this);
   private viewport = new ViewportNav(this);
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
+  readonly snapshots = new SnapshotStore(this);
 
   get sourceRevision(): string {
     return this.aiDenoise.revision;
@@ -280,6 +282,7 @@ class EditorStore {
       this.saves.begin(id, s.hash);
       this.initialised = true;
       this.history.push($state.snapshot(this.edits) as Edits);
+      void this.snapshots.load(id);
       fetchLensProfile(this, id);
       void loadFaceData(id);
       this.onLive();
@@ -320,6 +323,7 @@ class EditorStore {
     this.saveError = null;
     this.saves.end();
     this.history.reset();
+    this.snapshots.reset();
     this.showingOriginal = false;
     this.bypassedSection = null;
     this.presetPreview = null;
@@ -400,6 +404,9 @@ class EditorStore {
   };
 
   restoreHistoryEntry = (entryId: number): Promise<void> => this.saves.restoreEntry(entryId);
+
+  restoreSnapshot = (snapshotId: string, name: string): Promise<boolean> =>
+    this.history.restoreSnapshot(snapshotId, name);
 
   retrySave = (): Promise<void> => this.saves.retry();
 

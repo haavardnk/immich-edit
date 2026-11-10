@@ -507,6 +507,13 @@ export const KEYBINDS = [
     label: 'Create a virtual copy'
   },
   {
+    id: 'newSnapshot',
+    keys: ['Mod+Shift+s'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Save a snapshot of the current edits'
+  },
+  {
     id: 'beforeAfter',
     keys: ['y'],
     contexts: ['editor'],

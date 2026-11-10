@@ -139,15 +139,21 @@ impl EditsStore {
         Ok(snapshot)
     }
 
-    pub async fn rename_snapshot(
+    pub async fn update_snapshot(
         &self,
         owner: Uuid,
         asset_id: AssetKey,
         id: Uuid,
-        name: &str,
+        name: Option<&str>,
+        manifest: Option<&EditManifest>,
     ) -> Result<Option<EditSnapshot>, EditsStoreError> {
-        sqlx::query_as::<_, SnapshotRow>(
-            "UPDATE edit_snapshots SET name = ?4, updated_at = ?5 \
+        let edits_json = manifest
+            .map(|manifest| serde_json::to_string(&manifest.to_edits().clamped()))
+            .transpose()?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let row = sqlx::query_as::<_, SnapshotRow>(
+            "UPDATE edit_snapshots SET name = COALESCE(?4, name), \
+             edits_json = COALESCE(?5, edits_json), updated_at = ?6 \
              WHERE user_id = ?1 AND asset_id = ?2 AND id = ?3 \
              RETURNING id, name, edits_json, created_at, updated_at",
         )
@@ -155,11 +161,15 @@ impl EditsStore {
         .bind(asset_id.to_string())
         .bind(id.to_string())
         .bind(name)
+        .bind(edits_json.as_deref())
         .bind(Utc::now().to_rfc3339())
-        .fetch_optional(&self.pool)
-        .await?
-        .map(EditSnapshot::try_from)
-        .transpose()
+        .fetch_optional(&mut *tx)
+        .await?;
+        if row.is_some() && manifest.is_some() {
+            raster_refs::refresh_raster_refs(&mut tx, owner, asset_id).await?;
+        }
+        tx.commit().await?;
+        row.map(EditSnapshot::try_from).transpose()
     }
 
     pub async fn delete_snapshot(

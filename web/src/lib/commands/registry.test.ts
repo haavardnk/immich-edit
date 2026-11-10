@@ -196,7 +196,8 @@ describe('command registry', () => {
           'editor.paste',
           'editor.undo',
           'editor.redo',
-          'editor.virtualCopy'
+          'editor.virtualCopy',
+          'editor.newSnapshot'
         ],
         [
           'editor.beforeAfter',
@@ -211,6 +212,13 @@ describe('command registry', () => {
     for (const command of Object.values(menus).flatMap((menu) => menu.flat())) {
       expect(COMMANDS, command.id).toContain(command);
     }
+  });
+
+  it('saves one snapshot per key press', () => {
+    const command = COMMANDS.find(({ id }) => id === 'editor.newSnapshot');
+    const trigger = { key: 'S', code: 'KeyS', shiftKey: true, repeat: false };
+    expect(command?.yields?.({ ...trigger, repeat: true })).toBe(true);
+    expect(command?.yields?.(trigger)).toBe(false);
   });
 
   it('creates one editor virtual copy per key press', () => {

@@ -270,7 +270,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         )
         .route(
             "/assets/{id}/snapshots/{snapshot_id}",
-            patch(routes::snapshots::rename).delete(routes::snapshots::delete),
+            patch(routes::snapshots::update).delete(routes::snapshots::delete),
         )
         .route(
             "/assets/{id}/snapshots/{snapshot_id}/restore",

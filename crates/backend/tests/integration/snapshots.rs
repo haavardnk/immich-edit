@@ -49,7 +49,7 @@ fn names(snapshots: &[Value]) -> Vec<String> {
         .collect()
 }
 
-fn rename_request(key: &str, snapshot_id: &str, body: Value) -> Request<Body> {
+fn update_request(key: &str, snapshot_id: &str, body: Value) -> Request<Body> {
     json_request("PATCH", &snapshot_uri(key, snapshot_id), body)
 }
 
@@ -84,7 +84,7 @@ async fn a_snapshot_survives_create_list_rename_and_delete() {
     let first_id = id_of(&first);
     let resp = send(
         &app,
-        rename_request(&key, &first_id, json!({ "name": " Renamed " })),
+        update_request(&key, &first_id, json!({ "name": " Renamed " })),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -102,6 +102,65 @@ async fn a_snapshot_survives_create_list_rename_and_delete() {
 }
 
 #[tokio::test]
+async fn updating_with_current_edits_replaces_the_manifest() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let key = asset_id().to_string();
+    let first = create(&app, &key, "Look", exposure_manifest(0.5)).await;
+    let first_id = id_of(&first);
+
+    let resp = send(
+        &app,
+        update_request(
+            &key,
+            &first_id,
+            json!({ "manifest": exposure_manifest(1.5) }),
+        ),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let updated = body_json(resp).await;
+    assert_eq!(updated["id"], first["id"]);
+    assert_eq!(updated["name"], "Look");
+    assert_eq!(updated["created_at"], first["created_at"]);
+    assert_eq!(updated["manifest"]["ops"]["exposure"]["ev"], 1.5);
+    assert_ne!(updated["manifest_hash"], first["manifest_hash"]);
+
+    let resp = send(
+        &app,
+        update_request(
+            &key,
+            &first_id,
+            json!({ "name": " Both ", "manifest": exposure_manifest(-1.0) }),
+        ),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let both = body_json(resp).await;
+    assert_eq!(both["name"], "Both");
+    assert_eq!(both["manifest"]["ops"]["exposure"]["ev"], -1.0);
+    assert_eq!(list(&app, &key).await, [both]);
+}
+
+#[tokio::test]
+async fn an_empty_update_is_a_bad_request() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let key = asset_id().to_string();
+    let snapshot = create(&app, &key, "Kept", exposure_manifest(0.5)).await;
+
+    let resp = send(&app, update_request(&key, &id_of(&snapshot), json!({}))).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = body_json(resp).await;
+    assert_eq!(body["code"], "bad_request");
+    assert_eq!(
+        body["message"],
+        "snapshot update needs a name or a manifest"
+    );
+    assert_eq!(list(&app, &key).await, [snapshot]);
+}
+
+#[tokio::test]
 async fn an_unknown_snapshot_is_not_found() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
@@ -109,7 +168,12 @@ async fn an_unknown_snapshot_is_not_found() {
     let unknown = Uuid::new_v4().to_string();
     for req in [
         restore_request(&key, &unknown, None),
-        rename_request(&key, &unknown, json!({ "name": "Gone" })),
+        update_request(&key, &unknown, json!({ "name": "Gone" })),
+        update_request(
+            &key,
+            &unknown,
+            json!({ "manifest": exposure_manifest(1.0) }),
+        ),
         empty_request("DELETE", &snapshot_uri(&key, &unknown)),
     ] {
         assert_eq!(send(&app, req).await.status(), StatusCode::NOT_FOUND);
@@ -128,7 +192,12 @@ async fn a_snapshot_is_not_reachable_through_another_asset() {
         assert!(list(&app, &other).await.is_empty(), "{other}");
         for req in [
             restore_request(&other, &snapshot_id, None),
-            rename_request(&other, &snapshot_id, json!({ "name": "Stolen" })),
+            update_request(&other, &snapshot_id, json!({ "name": "Stolen" })),
+            update_request(
+                &other,
+                &snapshot_id,
+                json!({ "manifest": exposure_manifest(2.0) }),
+            ),
             empty_request("DELETE", &snapshot_uri(&other, &snapshot_id)),
         ] {
             assert_eq!(send(&app, req).await.status(), StatusCode::NOT_FOUND);
@@ -155,7 +224,7 @@ async fn snapshot_names_are_validated() {
             "snapshot name required",
         ),
         (
-            rename_request(&key, &unknown, json!({ "name": long })),
+            update_request(&key, &unknown, json!({ "name": long })),
             "snapshot name longer than 80 characters",
         ),
     ] {
@@ -180,10 +249,10 @@ async fn an_unknown_field_is_unprocessable() {
             &snapshots_uri(&key),
             json!({ "name": "Extra", "manifest": exposure_manifest(1.0), "pinned": true }),
         ),
-        rename_request(
+        update_request(
             &key,
             &id_of(&snapshot),
-            json!({ "name": "Extra", "manifest": exposure_manifest(1.0) }),
+            json!({ "name": "Extra", "pinned": true }),
         ),
     ] {
         assert_eq!(

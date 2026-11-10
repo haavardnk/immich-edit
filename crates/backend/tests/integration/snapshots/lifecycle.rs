@@ -77,6 +77,36 @@ async fn deleting_a_snapshot_keeps_rasters_the_history_still_uses() {
 }
 
 #[tokio::test]
+async fn updating_a_snapshot_with_current_edits_moves_its_raster_pins() {
+    let server = MockServer::start().await;
+    let state = test_state(&server).await;
+    let app = seed_and_wrap(&server, state.clone()).await;
+    let key = asset_id().to_string();
+    let snapshot = create(&app, &key, "Depth", depth_manifest("old-r")).await;
+    assert_eq!(pinned(&state, &key).await, ["old-r"]);
+
+    let resp = send(
+        &app,
+        update_request(
+            &key,
+            &id_of(&snapshot),
+            json!({ "manifest": depth_manifest("new-r") }),
+        ),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(pinned(&state, &key).await, ["new-r"]);
+
+    let resp = send(
+        &app,
+        update_request(&key, &id_of(&snapshot), json!({ "name": "Renamed" })),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(pinned(&state, &key).await, ["new-r"]);
+}
+
+#[tokio::test]
 async fn deleting_a_copy_removes_its_snapshots() {
     let server = MockServer::start().await;
     mock_asset_detail(&server).await;

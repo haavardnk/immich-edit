@@ -69,7 +69,10 @@ describe('HistoryList layout parity', () => {
         'popover',
         HistoryPopover,
         {},
-        { open: openPopover, exclude: [button('Edit history'), button('Close')] }
+        {
+          open: openPopover,
+          exclude: [button('Edit history'), button('Close'), button('New snapshot')]
+        }
       )
     ]);
     expect(found.body.length).toBeGreaterThanOrEqual(4);

@@ -921,6 +921,17 @@ async fn snapshots_are_scoped_to_the_owner() {
     .await;
     expect_status(
         &member,
+        json_request(
+            "PATCH",
+            &snapshot_uri,
+            serde_json::json!({ "manifest": exposure_manifest(4.0) }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
         empty_request("POST", &format!("{snapshot_uri}/restore")),
         StatusCode::NOT_FOUND,
         "member restore snapshot",
