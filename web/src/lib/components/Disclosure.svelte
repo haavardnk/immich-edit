@@ -14,6 +14,7 @@
     onReset,
     variant = 'section',
     actions,
+    icon,
     children
   }: {
     open: boolean;
@@ -23,6 +24,7 @@
     onReset?: () => void;
     variant?: Variant;
     actions?: Snippet;
+    icon?: string;
     children: Snippet;
   } = $props();
 
@@ -44,6 +46,9 @@
       class="text-dark/35 transition-colors group-hover:text-dark/60"
       aria-hidden="true"
     />
+    {#if icon}
+      <Icon {icon} size={`${iconSize - 2}px`} class="-ms-1 text-dark/65" aria-hidden="true" />
+    {/if}
     {title}
     {#if modified && !onReset}
       <span class="ml-auto size-1.5 rounded-full bg-primary" aria-label="Modified"></span>

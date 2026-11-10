@@ -12,11 +12,13 @@
   let {
     trigger,
     children,
-    disabled = false
+    disabled = false,
+    title
   }: {
     trigger: Snippet<[Record<string, unknown>]>;
     children: Snippet;
     disabled?: boolean;
+    title?: string;
   } = $props();
 
   function nativeFocus(props: Record<string, unknown>): Record<string, unknown> {
@@ -56,7 +58,8 @@
       {open}
       onOpenChange={(next) => (open = next)}
       onExited={sheet.exited}
-      title="Actions"
+      title={title ?? 'Actions'}
+      caption={title !== undefined}
     >
       {@render children()}
     </ActionSheet>

@@ -564,6 +564,13 @@ export const KEYBINDS = [
     label: 'Search settings, presets and actions'
   },
   {
+    id: 'pinSetting',
+    keys: ['Shift+Enter'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Pin or unpin the highlighted palette setting'
+  },
+  {
     id: 'resetEdits',
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],

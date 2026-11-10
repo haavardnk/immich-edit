@@ -15,7 +15,8 @@
     modified,
     disabled,
     onLive,
-    onCommit
+    onCommit,
+    setting
   }: {
     label: string;
     value: number;
@@ -25,6 +26,7 @@
     disabled: boolean;
     onLive: (value: number) => void;
     onCommit: () => void;
+    setting?: string;
   } = $props();
 
   const display = $derived(range.format(Object.is(value, -0) ? 0 : value));
@@ -59,6 +61,7 @@
       start,
       resetValue,
       owner,
+      setting,
       live: onLive,
       finish
     };

@@ -10,7 +10,13 @@ import type { Command } from './types';
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/'), params: {} } }));
 
-const OVERLAY_BINDS = ['maskCancelDraw', 'maskClosePolygon', 'maskDelete', 'maskNudge'];
+const OVERLAY_BINDS = [
+  'maskCancelDraw',
+  'maskClosePolygon',
+  'maskDelete',
+  'maskNudge',
+  'pinSetting'
+];
 
 const SHARED_BINDS = [
   'editorEscape@editor',

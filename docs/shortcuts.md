@@ -134,6 +134,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `T`            | Adjust HSL, Curves, B&W or Color Grading on the photo   | Editor              |
 | `Ctrl+U`       | Auto adjust                                             | Editor              |
 | `Ctrl+K`       | Search settings, presets and actions                    | Editor              |
+| `Shift+Enter`  | Pin or unpin the highlighted palette setting            | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
 | `Ctrl+C`       | Copy edits                                              | Editor, Grid, Loupe |
 | `Ctrl+V`       | Paste edits                                             | Editor, Grid, Loupe |

@@ -4,16 +4,19 @@
   import type { Snippet } from 'svelte';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
+  import { Icon } from '@immich/ui';
 
   let {
     title,
     detail,
+    icon,
     disabled = false,
     onSelect,
     children
   }: {
     title?: string;
     detail?: string;
+    icon?: string;
     disabled?: boolean;
     onSelect: () => void;
     children: Snippet;
@@ -29,7 +32,7 @@
 {/snippet}
 
 {#if layout.mode === 'touch'}
-  <MenuRow {disabled} onclick={onSelect}>
+  <MenuRow {icon} {disabled} onclick={onSelect}>
     <span class="min-w-0 flex-1 truncate">{@render children()}</span>
     {@render trailing()}
   </MenuRow>
@@ -40,8 +43,11 @@
         {...props}
         {disabled}
         {onSelect}
-        class="flex cursor-pointer items-center px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 data-highlighted:bg-light-950/10"
+        class="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 data-highlighted:bg-light-950/10"
       >
+        {#if icon}
+          <Icon {icon} size="14px" class="shrink-0 opacity-70" aria-hidden="true" />
+        {/if}
         {@render children()}
         {@render trailing()}
       </Bits.Item>
