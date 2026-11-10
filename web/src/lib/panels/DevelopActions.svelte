@@ -29,7 +29,7 @@
     disabled={!isEnabled(autoAdjust)}
     onclick={() => runCommand(autoAdjust)}
   >
-    {editor.autoBusy ? 'Analyzing…' : 'Auto'}
+    {editor.autoRunning === 'all' ? 'Analyzing…' : 'Auto'}
   </Button>
   <Button
     size="tiny"

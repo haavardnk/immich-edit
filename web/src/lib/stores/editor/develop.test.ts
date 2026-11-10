@@ -6,6 +6,7 @@ import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import {
+  autoAdjust,
   canPaste,
   canResetDevelop,
   copyEdits,
@@ -13,6 +14,15 @@ import {
   resetDevelop,
   type DevelopCtx
 } from './develop.svelte';
+
+const api = vi.hoisted(() => ({
+  autoEdits: vi.fn<(id: string, edits: unknown) => Promise<unknown>>()
+}));
+
+vi.mock('#lib/api/edits.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/api/edits.ts')>()),
+  autoEdits: api.autoEdits
+}));
 
 function edited(): Edits {
   const edits = neutralEdits();
@@ -26,7 +36,7 @@ function context(edits: Edits): DevelopCtx {
     initialised: true,
     edits,
     saving: false,
-    autoBusy: false,
+    autoRunning: null,
     error: null,
     onLive: vi.fn(),
     onCommit: vi.fn(() => Promise.resolve())
@@ -132,5 +142,32 @@ describe('develop guards', () => {
 
     expect(canPaste(ctx)).toBe(true);
     expect(canResetDevelop(context(edited()))).toBe(true);
+  });
+});
+
+describe('auto', () => {
+  it('runs one section as its own history step and clears the busy state', async () => {
+    const suggested = neutralEdits();
+    suggested.tone.highlights = -30;
+    suggested.basic.clarity = 9;
+    api.autoEdits.mockResolvedValue(suggested);
+    const ctx = context(neutralEdits());
+
+    const running = autoAdjust(ctx, 'tone');
+    expect(ctx.autoRunning).toBe('tone');
+    await running;
+
+    expect(ctx.edits.tone.highlights).toBe(-30);
+    expect(ctx.edits.basic.clarity).toBe(0);
+    expect(ctx.onCommit).toHaveBeenCalledWith('Auto Tone');
+    expect(ctx.autoRunning).toBeNull();
+  });
+
+  it('ignores a second Auto while one is analysing', async () => {
+    api.autoEdits.mockReset();
+    const ctx = { ...context(neutralEdits()), autoRunning: 'all' as const };
+    await autoAdjust(ctx, 'tone');
+    expect(api.autoEdits).not.toHaveBeenCalled();
+    expect(ctx.autoRunning).toBe('all');
   });
 });

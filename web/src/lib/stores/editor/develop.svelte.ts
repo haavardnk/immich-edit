@@ -1,5 +1,6 @@
 import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import { autoEdits } from '#lib/api/edits.ts';
+import { AUTO_ACTIONS, pickAuto, type AutoScope } from '#lib/editor/autoScope.ts';
 import { applyCopySections } from '#lib/editor/copyPaste.ts';
 import { presetEdits } from '#lib/edits/applyPreset.ts';
 import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
@@ -22,7 +23,7 @@ export interface DevelopCtx {
   initialised: boolean;
   edits: Edits;
   saving: boolean;
-  autoBusy: boolean;
+  autoRunning: AutoScope | null;
   error: string | null;
   onLive(): void;
   onCommit(action?: string): Promise<void>;
@@ -85,31 +86,17 @@ export async function applyPreset(
   await ctx.onCommit(opts.amount === LOOK_AMOUNT_FULL ? action : `${action} (${opts.amount}%)`);
 }
 
-export async function autoAdjust(ctx: DevelopCtx): Promise<void> {
-  if (!ctx.assetId || !ctx.initialised) return;
-  ctx.autoBusy = true;
+export async function autoAdjust(ctx: DevelopCtx, scope: AutoScope = 'all'): Promise<void> {
+  if (!ctx.assetId || !ctx.initialised || ctx.autoRunning) return;
+  ctx.autoRunning = scope;
   try {
     const suggested = await autoEdits(ctx.assetId, $state.snapshot(ctx.edits));
-    ctx.edits = {
-      ...ctx.edits,
-      basic: {
-        ...ctx.edits.basic,
-        white_balance: suggested.basic.white_balance,
-        exposure_ev: suggested.basic.exposure_ev,
-        brightness: suggested.basic.brightness,
-        contrast: suggested.basic.contrast,
-        dehaze: suggested.basic.dehaze,
-        clarity: suggested.basic.clarity,
-        vibrance: suggested.basic.vibrance,
-        saturation: suggested.basic.saturation
-      },
-      tone: { ...suggested.tone }
-    };
+    ctx.edits = pickAuto(scope, ctx.edits, suggested);
     ctx.onLive();
-    await ctx.onCommit('Auto');
+    await ctx.onCommit(AUTO_ACTIONS[scope]);
   } catch (e) {
     ctx.error = errorMessage(e);
   } finally {
-    ctx.autoBusy = false;
+    ctx.autoRunning = null;
   }
 }

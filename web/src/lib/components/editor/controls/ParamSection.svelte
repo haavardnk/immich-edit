@@ -1,8 +1,10 @@
 <script lang="ts">
+  import AutoSectionButton from './AutoSectionButton.svelte';
   import ParamSlider from './ParamSlider.svelte';
   import SectionHeader from './SectionHeader.svelte';
   import { commitParamReset, commitSectionReset } from './paramReset';
   import { settingFilter, visibleParams } from './settingFilter';
+  import { sectionAuto } from '#lib/editor/autoScope.ts';
   import { paramsModified, sectionLabel } from '#lib/editor/params/define.ts';
   import type { ParamDef, SectionDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
@@ -14,6 +16,7 @@
   const rows = $derived(
     allRows.map((row) => visibleParams(filter, row)).filter((row) => row.length > 0)
   );
+  const auto = $derived(subset ? null : sectionAuto(section.id));
   const modified = $derived(paramsModified(editor.edits, allRows.flat(), editor.isRaw));
 
   function reset(): void {
@@ -23,7 +26,13 @@
 </script>
 
 {#if rows.length > 0}
-  <SectionHeader title={section.title} section={section.id} {modified} onReset={reset} />
+  <SectionHeader title={section.title} section={section.id} {modified} onReset={reset}>
+    {#snippet actions()}
+      {#if auto}
+        <AutoSectionButton scope={auto} />
+      {/if}
+    {/snippet}
+  </SectionHeader>
   {#each rows as row, index (index)}
     {#if index > 0}
       <div class="border-t border-dark/10"></div>

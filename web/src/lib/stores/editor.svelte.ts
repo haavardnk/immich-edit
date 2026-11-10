@@ -9,6 +9,7 @@ import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
 import { type PreviewMode } from '#lib/api/preview.ts';
+import type { AutoScope } from '#lib/editor/autoScope.ts';
 import type { PresetPreview } from '#lib/edits/applyPreset.ts';
 import { manifestToEdits } from '#lib/edits/manifest.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
@@ -111,7 +112,7 @@ class EditorStore {
   );
   lastImmichOpts: ImmichExportOptions | null = null;
   lastDownloadOpts: ExportOptions | null = null;
-  autoBusy = $state(false);
+  autoRunning = $state<AutoScope | null>(null);
   wbPicking = $state(false);
   wbBusy = $state(false);
   asShot = $state<AsShotWhite | null>(null);
@@ -440,7 +441,11 @@ class EditorStore {
     this.previews.live();
   };
 
-  onAutoAdjust = (): Promise<void> => develop.autoAdjust(this);
+  get autoBusy(): boolean {
+    return this.autoRunning !== null;
+  }
+
+  onAutoAdjust = (scope: AutoScope = 'all'): Promise<void> => develop.autoAdjust(this, scope);
 
   toggleWbPicker = (): void => whiteBalance.toggleWbPicker(this);
 
