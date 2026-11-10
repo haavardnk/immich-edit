@@ -10,17 +10,19 @@ import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
 import { type PreviewMode } from '#lib/api/preview.ts';
 import type { AutoScope } from '#lib/editor/autoScope.ts';
-import type { PresetPreview } from '#lib/edits/applyPreset.ts';
+import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
 import { manifestToEdits } from '#lib/edits/manifest.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
 import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
 import * as develop from '#lib/stores/editor/develop.svelte.ts';
+import type { EditsPreview, EditsPreviewOwner } from '#lib/stores/editor/editsPreview.ts';
 import * as exportActions from '#lib/stores/editor/export.svelte.ts';
 import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
 import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
-import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
+import { EditHistory, type EntryRestore } from '#lib/stores/editor/history.svelte.ts';
+import { HistorySteps } from '#lib/stores/editor/historySteps.svelte.ts';
 import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
 import * as maskGen from '#lib/stores/editor/maskGen.ts';
 import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
@@ -100,6 +102,7 @@ class EditorStore {
   pending = $state(false);
   saving = $state(false);
   savedHash = $state<string>('');
+  restoreCount = $state(0);
   saveError = $state<string | null>(null);
   exporting = $state(false);
   exportingToImmich = $state(false);
@@ -123,7 +126,7 @@ class EditorStore {
   error = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
-  presetPreview = $state.raw<PresetPreview | null>(null);
+  editsPreview = $state.raw<EditsPreview | null>(null);
   proofSpace = $state<ColorSpaceOpt>('srgb');
   gamutWarn = $state(false);
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
@@ -203,6 +206,7 @@ class EditorStore {
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
   readonly snapshots = new SnapshotStore(this);
+  readonly historySteps = new HistorySteps(this);
   readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
     this.previews.compareChanged(wasOn)
   );
@@ -318,9 +322,10 @@ class EditorStore {
     this.saves.end();
     this.history.reset();
     this.snapshots.reset();
+    this.historySteps.reset();
     this.showingOriginal = false;
     this.bypassedSection = null;
-    this.presetPreview = null;
+    this.editsPreview = null;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskRefineOpen = {};
@@ -346,13 +351,9 @@ class EditorStore {
     return this.history.canRedo;
   }
 
-  undo = (): void => {
-    this.history.undo();
-  };
+  undo = (): void => this.history.undo();
 
-  redo = (): void => {
-    this.history.redo();
-  };
+  redo = (): void => this.history.redo();
 
   loadPersisted(): void {
     this.previews.loadPersisted();
@@ -373,21 +374,13 @@ class EditorStore {
     this.syncAiDenoise();
   };
 
-  beginDrag = (): void => {
-    this.previews.beginDrag();
-  };
+  beginDrag = (): void => this.previews.beginDrag();
 
-  endDrag = (): void => {
-    this.previews.endDrag();
-  };
+  endDrag = (): void => this.previews.endDrag();
 
-  onPreview = (mode: PreviewMode): void => {
-    this.previews.preview(mode);
-  };
+  onPreview = (mode: PreviewMode): void => this.previews.preview(mode);
 
-  endPreview = (): void => {
-    this.previews.live();
-  };
+  endPreview = (): void => this.previews.live();
 
   onCommit = async (action?: string): Promise<void> => {
     if (!this.initialised || !this.saves.open) return;
@@ -397,12 +390,15 @@ class EditorStore {
     await this.saves.commit($state.snapshot(this.edits) as Edits, replaying ? undefined : action);
   };
 
-  restoreHistoryEntry = (entryId: number): Promise<void> => this.saves.restoreEntry(entryId);
+  restoreHistoryEntry = (restore: EntryRestore): Promise<boolean> =>
+    this.history.restoreEntry(restore);
 
   restoreSnapshot = (snapshotId: string, name: string): Promise<boolean> =>
     this.history.restoreSnapshot(snapshotId, name);
 
   retrySave = (): Promise<void> => this.saves.retry();
+
+  settled = (): Promise<void> => this.saves.settled();
 
   canResetDevelop = $derived(develop.canResetDevelop(this));
 
@@ -427,20 +423,19 @@ class EditorStore {
     opts: ApplyPresetOptions,
     name?: string
   ): Promise<void> => {
-    this.presetPreview = null;
+    this.editsPreview = null;
     return develop.applyPreset(this, manifest, opts, name);
   };
 
-  previewPreset = (preview: PresetPreview): void => {
-    this.presetPreview = preview;
-    this.previews.live();
-  };
+  previewPreset = (preview: PresetPreview): void =>
+    this.previewEdits('preset', presetEdits($state.snapshot(this.edits) as Edits, preview));
 
-  endPresetPreview = (): void => {
-    if (!this.presetPreview) return;
-    this.presetPreview = null;
-    this.previews.live();
-  };
+  endPresetPreview = (): void => this.endEditsPreview('preset');
+
+  previewEdits = (owner: EditsPreviewOwner, edits: Edits): void =>
+    this.previews.showEdits({ owner, edits });
+
+  endEditsPreview = (owner: EditsPreviewOwner): void => this.previews.endEdits(owner);
 
   get autoBusy(): boolean {
     return this.autoRunning !== null;
@@ -713,9 +708,7 @@ class EditorStore {
 
   clearFlags = (): Promise<void> => metadata.clearFlags(this);
 
-  refreshScopes = (): void => {
-    this.previews.refreshBase();
-  };
+  refreshScopes = (): void => this.previews.refreshBase();
 
   startGeometrySession = (): void => {
     this.compare.end();

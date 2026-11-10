@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test';
+import { editsToManifest } from '../src/lib/edits/manifest';
+import { neutralEdits } from '../src/lib/types/edits';
 import {
   ASSET_ID,
   ASSET_SUMMARY,
   NEUTRAL_RECORD,
+  gotoAsset,
   installMocks,
   json,
-  gotoAsset,
   numberedAssets,
   openPresetMenu,
   openPresetStrip,
   presetAction
 } from './helpers';
-import { editsToManifest } from '../src/lib/edits/manifest';
-import { neutralEdits } from '../src/lib/types/edits';
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -477,6 +477,14 @@ test('the preset strip explains a disabled save and keeps failed thumbnails visi
 
 test('history restore waits for a save that is still in flight', async ({ page }) => {
   const entries = [
+    {
+      id: 2,
+      manifest_hash: 'hash-neutral',
+      deleted: false,
+      manifest: editsToManifest(neutralEdits()),
+      created_at: '2024-01-02T00:00:00Z',
+      action: 'Latest'
+    },
     {
       id: 1,
       manifest_hash: 'hash-prior',

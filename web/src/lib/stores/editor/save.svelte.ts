@@ -18,6 +18,7 @@ export interface SaveCtx {
   edits: Edits;
   saving: boolean;
   savedHash: string;
+  restoreCount: number;
   saveError: string | null;
   error: string | null;
   onLive(): void;
@@ -67,18 +68,20 @@ export class SaveQueue {
     return this.queueSave(session, $state.snapshot(this.ctx.edits) as Edits, this.lastAction);
   }
 
-  restoreEntry(entryId: number): Promise<void> {
+  restoreEntry(entryId: number): Promise<boolean> {
     const session = this.session;
-    if (!this.ctx.initialised || !session) return Promise.resolve();
+    if (!this.ctx.initialised || !session) return Promise.resolve(false);
     session.blocked = false;
     this.ctx.saveError = null;
+    let restored = false;
     const ticket = ++this.queued;
     return this.queueTask(session, async () => {
       if (this.session !== session) return;
       const saved = await restoreEdits(session.assetId, entryId);
       if (this.session !== session) return;
       this.adopt(session, ticket, saved);
-    });
+      restored = true;
+    }).then(() => restored);
   }
 
   restoreSnapshot(snapshotId: string): Promise<boolean> {
@@ -106,6 +109,7 @@ export class SaveQueue {
   private adopt(session: SaveSession, ticket: number, saved: EditRecord | null): void {
     session.hash = saved?.hash ?? '';
     this.ctx.savedHash = session.hash;
+    this.ctx.restoreCount++;
     this.ctx.saveError = null;
     this.ctx.error = null;
     if (ticket !== this.queued) return;

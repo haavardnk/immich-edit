@@ -12,6 +12,7 @@ function entry(over: Partial<EditHistoryEntry>): EditHistoryEntry {
     edits: neutralEdits(),
     created_at: '2024-01-01T00:00:00Z',
     action: null,
+    undone: false,
     ...over
   };
 }

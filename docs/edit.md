@@ -143,13 +143,16 @@ and white. The panel's dot resets all of them.
 ## Undo and history
 
 `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes. **Edit history**, next to **Copy edits** at the top of
-**Develop**, lists every saved state. Expand an entry to see what changed, and click it to go back
-to that state.
+**Develop**, lists every saved state, newest first, and marks the current one. Hover an entry to
+preview it on the photo, expand it to see what changed, and click it to jump to that state. The list
+stays open after a jump, and the message that confirms it has an **Undo** button. `Ctrl+Z` after a
+jump goes back to where you were. On a phone or tablet, open **More editor actions** > **History**
+and tap a step; the photo shows which step you are on.
 
 {: .note }
-Going back in **Edit history** keeps the later entries, so you can pick one of them to go forward
-again. Your next edit deletes them. Make a [virtual copy](#try-variations) if you want to keep both
-versions.
+Going back in **Edit history** keeps the newer entries. They are dimmed with a redo mark, and you
+can pick one of them to go forward again. Your next edit deletes them. Make a
+[virtual copy](#try-variations) if you want to keep both versions.
 
 **Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
 It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms

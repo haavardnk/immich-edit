@@ -108,6 +108,10 @@ const PRESET_HOVER: PresetPreview = {
   }),
   opts: { includeGeometry: false, includeMasks: false, amount: 50 }
 };
+const HISTORY_STEP: Edits = {
+  ...neutralEdits(),
+  basic: { ...neutralEdits().basic, clarity: -38 }
+};
 
 class DecodedImage {
   src = '';
@@ -138,7 +142,7 @@ function context(): PreviewCtx {
     showingOriginal: false,
     bypassedSection: null,
     isRaw: false,
-    presetPreview: null,
+    editsPreview: null,
     geometrySession: null,
     maskWeight: null,
     maskStroke: 'idle',
@@ -284,8 +288,13 @@ describe('preview lanes during a slider drag', () => {
     ],
     [
       'preset hover',
-      (c) => (c.presetPreview = PRESET_HOVER),
+      (c) => (c.editsPreview = { owner: 'preset', edits: presetEdits(c.edits, PRESET_HOVER) }),
       (e) => ({ mode: 'none', edits: presetEdits(e, PRESET_HOVER) })
+    ],
+    [
+      'history hover',
+      (c) => (c.editsPreview = { owner: 'history', edits: HISTORY_STEP }),
+      () => ({ mode: 'none', edits: HISTORY_STEP })
     ]
   ];
   const settles: Array<[string, (e: PreviewEngine) => void]> = [

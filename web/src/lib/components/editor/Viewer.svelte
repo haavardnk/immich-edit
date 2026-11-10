@@ -26,6 +26,7 @@
   import { runCommand } from '#lib/commands/command.ts';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
   import TargetOverlay from './TargetOverlay.svelte';
+  import PhotoPill from './PhotoPill.svelte';
 
   let {
     ontap = () => {},
@@ -39,6 +40,7 @@
   const dpr = $derived(devicePixelRatio.current || 1);
   let baseNat = $state<{ w: number; h: number } | null>(null);
   let dragging = $state(false);
+  const historyPill = $derived(editor.showingOriginal ? null : editor.historySteps.pill);
 
   const metrics = $derived(
     viewportMetrics(viewBox, baseNat ?? { w: 0, h: 0 }, editor.sourceLong, dpr)
@@ -216,5 +218,8 @@
         style="animation-delay: 300ms"
       ></div>
     </div>
+  {/if}
+  {#if historyPill}
+    <PhotoPill {...historyPill} class="[[data-arrangement=side]_&]:top-15" />
   {/if}
 </div>

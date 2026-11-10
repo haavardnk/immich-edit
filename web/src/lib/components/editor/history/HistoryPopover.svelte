@@ -1,6 +1,6 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
-  import HistoryList from '#lib/components/editor/HistoryList.svelte';
+  import HistoryList from './HistoryList.svelte';
   import SnapshotList from '#lib/components/editor/snapshots/SnapshotList.svelte';
   import { IconButton } from '@immich/ui';
   import { mdiHistory, mdiClose } from '@mdi/js';
@@ -51,5 +51,5 @@
   <div class="px-3 pt-2 pb-1 touch:hidden">
     <span class="text-[11px] uppercase tracking-wider text-dark/65">History</span>
   </div>
-  <HistoryList onRestored={close} />
+  <HistoryList />
 </Popover>

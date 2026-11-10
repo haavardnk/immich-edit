@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConflictError } from '#lib/api/client.ts';
 import { editsToManifest } from '#lib/edits/manifest.ts';
 import type { AssetDetail } from '#lib/types/asset.ts';
-import { neutralEdits, type EditRecord } from '#lib/types/edits.ts';
+import { neutralEdits, type EditRecord, type Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
 
 const mocks = vi.hoisted(() => ({
@@ -82,6 +82,12 @@ function deferred<T>(): {
   return { promise, resolve };
 }
 
+function restore(id: number, exposure: number): Promise<boolean> {
+  const edits = neutralEdits();
+  edits.basic.exposure_ev = exposure;
+  return editor.restoreHistoryEntry({ id, edits, from: null, label: `Step ${id}` });
+}
+
 function previewMeta(isRaw: boolean): PreviewMeta {
   return {
     asset_id: 'asset-1',
@@ -133,11 +139,49 @@ describe('editor save coordination', () => {
     expect(editor.saving).toBe(false);
   });
 
+  it('reports whether a history restore landed', async () => {
+    mocks.restoreEdits.mockResolvedValue(record('hash-restored', -1));
+    await expect(restore(1, -1)).resolves.toBe(true);
+
+    editor.unload();
+    await expect(restore(1, -1)).resolves.toBe(false);
+    expect(mocks.restoreEdits).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a commit queued behind a restore in the view and on the server', async () => {
+    const restored = deferred<EditRecord>();
+    mocks.restoreEdits.mockReturnValueOnce(restored.promise);
+    mocks.putEdits.mockResolvedValue(record('hash-after', 2));
+
+    const restoring = restore(1, -1);
+    await vi.waitFor(() => expect(mocks.restoreEdits).toHaveBeenCalledTimes(1));
+    editor.edits.basic.exposure_ev = 2;
+    const saving = editor.onCommit('Exposure');
+
+    restored.resolve(record('hash-restored', -1));
+    await Promise.all([restoring, saving]);
+
+    expect(editor.edits.basic.exposure_ev).toBe(2);
+    const [, sent, baseHash] = mocks.putEdits.mock.calls[0] as [string, Edits, string];
+    expect(sent.basic.exposure_ev).toBe(2);
+    expect(baseHash).toBe('hash-restored');
+    expect(editor.savedHash).toBe('hash-after');
+  });
+
+  it('restores a reset entry to neutral edits', async () => {
+    mocks.restoreEdits.mockResolvedValue(null);
+    editor.edits.basic.exposure_ev = 1;
+
+    await expect(restore(1, 0)).resolves.toBe(true);
+    expect(editor.edits.basic.exposure_ev).toBe(0);
+    expect(editor.savedHash).toBe('');
+  });
+
   it('uses a restored history hash for the next save', async () => {
     mocks.restoreEdits.mockResolvedValue(record('hash-restored', -1));
     mocks.putEdits.mockResolvedValue(record('hash-next', 2));
 
-    await editor.restoreHistoryEntry(1);
+    await restore(1, -1);
     expect(editor.edits.basic.exposure_ev).toBe(-1);
     expect(editor.savedHash).toBe('hash-restored');
 
@@ -154,7 +198,7 @@ describe('editor save coordination', () => {
     mocks.restoreEdits.mockResolvedValue(record('hash-restored', 0, true));
     editor.meta = previewMeta(true);
 
-    await editor.restoreHistoryEntry(1);
+    await restore(1, 0);
 
     expect(editor.edits.detail.ai_denoise).toBe(true);
     expect(mocks.startDenoise).toHaveBeenCalledWith('asset-1');
