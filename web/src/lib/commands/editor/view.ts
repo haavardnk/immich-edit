@@ -38,12 +38,12 @@ export const editorClipWarn = {
 export const beforeAfter = {
   id: 'editor.beforeAfter',
   contexts: ['editor'],
-  label: 'Before/After split',
+  label: 'Compare',
   icon: mdiCompare,
   bind: 'beforeAfter',
-  pressed: () => editor.splitMode,
+  pressed: () => editor.compare.mode !== 'off',
   enabled: () => !editor.geometrySession,
-  run: () => editor.toggleSplit()
+  run: () => editor.compare.cycle()
 } satisfies Command;
 
 export const holdOriginal = {

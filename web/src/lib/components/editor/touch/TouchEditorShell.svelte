@@ -19,6 +19,7 @@
   import ValueKeypad from './ValueKeypad.svelte';
   import { focusAdjust } from './focusAdjust';
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
+  import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -81,6 +82,9 @@
   >
     <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <Viewer ontap={tapPhoto} {adjust} />
+      {#if chrome && editor.compare.mode !== 'off'}
+        <CompareBar />
+      {/if}
       {#if editor.showingOriginal}
         <span
           role="status"

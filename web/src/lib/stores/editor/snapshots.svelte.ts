@@ -15,6 +15,7 @@ export interface SnapshotCtx {
   edits: Edits;
   savedHash: string;
   restoreSnapshot(id: string, name: string): Promise<boolean>;
+  readonly compare: { snapshotsChanged(): void };
 }
 
 export class SnapshotStore {
@@ -96,7 +97,10 @@ export class SnapshotStore {
     if (!assetId) return false;
     try {
       await deleteSnapshot(assetId, id);
-      if (this.assetId === assetId) this.items = this.items.filter((item) => item.id !== id);
+      if (this.assetId === assetId) {
+        this.items = this.items.filter((item) => item.id !== id);
+        this.ctx.compare.snapshotsChanged();
+      }
       if (this.restored === id) this.restored = null;
       return true;
     } catch (e) {
@@ -129,6 +133,7 @@ export class SnapshotStore {
       const updated = await updateSnapshot(assetId, id, change);
       if (this.assetId === assetId) {
         this.items = this.items.map((item) => (item.id === id ? updated : item));
+        this.ctx.compare.snapshotsChanged();
       }
       return true;
     } catch (e) {

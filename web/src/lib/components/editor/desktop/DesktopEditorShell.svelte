@@ -14,6 +14,7 @@
   import { mdiFullscreenExit } from '@mdi/js';
   import CommandPalette from './CommandPalette.svelte';
   import CurvePopout from './CurvePopout.svelte';
+  import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -38,6 +39,7 @@
             onclick={ui.toggleFullscreen}
           />
         {:else}
+          {#if editor.compare.mode !== 'off'}<CompareBar />{/if}
           <BottomBar />
         {/if}
       </main>

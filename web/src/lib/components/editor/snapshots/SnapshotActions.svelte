@@ -5,6 +5,7 @@
     mdiCameraRetakeOutline,
     mdiCheck,
     mdiClose,
+    mdiCompare,
     mdiDeleteOutline,
     mdiPencilOutline
   } from '@mdi/js';
@@ -41,6 +42,7 @@
 </script>
 
 <ActionSheet {open} {onOpenChange} onExited={exited} title={name} caption>
+  <MenuItem icon={mdiCompare} label="Compare with current" onclick={() => choose('compare')} />
   <MenuItem icon={mdiPencilOutline} label="Rename" onclick={() => choose('rename')} />
   <MenuItem
     icon={mdiCameraRetakeOutline}

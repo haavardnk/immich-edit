@@ -71,6 +71,7 @@ import type { PerspectiveEdits } from '#lib/utils/perspective.ts';
 import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 import type { UprightGuide } from '#lib/utils/upright.ts';
 import type { Roi } from '#lib/utils/viewGeometry.ts';
+import { CompareControl } from '#lib/stores/editor/compareControl.svelte.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -123,12 +124,10 @@ class EditorStore {
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
   presetPreview = $state.raw<PresetPreview | null>(null);
-  splitMode = $state(false);
-  splitPos = $state(0.5);
   proofSpace = $state<ColorSpaceOpt>('srgb');
   gamutWarn = $state(false);
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
-  originalUrl = $state<string | null>(null);
+  compareUrl = $state<string | null>(null);
   viewUrl = $state<string | null>(null);
   viewFrame = $state.raw<PreviewFrame | null>(null);
   viewRoi = $state<Roi | null>(null);
@@ -204,6 +203,9 @@ class EditorStore {
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
   readonly snapshots = new SnapshotStore(this);
+  readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
+    this.previews.compareChanged(wasOn)
+  );
 
   get sourceRevision(): string {
     return this.aiDenoise.revision;
@@ -243,11 +245,6 @@ class EditorStore {
 
   panBy = (step: PanStep): void => this.viewport.panBy(step);
 
-  toggleSplit = (): void => {
-    if (this.geometrySession) return;
-    this.previews.toggleSplit();
-  };
-
   setProofSpace = (space: ColorSpaceOpt): void => {
     if (this.proofSpace === space) return;
     this.proofSpace = space;
@@ -262,10 +259,6 @@ class EditorStore {
   toggleClipWarn = (): void => {
     ui.toggleClipWarn();
     this.previews.reproof();
-  };
-
-  setSplitPos = (p: number): void => {
-    this.splitPos = Math.min(1, Math.max(0, p));
   };
 
   async load(id: string): Promise<void> {
@@ -303,6 +296,7 @@ class EditorStore {
 
   unload(): void {
     this.previews.reset();
+    this.compare.reset();
     this.viewport.reset();
     this.depthPreview.reset();
     void geometry.endSession(this);
@@ -723,7 +717,10 @@ class EditorStore {
     this.previews.refreshBase();
   };
 
-  startGeometrySession = (): void => geometry.startSession(this);
+  startGeometrySession = (): void => {
+    this.compare.end();
+    geometry.startSession(this);
+  };
 
   endGeometrySession = (): Promise<void> => geometry.endSession(this);
 

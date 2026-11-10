@@ -1,1 +1,1 @@
-export type SnapshotAction = 'rename' | 'update' | 'delete';
+export type SnapshotAction = 'compare' | 'rename' | 'update' | 'delete';

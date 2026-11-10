@@ -23,7 +23,7 @@ import type { Roi } from '#lib/utils/viewGeometry.ts';
 import type { GeometrySession } from './geometry.svelte';
 import { ClientPreview } from './clientPreview';
 import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';
-import { OriginalPreview } from './originalPreview.svelte';
+import { CompareLeft, type CompareLeftCtx } from '#lib/stores/editor/compareLeft.svelte.ts';
 import {
   baseEdge,
   dragEdge,
@@ -55,21 +55,19 @@ export type BaseArgs = {
   purpose?: 'color-picker';
 };
 
-export interface PreviewCtx extends MaskWeightCtx {
+export interface PreviewCtx extends MaskWeightCtx, CompareLeftCtx {
   assetId: string | null;
   initialised: boolean;
   edits: Edits;
   meta: PreviewMeta | null;
   previewUrl: string | null;
   previewFrame: PreviewFrame | null;
-  originalUrl: string | null;
   viewUrl: string | null;
   viewFrame: PreviewFrame | null;
   viewRoi: Roi | null;
   viewNat: { w: number; h: number } | null;
   pending: boolean;
   error: string | null;
-  splitMode: boolean;
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
   readonly isRaw: boolean;
@@ -93,7 +91,7 @@ export class PreviewEngine {
   private deferred: BaseArgs | null = null;
   private lastBase: BaseArgs | null = null;
   private tiles: ViewTiles;
-  private original: OriginalPreview;
+  private left: CompareLeft;
   private weight: MaskWeight;
   private client: ClientPreview;
 
@@ -104,7 +102,7 @@ export class PreviewEngine {
       submitClient: (request) => this.client.submitTile(request, this.snapshotEdits()),
       cancelClient: () => this.client.cancelTile()
     });
-    this.original = new OriginalPreview(ctx, {
+    this.left = new CompareLeft(ctx, {
       proof: () => this.proofOptions(),
       edge: () => baseEdge(this.viewSnap, this.budget)
     });
@@ -120,7 +118,7 @@ export class PreviewEngine {
       onFallback: () => {
         if (this.lastBase) this.flight.submit(this.lastBase);
       },
-      refreshOriginal: () => this.original.refresh()
+      refreshLeft: () => this.left.refresh()
     });
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => this.resume());
@@ -169,7 +167,7 @@ export class PreviewEngine {
       this.markPickerReady(args.purpose);
       if (previewModeIsNone(args.previewMode)) {
         if (result.metaId) void this.loadMeta(result.metaId);
-        if (this.ctx.splitMode) this.original.refresh();
+        this.left.refresh();
       }
     },
     (err) => {
@@ -254,16 +252,15 @@ export class PreviewEngine {
     this.dropFrame();
   }
 
-  toggleSplit(): void {
+  compareChanged(wasOn: boolean): void {
     this.clearView();
-    this.ctx.splitMode = !this.ctx.splitMode;
-    if (this.ctx.splitMode) {
-      this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
-      this.original.refresh();
-    } else {
-      this.original.drop();
+    if (this.ctx.compare.mode === 'off') {
+      this.left.drop();
       this.scheduleIdle();
+      return;
     }
+    if (!wasOn) this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
+    this.left.refresh();
   }
 
   reproof(): void {
@@ -271,7 +268,7 @@ export class PreviewEngine {
     this.clearView();
     this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
     this.scheduleIdle();
-    if (this.ctx.splitMode) this.original.refresh(true);
+    this.left.refresh(true);
   }
 
   onViewChange(snap: ViewSnapshot): void {
@@ -312,9 +309,8 @@ export class PreviewEngine {
     if (this.ctx.previewUrl?.startsWith('blob:')) revoke(this.ctx.previewUrl);
     this.ctx.previewUrl = null;
     this.dropFrame();
-    this.original.drop();
+    this.left.drop();
     this.weight.drop();
-    this.ctx.splitMode = false;
   }
 
   private snapshotEdits(): Edits {
@@ -391,7 +387,7 @@ export class PreviewEngine {
 
   private fireIdle(): void {
     if (!this.ctx.initialised) return;
-    if (this.ctx.splitMode) {
+    if (this.ctx.compare.mode !== 'off') {
       this.submitBase(this.settledArgs(baseEdge(this.viewSnap, this.budget)));
       return;
     }
@@ -413,7 +409,7 @@ export class PreviewEngine {
     return (
       !this.ctx.initialised ||
       !this.ctx.assetId ||
-      this.ctx.splitMode ||
+      this.ctx.compare.mode !== 'off' ||
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
       !!this.ctx.presetPreview ||

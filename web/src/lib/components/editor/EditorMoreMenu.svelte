@@ -38,7 +38,9 @@
     <IconButton
       size="small"
       variant="ghost"
-      color={editor.isProofing || ui.clipWarn || editor.splitMode ? 'primary' : 'secondary'}
+      color={editor.isProofing || ui.clipWarn || editor.compare.mode !== 'off'
+        ? 'primary'
+        : 'secondary'}
       {icon}
       title=""
       aria-label="More editor actions"

@@ -2,7 +2,7 @@ import { gestures } from '#lib/gestures/gestures.ts';
 import { longPressRecognizer } from '#lib/gestures/longPress.ts';
 import { panRecognizer } from '#lib/gestures/pan.ts';
 import { pinchRecognizer, type PinchUpdate } from '#lib/gestures/pinch.ts';
-import { centredPoint, type Point } from '#lib/gestures/point.ts';
+import { centredPoint, type Box, type ClientPoint, type Point } from '#lib/gestures/point.ts';
 import { tapRecognizer } from '#lib/gestures/tap.ts';
 import {
   FIT_VIEW,
@@ -27,6 +27,7 @@ export type ViewerAdjust = {
 
 export type ViewerGestureSpec = {
   element: () => Element | null;
+  anchor?: (point: ClientPoint) => Element | Box | null;
   metrics: () => ViewportMetrics;
   view: () => View;
   apply: (view: View, change: ViewChange) => void;
@@ -47,8 +48,9 @@ export function viewerGestures(spec: ViewerGestureSpec): Attachment<HTMLElement>
   }
 
   function centred(point: Point): Point {
-    const element = spec.element();
-    return element ? centredPoint({ clientX: point.x, clientY: point.y }, element) : point;
+    const client = { clientX: point.x, clientY: point.y };
+    const element = spec.anchor?.(client) ?? spec.element();
+    return element ? centredPoint(client, element) : point;
   }
 
   function toggleZoom(point: Point): void {

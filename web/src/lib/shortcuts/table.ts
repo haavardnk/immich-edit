@@ -518,7 +518,7 @@ export const KEYBINDS = [
     keys: ['y'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Toggle the before / after split'
+    label: 'Cycle compare: split, side by side, off'
   },
   {
     id: 'holdOriginal',

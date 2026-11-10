@@ -85,21 +85,18 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'rgb(',
     'text-white'
   ],
-  '/src/lib/components/editor/Viewer.svelte': [
-    'bg-black/65',
-    'bg-black/70',
-    'bg-white',
-    'bg-white/90',
-    'border-black/40',
-    'ring-white/10',
-    'text-black/70',
-    'text-white',
-    'text-white/85'
-  ],
+  '/src/lib/components/editor/Viewer.svelte': ['bg-black/70', 'ring-white/10', 'text-white/85'],
   '/src/lib/components/editor/WhiteBalancePicker.svelte': [
     'bg-black/75',
     'text-white',
     'text-white/60'
+  ],
+  '/src/lib/components/editor/compare/CompareLabel.svelte': ['bg-black/55', 'text-white'],
+  '/src/lib/components/editor/compare/CompareSplit.svelte': [
+    'bg-white',
+    'bg-white/90',
+    'border-black/40',
+    'text-black/70'
   ],
   '/src/lib/components/preset/PresetTile.svelte': ['bg-black/55', 'from-black/80', 'text-white/90'],
   '/src/lib/components/shell/Filmstrip.svelte': ['from-black/75', 'text-white'],

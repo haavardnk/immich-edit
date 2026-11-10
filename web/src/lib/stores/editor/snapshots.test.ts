@@ -247,4 +247,25 @@ describe('editor snapshots', () => {
     expect(mocks.deleteSnapshot).toHaveBeenCalledWith('asset-1', 'snap-1');
     expect(editor.snapshots.items.map((item) => item.id)).toEqual(['snap-warm']);
   });
+
+  it('compares the original again when the compared snapshot is deleted', async () => {
+    mocks.deleteSnapshot.mockResolvedValue(undefined);
+    editor.compare.open({ kind: 'snapshot', id: 'snap-warm' });
+    expect(editor.compare.mode).toBe('side');
+    await editor.snapshots.remove('snap-warm');
+    expect(editor.compare.mode).toBe('side');
+    expect(editor.compare.source).toEqual({ kind: 'original' });
+  });
+
+  it('ends compare when a geometry session starts or the asset unloads', async () => {
+    editor.compare.open({ kind: 'snapshot', id: 'snap-warm' });
+    editor.startGeometrySession();
+    expect(editor.compare.mode).toBe('off');
+    await editor.endGeometrySession();
+    editor.compare.open({ kind: 'snapshot', id: 'snap-warm' });
+    expect(editor.compare.mode).toBe('side');
+    editor.unload();
+    expect(editor.compare.mode).toBe('off');
+    expect(editor.compare.source).toEqual({ kind: 'original' });
+  });
 });

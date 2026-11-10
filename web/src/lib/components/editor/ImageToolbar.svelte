@@ -7,7 +7,7 @@
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { redo, undo } from '#lib/commands/editor/edits.ts';
   import { editorBack } from '#lib/commands/editor/navigation.ts';
-  import { holdOriginal } from '#lib/commands/editor/view.ts';
+  import { beforeAfter, holdOriginal } from '#lib/commands/editor/view.ts';
 
   let moreAnchor = $state<HTMLElement | null>(null);
 
@@ -63,6 +63,7 @@
     </div>
     <div class="hidden shrink-0 items-center gap-0.5 xl:flex">
       <CommandIconButton command={holdOriginal} size="small" variant="ghost" />
+      <CommandIconButton command={beforeAfter} size="small" variant="ghost" />
     </div>
 
     {#if editor.assetId}

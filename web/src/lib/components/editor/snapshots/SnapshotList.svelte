@@ -6,6 +6,8 @@
   import NewSnapshotRow from './NewSnapshotRow.svelte';
   import SnapshotRow from './SnapshotRow.svelte';
 
+  let { oncompare = () => {} }: { oncompare?: () => void } = $props();
+
   const store = editor.snapshots;
 
   let list = $state<HTMLElement | null>(null);
@@ -44,6 +46,7 @@
           onrename={() => (editingId = snapshot.id)}
           onendrename={() => (editingId = null)}
           onremoved={() => void removed(index)}
+          {oncompare}
         />
       {/each}
     </ul>

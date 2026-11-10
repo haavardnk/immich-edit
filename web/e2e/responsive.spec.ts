@@ -445,12 +445,7 @@ test('the editor fits at the desktop breakpoint', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeVisible();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
   await page.getByRole('button', { name: 'More editor actions' }).click();
-  for (const name of [
-    'Create virtual copy',
-    'Hold for original',
-    'Before/After split',
-    'Clipping overlay'
-  ]) {
+  for (const name of ['Create virtual copy', 'Hold for original', 'Compare', 'Clipping overlay']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
   }
   expect(await sidewaysScrollers(page)).toEqual([]);

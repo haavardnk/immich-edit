@@ -127,7 +127,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+P`      | Show or hide the presets strip                          | Editor              |
 | `Ctrl+'`       | Create a virtual copy                                   | Grid, Loupe, Editor |
 | `Ctrl+Shift+S` | Save a snapshot of the current edits                    | Editor              |
-| `Y`            | Toggle the before / after split                         | Editor              |
+| `Y`            | Cycle compare: split, side by side, off                 | Editor              |
 | `\` / `<`      | Hold to view the original                               | Editor              |
 | `Tab`          | Hide or show the side panels                            | Editor              |
 | `Shift+Tab`    | Hide or show every panel                                | Editor              |

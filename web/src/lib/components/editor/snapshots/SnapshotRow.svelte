@@ -14,6 +14,7 @@
   import { Button, Icon, IconButton } from '@immich/ui';
   import {
     mdiCameraRetakeOutline,
+    mdiCompare,
     mdiDotsHorizontal,
     mdiPencilOutline,
     mdiStarOutline
@@ -26,7 +27,8 @@
     editing,
     onrename,
     onendrename,
-    onremoved
+    onremoved,
+    oncompare
   }: {
     snapshot: EditSnapshot;
     restored: boolean;
@@ -34,6 +36,7 @@
     onrename: () => void;
     onendrename: () => void;
     onremoved: () => void;
+    oncompare: () => void;
   } = $props();
 
   let row = $state<HTMLElement | null>(null);
@@ -42,6 +45,11 @@
   let actionsOpen = $state(false);
 
   const store = editor.snapshots;
+  const compared = $derived(
+    editor.compare.mode !== 'off' &&
+      editor.compare.source.kind === 'snapshot' &&
+      editor.compare.source.id === snapshot.id
+  );
   const touch = $derived(layout.mode === 'touch');
   const thumb = $derived(touch ? store.thumbs.url(snapshot.manifest_hash) : null);
   const sheet = presence(() => actionsOpen);
@@ -89,8 +97,14 @@
     if (await store.remove(snapshot.id)) onremoved();
   }
 
+  function compare(): void {
+    editor.compare.open({ kind: 'snapshot', id: snapshot.id });
+    oncompare();
+  }
+
   function act(action: SnapshotAction): void {
-    if (action === 'rename') onrename();
+    if (action === 'compare') compare();
+    else if (action === 'rename') onrename();
     else if (action === 'update') void store.updateWithCurrent(snapshot.id);
     else void remove();
   }
@@ -161,6 +175,12 @@
                 >Restored</span
               >
             {/if}
+            {#if compared}
+              <span
+                class="hidden shrink-0 text-[11px] font-semibold tracking-wider text-primary uppercase touch:inline"
+                >Compared</span
+              >
+            {/if}
           </span>
           <span class="hidden text-[13px] text-dark/65 touch:block">
             {formatDay(snapshot.updated_at)}
@@ -171,7 +191,7 @@
             ? 'hidden'
             : 'group-hover:hidden group-focus-within:hidden'}"
         >
-          {formatAgo(snapshot.updated_at)}
+          {compared ? 'Compared' : formatAgo(snapshot.updated_at)}
         </span>
       </Button>
     </div>
@@ -180,6 +200,16 @@
         ? 'flex'
         : 'hidden group-hover:flex group-focus-within:flex'}"
     >
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiCompare}
+        title="Compare with current"
+        aria-label="Compare {snapshot.name}"
+        disabled={!!editor.geometrySession}
+        onclick={compare}
+      />
       <IconButton
         size="tiny"
         variant="ghost"

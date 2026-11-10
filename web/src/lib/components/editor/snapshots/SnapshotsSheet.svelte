@@ -24,5 +24,5 @@
   bodyClass="pb-2"
   {@attach liftToasts}
 >
-  <SnapshotList />
+  <SnapshotList oncompare={() => onOpenChange(false)} />
 </BottomSheet>

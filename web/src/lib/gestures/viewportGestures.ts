@@ -1,5 +1,5 @@
 import { pointerDrag, type DragHandlers } from '#lib/gestures/drag.ts';
-import { centredPoint, type ClientPoint, type Point } from '#lib/gestures/point.ts';
+import { centredPoint, type Box, type ClientPoint, type Point } from '#lib/gestures/point.ts';
 import type { PointerKind } from '#lib/gestures/pointers.ts';
 import { DEFAULT_THRESHOLDS } from '#lib/gestures/thresholds.ts';
 import { held } from '#lib/input/modifiers.svelte.ts';
@@ -15,6 +15,7 @@ import {
 
 export type ViewportGestureSpec = {
   element: () => Element | null;
+  anchor?: (point: ClientPoint) => Element | Box | null;
   metrics: () => ViewportMetrics;
   view: () => View;
   apply: (view: View, e: MouseEvent | undefined, change: ViewChange) => void;
@@ -102,7 +103,7 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
   }
 
   function zoomAt(point: ClientPoint, zoom: number, e?: MouseEvent): void {
-    const element = spec.element();
+    const element = spec.anchor?.(point) ?? spec.element();
     const anchor = element ? centredPoint(point, element) : { x: 0, y: 0 };
     spec.apply(zoomAround(spec.metrics(), spec.view(), zoom, anchor), e, 'zoom');
   }

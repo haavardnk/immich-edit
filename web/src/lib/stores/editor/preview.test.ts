@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PreviewMode, RenderLane } from '#lib/api/preview.ts';
 import type { RenderView, RenderedFrame } from '#lib/render/protocol.ts';
 import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
+import { ORIGINAL_SOURCE, type CompareMode } from '#lib/editor/compare.ts';
 import {
   neutralEdits,
   originalPreviewEdits,
@@ -125,14 +126,15 @@ function context(): PreviewCtx {
     meta: null,
     previewUrl: null,
     previewFrame: null,
-    originalUrl: null,
+    compareUrl: null,
+    compare: { mode: 'off', source: ORIGINAL_SOURCE },
+    snapshots: { items: [] },
     viewUrl: null,
     viewFrame: null,
     viewRoi: null,
     viewNat: null,
     pending: false,
     error: null,
-    splitMode: false,
     showingOriginal: false,
     bypassedSection: null,
     isRaw: false,
@@ -290,7 +292,13 @@ describe('preview lanes during a slider drag', () => {
     ['live', (e) => e.live()],
     ['reproof', (e) => e.reproof()],
     ['refreshBase', (e) => e.refreshBase()],
-    ['toggleSplit', (e) => e.toggleSplit()]
+    [
+      'compare',
+      (e) => {
+        (ctx.compare as { mode: CompareMode }).mode = 'split';
+        e.compareChanged(false);
+      }
+    ]
   ];
 
   it.each(

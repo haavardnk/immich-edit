@@ -43,8 +43,7 @@ export interface MaskLayersCtx {
     mode: MaskComponentMode;
     points: Vec2f[];
   } | null;
-  splitMode: boolean;
-  toggleSplit(): void;
+  readonly compare: { end(): void };
   onLive(): void;
   onCommit(action?: string): Promise<void>;
 }
@@ -128,7 +127,7 @@ export function beginColorPicker(ctx: MaskLayersCtx, layerId: string, componentI
   const layer = ctx.edits.masks.find((item) => item.id === layerId);
   const component = layer?.components.find((item) => item.id === componentId);
   if (!component || component.kind.kind !== 'color_range') return;
-  if (ctx.splitMode) ctx.toggleSplit();
+  ctx.compare.end();
   ctx.colorPicker = { layerId, componentId, ready: false };
   ctx.onLive();
 }
