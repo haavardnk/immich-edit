@@ -72,6 +72,12 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'rgb('
   ],
   '/src/lib/components/editor/PerspectiveCorners.svelte': ['border-black/60'],
+  '/src/lib/components/editor/TargetCallout.svelte': [
+    'bg-black/75',
+    'text-white',
+    'text-white/60',
+    'text-white/80'
+  ],
   '/src/lib/components/editor/UprightGuides.svelte': [
     'bg-black/70',
     'border-black/60',

@@ -35,6 +35,7 @@
   let dragging: number | null = $state(null);
   let keyboardDirty = $state(false);
   let grab: { point: SvgPoint; last: SvgPoint } | null = null;
+  let shownChannel = untrack(() => channel);
 
   const channelStroke: Record<CurveChannel, string> = {
     composite: 'var(--color-image-light)',
@@ -61,7 +62,9 @@
   const bottom = $derived(plot.height - plot.pad);
 
   $effect(() => {
-    void channel;
+    const next = channel;
+    if (next === shownChannel) return;
+    shownChannel = next;
     untrack(() => {
       dragging = null;
       selected = null;

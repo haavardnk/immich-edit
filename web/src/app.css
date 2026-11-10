@@ -339,6 +339,10 @@
   );
 }
 
+@utility fade-r {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
 @utility safe-frame {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }

@@ -30,6 +30,7 @@
   import { viewerGestures, type ViewerAdjust } from '#lib/editor/viewerGestures.ts';
   import { runCommand } from '#lib/commands/command.ts';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
+  import TargetOverlay from './TargetOverlay.svelte';
 
   let {
     ontap = () => {},
@@ -239,6 +240,7 @@
       <MaskWeight img={imgEl} />
       <MaskOverlay img={imgEl} />
       <WhiteBalancePicker img={imgEl} />
+      <TargetOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />
       <RetouchOverlay img={imgEl} />

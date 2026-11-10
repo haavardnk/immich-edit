@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CurvePoint } from '#lib/types/edits.ts';
-import { dragPoint, hermite, insertPoint, nudgePoint, removePoint } from './curves';
+import { dragPoint, hermite, insertPoint, nudgePoint, pickPoint, removePoint } from './curves';
 
 const IDENTITY: CurvePoint[] = [
   { x: 0, y: 0 },
@@ -78,5 +78,19 @@ describe('point editing', () => {
     [1, [0, 0.75, 1]]
   ])('removePoint %i', (idx, xs) => {
     expect(removePoint(S_CURVE, idx)?.map((p) => p.x) ?? null).toEqual(xs);
+  });
+});
+
+describe('pickPoint', () => {
+  it('selects the point nearest the tone when it is close', () => {
+    expect(pickPoint(S_CURVE, 0.27)).toEqual({ points: S_CURVE, index: 1 });
+    expect(pickPoint(S_CURVE, 0.99)).toEqual({ points: S_CURVE, index: 3 });
+  });
+
+  it('adds a point on the curve when none is close', () => {
+    const { points, index } = pickPoint(S_CURVE, 0.5);
+    expect(index).toBe(2);
+    expect(points).toHaveLength(5);
+    expect(points[2]).toEqual({ x: 0.5, y: hermite(S_CURVE, 0.5) });
   });
 });

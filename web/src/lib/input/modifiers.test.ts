@@ -36,7 +36,9 @@ const TABLE: Record<ModifierRole, Key> = {
   resetAll: 'shift',
   resize: 'alt',
   hardness: 'shift',
-  lineBreak: 'shift'
+  lineBreak: 'shift',
+  hueAxis: 'alt',
+  lightnessAxis: 'shift'
 };
 
 const PRESSES: [Key, ModifierKeys][] = [

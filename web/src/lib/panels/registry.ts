@@ -13,12 +13,15 @@ import LensPanel from './Lens.svelte';
 import LensBlurPanel from './LensBlur.svelte';
 import EffectsPanel from './Effects.svelte';
 import CurvePopOutButton from './curves/CurvePopOutButton.svelte';
+import { targetToolOf } from '#lib/editor/targetTools.ts';
+import type { TargetTool } from '#lib/stores/targetAdjust.svelte.ts';
 
 export interface PanelDef {
   id: DesktopPanelId;
   title: string;
   component: Component;
   actions?: Component;
+  target?: TargetTool;
   defaultOpen: boolean;
 }
 
@@ -49,6 +52,7 @@ export const developPanels: PanelDef[] = DESKTOP_PANELS.map(({ id, title }) => (
   title,
   component: COMPONENTS[id],
   actions: ACTIONS[id],
+  target: targetToolOf(id) ?? undefined,
   defaultOpen: DEFAULT_OPEN.includes(id)
 }));
 

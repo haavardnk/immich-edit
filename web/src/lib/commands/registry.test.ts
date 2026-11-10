@@ -97,6 +97,7 @@ describe('command registry', () => {
     ).toEqual([
       'editor.closePopovers',
       'editor.closeHelp',
+      'develop.exitTarget',
       'geometry.closeTool',
       'retouch.stopSampling',
       'retouch.deselect',

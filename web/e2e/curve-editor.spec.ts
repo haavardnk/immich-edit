@@ -89,6 +89,7 @@ test.describe('wide curve on desktop', () => {
     await expect(popout).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}`));
     const inspector = page.getByRole('application', { name: 'Curves – Red' });
-    await expect(inspector.locator('circle')).toHaveCount(3);
+    await expect(inspector.locator('circle')).toHaveCount(4);
+    await expect(page.getByRole('button', { name: 'Edit Out value' })).toBeVisible();
   });
 });

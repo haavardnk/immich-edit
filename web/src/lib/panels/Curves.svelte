@@ -1,5 +1,6 @@
 <script lang="ts">
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import TargetButton from '#lib/components/editor/controls/TargetButton.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import { CURVES } from '#lib/editor/params/basic.ts';
   import { held } from '#lib/input/modifiers.svelte.ts';
@@ -9,11 +10,9 @@
   import { CURVE_CHANNELS, identityCurve, type CurveChannel } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
-  import CurvesCanvas from './curves/CurvesCanvas.svelte';
   import CurvePointBar from './curves/CurvePointBar.svelte';
+  import CurvesCanvas from './curves/CurvesCanvas.svelte';
   import { CHANNEL_LABELS } from './curves/curves';
-
-  let selected = $state<number | null>(null);
 
   const channel = $derived(curveEditor.channel);
 
@@ -33,12 +32,12 @@
 
   function resetActive(): void {
     editor.edits.basic.curves = { ...editor.edits.basic.curves, [channel]: identityCurve() };
-    selected = null;
+    curveEditor.selected = null;
     void editor.onCommit(`Reset Curve ${CHANNEL_LABELS[channel]}`);
   }
 
   function resetAll(): void {
-    selected = null;
+    curveEditor.selected = null;
     commitSectionReset(CURVES);
   }
 </script>
@@ -49,7 +48,7 @@
       bind:value={() => channel, (v) => (curveEditor.channel = v as CurveChannel)}
       orientation="horizontal"
       aria-label="Curve channel"
-      class="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hidden touch:gap-1.5"
+      class="flex min-w-0 flex-1 gap-1 overflow-x-auto scrollbar-hidden touch:gap-1.5 touch:pr-7 touch:fade-r"
     >
       {#each CURVE_CHANNELS as ch (ch)}
         <Tooltip text={CHANNEL_LABELS[ch]}>
@@ -74,6 +73,8 @@
         </Tooltip>
       {/each}
     </RadioGroup.Root>
+    <span aria-hidden="true" class="mr-1 hidden h-5 w-px shrink-0 bg-hairline touch:block"></span>
+    <TargetButton tool="curves" class="hidden touch:inline-flex" />
     <ResetButton
       title="Reset {CHANNEL_LABELS[channel]} curve  —  {keyLabel(
         'Shift'
@@ -83,6 +84,12 @@
     />
   </div>
 
-  <CurvesCanvas {channel} bind:selected />
-  <CurvePointBar {channel} bind:selected />
+  <CurvesCanvas
+    {channel}
+    bind:selected={() => curveEditor.selected, (index) => (curveEditor.selected = index)}
+  />
+  <CurvePointBar
+    {channel}
+    bind:selected={() => curveEditor.selected, (index) => (curveEditor.selected = index)}
+  />
 </div>

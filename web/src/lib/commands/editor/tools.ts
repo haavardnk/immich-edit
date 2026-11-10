@@ -15,6 +15,9 @@ import type { MaskComponentKind } from '#lib/types/edits.ts';
 import { defaultLinear, defaultRadial } from '#lib/types/masks.ts';
 import { stepBrush } from '#lib/utils/brushSize.ts';
 import { mdiMagnify } from '@mdi/js';
+import { showTargetTool } from '#lib/editor/targetSession.ts';
+import { TARGET_TOOLS, targetAvailable } from '#lib/editor/targetTools.ts';
+import { targetAdjust } from '#lib/stores/targetAdjust.svelte.ts';
 
 function addShapeLayer(id: string, bind: KeybindId, kind: () => MaskComponentKind): Command {
   return {
@@ -34,6 +37,12 @@ function pickWhiteBalance(): void {
     if (editor.wbPicking) return;
   }
   editor.toggleWbPicker();
+}
+
+function toggleTargetAdjust(): void {
+  ui.openTab('develop');
+  targetAdjust.toggle(targetAvailable(targetAdjust.last, editor.edits) ? targetAdjust.last : 'hsl');
+  if (targetAdjust.tool) showTargetTool(TARGET_TOOLS[targetAdjust.tool]);
 }
 
 function stepSize(key: string): void {
@@ -75,6 +84,13 @@ export const TOOL_COMMANDS: readonly Command[] = [
     bind: 'pickWhiteBalance',
     enabled: () => !editor.wbBusy,
     run: pickWhiteBalance
+  },
+  {
+    id: 'editor.targetAdjust',
+    contexts: ['editor'],
+    bind: 'targetAdjust',
+    enabled: () => !!editor.assetId,
+    run: toggleTargetAdjust
   },
   {
     id: 'geometry.straighten',

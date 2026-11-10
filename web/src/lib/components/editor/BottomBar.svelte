@@ -13,6 +13,8 @@
   import SaveStatus from '#lib/components/editor/SaveStatus.svelte';
   import { Button } from '@immich/ui';
   import { mdiFilmstrip, mdiPaletteSwatchOutline } from '@mdi/js';
+  import TargetStatus from '#lib/components/editor/desktop/TargetStatus.svelte';
+  import { targetAdjust } from '#lib/stores/targetAdjust.svelte.ts';
 
   const cull = $derived(editor.asset ? cullState(editor.asset) : null);
   const hasFilmstrip = $derived(browsing.visible.length > 0);
@@ -29,7 +31,9 @@
     <div
       class="col-span-2 -my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1 @xl:col-span-1"
     >
-      {#if cull}
+      {#if targetAdjust.tool}
+        <TargetStatus />
+      {:else if cull}
         <DisabledReason
           locked={!cull.owned}
           reason={NOT_OWNER}
