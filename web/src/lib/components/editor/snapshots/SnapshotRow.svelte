@@ -2,7 +2,7 @@
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import SnapshotActions from './SnapshotActions.svelte';
-  import SnapshotNameField from './SnapshotNameField.svelte';
+  import NameField from '#lib/components/NameField.svelte';
   import type { SnapshotAction } from './snapshotAction.ts';
   import type { EditSnapshot } from '#lib/api/snapshots.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
@@ -126,7 +126,7 @@
         class="shrink-0 opacity-70 touch:hidden"
         aria-hidden="true"
       />
-      <SnapshotNameField
+      <NameField
         initial={snapshot.name}
         ariaLabel="Snapshot name"
         onsave={rename}

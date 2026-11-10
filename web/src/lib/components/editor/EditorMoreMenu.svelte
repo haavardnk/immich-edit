@@ -1,40 +1,57 @@
 <script lang="ts">
-  import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
-  import SoftProofControl from './SoftProofControl.svelte';
-  import VersionsList from './VersionsList.svelte';
-  import HistorySheet from './history/HistorySheet.svelte';
-  import SnapshotsSheet from './snapshots/SnapshotsSheet.svelte';
-  import Popover from '#lib/components/Popover.svelte';
-  import CommandList from '#lib/components/CommandList.svelte';
-  import MenuRow from '#lib/components/MenuRow.svelte';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
   import { EDITOR_MORE_MENU, EDITOR_VIEW_MENU } from '#lib/commands/menus.ts';
-  import { Icon, IconButton } from '@immich/ui';
-  import { mdiCameraOutline, mdiChevronRight, mdiDotsVertical, mdiHistory } from '@mdi/js';
+  import CommandList from '#lib/components/CommandList.svelte';
+  import Popover from '#lib/components/Popover.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
+  import { IconButton } from '@immich/ui';
+  import { mdiCameraOutline, mdiContentDuplicate, mdiDotsVertical, mdiHistory } from '@mdi/js';
+  import SoftProofControl from './SoftProofControl.svelte';
+  import HistorySheet from './history/HistorySheet.svelte';
+  import EditRows from './more/EditRows.svelte';
+  import SheetRow from './more/SheetRow.svelte';
+  import SnapshotsSheet from './snapshots/SnapshotsSheet.svelte';
+  import VersionsList from './versions/VersionsList.svelte';
+  import VersionsSheet from './versions/VersionsSheet.svelte';
+
+  type Sheet = 'history' | 'snapshots' | 'versions';
 
   let { icon = mdiDotsVertical }: { icon?: string } = $props();
 
   let open = $state(false);
-  let snapshotsOpen = $state(false);
-  let snapshotsNext = false;
-  let historyOpen = $state(false);
-  let historyNext = false;
+  let sheet = $state<Sheet | null>(null);
+  let after: (() => void) | null = null;
+
+  const touch = $derived(layout.mode === 'touch');
 
   function setOpen(next: boolean): void {
     open = next;
     if (next) {
-      void editor.historySteps.refresh();
+      if (touch) {
+        void editor.historySteps.refresh();
+        void editor.versions.load();
+      }
       return;
     }
-    if (historyNext) {
-      historyNext = false;
-      historyOpen = true;
-    }
-    if (!snapshotsNext) return;
-    snapshotsNext = false;
-    snapshotsOpen = true;
+    const action = after;
+    after = null;
+    action?.();
+  }
+
+  function then(action: () => void): void {
+    after = action;
+  }
+
+  function show(name: Sheet): void {
+    then(() => (sheet = name));
+  }
+
+  function sheetChange(name: Sheet, next: boolean): void {
+    if (next) sheet = name;
+    else if (sheet === name) sheet = null;
   }
 </script>
 
@@ -60,32 +77,33 @@
     />
   {/snippet}
   <div class="flex flex-col">
-    <MenuRow
-      icon={mdiCameraOutline}
-      label="Snapshots"
-      class="hidden touch:flex"
-      aria-label="Snapshots"
-      disabled={!editor.initialised}
-      onclick={() => (snapshotsNext = true)}
-    >
-      <span class="shrink-0 text-[13px] text-dark/65">{editor.snapshots.items.length}</span>
-      <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
-    </MenuRow>
-    <MenuRow
+    <SheetRow
       icon={mdiHistory}
       label="History"
-      class="hidden touch:flex"
-      aria-label="History"
+      detail={countOf(editor.historySteps.entries.length, 'step')}
       disabled={!editor.initialised}
-      onclick={() => (historyNext = true)}
-    >
-      <span class="shrink-0 text-[13px] text-dark/65"
-        >{countOf(editor.historySteps.entries.length, 'step')}</span
-      >
-      <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
-    </MenuRow>
-    <VersionsList onnavigate={() => (open = false)} />
+      onclick={() => show('history')}
+    />
+    <SheetRow
+      icon={mdiCameraOutline}
+      label="Snapshots"
+      detail={String(editor.snapshots.items.length)}
+      disabled={!editor.initialised}
+      onclick={() => show('snapshots')}
+    />
+    <SheetRow
+      icon={mdiContentDuplicate}
+      label="Versions and copies"
+      detail={countOf(editor.versions.copies.length, 'copy', 'copies')}
+      disabled={!editor.initialised}
+      onclick={() => show('versions')}
+    />
+    {#if !touch}
+      <VersionsList onnavigate={() => (open = false)} />
+    {/if}
     <div class="my-1 border-t border-dark/10"></div>
+    <EditRows {then} />
+    <div class="my-1 hidden border-t border-dark/10 touch:block"></div>
     <span class="px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase">View</span>
     <CommandList
       menu={EDITOR_VIEW_MENU}
@@ -99,5 +117,9 @@
   </div>
 </Popover>
 
-<SnapshotsSheet open={snapshotsOpen} onOpenChange={(next) => (snapshotsOpen = next)} />
-<HistorySheet open={historyOpen} onOpenChange={(next) => (historyOpen = next)} />
+<HistorySheet open={sheet === 'history'} onOpenChange={(next) => sheetChange('history', next)} />
+<SnapshotsSheet
+  open={sheet === 'snapshots'}
+  onOpenChange={(next) => sheetChange('snapshots', next)}
+/>
+<VersionsSheet open={sheet === 'versions'} onOpenChange={(next) => sheetChange('versions', next)} />

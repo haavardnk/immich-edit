@@ -257,7 +257,7 @@
                         class="flex min-h-12 items-center gap-1 border-b border-hairline pr-1.5 pl-4"
                       >
                         <div
-                          class="flex min-h-11 min-w-0 shrink items-center gap-2"
+                          class="flex min-h-11 min-w-0 shrink flex-wrap items-center gap-x-2"
                           {@attach titleDrag}
                         >
                           <Dialog.Title

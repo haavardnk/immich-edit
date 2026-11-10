@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks } from './helpers';
-import { mockSnapshots } from './snapshotMocks';
+import { ASSET_ID, NEUTRAL_RECORD, gotoAsset, installMocks, json } from './helpers';
+import { exposureManifest, mockSnapshots } from './snapshotMocks';
 import { mockLibrary } from './touchShell';
 
 const WARM = { name: 'Warm v1', exposure: 0.7, minutesAgo: 125 };
@@ -124,6 +124,40 @@ test.describe('compare on desktop', () => {
 
     await bar(page).getByRole('button', { name: 'Close compare' }).click();
     await expect(bar(page)).toHaveCount(0);
+  });
+
+  test('the left menu compares another version of the photo', async ({ page }) => {
+    const copy = `${ASSET_ID}_1`;
+    const exposures = leftRenders(page);
+    await installMocks(page);
+    await mockSnapshots(page, [WARM]);
+    await page.route(/\/api\/assets\/[^/]+\/copies$/, (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill(
+            json([{ id: copy, source_asset_id: ASSET_ID, name: 'B&W', created_at: '2024-01-01' }])
+          )
+        : route.fallback()
+    );
+    await page.route(new RegExp(`/api/assets/${copy}/edits$`), (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill(
+            json({ ...NEUTRAL_RECORD, asset_id: copy, manifest: exposureManifest(-0.5) })
+          )
+        : route.fallback()
+    );
+    await gotoAsset(page);
+    await expect(page.getByTestId('preview-image')).toBeVisible();
+    await page.keyboard.press('y');
+
+    await bar(page).getByRole('button', { name: 'Left: Original' }).click();
+    const menu = page.locator('[data-popover-content]');
+    await expect(menu.getByText('Versions', { exact: true })).toBeVisible();
+    await expect(menu.getByRole('button')).toHaveText(['Original', 'Warm v1', 'B&W']);
+    await menu.getByRole('button', { name: 'B&W' }).click();
+
+    await expect(labels(page)).toHaveText(['Version · B&W', 'Current']);
+    await expect(bar(page).getByRole('button', { name: 'Left: Version · B&W' })).toBeVisible();
+    await expect.poll(() => exposures.at(-1)).toBe(-0.5);
   });
 
   test('a snapshot row opens side by side with the snapshot on the left', async ({ page }) => {

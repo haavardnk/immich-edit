@@ -13,6 +13,7 @@ import {
 } from '#lib/editor/compare.ts';
 
 const SNAPSHOTS = [{ id: 'snap-1', name: 'Warm v1' }];
+const VERSIONS = [{ id: 'asset-1_1', name: 'B&W' }];
 
 describe('compare modes', () => {
   it('cycles split, side by side, off where side by side fits', () => {
@@ -46,14 +47,20 @@ describe('compare sources', () => {
     expect(sameSource({ kind: 'snapshot', id: 'a' }, { kind: 'snapshot', id: 'a' })).toBe(true);
     expect(sameSource({ kind: 'snapshot', id: 'a' }, { kind: 'snapshot', id: 'b' })).toBe(false);
     expect(sameSource({ kind: 'snapshot', id: 'a' }, ORIGINAL_SOURCE)).toBe(false);
+    expect(sameSource({ kind: 'snapshot', id: 'a' }, { kind: 'version', id: 'a' })).toBe(false);
   });
 
   it('names and labels each source', () => {
     const snapshot = { kind: 'snapshot', id: 'snap-1' } as const;
-    expect(compareName(ORIGINAL_SOURCE, SNAPSHOTS)).toBe('Original');
-    expect(compareName(snapshot, SNAPSHOTS)).toBe('Warm v1');
-    expect(compareLabel(snapshot, SNAPSHOTS)).toBe('Snapshot · Warm v1');
-    expect(compareLabel({ kind: 'snapshot', id: 'gone' }, SNAPSHOTS)).toBe('Snapshot · Snapshot');
+    const version = { kind: 'version', id: 'asset-1_1' } as const;
+    expect(compareName(ORIGINAL_SOURCE, SNAPSHOTS, VERSIONS)).toBe('Original');
+    expect(compareName(snapshot, SNAPSHOTS, VERSIONS)).toBe('Warm v1');
+    expect(compareLabel(snapshot, SNAPSHOTS, VERSIONS)).toBe('Snapshot · Warm v1');
+    expect(compareLabel({ kind: 'snapshot', id: 'gone' }, SNAPSHOTS, VERSIONS)).toBe(
+      'Snapshot · Snapshot'
+    );
+    expect(compareName(version, SNAPSHOTS, VERSIONS)).toBe('Version · B&W');
+    expect(compareLabel(version, SNAPSHOTS, VERSIONS)).toBe('Version · B&W');
   });
 });
 

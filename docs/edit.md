@@ -132,7 +132,7 @@ and white. The panel's dot resets all of them.
 | Control | What it does |
 | --- | --- |
 | **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
-| **More editor actions** > **Compare**, or `Y` | Cycles a split view, a side-by-side view and off. The bar under the photo switches between the two views, sets the left side to the original or a snapshot, and closes compare. Drag the split divider to move it; side by side zooms and pans both halves together. Phones in portrait have only the split. **Compare** on a snapshot in **Edit history** opens it beside the current edits |
+| **More editor actions** > **Compare**, or `Y` | Cycles a split view, a side-by-side view and off. The bar under the photo switches between the two views, sets the left side to the original, a snapshot or another version of the photo, and closes compare. Drag the split divider to move it; side by side zooms and pans both halves together. Phones in portrait have only the split. **Compare** on a snapshot in **Edit history** opens it beside the current edits |
 | **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
@@ -292,5 +292,6 @@ already in your library is skipped, so importing the same file twice adds nothin
 The **More editor actions** menu (the three dots in the toolbar) lists the original and its
 virtual copies under **Versions**. **Create virtual copy**, or `Ctrl+'`, starts a new version with
 its own edits and history. Rename a version with the pencil on its row; delete it with the bin,
-then confirm.
+then confirm. Press and hold another version's thumbnail, or hold `Space` on its focused row, to
+show that version on the photo until you let go.
 Culling and copies are covered in [browse and cull](cull.md#virtual-copies).

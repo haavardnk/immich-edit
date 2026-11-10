@@ -34,6 +34,7 @@ import * as retouch from '#lib/stores/editor/retouch.ts';
 import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
 import { SnapshotStore } from '#lib/stores/editor/snapshots.svelte.ts';
 import * as upright from '#lib/stores/editor/upright.ts';
+import { VersionStore } from '#lib/stores/editor/versions.svelte.ts';
 import { ViewportNav } from '#lib/stores/editor/viewport.ts';
 import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
@@ -207,6 +208,7 @@ class EditorStore {
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
   readonly snapshots = new SnapshotStore(this);
   readonly historySteps = new HistorySteps(this);
+  readonly versions = new VersionStore(this);
   readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
     this.previews.compareChanged(wasOn)
   );
@@ -323,6 +325,7 @@ class EditorStore {
     this.history.reset();
     this.snapshots.reset();
     this.historySteps.reset();
+    this.versions.reset();
     this.showingOriginal = false;
     this.bypassedSection = null;
     this.editsPreview = null;

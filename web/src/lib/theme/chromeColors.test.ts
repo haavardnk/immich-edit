@@ -99,6 +99,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'border-black/40',
     'text-black/70'
   ],
+  '/src/lib/components/editor/versions/VersionThumb.svelte': ['bg-black/60', 'text-white'],
   '/src/lib/components/preset/PresetTile.svelte': ['bg-black/55', 'from-black/80', 'text-white/90'],
   '/src/lib/components/shell/Filmstrip.svelte': ['from-black/75', 'text-white'],
   '/src/lib/panels/MaskRangeControls.svelte': ['rgb(']

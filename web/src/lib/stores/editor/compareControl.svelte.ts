@@ -90,6 +90,13 @@ export class CompareControl {
     this.changed(true);
   }
 
+  versionRemoved(id: string): void {
+    if (this.picked.kind !== 'version' || this.picked.id !== id) return;
+    this.picked = ORIGINAL_SOURCE;
+    this.pickedHash = null;
+    this.changed(true);
+  }
+
   reset(): void {
     this.chosen = 'off';
     this.picked = ORIGINAL_SOURCE;

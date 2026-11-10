@@ -4,16 +4,24 @@
   import { ORIGINAL_SOURCE, sameSource, type CompareSource } from '#lib/editor/compare.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button, Icon } from '@immich/ui';
-  import { mdiEyeOutline, mdiMenuDown, mdiStarOutline } from '@mdi/js';
+  import { mdiContentDuplicate, mdiEyeOutline, mdiMenuDown, mdiStarOutline } from '@mdi/js';
   import { leftName } from './compareText.ts';
 
   const heading = 'px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase touch:px-4';
 
   let open = $state(false);
   const name = $derived(leftName());
+  const versions = $derived(
+    editor.versions.items.filter((version) => version.id !== editor.assetId)
+  );
 
   function chosen(source: CompareSource): boolean {
     return sameSource(source, editor.compare.source);
+  }
+
+  function toggle(next: boolean): void {
+    open = next;
+    if (next) void editor.versions.load();
   }
 
   function pick(source: CompareSource): void {
@@ -24,7 +32,7 @@
 
 <Popover
   {open}
-  onOpenChange={(next) => (open = next)}
+  onOpenChange={toggle}
   anchor="top"
   align="center"
   contentClass="w-60 py-1"
@@ -58,6 +66,18 @@
         <MenuItem
           icon={mdiStarOutline}
           label={snapshot.name}
+          pressed={chosen(source)}
+          onclick={() => pick(source)}
+        />
+      {/each}
+    {/if}
+    {#if versions.length > 0}
+      <span class={heading}>Versions</span>
+      {#each versions as version (version.id)}
+        {@const source: CompareSource = { kind: 'version', id: version.id }}
+        <MenuItem
+          icon={mdiContentDuplicate}
+          label={version.name}
           pressed={chosen(source)}
           onclick={() => pick(source)}
         />

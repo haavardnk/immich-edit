@@ -7,11 +7,13 @@
   let {
     initial,
     ariaLabel,
+    required = true,
     onsave,
     oncancel
   }: {
     initial: string;
     ariaLabel: string;
+    required?: boolean;
     onsave: (name: string) => Promise<void>;
     oncancel: () => void;
   } = $props();
@@ -20,7 +22,7 @@
   let busy = $state(false);
 
   async function save(): Promise<void> {
-    if (busy || !value.trim()) return;
+    if (busy || (required && !value.trim())) return;
     busy = true;
     try {
       await onsave(value);

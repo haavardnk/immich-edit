@@ -9,6 +9,7 @@
     label,
     keys,
     pressed,
+    danger = false,
     class: className = '',
     children,
     ...rest
@@ -17,6 +18,7 @@
     label?: string;
     keys?: string;
     pressed?: boolean;
+    danger?: boolean;
     class?: string;
     children?: Snippet;
   } & Omit<HTMLButtonAttributes, 'children' | 'color' | 'size' | 'type' | 'class'> = $props();
@@ -29,7 +31,7 @@
   type="button"
   size="tiny"
   variant="ghost"
-  color={pressed ? 'primary' : 'secondary'}
+  color={danger ? 'danger' : pressed ? 'primary' : 'secondary'}
   class="h-7 w-full justify-start gap-2.5 rounded-none px-3 text-left text-xs font-normal touch:h-13 touch:gap-3.5 touch:border-b touch:border-hairline touch:px-4 touch:text-base touch:last:border-b-0 {className}"
   data-menu-row
   aria-pressed={pressed}
