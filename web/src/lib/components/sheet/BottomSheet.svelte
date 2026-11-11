@@ -32,6 +32,7 @@
     header,
     footer,
     bodyClass = '',
+    peek = false,
     onExited,
     children,
     ...rest
@@ -53,6 +54,7 @@
     header?: Snippet;
     footer?: Snippet;
     bodyClass?: string;
+    peek?: boolean;
     children: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'title'> = $props();
 
@@ -212,7 +214,7 @@
 <Dialog.Root bind:open={() => open, () => undefined}>
   <Dialog.Portal>
     {#if modal}
-      <SheetScrim tone={scrim} {leaving} />
+      <SheetScrim tone={scrim} leaving={leaving || peek} />
     {/if}
     {#if present}
       <div
@@ -238,7 +240,9 @@
                 {...props}
                 aria-modal={modal ? 'true' : 'false'}
                 tabindex="-1"
-                class="flex max-h-full min-h-0 w-full flex-col outline-none"
+                class="flex max-h-full min-h-0 w-full flex-col outline-none motion-safe:transition-opacity motion-safe:duration-base {peek
+                  ? 'opacity-0'
+                  : ''}"
                 style:pointer-events={leaving && !open ? 'none' : 'auto'}
                 {@attach trackFocus}
               >

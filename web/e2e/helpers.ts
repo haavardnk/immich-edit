@@ -216,6 +216,7 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -689,7 +690,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       savedViews[idx] = updated;
       return route.fulfill(json(updated));
     }
-    if (p === '/api/luts') return route.fulfill(json([]));
+    if (p === '/api/luts') return route.fulfill(json(opts.luts ?? []));
     if (p === '/api/watermarks') {
       if (method === 'POST') {
         const created = {

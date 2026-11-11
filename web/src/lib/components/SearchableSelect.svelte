@@ -1,13 +1,14 @@
 <script lang="ts" generics="T">
   import TextInput from '#lib/components/TextInput.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
-  import { mdiCheck, mdiChevronDown, mdiClose, mdiMagnify, mdiPlus } from '@mdi/js';
+  import { mdiCheck, mdiChevronDown, mdiClose, mdiEyeOutline, mdiMagnify, mdiPlus } from '@mdi/js';
   import { Combobox, Command } from 'bits-ui';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { pickerHost } from '#lib/components/sheet/pickerHost.ts';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
-  import { flushSync, type Snippet } from 'svelte';
+  import { flushSync, untrack, type Snippet } from 'svelte';
+  import { rowHold } from '#lib/gestures/rowHold.svelte.ts';
 
   let {
     options,
@@ -29,8 +30,10 @@
     closeOnSelect = true,
     commitOnClose = false,
     hideSelected = multiple,
+    previewing = null,
     onSelectedChange,
-    onCreate
+    onCreate,
+    onPreview
   }: {
     options: T[];
     selected: string[];
@@ -51,14 +54,28 @@
     closeOnSelect?: boolean;
     commitOnClose?: boolean;
     hideSelected?: boolean;
+    previewing?: string | null;
     onSelectedChange?: (selected: string[]) => void;
     onCreate?: (value: string) => void | Promise<void>;
+    onPreview?: (item: T | null) => void;
   } = $props();
 
   const OPTION_CLASS =
     'flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 px-3 py-1 text-xs outline-none select-none touch:min-h-11 touch:gap-3 touch:px-4 touch:text-sm';
+  const PREVIEW_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp']);
 
   const host = pickerHost();
+  const hold = rowHold({
+    attribute: 'data-option-id',
+    start: (id) => {
+      const item = options.find((option) => getId(option) === id);
+      if (item) preview(item);
+    },
+    end: endPreview
+  });
+
+  let previewed = false;
+  let previewKeys = false;
 
   let input = $state('');
   let open = $state(false);
@@ -98,6 +115,43 @@
     if (next && !open) input = '';
     open = next;
   }
+
+  function preview(item: T): void {
+    if (!onPreview) return;
+    previewed = true;
+    onPreview(item);
+  }
+
+  function endPreview(): void {
+    previewKeys = false;
+    if (!previewed) return;
+    previewed = false;
+    onPreview?.(null);
+  }
+
+  function hover(event: PointerEvent, item: T): void {
+    if (event.pointerType !== 'touch') preview(item);
+  }
+
+  function unhover(event: PointerEvent): void {
+    if (event.pointerType !== 'touch') endPreview();
+  }
+
+  function keydown(event: KeyboardEvent): void {
+    previewKeys = PREVIEW_KEYS.has(event.key);
+    createOnEnter(event);
+  }
+
+  function typed(value: string): void {
+    input = value;
+    endPreview();
+  }
+
+  $effect(() => {
+    if (!open) untrack(endPreview);
+  });
+
+  $effect(() => () => untrack(endPreview));
 
   function change(value: string[]): void {
     const next = multiple ? value : value.slice(-1);
@@ -170,6 +224,12 @@
       <span class="block truncate text-[10px] text-dark/65">{description}</span>
     {/if}
   </span>
+  {#if previewing !== null && previewing === getId(item)}
+    <span class="flex shrink-0 items-center gap-1 text-[10px] text-primary touch:text-xs">
+      <Icon icon={mdiEyeOutline} size="12px" aria-hidden="true" />
+      previewing
+    </span>
+  {/if}
   {#if selectedSet.has(getId(item))}
     <Icon icon={mdiCheck} size="14px" class="shrink-0 text-primary" />
   {/if}
@@ -180,6 +240,10 @@
     value={getId(item)}
     label={getLabel(item)}
     class="{OPTION_CLASS} {comboboxHighlight}"
+    onHighlight={() => {
+      if (previewKeys) preview(item);
+    }}
+    onpointerenter={(event: PointerEvent) => hover(event, item)}
   >
     {@render optionBody(item)}
   </Combobox.Item>
@@ -189,6 +253,7 @@
   <Command.Item
     value={getId(item)}
     class="{OPTION_CLASS} {commandHighlight}"
+    data-option-id={onPreview ? getId(item) : undefined}
     onSelect={() => toggle(getId(item))}
   >
     {@render optionBody(item)}
@@ -262,9 +327,11 @@
         {/snippet}
       </Command.Input>
     </div>
-    <Command.List aria-label={label} class="pb-2 outline-none">
-      {@render optionList(commandRow)}
-    </Command.List>
+    <div class={onPreview ? 'no-callout' : ''} {@attach onPreview && hold.attachment}>
+      <Command.List aria-label={label} class="pb-2 outline-none">
+        {@render optionList(commandRow)}
+      </Command.List>
+    </div>
   </Command.Root>
 {/snippet}
 
@@ -311,6 +378,7 @@
       title={label}
       close="icon"
       detents={[{ fraction: 1 }]}
+      peek={hold.held !== null}
       data-searchable-select-sheet
     >
       {@render picker()}
@@ -332,8 +400,8 @@
         aria-label={label}
         onfocus={focusInput}
         onclick={focusInput}
-        oninput={(event) => (input = event.currentTarget.value)}
-        onkeydown={createOnEnter}
+        oninput={(event) => typed(event.currentTarget.value)}
+        onkeydown={keydown}
       >
         {#snippet child({ props })}
           <TextInput
@@ -373,6 +441,7 @@
         sideOffset={-1}
         collisionPadding={8}
         customAnchor={anchor}
+        onpointerleave={unhover}
         class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-light-950/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
         'neutral'
           ? 'bg-light-200'

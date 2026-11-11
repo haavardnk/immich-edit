@@ -29,6 +29,7 @@
   import PhotoPill from './PhotoPill.svelte';
   import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import VersionHoldImage from './versions/VersionHoldImage.svelte';
+  import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
 
   let {
     ontap = () => {},
@@ -46,6 +47,7 @@
   const pill = $derived(
     editor.versions.hold.pill ??
       presetStrip.pill ??
+      lutPreview.pill ??
       (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill))
   );
 

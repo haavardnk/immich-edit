@@ -25,7 +25,7 @@
   {:else}
     <span class="flex items-center gap-1 text-[11px] text-dark/65" role="status">
       <Icon icon={mdiCheck} size="12px" aria-hidden="true" />
-      Saved
+      Saved{editor.editsPreview ? ' · preview only, nothing committed' : ''}
     </span>
   {/if}
 {/if}

@@ -3,4 +3,6 @@ export interface PillText {
   label: string;
   tail: string;
   mono: boolean;
+  icon?: string;
+  hint?: string;
 }
