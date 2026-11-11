@@ -133,6 +133,7 @@ and white. The panel's dot resets all of them.
 | --- | --- |
 | **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
 | **More editor actions** > **Compare**, or `Y` | Cycles a split view, a side-by-side view and off. The bar under the photo switches between the two views, sets the left side to the original, a snapshot or another version of the photo, and closes compare. Drag the split divider to move it; side by side zooms and pans both halves together. Phones in portrait have only the split. **Compare** on a snapshot in **Edit history** opens it beside the current edits |
+| **Navigator**, in the corner of a zoomed photo | Shows the whole photo with a box around the part on screen; drag the box, or press anywhere in it, to move the view. It hides again at fit |
 | **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |

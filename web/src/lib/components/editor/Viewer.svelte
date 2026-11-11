@@ -30,6 +30,7 @@
   import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import VersionHoldImage from './versions/VersionHoldImage.svelte';
   import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
+  import Navigator from './Navigator.svelte';
 
   let {
     ontap = () => {},
@@ -72,6 +73,9 @@
     frame
       ? `position: absolute; left: ${frame.left}px; top: ${frame.top}px; width: ${frame.width}px; height: ${frame.height}px;`
       : 'max-width: 100%; max-height: 100%;'
+  );
+  const showNavigator = $derived(
+    ui.zoomed && frame !== null && editor.compare.mode !== 'side' && !editor.geometrySession
   );
   const imageEdge = $derived(
     ui.greyCanvas ? 'ring-1 ring-white/10' : 'shadow-image ring-1 ring-white/10'
@@ -235,5 +239,13 @@
   {/if}
   {#if pill}
     <PhotoPill {...pill} class="[[data-arrangement=side]_&]:top-15" />
+  {/if}
+  {#if showNavigator}
+    <Navigator
+      {metrics}
+      {view}
+      onpan={(next) => ui.applyView(next, 'pan')}
+      class="right-3.5 bottom-3.5"
+    />
   {/if}
 </div>

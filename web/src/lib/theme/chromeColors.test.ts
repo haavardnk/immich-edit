@@ -71,6 +71,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'border-white/90',
     'rgb('
   ],
+  '/src/lib/components/editor/Navigator.svelte': ['border-white', 'rgb(', 'ring-white/14'],
   '/src/lib/components/editor/PerspectiveCorners.svelte': ['border-black/60'],
   '/src/lib/components/editor/PhotoPill.svelte': ['bg-black/70', 'text-white', 'text-white/70'],
   '/src/lib/components/editor/TargetCallout.svelte': [
