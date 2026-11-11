@@ -9,6 +9,7 @@
   import { Icon } from '@immich/ui';
   import { mdiPinOutline } from '@mdi/js';
   import { Tabs } from 'bits-ui';
+  import { CHIP, CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
 
   let { grid = false, onretap }: { grid?: boolean; onretap?: () => void } = $props();
 
@@ -33,12 +34,7 @@
     activationMode="manual"
     class="min-w-0 flex-1"
   >
-    <Tabs.List
-      aria-label="Develop groups"
-      class={grid
-        ? 'grid grid-cols-7 gap-1'
-        : 'flex gap-1.5 overflow-x-auto px-4 scrollbar-hidden fade-x'}
-    >
+    <Tabs.List aria-label="Develop groups" class={grid ? 'grid grid-cols-7 gap-1' : CHIP_ROW}>
       {#each chips as chip (chip.id)}
         <Tabs.Trigger
           value={chip.id}
@@ -47,9 +43,7 @@
             event.stopPropagation();
             onretap();
           }}
-          class="relative flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[13.5px] whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=active]:bg-primary/22 data-[state=active]:text-light-950 data-[state=inactive]:bg-ghost data-[state=inactive]:text-dark {grid
-            ? 'min-w-0 rounded-lg px-1 text-[12px]'
-            : ''}"
+          class="{CHIP} {grid ? 'min-w-0 rounded-lg px-1 text-[12px]' : ''}"
         >
           {#if chip.id === QUICK_GROUP && !grid}
             <Icon icon={mdiPinOutline} size="15px" class="-me-0.5" aria-hidden="true" />
