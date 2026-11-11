@@ -214,7 +214,7 @@ test.describe('versions on a phone', { tag: ['@touch', '@phone'] }, () => {
     const paste = page.getByRole('button', { name: 'Paste edits', exact: true });
     await more.tap();
     await expect(paste).toBeDisabled();
-    await expect(paste).not.toContainText('section');
+    await expect(paste).not.toContainText('from');
     await expect(page.getByRole('button', { name: 'Reset Develop', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Copy edits…', exact: true }).tap();
 
@@ -226,7 +226,7 @@ test.describe('versions on a phone', { tag: ['@touch', '@phone'] }, () => {
 
     await more.tap();
     await expect(paste).toBeEnabled();
-    await expect(paste).toContainText('6 sections');
+    await expect(paste).toContainText('from IMG_');
     await page.getByRole('button', { name: 'Reset Develop', exact: true }).tap();
     await expect(
       page.getByRole('status').filter({ hasText: 'Reset develop settings' })

@@ -5,6 +5,7 @@ import {
   copyEdits,
   newSnapshot,
   pasteEdits,
+  pasteOnly,
   redo,
   resetDevelop,
   undo,
@@ -75,6 +76,16 @@ export const EDITOR_VIEW_MENU: Menu = [
 export const EDITOR_MORE_MENU: Menu = [[editorTrash], [help]];
 
 export const EDITOR_PALETTE_MENU: Menu = [
-  [autoAdjust, resetDevelop, copyEdits, pasteEdits, undo, redo, virtualCopy, newSnapshot],
+  [
+    autoAdjust,
+    resetDevelop,
+    copyEdits,
+    pasteEdits,
+    pasteOnly,
+    undo,
+    redo,
+    virtualCopy,
+    newSnapshot
+  ],
   [beforeAfter, editorClipWarn, editorInfo, editorFullscreen, greyCanvas, help]
 ];

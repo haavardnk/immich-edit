@@ -194,6 +194,7 @@ describe('command registry', () => {
           'editor.resetDevelop',
           'editor.copy',
           'editor.paste',
+          'editor.pasteOnly',
           'editor.undo',
           'editor.redo',
           'editor.virtualCopy',

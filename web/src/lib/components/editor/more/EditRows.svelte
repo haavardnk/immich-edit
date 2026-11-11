@@ -1,10 +1,9 @@
 <script lang="ts">
   import { isEnabled, runCommand } from '#lib/commands/command.ts';
-  import { copyEdits, pasteEdits, resetDevelop } from '#lib/commands/editor/edits.ts';
+  import { copyEdits, pasteEdits, pasteOnly, resetDevelop } from '#lib/commands/editor/edits.ts';
   import type { Command } from '#lib/commands/types.ts';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import { clipboard } from '#lib/stores/clipboard.svelte.ts';
-  import { countOf } from '#lib/utils/plural.ts';
 
   let { then }: { then: (action: () => void) => void } = $props();
 
@@ -29,12 +28,20 @@
   disabled={!isEnabled(pasteEdits)}
   onclick={() => run(pasteEdits)}
 >
-  {#if clipboard.has}
-    <span class="shrink-0 text-[13px] text-dark/65"
-      >{countOf(clipboard.sectionCount, 'section')}</span
+  {#if clipboard.has && clipboard.source}
+    <span class="max-w-[45%] min-w-0 truncate text-[13px] text-dark/65"
+      >from {clipboard.source}</span
     >
   {/if}
 </MenuRow>
+<MenuRow
+  icon={pasteOnly.icon}
+  label="Paste only…"
+  class="hidden touch:flex"
+  aria-label="Paste only…"
+  disabled={!isEnabled(pasteOnly)}
+  onclick={() => run(pasteOnly)}
+/>
 <MenuRow
   icon={resetDevelop.icon}
   label="Reset Develop"

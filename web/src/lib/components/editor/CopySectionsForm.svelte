@@ -1,47 +1,78 @@
 <script lang="ts">
-  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import CopyQuickPicks from '#lib/components/editor/CopyQuickPicks.svelte';
+  import CopyToolRow from '#lib/components/editor/CopyToolRow.svelte';
+  import {
+    copyHints,
+    rowDot,
+    rowNote,
+    splitColumns,
+    visibleRows,
+    type CopyHints
+  } from '#lib/editor/copyRows.ts';
+  import {
+    DEVELOP_ROWS,
+    PHOTO_ROWS,
+    toolsState,
+    type CopyToolRow as Row
+  } from '#lib/editor/copyTools.ts';
   import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
-  import { DEVELOP_KEYS, SECTION_LABELS, allSelected } from '#lib/editor/copyPaste.ts';
 
-  const developAll = $derived(allSelected(copyDialog.sections, DEVELOP_KEYS));
+  const hints: CopyHints = $derived(copyHints(copyDialog.source, copyDialog.touched));
+  const develop = $derived(visibleRows(DEVELOP_ROWS, copyDialog.available));
+  const photo = $derived(visibleRows(PHOTO_ROWS, copyDialog.available));
+  const columns = $derived(splitColumns(develop, photo));
+  const developTools = $derived(develop.flatMap((row) => row.tools));
+  const developOn = $derived(developTools.filter((tool) => copyDialog.checked[tool]).length);
 </script>
 
-<div class="flex flex-col gap-1 text-xs text-dark/80">
-  <CheckboxRow
-    label="Develop"
-    class="py-0.5 text-xs font-medium"
-    checked={developAll}
-    onChange={copyDialog.setDevelop}
+{#snippet toolRow(row: Row, depth: number)}
+  {@const note = rowNote(row, hints, depth > 1)}
+  <CopyToolRow
+    label={row.label}
+    state={toolsState(copyDialog.checked, row.tools)}
+    {depth}
+    {note}
+    muted={note === 'not modified'}
+    dot={rowDot(row, hints, depth > 1)}
+    onChange={(on) => copyDialog.setTools(row.tools, on)}
   />
-  <div class="flex flex-col gap-0.5 pl-6">
-    {#each DEVELOP_KEYS as key (key)}
-      <CheckboxRow
-        label={SECTION_LABELS[key]}
-        class="py-0.5 text-xs"
-        checked={copyDialog.sections[key]}
-        onChange={(v) => copyDialog.setSection(key, v)}
-      />
-    {/each}
-  </div>
+  {#each row.children as child (child.key)}
+    {@render toolRow(child, depth + 1)}
+  {/each}
+{/snippet}
 
-  <div class="border-t border-dark/10 mt-2 pt-2 flex flex-col gap-0.5">
-    <CheckboxRow
-      label={SECTION_LABELS.geometry}
-      class="py-0.5 text-xs"
-      checked={copyDialog.sections.geometry}
-      onChange={(v) => copyDialog.setSection('geometry', v)}
-    />
-    <CheckboxRow
-      label={SECTION_LABELS.masks}
-      class="py-0.5 text-xs"
-      checked={copyDialog.sections.masks}
-      onChange={(v) => copyDialog.setSection('masks', v)}
-    />
-    <CheckboxRow
-      label={SECTION_LABELS.retouch}
-      class="py-0.5 text-xs"
-      checked={copyDialog.sections.retouch}
-      onChange={(v) => copyDialog.setSection('retouch', v)}
-    />
+<div class="@container flex flex-col gap-3 touch:gap-2">
+  <CopyQuickPicks {hints} />
+  <div class="grid grid-cols-1 gap-x-8 @min-[640px]:grid-cols-2">
+    <div class="flex flex-col">
+      {#if develop.length > 0}
+        <CopyToolRow
+          label="Develop"
+          strong
+          state={toolsState(copyDialog.checked, developTools)}
+          note="{developOn} of {developTools.length}"
+          onChange={(on) => copyDialog.setTools(developTools, on)}
+        />
+      {/if}
+      {#each columns[0] as row (row.key)}
+        {@render toolRow(row, 1)}
+      {/each}
+    </div>
+    <div class="flex flex-col">
+      {#each columns[1] as row (row.key)}
+        {@render toolRow(row, 1)}
+      {/each}
+      {#if photo.length > 0}
+        <div
+          class="mt-2 flex items-center border-t border-hairline pt-3 pb-1 text-[10px] font-semibold tracking-wider text-dark/55 uppercase touch:mt-4 touch:border-t-0 touch:pt-2 touch:text-[11px]"
+        >
+          <span>Off by default</span>
+          <span class="ms-auto font-normal tracking-normal normal-case">Photo-specific</span>
+        </div>
+        {#each photo as row (row.key)}
+          {@render toolRow(row, 0)}
+        {/each}
+      {/if}
+    </div>
   </div>
 </div>

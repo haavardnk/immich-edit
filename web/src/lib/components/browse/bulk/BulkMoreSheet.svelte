@@ -9,6 +9,7 @@
   import { clipboard, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
   import {
+    mdiClipboardCheckOutline,
     mdiCompare,
     mdiContentDuplicate,
     mdiContentPaste,
@@ -90,6 +91,12 @@
   >
     {@render detail(pasteDetail)}
   </MenuRow>
+  <MenuRow
+    icon={mdiClipboardCheckOutline}
+    label="Paste only…"
+    disabled={busy || !clipboard.has}
+    onclick={actions.pasteOnly}
+  />
   <MenuRow
     icon={mdiRestore}
     label="Reset edits"

@@ -1,13 +1,14 @@
 import type { Command } from '#lib/commands/types.ts';
 import { createVirtualCopy } from '#lib/editor/copies.ts';
 import { hasTextSelection } from '#lib/shortcuts/targets.ts';
-import { NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
+import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import {
   mdiAutoFix,
   mdiCameraOutline,
+  mdiClipboardCheckOutline,
   mdiContentCopy,
   mdiContentDuplicate,
   mdiContentPaste,
@@ -87,8 +88,20 @@ export const pasteEdits = {
   bind: 'pasteEdits',
   yields: hasTextSelection,
   enabled: () => editor.canPaste,
-  unavailable: () => (editor.hasClipboard ? null : NOTHING_COPIED),
+  unavailable: () => (clipboard.has ? null : NOTHING_COPIED),
   run: () => void editor.pasteEdits()
+} satisfies Command;
+
+export const pasteOnly = {
+  id: 'editor.pasteOnly',
+  contexts: ['editor'],
+  label: 'Paste only…',
+  icon: mdiClipboardCheckOutline,
+  bind: 'pasteOnly',
+  yields: hasTextSelection,
+  enabled: () => editor.canPaste,
+  unavailable: () => (clipboard.has ? null : NOTHING_COPIED),
+  run: () => editor.pasteOnly()
 } satisfies Command;
 
 export const virtualCopy = {
@@ -129,6 +142,7 @@ export const EDIT_COMMANDS: readonly Command[] = [
   resetDevelop,
   copyEdits,
   pasteEdits,
+  pasteOnly,
   virtualCopy,
   newSnapshot
 ];

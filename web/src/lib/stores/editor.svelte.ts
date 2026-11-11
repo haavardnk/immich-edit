@@ -12,7 +12,6 @@ import { type PreviewMode } from '#lib/api/preview.ts';
 import type { AutoScope } from '#lib/editor/autoScope.ts';
 import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
 import { manifestToEdits } from '#lib/edits/manifest.ts';
-import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
 import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
@@ -419,13 +418,13 @@ class EditorStore {
 
   resetGeometryTransform = (): Promise<void> => geometry.resetTransform(this);
 
-  copyEdits = (): void => develop.copyEdits(this);
+  copyEdits = (): void => develop.copyEdits(this, this.history.lastChange);
 
   pasteEdits = (): Promise<void> => develop.pasteEdits(this);
 
-  canPaste = $derived(develop.canPaste(this));
+  pasteOnly = (): void => develop.pasteOnly(this);
 
-  hasClipboard = $derived(clipboard.has);
+  canPaste = $derived(develop.canPaste(this));
 
   applyPreset = (preset: PresetSource, opts: ApplyPresetOptions): Promise<void> => {
     this.editsPreview = null;

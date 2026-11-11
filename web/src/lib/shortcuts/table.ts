@@ -599,6 +599,13 @@ export const KEYBINDS = [
     label: 'Paste edits'
   },
   {
+    id: 'pasteOnly',
+    keys: ['Mod+Shift+v'],
+    contexts: ['editor', 'grid', 'loupe'],
+    group: 'Editor',
+    label: 'Paste only some settings'
+  },
+  {
     id: 'openExport',
     keys: ['Shift+e'],
     contexts: ['editor'],

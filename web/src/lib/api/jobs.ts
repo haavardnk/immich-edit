@@ -12,7 +12,7 @@ import {
   type TiffCompressionOpt
 } from './export';
 import type { EditManifest } from '#lib/types/edits.ts';
-import type { CopySections } from '#lib/editor/copyPaste.ts';
+import type { CopySelection } from '#lib/editor/copyTools.ts';
 
 export const JOB_KINDS = {
   exportImmich: 'export_immich',
@@ -186,12 +186,12 @@ export function createApplyPresetJob(
 export function createPasteEditsJob(
   assetIds: string[],
   manifest: EditManifest,
-  sections: CopySections
+  tools: CopySelection
 ): Promise<Job> {
   return sendJson('POST', '/api/jobs', {
     kind: JOB_KINDS.pasteEdits,
     asset_ids: assetIds,
-    params: { manifest, sections }
+    params: { manifest, tools }
   });
 }
 

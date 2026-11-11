@@ -8,6 +8,7 @@
 
   let {
     title,
+    subtitle,
     size = 'small',
     onClose,
     bodyClass = '',
@@ -16,6 +17,7 @@
     children
   }: {
     title: string;
+    subtitle?: string;
     size?: 'tiny' | 'small' | 'medium' | 'large' | 'giant';
     onClose: () => void;
     bodyClass?: string;
@@ -34,6 +36,7 @@
     open
     onOpenChange={closeSheet}
     {title}
+    {subtitle}
     close="icon"
     header={actions}
     {footer}
@@ -45,9 +48,14 @@
   <Modal {size} {onClose} closeOnBackdropClick>
     <ModalHeader class="border-b border-hairline bg-light-50 px-5 py-4">
       <div class="flex items-center gap-3">
-        <Dialog.Title class="flex-none text-base font-semibold text-light-950">
-          {title}
-        </Dialog.Title>
+        <div class="flex min-w-0 flex-none flex-col">
+          <Dialog.Title class="text-base font-semibold text-light-950">
+            {title}
+          </Dialog.Title>
+          {#if subtitle}
+            <p class="text-xs text-dark/55">{subtitle}</p>
+          {/if}
+        </div>
         <div class="flex flex-1 items-center justify-end gap-1.5">
           {@render actions?.()}
         </div>
