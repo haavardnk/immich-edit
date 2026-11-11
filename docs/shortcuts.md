@@ -98,10 +98,11 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## View
 
-| Keys      | Action                     | Available in                   |
-| --------- | -------------------------- | ------------------------------ |
-| `F`       | Toggle fullscreen          | Loupe, Compare, Survey, Editor |
-| `Shift+S` | Hide or show the filmstrip | Loupe, Compare, Survey, Editor |
+| Keys      | Action                         | Available in                   |
+| --------- | ------------------------------ | ------------------------------ |
+| `F`       | Toggle fullscreen              | Loupe, Compare, Survey, Editor |
+| `Shift+S` | Hide or show the filmstrip     | Loupe, Compare, Survey, Editor |
+| `S`       | Show or hide the scope overlay | Editor                         |
 
 ## Loupe gestures
 

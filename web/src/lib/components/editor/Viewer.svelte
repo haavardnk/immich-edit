@@ -31,11 +31,14 @@
   import VersionHoldImage from './versions/VersionHoldImage.svelte';
   import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
   import Navigator from './Navigator.svelte';
+  import { scopes } from '#lib/stores/scopes.svelte.ts';
+  import type { Snippet } from 'svelte';
 
   let {
     ontap = () => {},
-    adjust = () => null
-  }: { ontap?: () => void; adjust?: () => ViewerAdjust | null } = $props();
+    adjust = () => null,
+    children
+  }: { ontap?: () => void; adjust?: () => ViewerAdjust | null; children?: Snippet } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
@@ -73,6 +76,9 @@
     frame
       ? `position: absolute; left: ${frame.left}px; top: ${frame.top}px; width: ${frame.width}px; height: ${frame.height}px;`
       : 'max-width: 100%; max-height: 100%;'
+  );
+  const navigatorSide = $derived(
+    children && scopes.floating && scopes.corner === 'br' ? 'left-3.5' : 'right-3.5'
   );
   const showNavigator = $derived(
     ui.zoomed && frame !== null && editor.compare.mode !== 'side' && !editor.geometrySession
@@ -245,7 +251,8 @@
       {metrics}
       {view}
       onpan={(next) => ui.applyView(next, 'pan')}
-      class="right-3.5 bottom-3.5"
+      class="bottom-3.5 {navigatorSide}"
     />
   {/if}
+  {@render children?.()}
 </div>

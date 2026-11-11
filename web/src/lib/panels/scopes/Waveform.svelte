@@ -8,15 +8,23 @@
     gain,
     parade,
     label,
-    height
-  }: { grid: ScopeGrid; gain: number; parade: boolean; label: string; height: number } = $props();
+    height,
+    mini = false
+  }: {
+    grid: ScopeGrid;
+    gain: number;
+    parade: boolean;
+    label: string;
+    height: number;
+    mini?: boolean;
+  } = $props();
 
   const raster = $derived(rasterize(grid, gain, parade));
   const levels = [0, 25, 50, 75, 100];
 </script>
 
 <div
-  class="relative w-full bg-plot-surface"
+  class="relative w-full {mini ? '' : 'bg-plot-surface'}"
   style:height="{height}px"
   role="img"
   aria-label={label}
@@ -60,11 +68,13 @@
       />
     {/if}
   </svg>
-  <div
-    class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-[8px] font-mono text-plot-ink/45"
-  >
-    {#each [...levels].reverse() as level (level)}
-      <span>{level}</span>
-    {/each}
-  </div>
+  {#if !mini}
+    <div
+      class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-[8px] font-mono text-plot-ink/45"
+    >
+      {#each [...levels].reverse() as level (level)}
+        <span>{level}</span>
+      {/each}
+    </div>
+  {/if}
 </div>

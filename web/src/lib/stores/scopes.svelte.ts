@@ -1,14 +1,17 @@
 import { getPreviewScope } from '#lib/api/preview.ts';
+import { CORNERS, type Corner } from '#lib/editor/floatingScope.ts';
 import type { ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 
 export type ScopeMode = 'histogram' | ScopeKind;
 export type WaveformChannels = 'luma' | 'rgb';
 export type ScopeGrids = Record<ScopeKind, ScopeGrid>;
+export type PlotMode = Exclude<ScopeMode, 'histogram'>;
 
 const STORAGE_KEY = 'immich-edit:scopes';
 const MODES: ScopeMode[] = ['histogram', 'waveform', 'parade', 'vectorscope'];
 const CHANNELS: WaveformChannels[] = ['luma', 'rgb'];
+const PLOTS: PlotMode[] = ['waveform', 'parade', 'vectorscope'];
 
 export const MIN_GAIN = 1;
 export const MAX_GAIN = 8;
@@ -23,6 +26,9 @@ type Persisted = {
   zoom: number;
   pinned: boolean;
   height: number;
+  floating: boolean;
+  corner: Corner;
+  plot: PlotMode;
 };
 
 class ScopesStore {
@@ -32,6 +38,9 @@ class ScopesStore {
   zoom = $state(1);
   pinned = $state(false);
   height = $state(DEFAULT_SCOPE_HEIGHT);
+  floating = $state(false);
+  corner = $state<Corner>('tl');
+  plot = $state<PlotMode>('waveform');
   panelOpen = $state(true);
   grid = $state<ScopeGrid | null>(null);
 
@@ -42,13 +51,17 @@ class ScopesStore {
   private failed = $state(false);
   private inflight: AbortController | null = null;
 
-  wants = $derived(this.panelOpen && this.mode !== 'histogram');
+  wants = $derived((this.panelOpen || this.floating) && this.mode !== 'histogram');
   needsRender = $derived(this.wants && !this.hasScopes);
   loading = $derived(this.wants && this.grid === null && !this.failed);
 
   constructor() {
     const stored = readStored<Persisted>(STORAGE_KEY);
     if (stored?.mode && MODES.includes(stored.mode)) this.mode = stored.mode;
+    if (stored?.plot && PLOTS.includes(stored.plot)) this.plot = stored.plot;
+    if (this.mode !== 'histogram') this.plot = this.mode;
+    if (typeof stored?.floating === 'boolean') this.floating = stored.floating;
+    if (stored?.corner && CORNERS.includes(stored.corner)) this.corner = stored.corner;
     if (stored?.channels && CHANNELS.includes(stored.channels)) this.channels = stored.channels;
     if (typeof stored?.gain === 'number') this.gain = clampGain(stored.gain);
     if (stored?.zoom === 1 || stored?.zoom === 2) this.zoom = stored.zoom;
@@ -63,13 +76,17 @@ class ScopesStore {
       gain: this.gain,
       zoom: this.zoom,
       pinned: this.pinned,
-      height: this.height
+      height: this.height,
+      floating: this.floating,
+      corner: this.corner,
+      plot: this.plot
     } satisfies Persisted);
   }
 
   setMode(mode: ScopeMode): void {
     if (this.mode === mode) return;
     this.mode = mode;
+    if (mode !== 'histogram') this.plot = mode;
     this.grid = null;
     this.persist();
     this.fetch();
@@ -105,8 +122,26 @@ class ScopesStore {
     this.persist();
   };
 
+  toggleFloating = (): void => {
+    this.floating = !this.floating;
+    this.persist();
+    if (this.panelOpen) return;
+    if (this.floating) this.fetch();
+    else this.cancel();
+  };
+
+  cycleFloating = (): void => {
+    this.setMode(this.mode === 'histogram' ? this.plot : 'histogram');
+  };
+
+  setCorner = (corner: Corner): void => {
+    this.corner = corner;
+    this.persist();
+  };
+
   setPanelOpen(open: boolean): void {
     this.panelOpen = open;
+    if (this.floating) return;
     if (open) this.fetch();
     else this.cancel();
   }

@@ -15,6 +15,7 @@
   import CommandPalette from './CommandPalette.svelte';
   import CurvePopout from './CurvePopout.svelte';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
+  import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -25,7 +26,7 @@
           <Notice message={editor.error} class="mx-4 my-2 text-xs" />
         {/if}
         {#if !ui.fullscreen}<ImageToolbar />{/if}
-        <Viewer />
+        <Viewer><FloatingScope /></Viewer>
         {#if ui.fullscreen}
           <IconButton
             size="small"

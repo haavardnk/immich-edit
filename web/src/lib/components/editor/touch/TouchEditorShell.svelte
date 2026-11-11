@@ -20,6 +20,7 @@
   import { focusAdjust } from './focusAdjust';
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
+  import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -81,7 +82,10 @@
     bind:clientHeight={available}
   >
     <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
-      <Viewer ontap={tapPhoto} {adjust} />
+      {#snippet overlay()}
+        <FloatingScope yieldToSliders />
+      {/snippet}
+      <Viewer ontap={tapPhoto} {adjust} children={layout.phone ? overlay : undefined} />
       {#if chrome && editor.compare.mode !== 'off'}
         <CompareBar />
       {/if}

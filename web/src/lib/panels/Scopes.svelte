@@ -1,10 +1,7 @@
 <script lang="ts">
   import { RadioGroup } from 'bits-ui';
-  import Histogram from './scopes/Histogram.svelte';
-  import Waveform from './scopes/Waveform.svelte';
-  import Vectorscope from './scopes/Vectorscope.svelte';
+  import ScopePlot from './scopes/ScopePlot.svelte';
   import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
-  import { editor } from '#lib/stores/editor.svelte.ts';
   import {
     scopes,
     MAX_SCOPE_HEIGHT,
@@ -18,46 +15,14 @@
   const itemClass =
     'flex h-5 items-center justify-center rounded-sm px-1.5 text-[10px] font-medium text-dark/60 transition-colors hover:text-dark aria-checked:bg-light-950/8 aria-checked:text-dark';
 
-  const grid = $derived(scopes.grid);
-  const hist = $derived(editor.meta?.histogram ?? null);
-  const linearHist = $derived(editor.meta?.linear_histogram ?? null);
-
   function selectChannels(value: string): void {
     scopes.setChannels(value as WaveformChannels);
   }
 </script>
 
-{#snippet placeholder(pending: boolean)}
-  <div
-    role="status"
-    class="flex items-center justify-center bg-plot-surface text-[10px] text-plot-ink/65"
-    style:height="{scopes.height}px"
-  >
-    {pending ? 'Loading…' : 'No data'}
-  </div>
-{/snippet}
-
 <div class="flex flex-col gap-1">
   <div class="relative">
-    {#if scopes.mode === 'histogram'}
-      {#if hist === null}
-        {@render placeholder(editor.meta === null)}
-      {:else}
-        <Histogram {hist} linear={linearHist} gain={scopes.gain} height={scopes.height} />
-      {/if}
-    {:else if grid === null}
-      {@render placeholder(scopes.loading)}
-    {:else if scopes.mode === 'vectorscope'}
-      <Vectorscope {grid} gain={scopes.gain} zoom={scopes.zoom} size={scopes.height} />
-    {:else}
-      <Waveform
-        {grid}
-        gain={scopes.gain}
-        height={scopes.height}
-        parade={scopes.mode === 'parade'}
-        label={scopes.mode === 'parade' ? 'RGB parade' : 'Waveform'}
-      />
-    {/if}
+    <ScopePlot height={scopes.height} />
     <ResizeHandle
       label="Resize scopes"
       orientation="vertical"

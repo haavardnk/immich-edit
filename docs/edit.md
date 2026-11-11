@@ -137,6 +137,7 @@ and white. The panel's dot resets all of them.
 | **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
+| **More editor actions** > **Scope overlay**, or `S` | Floats a small scope over the photo. Click it to switch between the histogram and the last other scope, and drag it to any corner. On a phone the same switch is **More** > **Histogram**, and the overlay fades while you drag a slider outside **Light** |
 | **More editor actions** > **Soft proof** | Previews the photo in a **Proof space**; **Show gamut warning** marks colors it cannot show |
 | **More editor actions** > **Info**, or `I` | Shows the camera, lens and exposure details |
 | **More editor actions** > **Fullscreen**, or `F` | Hides everything but the photo; `Esc` brings the chrome back |

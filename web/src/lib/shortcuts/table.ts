@@ -400,6 +400,13 @@ export const KEYBINDS = [
     group: 'View',
     label: 'Hide or show the filmstrip'
   },
+  {
+    id: 'floatScope',
+    keys: ['s'],
+    contexts: ['editor'],
+    group: 'View',
+    label: 'Show or hide the scope overlay'
+  },
 
   {
     id: 'loupeClickZoom',

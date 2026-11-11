@@ -1,10 +1,12 @@
 import { selectedShapeNudges } from '#lib/commands/editor/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { mdiCompare, mdiEyeOutline } from '@mdi/js';
+import { mdiChartHistogram, mdiCompare, mdiEyeOutline } from '@mdi/js';
 
 function showOriginal(): void {
   if (editor.showingOriginal) return;
@@ -57,6 +59,20 @@ export const holdOriginal = {
   release: hideOriginal
 } satisfies Command;
 
+export const floatScope = {
+  id: 'editor.floatScope',
+  contexts: ['editor'],
+  label: () => (layout.mode === 'touch' ? 'Histogram' : 'Scope overlay'),
+  icon: mdiChartHistogram,
+  bind: 'floatScope',
+  shown: () => layout.mode !== 'touch' || layout.phone,
+  pressed: () => scopes.floating,
+  run: () => {
+    scopes.toggleFloating();
+    if (scopes.needsRender) editor.refreshScopes();
+  }
+} satisfies Command;
+
 export const editorFullscreen = {
   id: 'editor.fullscreen',
   contexts: ['editor'],
@@ -86,6 +102,7 @@ export const VIEW_COMMANDS: readonly Command[] = [
   editorClipWarn,
   beforeAfter,
   holdOriginal,
+  floatScope,
   {
     id: 'editor.panels',
     contexts: ['editor'],

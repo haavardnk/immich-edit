@@ -8,8 +8,15 @@
     hist,
     linear,
     gain,
-    height
-  }: { hist: Histogram; linear: Histogram | null; gain: number; height: number } = $props();
+    height,
+    mini = false
+  }: {
+    hist: Histogram;
+    linear: Histogram | null;
+    gain: number;
+    height: number;
+    mini?: boolean;
+  } = $props();
 
   const W = 256;
   const H = 100;
@@ -40,7 +47,7 @@
 </script>
 
 <div
-  class="relative w-full bg-plot-surface"
+  class="relative w-full {mini ? '' : 'bg-plot-surface'}"
   style:height="{height}px"
   role="img"
   aria-label="Histogram"
@@ -71,54 +78,56 @@
       vector-effect="non-scaling-stroke"
     />
   </svg>
-  <svg
-    viewBox="0 0 100 100"
-    preserveAspectRatio="none"
-    aria-hidden="true"
-    class="pointer-events-none absolute inset-0 h-full w-full"
-  >
-    {#each levels as level (level)}
-      <line
-        x1={level}
-        x2={level}
-        y1="0"
-        y2="100"
-        stroke="var(--color-plot-line)"
-        stroke-opacity="0.14"
-        stroke-width="0.4"
-      />
-    {/each}
-  </svg>
-  <div
-    class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-[8px] font-mono text-plot-ink/45"
-  >
-    {#each levels as level (level)}
-      <span>{level}</span>
-    {/each}
-  </div>
-  <HistogramZones />
-  {#if shadowClip > 0.1}
-    <ElementTooltip text="Shadow clipping">
-      {#snippet child({ props })}
-        <div
-          {...mergeProps(props, { tabindex: -1 })}
-          class="absolute left-1 top-0.5 text-[9px] font-mono text-blue-400"
-        >
-          ▼
-        </div>
-      {/snippet}
-    </ElementTooltip>
-  {/if}
-  {#if highlightClip > 0.1}
-    <ElementTooltip text="Highlight clipping">
-      {#snippet child({ props })}
-        <div
-          {...mergeProps(props, { tabindex: -1 })}
-          class="absolute right-1 top-0.5 text-[9px] font-mono text-red-400"
-        >
-          ▲
-        </div>
-      {/snippet}
-    </ElementTooltip>
+  {#if !mini}
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 h-full w-full"
+    >
+      {#each levels as level (level)}
+        <line
+          x1={level}
+          x2={level}
+          y1="0"
+          y2="100"
+          stroke="var(--color-plot-line)"
+          stroke-opacity="0.14"
+          stroke-width="0.4"
+        />
+      {/each}
+    </svg>
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-[8px] font-mono text-plot-ink/45"
+    >
+      {#each levels as level (level)}
+        <span>{level}</span>
+      {/each}
+    </div>
+    <HistogramZones />
+    {#if shadowClip > 0.1}
+      <ElementTooltip text="Shadow clipping">
+        {#snippet child({ props })}
+          <div
+            {...mergeProps(props, { tabindex: -1 })}
+            class="absolute left-1 top-0.5 text-[9px] font-mono text-blue-400"
+          >
+            ▼
+          </div>
+        {/snippet}
+      </ElementTooltip>
+    {/if}
+    {#if highlightClip > 0.1}
+      <ElementTooltip text="Highlight clipping">
+        {#snippet child({ props })}
+          <div
+            {...mergeProps(props, { tabindex: -1 })}
+            class="absolute right-1 top-0.5 text-[9px] font-mono text-red-400"
+          >
+            ▲
+          </div>
+        {/snippet}
+      </ElementTooltip>
+    {/if}
   {/if}
 </div>

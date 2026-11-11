@@ -3,8 +3,13 @@
   import { rasterizeVector } from './rasterize';
   import type { ScopeGrid } from '#lib/types/preview.ts';
 
-  let { grid, gain, zoom, size }: { grid: ScopeGrid; gain: number; zoom: number; size: number } =
-    $props();
+  let {
+    grid,
+    gain,
+    zoom,
+    size,
+    mini = false
+  }: { grid: ScopeGrid; gain: number; zoom: number; size: number; mini?: boolean } = $props();
 
   const raster = $derived(rasterizeVector(grid, gain));
 
@@ -35,7 +40,7 @@
 </script>
 
 <div
-  class="relative mx-auto aspect-square max-w-full overflow-hidden bg-plot-surface"
+  class="relative mx-auto aspect-square max-w-full overflow-hidden {mini ? '' : 'bg-plot-surface'}"
   style:width="{size}px"
   role="img"
   aria-label="Vectorscope"

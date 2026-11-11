@@ -184,6 +184,7 @@ describe('command registry', () => {
           'editor.holdOriginal',
           'editor.beforeAfter',
           'editor.clipWarn',
+          'editor.floatScope',
           'app.greyCanvas'
         ]
       ],
@@ -203,6 +204,7 @@ describe('command registry', () => {
         [
           'editor.beforeAfter',
           'editor.clipWarn',
+          'editor.floatScope',
           'editor.info',
           'editor.fullscreen',
           'app.greyCanvas',

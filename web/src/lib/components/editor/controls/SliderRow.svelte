@@ -17,6 +17,7 @@
   import { SliderSession } from './sliderSession.svelte';
   import { clampTo, nudgeValue } from './sliderStep';
   import { sliderWheel } from './sliderWheel';
+  import { sliderDrag } from '#lib/stores/sliderDrag.svelte.ts';
 
   const LABEL_SLOP = 3;
 
@@ -83,8 +84,14 @@
     commit: () => onCommit(commitAction),
     previewStart: () => onPreviewStart?.(),
     previewEnd: () => onPreviewEnd?.(),
-    dragStart: () => onDragStart?.(),
-    dragEnd: () => onDragEnd?.()
+    dragStart: () => {
+      sliderDrag.start(setting);
+      onDragStart?.();
+    },
+    dragEnd: () => {
+      sliderDrag.end();
+      onDragEnd?.();
+    }
   });
 
   $effect(() => {
