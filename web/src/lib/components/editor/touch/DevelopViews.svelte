@@ -7,13 +7,22 @@
   import { Tabs } from 'bits-ui';
   import DevelopTools from './DevelopTools.svelte';
   import QuickView from './QuickView.svelte';
+  import { orderedTouchViews } from '#lib/stores/developSections.svelte.ts';
 
   let { stacked = false }: { stacked?: boolean } = $props();
 
   const group = $derived(TOUCH_GROUPS.find((entry) => entry.id === touchUi.group));
-  const views = $derived(group?.views ?? []);
-  const shown = $derived(stacked ? views : views.filter((view) => view.id === touchUi.view));
   const modified = $derived(group ? modifiedTouchViews(editor.edits, group.id) : new Set<string>());
+  const views = $derived(
+    group
+      ? orderedTouchViews(group)
+          .filter(
+            ({ view, hidden }) => !hidden || modified.has(view.id) || view.id === touchUi.view
+          )
+          .map(({ view }) => view)
+      : []
+  );
+  const shown = $derived(stacked ? views : views.filter((view) => view.id === touchUi.view));
 
   function anchorOf(view: string): string {
     return `touch-view-${touchUi.group}-${view}`;

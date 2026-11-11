@@ -27,7 +27,9 @@ describe('preferences api', () => {
     await expect(getPreferences()).resolves.toEqual({
       clickTarget: 'loupe',
       pinnedSettings: ['exposure'],
-      shortcuts: {}
+      shortcuts: {},
+      desktopSections: null,
+      touchSubviews: null
     });
   });
 
@@ -54,18 +56,32 @@ describe('preferences api', () => {
     expect(fetch.sent()).toEqual({ method: 'PATCH', body: { pinned_settings: [] } });
   });
 
-  it('reads shortcuts, dropping malformed entries', async () => {
+  it('reads shortcuts and section lists, dropping malformed entries', async () => {
     stubFetch({
       click_target: 'editor',
       pinned_settings: null,
-      shortcuts: { undo: ['Mod+y', 4], redo: 'Mod+Shift+y' }
+      shortcuts: { undo: ['Mod+y', 4], redo: 'Mod+Shift+y' },
+      desktop_sections: [{ id: 'lut', hidden: true }, { hidden: true }, 'basic'],
+      touch_subviews: null
     });
-    await expect(getPreferences()).resolves.toMatchObject({ shortcuts: { undo: ['Mod+y'] } });
+    await expect(getPreferences()).resolves.toMatchObject({
+      shortcuts: { undo: ['Mod+y'] },
+      desktopSections: [{ id: 'lut', hidden: true }],
+      touchSubviews: null
+    });
   });
 
-  it('patches the whole shortcut map', async () => {
+  it('patches shortcuts and section lists under their wire names', async () => {
     const fetch = stubFetch({ click_target: 'editor' });
-    await patchPreferences({ shortcuts: { undo: [] } });
-    expect(fetch.sent().body).toEqual({ shortcuts: { undo: [] } });
+    await patchPreferences({
+      shortcuts: { undo: [] },
+      desktopSections: null,
+      touchSubviews: [{ id: 'light.tone', hidden: true }]
+    });
+    expect(fetch.sent().body).toEqual({
+      shortcuts: { undo: [] },
+      desktop_sections: null,
+      touch_subviews: [{ id: 'light.tone', hidden: true }]
+    });
   });
 });

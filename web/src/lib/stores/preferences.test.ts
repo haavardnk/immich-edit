@@ -18,6 +18,8 @@ function remote(fields: Partial<Preferences>): Preferences {
     clickTarget: 'editor',
     pinnedSettings: null,
     shortcuts: {},
+    desktopSections: null,
+    touchSubviews: null,
     ...fields
   };
 }
@@ -158,13 +160,22 @@ describe('preferences', () => {
     expect(push).toHaveBeenCalled();
   });
 
-  it('keeps shortcuts from the account', async () => {
+  it('keeps shortcuts and section lists from the account', async () => {
     const preferences = await freshStore();
-    api.getPreferences.mockResolvedValue(remote({ shortcuts: { autoAdjust: ['Mod+Shift+a'] } }));
+    api.getPreferences.mockResolvedValue(
+      remote({
+        shortcuts: { autoAdjust: ['Mod+Shift+a'] },
+        desktopSections: [{ id: 'lens-blur', hidden: true }],
+        touchSubviews: [{ id: 'profile.lut', hidden: true }]
+      })
+    );
     await preferences.load();
     expect(preferences.shortcuts).toEqual({ autoAdjust: ['Mod+Shift+a'] });
+    expect(preferences.desktopSections).toEqual([{ id: 'lens-blur', hidden: true }]);
+    expect(preferences.touchSubviews).toEqual([{ id: 'profile.lut', hidden: true }]);
     preferences.reset();
     expect(preferences.shortcuts).toEqual({});
+    expect(preferences.desktopSections).toBeNull();
   });
 
   it('saves the whole shortcut map and restores it when refused', async () => {

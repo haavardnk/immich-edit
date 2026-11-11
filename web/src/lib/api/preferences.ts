@@ -1,4 +1,5 @@
 import { getJson, sendJson } from './client';
+import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 
 export type ClickTarget = 'editor' | 'loupe';
@@ -7,12 +8,16 @@ export interface Preferences {
   clickTarget: ClickTarget;
   pinnedSettings: readonly string[] | null;
   shortcuts: ShortcutMap;
+  desktopSections: readonly SectionEntry[] | null;
+  touchSubviews: readonly SectionEntry[] | null;
 }
 
 interface PreferencesBody {
   click_target: unknown;
   pinned_settings: unknown;
   shortcuts: unknown;
+  desktop_sections: unknown;
+  touch_subviews: unknown;
 }
 
 function strings(value: unknown): string[] | null {
@@ -30,11 +35,22 @@ function shortcutsFrom(value: unknown): ShortcutMap {
   return map;
 }
 
+function sectionsFrom(value: unknown): SectionEntry[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { id, hidden } = entry as Record<string, unknown>;
+    return typeof id === 'string' ? [{ id, hidden: hidden === true }] : [];
+  });
+}
+
 function fromBody(body: PreferencesBody): Preferences {
   return {
     clickTarget: body.click_target === 'loupe' ? 'loupe' : 'editor',
     pinnedSettings: strings(body.pinned_settings),
-    shortcuts: shortcutsFrom(body.shortcuts)
+    shortcuts: shortcutsFrom(body.shortcuts),
+    desktopSections: sectionsFrom(body.desktop_sections),
+    touchSubviews: sectionsFrom(body.touch_subviews)
   };
 }
 
@@ -47,5 +63,7 @@ export async function patchPreferences(patch: Partial<Preferences>): Promise<Pre
   if (patch.clickTarget !== undefined) body.click_target = patch.clickTarget;
   if (patch.pinnedSettings !== undefined) body.pinned_settings = patch.pinnedSettings;
   if (patch.shortcuts !== undefined) body.shortcuts = patch.shortcuts;
+  if (patch.desktopSections !== undefined) body.desktop_sections = patch.desktopSections;
+  if (patch.touchSubviews !== undefined) body.touch_subviews = patch.touchSubviews;
   return fromBody(await sendJson<PreferencesBody>('PATCH', '/api/preferences', body));
 }

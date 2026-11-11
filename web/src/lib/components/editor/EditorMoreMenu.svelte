@@ -8,7 +8,13 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiCameraOutline, mdiContentDuplicate, mdiDotsVertical, mdiHistory } from '@mdi/js';
+  import {
+    mdiCameraOutline,
+    mdiContentDuplicate,
+    mdiDotsVertical,
+    mdiHistory,
+    mdiViewSequentialOutline
+  } from '@mdi/js';
   import SoftProofControl from './SoftProofControl.svelte';
   import HistorySheet from './history/HistorySheet.svelte';
   import EditRows from './more/EditRows.svelte';
@@ -16,8 +22,10 @@
   import SnapshotsSheet from './snapshots/SnapshotsSheet.svelte';
   import VersionsList from './versions/VersionsList.svelte';
   import VersionsSheet from './versions/VersionsSheet.svelte';
+  import SectionsSheet from './touch/SectionsSheet.svelte';
+  import { touchSections } from '#lib/stores/developSections.svelte.ts';
 
-  type Sheet = 'history' | 'snapshots' | 'versions';
+  type Sheet = 'history' | 'snapshots' | 'versions' | 'sections';
 
   let { icon = mdiDotsVertical }: { icon?: string } = $props();
 
@@ -114,6 +122,12 @@
     <SoftProofControl />
     <div class="my-1 border-t border-dark/10"></div>
     <CommandList menu={EDITOR_MORE_MENU} onrun={() => (open = false)} />
+    <SheetRow
+      icon={mdiViewSequentialOutline}
+      label="Customize Develop"
+      detail={touchSections.hiddenCount > 0 ? `${touchSections.hiddenCount} hidden` : ''}
+      onclick={() => show('sections')}
+    />
   </div>
 </Popover>
 
@@ -123,3 +137,4 @@
   onOpenChange={(next) => sheetChange('snapshots', next)}
 />
 <VersionsSheet open={sheet === 'versions'} onOpenChange={(next) => sheetChange('versions', next)} />
+<SectionsSheet open={sheet === 'sections'} onOpenChange={(next) => sheetChange('sections', next)} />

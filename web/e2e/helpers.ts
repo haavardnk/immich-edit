@@ -248,6 +248,8 @@ export interface InstallOpts {
   clickTarget?: 'editor' | 'loupe';
   pinnedSettings?: string[] | null;
   shortcuts?: Record<string, string[]>;
+  desktopSections?: { id: string; hidden: boolean }[] | null;
+  touchSubviews?: { id: string; hidden: boolean }[] | null;
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
   metadataPushConsented?: boolean;
@@ -286,8 +288,8 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
     mask_overlay_color: null,
     shortcuts: opts.shortcuts ?? {},
-    desktop_sections: null,
-    touch_subviews: null
+    desktop_sections: opts.desktopSections ?? null,
+    touch_subviews: opts.touchSubviews ?? null
   };
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();

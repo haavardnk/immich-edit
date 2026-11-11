@@ -14,6 +14,7 @@
   import { pinnedParams } from '#lib/editor/quickSettings.ts';
   import { preferences } from '#lib/stores/preferences.svelte.ts';
   import QuickPanel from './quick/QuickPanel.svelte';
+  import { desktopSections } from '#lib/stores/developSections.svelte.ts';
 
   provideSettingFilter(settingSearch);
 
@@ -25,12 +26,27 @@
   const matchedPanels = $derived(
     new Set(settingSearch.matches.map((match) => match.setting.panel))
   );
+  const orderedPanels = $derived(
+    desktopSections.entries.flatMap((entry) => {
+      const panel = developPanels.find((candidate) => candidate.id === entry.id);
+      return panel ? [{ panel, hidden: entry.hidden }] : [];
+    })
+  );
   const shownPanels = $derived(
-    developPanels.filter(
-      (panel) =>
-        (!ui.developModifiedOnly || modifiedPanels.has(panel.id)) &&
-        (!settingSearch.filtering || matchedPanels.has(panel.id))
-    )
+    orderedPanels
+      .filter(
+        ({ panel, hidden }) =>
+          !hidden ||
+          settingSearch.filtering ||
+          modifiedPanels.has(panel.id) ||
+          desktopSections.revealed === panel.id
+      )
+      .map(({ panel }) => panel)
+      .filter(
+        (panel) =>
+          (!ui.developModifiedOnly || modifiedPanels.has(panel.id)) &&
+          (!settingSearch.filtering || matchedPanels.has(panel.id))
+      )
   );
 </script>
 

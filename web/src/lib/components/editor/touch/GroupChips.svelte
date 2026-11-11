@@ -10,6 +10,7 @@
   import { mdiPinOutline } from '@mdi/js';
   import { Tabs } from 'bits-ui';
   import { CHIP, CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
+  import { orderedTouchViews } from '#lib/stores/developSections.svelte.ts';
 
   let { grid = false, onretap }: { grid?: boolean; onretap?: () => void } = $props();
 
@@ -19,7 +20,12 @@
   );
   const chips = $derived<{ id: TrayGroupId; label: string; modified: boolean }[]>([
     { id: QUICK_GROUP, label: 'Quick', modified: quickModified },
-    ...TOUCH_GROUPS.map((group) => ({
+    ...TOUCH_GROUPS.filter(
+      (group) =>
+        group.id === touchUi.group ||
+        modified.has(group.id) ||
+        orderedTouchViews(group).some((entry) => !entry.hidden)
+    ).map((group) => ({
       id: group.id,
       label: group.label,
       modified: modified.has(group.id)
@@ -34,7 +40,11 @@
     activationMode="manual"
     class="min-w-0 flex-1"
   >
-    <Tabs.List aria-label="Develop groups" class={grid ? 'grid grid-cols-7 gap-1' : CHIP_ROW}>
+    <Tabs.List
+      aria-label="Develop groups"
+      class={grid ? 'grid gap-1' : CHIP_ROW}
+      style={grid ? `grid-template-columns: repeat(${chips.length}, minmax(0, 1fr))` : undefined}
+    >
       {#each chips as chip (chip.id)}
         <Tabs.Trigger
           value={chip.id}

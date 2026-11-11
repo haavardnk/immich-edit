@@ -8,6 +8,7 @@
   import { autoAdjust, copyEdits, pasteEdits, resetDevelop } from '#lib/commands/editor/edits.ts';
   import { Button, IconButton } from '@immich/ui';
   import { mdiFilterVariant } from '@mdi/js';
+  import SectionsMenu from './SectionsMenu.svelte';
 
   function toggleModifiedOnly(): void {
     ui.developModifiedOnly = !ui.developModifiedOnly;
@@ -81,4 +82,5 @@
     aria-pressed={ui.developModifiedOnly}
     onclick={toggleModifiedOnly}
   />
+  <SectionsMenu />
 </div>

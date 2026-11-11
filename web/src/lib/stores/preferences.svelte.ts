@@ -4,6 +4,7 @@ import {
   type ClickTarget,
   type Preferences
 } from '#lib/api/preferences.ts';
+import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
@@ -24,6 +25,8 @@ class PreferencesStore implements Preferences {
   clickTarget = $state<ClickTarget>(DEFAULT_CLICK_TARGET);
   pinnedSettings = $state.raw<readonly string[] | null>(null);
   shortcuts = $state.raw<ShortcutMap>({});
+  desktopSections = $state.raw<readonly SectionEntry[] | null>(null);
+  touchSubviews = $state.raw<readonly SectionEntry[] | null>(null);
   pinsKnown = $state(false);
   #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
@@ -40,6 +43,8 @@ class PreferencesStore implements Preferences {
     if (!this.#chosen.has('clickTarget')) this.clickTarget = remote.clickTarget;
     if (!this.#chosen.has('pinnedSettings')) this.pinnedSettings = remote.pinnedSettings;
     if (!this.#chosen.has('shortcuts')) this.shortcuts = remote.shortcuts;
+    if (!this.#chosen.has('desktopSections')) this.desktopSections = remote.desktopSections;
+    if (!this.#chosen.has('touchSubviews')) this.touchSubviews = remote.touchSubviews;
   }
 
   reset(): void {
@@ -47,6 +52,8 @@ class PreferencesStore implements Preferences {
     this.clickTarget = DEFAULT_CLICK_TARGET;
     this.pinnedSettings = null;
     this.shortcuts = {};
+    this.desktopSections = null;
+    this.touchSubviews = null;
     this.pinsKnown = false;
   }
 
@@ -55,6 +62,12 @@ class PreferencesStore implements Preferences {
   }
 
   setShortcuts = (next: ShortcutMap): Promise<void> => this.#write('shortcuts', next);
+
+  setDesktopSections = (next: readonly SectionEntry[] | null): Promise<void> =>
+    this.#write('desktopSections', next);
+
+  setTouchSubviews = (next: readonly SectionEntry[] | null): Promise<void> =>
+    this.#write('touchSubviews', next);
 
   isPinned = (id: string): boolean => this.pins.includes(id);
 
