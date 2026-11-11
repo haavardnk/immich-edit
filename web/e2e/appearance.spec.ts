@@ -120,7 +120,9 @@ function serveAppearance(page: Page, appearance: MockAppearance): Promise<void> 
 
 test('the server appearance replaces a stale cache after boot', async ({ page }) => {
   await installMocks(page);
+  const booted = page.waitForResponse('**/api/appearance');
   await page.goto('/photos');
+  await booted;
   await expect.poll(() => rootState(page)).toEqual(DARK);
 
   await serveAppearance(page, { ...DEFAULT_APPEARANCE, mode: 'light' });
