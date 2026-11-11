@@ -40,6 +40,7 @@ type Press = { pointerId: number; x: number; y: number; travel: number };
 
 export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
   let press: Press | null = null;
+  let lastPointer = '';
 
   const drag = pointerDrag<Point>({
     start(e) {
@@ -69,13 +70,13 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
     return press && press.pointerId === e.pointerId ? press : null;
   }
 
-  function accepts(e: PointerEvent): boolean {
-    return !spec.pointerTypes || spec.pointerTypes.some((kind) => kind === e.pointerType);
+  function accepts(pointerType: string): boolean {
+    return !spec.pointerTypes || spec.pointerTypes.some((kind) => kind === pointerType);
   }
 
   function only(handler: (e: PointerEvent) => void): (e: PointerEvent) => void {
     return (e) => {
-      if (accepts(e)) handler(e);
+      if (accepts(e.pointerType)) handler(e);
     };
   }
 
@@ -123,13 +124,18 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
 
   return {
     handlers: {
-      onpointerdown: only((e) => void drag.begin(e)),
+      onpointerdown: (e) => {
+        lastPointer = e.pointerType;
+        if (accepts(e.pointerType)) drag.begin(e);
+      },
       onpointermove: only(onpointermove),
       onpointerup: only(onpointerup),
       onpointercancel: only(onpointercancel),
       onlostpointercapture: only(drag.follow.onlostpointercapture),
       onwheel,
-      ondblclick: (e) => spec.doubleTap?.(e)
+      ondblclick: (e) => {
+        if (accepts(lastPointer || 'mouse')) spec.doubleTap?.(e);
+      }
     },
     zoomAt
   };

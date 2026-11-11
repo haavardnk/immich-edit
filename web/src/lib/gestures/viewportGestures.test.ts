@@ -228,6 +228,20 @@ describe('viewportGestures tap', () => {
     handlers.ondblclick({ clientX: 1, clientY: 2 } as MouseEvent);
     expect(applied).toEqual([]);
   });
+
+  it('ignores the double click a browser synthesises after a double tap', () => {
+    const doubleTap = vi.fn();
+    const { handlers } = setup(FIT_VIEW, { doubleTap, pointerTypes: ['mouse', 'pen'] });
+    const target = captureTarget();
+    const e = { clientX: 300, clientY: 300 } as MouseEvent;
+    handlers.onpointerdown(pointer(target, 300, 300, 1, 'touch'));
+    handlers.ondblclick(e);
+    expect(doubleTap).not.toHaveBeenCalled();
+
+    handlers.onpointerdown(pointer(target, 300, 300, 2, 'mouse'));
+    handlers.ondblclick(e);
+    expect(doubleTap).toHaveBeenCalledExactlyOnceWith(e);
+  });
 });
 
 describe('viewportGestures wheel', () => {
