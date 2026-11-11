@@ -137,6 +137,70 @@ async fn a_preset_name_or_group_outside_the_limits_is_rejected() {
 }
 
 #[tokio::test]
+async fn a_favourite_star_is_kept_without_changing_the_preset() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+
+    let resp = app
+        .clone()
+        .oneshot(json_request(
+            "POST",
+            "/api/presets",
+            preset_body("Portrait", None),
+        ))
+        .await
+        .unwrap();
+    let created = body_json(resp).await;
+    let id = created["id"].as_str().unwrap().to_string();
+    if created["favorite"] != json!(false) {
+        panic!("a new preset must not be a favourite: {created}");
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/presets/{id}/favorite"),
+            json!({ "favorite": true }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("favorite status {}", resp.status());
+    }
+    let starred = body_json(resp).await;
+    if starred["favorite"] != json!(true) || starred["updated_at"] != created["updated_at"] {
+        panic!("the star must not touch updated_at: {starred}");
+    }
+
+    app.clone()
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/presets/{id}"),
+            preset_body("Landscape", None),
+        ))
+        .await
+        .unwrap();
+    let listed = body_json(app.clone().oneshot(get("/api/presets")).await.unwrap()).await;
+    if listed[0]["favorite"] != json!(true) {
+        panic!("an edit must keep the star: {listed}");
+    }
+
+    let unknown = Uuid::new_v4();
+    let resp = app
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/presets/{unknown}/favorite"),
+            json!({ "favorite": true }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NOT_FOUND {
+        panic!("an unknown id must be 404, got {}", resp.status());
+    }
+}
+
+#[tokio::test]
 async fn another_members_preset_id_is_not_found() {
     let server = MockServer::start().await;
     let (owner, member) = two_owner_apps(&server).await;
@@ -157,6 +221,11 @@ async fn another_members_preset_id_is_not_found() {
             "PUT",
             &format!("/api/presets/{id}"),
             preset_body("Stolen", None),
+        ),
+        json_request(
+            "PUT",
+            &format!("/api/presets/{id}/favorite"),
+            json!({ "favorite": true }),
         ),
         empty_request("DELETE", &format!("/api/presets/{id}")),
     ] {

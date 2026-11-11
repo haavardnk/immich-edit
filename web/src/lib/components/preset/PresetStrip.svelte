@@ -16,7 +16,6 @@
 
   let dialog = $state<{ preset?: Preset } | null>(null);
   const tileWidth = $derived(Math.round(ui.filmstripHeight * 1.5));
-  const grouped = $derived(presetStrip.groups.length > 1);
 
   $effect(presetStrip.ensureLoaded);
 
@@ -36,6 +35,8 @@
     <li class="flex items-center ps-2 text-xs text-dark/65">
       No presets yet. Save the current look or import a preset file.
     </li>
+  {:else if presetStrip.shown.length === 0}
+    <li class="flex items-center ps-2 text-xs text-dark/65">No presets match.</li>
   {/if}
   {#each presetStrip.shown as preset (preset.id)}
     <PresetTile
@@ -50,9 +51,20 @@
   {/each}
 {/snippet}
 
+{#snippet options()}
+  <PresetApplyOptions
+    bind:options={presetStrip.applyOptions}
+    inline
+    amount={presetStrip.amount}
+    note={presetStrip.live ? `Blending ${presetStrip.live.name}` : null}
+    onamount={presetStrip.setAmount}
+    onamountcommit={presetStrip.commitAmount}
+  />
+{/snippet}
+
 {#if layout.mode === 'touch'}
   <section aria-label="Presets" class="flex flex-col gap-2 pt-1 pb-3">
-    {#if grouped}
+    {#if presetStrip.filterable}
       <PresetGroups chips />
     {/if}
     <ul
@@ -61,7 +73,7 @@
       {@render items()}
     </ul>
     <div class="px-4">
-      <PresetApplyOptions bind:options={presetStrip.applyOptions} inline />
+      {@render options()}
     </div>
   </section>
 {:else}
@@ -70,7 +82,7 @@
     class="relative flex flex-none gap-3 border-t border-light-950/12 bg-editor-chrome px-2 py-1.5 dark:shadow-filmstrip"
   >
     <BottomPanelResizeHandle label="Resize presets" />
-    {#if grouped}
+    {#if presets.presets.length > 0}
       <PresetGroups />
     {/if}
     <ul
@@ -84,7 +96,7 @@
       class="flex w-64 flex-none flex-col justify-center border-l border-hairline pl-3"
       style:height="{ui.filmstripHeight}px"
     >
-      <PresetApplyOptions bind:options={presetStrip.applyOptions} inline />
+      {@render options()}
     </div>
   </section>
 {/if}

@@ -8,6 +8,7 @@
     ref = $bindable(null),
     label,
     placeholder = label,
+    compact = false,
     oninput,
     onkeydown
   }: {
@@ -15,9 +16,16 @@
     ref?: HTMLInputElement | null;
     label: string;
     placeholder?: string;
+    compact?: boolean;
     oninput?: (value: string) => void;
     onkeydown?: (event: KeyboardEvent) => void;
   } = $props();
+
+  const inputSize = $derived(
+    compact
+      ? '[&_input]:h-6 [&_input]:text-[11px]'
+      : '[&_input]:h-7.5 [&_input]:text-[13px] touch:[&_input]:h-11 touch:[&_input]:text-[15px]'
+  );
 
   function set(next: string): void {
     value = next;
@@ -70,7 +78,7 @@
   aria-label={label}
   leadingIcon={searchIcon}
   trailingIcon={clearButton}
-  class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! [&_input]:h-7.5 [&_input]:text-[13px] touch:[&_input]:h-11 touch:[&_input]:text-[15px]"
+  class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! {inputSize}"
   oninput={(event: Event) => set((event.currentTarget as HTMLInputElement).value)}
   onkeydown={keydown}
 />

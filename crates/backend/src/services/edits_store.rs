@@ -431,6 +431,7 @@ pub struct PresetRecord {
     pub manifest: EditManifest,
     pub created_at: String,
     pub updated_at: String,
+    pub favorite: bool,
 }
 
 #[cfg(test)]
@@ -751,6 +752,45 @@ mod tests {
         }
         if s.get_preset(O, created.id).await.unwrap().is_some() {
             panic!("preset not deleted");
+        }
+    }
+
+    #[tokio::test]
+    async fn preset_favorite_survives_updates_without_touching_updated_at() {
+        let s = store().await;
+        let created = s
+            .create_preset(O, "Warm", None, &EditManifest::default())
+            .await
+            .unwrap();
+        if created.favorite {
+            panic!("a new preset must not be a favourite");
+        }
+        let starred = s
+            .set_preset_favorite(O, created.id, true)
+            .await
+            .unwrap()
+            .unwrap();
+        if !starred.favorite || starred.updated_at != created.updated_at {
+            panic!("favourite must not bump updated_at: {starred:?}");
+        }
+        let renamed = s
+            .update_preset(O, created.id, "Cool", None, &EditManifest::default())
+            .await
+            .unwrap()
+            .unwrap();
+        if !renamed.favorite {
+            panic!("an update must keep the favourite: {renamed:?}");
+        }
+        let other = Uuid::from_u128(7);
+        if s.set_preset_favorite(other, created.id, false)
+            .await
+            .unwrap()
+            .is_some()
+        {
+            panic!("another owner must not star the preset");
+        }
+        if !s.list_presets(O).await.unwrap()[0].favorite {
+            panic!("another owner changed the favourite");
         }
     }
 

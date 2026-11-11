@@ -8,12 +8,27 @@
   let {
     options = $bindable(),
     bordered = false,
-    inline = false
+    inline = false,
+    amount,
+    note = null,
+    onamount,
+    onamountcommit
   }: {
     options: ApplyPresetOptions;
     bordered?: boolean;
     inline?: boolean;
+    amount?: number;
+    note?: string | null;
+    onamount?: (value: number) => void;
+    onamountcommit?: () => void;
   } = $props();
+
+  const value = $derived(amount ?? options.amount);
+
+  function setAmount(next: number): void {
+    if (onamount) onamount(next);
+    else options.amount = next;
+  }
 
   const short = $derived(inline && layout.mode === 'touch');
   const includeClass =
@@ -42,7 +57,7 @@
 >
   <div class="panel-row h-7 items-center touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem]">
     <span class="editor-compact-label flex items-center gap-1.5 select-none touch:text-[13px]">
-      {#if options.amount !== LOOK_AMOUNT_FULL}
+      {#if value !== LOOK_AMOUNT_FULL}
         <span class="hidden size-1.5 rounded-full bg-primary touch:block" aria-hidden="true"></span>
       {/if}
       Amount
@@ -53,19 +68,24 @@
       max={LOOK_AMOUNT_MAX}
       step={1}
       defaultValue={LOOK_AMOUNT_FULL}
-      value={options.amount}
-      valueText="{options.amount}%"
+      {value}
+      valueText="{value}%"
       title="Double click to reset"
-      oninput={(event) => {
-        options.amount = (event.currentTarget as HTMLInputElement).valueAsNumber;
+      oninput={(event) => setAmount((event.currentTarget as HTMLInputElement).valueAsNumber)}
+      onchange={onamountcommit}
+      ondblclick={() => {
+        setAmount(LOOK_AMOUNT_FULL);
+        onamountcommit?.();
       }}
-      ondblclick={() => (options.amount = LOOK_AMOUNT_FULL)}
     />
     <span
       class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
-      >{options.amount}%</span
+      >{value}%</span
     >
   </div>
+  {#if note}
+    <p class="truncate text-[11px] text-dark/65 touch:text-[13px]">{note}</p>
+  {/if}
   {#if inline}
     <div class="flex items-center gap-3 touch:gap-2">
       <span class="editor-compact-label select-none touch:w-24 touch:flex-none touch:text-[13px]"

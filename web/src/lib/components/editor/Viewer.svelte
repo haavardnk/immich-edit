@@ -46,7 +46,7 @@
   const pill = $derived(
     editor.versions.hold.pill ??
       presetStrip.pill ??
-      (editor.showingOriginal ? null : editor.historySteps.pill)
+      (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill))
   );
 
   const metrics = $derived(

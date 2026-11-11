@@ -9,7 +9,7 @@
   import type { Point } from '#lib/gestures/point.ts';
   import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
-  import { IconButton } from '@immich/ui';
+  import { Icon, IconButton } from '@immich/ui';
   import {
     mdiCheck,
     mdiClose,
@@ -17,7 +17,9 @@
     mdiDotsHorizontal,
     mdiDownload,
     mdiDownloadMultiple,
-    mdiPencilOutline
+    mdiPencilOutline,
+    mdiStar,
+    mdiStarOutline
   } from '@mdi/js';
 
   const HOLD_MS = 250;
@@ -42,6 +44,7 @@
   let button = $state<HTMLButtonElement>();
   let holding = false;
   const touch = $derived(layout.mode === 'touch');
+  const applied = $derived(presetStrip.appliedId === preset.id);
   const guard = clickGuard();
 
   function release(): void {
@@ -112,6 +115,7 @@
     style:width={touch ? null : `${width}px`}
     title="Apply {preset.name}"
     aria-label="Apply {preset.name}"
+    aria-current={applied || undefined}
     {disabled}
     onfocus={() => {
       if (!touch) presetStrip.preview(preset);
@@ -124,7 +128,9 @@
     {@attach guard.attachment}
   >
     <span
-      class="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border border-hairline bg-light-100 text-lg text-dark/40 group-hover/tile:border-light-950/40 touch:h-22 touch:flex-none touch:rounded-lg"
+      class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-lg text-dark/40 touch:h-22 touch:flex-none touch:rounded-lg {applied
+        ? 'border-primary ring-1 ring-primary'
+        : 'border-hairline group-hover/tile:border-light-950/40'}"
     >
       {#if src && src !== failedSrc}
         <img
@@ -138,12 +144,32 @@
       {:else}
         <span aria-hidden="true">{preset.name.slice(0, 1).toUpperCase()}</span>
       {/if}
+      {#if applied}
+        <span
+          data-applied-badge
+          class="absolute top-1 left-1 grid size-4 place-items-center rounded-full bg-primary text-light touch:size-5"
+          aria-hidden="true"
+        >
+          <Icon icon={mdiCheck} size="75%" />
+        </span>
+      {/if}
     </span>
     <span
       class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-[11px] text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-[12px] touch:text-dark/80"
       >{preset.name}</span
     >
   </button>
+  {#if preset.favorite}
+    <span
+      role="img"
+      aria-label="Favourite"
+      class="pointer-events-none absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-black/55 text-warning touch:top-16 touch:right-1.5 touch:size-5 {menuOpen
+        ? 'opacity-0'
+        : 'group-hover/tile:opacity-0 group-has-focus-visible/tile:opacity-0 touch:opacity-100'}"
+    >
+      <Icon icon={mdiStar} size="75%" />
+    </span>
+  {/if}
   <Popover
     open={menuOpen}
     anchor="top"
@@ -167,6 +193,11 @@
       />
     {/snippet}
     <div class="flex flex-col">
+      <MenuItem
+        icon={preset.favorite ? mdiStar : mdiStarOutline}
+        label={preset.favorite ? 'Remove from favourites' : 'Add to favourites'}
+        onclick={() => act(() => void presets.setFavorite(preset.id, !preset.favorite))}
+      />
       <MenuItem icon={mdiPencilOutline} label="Edit…" onclick={() => act(onedit)} />
       <MenuItem
         icon={mdiDownload}

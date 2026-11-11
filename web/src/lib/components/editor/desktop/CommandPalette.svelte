@@ -140,7 +140,7 @@
   }
 
   function applyPreset(preset: Preset): void {
-    void editor.applyPreset(preset.manifest, defaultApplyOptions(), preset.name);
+    void editor.applyPreset(preset, defaultApplyOptions());
   }
 </script>
 

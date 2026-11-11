@@ -330,6 +330,17 @@ async fn presets_are_scoped_to_the_owner() {
     .await;
     expect_status(
         &member,
+        json_request(
+            "PUT",
+            &format!("/api/presets/{preset_id}/favorite"),
+            serde_json::json!({ "favorite": true }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member star preset",
+    )
+    .await;
+    expect_status(
+        &member,
         empty_request("DELETE", &format!("/api/presets/{preset_id}")),
         StatusCode::NOT_FOUND,
         "member delete preset",
@@ -357,7 +368,7 @@ async fn presets_are_scoped_to_the_owner() {
         .await,
     )
     .await;
-    if owned["name"] != "Owner look" {
+    if owned["name"] != "Owner look" || owned["favorite"] != false {
         panic!("owner preset after member calls: {owned}");
     }
 }

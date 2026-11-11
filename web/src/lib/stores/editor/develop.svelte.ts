@@ -1,21 +1,12 @@
-import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import { autoEdits } from '#lib/api/edits.ts';
 import { AUTO_ACTIONS, pickAuto, type AutoScope } from '#lib/editor/autoScope.ts';
 import { applyCopySections } from '#lib/editor/copyPaste.ts';
-import { presetEdits } from '#lib/edits/applyPreset.ts';
-import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
 import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import {
-  isDevelopIdentity,
-  isIdentity,
-  resetDevelopEdits,
-  type EditManifest,
-  type Edits
-} from '#lib/types/edits.ts';
+import { isDevelopIdentity, isIdentity, resetDevelopEdits, type Edits } from '#lib/types/edits.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 
 export interface DevelopCtx {
@@ -71,19 +62,6 @@ export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
   ctx.onLive();
   await ctx.onCommit('Paste');
   toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
-}
-
-export async function applyPreset(
-  ctx: DevelopCtx,
-  manifest: EditManifest,
-  opts: ApplyPresetOptions,
-  name?: string
-): Promise<void> {
-  if (!ctx.initialised) return;
-  ctx.edits = presetEdits(ctx.edits, { manifest, opts });
-  ctx.onLive();
-  const action = name ? `Preset: ${name}` : 'Preset';
-  await ctx.onCommit(opts.amount === LOOK_AMOUNT_FULL ? action : `${action} (${opts.amount}%)`);
 }
 
 export async function autoAdjust(ctx: DevelopCtx, scope: AutoScope = 'all'): Promise<void> {

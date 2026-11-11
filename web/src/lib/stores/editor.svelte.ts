@@ -28,6 +28,7 @@ import * as maskGen from '#lib/stores/editor/maskGen.ts';
 import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
 import type { MaskStroke, MaskWeightFrame } from '#lib/stores/editor/maskWeight.svelte.ts';
 import * as metadata from '#lib/stores/editor/metadata.ts';
+import { PresetApplied, type PresetSource } from '#lib/stores/editor/presetApplied.svelte.ts';
 import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
 import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
 import * as retouch from '#lib/stores/editor/retouch.ts';
@@ -52,7 +53,6 @@ import {
   type AsShotWhite,
   type CropRect,
   type DevelopSection,
-  type EditManifest,
   type Edits,
   type GeometryEdits,
   type LensEdits,
@@ -209,6 +209,10 @@ class EditorStore {
   readonly snapshots = new SnapshotStore(this);
   readonly historySteps = new HistorySteps(this);
   readonly versions = new VersionStore(this);
+  readonly presetApplied = new PresetApplied(this, {
+    steps: this.history,
+    save: (edits, action) => this.saves.commit(edits, action)
+  });
   readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
     this.previews.compareChanged(wasOn)
   );
@@ -326,6 +330,7 @@ class EditorStore {
     this.snapshots.reset();
     this.historySteps.reset();
     this.versions.reset();
+    this.presetApplied.drop();
     this.showingOriginal = false;
     this.bypassedSection = null;
     this.editsPreview = null;
@@ -387,6 +392,7 @@ class EditorStore {
 
   onCommit = async (action?: string): Promise<void> => {
     if (!this.initialised || !this.saves.open) return;
+    this.presetApplied.drop();
     const replaying = this.history.skipping;
     if (!replaying) this.history.push($state.snapshot(this.edits) as Edits);
     this.onLive();
@@ -421,13 +427,9 @@ class EditorStore {
 
   hasClipboard = $derived(clipboard.has);
 
-  applyPreset = (
-    manifest: EditManifest,
-    opts: ApplyPresetOptions,
-    name?: string
-  ): Promise<void> => {
+  applyPreset = (preset: PresetSource, opts: ApplyPresetOptions): Promise<void> => {
     this.editsPreview = null;
-    return develop.applyPreset(this, manifest, opts, name);
+    return this.presetApplied.apply(preset, opts);
   };
 
   previewPreset = (preview: PresetPreview): void =>

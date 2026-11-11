@@ -199,6 +199,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
                 .put(routes::presets::update)
                 .delete(routes::presets::delete),
         )
+        .route("/presets/{id}/favorite", put(routes::presets::favorite))
         .route(
             "/export-presets",
             get(routes::export_presets::list).post(routes::export_presets::create),
