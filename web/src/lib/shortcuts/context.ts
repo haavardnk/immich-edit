@@ -3,17 +3,7 @@ import { compare } from '#lib/stores/compare.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { onEditorRoute } from '#lib/utils/route.ts';
 import type { KeybindContext } from './table';
-
-export const CONTEXT_STACKS = {
-  masks: ['masks', 'editor', 'global'],
-  retouch: ['retouch', 'editor', 'global'],
-  geometry: ['geometry', 'editor', 'global'],
-  editor: ['editor', 'global'],
-  compare: ['compare', 'global'],
-  survey: ['survey', 'global'],
-  loupe: ['loupe', 'global'],
-  grid: ['grid', 'global']
-} as const satisfies Record<string, readonly KeybindContext[]>;
+import { CONTEXT_STACKS } from './stacks';
 
 export function activeContexts(): readonly KeybindContext[] {
   if (onEditorRoute()) {

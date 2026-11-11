@@ -1,16 +1,20 @@
 <script lang="ts">
-  import TextInput from '#lib/components/TextInput.svelte';
-  import { ui } from '#lib/stores/ui.svelte.ts';
-  import { KEYBINDS, type KeybindContext } from '#lib/shortcuts/table.ts';
-  import { isKeybind } from '#lib/shortcuts/match.ts';
-  import { keysFor } from '#lib/shortcuts/labels.ts';
-  import { activeContexts } from '#lib/shortcuts/context.ts';
   import Dialog from '#lib/components/Dialog.svelte';
-  import { Icon } from '@immich/ui';
-  import { mdiMagnify } from '@mdi/js';
-
-  type HelpBind = { id: string; keys: string; label: string };
-  type HelpGroup = { title: string; binds: HelpBind[] };
+  import TextInput from '#lib/components/TextInput.svelte';
+  import { keyLabel } from '#lib/shortcuts/chord.ts';
+  import { activeContexts } from '#lib/shortcuts/context.ts';
+  import { customCount } from '#lib/shortcuts/custom.ts';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { isKeybind } from '#lib/shortcuts/match.ts';
+  import type { KeybindContext, KeybindId } from '#lib/shortcuts/table.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+  import { Button, Icon, Kbd } from '@immich/ui';
+  import { mdiAccountOutline, mdiMagnify, mdiRestore } from '@mdi/js';
+  import { helpSections, type HelpGroup } from './helpSections';
+  import { ShortcutRecorder } from './recorder.svelte.ts';
+  import ShortcutRow from './ShortcutRow.svelte';
 
   const CONTEXT_LABELS: Record<KeybindContext, string> = {
     global: 'Anywhere',
@@ -24,35 +28,32 @@
     retouch: 'the Retouch panel'
   };
 
+  const recorder = new ShortcutRecorder();
+
   let query = $state('');
   let input = $state<HTMLInputElement | null>(null);
 
   const contexts = $derived(ui.keybindsHelpOpen ? activeContexts() : []);
   const hereLabel = $derived(contexts[0] ? CONTEXT_LABELS[contexts[0]] : 'here');
-
-  const sections = $derived.by<{ here: HelpGroup[]; elsewhere: HelpGroup[] }>(() => {
-    const needle = query.trim().toLowerCase();
-    const here = new Map<string, HelpGroup>();
-    const elsewhere = new Map<string, HelpGroup>();
-    for (const bind of KEYBINDS) {
-      const keys = keysFor(bind.id);
-      if (needle && !`${bind.label} ${keys}`.toLowerCase().includes(needle)) continue;
-      const active = bind.contexts.some((c: KeybindContext) => contexts.includes(c));
-      const target = active ? here : elsewhere;
-      const group = target.get(bind.group) ?? { title: bind.group, binds: [] };
-      group.binds.push({ id: bind.id, keys, label: bind.label });
-      target.set(bind.group, group);
-    }
-    return { here: [...here.values()], elsewhere: [...elsewhere.values()] };
-  });
+  const custom = $derived(customCount(preferences.shortcuts));
+  const sections = $derived(helpSections(contexts, query, (bind) => keysFor(bind.id as KeybindId)));
 
   function onWindowKeydown(e: KeyboardEvent): void {
     if (!ui.keybindsHelpOpen) return;
+    if (recorder.keydown(e)) {
+      e.stopPropagation();
+      return;
+    }
     if (isKeybind(e, 'editorEscape') || (isKeybind(e, 'help') && e.target !== input)) {
       e.preventDefault();
       ui.closeKeybindsHelp();
     }
     e.stopPropagation();
+  }
+
+  function resetAll(): void {
+    recorder.cancel();
+    void preferences.setShortcuts({});
   }
 
   function focusableScroll(node: HTMLElement): void {
@@ -62,6 +63,7 @@
   $effect(() => {
     if (!ui.keybindsHelpOpen) return;
     query = '';
+    recorder.cancel();
     input?.focus();
   });
 </script>
@@ -87,6 +89,30 @@
           leadingIcon={searchIcon}
           class="bg-light-200! ring-transparent! focus-within:bg-light-200! focus-within:ring-primary!"
         />
+      </div>
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        leadingIcon={mdiRestore}
+        class="shrink-0"
+        disabled={custom === 0}
+        onclick={resetAll}
+      >
+        Reset all
+      </Button>
+    {/snippet}
+
+    {#snippet footer()}
+      <div class="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+        <span class="flex min-w-0 items-center gap-1.5 text-dark/65">
+          <Icon icon={mdiAccountOutline} size="14px" class="shrink-0" aria-hidden="true" />
+          {countOf(custom, 'custom shortcut')} · saved to your account and used on every device with a
+          keyboard
+        </span>
+        <span class="flex items-center gap-1 text-dark/65">
+          Click a key to change it · <Kbd size="tiny">{keyLabel('Escape')}</Kbd> cancels
+        </span>
       </div>
     {/snippet}
 
@@ -132,10 +158,9 @@
         <h4 class="text-[11px] uppercase tracking-wider text-dark/65 mb-1.5">
           {group.title}
         </h4>
-        <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+        <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 text-xs">
           {#each group.binds as bind (bind.id)}
-            <kbd class="font-mono text-dark/90 whitespace-nowrap">{bind.keys}</kbd>
-            <span class="text-dark/70">{bind.label}</span>
+            <ShortcutRow {bind} {recorder} />
           {/each}
         </div>
       </div>

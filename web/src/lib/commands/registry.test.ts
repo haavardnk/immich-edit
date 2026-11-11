@@ -1,4 +1,4 @@
-import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
+import { CONTEXT_STACKS } from '#lib/shortcuts/stacks.ts';
 import { compare, COMPARE_PANES } from '#lib/stores/compare.svelte.ts';
 import { KEYBINDS, type Keybind, type KeybindContext } from '#lib/shortcuts/table.ts';
 import { describe, expect, it, vi } from 'vitest';

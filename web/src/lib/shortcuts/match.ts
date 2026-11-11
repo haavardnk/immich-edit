@@ -1,10 +1,9 @@
-import { chordMatches, parseChord, type Chord } from './chord';
+import { chordMatches } from './chord';
+import { effectiveChords } from './effective';
 import { KEYBINDS, type KeybindContext, type KeybindId } from './table';
 
-const CHORDS = new Map<string, Chord[]>(KEYBINDS.map((b) => [b.id, b.keys.map(parseChord)]));
-
 export function isKeybind(e: KeyboardEvent, id: KeybindId): boolean {
-  return (CHORDS.get(id) ?? []).some((chord) => chordMatches(e, chord));
+  return effectiveChords(id).some((chord) => chordMatches(e, chord));
 }
 
 export function matchKeybind(

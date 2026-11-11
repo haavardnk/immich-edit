@@ -247,6 +247,7 @@ export interface InstallOpts {
   onAppearance?: (body: MockAppearance) => void;
   clickTarget?: 'editor' | 'loupe';
   pinnedSettings?: string[] | null;
+  shortcuts?: Record<string, string[]>;
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
   metadataPushConsented?: boolean;
@@ -284,7 +285,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     click_target: opts.clickTarget ?? 'editor',
     pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
     mask_overlay_color: null,
-    shortcuts: {},
+    shortcuts: opts.shortcuts ?? {},
     desktop_sections: null,
     touch_subviews: null
   };

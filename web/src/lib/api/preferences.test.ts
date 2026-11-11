@@ -26,13 +26,14 @@ describe('preferences api', () => {
     stubFetch({ click_target: 'loupe', pinned_settings: ['exposure', 3], shortcuts: {} });
     await expect(getPreferences()).resolves.toEqual({
       clickTarget: 'loupe',
-      pinnedSettings: ['exposure']
+      pinnedSettings: ['exposure'],
+      shortcuts: {}
     });
   });
 
   it('treats an unknown click target as the editor and missing pins as the default', async () => {
     stubFetch({ click_target: 'grid', pinned_settings: null });
-    await expect(getPreferences()).resolves.toEqual({
+    await expect(getPreferences()).resolves.toMatchObject({
       clickTarget: 'editor',
       pinnedSettings: null
     });
@@ -40,7 +41,7 @@ describe('preferences api', () => {
 
   it('patches only the click target', async () => {
     const fetch = stubFetch({ click_target: 'loupe', pinned_settings: null });
-    await expect(patchPreferences({ clickTarget: 'loupe' })).resolves.toEqual({
+    await expect(patchPreferences({ clickTarget: 'loupe' })).resolves.toMatchObject({
       clickTarget: 'loupe',
       pinnedSettings: null
     });
@@ -51,5 +52,20 @@ describe('preferences api', () => {
     const fetch = stubFetch({ click_target: 'editor', pinned_settings: [] });
     await patchPreferences({ pinnedSettings: [] });
     expect(fetch.sent()).toEqual({ method: 'PATCH', body: { pinned_settings: [] } });
+  });
+
+  it('reads shortcuts, dropping malformed entries', async () => {
+    stubFetch({
+      click_target: 'editor',
+      pinned_settings: null,
+      shortcuts: { undo: ['Mod+y', 4], redo: 'Mod+Shift+y' }
+    });
+    await expect(getPreferences()).resolves.toMatchObject({ shortcuts: { undo: ['Mod+y'] } });
+  });
+
+  it('patches the whole shortcut map', async () => {
+    const fetch = stubFetch({ click_target: 'editor' });
+    await patchPreferences({ shortcuts: { undo: [] } });
+    expect(fetch.sent().body).toEqual({ shortcuts: { undo: [] } });
   });
 });

@@ -13,6 +13,11 @@ permalink: /shortcuts/
 Press `?` anywhere in immich-edit to open the same list as a searchable dialog. On macOS, press
 Command wherever a shortcut below says `Ctrl`.
 
+The keys below are the defaults. In that dialog, click a key and press a new one to change it; if
+the new key already runs something else, you can swap the two. Ranges, arrow keys, `Esc` and
+pointer gestures stay fixed. Your shortcuts are saved to your account and work on every device
+with a keyboard.
+
 `Shift` with a letter opens a tool, panel or strip, a plain letter acts on the photo, and `Ctrl`
 runs a command. Symbol keys such as `[`, `{` and `\` work however your keyboard layout types
 them, including with `Option` or `AltGr`.

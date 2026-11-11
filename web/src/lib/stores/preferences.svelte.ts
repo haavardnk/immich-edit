@@ -4,6 +4,7 @@ import {
   type ClickTarget,
   type Preferences
 } from '#lib/api/preferences.ts';
+import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 const DEFAULT_CLICK_TARGET: ClickTarget = 'editor';
@@ -17,12 +18,14 @@ export const DEFAULT_PINNED_SETTINGS: readonly string[] = [
 ];
 export const MAX_PINNED_SETTINGS = 64;
 
-class PreferencesStore {
+type Field = keyof Preferences;
+
+class PreferencesStore implements Preferences {
   clickTarget = $state<ClickTarget>(DEFAULT_CLICK_TARGET);
   pinnedSettings = $state.raw<readonly string[] | null>(null);
+  shortcuts = $state.raw<ShortcutMap>({});
   pinsKnown = $state(false);
-  #clickChosen = false;
-  #pinsChosen = false;
+  #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
 
   get pins(): readonly string[] {
@@ -34,26 +37,24 @@ class PreferencesStore {
     const remote = await getPreferences().catch(() => null);
     this.pinsKnown = true;
     if (!remote) return;
-    if (!this.#clickChosen) this.clickTarget = remote.clickTarget;
-    if (!this.#pinsChosen) this.pinnedSettings = remote.pinnedSettings;
+    if (!this.#chosen.has('clickTarget')) this.clickTarget = remote.clickTarget;
+    if (!this.#chosen.has('pinnedSettings')) this.pinnedSettings = remote.pinnedSettings;
+    if (!this.#chosen.has('shortcuts')) this.shortcuts = remote.shortcuts;
   }
 
   reset(): void {
-    this.#clickChosen = false;
-    this.#pinsChosen = false;
+    this.#chosen.clear();
     this.clickTarget = DEFAULT_CLICK_TARGET;
     this.pinnedSettings = null;
+    this.shortcuts = {};
     this.pinsKnown = false;
   }
 
   setClickTarget(target: ClickTarget): Promise<void> {
-    const previous = this.clickTarget;
-    this.#clickChosen = true;
-    this.clickTarget = target;
-    return this.#save({ clickTarget: target }, () => {
-      if (this.clickTarget === target) this.clickTarget = previous;
-    });
+    return this.#write('clickTarget', target);
   }
+
+  setShortcuts = (next: ShortcutMap): Promise<void> => this.#write('shortcuts', next);
 
   isPinned = (id: string): boolean => this.pins.includes(id);
 
@@ -68,13 +69,27 @@ class PreferencesStore {
   };
 
   #setPins(next: readonly string[]): Promise<void> {
-    const previous = this.pinnedSettings;
-    this.#pinsChosen = true;
     this.pinsKnown = true;
-    this.pinnedSettings = next;
-    return this.#save({ pinnedSettings: [...next] }, () => {
-      if (this.pinnedSettings === next) this.pinnedSettings = previous;
+    return this.#write('pinnedSettings', next);
+  }
+
+  #write<K extends Field>(field: K, value: Preferences[K]): Promise<void> {
+    const previous = this.#read(field);
+    this.#chosen.add(field);
+    this.#assign(field, value);
+    const patch: Partial<Preferences> = {};
+    patch[field] = value;
+    return this.#save(patch, () => {
+      if (this.#read(field) === value) this.#assign(field, previous);
     });
+  }
+
+  #read<K extends Field>(field: K): Preferences[K] {
+    return (this as Preferences)[field];
+  }
+
+  #assign<K extends Field>(field: K, value: Preferences[K]): void {
+    (this as Preferences)[field] = value;
   }
 
   #save(patch: Partial<Preferences>, rollback: () => void): Promise<void> {
