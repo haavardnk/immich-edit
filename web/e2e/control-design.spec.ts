@@ -912,11 +912,11 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Crop' }).click();
 
-  const aspect = page.getByRole('combobox', { name: 'Aspect Ratio' });
+  const field = page.getByRole('textbox', { name: 'Ratio' });
   const orientation = page.getByRole('button', { name: /^Switch to/ });
   const neutral = await resolvedColor(page, '--color-neutral-800');
 
-  expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
+  expect((await metricsOf(field.locator('xpath=..'))).background).toBe(neutral);
   expect((await metricsOf(orientation)).background).toBe(neutral);
 });
 

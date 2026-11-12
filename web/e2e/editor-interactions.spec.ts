@@ -1018,10 +1018,7 @@ test('Crop pane always exposes crop controls', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Crop' }).click();
-  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
@@ -1133,37 +1130,76 @@ async function cropRatio(page: import('@playwright/test').Page): Promise<number>
   return (w ?? 0) / (h ?? 1);
 }
 
-test('aspect presets, the orientation button and a custom ratio drive the output size', async ({
+test('ratio chips, the orientation button and a typed ratio drive the output size', async ({
   page
 }) => {
-  await installMocks(page, { previewBody: makePng(60, 40) });
+  const patches: Record<string, unknown>[] = [];
+  await installMocks(page, {
+    previewBody: makePng(60, 40),
+    onPreferences: (patch) => patches.push(patch)
+  });
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-output-size')).toHaveText('6000 × 4000 px');
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  const field = page.getByRole('textbox', { name: 'Ratio' });
 
-  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
-  await page.getByRole('option', { name: '5:4', exact: true }).click();
+  await page.getByRole('button', { name: 'More ratios' }).click();
+  await page.getByRole('button', { name: '5:4', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(5 / 4, 2);
+  await expect(page.getByRole('button', { name: 'More ratios' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
 
   await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
-  await expect(page.getByRole('combobox', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
+  await expect(field).toHaveValue('4:5');
 
-  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
-  await page.getByRole('option', { name: 'Custom…', exact: true }).click();
-  const widthBox = await page.getByRole('textbox', { name: 'Width' }).boundingBox();
-  const heightBox = await page.getByRole('textbox', { name: 'Height' }).boundingBox();
-  const rowEnd = await page
-    .getByRole('button', { name: /Switch to (landscape|portrait)/ })
-    .boundingBox();
-  if (!widthBox || !heightBox || !rowEnd) throw new Error('custom ratio row not laid out');
-  expect(Math.abs(widthBox.y - heightBox.y)).toBeLessThan(1);
-  expect(heightBox.x + heightBox.width).toBeLessThanOrEqual(rowEnd.x + rowEnd.width + 1);
-  await page.getByRole('textbox', { name: 'Width' }).fill('7');
-  await page.getByRole('textbox', { name: 'Width' }).press('Tab');
-  await page.getByRole('textbox', { name: 'Height' }).fill('3');
-  await page.getByRole('textbox', { name: 'Height' }).press('Tab');
+  await chips.getByRole('radio', { name: '9:16', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(9 / 16, 2);
+
+  await field.fill('2.39');
+  await expect(page.getByText('= 2.39 : 1')).toBeVisible();
+  await field.press('Enter');
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(2.39, 2);
+  await expect(field).toHaveValue('2.39:1');
+
+  await page.getByRole('button', { name: 'Save ratio' }).click();
+  expect(patches.at(-1)).toEqual({ crop_ratios: [{ num: 239, den: 100 }] });
+  const more = page.getByRole('button', { name: 'More ratios' });
+  await expect(more).toHaveAttribute('aria-pressed', 'true');
+  await expect(chips.getByRole('radio')).toHaveCount(6);
+
+  await field.fill('7:3');
+  await field.blur();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(7 / 3, 2);
+  await more.click();
+  await page.getByRole('button', { name: '2.39:1', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(2.39, 2);
+  await page.getByRole('button', { name: 'Remove ratio' }).click();
+  await more.click();
+  await expect(page.getByRole('button', { name: '2.39:1', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  expect(patches.at(-1)).toEqual({ crop_ratios: [] });
+});
+
+test('the ratio chips and the ratio row fit the narrowest inspector', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+  await page.keyboard.press('Shift+R');
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  const first = await chips.getByRole('radio', { name: 'Original' }).boundingBox();
+  const more = await page.getByRole('button', { name: 'More ratios' }).boundingBox();
+  expect(more?.y).toBe(first?.y);
+  const field = await page.getByRole('textbox', { name: 'Ratio' }).boundingBox();
+  const flip = await page.getByRole('button', { name: 'Switch to portrait' }).boundingBox();
+  expect(flip?.width).toBe(28);
+  expect(flip?.height).toBe(28);
+  expect(flip?.height).toBeCloseTo(field?.height ?? 0, 0);
 });
 
 for (const how of ['tool', 'shift'] as const) {
@@ -1257,10 +1293,7 @@ test('Enter does not leave Crop after a mouse click on a panel button', async ({
   expect(after).not.toBe(before);
 
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('Enter still activates a button reached with Tab', async ({ page }) => {
@@ -1275,10 +1308,7 @@ test('Enter still activates a button reached with Tab', async ({ page }) => {
 
   await page.keyboard.press('Enter');
   await expect(guide).not.toHaveAttribute('aria-label', before ?? '');
-  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('lens reset clears all profile edits', async ({ page }) => {
