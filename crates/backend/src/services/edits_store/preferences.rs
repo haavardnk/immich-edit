@@ -28,6 +28,26 @@ pub struct SectionEntry {
     pub hidden: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CropRatio {
+    pub num: i64,
+    pub den: i64,
+}
+
+impl CropRatio {
+    pub fn normalized(self) -> Self {
+        if self.num < self.den {
+            Self {
+                num: self.den,
+                den: self.num,
+            }
+        } else {
+            self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, sqlx::FromRow)]
 pub struct Preferences {
     pub click_target: ClickTarget,
@@ -40,6 +60,8 @@ pub struct Preferences {
     pub desktop_sections: Option<Vec<SectionEntry>>,
     #[sqlx(rename = "touch_subviews_json", json(nullable))]
     pub touch_subviews: Option<Vec<SectionEntry>>,
+    #[sqlx(rename = "crop_ratios_json", json(nullable))]
+    pub crop_ratios: Option<Vec<CropRatio>>,
 }
 
 async fn fetch_preferences<'e, E: SqliteExecutor<'e>>(
@@ -48,7 +70,7 @@ async fn fetch_preferences<'e, E: SqliteExecutor<'e>>(
 ) -> Result<Option<Preferences>, EditsStoreError> {
     Ok(sqlx::query_as::<_, Preferences>(
         "SELECT click_target, mask_overlay_color, pinned_settings_json, shortcuts_json, \
-         desktop_sections_json, touch_subviews_json \
+         desktop_sections_json, touch_subviews_json, crop_ratios_json \
          FROM user_preferences WHERE user_id = ?1",
     )
     .bind(owner.to_string())
@@ -64,8 +86,8 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
     sqlx::query(
         "INSERT INTO user_preferences \
          (user_id, click_target, mask_overlay_color, pinned_settings_json, shortcuts_json, \
-          desktop_sections_json, touch_subviews_json, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+          desktop_sections_json, touch_subviews_json, crop_ratios_json, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
          ON CONFLICT(user_id) DO UPDATE SET \
            click_target = excluded.click_target, \
            mask_overlay_color = excluded.mask_overlay_color, \
@@ -73,6 +95,7 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
            shortcuts_json = excluded.shortcuts_json, \
            desktop_sections_json = excluded.desktop_sections_json, \
            touch_subviews_json = excluded.touch_subviews_json, \
+           crop_ratios_json = excluded.crop_ratios_json, \
            updated_at = excluded.updated_at",
     )
     .bind(owner.to_string())
@@ -82,6 +105,7 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
     .bind(Json(&preferences.shortcuts))
     .bind(preferences.desktop_sections.as_ref().map(Json))
     .bind(preferences.touch_subviews.as_ref().map(Json))
+    .bind(preferences.crop_ratios.as_ref().map(Json))
     .bind(Utc::now().to_rfc3339())
     .execute(exec)
     .await?;
@@ -137,6 +161,10 @@ mod tests {
             ]),
             desktop_sections: Some(vec![section("basic", false), section("detail", true)]),
             touch_subviews: Some(vec![section("light", true)]),
+            crop_ratios: Some(vec![
+                CropRatio { num: 3, den: 2 },
+                CropRatio { num: 16, den: 9 },
+            ]),
         }
     }
 
@@ -150,7 +178,8 @@ mod tests {
                 { "id": "basic", "hidden": false },
                 { "id": "detail", "hidden": true }
             ],
-            "touch_subviews": [{ "id": "light", "hidden": true }]
+            "touch_subviews": [{ "id": "light", "hidden": true }],
+            "crop_ratios": [{ "num": 2, "den": 3 }, { "num": 16, "den": 9 }]
         })
     }
 
@@ -180,15 +209,21 @@ mod tests {
     async fn nullable_columns_store_sql_null() {
         let s = store().await;
         patch(&s, O, everything_patch()).await;
-        patch(&s, O, json!({ "pinned_settings": null })).await;
-        let stored: Option<String> = sqlx::query_scalar(
-            "SELECT pinned_settings_json FROM user_preferences WHERE user_id = ?1",
+        patch(
+            &s,
+            O,
+            json!({ "pinned_settings": null, "crop_ratios": null }),
+        )
+        .await;
+        let stored: (Option<String>, Option<String>) = sqlx::query_as(
+            "SELECT pinned_settings_json, crop_ratios_json FROM user_preferences \
+             WHERE user_id = ?1",
         )
         .bind(O.to_string())
         .fetch_one(&s.pool)
         .await
         .unwrap();
-        assert_eq!(stored, None);
+        assert_eq!(stored, (None, None));
     }
 
     #[tokio::test]
@@ -211,6 +246,7 @@ mod tests {
             json!({ "shortcuts": { "help": ["F1"] } }),
             json!({ "desktop_sections": [{ "id": "basic", "hidden": true }] }),
             json!({ "touch_subviews": [{ "id": "light", "hidden": false }] }),
+            json!({ "crop_ratios": [{ "num": 5, "den": 4 }] }),
             json!({ "pinned_settings": ["exposure"], "click_target": "loupe" }),
             json!({ "shortcuts": { "help": ["F1"] }, "mask_overlay_color": "#123456" }),
         ];
@@ -237,6 +273,7 @@ mod tests {
                 shortcuts: BTreeMap::from([("help".into(), vec!["F1".into()])]),
                 desktop_sections: Some(vec![section("basic", true)]),
                 touch_subviews: Some(vec![section("light", false)]),
+                crop_ratios: Some(vec![CropRatio { num: 5, den: 4 }]),
             })
         );
     }

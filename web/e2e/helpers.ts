@@ -292,7 +292,8 @@ export async function installMocks(
     mask_overlay_color: null,
     shortcuts: opts.shortcuts ?? {},
     desktop_sections: opts.desktopSections ?? null,
-    touch_subviews: opts.touchSubviews ?? null
+    touch_subviews: opts.touchSubviews ?? null,
+    crop_ratios: null
   };
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();

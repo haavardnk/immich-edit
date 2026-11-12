@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::services::edits_store::{PreferencesPatch, SectionEntry};
 
+mod crop_ratios;
 mod shortcuts;
 
 const MAX_ID_LEN: usize = 64;
@@ -22,6 +23,9 @@ pub fn patch(patch: &PreferencesPatch) -> Result<(), String> {
     }
     if let Some(Some(subviews)) = &patch.touch_subviews {
         section_list("touch_subviews", subviews)?;
+    }
+    if let Some(Some(ratios)) = &patch.crop_ratios {
+        crop_ratios::crop_ratios(ratios)?;
     }
     Ok(())
 }
@@ -193,7 +197,8 @@ mod tests {
                 "pinned_settings": null,
                 "mask_overlay_color": null,
                 "desktop_sections": null,
-                "touch_subviews": null
+                "touch_subviews": null,
+                "crop_ratios": null
             }))
             .is_ok()
         );
@@ -203,7 +208,8 @@ mod tests {
                 "mask_overlay_color": "#ff0000",
                 "shortcuts": { "help": ["?"] },
                 "desktop_sections": [{ "id": "basic", "hidden": false }],
-                "touch_subviews": [{ "id": "light", "hidden": true }]
+                "touch_subviews": [{ "id": "light", "hidden": true }],
+                "crop_ratios": [{ "num": 2, "den": 3 }, { "num": 16, "den": 9 }]
             }))
             .is_ok()
         );
@@ -225,6 +231,10 @@ mod tests {
             (
                 "touch_subviews",
                 json!({ "touch_subviews": [{ "id": "", "hidden": false }] }),
+            ),
+            (
+                "crop_ratios",
+                json!({ "crop_ratios": [{ "num": 0, "den": 1 }] }),
             ),
         ] {
             assert!(check(body).unwrap_err().starts_with(field), "{field}");

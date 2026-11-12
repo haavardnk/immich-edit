@@ -1,5 +1,9 @@
 import type { Preferences } from '#lib/api/preferences.ts';
-import { DEFAULT_PINNED_SETTINGS, MAX_PINNED_SETTINGS } from './preferences.svelte';
+import {
+  DEFAULT_PINNED_SETTINGS,
+  MAX_CROP_RATIOS,
+  MAX_PINNED_SETTINGS
+} from './preferences.svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({
@@ -20,6 +24,7 @@ function remote(fields: Partial<Preferences>): Preferences {
     shortcuts: {},
     desktopSections: null,
     touchSubviews: null,
+    cropRatios: null,
     ...fields
   };
 }
@@ -175,7 +180,74 @@ describe('preferences', () => {
     expect(preferences.touchSubviews).toEqual([{ id: 'profile.lut', hidden: true }]);
     preferences.reset();
     expect(preferences.shortcuts).toEqual({});
-    expect(preferences.desktopSections).toBeNull();
+  });
+
+  it('keeps the saved crop ratios from the account and forgets them on sign-out', async () => {
+    const preferences = await freshStore();
+    expect(preferences.savedRatios).toEqual([]);
+    api.getPreferences.mockResolvedValue(remote({ cropRatios: [{ num: 3, den: 2 }] }));
+    await preferences.load();
+    expect(preferences.savedRatios).toEqual([{ num: 3, den: 2 }]);
+    preferences.reset();
+    expect(preferences.cropRatios).toBeNull();
+    expect(preferences.savedRatios).toEqual([]);
+  });
+
+  it('saves a crop ratio long side first and only once', async () => {
+    const preferences = await freshStore();
+    api.getPreferences.mockResolvedValue(remote({ cropRatios: [{ num: 3, den: 2 }] }));
+    api.patchPreferences.mockResolvedValue(remote({}));
+    await preferences.load();
+    await preferences.saveCropRatio({ num: 9, den: 16 });
+    expect(preferences.savedRatios).toEqual([
+      { num: 3, den: 2 },
+      { num: 16, den: 9 }
+    ]);
+    expect(api.patchPreferences).toHaveBeenLastCalledWith({
+      cropRatios: [
+        { num: 3, den: 2 },
+        { num: 16, den: 9 }
+      ]
+    });
+    await preferences.saveCropRatio({ num: 2, den: 3 });
+    expect(api.patchPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops saving crop ratios at the server limit', async () => {
+    const preferences = await freshStore();
+    const full = Array.from({ length: MAX_CROP_RATIOS }, (_, index) => ({
+      num: index + 2,
+      den: 1
+    }));
+    api.getPreferences.mockResolvedValue(remote({ cropRatios: full }));
+    await preferences.load();
+    await preferences.saveCropRatio({ num: 5, den: 4 });
+    expect(preferences.savedRatios).toHaveLength(MAX_CROP_RATIOS);
+    expect(api.patchPreferences).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalled();
+  });
+
+  it('removes a crop ratio in either orientation and restores it when refused', async () => {
+    const preferences = await freshStore();
+    api.getPreferences.mockResolvedValue(
+      remote({
+        cropRatios: [
+          { num: 3, den: 2 },
+          { num: 16, den: 9 }
+        ]
+      })
+    );
+    api.patchPreferences.mockResolvedValue(remote({}));
+    await preferences.load();
+    await preferences.removeCropRatio({ num: 2, den: 3 });
+    expect(preferences.savedRatios).toEqual([{ num: 16, den: 9 }]);
+    expect(api.patchPreferences).toHaveBeenLastCalledWith({ cropRatios: [{ num: 16, den: 9 }] });
+    await preferences.removeCropRatio({ num: 4, den: 3 });
+    expect(api.patchPreferences).toHaveBeenCalledTimes(1);
+    api.patchPreferences.mockRejectedValue(new Error('refused'));
+    await preferences.removeCropRatio({ num: 16, den: 9 });
+    expect(preferences.savedRatios).toEqual([{ num: 16, den: 9 }]);
+    expect(fail).toHaveBeenCalled();
   });
 
   it('saves the whole shortcut map and restores it when refused', async () => {

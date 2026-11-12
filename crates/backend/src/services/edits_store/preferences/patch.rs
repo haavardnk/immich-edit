@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::de::{Error as _, Unexpected};
 use serde::{Deserialize, Deserializer};
 
-use super::{ClickTarget, Preferences, SectionEntry};
+use super::{ClickTarget, CropRatio, Preferences, SectionEntry};
 
 fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
@@ -35,6 +35,8 @@ pub struct PreferencesPatch {
     pub desktop_sections: Option<Option<Vec<SectionEntry>>>,
     #[serde(default, deserialize_with = "present")]
     pub touch_subviews: Option<Option<Vec<SectionEntry>>>,
+    #[serde(default, deserialize_with = "present")]
+    pub crop_ratios: Option<Option<Vec<CropRatio>>>,
 }
 
 impl PreferencesPatch {
@@ -48,6 +50,12 @@ impl PreferencesPatch {
             shortcuts: self.shortcuts.unwrap_or(current.shortcuts),
             desktop_sections: self.desktop_sections.unwrap_or(current.desktop_sections),
             touch_subviews: self.touch_subviews.unwrap_or(current.touch_subviews),
+            crop_ratios: self
+                .crop_ratios
+                .map(|ratios| {
+                    ratios.map(|list| list.into_iter().map(CropRatio::normalized).collect())
+                })
+                .unwrap_or(current.crop_ratios),
         }
     }
 }
@@ -73,6 +81,7 @@ mod tests {
                 hidden: true,
             }]),
             touch_subviews: Some(vec![]),
+            crop_ratios: Some(vec![CropRatio { num: 4, den: 3 }]),
         }
     }
 
@@ -102,7 +111,8 @@ mod tests {
             "pinned_settings": null,
             "mask_overlay_color": null,
             "desktop_sections": null,
-            "touch_subviews": null
+            "touch_subviews": null,
+            "crop_ratios": null
         }))
         .unwrap()
         .apply(current());
@@ -138,5 +148,29 @@ mod tests {
                 .is_err()
         );
         assert!(parse(json!({ "pinned_settings": "exposure" })).is_err());
+        assert!(parse(json!({ "crop_ratios": [{ "num": 3 }] })).is_err());
+        assert!(parse(json!({ "crop_ratios": [{ "num": 3, "den": 2, "x": 1 }] })).is_err());
+        assert!(parse(json!({ "crop_ratios": [{ "num": 1.5, "den": 1 }] })).is_err());
+    }
+
+    #[test]
+    fn crop_ratios_are_stored_long_side_first() {
+        let merged = parse(json!({
+            "crop_ratios": [
+                { "num": 2, "den": 3 },
+                { "num": 16, "den": 9 },
+                { "num": 1, "den": 1 }
+            ]
+        }))
+        .unwrap()
+        .apply(current());
+        assert_eq!(
+            merged.crop_ratios,
+            Some(vec![
+                CropRatio { num: 3, den: 2 },
+                CropRatio { num: 16, den: 9 },
+                CropRatio { num: 1, den: 1 },
+            ])
+        );
     }
 }

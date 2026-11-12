@@ -11,7 +11,8 @@ fn defaults() -> Value {
         "mask_overlay_color": null,
         "shortcuts": {},
         "desktop_sections": null,
-        "touch_subviews": null
+        "touch_subviews": null,
+        "crop_ratios": null
     })
 }
 
@@ -68,7 +69,8 @@ async fn preferences_round_trip_every_field() {
             "compare.focusCycle": []
         },
         "desktop_sections": [{ "id": "basic", "hidden": false }, { "id": "detail", "hidden": true }],
-        "touch_subviews": [{ "id": "light", "hidden": true }]
+        "touch_subviews": [{ "id": "light", "hidden": true }],
+        "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 1, "den": 1 }]
     });
 
     assert_eq!(patch_ok(&app, all.clone()).await, all);
@@ -113,6 +115,41 @@ async fn preferences_null_resets_a_nullable_field() {
 }
 
 #[tokio::test]
+async fn preferences_crop_ratios_are_stored_long_side_first() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let expected = with(json!({
+        "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 16, "den": 9 }]
+    }));
+
+    let saved = patch_ok(
+        &app,
+        json!({ "crop_ratios": [{ "num": 2, "den": 3 }, { "num": 16, "den": 9 }] }),
+    )
+    .await;
+    assert_eq!(saved, expected);
+    assert_eq!(read(&app).await, expected);
+}
+
+#[tokio::test]
+async fn preferences_null_clears_crop_ratios() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    patch_ok(
+        &app,
+        json!({ "click_target": "loupe", "crop_ratios": [{ "num": 5, "den": 4 }] }),
+    )
+    .await;
+
+    let kept = patch_ok(&app, json!({ "click_target": "editor" })).await;
+    assert_eq!(kept["crop_ratios"], json!([{ "num": 5, "den": 4 }]));
+
+    let cleared = patch_ok(&app, json!({ "crop_ratios": null })).await;
+    assert_eq!(cleared, defaults());
+    assert_eq!(read(&app).await, defaults());
+}
+
+#[tokio::test]
 async fn preferences_validation_failures_are_bad_requests() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
@@ -122,6 +159,22 @@ async fn preferences_validation_failures_are_bad_requests() {
         (
             json!({ "shortcuts": { "loupeNav": ["j", "k", "j"] } }),
             "\"loupeNav\" lists \"j\" twice",
+        ),
+        (
+            json!({ "crop_ratios": [{ "num": 10000, "den": 1 }] }),
+            "crop_ratios: sides must be integers from 1 to 9999",
+        ),
+        (
+            json!({ "crop_ratios": [{ "num": 3, "den": 0 }] }),
+            "crop_ratios: sides must be integers from 1 to 9999",
+        ),
+        (
+            json!({ "crop_ratios": (2..=18).map(|n| json!({ "num": n, "den": 1 })).collect::<Vec<_>>() }),
+            "crop_ratios: at most 16 entries",
+        ),
+        (
+            json!({ "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 2, "den": 3 }] }),
+            "crop_ratios: duplicate ratio 3:2",
         ),
     ] {
         let resp = patch(&app, body.clone()).await;
@@ -184,7 +237,8 @@ async fn preferences_accept_the_limits() {
         "mask_overlay_color": "#000000",
         "shortcuts": shortcuts,
         "desktop_sections": listed,
-        "touch_subviews": []
+        "touch_subviews": [],
+        "crop_ratios": (1..=16).map(|n| json!({ "num": 9999, "den": n })).collect::<Vec<_>>()
     });
 
     assert_eq!(patch_ok(&app, body.clone()).await, body);

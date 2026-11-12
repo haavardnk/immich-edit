@@ -752,7 +752,8 @@ async fn preferences_are_scoped_to_the_owner() {
                 serde_json::json!({
                     "click_target": "loupe",
                     "mask_overlay_color": "#ff0000",
-                    "shortcuts": { "help": ["F1"] }
+                    "shortcuts": { "help": ["F1"] },
+                    "crop_ratios": [{ "num": 3, "den": 2 }]
                 }),
             ),
             StatusCode::OK,
@@ -775,6 +776,7 @@ async fn preferences_are_scoped_to_the_owner() {
     if seen["click_target"] != "editor"
         || !seen["mask_overlay_color"].is_null()
         || seen["shortcuts"] != serde_json::json!({})
+        || !seen["crop_ratios"].is_null()
     {
         panic!("member read the owner's preferences: {seen}");
     }
@@ -785,7 +787,10 @@ async fn preferences_are_scoped_to_the_owner() {
             json_request(
                 "PATCH",
                 "/api/preferences",
-                serde_json::json!({ "pinned_settings": ["exposure"] }),
+                serde_json::json!({
+                    "pinned_settings": ["exposure"],
+                    "crop_ratios": [{ "num": 7, "den": 5 }]
+                }),
             ),
             StatusCode::OK,
             "member patch preferences",
@@ -795,6 +800,7 @@ async fn preferences_are_scoped_to_the_owner() {
     .await;
     if member_saved["click_target"] != "editor"
         || member_saved["shortcuts"] != serde_json::json!({})
+        || member_saved["crop_ratios"] != serde_json::json!([{ "num": 7, "den": 5 }])
     {
         panic!("member patch merged onto the owner's preferences: {member_saved}");
     }
@@ -809,7 +815,10 @@ async fn preferences_are_scoped_to_the_owner() {
         .await,
     )
     .await;
-    if owned != chosen || !owned["pinned_settings"].is_null() {
+    if owned != chosen
+        || !owned["pinned_settings"].is_null()
+        || owned["crop_ratios"] != serde_json::json!([{ "num": 3, "den": 2 }])
+    {
         panic!("owner preferences after member calls: {owned}");
     }
 }

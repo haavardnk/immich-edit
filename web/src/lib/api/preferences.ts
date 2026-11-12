@@ -4,12 +4,18 @@ import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 
 export type ClickTarget = 'editor' | 'loupe';
 
+export interface CropRatio {
+  num: number;
+  den: number;
+}
+
 export interface Preferences {
   clickTarget: ClickTarget;
   pinnedSettings: readonly string[] | null;
   shortcuts: ShortcutMap;
   desktopSections: readonly SectionEntry[] | null;
   touchSubviews: readonly SectionEntry[] | null;
+  cropRatios: readonly CropRatio[] | null;
 }
 
 interface PreferencesBody {
@@ -18,6 +24,7 @@ interface PreferencesBody {
   shortcuts: unknown;
   desktop_sections: unknown;
   touch_subviews: unknown;
+  crop_ratios: unknown;
 }
 
 function strings(value: unknown): string[] | null {
@@ -44,13 +51,27 @@ function sectionsFrom(value: unknown): SectionEntry[] | null {
   });
 }
 
+function positiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
+function cropRatiosFrom(value: unknown): CropRatio[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { num, den } = entry as Record<string, unknown>;
+    return positiveInteger(num) && positiveInteger(den) ? [{ num, den }] : [];
+  });
+}
+
 function fromBody(body: PreferencesBody): Preferences {
   return {
     clickTarget: body.click_target === 'loupe' ? 'loupe' : 'editor',
     pinnedSettings: strings(body.pinned_settings),
     shortcuts: shortcutsFrom(body.shortcuts),
     desktopSections: sectionsFrom(body.desktop_sections),
-    touchSubviews: sectionsFrom(body.touch_subviews)
+    touchSubviews: sectionsFrom(body.touch_subviews),
+    cropRatios: cropRatiosFrom(body.crop_ratios)
   };
 }
 
@@ -65,5 +86,6 @@ export async function patchPreferences(patch: Partial<Preferences>): Promise<Pre
   if (patch.shortcuts !== undefined) body.shortcuts = patch.shortcuts;
   if (patch.desktopSections !== undefined) body.desktop_sections = patch.desktopSections;
   if (patch.touchSubviews !== undefined) body.touch_subviews = patch.touchSubviews;
+  if (patch.cropRatios !== undefined) body.crop_ratios = patch.cropRatios;
   return fromBody(await sendJson<PreferencesBody>('PATCH', '/api/preferences', body));
 }
