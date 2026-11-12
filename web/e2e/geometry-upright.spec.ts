@@ -37,10 +37,16 @@ test('two converging verticals save a vertical keystone as one guided upright st
   await gotoAsset(page);
   const surface = await armUpright(page);
 
+  const counts = page.getByTestId('upright-counts');
+  const card = page.getByTestId('upright-card');
+  await expect(counts).toHaveText(/Vertical 0 of 2\s*·\s*Horizontal 0 of 2/);
   await draw(page, surface, [0.3, 0.85], [0.36, 0.15]);
   await expect(page.getByRole('button', { name: 'Remove guide 1' })).toBeVisible();
+  await expect(counts).toHaveText(/Vertical 1 of 2\s*·\s*Horizontal 0 of 2/);
+  await expect(card).toContainText('Draw one more line');
   await draw(page, surface, [0.2, 0.2], [0.6, 0.6]);
   await expect(page.getByRole('button', { name: 'Remove guide 2' })).toHaveCount(0);
+  await expect(card).toContainText(/Last line dropped: \d+° is neither level nor upright/);
   expect(saves).toHaveLength(0);
 
   await draw(page, surface, [0.7, 0.85], [0.64, 0.15]);
@@ -49,6 +55,9 @@ test('two converging verticals save a vertical keystone as one guided upright st
   expect(body?.action).toBe('Guided upright');
   expect(body?.manifest?.ops?.transform?.perspective?.vertical ?? 0).toBeGreaterThan(5);
   await expect(page.getByRole('button', { name: /^upright guide \d (start|end)$/ })).toHaveCount(4);
+  await expect(page.getByTestId('upright-label')).toHaveText(['V1', 'V2']);
+  await expect(card).not.toContainText('Last line dropped');
+  await expect(card).toContainText('A third vertical replaces V1, the oldest');
 
   const handle = page.getByRole('button', { name: 'upright guide 2 end' });
   const at = await handle.boundingBox();
@@ -60,6 +69,11 @@ test('two converging verticals save a vertical keystone as one guided upright st
   await page.mouse.up();
   await expect.poll(() => saves.length).toBe(2);
   expect(saves[1]?.action).toBe('Guided upright');
+
+  await card.getByRole('button', { name: 'Clear guides' }).click();
+  await expect(page.getByTestId('upright-label')).toHaveCount(0);
+  await expect(counts).toHaveText(/Vertical 0 of 2\s*·\s*Horizontal 0 of 2/);
+  expect(saves).toHaveLength(2);
 });
 
 test('guides are removable, tools stay exclusive and Escape disarms upright', async ({ page }) => {
@@ -85,8 +99,5 @@ test('guides are removable, tools stay exclusive and Escape disarms upright', as
   await page.keyboard.press('Escape');
   await expect(upright).toHaveAttribute('aria-pressed', 'false');
   await expect(surface).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
 });

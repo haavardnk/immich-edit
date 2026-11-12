@@ -7,6 +7,7 @@
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { PERSPECTIVE, STRAIGHTEN } from '#lib/editor/params/geometry.ts';
   import { perspectiveIsIdentity, type PerspectiveEdits } from '#lib/utils/perspective.ts';
+  import UprightCard from '#lib/panels/geometry/UprightCard.svelte';
   import { IconButton } from '@immich/ui';
   import { mdiAngleAcute, mdiRulerSquare, mdiVectorSquare } from '@mdi/js';
 
@@ -54,6 +55,9 @@
       {/each}
     {/snippet}
   </SectionHeader>
+  {#if ui.geometryTool === 'upright'}
+    <UprightCard {sess} />
+  {/if}
   <SliderRow
     label="Angle"
     value={sess.draftAngle}

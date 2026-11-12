@@ -65,9 +65,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'ring-white/60',
     'text-white'
   ],
-  '/src/lib/components/editor/CropOverlay.svelte': [
-    'border-white/90'
-  ],
+  '/src/lib/components/editor/CropOverlay.svelte': ['border-white/90'],
   '/src/lib/components/editor/crop/CropGuide.svelte': ['rgb('],
   '/src/lib/components/editor/crop/CropHandles.svelte': ['bg-white', 'border-white'],
   '/src/lib/components/editor/FloatingScope.svelte': [
@@ -90,6 +88,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   ],
   '/src/lib/components/editor/UprightGuides.svelte': [
     'bg-black/70',
+    'bg-white',
     'border-black/60',
     'border-white/40',
     'rgb(',

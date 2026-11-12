@@ -252,8 +252,11 @@ leaving the tool. The tool stays open until you pick another one.
   should be upright or level, such as the sides of a building or a horizon. A line within 35° of
   upright counts as upright and one within 35° of level counts as level; anything between is
   ignored. Up to two of each kind count, and a third replaces the oldest. One line of the other kind
-  also fixes any remaining slant. Drag a line's ends to adjust it, or click its **×** to remove it.
-  The lines stay until you leave the tool, rotate or flip the photo, or reset.
+  also fixes any remaining slant. Upright lines show in blue as V1 and V2, level ones in amber as H1
+  and H2, with a count of each on the photo and in the panel. While you draw, a label beside the
+  pointer says which kind the line will be, or that it is too diagonal and will be dropped. Drag a
+  line's ends to adjust it, or click its **×** to remove it; **Clear guides** removes them all and
+  keeps the correction. The lines stay until you leave the tool, rotate or flip the photo, or reset.
 - The reset arrow beside **Crop** or **Transform** undoes just that section. **Reset** in the bar at
   the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
   leaves your develop settings alone.

@@ -32,6 +32,7 @@ import {
 import { budgetFor } from '#lib/render/budget.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
 import type { UprightGuide } from '#lib/utils/upright.ts';
+import type { GuideNote } from '#lib/utils/uprightFeedback.ts';
 
 export interface GeometrySession {
   frameUrl: string | null;
@@ -46,6 +47,7 @@ export interface GeometrySession {
   draftPerspective: PerspectiveEdits;
   userEditedCrop: boolean;
   guides: UprightGuide[];
+  guideNote: GuideNote | null;
 }
 
 export interface GeometryCtx {
@@ -169,11 +171,15 @@ function dropGuidesIfTurned(sess: GeometrySession, geometry: GeometryEdits): voi
     sess.draftRotate !== geometry.rotate ||
     sess.draftFlipH !== geometry.flip_h ||
     sess.draftFlipV !== geometry.flip_v;
-  if (turned) sess.guides = [];
+  if (!turned) return;
+  sess.guides = [];
+  sess.guideNote = null;
 }
 
 function dropGuides(ctx: GeometryCtx): void {
-  if (ctx.geometrySession) ctx.geometrySession.guides = [];
+  if (!ctx.geometrySession) return;
+  ctx.geometrySession.guides = [];
+  ctx.geometrySession.guideNote = null;
 }
 
 function resetDrafts(sess: GeometrySession, geometry: GeometryEdits): void {
@@ -204,7 +210,8 @@ export function startSession(ctx: GeometryCtx): void {
     draftAspect: { kind: 'original' },
     draftPerspective: neutralPerspective(),
     userEditedCrop: false,
-    guides: []
+    guides: [],
+    guideNote: null
   };
   resetDrafts(sess, edits.geometry);
   ctx.geometrySession = sess;

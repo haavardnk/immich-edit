@@ -32,6 +32,8 @@
   --color-image-accent: #b7a1fb;
   --color-retouch-active: var(--color-image-accent);
   --color-retouch-source: #78dc8c;
+  --color-guide-vertical: #5ab4ff;
+  --color-guide-horizontal: #f5b041;
   --color-mask-overlay: #ff3b30;
   --color-temperature-cool: #4a90d9;
   --color-temperature-warm: #b8a44c;

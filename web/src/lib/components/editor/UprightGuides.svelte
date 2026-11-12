@@ -2,7 +2,14 @@
   import { sourceToStage, stageToSource, type StageFrame } from '#lib/editor/geometryStage.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { Point } from '#lib/utils/perspective.ts';
-  import { classifyGuide, type UprightGuide } from '#lib/utils/upright.ts';
+  import { classifyGuide, type GuideKind, type UprightGuide } from '#lib/utils/upright.ts';
+  import {
+    drawingHint,
+    guideLabels,
+    isGuideLength,
+    tiltFromLevel
+  } from '#lib/utils/uprightFeedback.ts';
+  import GuideCounts from './crop/GuideCounts.svelte';
   import { Icon } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { pointerDrag } from '#lib/gestures/drag.ts';
@@ -28,6 +35,11 @@
   }
 
   const REMOVE_OFFSET = 16;
+  const LABEL_OFFSET = 14;
+  const STROKE: Record<GuideKind, string> = {
+    vertical: 'var(--color-guide-vertical)',
+    horizontal: 'var(--color-guide-horizontal)'
+  };
   const hit = $derived(handleHit());
 
   let root = $state<HTMLDivElement | null>(null);
@@ -35,15 +47,24 @@
   let moving = $state<Moving | null>(null);
 
   const diagonal = $derived(Math.hypot(frame.bboxW, frame.bboxH));
+  const labels = $derived(guideLabels(guides));
   const lines = $derived(
     guides.map((g, i) => {
       const from = endPoint(i, 'from', g.from);
       const to = endPoint(i, 'to', g.to);
-      return { from, to, remove: removeAnchor(from, to) };
+      return {
+        from,
+        to,
+        kind: g.kind,
+        label: labels[i] ?? '',
+        remove: sideAnchor(from, to, REMOVE_OFFSET),
+        tag: sideAnchor(from, to, -LABEL_OFFSET)
+      };
     })
   );
-  const drawingValid = $derived(
-    drawing !== null && classifyGuide(drawing.from, drawing.to, diagonal) !== null
+  const drawingKind = $derived(drawing ? classifyGuide(drawing.from, drawing.to, diagonal) : null);
+  const hint = $derived(
+    drawing ? drawingHint(guides, drawing.from, drawing.to, drawingKind, diagonal) : null
   );
 
   function endPoint(index: number, end: End, uv: Point): Point {
@@ -51,13 +72,13 @@
     return sourceToStage(frame, uv);
   }
 
-  function removeAnchor(from: Point, to: Point): Point {
+  function sideAnchor(from: Point, to: Point, offset: number): Point {
     const dx = to[0] - from[0];
     const dy = to[1] - from[1];
     const length = Math.max(Math.hypot(dx, dy), 1e-6);
     return [
-      (from[0] + to[0]) / 2 - (dy / length) * REMOVE_OFFSET,
-      (from[1] + to[1]) / 2 + (dx / length) * REMOVE_OFFSET
+      (from[0] + to[0]) / 2 - (dy / length) * offset,
+      (from[1] + to[1]) / 2 + (dx / length) * offset
     ];
   }
 
@@ -97,7 +118,12 @@
       drawing = null;
       if (!drawn) return;
       const kind = classifyGuide(drawn.from, drawn.to, diagonal);
-      if (!kind) return;
+      if (!kind) {
+        if (isGuideLength(drawn.from, drawn.to, diagonal)) {
+          editor.noteDroppedUprightGuide(tiltFromLevel(drawn.from, drawn.to));
+        }
+        return;
+      }
       void editor.addUprightGuide({
         kind,
         from: stageToSource(frame, drawn.from),
@@ -171,7 +197,7 @@
         y1={line.from[1]}
         x2={line.to[0]}
         y2={line.to[1]}
-        stroke="var(--color-image-accent)"
+        stroke={STROKE[line.kind]}
         stroke-width="2"
       />
     {/each}
@@ -181,13 +207,25 @@
         y1={drawing.from[1]}
         x2={drawing.to[0]}
         y2={drawing.to[1]}
-        stroke={drawingValid ? 'var(--color-image-accent)' : 'rgb(255 255 255 / 0.6)'}
+        stroke={drawingKind ? STROKE[drawingKind] : 'rgb(255 255 255 / 0.6)'}
         stroke-width="2"
-        stroke-dasharray={drawingValid ? undefined : '4 3'}
+        stroke-dasharray={drawingKind ? undefined : '4 3'}
       />
     {/if}
   </svg>
+  <span
+    class="pointer-events-none absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs whitespace-nowrap text-white shadow-lg backdrop-blur-sm"
+    data-testid="upright-counts"><GuideCounts {guides} /></span
+  >
   {#each lines as line, i (i)}
+    <span
+      class="pointer-events-none absolute -translate-1/2 font-mono text-[11px] font-semibold text-shadow-sm {line.kind ===
+      'vertical'
+        ? 'text-guide-vertical'
+        : 'text-guide-horizontal'}"
+      style="left: {line.tag[0]}px; top: {line.tag[1]}px;"
+      data-testid="upright-label">{line.label}</span
+    >
     {#each [['from', 'start'], ['to', 'end']] as const as [end, label] (end)}
       {@const [x, y] = line[end]}
       <button
@@ -197,7 +235,7 @@
         aria-label="upright guide {i + 1} {label}"
       >
         <span
-          class="pointer-events-none absolute rounded-full border border-black/60 bg-image-accent"
+          class="pointer-events-none absolute rounded-full border border-black/60 bg-white"
           style="inset: {hit - HANDLE_DOT.guideEnd}px;"
         ></span>
       </button>
@@ -213,4 +251,12 @@
       <Icon icon={mdiClose} size="12px" aria-hidden="true" />
     </button>
   {/each}
+  {#if drawing && hint}
+    <span
+      role="status"
+      class="pointer-events-none absolute z-20 rounded-full bg-black/70 px-2 py-0.5 text-xs whitespace-nowrap text-white"
+      style="left: {drawing.to[0] + 14}px; top: {drawing.to[1] + 10}px;"
+      data-testid="upright-hint">{hint}</span
+    >
+  {/if}
 </div>

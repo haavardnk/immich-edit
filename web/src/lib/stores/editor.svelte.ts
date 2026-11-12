@@ -755,6 +755,10 @@ class EditorStore {
     upright.moveGuide(this, index, guide);
 
   removeUprightGuide = (index: number): Promise<void> => upright.removeGuide(this, index);
+
+  noteDroppedUprightGuide = (degrees: number): void => upright.noteDroppedGuide(this, degrees);
+
+  clearUprightGuides = (): void => upright.clearGuides(this);
 }
 
 export const editor = new EditorStore();
