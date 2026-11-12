@@ -649,7 +649,7 @@ test('develop reset keeps masks, retouch and the crop', async ({ page }) => {
 test('geometry action buttons rotate, flip and reset', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   const reset = page.getByRole('button', { name: 'Reset geometry', exact: true });
   await expect(reset).toBeDisabled();
 
@@ -669,7 +669,7 @@ test('geometry action buttons rotate, flip and reset', async ({ page }) => {
   await expect(reset).toBeDisabled();
 });
 
-test('the reset shortcut on the Geometry tab resets only geometry', async ({ page }) => {
+test('the reset shortcut on the Crop tab resets only geometry', async ({ page }) => {
   const edits = neutralEdits();
   edits.basic.exposure_ev = 1;
   edits.geometry.rotate = 90;
@@ -678,7 +678,7 @@ test('the reset shortcut on the Geometry tab resets only geometry', async ({ pag
     editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits), hash: 'hash-edited' }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'Flip horizontal' })).toHaveAttribute(
     'aria-pressed',
     'true'

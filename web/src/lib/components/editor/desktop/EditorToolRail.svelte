@@ -29,9 +29,9 @@
     { id: 'retouch', label: 'Retouch', icon: mdiBandage, title: hint('Retouch', 'openRetouch') },
     {
       id: 'geometry',
-      label: 'Geometry',
+      label: 'Crop',
       icon: mdiCropRotate,
-      title: hint('Geometry', 'openGeometry')
+      title: hint('Crop', 'openGeometry')
     },
     { id: 'export', label: 'Export', icon: mdiExportVariant, title: hint('Export', 'openExport') }
   ];

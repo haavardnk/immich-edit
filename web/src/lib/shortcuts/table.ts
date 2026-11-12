@@ -514,7 +514,7 @@ export const KEYBINDS = [
     keys: ['Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Open Geometry'
+    label: 'Open Crop'
   },
   {
     id: 'openRetouch',
@@ -620,7 +620,7 @@ export const KEYBINDS = [
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Reset develop settings, or geometry on the Geometry tab'
+    label: 'Reset develop settings, or geometry on the Crop tab'
   },
   {
     id: 'copyEdits',
@@ -755,14 +755,14 @@ export const KEYBINDS = [
     id: 'straighten',
     keys: ['a'],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Draw a line along the horizon to level the photo'
   },
   {
     id: 'straightenDrag',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Draw a straighten line without arming the tool',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag inside the crop`
   },
@@ -770,14 +770,14 @@ export const KEYBINDS = [
     id: 'cropGrid',
     keys: ['o'],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Cycle the crop guide: thirds, golden ratio, diagonals, grid, none'
   },
   {
     id: 'cropFromCentre',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Resize the crop about its centre',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a crop handle`
   },
@@ -785,7 +785,7 @@ export const KEYBINDS = [
     id: 'cropLockRatio',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Keep the current shape of a free crop while resizing',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a crop handle`
   },
@@ -793,7 +793,7 @@ export const KEYBINDS = [
     id: 'cropScale',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Scale the crop about its centre',
     display: (mac: boolean) => `${keyLabel('Mod', mac)} + scroll over the crop`
   },
@@ -801,7 +801,7 @@ export const KEYBINDS = [
     id: 'cropPan',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Move the photo under a fixed crop',
     display: (mac: boolean) => `${keyLabel('Mod', mac)} + drag inside the crop`
   },

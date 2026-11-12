@@ -25,7 +25,7 @@
     { id: 'develop', label: 'Develop' },
     { id: 'masks', label: 'Masks' },
     { id: 'retouch', label: 'Retouch' },
-    { id: 'geometry', label: 'Geometry' },
+    { id: 'geometry', label: 'Crop' },
     { id: 'export', label: 'Export' }
   ];
 

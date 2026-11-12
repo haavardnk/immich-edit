@@ -85,7 +85,7 @@ test('guides are removable, tools stay exclusive and Escape disarms upright', as
   await page.keyboard.press('Escape');
   await expect(upright).toHaveAttribute('aria-pressed', 'false');
   await expect(surface).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
     'aria-selected',
     'true'
   );

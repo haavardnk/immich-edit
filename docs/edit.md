@@ -21,7 +21,7 @@ The tool rail on the right switches between five tools:
 | **Develop** | `Shift+D` | Color, tone, detail and lens |
 | **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
 | **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
-| **Geometry** | `Shift+R` | Crop, straighten, rotate and perspective |
+| **Crop** | `Shift+R` | Crop, straighten, rotate and perspective |
 | **Export** | `Shift+E` | Downloading or uploading the result; see [export](export.md) |
 
 `←` and `→` move to the previous or next photo, and `G` goes back to the grid. `Tab` hides the
@@ -164,7 +164,7 @@ can pick one of them to go forward again. Your next edit deletes them. Make a
 **Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
 It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms
 the reset and names the undo key. Reset the crop in
-**Geometry**, and delete masks and strokes in their own tabs.
+**Crop**, and delete masks and strokes in their own tabs.
 
 ## Adjust part of the photo
 
@@ -224,7 +224,7 @@ Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll
 
 ## Crop and straighten
 
-**Geometry** shows the whole photo while you work. Each change saves as soon as you let go, as its
+**Crop** shows the whole photo while you work. Each change saves as soon as you let go, as its
 own step in the history, so `Cmd+Z` or `Ctrl+Z` takes back the last crop or rotation without
 leaving the tool. The tool stays open until you pick another one.
 

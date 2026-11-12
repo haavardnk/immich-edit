@@ -861,7 +861,7 @@ test('keyboard help modal toggles with the ? key', async ({ page }) => {
 
   await page.keyboard.press('Shift+/');
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
-  await expect(page.getByText('Open Geometry', { exact: true })).toBeVisible();
+  await expect(page.getByText('Open Crop', { exact: true })).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toHaveCount(0);
@@ -874,7 +874,7 @@ test('keyboard help opens from the editor menu', async ({ page }) => {
   await page.getByRole('button', { name: 'More editor actions' }).click();
   await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
-  await expect(page.getByText('Open Geometry', { exact: true })).toBeVisible();
+  await expect(page.getByText('Open Crop', { exact: true })).toBeVisible();
 });
 
 test('keyboard help filters shortcuts and labels keys for the platform', async ({ page }) => {
@@ -929,7 +929,7 @@ test('editor tool tabs switch panels with pointer clicks', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  for (const name of ['Masks', 'Retouch', 'Geometry', 'Export', 'Develop']) {
+  for (const name of ['Masks', 'Retouch', 'Crop', 'Export', 'Develop']) {
     const tab = page.getByRole('tab', { name });
     await tab.click();
     await expect(tab).toHaveAttribute('aria-selected', 'true');
@@ -1013,12 +1013,12 @@ test('collapsed editor controls leave the canvas and retain their state', async 
   expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(384);
 });
 
-test('Geometry pane always exposes crop controls', async ({ page }) => {
+test('Crop pane always exposes crop controls', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+  await page.getByRole('tab', { name: 'Crop' }).click();
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
     'aria-selected',
     'true'
   );
@@ -1045,7 +1045,7 @@ test('perspective sliders save into the transform op', async ({ page }) => {
   await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
   await geometrySlider(page, 'Vertical').fill('40');
   await geometrySlider(page, 'Aspect').fill('-25');
@@ -1068,7 +1068,7 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'perspective corner 1' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Corner handles' }).click();
@@ -1198,12 +1198,12 @@ for (const how of ['tool', 'shift'] as const) {
   });
 }
 
-test('a crop saves on release, undo restores it and Escape stays on Geometry', async ({ page }) => {
+test('a crop saves on release, undo restores it and Escape stays on Crop', async ({ page }) => {
   await installMocks(page, { previewBody: makePng(60, 40) });
   await gotoAsset(page);
 
   await page.keyboard.press('Shift+R');
-  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  const geometryTab = page.getByRole('tab', { name: 'Crop' });
   await expect(geometryTab).toHaveAttribute('aria-selected', 'true');
   const output = page.getByTestId('crop-output-size');
   await expect(output).toHaveText('6000 × 4000 px');
@@ -1228,10 +1228,10 @@ test('a crop saves on release, undo restores it and Escape stays on Geometry', a
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 });
 
-test('the active Geometry tab collapses the panels like any other tab', async ({ page }) => {
+test('the active Crop tab collapses the panels like any other tab', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  const geometryTab = page.getByRole('tab', { name: 'Crop' });
   await geometryTab.click();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
@@ -1244,7 +1244,7 @@ test('the active Geometry tab collapses the panels like any other tab', async ({
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
-test('Enter does not leave Geometry after a mouse click on a panel button', async ({ page }) => {
+test('Enter does not leave Crop after a mouse click on a panel button', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
@@ -1257,7 +1257,7 @@ test('Enter does not leave Geometry after a mouse click on a panel button', asyn
   expect(after).not.toBe(before);
 
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
     'aria-selected',
     'true'
   );
@@ -1275,7 +1275,7 @@ test('Enter still activates a button reached with Tab', async ({ page }) => {
 
   await page.keyboard.press('Enter');
   await expect(guide).not.toHaveAttribute('aria-label', before ?? '');
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute(
     'aria-selected',
     'true'
   );

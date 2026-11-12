@@ -121,33 +121,33 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Editor
 
-| Keys           | Action                                                  | Available in        |
-| -------------- | ------------------------------------------------------- | ------------------- |
-| `←` / `→`      | Previous / next photo                                   | Editor              |
-| `Ctrl+Z`       | Undo                                                    | Editor              |
-| `Ctrl+Shift+Z` | Redo                                                    | Editor              |
-| `Shift+D`      | Open Develop                                            | Editor              |
-| `Shift+R`      | Open Geometry                                           | Editor              |
-| `Shift+Q`      | Open Retouch                                            | Editor              |
-| `Shift+M`      | Open Masks                                              | Editor              |
-| `Shift+P`      | Show or hide the presets strip                          | Editor              |
-| `Ctrl+'`       | Create a virtual copy                                   | Grid, Loupe, Editor |
-| `Ctrl+Shift+S` | Save a snapshot of the current edits                    | Editor              |
-| `Y`            | Cycle compare: split, side by side, off                 | Editor              |
-| `\` / `<`      | Hold to view the original                               | Editor              |
-| `Tab`          | Hide or show the side panels                            | Editor              |
-| `Shift+Tab`    | Hide or show every panel                                | Editor              |
-| `W`            | Pick white balance from a neutral area                  | Editor              |
-| `T`            | Adjust HSL, Curves, B&W or Color Grading on the photo   | Editor              |
-| `Ctrl+U`       | Auto adjust                                             | Editor              |
-| `Ctrl+K`       | Search settings, presets and actions                    | Editor              |
-| `Shift+Enter`  | Pin or unpin the highlighted palette setting            | Editor              |
-| `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
-| `Ctrl+C`       | Copy edits                                              | Editor, Grid, Loupe |
-| `Ctrl+V`       | Paste edits                                             | Editor, Grid, Loupe |
-| `Ctrl+Shift+V` | Paste only some settings                                | Editor, Grid, Loupe |
-| `Shift+E`      | Open Export                                             | Editor              |
-| `Esc`          | Step out of the active tool, panel or fullscreen        | Editor              |
+| Keys           | Action                                                | Available in        |
+| -------------- | ----------------------------------------------------- | ------------------- |
+| `←` / `→`      | Previous / next photo                                 | Editor              |
+| `Ctrl+Z`       | Undo                                                  | Editor              |
+| `Ctrl+Shift+Z` | Redo                                                  | Editor              |
+| `Shift+D`      | Open Develop                                          | Editor              |
+| `Shift+R`      | Open Crop                                             | Editor              |
+| `Shift+Q`      | Open Retouch                                          | Editor              |
+| `Shift+M`      | Open Masks                                            | Editor              |
+| `Shift+P`      | Show or hide the presets strip                        | Editor              |
+| `Ctrl+'`       | Create a virtual copy                                 | Grid, Loupe, Editor |
+| `Ctrl+Shift+S` | Save a snapshot of the current edits                  | Editor              |
+| `Y`            | Cycle compare: split, side by side, off               | Editor              |
+| `\` / `<`      | Hold to view the original                             | Editor              |
+| `Tab`          | Hide or show the side panels                          | Editor              |
+| `Shift+Tab`    | Hide or show every panel                              | Editor              |
+| `W`            | Pick white balance from a neutral area                | Editor              |
+| `T`            | Adjust HSL, Curves, B&W or Color Grading on the photo | Editor              |
+| `Ctrl+U`       | Auto adjust                                           | Editor              |
+| `Ctrl+K`       | Search settings, presets and actions                  | Editor              |
+| `Shift+Enter`  | Pin or unpin the highlighted palette setting          | Editor              |
+| `Ctrl+Shift+R` | Reset develop settings, or geometry on the Crop tab   | Editor              |
+| `Ctrl+C`       | Copy edits                                            | Editor, Grid, Loupe |
+| `Ctrl+V`       | Paste edits                                           | Editor, Grid, Loupe |
+| `Ctrl+Shift+V` | Paste only some settings                              | Editor, Grid, Loupe |
+| `Shift+E`      | Open Export                                           | Editor              |
+| `Esc`          | Step out of the active tool, panel or fullscreen      | Editor              |
 
 ## Sliders
 
@@ -165,17 +165,17 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Alt + drag on the photo`           | Adjust hue while dragging on the photo                                          | Editor       |
 | `Shift + drag on the photo`         | Adjust luminance while dragging on the photo                                    | Editor       |
 
-## Geometry
+## Crop
 
 | Keys                           | Action                                                            | Available in |
 | ------------------------------ | ----------------------------------------------------------------- | ------------ |
-| `A`                            | Draw a line along the horizon to level the photo                  | Geometry     |
-| `Shift + drag inside the crop` | Draw a straighten line without arming the tool                    | Geometry     |
-| `O`                            | Cycle the crop guide: thirds, golden ratio, diagonals, grid, none | Geometry     |
-| `Alt + drag a crop handle`     | Resize the crop about its centre                                  | Geometry     |
-| `Shift + drag a crop handle`   | Keep the current shape of a free crop while resizing              | Geometry     |
-| `Ctrl + scroll over the crop`  | Scale the crop about its centre                                   | Geometry     |
-| `Ctrl + drag inside the crop`  | Move the photo under a fixed crop                                 | Geometry     |
+| `A`                            | Draw a line along the horizon to level the photo                  | Crop         |
+| `Shift + drag inside the crop` | Draw a straighten line without arming the tool                    | Crop         |
+| `O`                            | Cycle the crop guide: thirds, golden ratio, diagonals, grid, none | Crop         |
+| `Alt + drag a crop handle`     | Resize the crop about its centre                                  | Crop         |
+| `Shift + drag a crop handle`   | Keep the current shape of a free crop while resizing              | Crop         |
+| `Ctrl + scroll over the crop`  | Scale the crop about its centre                                   | Crop         |
+| `Ctrl + drag inside the crop`  | Move the photo under a fixed crop                                 | Crop         |
 
 ## Masks
 
