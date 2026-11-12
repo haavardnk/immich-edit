@@ -6,7 +6,7 @@ import type { KeybindContext } from './table';
 import { CONTEXT_STACKS } from './stacks';
 
 export function activeContexts(): readonly KeybindContext[] {
-  if (onViewerRoute()) return [];
+  if (onViewerRoute()) return CONTEXT_STACKS.viewer;
   if (onEditorRoute()) {
     const tab = ui.editorTab;
     if (tab === 'masks' || tab === 'retouch' || tab === 'geometry') return CONTEXT_STACKS[tab];

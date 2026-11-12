@@ -1,7 +1,16 @@
 import { formatChord, keyLabel } from './chord';
 
 export type KeybindContext =
-  'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'geometry' | 'masks' | 'retouch';
+  | 'global'
+  | 'grid'
+  | 'loupe'
+  | 'compare'
+  | 'survey'
+  | 'editor'
+  | 'geometry'
+  | 'masks'
+  | 'retouch'
+  | 'viewer';
 
 export interface Keybind {
   readonly id: string;
@@ -410,7 +419,7 @@ export const KEYBINDS = [
   {
     id: 'fullscreen',
     keys: ['f'],
-    contexts: ['loupe', 'compare', 'survey', 'editor'],
+    contexts: ['loupe', 'compare', 'survey', 'editor', 'viewer'],
     group: 'View',
     label: 'Toggle fullscreen'
   },

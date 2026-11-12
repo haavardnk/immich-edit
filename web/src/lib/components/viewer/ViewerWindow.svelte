@@ -5,7 +5,6 @@
   import ViewerSplit from '#lib/components/viewer/ViewerSplit.svelte';
   import ViewerStatus from '#lib/components/viewer/ViewerStatus.svelte';
   import { compareViewport } from '#lib/editor/compare.ts';
-  import { isKeybind } from '#lib/shortcuts/match.ts';
   import { displayGamutIsWide } from '#lib/utils/colorGamut.ts';
   import { placement } from '#lib/utils/viewGeometry.ts';
   import { viewerFrame } from '#lib/viewer/geometry.ts';
@@ -53,13 +52,6 @@
     stage = { w: container.clientWidth, h: container.clientHeight };
   }
 
-  function onkeydown(event: KeyboardEvent): void {
-    if (event.repeat || !isKeybind(event, 'fullscreen')) return;
-    event.preventDefault();
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen();
-  }
-
   $effect(() => sync.connect());
 
   $effect(() => () => renders.dispose());
@@ -91,8 +83,6 @@
 <svelte:head>
   <title>{title}</title>
 </svelte:head>
-
-<svelte:window {onkeydown} />
 
 <div
   bind:this={container}
