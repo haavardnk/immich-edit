@@ -228,16 +228,21 @@ Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll
 own step in the history, so `Cmd+Z` or `Ctrl+Z` takes back the last crop or rotation without
 leaving the tool. The tool stays open until you pick another one.
 
-- **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1**,
-  **3:2**, **5:4** or **7:5**; **Custom…** takes any whole-number width and height. The button beside
-  it swaps landscape and portrait, so **5:4** becomes **4:5**. The size the crop keeps,
-  in pixels of the original, shows beside **Crop**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
-  shape of a free crop. `Ctrl` or `Cmd` with the mouse wheel scales the crop, and with a drag inside
-  it moves the photo under the crop. **Crop guide**, or `O`, cycles the overlay between rule of
-  thirds, golden ratio, diagonals, a grid and none, and remembers your choice.
-- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`,
-  and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
-  the same without the button. **Rotate left 90°** and **Rotate right 90°** in the bar at the top
+- **Crop**: drag the frame, or pick an aspect ratio chip: **Original**, **Free**, **1:1**, **3:2**,
+  **4:3** or **16:9**, with **5:4** and **7:5** under **⋯**. **Ratio** takes any other shape, such
+  as `21:9`, `65:24` or a decimal like `2.39`. **Save ratio** adds it under **⋯** for every
+  photo, and **Remove ratio** takes it away again. The button beside **Ratio** swaps landscape and
+  portrait, so **5:4** becomes **4:5**. The size the crop keeps, in pixels of the original, shows
+  beside **Crop**, and on the photo with its ratio while you drag. Hold `Alt` while dragging a
+  handle to resize about the centre, and `Shift` to keep the shape of a free crop. `Ctrl` or `Cmd`
+  with the mouse wheel scales the crop, and with a drag inside it moves the photo under the crop.
+- **Crop guide**, or `O`, cycles the overlay between rule of thirds, golden ratio, golden spiral,
+  diagonals, golden triangle, a grid and none, and remembers your choice. **Turn guide**, or
+  `Shift+O`, turns and mirrors the spiral or triangle to point at your subject.
+- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`, and
+  drag along a line that should be level or upright; drag inside the crop with the right mouse
+  button, or hold `Shift` and drag, to do the same without the button. **Rotate left 90°** and
+  **Rotate right 90°** in the bar at the top
   turn the photo, and **Flip horizontal** and **Flip vertical** mirror it.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
   afterwards. **Corner handles** lets you drag the four corners onto a shape that

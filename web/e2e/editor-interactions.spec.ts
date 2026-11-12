@@ -1216,7 +1216,7 @@ for (const how of ['tool', 'shift', 'right'] as const) {
     await page.keyboard.press('Shift+R');
     await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
-    const straighten = page.getByRole('button', { name: 'Straighten' });
+    const straighten = page.getByRole('button', { name: 'Straighten', exact: true });
     if (how === 'tool') {
       await page.keyboard.press('a');
       await expect(straighten).toHaveAttribute('aria-pressed', 'true');
