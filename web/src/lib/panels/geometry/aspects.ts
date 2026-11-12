@@ -25,6 +25,7 @@ export const PRESET_RATIOS: readonly CropRatio[] = [
 const MAX_RATIO_SIDE = 9999;
 const MAX_DECIMALS = 3;
 const MAX_REDUCED_SIDE = 9;
+const MAX_SOURCE_SIDE = 32;
 const RATIO_PATTERN = /^(\d+(?:\.\d+)?)\s*(?:[:x×/]\s*(\d+(?:\.\d+)?))?$/i;
 
 export function longSideFirst(ratio: CropRatio): CropRatio {
@@ -79,6 +80,13 @@ export function isPresetRatio(ratio: CropRatio): boolean {
 export function ratioReadout(ratio: CropRatio): string {
   const { num, den } = longSideFirst(ratio);
   return `${Number((num / den).toFixed(2))} : 1`;
+}
+
+export function sourceRatioLabel(width: number, height: number): string {
+  const divisor = greatestDivisor(Math.round(width), Math.round(height)) || 1;
+  const ratio = { num: Math.round(width) / divisor, den: Math.round(height) / divisor };
+  if (Math.max(ratio.num, ratio.den) <= MAX_SOURCE_SIDE) return `${ratio.num}:${ratio.den}`;
+  return ratioReadout(ratio);
 }
 
 function greatestDivisor(a: number, b: number): number {

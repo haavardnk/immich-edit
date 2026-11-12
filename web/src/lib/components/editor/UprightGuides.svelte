@@ -10,6 +10,8 @@
     tiltFromLevel
   } from '#lib/utils/uprightFeedback.ts';
   import GuideCounts from './crop/GuideCounts.svelte';
+  import GuideLoupe from './crop/GuideLoupe.svelte';
+  import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { pointerDrag } from '#lib/gestures/drag.ts';
@@ -20,9 +22,10 @@
   interface Props {
     frame: StageFrame;
     guides: UprightGuide[];
+    photo?: Snippet;
   }
 
-  let { frame, guides }: Props = $props();
+  let { frame, guides, photo }: Props = $props();
 
   type End = 'from' | 'to';
 
@@ -63,6 +66,7 @@
     })
   );
   const drawingKind = $derived(drawing ? classifyGuide(drawing.from, drawing.to, diagonal) : null);
+  const loupeAt = $derived(drawing ? drawing.to : (moving?.at ?? null));
   const hint = $derived(
     drawing ? drawingHint(guides, drawing.from, drawing.to, drawingKind, diagonal) : null
   );
@@ -214,7 +218,7 @@
     {/if}
   </svg>
   <span
-    class="pointer-events-none absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs whitespace-nowrap text-white shadow-lg backdrop-blur-sm"
+    class="pointer-events-none absolute top-3 left-1/2 z-20 w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs whitespace-nowrap text-white shadow-lg backdrop-blur-sm"
     data-testid="upright-counts"><GuideCounts {guides} /></span
   >
   {#each lines as line, i (i)}
@@ -251,6 +255,9 @@
       <Icon icon={mdiClose} size="12px" aria-hidden="true" />
     </button>
   {/each}
+  {#if photo && loupeAt}
+    <GuideLoupe at={loupeAt} width={frame.bboxW} height={frame.bboxH} {photo} />
+  {/if}
   {#if drawing && hint}
     <span
       role="status"

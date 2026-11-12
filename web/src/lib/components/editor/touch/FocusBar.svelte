@@ -8,17 +8,15 @@
   import { paramDefault } from '#lib/editor/params/define.ts';
   import type { ParamDef } from '#lib/editor/params/types.ts';
   import type { ViewerAdjust } from '#lib/editor/viewerGestures.ts';
-  import { gestures } from '#lib/gestures/gestures.ts';
-  import { panRecognizer } from '#lib/gestures/pan.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiCheck, mdiRestore } from '@mdi/js';
   import { focusAdjust } from './focusAdjust';
+  import Ruler from './Ruler.svelte';
 
   let { param }: { param: ParamDef } = $props();
 
-  let ruler = $state<HTMLDivElement | null>(null);
   let adjusting: ViewerAdjust | null = null;
 
   const siblings = $derived(
@@ -34,27 +32,15 @@
     (positionOf(paramDefault(param, editor.isRaw), param) - bounds.min) / span
   );
 
+  function start(): void {
+    adjusting = focusAdjust(param);
+    adjusting.start();
+  }
+
   function stop(): void {
     adjusting?.end();
     adjusting = null;
   }
-
-  const rulerDrag = gestures({
-    recognizers: [
-      panRecognizer({
-        lockAxis: true,
-        thresholds: { panSlop: 8 },
-        start: (pan) => {
-          if (pan.axis !== 'x') return;
-          adjusting = focusAdjust(param);
-          adjusting.start();
-        },
-        move: (pan) => adjusting?.move(-pan.stepX, (ruler?.clientWidth ?? 0) * 2),
-        end: stop,
-        cancel: stop
-      })
-    ]
-  });
 </script>
 
 <section
@@ -67,24 +53,13 @@
       >{param.format(value)}</span
     >
   </div>
-  <div
-    bind:this={ruler}
-    aria-hidden="true"
-    data-testid="focus-ruler"
-    class="relative h-12 overflow-hidden text-dark/40"
-    {@attach rulerDrag}
-  >
-    <div
-      class="absolute inset-y-3 left-1/2 w-[200%] bg-[repeating-linear-gradient(to_right,currentColor_0_1px,transparent_1px_12px)]"
-      style:transform="translateX(-{at * 100}%)"
-    >
-      <span
-        class="absolute -top-2.5 h-[calc(100%+0.625rem)] w-px bg-light-950/70"
-        style:left="{origin * 100}%"
-      ></span>
-    </div>
-    <span class="absolute inset-y-1 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-primary"></span>
-  </div>
+  <Ruler
+    {at}
+    {origin}
+    onstart={start}
+    onmove={(stepX, width) => adjusting?.move(stepX, width)}
+    onend={stop}
+  />
   <div class="px-3">
     <ChoiceChips
       label="Settings"

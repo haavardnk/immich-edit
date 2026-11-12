@@ -28,7 +28,6 @@ export function touchMode(): TouchMode | '' {
 }
 
 export function openTouchMode(mode: TouchMode): void {
-  touchUi.raise();
   if (mode === 'presets') {
     ui.presetStrip = true;
     ui.rightCollapsed = false;

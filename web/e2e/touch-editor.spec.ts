@@ -56,7 +56,7 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(page.getByRole('radiogroup', { name: 'Colour band' })).toBeVisible();
 
     await modes(page).getByRole('tab', { name: 'Crop' }).tap();
-    await expect(page.getByRole('slider', { name: 'Angle' })).toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Dial' })).toBeVisible();
     await modes(page).getByRole('tab', { name: 'Masks' }).tap();
     await expect(page.getByRole('button', { name: 'New mask' })).toBeVisible();
     await modes(page).getByRole('tab', { name: 'Develop' }).tap();

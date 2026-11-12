@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { Tween } from 'svelte/motion';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
@@ -13,6 +16,14 @@
   } from '#lib/utils/geom.ts';
   import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
   import { stageFrame } from '#lib/editor/geometryStage.ts';
+  import {
+    IDENTITY_VIEW,
+    cropFit,
+    framedView,
+    previewView,
+    previewZoom
+  } from '#lib/editor/cropFraming.ts';
+  import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
   import CropGuide from './crop/CropGuide.svelte';
@@ -34,6 +45,7 @@
   let line = $state<{ from: Point; to: Point } | null>(null);
 
   const MIN_LINE_PX = 10;
+  const view = new Tween(IDENTITY_VIEW, { duration: 250, easing: cubicOut });
 
   function measure(): void {
     if (!container) return;
@@ -47,9 +59,9 @@
   const sourceW = $derived(sess ? (swapped ? sess.srcH : sess.srcW) : 1);
   const sourceH = $derived(sess ? (swapped ? sess.srcW : sess.srcH) : 1);
   const bbox = $derived(sess ? rotatedBbox(sourceW, sourceH, sess.draftAngle) : { w: 1, h: 1 });
-  const scale = $derived(
-    Math.min((containerW * 0.92) / Math.max(bbox.w, 1), (containerH * 0.92) / Math.max(bbox.h, 1))
-  );
+  const box = $derived({ w: containerW, h: containerH });
+  const fit = $derived(cropFit(box, bbox));
+  const scale = $derived(fit * view.current.zoom);
   const bboxW = $derived(bbox.w * scale);
   const bboxH = $derived(bbox.h * scale);
   const imgW = $derived((sess?.srcW ?? 1) * scale);
@@ -68,6 +80,11 @@
   );
   const perspCss = $derived(
     sess ? perspectiveCssMatrix(frame.forward, orientedW, orientedH) : 'none'
+  );
+  const photoTransform = $derived(
+    sess
+      ? `translate(-50%, -50%) rotate(${sess.draftAngle}deg) ${perspCss} scaleY(${sess.draftFlipV ? -1 : 1}) scaleX(${sess.draftFlipH ? -1 : 1}) rotate(${sess.draftRotate}deg)`
+      : 'none'
   );
   const crop = $derived(sess?.draftCrop ?? { x: 0, y: 0, w: 1, h: 1 });
   const cropPx = $derived({
@@ -96,6 +113,36 @@
     active === null || active === 'move' || active === 'pan' ? null : active
   );
   const dragReadout = $derived(active && !touch ? cropDragReadout() : null);
+  const viewOffset = $derived({
+    x: (0.5 - view.current.cx) * bboxW,
+    y: (0.5 - view.current.cy) * bboxH
+  });
+
+  let framed = false;
+  let exitScale: number | null = null;
+
+  $effect(() => {
+    if (containerW <= 0 || containerH <= 0) return;
+    if (!touch) {
+      untrack(() => void view.set(IDENTITY_VIEW, { duration: 0 }));
+      return;
+    }
+    if (active || line) return;
+    const target = framedView(crop, bbox, fit, box);
+    const from = framed ? null : previewView(crop, bbox, fit, box);
+    framed = true;
+    untrack(() => {
+      if (from) void view.set(from, { duration: 0 });
+      void view.set(target);
+    });
+  });
+
+  $effect(() => {
+    exitScale =
+      touch && framed && fit > 0 ? view.current.zoom / previewZoom(crop, bbox, fit, box) : null;
+  });
+
+  $effect(() => () => cropExit.hand(exitScale));
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop
@@ -202,6 +249,16 @@
   }
 </script>
 
+{#snippet photo()}
+  <img
+    src={sess?.frameUrl}
+    alt=""
+    draggable="false"
+    class="absolute block"
+    style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: {photoTransform}; transform-origin: center; image-orientation: none;"
+  />
+{/snippet}
+
 <div
   bind:this={container}
   use:observeSize={measure}
@@ -210,22 +267,13 @@
   {#if sess && sess.frameUrl}
     <div
       bind:this={stage}
-      class="relative"
+      class="relative shrink-0"
       role="presentation"
-      style="width: {bboxW}px; height: {bboxH}px; transform: translate({panOffset.x}px, {panOffset.y}px);"
+      style="width: {bboxW}px; height: {bboxH}px; transform: translate({panOffset.x +
+        viewOffset.x}px, {panOffset.y + viewOffset.y}px);"
       onwheel={onWheel}
     >
-      <img
-        src={sess.frameUrl}
-        alt=""
-        draggable="false"
-        class="absolute block"
-        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) {perspCss} scaleY({sess.draftFlipV
-          ? -1
-          : 1}) scaleX({sess.draftFlipH
-          ? -1
-          : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
-      />
+      {@render photo()}
 
       <div
         class="absolute inset-0 pointer-events-none"
@@ -267,7 +315,7 @@
       {/if}
 
       {#if ui.geometryTool === 'upright'}
-        <UprightGuides {frame} guides={sess.guides} />
+        <UprightGuides {frame} guides={sess.guides} photo={touch ? photo : undefined} />
       {/if}
 
       {#if line}

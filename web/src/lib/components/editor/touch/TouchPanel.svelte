@@ -1,13 +1,12 @@
 <script lang="ts">
   import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
   import ExportPanel from '#lib/panels/Export.svelte';
-  import GeometryActions from '#lib/panels/GeometryActions.svelte';
   import MasksPanel from '#lib/panels/Masks.svelte';
   import RetouchPanel from '#lib/panels/Retouch.svelte';
-  import TransformPanel from '#lib/panels/Transform.svelte';
   import DevelopViews from './DevelopViews.svelte';
   import GroupChips from './GroupChips.svelte';
   import SettingsSearch from './SettingsSearch.svelte';
+  import TouchCrop from './crop/TouchCrop.svelte';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
   import { touchMode } from './modes';
@@ -30,12 +29,11 @@
     {/if}
     <DevelopViews {stacked} />
   {/if}
+{:else if mode === 'geometry'}
+  <TouchCrop {stacked} />
 {:else}
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 scrollbar-hidden">
-    {#if mode === 'geometry'}
-      <div class="flex items-center gap-1.5 pb-2"><GeometryActions /></div>
-      <TransformPanel />
-    {:else if mode === 'masks'}
+    {#if mode === 'masks'}
       <MasksPanel />
     {:else if mode === 'retouch'}
       <RetouchPanel />
