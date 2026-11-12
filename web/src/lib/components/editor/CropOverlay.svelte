@@ -16,11 +16,15 @@
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
   import CropGuide from './crop/CropGuide.svelte';
+  import CropHandles from './crop/CropHandles.svelte';
+  import PhotoPill from './PhotoPill.svelte';
+  import { cropDragReadout } from '#lib/panels/geometry/cropReadout.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import type { CropRect } from '#lib/types/edits.ts';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
-  import { CROP_HANDLES, HANDLE_DOT, boxHandleHit } from '#lib/editor/handles.ts';
+  import { boxHandleHit } from '#lib/editor/handles.ts';
   import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   let container = $state<HTMLDivElement | null>(null);
@@ -86,6 +90,12 @@
       };
 
   const hit = $derived(boxHandleHit(handleHit(), cropPx.w, cropPx.h));
+  const touch = $derived(layout.mode === 'touch');
+  let active = $state<DragKind | null>(null);
+  const activeHandle = $derived(
+    active === null || active === 'move' || active === 'pan' ? null : active
+  );
+  const dragReadout = $derived(active && !touch ? cropDragReadout() : null);
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop
@@ -117,6 +127,8 @@
   }
 
   function startCrop(e: PointerEvent, kind: 'line' | 'move' | CropHandle): CropDrag | null {
+    if (kind === 'move' && e.button === 2) return startLine(e);
+    if (e.button !== 0) return null;
     if (kind === 'line' || (kind === 'move' && held('straighten', e))) return startLine(e);
     e.preventDefault();
     e.stopPropagation();
@@ -124,6 +136,7 @@
     const panning = kind === 'move' && held('pan', e);
     const startCrop = { ...sess.draftCrop };
     panStartCrop = panning ? { ...sess.draftCrop } : null;
+    active = panning ? 'pan' : kind;
     const aspectRatio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
     const ratio =
       aspectRatio ??
@@ -169,6 +182,7 @@
       return;
     }
     panStartCrop = null;
+    active = null;
     void editor.commitGeometry('Crop');
   }
 
@@ -229,6 +243,7 @@
         class="absolute border border-white/90 cursor-move touch-none"
         style="left: {cropPx.x}px; top: {cropPx.y}px; width: {cropPx.w}px; height: {cropPx.h}px;"
         {...cropDrag.on('move')}
+        oncontextmenu={(e) => e.preventDefault()}
         role="presentation"
       >
         <CropGuide
@@ -236,34 +251,10 @@
           turn={ui.cropGuideTurn}
           aspect={cropPx.w / Math.max(cropPx.h, 1)}
         />
-        {#each CROP_HANDLES as h (h)}
-          <button
-            class="absolute touch-none"
-            style="
-              width: {hit * 2}px; height: {hit * 2}px;
-              {h.includes('n') ? `top: -${hit}px;` : ''}
-              {h.includes('s') ? `bottom: -${hit}px;` : ''}
-              {h.includes('w') ? `left: -${hit}px;` : ''}
-              {h.includes('e') ? `right: -${hit}px;` : ''}
-              {h === 'n' || h === 's' ? `left: calc(50% - ${hit}px);` : ''}
-              {h === 'w' || h === 'e' ? `top: calc(50% - ${hit}px);` : ''}
-              cursor: {h === 'n' || h === 's'
-              ? 'ns-resize'
-              : h === 'e' || h === 'w'
-                ? 'ew-resize'
-                : h === 'nw' || h === 'se'
-                  ? 'nwse-resize'
-                  : 'nesw-resize'};
-            "
-            onpointerdown={(e) => cropDrag.begin(e, h)}
-            aria-label="resize {h}"
-          >
-            <span
-              class="pointer-events-none absolute rounded-sm border border-black/60 bg-white"
-              style="inset: {hit - HANDLE_DOT.crop}px;"
-            ></span>
-          </button>
-        {/each}
+        <CropHandles {hit} {touch} active={activeHandle} onbegin={(e, h) => cropDrag.begin(e, h)} />
+        {#if dragReadout}
+          <PhotoPill {...dragReadout} placement="centre" />
+        {/if}
       </div>
 
       {#if ui.geometryTool === 'straighten'}

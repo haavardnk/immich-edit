@@ -764,7 +764,7 @@ export const KEYBINDS = [
     contexts: ['geometry'],
     group: 'Crop',
     label: 'Draw a straighten line without arming the tool',
-    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag inside the crop`
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag or right-drag inside the crop`
   },
   {
     id: 'cropGrid',

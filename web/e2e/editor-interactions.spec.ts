@@ -1209,7 +1209,7 @@ test('the ratio chips and the ratio row fit the narrowest inspector', async ({ p
   expect(flip?.height).toBeCloseTo(field?.height ?? 0, 0);
 });
 
-for (const how of ['tool', 'shift'] as const) {
+for (const how of ['tool', 'shift', 'right'] as const) {
   test(`a line drawn with the straighten ${how} levels the photo`, async ({ page }) => {
     await installMocks(page);
     await gotoAsset(page);
@@ -1228,10 +1228,11 @@ for (const how of ['tool', 'shift'] as const) {
     const x = box.x + box.width * 0.25;
     const y = box.y + box.height * 0.5;
     if (how === 'shift') await page.keyboard.down('Shift');
+    const button = how === 'right' ? 'right' : 'left';
     await page.mouse.move(x, y);
-    await page.mouse.down();
+    await page.mouse.down({ button });
     await page.mouse.move(x + 200, y + 200 * Math.tan((10 * Math.PI) / 180), { steps: 6 });
-    await page.mouse.up();
+    await page.mouse.up({ button });
     if (how === 'shift') await page.keyboard.up('Shift');
 
     await expect
@@ -1240,6 +1241,24 @@ for (const how of ['tool', 'shift'] as const) {
     await expect(straighten).toHaveAttribute('aria-pressed', 'false');
   });
 }
+
+test('dragging a crop corner shows its size and ratio on the photo', async ({ page }) => {
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+  await page.keyboard.press('Shift+R');
+  const corner = page.getByRole('button', { name: 'resize se' });
+  const box = await corner.boundingBox();
+  if (!box) throw new Error('crop handle has no box');
+  const readout = page.locator('[data-photo-pill]');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 60, box.y - 20, { steps: 4 });
+  await expect(readout).toHaveText(/^\d+ × \d+ · [\d.]+ : 1$/);
+  await expect(corner).toHaveAttribute('data-active', '');
+  await page.mouse.up();
+  await expect(readout).toHaveCount(0);
+  await expect(corner).not.toHaveAttribute('data-active');
+});
 
 test('a crop saves on release, undo restores it and Escape stays on Crop', async ({ page }) => {
   await installMocks(page, { previewBody: makePng(60, 40) });

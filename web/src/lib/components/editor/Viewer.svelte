@@ -32,6 +32,8 @@
   import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
   import Navigator from './Navigator.svelte';
   import { scopes } from '#lib/stores/scopes.svelte.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { cropReadout } from '#lib/panels/geometry/cropReadout.ts';
   import type { Snippet } from 'svelte';
 
   let {
@@ -52,7 +54,8 @@
     editor.versions.hold.pill ??
       presetStrip.pill ??
       lutPreview.pill ??
-      (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill))
+      (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill)) ??
+      (editor.geometrySession && layout.mode === 'touch' ? cropReadout() : null)
   );
 
   const metrics = $derived(
