@@ -6,7 +6,8 @@ import { editor } from '#lib/stores/editor.svelte.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { mdiChartHistogram, mdiCompare, mdiEyeOutline } from '@mdi/js';
+import { openViewer } from '#lib/viewer/openViewer.ts';
+import { mdiChartHistogram, mdiCompare, mdiEyeOutline, mdiOpenInNew } from '@mdi/js';
 
 function showOriginal(): void {
   if (editor.showingOriginal) return;
@@ -80,6 +81,15 @@ export const editorFullscreen = {
   run: () => ui.toggleFullscreen()
 } satisfies Command;
 
+export const viewerWindow = {
+  id: 'editor.viewerWindow',
+  contexts: ['editor'],
+  label: 'Open viewer window',
+  icon: mdiOpenInNew,
+  shown: () => layout.mode !== 'touch',
+  run: openViewer
+} satisfies Command;
+
 export const VIEW_COMMANDS: readonly Command[] = [
   {
     id: 'editor.pan',
@@ -116,6 +126,7 @@ export const VIEW_COMMANDS: readonly Command[] = [
     run: () => ui.toggleChrome()
   },
   editorFullscreen,
+  viewerWindow,
   {
     id: 'editor.filmstrip',
     contexts: ['editor'],

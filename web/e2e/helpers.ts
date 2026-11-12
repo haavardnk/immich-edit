@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, type Route } from '@playwright/test';
+import { expect, type BrowserContext, type Locator, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import type { ExifInfo } from '../src/lib/types/asset';
 import type { EditRecord } from '../src/lib/types/edits';
@@ -263,7 +263,10 @@ export interface MockSavedView {
   updated_at: string;
 }
 
-export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
+export async function installMocks(
+  page: Page | BrowserContext,
+  opts: InstallOpts = {}
+): Promise<void> {
   const choice = opts.renderer ?? 'server';
   if (choice !== 'auto') {
     await page.addInitScript(

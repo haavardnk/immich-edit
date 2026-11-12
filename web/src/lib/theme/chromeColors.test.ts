@@ -112,6 +112,9 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/components/editor/versions/VersionThumb.svelte': ['bg-black/60', 'text-white'],
   '/src/lib/components/preset/PresetTile.svelte': ['bg-black/55', 'from-black/80', 'text-white/90'],
   '/src/lib/components/shell/Filmstrip.svelte': ['from-black/75', 'text-white'],
+  '/src/lib/components/viewer/ViewerSplit.svelte': ['bg-white', 'bg-white/90'],
+  '/src/lib/components/viewer/ViewerStatus.svelte': ['bg-black/70', 'text-white'],
+  '/src/lib/components/viewer/ViewerWindow.svelte': ['ring-white/10'],
   '/src/lib/panels/MaskRangeControls.svelte': ['rgb(']
 };
 

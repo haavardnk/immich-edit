@@ -11,8 +11,7 @@ import type { ColorSpaceOpt } from '#lib/api/export.ts';
 import { renderer } from '#lib/stores/renderer.svelte.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
-import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
-import { originalPreviewEdits, type DevelopSection, type Edits } from '#lib/types/edits.ts';
+import type { DevelopSection, Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
 import { displayGamutIsWide, previewColorSpace } from '#lib/utils/colorGamut.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
@@ -22,6 +21,7 @@ import type { Roi } from '#lib/utils/viewGeometry.ts';
 import type { GeometrySession } from './geometry.svelte';
 import type { EditsPreview, EditsPreviewOwner } from '#lib/stores/editor/editsPreview.ts';
 import { ClientPreview } from './clientPreview';
+import { displayedEdits } from './displayedEdits';
 import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';
 import { CompareLeft, type CompareLeftCtx } from '#lib/stores/editor/compareLeft.svelte.ts';
 import {
@@ -86,6 +86,7 @@ export class PreviewEngine {
   private viewSnap = $state<ViewSnapshot | null>(null);
   private viewAfterBase = false;
   private dragging = false;
+  private dragShown = $state(false);
   private draggedLive = false;
   private previewing = false;
   private deferred: BaseArgs | null = null;
@@ -184,6 +185,10 @@ export class PreviewEngine {
     return this.tiles.srcLong;
   }
 
+  get dragActive(): boolean {
+    return this.dragShown;
+  }
+
   get viewScale(): number | null {
     return this.tiles.scale(this.viewSnap);
   }
@@ -222,12 +227,14 @@ export class PreviewEngine {
 
   beginDrag(): void {
     this.dragging = true;
+    this.dragShown = true;
     this.draggedLive = false;
   }
 
   endDrag(): void {
     if (!this.dragging) return;
     this.dragging = false;
+    this.dragShown = false;
     if (!this.draggedLive) {
       if (!this.viewBlocked()) this.scheduleIdle();
       return;
@@ -312,6 +319,7 @@ export class PreviewEngine {
     this.lastBase = null;
     this.cancelRelease();
     this.dragging = false;
+    this.dragShown = false;
     this.draggedLive = false;
     this.previewing = false;
     this.clearView();
@@ -329,27 +337,9 @@ export class PreviewEngine {
   }
 
   private settledArgs(maxEdge: number): BaseArgs {
-    const edits = this.snapshotEdits();
-    const section = this.ctx.bypassedSection;
+    const edits = displayedEdits(this.ctx, this.snapshotEdits());
     if (this.ctx.colorPicker) {
-      return {
-        edits: { ...edits, masks: [] },
-        maxEdge,
-        previewMode: 'none',
-        purpose: 'color-picker'
-      };
-    }
-    if (this.ctx.showingOriginal) {
-      return { edits: originalPreviewEdits(edits), maxEdge, previewMode: 'none' };
-    }
-    if (section)
-      return {
-        edits: neutraliseSection(edits, section, this.ctx.isRaw),
-        maxEdge,
-        previewMode: 'none'
-      };
-    if (this.ctx.editsPreview) {
-      return { edits: this.ctx.editsPreview.edits, maxEdge, previewMode: 'none' };
+      return { edits, maxEdge, previewMode: 'none', purpose: 'color-picker' };
     }
     return { edits, maxEdge, previewMode: 'none' };
   }

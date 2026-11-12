@@ -20,11 +20,11 @@ export interface CompareLeftHooks {
   edge(): number;
 }
 
-type Target = { assetId: string; edits: Edits | null; key: string };
+export type CompareTarget = { assetId: string; edits: Edits | null; key: string };
 
-type LeftArgs = Target & { edge: number };
+type LeftArgs = CompareTarget & { edge: number };
 
-function targetOf(ctx: CompareLeftCtx): Target | null {
+export function compareTarget(ctx: CompareLeftCtx): CompareTarget | null {
   const assetId = ctx.assetId;
   if (!assetId) return null;
   const source = ctx.compare.source;
@@ -86,7 +86,7 @@ export class CompareLeft {
 
   refresh(force = false): void {
     if (this.ctx.compare.mode === 'off') return;
-    const target = targetOf(this.ctx);
+    const target = compareTarget(this.ctx);
     if (!target) return;
     const edge = this.hooks.edge();
     if (!force && this.edge === edge && this.key === target.key && this.ctx.compareUrl) return;
