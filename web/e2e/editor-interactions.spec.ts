@@ -1110,18 +1110,25 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await page.keyboard.press('Shift+R');
   const guide = page.getByTestId('crop-guide');
   await expect(guide).toHaveAttribute('data-mode', 'thirds');
-  for (const mode of ['golden', 'diagonal', 'grid', 'off']) {
+  for (const mode of ['golden', 'spiral', 'diagonal', 'triangle', 'grid', 'off']) {
     await page.keyboard.press('o');
     await expect(guide).toHaveAttribute('data-mode', mode);
   }
   await page.keyboard.press('o');
   await page.keyboard.press('o');
-  await expect(guide).toHaveAttribute('data-mode', 'golden');
+  await page.keyboard.press('o');
+  await expect(guide).toHaveAttribute('data-mode', 'spiral');
+  await expect(guide).toHaveAttribute('data-turn', '0');
+  await page.keyboard.press('Shift+O');
+  await expect(guide).toHaveAttribute('data-turn', '1');
+  await page.getByRole('button', { name: 'Turn guide' }).click();
+  await expect(guide).toHaveAttribute('data-turn', '2');
 
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
-  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
-  await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();
+  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'spiral');
+  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-turn', '2');
+  await expect(page.getByRole('button', { name: 'Crop guide: Golden spiral' })).toBeVisible();
 });
 
 async function cropRatio(page: import('@playwright/test').Page): Promise<number> {

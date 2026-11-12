@@ -54,8 +54,30 @@ describe('editor layout persistence', () => {
       brushTool: { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' },
       retouchTool: { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 },
       greyCanvas: false,
-      cropGrid: 'thirds'
+      cropGrid: 'thirds',
+      cropGuideTurn: 0
     });
+  });
+
+  it.each([
+    [3, 4],
+    [7, 0],
+    [-1, 0],
+    ['x', 1]
+  ])('restores crop guide turn %s and turns it to %s', async (stored, next) => {
+    const values = new Map<string, string>([
+      [storageKey, JSON.stringify({ cropGuideTurn: stored })]
+    ]);
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value)
+    });
+
+    const { ui } = await import('./ui.svelte');
+    ui.turnCropGuide();
+
+    expect(ui.cropGuideTurn).toBe(next);
+    expect(JSON.parse(values.get(storageKey) ?? '').cropGuideTurn).toBe(next);
   });
 
   it.each([
@@ -83,7 +105,8 @@ describe('editor layout persistence', () => {
   );
 
   it.each([
-    ['golden', 'diagonal'],
+    ['golden', 'spiral'],
+    ['triangle', 'grid'],
     ['off', 'thirds'],
     ['bogus', 'golden']
   ])('restores crop guide %s and cycles to %s', async (stored, next) => {

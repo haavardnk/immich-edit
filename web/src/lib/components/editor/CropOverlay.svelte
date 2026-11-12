@@ -1,7 +1,7 @@
 <script lang="ts">
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui, type CropGrid } from '#lib/stores/ui.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     rotatedBbox,
     aspectRatioFor,
@@ -15,6 +15,7 @@
   import { stageFrame } from '#lib/editor/geometryStage.ts';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
+  import CropGuide from './crop/CropGuide.svelte';
   import type { CropRect } from '#lib/types/edits.ts';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
@@ -29,27 +30,6 @@
   let line = $state<{ from: Point; to: Point } | null>(null);
 
   const MIN_LINE_PX = 10;
-  const GOLDEN = 1 - 2 / (1 + Math.sqrt(5));
-
-  type GuideLine = [number, number, number, number];
-
-  function axisLines(stops: number[]): GuideLine[] {
-    return stops.flatMap((t): GuideLine[] => [
-      [t, 0, t, 1],
-      [0, t, 1, t]
-    ]);
-  }
-
-  const GUIDE_LINES: Record<CropGrid, GuideLine[]> = {
-    thirds: axisLines([1 / 3, 2 / 3]),
-    golden: axisLines([GOLDEN, 1 - GOLDEN]),
-    diagonal: [
-      [0, 0, 1, 1],
-      [1, 0, 0, 1]
-    ],
-    grid: axisLines([1, 2, 3, 4, 5, 6, 7].map((i) => i / 8)),
-    off: []
-  };
 
   function measure(): void {
     if (!container) return;
@@ -251,26 +231,11 @@
         {...cropDrag.on('move')}
         role="presentation"
       >
-        <svg
-          class="absolute inset-0 size-full pointer-events-none"
-          viewBox="0 0 1 1"
-          preserveAspectRatio="none"
-          data-testid="crop-guide"
-          data-mode={ui.cropGrid}
-          aria-hidden="true"
-        >
-          {#each GUIDE_LINES[ui.cropGrid] as [x1, y1, x2, y2], i (i)}
-            <line
-              {x1}
-              {y1}
-              {x2}
-              {y2}
-              stroke="rgb(255 255 255 / 0.3)"
-              stroke-width="1"
-              vector-effect="non-scaling-stroke"
-            />
-          {/each}
-        </svg>
+        <CropGuide
+          grid={ui.cropGrid}
+          turn={ui.cropGuideTurn}
+          aspect={cropPx.w / Math.max(cropPx.h, 1)}
+        />
         {#each CROP_HANDLES as h (h)}
           <button
             class="absolute touch-none"

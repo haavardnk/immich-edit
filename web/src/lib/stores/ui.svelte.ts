@@ -6,6 +6,7 @@ import {
   RETOUCH_OPACITY,
   RETOUCH_SIZE
 } from '#lib/editor/params/brush.ts';
+import { GUIDE_TURNS } from '#lib/editor/cropGuides.ts';
 import type { ToolRange } from '#lib/editor/params/types.ts';
 import type { RetouchMode } from '#lib/types/edits.ts';
 import { withZoom, type View, type ViewChange, type ZoomedView } from '#lib/utils/imageViewport.ts';
@@ -20,14 +21,16 @@ import {
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
-export type CropGrid = 'thirds' | 'golden' | 'diagonal' | 'grid' | 'off';
+export type CropGrid = 'thirds' | 'golden' | 'spiral' | 'diagonal' | 'triangle' | 'grid' | 'off';
 
 export type GeometryTool = 'straighten' | 'upright' | 'corners';
 
 export const CROP_GRIDS: { id: CropGrid; label: string }[] = [
   { id: 'thirds', label: 'Rule of thirds' },
   { id: 'golden', label: 'Golden ratio' },
+  { id: 'spiral', label: 'Golden spiral' },
   { id: 'diagonal', label: 'Diagonals' },
+  { id: 'triangle', label: 'Golden triangle' },
   { id: 'grid', label: 'Grid' },
   { id: 'off', label: 'No guide' }
 ];
@@ -105,6 +108,7 @@ type PersistedEditorUi = {
   retouchTool?: RetouchTool;
   greyCanvas?: boolean;
   cropGrid?: CropGrid;
+  cropGuideTurn?: number;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -132,6 +136,7 @@ class UiStore {
   editorTab = $state<EditorTab>('develop');
   geometryTool = $state<GeometryTool | null>(null);
   cropGrid = $state<CropGrid>('thirds');
+  cropGuideTurn = $state(0);
   clipWarn = $state(false);
   greyCanvas = $state(false);
   brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
@@ -168,6 +173,11 @@ class UiStore {
     }
     this.greyCanvas = stored?.greyCanvas === true;
     this.cropGrid = CROP_GRIDS.find((g) => g.id === stored?.cropGrid)?.id ?? 'thirds';
+    const turn = stored?.cropGuideTurn;
+    this.cropGuideTurn =
+      typeof turn === 'number' && Number.isInteger(turn)
+        ? ((turn % GUIDE_TURNS) + GUIDE_TURNS) % GUIDE_TURNS
+        : 0;
   }
 
   setDevelopPanels = (ids: string[]): void => {
@@ -187,7 +197,8 @@ class UiStore {
       brushTool: this.brushTool,
       retouchTool: this.retouchTool,
       greyCanvas: this.greyCanvas,
-      cropGrid: this.cropGrid
+      cropGrid: this.cropGrid,
+      cropGuideTurn: this.cropGuideTurn
     } satisfies PersistedEditorUi);
   };
 
@@ -229,6 +240,11 @@ class UiStore {
   cycleCropGrid = (): void => {
     const at = CROP_GRIDS.findIndex((g) => g.id === this.cropGrid);
     this.cropGrid = CROP_GRIDS[(at + 1) % CROP_GRIDS.length]?.id ?? 'thirds';
+    this.persistEditorUi();
+  };
+
+  turnCropGuide = (): void => {
+    this.cropGuideTurn = (this.cropGuideTurn + 1) % GUIDE_TURNS;
     this.persistEditorUi();
   };
 

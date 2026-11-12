@@ -105,6 +105,12 @@ export const TOOL_COMMANDS: readonly Command[] = [
     run: () => ui.cycleCropGrid()
   },
   {
+    id: 'geometry.cropGuideTurn',
+    contexts: ['geometry'],
+    bind: 'cropGuideTurn',
+    run: () => ui.turnCropGuide()
+  },
+  {
     id: 'masks.overlay',
     contexts: ['masks'],
     bind: 'maskOverlay',

@@ -5,7 +5,8 @@
   import { cropIsDefault, type GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
   import { CROP_GRIDS, ui } from '#lib/stores/ui.svelte.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiGrid } from '@mdi/js';
+  import { mdiGrid, mdiRotate3dVariant } from '@mdi/js';
+  import { TURNING_GRIDS } from '#lib/editor/cropGuides.ts';
   import RatioChips from './RatioChips.svelte';
   import RatioField from './RatioField.svelte';
   import { draftOutputSize } from '#lib/panels/geometry/ratioActions.ts';
@@ -38,6 +39,17 @@
         aria-label={`Crop guide: ${gridLabel}`}
         onclick={ui.cycleCropGrid}
       />
+      {#if TURNING_GRIDS.has(ui.cropGrid)}
+        <IconButton
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          icon={mdiRotate3dVariant}
+          title={hint('Turn guide', 'cropGuideTurn')}
+          aria-label="Turn guide"
+          onclick={ui.turnCropGuide}
+        />
+      {/if}
     {/snippet}
   </SectionHeader>
   <span class="text-[10px] font-medium tracking-wider text-dark/55 uppercase select-none"
