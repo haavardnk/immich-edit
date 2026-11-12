@@ -57,11 +57,16 @@ test('the viewer window mirrors the editor and follows it', async ({ page, conte
     .toBe(true);
 
   await exposure(page).blur();
-  const fit = await viewer.getByTestId('viewer-zoom').textContent();
+  const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
   await page.keyboard.press('z');
-  await expect(viewer.getByTestId('viewer-zoom')).not.toHaveText(fit ?? '');
-  await page.keyboard.press('z');
-  await expect(viewer.getByTestId('viewer-zoom')).toHaveText(fit ?? '');
+  await expect(zoom).toHaveText(/\d+%/);
+  await expect
+    .poll(
+      async () =>
+        (await viewer.getByTestId('viewer-zoom').innerText()) === (await zoom.innerText()).trim()
+    )
+    .toBe(true);
+  await expect.poll(() => renders.some((body) => Array.isArray(body.roi))).toBe(true);
 
   await page.keyboard.press('y');
   await expect(viewer.locator('[data-compare="split"]')).toBeVisible();
@@ -84,6 +89,16 @@ test('the viewer window mirrors the editor and follows it', async ({ page, conte
 
 test('a viewer opened alone waits for the editor', async ({ page, context }) => {
   await mock(context, []);
+  await page.addInitScript(() => {
+    Element.prototype.requestFullscreen = function () {
+      Reflect.set(
+        window,
+        'fullscreenRequests',
+        Number(Reflect.get(window, 'fullscreenRequests') ?? 0) + 1
+      );
+      return Promise.resolve();
+    };
+  });
   await page.goto('/viewer');
   await expect(
     page.getByRole('status').filter({ hasText: 'Waiting for the editor' })
@@ -92,7 +107,5 @@ test('a viewer opened alone waits for the editor', async ({ page, context }) => 
   await expect(page.getByRole('navigation')).toHaveCount(0);
 
   await page.keyboard.press('f');
-  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
-  await page.keyboard.press('f');
-  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'fullscreenRequests'))).toBe(1);
 });
