@@ -38,6 +38,7 @@ class PreferencesStore implements Preferences {
   desktopSections = $state.raw<readonly SectionEntry[] | null>(null);
   touchSubviews = $state.raw<readonly SectionEntry[] | null>(null);
   cropRatios = $state.raw<readonly CropRatio[] | null>(null);
+  maskOverlayColor = $state<string | null>(null);
   pinsKnown = $state(false);
   #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
@@ -61,6 +62,7 @@ class PreferencesStore implements Preferences {
     if (!this.#chosen.has('desktopSections')) this.desktopSections = remote.desktopSections;
     if (!this.#chosen.has('touchSubviews')) this.touchSubviews = remote.touchSubviews;
     if (!this.#chosen.has('cropRatios')) this.cropRatios = remote.cropRatios;
+    if (!this.#chosen.has('maskOverlayColor')) this.maskOverlayColor = remote.maskOverlayColor;
   }
 
   reset(): void {
@@ -71,6 +73,7 @@ class PreferencesStore implements Preferences {
     this.desktopSections = null;
     this.touchSubviews = null;
     this.cropRatios = null;
+    this.maskOverlayColor = null;
     this.pinsKnown = false;
   }
 
@@ -85,6 +88,9 @@ class PreferencesStore implements Preferences {
 
   setTouchSubviews = (next: readonly SectionEntry[] | null): Promise<void> =>
     this.#write('touchSubviews', next);
+
+  setMaskOverlayColor = (next: string | null): Promise<void> =>
+    this.#write('maskOverlayColor', next);
 
   isPinned = (id: string): boolean => this.pins.includes(id);
 

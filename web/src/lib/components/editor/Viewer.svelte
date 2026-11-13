@@ -36,6 +36,7 @@
   import { cropReadout } from '#lib/panels/geometry/cropReadout.ts';
   import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import { maskClickPill } from '#lib/panels/maskClickPill.ts';
+  import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
   import type { Snippet } from 'svelte';
 
   let {
@@ -56,6 +57,7 @@
     editor.versions.hold.pill ??
       presetStrip.pill ??
       lutPreview.pill ??
+      maskOverlay.pill ??
       (editor.showingOriginal
         ? null
         : (editor.historySteps.pill ?? maskClickPill() ?? presetStrip.appliedPill)) ??
@@ -157,6 +159,7 @@
   use:observeSize={measure}
   role="application"
   class="editor-stage no-callout relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+  style:--color-mask-overlay={maskOverlay.customColor}
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   {...editor.geometrySession ? {} : gestures.handlers}

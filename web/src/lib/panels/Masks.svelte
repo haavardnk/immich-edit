@@ -6,6 +6,7 @@
   import MaskComponentRow from './MaskComponentRow.svelte';
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
+  import MaskOverlayMenu from './MaskOverlayMenu.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { maskModels } from '#lib/stores/maskModels.svelte.ts';
@@ -93,20 +94,23 @@
       Masks ({layers.length}/{N_MAX_MASK_LAYERS})
     </div>
     <div class="flex items-center gap-1">
-      <IconButton
-        size="small"
-        variant="ghost"
-        color="secondary"
-        class="bg-transparent hover:bg-light-950/6"
-        icon={editor.maskOverlayVisible ? mdiEye : mdiEyeOff}
-        title={hint(
-          editor.maskOverlayVisible ? 'Hide mask overlays' : 'Show mask overlays',
-          'maskOverlay'
-        )}
-        aria-label="Toggle mask overlays"
-        aria-pressed={editor.maskOverlayVisible}
-        onclick={editor.toggleMaskOverlay}
-      />
+      <div class="flex items-center">
+        <IconButton
+          size="small"
+          variant="ghost"
+          color="secondary"
+          class="bg-transparent hover:bg-light-950/6"
+          icon={editor.maskOverlayVisible ? mdiEye : mdiEyeOff}
+          title={hint(
+            editor.maskOverlayVisible ? 'Hide mask overlays' : 'Show mask overlays',
+            'maskOverlay'
+          )}
+          aria-label="Toggle mask overlays"
+          aria-pressed={editor.maskOverlayVisible}
+          onclick={editor.toggleMaskOverlay}
+        />
+        <MaskOverlayMenu />
+      </div>
       <div class="relative inline-flex items-center">
         <MaskToolMenu
           open={layerMenu === 'header'}

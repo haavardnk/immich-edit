@@ -906,6 +906,13 @@ export const KEYBINDS = [
     label: 'Toggle the mask overlay'
   },
   {
+    id: 'maskOverlayMode',
+    keys: ['Shift+o'],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Cycle the mask overlay: color, color on black and white, white on black'
+  },
+  {
     id: 'maskCancelDraw',
     fixed: true,
     keys: ['Escape'],

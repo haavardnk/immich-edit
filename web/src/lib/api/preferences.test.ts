@@ -30,7 +30,8 @@ describe('preferences api', () => {
       shortcuts: {},
       desktopSections: null,
       touchSubviews: null,
-      cropRatios: null
+      cropRatios: null,
+      maskOverlayColor: null
     });
   });
 
@@ -118,5 +119,20 @@ describe('preferences api', () => {
     expect(fetch.sent().body).toEqual({ crop_ratios: [{ num: 5, den: 4 }] });
     await patchPreferences({ cropRatios: null });
     expect(fetch.sent().body).toEqual({ crop_ratios: null });
+  });
+
+  it('reads a mask overlay colour only in the stored hex form', async () => {
+    stubFetch({ click_target: 'editor', mask_overlay_color: '#34c759' });
+    await expect(getPreferences()).resolves.toMatchObject({ maskOverlayColor: '#34c759' });
+    stubFetch({ click_target: 'editor', mask_overlay_color: 'red' });
+    await expect(getPreferences()).resolves.toMatchObject({ maskOverlayColor: null });
+  });
+
+  it('patches the mask overlay colour under its wire name', async () => {
+    const fetch = stubFetch({ click_target: 'editor' });
+    await patchPreferences({ maskOverlayColor: '#0a84ff' });
+    expect(fetch.sent().body).toEqual({ mask_overlay_color: '#0a84ff' });
+    await patchPreferences({ maskOverlayColor: null });
+    expect(fetch.sent().body).toEqual({ mask_overlay_color: null });
   });
 });

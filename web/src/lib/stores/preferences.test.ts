@@ -25,6 +25,7 @@ function remote(fields: Partial<Preferences>): Preferences {
     desktopSections: null,
     touchSubviews: null,
     cropRatios: null,
+    maskOverlayColor: null,
     ...fields
   };
 }

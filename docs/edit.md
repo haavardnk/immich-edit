@@ -207,8 +207,11 @@ the closest ones. The positions are shares of the photo, not distances: 40 on th
 keeps the nearest 40% of the pixels. While you drag, the selection shows in red. Edge
 cleanup, **Grow** and **Feather** apply when you let go.
 
-`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay. The
-overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
+`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay.
+`Shift+O` cycles how it shows: **Color**, **Color on black and white** (the photo turns grey under
+the colour) and **White on black** (the mask alone, white where it applies). The arrow beside the
+eye above the mask list picks the mode and the overlay colour; the colour follows your account to
+every device, and the mode stays with this device. The overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
 shows its paint while you draw. Masks lower in the list are applied on top of the
 ones above them, and **Duplicate layer** starts a new mask from an existing one.
 

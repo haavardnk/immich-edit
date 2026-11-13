@@ -16,6 +16,7 @@ export interface Preferences {
   desktopSections: readonly SectionEntry[] | null;
   touchSubviews: readonly SectionEntry[] | null;
   cropRatios: readonly CropRatio[] | null;
+  maskOverlayColor: string | null;
 }
 
 interface PreferencesBody {
@@ -25,6 +26,7 @@ interface PreferencesBody {
   desktop_sections: unknown;
   touch_subviews: unknown;
   crop_ratios: unknown;
+  mask_overlay_color: unknown;
 }
 
 function strings(value: unknown): string[] | null {
@@ -64,6 +66,10 @@ function cropRatiosFrom(value: unknown): CropRatio[] | null {
   });
 }
 
+function colorFrom(value: unknown): string | null {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/.test(value) ? value : null;
+}
+
 function fromBody(body: PreferencesBody): Preferences {
   return {
     clickTarget: body.click_target === 'loupe' ? 'loupe' : 'editor',
@@ -71,7 +77,8 @@ function fromBody(body: PreferencesBody): Preferences {
     shortcuts: shortcutsFrom(body.shortcuts),
     desktopSections: sectionsFrom(body.desktop_sections),
     touchSubviews: sectionsFrom(body.touch_subviews),
-    cropRatios: cropRatiosFrom(body.crop_ratios)
+    cropRatios: cropRatiosFrom(body.crop_ratios),
+    maskOverlayColor: colorFrom(body.mask_overlay_color)
   };
 }
 
@@ -87,5 +94,6 @@ export async function patchPreferences(patch: Partial<Preferences>): Promise<Pre
   if (patch.desktopSections !== undefined) body.desktop_sections = patch.desktopSections;
   if (patch.touchSubviews !== undefined) body.touch_subviews = patch.touchSubviews;
   if (patch.cropRatios !== undefined) body.crop_ratios = patch.cropRatios;
+  if (patch.maskOverlayColor !== undefined) body.mask_overlay_color = patch.maskOverlayColor;
   return fromBody(await sendJson<PreferencesBody>('PATCH', '/api/preferences', body));
 }
