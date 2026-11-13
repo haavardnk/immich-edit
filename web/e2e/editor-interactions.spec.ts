@@ -1110,9 +1110,20 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await page.keyboard.press('Shift+R');
   const guide = page.getByTestId('crop-guide');
   await expect(guide).toHaveAttribute('data-mode', 'thirds');
-  for (const mode of ['golden', 'spiral', 'diagonal', 'triangle', 'grid', 'off']) {
+  for (const [mode, turn] of [
+    ['golden', null],
+    ['spiral', '0'],
+    ['spiral', '1'],
+    ['diagonal', null],
+    ['triangle', '0'],
+    ['triangle', '1'],
+    ['grid', null],
+    ['off', null]
+  ] as const) {
     await page.keyboard.press('o');
     await expect(guide).toHaveAttribute('data-mode', mode);
+    if (turn === null) await expect(guide).not.toHaveAttribute('data-turn');
+    else await expect(guide).toHaveAttribute('data-turn', turn);
   }
   await page.keyboard.press('o');
   await page.keyboard.press('o');

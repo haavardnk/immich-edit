@@ -6,6 +6,14 @@ export type GuidePath = readonly GuidePoint[];
 export const GUIDE_TURNS = 8;
 export const TURNING_GRIDS: ReadonlySet<CropGrid> = new Set(['spiral', 'triangle']);
 
+export function isMirroredTurn(turn: number): boolean {
+  return turn % 2 === 1;
+}
+
+export function mirrorTurn(turn: number): number {
+  return turn ^ 1;
+}
+
 const PHI = (1 + Math.sqrt(5)) / 2;
 const GOLDEN = 1 - 1 / PHI;
 const SPIRAL_ARCS = 9;
