@@ -9,9 +9,9 @@
     type BrushBuffer
   } from '#lib/utils/brush.ts';
   import {
-    displayUvToSceneUv as toSceneUv,
     scenePerDisplayAt as scenePerDisplay,
     steppedSegment,
+    displayUvToSceneUv as toSceneUv,
     viewIsIdentity,
     viewTransform
   } from '#lib/utils/canvasCoords.ts';
@@ -20,6 +20,8 @@
   import { brushWheel } from '#lib/utils/brushSize.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
+  import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
 
   let {
     img
@@ -33,6 +35,7 @@
   let hover = $state<{ x: number; y: number } | null>(null);
   let lastPx: number | null = null;
   let lastPy: number | null = null;
+  let erasing = false;
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
 
@@ -170,7 +173,7 @@
     const cyBuf = scene[1] * buf.height;
     const radiusBuf = radiusScene * Math.min(buf.width, buf.height);
     const alphaByte = Math.round(editor.brushTool.flow * 255);
-    const erase = editor.brushTool.mode === 'erase';
+    const erase = erasing;
     stampBuffer(buf, cxBuf, cyBuf, radiusBuf, editor.brushTool.hardness, alphaByte, erase);
 
     const ctx = canvasEl.getContext('2d');
@@ -218,6 +221,7 @@
       e.preventDefault();
       e.stopPropagation();
       strokeActive = true;
+      erasing = brushErase.mode(editor.brushTool.mode, e) === 'erase';
       lastPx = null;
       lastPy = null;
       editor.beginMaskStroke();
@@ -242,6 +246,16 @@
     );
   }
 
+  function onModifier(e: KeyboardEvent): void {
+    if (isAnyModalOpen()) return;
+    brushErase.note(e);
+  }
+
+  $effect(() => {
+    if (!show) brushErase.release();
+    return () => brushErase.release();
+  });
+
   async function finishStroke(): Promise<void> {
     if (!strokeActive) return;
     strokeActive = false;
@@ -255,6 +269,12 @@
     editor.endMaskStroke();
   }
 </script>
+
+<svelte:window
+  onkeydown={show ? onModifier : undefined}
+  onkeyup={show ? onModifier : undefined}
+  onblur={brushErase.release}
+/>
 
 {#if show}
   <canvas
@@ -273,7 +293,14 @@
         hover.y -
         ringRadius}px; width: {ringRadius * 2}px; height: {ringRadius * 2}px;"
       data-testid="brush-cursor"
+      data-erase={brushErase.mode(editor.brushTool.mode) === 'erase' || undefined}
       aria-hidden="true"
-    ></div>
+    >
+      {#if brushErase.mode(editor.brushTool.mode) === 'erase'}
+        <span
+          class="absolute top-1/2 left-1/2 h-0.5 w-3 -translate-x-1/2 -translate-y-1/2 bg-image-light shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
+        ></span>
+      {/if}
+    </div>
   {/if}
 {/if}

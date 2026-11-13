@@ -200,6 +200,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `{` / `}`                                                 | Softer / harder brush                                                   | Masks, Retouch |
 | `Alt + scroll`                                            | Resize the brush over the photo                                         | Masks, Retouch |
 | `Alt + Shift + scroll`                                    | Change the brush hardness over the photo                                | Masks, Retouch |
+| `Alt (hold)`                                              | Erase with the mask brush while held                                    | Masks          |
 | `Alt + scroll`                                            | Resize the selected shape over the photo                                | Masks          |
 | `Alt + Shift + scroll`                                    | Change the selected shape feather over the photo                        | Masks          |
 

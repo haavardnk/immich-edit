@@ -5,15 +5,23 @@
   import { BRUSH_FLOW, BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
   import { formatBrushSize } from '#lib/utils/brushSize.ts';
   import { Button } from '@immich/ui';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
 
   const size = $derived(editor.brushTool.size);
   const hardness = $derived(editor.brushTool.hardness);
   const flow = $derived(editor.brushTool.flow);
+  const heldErase = $derived(brushErase.held && editor.brushTool.mode === 'paint');
 </script>
 
 <div class="mt-1 flex flex-col gap-1">
-  <div class="flex h-7 items-center justify-between">
-    <div class="text-[10px] font-medium text-dark/65">Brush</div>
+  <div class="flex h-7 items-center gap-2">
+    <div class="me-auto text-[10px] font-medium text-dark/65">Brush</div>
+    {#if heldErase}
+      <kbd class="rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-dark/65">
+        {keysFor('brushEraseHold')}
+      </kbd>
+    {/if}
     <div class="{segmented.tool.group} flex text-[10px]">
       <Button
         type="button"
@@ -29,6 +37,8 @@
         size="tiny"
         variant={editor.brushTool.mode === 'erase' ? 'filled' : 'ghost'}
         color={editor.brushTool.mode === 'erase' ? 'primary' : 'secondary'}
+        class={heldErase ? 'outline-1 -outline-offset-1 outline-primary outline-dashed' : ''}
+        data-held={heldErase || undefined}
         onclick={() => editor.setBrushTool({ mode: 'erase' })}
       >
         Erase

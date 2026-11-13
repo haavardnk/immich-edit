@@ -960,6 +960,14 @@ export const KEYBINDS = [
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
   },
   {
+    id: 'brushEraseHold',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Erase with the mask brush while held',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} (hold)`
+  },
+  {
     id: 'maskShapeSizeWheel',
     keys: [],
     contexts: ['masks'],

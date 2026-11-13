@@ -40,6 +40,7 @@
   import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
   import type { Snippet } from 'svelte';
   import { shapeWheel } from '#lib/editor/shapeWheel.svelte.ts';
+  import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
 
   let {
     ontap = () => {},
@@ -61,6 +62,7 @@
       lutPreview.pill ??
       maskOverlay.pill ??
       shapeWheel.pill ??
+      brushErase.pill ??
       (editor.showingOriginal
         ? null
         : (editor.historySteps.pill ??

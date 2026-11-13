@@ -85,3 +85,47 @@ test('the selected shape lists its wheel keys', async ({ page }) => {
   await expect(hints).toContainText('Feather');
 });
 
+async function strokeAlpha(page: Page, alt: boolean): Promise<number> {
+  const image = await page.getByTestId('preview-image').boundingBox();
+  if (!image) throw new Error('preview has no box');
+  const y = image.y + image.height * 0.5;
+  if (alt) await page.keyboard.down('Alt');
+  await page.mouse.move(image.x + image.width * 0.3, y);
+  await page.mouse.down();
+  await page.mouse.move(image.x + image.width * 0.6, y, { steps: 6 });
+  const alpha = await page.getByTestId('brush-canvas').evaluate((el) => {
+    const canvas = el as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !canvas.width || !canvas.height) return 0;
+    const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let sum = 0;
+    for (let i = 3; i < px.length; i += 4) sum += px[i] ?? 0;
+    return sum;
+  });
+  await page.mouse.up();
+  if (alt) await page.keyboard.up('Alt');
+  return alpha;
+}
+
+test('holding Alt erases with the mask brush', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'New mask' }).click();
+  await page.getByRole('button', { name: 'Brush', exact: true }).click();
+  await overPhoto(page);
+
+  const erase = page.getByRole('button', { name: 'Erase', exact: true });
+  const cursor = page.getByTestId('brush-cursor');
+  await page.keyboard.down('Alt');
+  await expect(erase).toHaveAttribute('data-held', 'true');
+  await expect(cursor).toHaveAttribute('data-erase', 'true');
+  await expect(page.locator('[data-photo-pill]')).toContainText('Erase');
+  await page.keyboard.up('Alt');
+  await expect(erase).not.toHaveAttribute('data-held');
+  await expect(cursor).not.toHaveAttribute('data-erase');
+  await expect(page.getByRole('button', { name: 'Paint', exact: true })).toBeVisible();
+
+  expect(await strokeAlpha(page, true)).toBe(0);
+  expect(await strokeAlpha(page, false)).toBeGreaterThan(0);
+});
