@@ -5,8 +5,9 @@ import { editor } from '#lib/stores/editor.svelte.ts';
 import { maskModels } from '#lib/stores/maskModels.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import type { MaskComponentKind, MaskComponentMode } from '#lib/types/edits.ts';
+import type { MaskComponent, MaskComponentKind, MaskComponentMode } from '#lib/types/edits.ts';
 import { generatedLabel, manualKind, type ManualTool } from '#lib/types/masks.ts';
+import type { ToolPick } from './maskToolCatalog';
 import {
   mdiBrightness6,
   mdiBrush,
@@ -50,6 +51,41 @@ const MODE_BADGES: Record<MaskComponentMode, { icon: string; tone: string }> = {
 export function modeBadge(mode: MaskComponentMode): { icon: string; tone: string; hint: string } {
   const hint = MODES.find((entry) => entry.value === mode)?.hint ?? '';
   return { ...MODE_BADGES[mode], hint };
+}
+
+export const ADD_MODES: readonly {
+  mode: MaskComponentMode;
+  icon: string;
+  label: string;
+  tip: string;
+}[] = [
+  { mode: 'add', icon: mdiPlus, label: 'Add', tip: 'Add another shape to this mask' },
+  { mode: 'subtract', icon: mdiMinus, label: 'Subtract', tip: 'Cut a shape out of this mask' },
+  {
+    mode: 'intersect',
+    icon: mdiSetCenter,
+    label: 'Intersect',
+    tip: 'Keep only where this shape overlaps the mask'
+  }
+];
+
+export function addModeBlocked(mode: MaskComponentMode, layerId: string, shapes: number): boolean {
+  const cap = editor.maskCapacityFor(layerId);
+  return cap.componentsFull || cap.totalFull || (mode !== 'add' && shapes === 0);
+}
+
+export function patchShape(
+  layerId: string,
+  componentId: string,
+  patch: Partial<MaskComponent>
+): void {
+  editor.patchMaskComponent(layerId, componentId, patch, false);
+  void editor.commitMasks();
+}
+
+export function clickPending(): boolean {
+  const tool = editor.clickTool;
+  return tool.active && !tool.box && editor.activeMaskComponent()?.kind.kind !== 'brush';
 }
 
 export function kindIcon(kind: MaskComponentKind): string {
@@ -119,6 +155,13 @@ export async function addBackground(target: MaskTarget): Promise<void> {
   if (target.layerId)
     await editor.addGeneratedComponent(target.layerId, 'subject', target.mode, undefined, true);
   else await editor.addGeneratedLayer('subject', undefined, true);
+}
+
+export function runPick(target: MaskTarget, pick: ToolPick): void {
+  if (pick.kind === 'manual') void addManualTool(target, pick.tool);
+  else if (pick.kind === 'ai') void addAiTool(target, pick.mask, pick.installed, pick.maskClass);
+  else if (pick.kind === 'background') void addBackground(target);
+  else armBoxTool(target);
 }
 
 export function refineWith(layerId: string | null, negative: boolean): void {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import MenuItem from '#lib/components/MenuItem.svelte';
   import Popover from '#lib/components/Popover.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import {
@@ -11,6 +12,7 @@
   import { MASK_OVERLAY_COLORS } from '#lib/theme/maskOverlay.ts';
   import { IconButton, Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
+  import type { Snippet } from 'svelte';
   import {
     mdiChevronDown,
     mdiCircle,
@@ -24,9 +26,12 @@
     colorOnBw: mdiCircleHalfFull,
     whiteOnBlack: mdiCircleOutline
   };
+  let { trigger: custom }: { trigger?: Snippet<[Record<string, unknown>]> } = $props();
+
   const heading = 'px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase touch:px-4';
 
   let open = $state(false);
+  const keys = $derived(layout.mode === 'desktop' || layout.hasKeyboard);
 </script>
 
 <Popover
@@ -38,19 +43,23 @@
   tooltip="Overlay display and color"
 >
   {#snippet trigger(props)}
-    <IconButton
-      size="small"
-      variant="ghost"
-      color="secondary"
-      class="w-5 bg-transparent hover:bg-light-950/6"
-      icon={mdiChevronDown}
-      title=""
-      aria-label="Mask overlay options"
-      {...props}
-    />
+    {#if custom}
+      {@render custom(props)}
+    {:else}
+      <IconButton
+        size="small"
+        variant="ghost"
+        color="secondary"
+        class="w-5 bg-transparent hover:bg-light-950/6"
+        icon={mdiChevronDown}
+        title=""
+        aria-label="Mask overlay options"
+        {...props}
+      />
+    {/if}
   {/snippet}
   <div class="flex flex-col">
-    <span class={heading}>Overlay · {keysFor('maskOverlayMode')} cycles</span>
+    <span class={heading}>Overlay{keys ? ` · ${keysFor('maskOverlayMode')} cycles` : ''}</span>
     {#each MASK_OVERLAY_MODES as entry (entry.id)}
       <MenuItem
         icon={MODE_ICONS[entry.id]}

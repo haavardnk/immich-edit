@@ -7,33 +7,23 @@
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
   import MaskOverlayMenu from './MaskOverlayMenu.svelte';
+  import { ADD_MODES, addModeBlocked, clickPending } from './maskTools';
+  import { applyReorder, useMaskPanel } from './maskPanel.svelte';
+  import { shapeLabels } from './maskShapeText';
   import { Reorder } from '#lib/gestures/reorder.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
-  import { maskThumbs } from '#lib/stores/editor/maskThumbs.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { maskModels } from '#lib/stores/maskModels.svelte.ts';
   import {
     N_MAX_MASK_LAYERS,
     N_MAX_COMPONENTS_PER_LAYER,
     N_MAX_TOTAL_COMPONENTS,
     type MaskComponent,
-    type Edits,
     type MaskComponentMode,
     type MaskLayer
   } from '#lib/types/edits.ts';
-  import { generatedLabel, kindLabel, numberRepeats } from '#lib/types/masks.ts';
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
-  import {
-    mdiPlus,
-    mdiMinus,
-    mdiSetCenter,
-    mdiEye,
-    mdiEyeOff,
-    mdiChevronDown,
-    mdiChevronRight
-  } from '@mdi/js';
+  import { mdiPlus, mdiEye, mdiEyeOff, mdiChevronDown, mdiChevronRight } from '@mdi/js';
 
   let layerMenu = $state<'header' | 'empty' | null>(null);
   let componentMenu = $state<MaskComponentMode | null>(null);
@@ -48,51 +38,19 @@
       : null
   );
   const cap = $derived(editor.maskCapacityFor(editor.activeLayerId));
-  const compLabels = $derived(
-    active
-      ? numberRepeats(
-          active.components.map((c) =>
-            c.generated ? generatedLabel(c.generated.kind) : kindLabel(c.kind)
-          )
-        )
-      : []
-  );
+  const compLabels = $derived(shapeLabels(active));
   const refineOpen = $derived(
     active
       ? (editor.maskRefineOpen[active.id] ??
           (active.components.length === 0 || activeComp !== null))
       : false
   );
-  const pendingClick = $derived(
-    editor.clickTool.active && !editor.clickTool.box && activeComp?.kind.kind !== 'brush'
-  );
-  const ADD_MENUS: { mode: MaskComponentMode; icon: string; label: string; tip: string }[] = [
-    { mode: 'add', icon: mdiPlus, label: 'Add', tip: 'Add another shape to this mask' },
-    { mode: 'subtract', icon: mdiMinus, label: 'Subtract', tip: 'Cut a shape out of this mask' },
-    {
-      mode: 'intersect',
-      icon: mdiSetCenter,
-      label: 'Intersect',
-      tip: 'Keep only where this shape overlaps the mask'
-    }
-  ];
-
+  const pendingClick = $derived(clickPending());
   const layerOrder = $derived(layers.map((layer) => layer.id));
   const shapeOrder = $derived(active ? active.components.map((comp) => comp.id) : []);
-  const reorder = new Reorder(({ group, id, to }) => {
-    if (group === 'layers') void editor.reorderMaskLayer(id, to);
-    else void editor.reorderMaskComponent(group, id, to);
-  });
+  const reorder = new Reorder(applyReorder);
 
-  $effect(() => {
-    void maskModels.load();
-  });
-
-  $effect(() => {
-    maskThumbs.sync(editor.assetId, $state.snapshot(editor.edits) as Edits, editor.initialised);
-  });
-
-  $effect(() => maskHover.clear);
+  useMaskPanel();
 
   function toggleRefine(): void {
     if (!active) return;
@@ -265,7 +223,7 @@
 
       {#if refineOpen}
         <div class="relative flex h-7 items-center gap-1 px-1">
-          {#each ADD_MENUS as menu (menu.mode)}
+          {#each ADD_MODES as menu (menu.mode)}
             <MaskToolMenu
               open={componentMenu === menu.mode}
               align="start"
@@ -282,9 +240,7 @@
                       variant="ghost"
                       color="secondary"
                       leadingIcon={menu.icon}
-                      disabled={cap.componentsFull ||
-                        cap.totalFull ||
-                        (menu.mode !== 'add' && active.components.length === 0)}
+                      disabled={addModeBlocked(menu.mode, active.id, active.components.length)}
                       {...mergeProps(props, menuProps)}
                     >
                       {menu.label}

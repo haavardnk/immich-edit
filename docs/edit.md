@@ -211,12 +211,20 @@ cleanup, **Grow** and **Feather** apply when you let go.
 `Shift+O` cycles how it shows: **Color**, **Color on black and white** (the photo turns grey under
 the colour) and **White on black** (the mask alone, white where it applies). The arrow beside the
 eye above the mask list picks the mode and the overlay colour; the colour follows your account to
-every device, and the mode stays with this device. The overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
-shows its paint while you draw. Masks lower in the list are applied on top of the
+every device, and the mode stays with this device. The overlay steps aside while you drag an
+adjustment so you can judge the edit, and a brush stroke shows its paint while you draw. Masks lower in the list are applied on top of the
 ones above them, and **Duplicate layer** starts a new mask from an existing one. Drag a mask or a
 shape by the handle on its left to reorder it, or focus the handle and use the arrow keys; the
 first shape starts the mask. Each mask row shows a small picture of what it covers, and holding the
 pointer over a mask or shape row shows its coverage on the photo.
+
+On a phone or tablet, **Masks** shows your masks as cards at the top of the tray. Tap **+** for a
+new mask, tap a card to select it, and tap its **⋯**, or touch and hold the card, to duplicate,
+invert, turn off, move or delete it. **Shapes** lists the selected mask's shapes with their mode;
+touch and hold a shape to see its coverage, and use its **⋯** to change the mode, invert, reorder
+or delete it. **Add**, **Subtract** and **Intersect** open the same tools as on a computer.
+**Adjust** holds the mask's sliders. The eye at the end of the cards opens the overlay mode and
+colour. A tablet in landscape shows the shapes and adjustments in one scrolling list.
 
 ## Remove spots and distractions
 

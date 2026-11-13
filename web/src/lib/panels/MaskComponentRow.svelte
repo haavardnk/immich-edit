@@ -4,7 +4,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
   import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
-  import { kindIcon, modeBadge, MODES } from './maskTools';
+  import { kindIcon, modeBadge, MODES, patchShape } from './maskTools';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
@@ -46,8 +46,7 @@
   }
 
   function patch(patchValue: Partial<MaskComponent>): void {
-    editor.patchMaskComponent(layerId, comp.id, patchValue, false);
-    void editor.commitMasks();
+    patchShape(layerId, comp.id, patchValue);
   }
 
   function setMode(mode: MaskComponentMode): void {
