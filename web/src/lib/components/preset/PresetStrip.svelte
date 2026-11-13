@@ -2,7 +2,6 @@
   import { presetThumbUrl, type Preset } from '#lib/api/presets.ts';
   import BottomPanelResizeHandle from '#lib/components/shell/BottomPanelResizeHandle.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import { held } from '#lib/input/modifiers.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
@@ -13,6 +12,7 @@
   import PresetGroups from './PresetGroups.svelte';
   import PresetTile from './PresetTile.svelte';
   import SavePresetDialog from './SavePresetDialog.svelte';
+  import { scrollSideways } from '#lib/input/sidewaysWheel.ts';
 
   let dialog = $state<{ preset?: Preset } | null>(null);
   const tileWidth = $derived(Math.round(ui.filmstripHeight * 1.5));
@@ -20,13 +20,6 @@
   $effect(presetStrip.ensureLoaded);
 
   onDestroy(presetStrip.endPreview);
-
-  function onWheel(e: WheelEvent): void {
-    const row = e.currentTarget as HTMLElement;
-    if (e.deltaX !== 0 || e.deltaY === 0 || held('zoom', e)) return;
-    e.preventDefault();
-    row.scrollLeft += e.deltaY;
-  }
 </script>
 
 {#snippet items()}
@@ -88,7 +81,7 @@
     <ul
       class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto scrollbar-hidden"
       style:height="{ui.filmstripHeight}px"
-      onwheel={onWheel}
+      onwheel={scrollSideways}
     >
       {@render items()}
     </ul>

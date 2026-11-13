@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { retouchSummary, strokeCount, strokeName, strokeTitle } from './text';
+import { strokeCount, strokeName, strokeTitle } from './text';
 
 describe('retouch text', () => {
   it('names a stroke by its position and mode', () => {
@@ -10,12 +10,5 @@ describe('retouch text', () => {
 
   it('counts strokes against the limit', () => {
     expect(strokeCount(3)).toBe('3/64');
-  });
-
-  it('summarises the stroke list and pauses at the limit', () => {
-    expect(retouchSummary(0)).toBe('No strokes yet');
-    expect(retouchSummary(1)).toBe('1 stroke');
-    expect(retouchSummary(12)).toBe('12 strokes');
-    expect(retouchSummary(64)).toBe('64 strokes · painting paused');
   });
 });

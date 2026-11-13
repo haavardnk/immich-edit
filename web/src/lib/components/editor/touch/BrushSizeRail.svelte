@@ -1,16 +1,22 @@
 <script lang="ts">
-  import { BRUSH_SIZE } from '#lib/editor/params/brush.ts';
+  import type { PaintSize } from '#lib/editor/paintSize.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
   import { formatBrushSize } from '#lib/utils/brushSize.ts';
   import { Slider } from 'bits-ui';
 
-  const size = $derived(editor.brushTool.size);
-  const readout = $derived(formatBrushSize(size, editor.meta).replace(' px', ''));
+  let { size }: { size: PaintSize } = $props();
+
+  const readout = $derived(formatBrushSize(size.value, editor.meta).replace(' px', ''));
 
   function live(value: number): void {
     paintInput.sizing = true;
-    editor.setBrushTool({ size: value });
+    size.set(value);
+  }
+
+  function commit(): void {
+    paintInput.sizing = false;
+    size.commit();
   }
 </script>
 
@@ -22,12 +28,12 @@
   <Slider.Root
     type="single"
     orientation="vertical"
-    min={BRUSH_SIZE.min}
-    max={BRUSH_SIZE.max}
-    step={BRUSH_SIZE.step}
-    value={size}
+    min={size.range.min}
+    max={size.range.max}
+    step={size.range.step}
+    value={size.value}
     onValueChange={live}
-    onValueCommit={() => (paintInput.sizing = false)}
+    onValueCommit={commit}
     class="relative flex w-full flex-1 touch-none justify-center"
   >
     <span class="relative h-full w-1 rounded-full bg-white/25">
@@ -36,7 +42,7 @@
     <Slider.Thumb
       index={0}
       aria-label="Brush size"
-      aria-valuetext={formatBrushSize(size, editor.meta)}
+      aria-valuetext={formatBrushSize(size.value, editor.meta)}
       class="block size-6 rounded-full bg-white shadow-md outline-none before:absolute before:-inset-2.5 focus-visible:ring-2 focus-visible:ring-primary"
     />
   </Slider.Root>

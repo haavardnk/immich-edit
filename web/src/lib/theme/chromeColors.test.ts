@@ -113,10 +113,15 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'border-black/40',
     'text-black/70'
   ],
-  '/src/lib/components/editor/touch/masks/BrushSizeRail.svelte': [
+  '/src/lib/components/editor/touch/BrushSizeRail.svelte': [
     'bg-black/55',
     'bg-white',
     'bg-white/25',
+    'text-white',
+    'text-white/70'
+  ],
+  '/src/lib/components/editor/touch/retouch/RetouchSourceBanner.svelte': [
+    'bg-black/70',
     'text-white',
     'text-white/70'
   ],

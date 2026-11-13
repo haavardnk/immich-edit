@@ -1,10 +1,12 @@
 <script lang="ts">
   import { RETOUCH_SOURCE_HIT } from '#lib/editor/handles.ts';
   import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
+  import { retouchValue } from '#lib/editor/retouch/settings.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { normalizedPoint } from '#lib/gestures/point.ts';
   import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { paintInput, SECOND_FINGER_MS } from '#lib/stores/editor/paintInput.svelte.ts';
   import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '#lib/types/edits.ts';
@@ -19,6 +21,7 @@
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { v4 as uuidv4 } from 'uuid';
+  import TouchMagnifier from '../TouchMagnifier.svelte';
   import { distToPolyline, type Px } from './retouchDraw';
   import { drawRetouch } from './retouchScene';
 
@@ -47,6 +50,11 @@
   let hover = $state<Px | null>(null);
   let sampleKey = $state(false);
   let strokeOffset: Px | null = null;
+  let pressPointer: number | null = null;
+  let pressedAt = 0;
+  let finger = $state<Px | null>(null);
+
+  const MAGNIFY = 2;
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
@@ -121,7 +129,7 @@
   }
 
   function startPointer(e: PointerEvent): true | null {
-    if (!canvasEl || e.button !== 0) return null;
+    if (!canvasEl || e.button !== 0 || !paintInput.paints(e.pointerType)) return null;
     e.preventDefault();
     e.stopPropagation();
     const [nx, ny] = normalise(e);
@@ -131,7 +139,16 @@
       return null;
     }
     pickTarget(nx, ny);
+    pressPointer = e.pointerId;
+    pressedAt = e.timeStamp;
+    if (drawing) paintInput.begin(e.pointerType);
+    trackFinger(e, nx, ny);
     return true;
+  }
+
+  function trackFinger(e: PointerEvent, nx: number, ny: number): void {
+    const direct = e.pointerType === 'touch' || e.pointerType === 'pen';
+    finger = direct && (drawing || dragSourceId || dragStroke) ? [nx, ny] : null;
   }
 
   function pickTarget(nx: number, ny: number): void {
@@ -185,8 +202,9 @@
 
   function trackPointer(e: PointerEvent): void {
     const [nx, ny] = normalise(e);
-    hover = [nx, ny];
+    hover = e.pointerType === 'touch' ? null : [nx, ny];
     sampleKey = keyHeld('sample', e);
+    trackFinger(e, nx, ny);
     if (dragSourceId) {
       const s = displayUvToSceneUv(view, nx, ny);
       void editor.setRetouchStroke(dragSourceId, { source: { x: s[0], y: s[1] } }, false);
@@ -223,6 +241,7 @@
   }
 
   function endPointer(): void {
+    settle();
     if (dragSourceId) {
       const id = dragSourceId;
       dragSourceId = null;
@@ -244,6 +263,35 @@
     move: trackPointer,
     hover: trackPointer,
     end: endPointer
+  });
+
+  const handlers = pointer.on();
+
+  function settle(): void {
+    pressPointer = null;
+    finger = null;
+    paintInput.end();
+  }
+
+  function dropStroke(): void {
+    settle();
+    drawing = false;
+    drawPts = [];
+    strokeOffset = null;
+  }
+
+  function onPointerDown(e: PointerEvent): void {
+    if (pressPointer !== null && e.pointerType === 'touch' && e.pointerId !== pressPointer) {
+      if (drawing && e.timeStamp - pressedAt <= SECOND_FINGER_MS) dropStroke();
+      else endPointer();
+      return;
+    }
+    handlers.onpointerdown(e);
+  }
+
+  $effect(() => {
+    if (!show) paintInput.reset();
+    return paintInput.reset;
   });
 
   function onWheel(e: WheelEvent): void {
@@ -314,8 +362,28 @@
         : canPick
           ? 'crosshair'
           : 'not-allowed'};"
-    {...pointer.on()}
+    {...handlers}
+    onpointerdown={onPointerDown}
     onpointerleave={() => (hover = null)}
     onwheel={onWheel}
+    data-photo-layer
   ></canvas>
+  {#if finger && img}
+    <div
+      class="pointer-events-none absolute"
+      style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
+    >
+      <TouchMagnifier
+        source={img}
+        u={finger[0]}
+        v={finger[1]}
+        width={rect.w}
+        zoom={MAGNIFY}
+        overlay={canvasEl}
+        ring={displayRadius(drawing ? editor.retouchTool.size : retouchValue('size'), ...finger) *
+          2 *
+          MAGNIFY}
+      />
+    </div>
+  {/if}
 {/if}

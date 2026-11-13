@@ -17,6 +17,7 @@
   import { mergeProps } from 'bits-ui';
   import { mdiCircle, mdiCloseCircle, mdiHeart } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { scrollSideways } from '#lib/input/sidewaysWheel.ts';
 
   let {
     currentId: currentIdProp = null,
@@ -79,12 +80,6 @@
     scrollLeft = scrollContainer.scrollLeft;
   }
 
-  function onWheel(e: WheelEvent): void {
-    if (!scrollContainer || e.deltaX !== 0 || e.deltaY === 0 || held('zoom', e)) return;
-    e.preventDefault();
-    scrollContainer.scrollLeft += e.deltaY;
-  }
-
   let revealed: { id: string; container: HTMLDivElement } | null = null;
 
   $effect(() => {
@@ -145,7 +140,7 @@
           bind:this={scrollContainer}
           use:observeSize={measure}
           onscroll={measure}
-          onwheel={onWheel}
+          onwheel={scrollSideways}
         >
           <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">

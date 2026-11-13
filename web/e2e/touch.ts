@@ -74,13 +74,18 @@ export async function drag(
   page: Page,
   from: TouchPoint,
   to: TouchPoint,
-  { steps = 12, stepMs = 16 }: { steps?: number; stepMs?: number } = {}
+  {
+    steps = 12,
+    stepMs = 16,
+    settleMs = 0
+  }: { steps?: number; stepMs?: number; settleMs?: number } = {}
 ): Promise<void> {
   await dispatch(page, 'touchStart', [from]);
   for (let step = 1; step <= steps; step += 1) {
     await page.waitForTimeout(stepMs);
     await dispatch(page, 'touchMove', [between(from, to, step / steps)]);
   }
+  if (settleMs > 0) await page.waitForTimeout(settleMs);
   await dispatch(page, 'touchEnd', []);
 }
 

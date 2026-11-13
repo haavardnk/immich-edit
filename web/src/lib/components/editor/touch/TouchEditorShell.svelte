@@ -21,8 +21,9 @@
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
-  import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
-  import BrushSizeRail from './masks/BrushSizeRail.svelte';
+  import { paintSize } from '#lib/editor/paintSize.ts';
+  import BrushSizeRail from './BrushSizeRail.svelte';
+  import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -30,6 +31,7 @@
   const stack = $derived(arrangement === 'stack');
   const focused = $derived(PARAMS.find((param) => param.id === touchUi.focused) ?? null);
   const chrome = $derived(!ui.fullscreen && !focused);
+  const railSize = $derived(chrome && arrangement !== 'inspector' ? paintSize() : null);
   const width = $derived(arrangement === 'inspector' ? 'w-90' : 'w-75');
   let available = $state(0);
   let region = $state<HTMLElement>();
@@ -88,8 +90,11 @@
         <FloatingScope yieldToSliders />
       {/snippet}
       <Viewer ontap={tapPhoto} {adjust} children={layout.phone ? overlay : undefined} />
-      {#if chrome && arrangement !== 'inspector' && paintInput.brushActive}
-        <BrushSizeRail />
+      {#if railSize}
+        <BrushSizeRail size={railSize} />
+      {/if}
+      {#if chrome && ui.editorTab === 'retouch'}
+        <RetouchSourceBanner />
       {/if}
       {#if chrome && editor.compare.mode !== 'off'}
         <CompareBar />

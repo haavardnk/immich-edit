@@ -1,7 +1,6 @@
 <script lang="ts">
   import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
   import ExportPanel from '#lib/panels/Export.svelte';
-  import RetouchPanel from '#lib/panels/Retouch.svelte';
   import DevelopViews from './DevelopViews.svelte';
   import GroupChips from './GroupChips.svelte';
   import SettingsSearch from './SettingsSearch.svelte';
@@ -10,6 +9,7 @@
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
   import { touchMode } from './modes';
+  import TouchRetouch from './retouch/TouchRetouch.svelte';
 
   let { stacked = false, onretap }: { stacked?: boolean; onretap?: () => void } = $props();
 
@@ -33,12 +33,10 @@
   <TouchCrop {stacked} />
 {:else if mode === 'masks'}
   <TouchMasks {stacked} />
+{:else if mode === 'retouch'}
+  <TouchRetouch {stacked} />
 {:else}
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 scrollbar-hidden">
-    {#if mode === 'retouch'}
-      <RetouchPanel />
-    {:else}
-      <ExportPanel />
-    {/if}
+    <ExportPanel />
   </div>
 {/if}
