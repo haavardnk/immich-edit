@@ -911,7 +911,7 @@ export const KEYBINDS = [
     keys: ['Escape'],
     contexts: ['masks'],
     group: 'Masks',
-    label: 'Cancel drawing, box select or the eyedropper'
+    label: 'Cancel drawing, click select, box select or the eyedropper'
   },
   {
     id: 'maskClosePolygon',

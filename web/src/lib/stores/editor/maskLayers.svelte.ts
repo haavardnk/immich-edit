@@ -298,8 +298,12 @@ export function beginPolygon(
   mode: MaskComponentMode = 'add'
 ): void {
   setActiveMaskComponent(ctx, null);
-  ctx.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
+  stopClickTool(ctx);
   ctx.polygonDraft = { layerId, mode, points: [] };
+}
+
+export function stopClickTool(ctx: MaskLayersCtx): void {
+  ctx.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
 }
 
 export function addPolygonPoint(ctx: MaskLayersCtx, point: Vec2f): void {

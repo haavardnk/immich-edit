@@ -26,15 +26,20 @@
   const rect = imageRect(() => img);
   let boxStart = $state<[number, number] | null>(null);
   let boxNow = $state<[number, number] | null>(null);
+  let hover = $state<[number, number] | null>(null);
+  let inverting = $state(false);
 
   const MIN_DRAG_PX = 6;
 
   function onKeyDown(e: KeyboardEvent): void {
-    if (!isKeybind(e, 'maskCancelDraw') || !editor.clickTool.box) return;
-    e.preventDefault();
+    inverting = held('exclude', e);
+    if (!isKeybind(e, 'maskCancelDraw')) return;
     boxStart = null;
     boxNow = null;
-    editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
+  }
+
+  function onKeyUp(e: KeyboardEvent): void {
+    inverting = held('exclude', e);
   }
 
   const geomT = $derived.by<GeometryTransform>(() =>
@@ -59,6 +64,13 @@
     activeComp?.generated?.kind === 'click' ? (activeComp.generated.points ?? []) : []
   );
   const show = $derived(editor.clickTool.active && rect.w > 0 && rect.h > 0);
+  const refining = $derived(activeComp?.kind.kind === 'brush');
+  const including = $derived(!refining || editor.clickTool.negative === inverting);
+  const tag = $derived(
+    !refining
+      ? 'Include'
+      : `${including ? 'Include' : 'Exclude'} · ${keyLabel('Shift')} or right-click ${including ? 'excludes' : 'includes'}`
+  );
   const dragRect = $derived(
     boxStart && boxNow
       ? {
@@ -109,11 +121,16 @@
   async function addPoint(e: PointerEvent): Promise<void> {
     const [x, y] = sceneUvAt(e);
     if (x < 0 || y < 0 || x > 1 || y > 1) return;
-    const positive = !(e.button === 2 || held('exclude', e) || editor.clickTool.negative);
+    const invert = e.button === 2 || held('exclude', e);
+    const positive = editor.clickTool.negative === invert;
     await editor.addClickPoint(x, y, positive);
   }
 
   const boxDrag = pointerDrag<true>({
+    hover(e) {
+      inverting = held('exclude', e);
+      hover = e.pointerType === 'mouse' ? localPx(e) : null;
+    },
     start(e) {
       e.stopPropagation();
       boxStart = localPx(e);
@@ -167,19 +184,20 @@
   }
 </script>
 
-<svelte:window onkeydown={onKeyDown} />
+<svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} />
 
 {#if show}
   <div
     class="absolute"
     role="button"
     tabindex="-1"
-    aria-label={editor.clickTool.box ? 'Drag a box around the subject' : 'Click to refine the mask'}
+    aria-label={editor.clickTool.box ? 'Drag a box around the subject' : 'Click to select'}
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: {editor.maskGenerating
       ? 'wait'
       : 'crosshair'};"
     onpointerdown={onPointerDown}
     {...boxDrag.follow}
+    onpointerleave={() => (hover = null)}
     oncontextmenu={(e) => e.preventDefault()}
   >
     {#if dragRect}
@@ -188,11 +206,13 @@
         style="left: {dragRect.left}px; top: {dragRect.top}px; width: {dragRect.width}px; height: {dragRect.height}px;"
       ></div>
     {/if}
-    {#if editor.clickTool.box && !dragRect}
+    {#if hover && !editor.clickTool.box && !editor.maskGenerating}
       <div
-        class="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded bg-black/70 px-2.5 py-1 text-[11px] text-white shadow"
+        data-testid="click-cursor-tag"
+        class="pointer-events-none absolute rounded bg-black/70 px-2 py-0.5 text-[11px] whitespace-nowrap text-white shadow"
+        style="left: {hover[0] + 14}px; top: {hover[1] + 14}px;"
       >
-        Drag a box around the subject · {keyLabel('Escape')} cancels
+        {tag}
       </div>
     {/if}
     {#each points as p, i (i)}

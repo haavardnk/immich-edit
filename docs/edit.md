@@ -197,8 +197,10 @@ set of adjustments.
 
 To refine a mask, open **Refine** on it and use **Add**, **Subtract** or **Intersect** with
 another shape. For example, a **Sky** mask with a **Linear gradient** intersected keeps only the
-top of the sky. **Invert** edits everything outside the shapes instead. An AI click mask also has
-**Click refine**: press **Add** or **Remove** and click the photo to grow or trim it, then **Done**.
+top of the sky. **Invert** edits everything outside the shapes instead. **Click to select** and
+any AI or brush mask show **Include** and **Exclude**: pick one and click the photo to grow or trim
+the mask. Shift-click or right-click does the opposite for one click, and clicking a dot deletes
+it. Press **Done** or Esc when you are finished.
 A **Depth** mask starts with the whole photo selected. On its **Near → Far** slider, drag the
 right handle left to drop the farthest areas, such as the sky, and the left handle right to drop
 the closest ones. The positions are shares of the photo, not distances: 40 on the right handle

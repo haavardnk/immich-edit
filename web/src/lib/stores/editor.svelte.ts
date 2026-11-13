@@ -584,6 +584,8 @@ class EditorStore {
 
   cancelPolygon = (): void => maskLayers.cancelPolygon(this);
 
+  stopClickTool = (): void => maskLayers.stopClickTool(this);
+
   finishPolygon = (): Promise<void> => maskLayers.finishPolygon(this);
 
   addMaskComponent = async (

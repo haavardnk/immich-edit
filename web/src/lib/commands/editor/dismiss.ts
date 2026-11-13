@@ -45,6 +45,11 @@ export const DISMISS_COMMANDS: readonly Command[] = [
     () => (editor.activeRetouchId = null)
   ),
   dismiss(
+    'masks.stopClickTool',
+    () => editor.clickTool.active,
+    () => editor.stopClickTool()
+  ),
+  dismiss(
     'masks.deselectShape',
     () => !!editor.activeMaskComponentId,
     () => editor.setActiveMaskComponent(null)

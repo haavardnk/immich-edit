@@ -1,13 +1,8 @@
 <script lang="ts">
   import Notice from '#lib/components/Notice.svelte';
-  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
-  import { MASK_FEATHER } from '#lib/editor/params/maskComponents.ts';
   import MaskAdjustments from './MaskAdjustments.svelte';
-  import MaskBrushControls from './MaskBrushControls.svelte';
-  import MaskGeneratedControls from './MaskGeneratedControls.svelte';
-  import MaskRangeControls from './MaskRangeControls.svelte';
-  import MaskPolygonControls from './MaskPolygonControls.svelte';
-  import MaskClickRefine from './MaskClickRefine.svelte';
+  import MaskClickTool from './MaskClickTool.svelte';
+  import MaskShapeControls from './MaskShapeControls.svelte';
   import MaskComponentRow from './MaskComponentRow.svelte';
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
@@ -63,11 +58,19 @@
           (active.components.length === 0 || activeComp !== null))
       : false
   );
-  const featherValue = $derived(
-    activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')
-      ? activeComp.kind.feather
-      : MASK_FEATHER.defaultValue
+  const pendingClick = $derived(
+    editor.clickTool.active && !editor.clickTool.box && activeComp?.kind.kind !== 'brush'
   );
+  const ADD_MENUS: { mode: MaskComponentMode; icon: string; label: string; tip: string }[] = [
+    { mode: 'add', icon: mdiPlus, label: 'Add', tip: 'Add another shape to this mask' },
+    { mode: 'subtract', icon: mdiMinus, label: 'Subtract', tip: 'Cut a shape out of this mask' },
+    {
+      mode: 'intersect',
+      icon: mdiSetCenter,
+      label: 'Intersect',
+      tip: 'Keep only where this shape overlaps the mask'
+    }
+  ];
 
   $effect(() => {
     void maskModels.load();
@@ -76,10 +79,6 @@
   function toggleRefine(): void {
     if (!active) return;
     editor.setMaskRefineOpen(active.id, !refineOpen);
-  }
-
-  function onFeatherLive(v: number): void {
-    if (active && activeComp) editor.setMaskComponentFeather(active.id, activeComp.id, v);
   }
 
   function openAddComponent(mode: MaskComponentMode, open: boolean): void {
@@ -193,7 +192,11 @@
     </div>
   {/if}
 
-  {#if layers.length > 0 && !active}
+  {#if pendingClick && editor.clickTool.layerId === null}
+    <div class="px-1.5">
+      <MaskClickTool layerId={null} pending />
+    </div>
+  {:else if layers.length > 0 && !active}
     <div class="px-1.5 pt-1 text-[11px] text-dark/65">Select a mask to adjust it.</div>
   {/if}
 
@@ -241,81 +244,35 @@
 
       {#if refineOpen}
         <div class="relative flex h-7 items-center gap-1 px-1">
-          <MaskToolMenu
-            open={componentMenu === 'add'}
-            align="start"
-            heading
-            target={{ layerId: active.id, mode: 'add' }}
-            onOpenChange={(v) => openAddComponent('add', v)}
-          >
-            {#snippet trigger(menuProps)}
-              <Tooltip text="Add another shape to this mask">
-                {#snippet child({ props })}
-                  <Button
-                    type="button"
-                    size="tiny"
-                    variant="ghost"
-                    color="secondary"
-                    leadingIcon={mdiPlus}
-                    disabled={cap.componentsFull || cap.totalFull}
-                    {...mergeProps(props, menuProps)}
-                  >
-                    Add
-                  </Button>
-                {/snippet}
-              </Tooltip>
-            {/snippet}
-          </MaskToolMenu>
-          <MaskToolMenu
-            open={componentMenu === 'subtract'}
-            align="start"
-            heading
-            target={{ layerId: active.id, mode: 'subtract' }}
-            onOpenChange={(v) => openAddComponent('subtract', v)}
-          >
-            {#snippet trigger(menuProps)}
-              <Tooltip text="Cut a shape out of this mask">
-                {#snippet child({ props })}
-                  <Button
-                    type="button"
-                    size="tiny"
-                    variant="ghost"
-                    color="secondary"
-                    leadingIcon={mdiMinus}
-                    disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
-                    {...mergeProps(props, menuProps)}
-                  >
-                    Subtract
-                  </Button>
-                {/snippet}
-              </Tooltip>
-            {/snippet}
-          </MaskToolMenu>
-          <MaskToolMenu
-            open={componentMenu === 'intersect'}
-            align="start"
-            heading
-            target={{ layerId: active.id, mode: 'intersect' }}
-            onOpenChange={(v) => openAddComponent('intersect', v)}
-          >
-            {#snippet trigger(menuProps)}
-              <Tooltip text="Keep only where this shape overlaps the mask">
-                {#snippet child({ props })}
-                  <Button
-                    type="button"
-                    size="tiny"
-                    variant="ghost"
-                    color="secondary"
-                    leadingIcon={mdiSetCenter}
-                    disabled={cap.componentsFull || cap.totalFull || active.components.length === 0}
-                    {...mergeProps(props, menuProps)}
-                  >
-                    Intersect
-                  </Button>
-                {/snippet}
-              </Tooltip>
-            {/snippet}
-          </MaskToolMenu>
+          {#each ADD_MENUS as menu (menu.mode)}
+            <MaskToolMenu
+              open={componentMenu === menu.mode}
+              align="start"
+              heading
+              target={{ layerId: active.id, mode: menu.mode }}
+              onOpenChange={(v) => openAddComponent(menu.mode, v)}
+            >
+              {#snippet trigger(menuProps)}
+                <Tooltip text={menu.tip}>
+                  {#snippet child({ props })}
+                    <Button
+                      type="button"
+                      size="tiny"
+                      variant="ghost"
+                      color="secondary"
+                      leadingIcon={menu.icon}
+                      disabled={cap.componentsFull ||
+                        cap.totalFull ||
+                        (menu.mode !== 'add' && active.components.length === 0)}
+                      {...mergeProps(props, menuProps)}
+                    >
+                      {menu.label}
+                    </Button>
+                  {/snippet}
+                </Tooltip>
+              {/snippet}
+            </MaskToolMenu>
+          {/each}
         </div>
 
         {#if cap.componentsFull || cap.totalFull}
@@ -342,34 +299,10 @@
           {/each}
         {/if}
 
-        {#if activeComp && (activeComp.kind.kind === 'linear' || activeComp.kind.kind === 'radial')}
-          <div class="mt-1 flex flex-col gap-1">
-            <SliderRow
-              label="Feather"
-              value={featherValue}
-              range={MASK_FEATHER}
-              onLive={onFeatherLive}
-              onCommit={() => void editor.commitMasks()}
-            />
-          </div>
-        {/if}
-
-        {#if activeComp && activeComp.kind.kind === 'brush' && maskModels.installed('click')}
-          <MaskClickRefine layerId={active.id} />
-        {/if}
-
-        {#if activeComp?.generated}
-          <MaskGeneratedControls layerId={active.id} component={activeComp} />
-        {:else if activeComp && activeComp.kind.kind === 'brush'}
-          <MaskBrushControls />
-        {/if}
-
-        {#if activeComp && (activeComp.kind.kind === 'luma_range' || activeComp.kind.kind === 'color_range')}
-          <MaskRangeControls layerId={active.id} component={activeComp} />
-        {/if}
-
-        {#if activeComp && activeComp.kind.kind === 'polygon'}
-          <MaskPolygonControls layerId={active.id} component={activeComp} />
+        {#if activeComp}
+          <MaskShapeControls layerId={active.id} component={activeComp} />
+        {:else if pendingClick && editor.clickTool.layerId === active.id}
+          <MaskClickTool layerId={active.id} pending />
         {/if}
       {/if}
     </div>

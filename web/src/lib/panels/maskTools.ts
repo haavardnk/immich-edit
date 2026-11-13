@@ -91,10 +91,6 @@ export async function addAiTool(
   }
   if (kind === 'click') {
     armClickTool(target, false);
-    toasts.push(
-      'info',
-      `Click the photo to build a mask. ${keyLabel('Shift')}-click excludes an area, and clicking a dot deletes it.`
-    );
     return;
   }
   if (target.layerId)
@@ -104,7 +100,6 @@ export async function addAiTool(
 
 export function armBoxTool(target: MaskTarget): void {
   armClickTool(target, true);
-  toasts.push('info', 'Drag a box around the subject.');
 }
 
 export async function addBackground(target: MaskTarget): Promise<void> {
@@ -113,12 +108,13 @@ export async function addBackground(target: MaskTarget): Promise<void> {
   else await editor.addGeneratedLayer('subject', undefined, true);
 }
 
-export function refineWith(layerId: string, negative: boolean): void {
+export function refineWith(layerId: string | null, negative: boolean): void {
+  const tool = editor.clickTool;
+  if (tool.active && !tool.box && tool.layerId === layerId) {
+    tool.negative = negative;
+    return;
+  }
   editor.clickTool = { active: true, negative, box: false, layerId, mode: 'add' };
-}
-
-export function stopClickTool(): void {
-  editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
 }
 
 function armClickTool(target: MaskTarget, box: boolean): void {
