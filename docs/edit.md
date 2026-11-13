@@ -213,7 +213,10 @@ the colour) and **White on black** (the mask alone, white where it applies). The
 eye above the mask list picks the mode and the overlay colour; the colour follows your account to
 every device, and the mode stays with this device. The overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
 shows its paint while you draw. Masks lower in the list are applied on top of the
-ones above them, and **Duplicate layer** starts a new mask from an existing one.
+ones above them, and **Duplicate layer** starts a new mask from an existing one. Drag a mask or a
+shape by the handle on its left to reorder it, or focus the handle and use the arrow keys; the
+first shape starts the mask. Each mask row shows a small picture of what it covers, and holding the
+pointer over a mask or shape row shows its coverage on the photo.
 
 ## Remove spots and distractions
 

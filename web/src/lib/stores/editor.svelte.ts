@@ -26,6 +26,7 @@ import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
 import * as maskGen from '#lib/stores/editor/maskGen.ts';
 import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
 import type { MaskStroke, MaskWeightFrame } from '#lib/stores/editor/maskWeight.svelte.ts';
+import { maskHover, weightTarget } from '#lib/stores/editor/maskHover.svelte.ts';
 import * as metadata from '#lib/stores/editor/metadata.ts';
 import { PresetApplied, type PresetSource } from '#lib/stores/editor/presetApplied.svelte.ts';
 import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
@@ -157,6 +158,7 @@ class EditorStore {
       ? this.activeLayerId
       : null
   );
+  maskWeightTarget = $derived(weightTarget(this, maskHover.target));
   brushBuffers = $state<Record<string, BrushBuffer>>({});
   brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
@@ -497,7 +499,11 @@ class EditorStore {
     this.maskOverlayHeld = false;
   };
 
-  syncMaskWeight = (): void => this.previews.syncWeight(this.maskOverlayLayerId);
+  syncMaskWeight = (): void =>
+    this.previews.syncWeight(
+      this.maskWeightTarget?.layerId ?? null,
+      this.maskWeightTarget?.componentId ?? null
+    );
 
   beginMaskStroke = (): void => {
     this.maskStroke = 'painting';

@@ -5,6 +5,7 @@ import {
   installMocks,
   makePng,
   NEUTRAL_RECORD,
+  recordViewPreviews,
   type PreviewRequest
 } from './helpers';
 
@@ -534,7 +535,7 @@ for (const [tool, pressed] of [
 
 test('the mask weight hides for a held original without a new render', async ({ page }) => {
   const previews: PreviewRequest[] = [];
-  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await installMocks(page, { onPreview: recordViewPreviews(previews) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Masks' }).click();
@@ -567,7 +568,7 @@ test('color range eyedropper keeps the maskless preview through a clipping toggl
   page
 }) => {
   const previews: PreviewRequest[] = [];
-  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await installMocks(page, { onPreview: recordViewPreviews(previews) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Masks' }).click();
@@ -769,13 +770,13 @@ test('mask rename commits when its field loses focus', async ({ page }) => {
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Linear gradient', exact: true }).click();
-  await page.getByRole('button', { name: 'Mask 1' }).dblclick();
+  await page.getByRole('button', { name: 'Mask 1', exact: true }).dblclick();
   const name = page.getByRole('textbox', { name: 'Mask name' });
   await expect(name).toBeFocused();
   await name.fill('Sky');
   await name.evaluate((input) => input.blur());
 
-  await expect(page.getByRole('button', { name: 'Sky' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sky', exact: true })).toBeVisible();
   await expect
     .poll(() => {
       const body = saves.at(-1) as {

@@ -18,7 +18,7 @@ export interface ProofOptions {
 }
 
 export type RenderLane =
-  'base' | 'original' | 'reference' | 'weight' | 'roi' | 'geometry' | 'viewer';
+  'base' | 'original' | 'reference' | 'weight' | 'mask_thumb' | 'roi' | 'geometry' | 'viewer';
 
 export type Roi = [number, number, number, number];
 

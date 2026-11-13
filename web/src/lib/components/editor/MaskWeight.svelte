@@ -14,13 +14,13 @@
   const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
 
-  const layer = $derived(
-    editor.maskOverlayLayerId
-      ? (editor.edits.masks.find((l) => l.id === editor.maskOverlayLayerId) ?? null)
-      : null
-  );
+  const target = $derived(editor.maskWeightTarget);
   const frame = $derived(
-    layer && editor.maskWeight?.layerId === layer.id ? editor.maskWeight : null
+    target &&
+      editor.maskWeight?.layerId === target.layerId &&
+      editor.maskWeight.componentId === target.componentId
+      ? editor.maskWeight
+      : null
   );
   const show = $derived(!!frame && editor.maskStroke === 'idle' && rect.w > 0 && rect.h > 0);
 
@@ -87,7 +87,8 @@
       bind:this={canvasEl}
       class="size-full {mode === 'whiteOnBlack' ? '' : 'opacity-55'}"
       data-testid="mask-weight"
-      data-layer={layer?.id}
+      data-layer={target?.layerId}
+      data-component={target?.componentId ?? undefined}
       aria-hidden="true"
     ></canvas>
   </div>

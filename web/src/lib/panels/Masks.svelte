@@ -7,7 +7,10 @@
   import MaskLayerRow from './MaskLayerRow.svelte';
   import MaskToolMenu from './MaskToolMenu.svelte';
   import MaskOverlayMenu from './MaskOverlayMenu.svelte';
+  import { Reorder } from '#lib/gestures/reorder.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
+  import { maskThumbs } from '#lib/stores/editor/maskThumbs.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { maskModels } from '#lib/stores/maskModels.svelte.ts';
   import {
@@ -15,6 +18,7 @@
     N_MAX_COMPONENTS_PER_LAYER,
     N_MAX_TOTAL_COMPONENTS,
     type MaskComponent,
+    type Edits,
     type MaskComponentMode,
     type MaskLayer
   } from '#lib/types/edits.ts';
@@ -73,9 +77,22 @@
     }
   ];
 
+  const layerOrder = $derived(layers.map((layer) => layer.id));
+  const shapeOrder = $derived(active ? active.components.map((comp) => comp.id) : []);
+  const reorder = new Reorder(({ group, id, to }) => {
+    if (group === 'layers') void editor.reorderMaskLayer(id, to);
+    else void editor.reorderMaskComponent(group, id, to);
+  });
+
   $effect(() => {
     void maskModels.load();
   });
+
+  $effect(() => {
+    maskThumbs.sync(editor.assetId, $state.snapshot(editor.edits) as Edits, editor.initialised);
+  });
+
+  $effect(() => maskHover.clear);
 
   function toggleRefine(): void {
     if (!active) return;
@@ -189,9 +206,9 @@
       </MaskToolMenu>
     </div>
   {:else}
-    <div class="flex flex-col gap-0.5">
+    <div role="list" aria-label="Masks" class="flex flex-col gap-0.5">
       {#each layers as layer, li (layer.id)}
-        <MaskLayerRow {layer} index={li} total={layers.length} {cap} />
+        <MaskLayerRow {layer} index={li} order={layerOrder} {reorder} {cap} />
       {/each}
     </div>
   {/if}
@@ -292,15 +309,18 @@
             Empty mask. Use Add to pick a tool.
           </div>
         {:else}
-          {#each active.components as comp, i (comp.id)}
-            <MaskComponentRow
-              layerId={active.id}
-              {comp}
-              index={i}
-              total={active.components.length}
-              label={compLabels[i] ?? ''}
-            />
-          {/each}
+          <div role="list" aria-label="Shapes" class="flex flex-col gap-1">
+            {#each active.components as comp, i (comp.id)}
+              <MaskComponentRow
+                layerId={active.id}
+                {comp}
+                index={i}
+                order={shapeOrder}
+                {reorder}
+                label={compLabels[i] ?? ''}
+              />
+            {/each}
+          </div>
         {/if}
 
         {#if activeComp}

@@ -13,8 +13,10 @@ import {
   mdiCircleOutline,
   mdiGradientHorizontal,
   mdiMinus,
+  mdiMinusCircleOutline,
   mdiPalette,
   mdiPlus,
+  mdiPlusCircleOutline,
   mdiSetCenter,
   mdiVectorPolygon
 } from '@mdi/js';
@@ -38,6 +40,17 @@ export const MODES: { value: MaskComponentMode; icon: string; hint: string }[] =
   { value: 'subtract', icon: mdiMinus, hint: 'Subtract: cut this shape out of the mask' },
   { value: 'intersect', icon: mdiSetCenter, hint: 'Intersect: keep only where this shape overlaps' }
 ];
+
+const MODE_BADGES: Record<MaskComponentMode, { icon: string; tone: string }> = {
+  add: { icon: mdiPlusCircleOutline, tone: 'text-success' },
+  subtract: { icon: mdiMinusCircleOutline, tone: 'text-danger' },
+  intersect: { icon: mdiSetCenter, tone: 'text-primary' }
+};
+
+export function modeBadge(mode: MaskComponentMode): { icon: string; tone: string; hint: string } {
+  const hint = MODES.find((entry) => entry.value === mode)?.hint ?? '';
+  return { ...MODE_BADGES[mode], hint };
+}
 
 export function kindIcon(kind: MaskComponentKind): string {
   return KIND_ICONS[kind.kind];

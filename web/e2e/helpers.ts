@@ -171,6 +171,12 @@ export interface PreviewRequest {
   scopes?: boolean;
 }
 
+export function recordViewPreviews(into: PreviewRequest[]): (req: PreviewRequest) => void {
+  return (req) => {
+    if (req.lane !== 'mask_thumb') into.push(req);
+  };
+}
+
 const SCOPE_SHAPES: Record<string, { tag: number; width: number; height: number; ch: number }> = {
   waveform: { tag: 0, width: 512, height: 256, ch: 1 },
   parade: { tag: 1, width: 192, height: 256, ch: 3 },

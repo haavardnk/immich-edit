@@ -36,6 +36,7 @@
   import { cropReadout } from '#lib/panels/geometry/cropReadout.ts';
   import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import { maskClickPill } from '#lib/panels/maskClickPill.ts';
+  import { maskHoverPill } from '#lib/panels/maskHoverPill.ts';
   import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
   import type { Snippet } from 'svelte';
 
@@ -60,7 +61,10 @@
       maskOverlay.pill ??
       (editor.showingOriginal
         ? null
-        : (editor.historySteps.pill ?? maskClickPill() ?? presetStrip.appliedPill)) ??
+        : (editor.historySteps.pill ??
+          maskHoverPill() ??
+          maskClickPill() ??
+          presetStrip.appliedPill)) ??
       (editor.geometrySession && layout.mode === 'touch' ? cropReadout() : null)
   );
 

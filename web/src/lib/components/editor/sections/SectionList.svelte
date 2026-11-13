@@ -1,6 +1,6 @@
 <script lang="ts">
   import { moveWithin } from '#lib/editor/sectionOrder.ts';
-  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { Reorder } from '#lib/gestures/reorder.svelte.ts';
   import { Icon, IconButton, Switch } from '@immich/ui';
   import { mdiDragVertical, mdiEyeOffOutline, mdiEyeOutline, mdiLockOutline } from '@mdi/js';
   import type { LockedSection, SectionGroup, SectionListVariant } from './sectionList';
@@ -19,60 +19,16 @@
     ontoggle: (id: string) => void;
   } = $props();
 
-  type Dragging = { group: string; id: string; from: number; to: number; dy: number; y: number };
-
-  let dragging = $state<Dragging | null>(null);
-  let rowHeight = 0;
+  const reorder = new Reorder(({ group, id, to }) => {
+    const order = groups.find((entry) => entry.id === group)?.rows.map((row) => row.id);
+    if (order) onreorder(moveWithin(order, id, to));
+  });
 
   const sheet = $derived(variant === 'sheet');
   const rowClass = $derived(sheet ? 'h-11 px-2 text-[15px]' : 'h-8 px-1.5 text-[13px]');
 
-  function offsetOf(group: SectionGroup, index: number, id: string): number {
-    const current = dragging;
-    if (!current || current.group !== group.id) return 0;
-    if (current.id === id) return current.dy;
-    if (current.from < current.to && index > current.from && index <= current.to) return -rowHeight;
-    if (current.to < current.from && index >= current.to && index < current.from) return rowHeight;
-    return 0;
-  }
-
-  const drag = pointerDrag<Dragging, { group: SectionGroup; id: string }>({
-    start: (e, { group, id }) => {
-      if (group.rows.length < 2 || !(e.currentTarget instanceof Element)) return null;
-      rowHeight =
-        e.currentTarget.closest('[data-section-row]')?.getBoundingClientRect().height ?? 0;
-      const from = group.rows.findIndex((row) => row.id === id);
-      e.preventDefault();
-      dragging = { group: group.id, id, from, to: from, dy: 0, y: e.clientY };
-      return dragging;
-    },
-    move: (e, state) => {
-      if (!dragging || rowHeight <= 0) return;
-      const count = groups.find((group) => group.id === state.group)?.rows.length ?? 1;
-      const dy = e.clientY - state.y;
-      const to = Math.max(0, Math.min(count - 1, state.from + Math.round(dy / rowHeight)));
-      dragging = { ...dragging, dy, to };
-    },
-    end: () => {
-      const done = dragging;
-      dragging = null;
-      if (!done || done.to === done.from) return;
-      const order = groups.find((group) => group.id === done.group)?.rows.map((row) => row.id);
-      if (order) onreorder(moveWithin(order, done.id, done.to));
-    },
-    cancel: () => {
-      dragging = null;
-    }
-  });
-
-  function step(e: KeyboardEvent, group: SectionGroup, id: string): void {
-    const delta = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
-    if (delta === 0) return;
-    e.preventDefault();
-    const order = group.rows.map((row) => row.id);
-    const index = order.indexOf(id) + delta;
-    if (index < 0 || index >= order.length) return;
-    onreorder(moveWithin(order, id, index));
+  function idsOf(group: SectionGroup): string[] {
+    return group.rows.map((row) => row.id);
   }
 </script>
 
@@ -91,16 +47,17 @@
       </h3>
     {/if}
     <ul data-section-group aria-label={group.label ?? 'Sections'} class="flex flex-col">
-      {#each group.rows as row, index (row.id)}
+      {#each group.rows as row (row.id)}
         <li
           data-section-row
+          data-reorder-item
           data-hidden={row.hidden || undefined}
-          style:translate={dragging?.group === group.id
-            ? `0 ${offsetOf(group, index, row.id)}px`
+          style:translate={reorder.active(group.id)
+            ? `0 ${reorder.offset(group.id, idsOf(group), row.id)}px`
             : undefined}
-          class="flex items-center gap-1.5 rounded-lg {rowClass} {dragging?.id === row.id
+          class="flex items-center gap-1.5 rounded-lg {rowClass} {reorder.dragging?.id === row.id
             ? 'relative z-10 bg-light-200 shadow-popover'
-            : dragging?.group === group.id
+            : reorder.active(group.id)
               ? 'transition-[translate] duration-150'
               : ''}"
         >
@@ -113,12 +70,7 @@
             aria-label="Reorder {row.label}"
             disabled={group.rows.length < 2}
             class="shrink-0 cursor-grab touch-none {sheet ? 'size-9' : ''}"
-            onpointerdown={(e: PointerEvent) => drag.begin(e, { group, id: row.id })}
-            onpointermove={drag.follow.onpointermove}
-            onpointerup={drag.follow.onpointerup}
-            onpointercancel={drag.follow.onpointercancel}
-            onlostpointercapture={drag.follow.onlostpointercapture}
-            onkeydown={(e: KeyboardEvent) => step(e, group, row.id)}
+            {...reorder.handle(group.id, idsOf(group), row.id)}
           />
           <span class="min-w-0 flex-1 truncate {row.hidden ? 'text-dark/45' : 'text-dark'}">
             {row.label}

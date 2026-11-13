@@ -1,11 +1,14 @@
 <script lang="ts">
   import EditableLabel from '#lib/components/EditableLabel.svelte';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
+  import type { Reorder } from '#lib/gestures/reorder.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
+  import { maskThumbs } from '#lib/stores/editor/maskThumbs.svelte.ts';
   import { maskedEditsIsZero, type MaskLayer } from '#lib/types/edits.ts';
   import type { MaskCapacity } from '#lib/types/masks.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Button, IconButton } from '@immich/ui';
+  import { Button, Icon, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import {
     mdiChevronDown,
@@ -13,21 +16,29 @@
     mdiCircleOpacity,
     mdiClose,
     mdiContentCopy,
+    mdiDragVertical,
     mdiEye,
-    mdiEyeOff
+    mdiEyeOff,
+    mdiLayersOutline
   } from '@mdi/js';
 
   let {
     layer,
     index,
-    total,
+    order,
+    reorder,
     cap
   }: {
     layer: MaskLayer;
     index: number;
-    total: number;
+    order: readonly string[];
+    reorder: Reorder;
     cap: MaskCapacity;
   } = $props();
+
+  const total = $derived(order.length);
+  const thumb = $derived(maskThumbs.urls[layer.id]);
+  const lifted = $derived(reorder.dragging?.id === layer.id);
 
   let editing = $state(false);
   let nameDraft = $state('');
@@ -45,13 +56,43 @@
     editing = false;
     if (next && next !== layer.name) await editor.renameMaskLayer(layer.id, next);
   }
+
+  function hover(e: PointerEvent): void {
+    if (e.pointerType !== 'mouse' || reorder.dragging) return;
+    maskHover.enter({ layerId: layer.id, componentId: null, label: layer.name, mode: null });
+  }
 </script>
 
 <div
-  class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {isActive
-    ? 'border-primary/25 bg-primary/10'
-    : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
+  role="listitem"
+  data-reorder-item
+  data-testid="mask-layer-row"
+  style:translate={reorder.active('layers')
+    ? `0 ${reorder.offset('layers', order, layer.id)}px`
+    : undefined}
+  class="flex h-7 items-center gap-1 rounded-md border px-1 {lifted
+    ? 'relative z-10 border-hairline bg-light-200 shadow-popover'
+    : isActive
+      ? 'border-primary/25 bg-primary/10'
+      : 'border-transparent hover:border-hairline hover:bg-light-950/4'} {reorder.active(
+    'layers'
+  ) && !lifted
+    ? 'transition-[translate] duration-150'
+    : 'transition-colors'}"
+  onpointerenter={hover}
+  onpointerleave={() => maskHover.leave(layer.id, null)}
 >
+  <IconButton
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    icon={mdiDragVertical}
+    title="Drag or use the arrow keys to reorder. Masks further down are applied on top."
+    aria-label="Reorder {layer.name}"
+    disabled={total < 2}
+    class="-mx-0.5 w-4 shrink-0 cursor-grab touch-none opacity-50 hover:opacity-100"
+    {...reorder.handle('layers', order, layer.id)}
+  />
   <IconButton
     size="tiny"
     variant="ghost"
@@ -64,6 +105,21 @@
       void editor.toggleMaskLayerEnabled(layer.id);
     }}
   />
+  {#if thumb}
+    <img
+      src={thumb}
+      alt=""
+      class="size-5 shrink-0 rounded-sm bg-image-canvas object-cover ring-1 ring-hairline"
+      data-testid="mask-thumb"
+    />
+  {:else}
+    <span
+      class="flex size-5 shrink-0 items-center justify-center rounded-sm text-dark/40 ring-1 ring-hairline"
+      data-testid="mask-thumb-pending"
+    >
+      <Icon icon={mdiLayersOutline} size="14px" aria-hidden="true" />
+    </span>
+  {/if}
   {#if editing}
     <div class="flex-1 min-w-0">
       <EditableLabel
@@ -100,7 +156,7 @@
         {...mergeProps(props, { tabindex: -1 })}
         class="shrink-0 text-[10px] tabular-nums text-dark/65"
       >
-        {layer.components.length}
+        {countOf(layer.components.length, 'shape')}
       </span>
     {/snippet}
   </ElementTooltip>

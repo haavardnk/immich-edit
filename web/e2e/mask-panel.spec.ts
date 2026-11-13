@@ -1,14 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { editsToManifest } from '../src/lib/edits/manifest';
+import { neutralEdits, type RangeMeta } from '../src/lib/types/edits';
 import {
   gotoAsset,
   installMocks,
   json,
   makePng,
   NEUTRAL_RECORD,
+  recordViewPreviews,
   type PreviewRequest
 } from './helpers';
-import { editsToManifest } from '../src/lib/edits/manifest';
-import { neutralEdits, type RangeMeta } from '../src/lib/types/edits';
 
 type SavedRadial = { center?: { x: number; y: number }; feather?: number };
 
@@ -256,7 +257,7 @@ test('the depth slider tints its window before the rebake lands', async ({ page 
 test('the mask row toggles a weight overlay that hides while adjusting', async ({ page }) => {
   const previews: PreviewRequest[] = [];
   await installMocks(page, {
-    onPreview: (req) => previews.push(req),
+    onPreview: recordViewPreviews(previews),
     previewRender: weightRender
   });
   await gotoAsset(page);

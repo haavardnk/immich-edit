@@ -193,8 +193,8 @@ export class PreviewEngine {
     return this.tiles.scale(this.viewSnap);
   }
 
-  syncWeight(layerId: string | null): void {
-    this.weight.sync(layerId);
+  syncWeight(layerId: string | null, componentId: string | null = null): void {
+    this.weight.sync(layerId, componentId);
   }
 
   endWeightStroke(): void {
