@@ -85,6 +85,46 @@ async function pickRatio(page: Page, name: string): Promise<void> {
   await expect(sheet).toHaveCount(0);
 }
 
+async function expectToolsFit(page: Page): Promise<void> {
+  const buttons = tools(page).getByRole('button');
+  await expect(buttons).toHaveCount(10);
+  const names = await buttons.evaluateAll((all) =>
+    all.map((button) => (button.getAttribute('aria-label') ?? '').replace(/:.*/, ':'))
+  );
+  expect(names).toEqual([
+    'Aspect ratio:',
+    'Rotate left 90°',
+    'Rotate right 90°',
+    'Flip horizontal',
+    'Flip vertical',
+    'Crop guide:',
+    'Level line',
+    'Guided upright',
+    'Corners',
+    'Reset geometry'
+  ]);
+  const bar = await tools(page).boundingBox();
+  if (!bar) throw new Error('crop tools have no box');
+  const boxes = await buttons.evaluateAll((all) =>
+    all.map((button) => {
+      const box = button.getBoundingClientRect();
+      const label = button.lastElementChild as HTMLElement;
+      return {
+        x: box.x,
+        y: box.y,
+        right: box.right,
+        clipped: label.scrollWidth > label.clientWidth
+      };
+    })
+  );
+  for (const box of boxes) {
+    expect(box.clipped).toBe(false);
+    expect(box.x).toBeGreaterThanOrEqual(bar.x - 0.5);
+    expect(box.right).toBeLessThanOrEqual(bar.x + bar.width + 0.5);
+  }
+  expect(new Set(boxes.map((box) => Math.round(box.y))).size).toBe(2);
+}
+
 test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the dial straightens live, marks its chip and holds the original', async ({ page }) => {
     const saves: SaveBody[] = [];
@@ -226,28 +266,45 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(readout).toHaveText(/^21:9 \d+ × \d+ px$/);
   });
 
-  test('more flips, the tool row resets, and upright swaps the dial for its tray', async ({
+  test('the tool row flips, cycles the guide, resets, and swaps the dial for upright', async ({
     page
   }) => {
     await openCrop(page);
-    await tools(page).getByRole('button', { name: 'More crop actions' }).tap();
-    const more = page.getByRole('dialog', { name: 'More crop actions' });
-    await more.getByRole('button', { name: 'Flip vertical' }).tap();
-    await expect(more.getByRole('button', { name: 'Flip vertical' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    await more.getByRole('button', { name: 'Cancel' }).tap();
-    await expect(more).toHaveCount(0);
+    await expectToolsFit(page);
+    const readout = page.locator('[data-photo-pill]');
+    await tools(page).getByRole('button', { name: 'Rotate right 90°' }).tap();
+    await expect(readout).toHaveText(/^Original 4000 × 6000 px$/);
+    await tools(page).getByRole('button', { name: 'Rotate left 90°' }).tap();
+    await expect(readout).toHaveText(/^Original 6000 × 4000 px$/);
+    const flipV = tools(page).getByRole('button', { name: 'Flip vertical' });
+    await flipV.tap();
+    await expect(flipV).toHaveAttribute('aria-pressed', 'true');
     const reset = tools(page).getByRole('button', { name: 'Reset geometry' });
     await reset.tap();
     await expect(reset).toBeDisabled();
-    await tools(page).getByRole('button', { name: 'More crop actions' }).tap();
-    await expect(more.getByRole('button', { name: 'Flip vertical' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
-    await more.getByRole('button', { name: 'Cancel' }).tap();
+    await expect(flipV).toHaveAttribute('aria-pressed', 'false');
+
+    const guide = page.getByTestId('crop-guide');
+    const guideButton = tools(page).getByRole('button', { name: /^Crop guide: / });
+    await expect(guideButton).toHaveAccessibleName('Crop guide: Rule of thirds');
+    for (const [mode, turn, name, label] of [
+      ['golden', null, 'Golden ratio', 'Golden'],
+      ['spiral', '0', 'Golden spiral', 'Spiral'],
+      ['spiral', '1', 'Golden spiral, mirrored', 'Spiral ↔'],
+      ['diagonal', null, 'Diagonals', 'Diagonals'],
+      ['triangle', '0', 'Golden triangle', 'Triangle'],
+      ['triangle', '1', 'Golden triangle, mirrored', 'Triangle ↔'],
+      ['grid', null, 'Grid', 'Grid'],
+      ['off', null, 'No guide', 'None'],
+      ['thirds', null, 'Rule of thirds', 'Thirds']
+    ] as const) {
+      await guideButton.tap();
+      await expect(guideButton).toHaveAccessibleName(`Crop guide: ${name}`);
+      await expect(guideButton).toHaveText(label);
+      await expect(guide).toHaveAttribute('data-mode', mode);
+      if (turn === null) await expect(guide).not.toHaveAttribute('data-turn');
+      else await expect(guide).toHaveAttribute('data-turn', turn);
+    }
 
     await tools(page).getByRole('button', { name: 'Guided upright' }).tap();
     await expect(page.getByTestId('upright-surface')).toBeVisible();
@@ -321,6 +378,7 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     await openCrop(page);
     await expect(page.locator('[data-arrangement="side"]')).toBeVisible();
     await expect(dial(page)).toBeVisible();
+    await expectToolsFit(page);
     await pickRatio(page, '1:1');
     await expect(tools(page).getByRole('button', { name: 'Aspect ratio: 1:1' })).toBeVisible();
   });
@@ -331,6 +389,7 @@ test.describe('touch crop on a tablet', { tag: ['@touch', '@tablet'] }, () => {
     await openCrop(page);
     await expect(page.locator('[data-arrangement="inspector"]')).toBeVisible();
     await expect(dial(page)).toBeVisible();
+    await expectToolsFit(page);
     await tools(page).getByRole('button', { name: 'Level line' }).tap();
     await expect(tools(page).getByRole('button', { name: 'Level line' })).toHaveAttribute(
       'aria-pressed',

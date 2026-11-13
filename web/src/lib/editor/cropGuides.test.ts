@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cropGuides, GUIDE_TURNS, turnPoint } from './cropGuides';
+import { cropGuides, GUIDE_TURNS, mirrorTurn, turnPoint } from './cropGuides';
 
 function ends(paths: ReturnType<typeof cropGuides>): string[] {
   return paths.map((path) => {
@@ -58,6 +58,22 @@ describe('crop guides', () => {
       Array.from({ length: GUIDE_TURNS }, (_, turn) => ends(cropGuides('spiral', turn, 1.5))[0])
     );
     expect(seen.size).toBe(GUIDE_TURNS);
+  });
+
+  it('mirrors every turn left to right with its odd partner', () => {
+    for (let turn = 0; turn < GUIDE_TURNS; turn++) {
+      const mirrored = mirrorTurn(turn);
+      expect(mirrorTurn(mirrored)).toBe(turn);
+      for (const point of [
+        [0.2, 0.3],
+        [0.9, 0.6]
+      ] as const) {
+        const [x, y] = turnPoint(point, turn);
+        const [mx, my] = turnPoint(point, mirrored);
+        expect(mx).toBeCloseTo(1 - x);
+        expect(my).toBeCloseTo(y);
+      }
+    }
   });
 
   it('maps the unit square onto itself', () => {

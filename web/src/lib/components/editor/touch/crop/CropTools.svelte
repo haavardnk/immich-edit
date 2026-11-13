@@ -1,26 +1,28 @@
 <script lang="ts">
   import { isEnabled, runCommand } from '#lib/commands/command.ts';
   import { resetGeometry } from '#lib/commands/editor/edits.ts';
-  import { draftAspect, draftPortrait } from '#lib/panels/geometry/ratioActions.ts';
   import { aspectText } from '#lib/panels/geometry/aspects.ts';
+  import { draftAspect, draftPortrait } from '#lib/panels/geometry/ratioActions.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui, type GeometryTool } from '#lib/stores/ui.svelte.ts';
+  import { cropGuideLabel, ui, type GeometryTool } from '#lib/stores/ui.svelte.ts';
   import { Button, Icon } from '@immich/ui';
   import {
     mdiAngleAcute,
     mdiCropFree,
     mdiCropLandscape,
     mdiCropPortrait,
-    mdiDotsHorizontal,
     mdiFlipHorizontal,
+    mdiFlipVertical,
+    mdiGrid,
     mdiImageOutline,
     mdiRestore,
     mdiRotateLeft,
+    mdiRotateRight,
     mdiRulerSquare,
     mdiVectorSquare
   } from '@mdi/js';
 
-  let { onratio, onmore }: { onratio: () => void; onmore: () => void } = $props();
+  let { onratio }: { onratio: () => void } = $props();
 
   const aspect = $derived(draftAspect());
   const ratioName = $derived(
@@ -36,6 +38,9 @@
           : mdiCropLandscape
   );
   const flipH = $derived(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h);
+  const flipV = $derived(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v);
+  const guideShort = $derived(cropGuideLabel(ui.cropGrid, ui.cropGuideTurn, 'short'));
+  const guideName = $derived(cropGuideLabel(ui.cropGrid, ui.cropGuideTurn));
 
   const TOOLS: { id: GeometryTool; label: string; name: string; icon: string }[] = [
     { id: 'straighten', label: 'Level', name: 'Level line', icon: mdiAngleAcute },
@@ -71,15 +76,18 @@
   </Button>
 {/snippet}
 
-<div class="@container shrink-0 px-2 py-1.5">
+<div class="shrink-0 px-2 py-1.5">
   <div
     role="toolbar"
     aria-label="Crop tools"
-    class="grid grid-cols-4 items-start gap-0.5 @sm:grid-cols-8"
+    class="grid grid-cols-5 items-start gap-x-0.5 gap-y-1.5"
   >
     {@render tool(ratioName, `Aspect ratio: ${ratioName}`, ratioIcon, onratio)}
     {@render tool('Rotate', 'Rotate left 90°', mdiRotateLeft, () => editor.rotateStep(270))}
+    {@render tool('Rotate R', 'Rotate right 90°', mdiRotateRight, () => editor.rotateStep(90))}
     {@render tool('Flip', 'Flip horizontal', mdiFlipHorizontal, () => editor.flipStep('h'), flipH)}
+    {@render tool('Flip V', 'Flip vertical', mdiFlipVertical, () => editor.flipStep('v'), flipV)}
+    {@render tool(guideShort, `Crop guide: ${guideName}`, mdiGrid, ui.cycleCropGrid)}
     {#each TOOLS as entry (entry.id)}
       {@render tool(
         entry.label,
@@ -97,6 +105,5 @@
       undefined,
       !isEnabled(resetGeometry)
     )}
-    {@render tool('More', 'More crop actions', mdiDotsHorizontal, onmore)}
   </div>
 </div>

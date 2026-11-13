@@ -1,3 +1,4 @@
+import { GUIDE_TURNS, isMirroredTurn, mirrorTurn, TURNING_GRIDS } from '#lib/editor/cropGuides.ts';
 import {
   BRUSH_FLOW,
   BRUSH_HARDNESS,
@@ -6,7 +7,6 @@ import {
   RETOUCH_OPACITY,
   RETOUCH_SIZE
 } from '#lib/editor/params/brush.ts';
-import { GUIDE_TURNS } from '#lib/editor/cropGuides.ts';
 import type { ToolRange } from '#lib/editor/params/types.ts';
 import type { RetouchMode } from '#lib/types/edits.ts';
 import { withZoom, type View, type ViewChange, type ZoomedView } from '#lib/utils/imageViewport.ts';
@@ -25,15 +25,25 @@ export type CropGrid = 'thirds' | 'golden' | 'spiral' | 'diagonal' | 'triangle' 
 
 export type GeometryTool = 'straighten' | 'upright' | 'corners';
 
-export const CROP_GRIDS: { id: CropGrid; label: string }[] = [
-  { id: 'thirds', label: 'Rule of thirds' },
-  { id: 'golden', label: 'Golden ratio' },
-  { id: 'spiral', label: 'Golden spiral' },
-  { id: 'diagonal', label: 'Diagonals' },
-  { id: 'triangle', label: 'Golden triangle' },
-  { id: 'grid', label: 'Grid' },
-  { id: 'off', label: 'No guide' }
+export const CROP_GRIDS: { id: CropGrid; label: string; short: string }[] = [
+  { id: 'thirds', label: 'Rule of thirds', short: 'Thirds' },
+  { id: 'golden', label: 'Golden ratio', short: 'Golden' },
+  { id: 'spiral', label: 'Golden spiral', short: 'Spiral' },
+  { id: 'diagonal', label: 'Diagonals', short: 'Diagonals' },
+  { id: 'triangle', label: 'Golden triangle', short: 'Triangle' },
+  { id: 'grid', label: 'Grid', short: 'Grid' },
+  { id: 'off', label: 'No guide', short: 'None' }
 ];
+
+export function cropGuideLabel(
+  grid: CropGrid,
+  turn: number,
+  form: 'label' | 'short' = 'label'
+): string {
+  const name = CROP_GRIDS.find((g) => g.id === grid)?.[form] ?? '';
+  if (!TURNING_GRIDS.has(grid) || !isMirroredTurn(turn)) return name;
+  return form === 'short' ? `${name} ↔` : `${name}, mirrored`;
+}
 
 export const MIN_INSPECTOR_WIDTH = 320;
 export const MAX_INSPECTOR_WIDTH = 520;
@@ -238,8 +248,15 @@ class UiStore {
   };
 
   cycleCropGrid = (): void => {
-    const at = CROP_GRIDS.findIndex((g) => g.id === this.cropGrid);
-    this.cropGrid = CROP_GRIDS[(at + 1) % CROP_GRIDS.length]?.id ?? 'thirds';
+    if (TURNING_GRIDS.has(this.cropGrid) && !isMirroredTurn(this.cropGuideTurn)) {
+      this.cropGuideTurn = mirrorTurn(this.cropGuideTurn);
+    } else {
+      const at = CROP_GRIDS.findIndex((g) => g.id === this.cropGrid);
+      this.cropGrid = CROP_GRIDS[(at + 1) % CROP_GRIDS.length]?.id ?? 'thirds';
+      if (TURNING_GRIDS.has(this.cropGrid) && isMirroredTurn(this.cropGuideTurn)) {
+        this.cropGuideTurn = mirrorTurn(this.cropGuideTurn);
+      }
+    }
     this.persistEditorUi();
   };
 
