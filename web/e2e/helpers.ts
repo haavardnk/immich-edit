@@ -916,6 +916,9 @@ export async function installMocks(
     if (p.match(/^\/api\/assets\/[^/]+\/preview$/)) {
       if (method === 'POST') {
         const body = req.postDataJSON() as PreviewRequest | null;
+        if (body && (body.max_edge < 64 || body.max_edge > 65535)) {
+          return route.fulfill({ status: 400, body: `max_edge out of range: ${body.max_edge}` });
+        }
         if (body && opts.onPreview) opts.onPreview(body);
         if (body && opts.previewRender) {
           return route.fulfill({
