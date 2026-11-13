@@ -21,6 +21,8 @@
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
+  import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
+  import BrushSizeRail from './masks/BrushSizeRail.svelte';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -86,6 +88,9 @@
         <FloatingScope yieldToSliders />
       {/snippet}
       <Viewer ontap={tapPhoto} {adjust} children={layout.phone ? overlay : undefined} />
+      {#if chrome && arrangement !== 'inspector' && paintInput.brushActive}
+        <BrushSizeRail />
+      {/if}
       {#if chrome && editor.compare.mode !== 'off'}
         <CompareBar />
       {/if}

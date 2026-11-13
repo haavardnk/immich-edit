@@ -11,11 +11,12 @@
     type GeometryTransform
   } from '#lib/utils/geomTransform.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-  import { Tooltip } from '@immich/ui';
+  import { Icon, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint, normalizedPoint } from '#lib/gestures/point.ts';
+  import { mdiMinus, mdiPlus } from '@mdi/js';
 
   let {
     img
@@ -222,9 +223,8 @@
           {#snippet child({ props })}
             <button
               type="button"
-              class="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow transition hover:scale-125 hover:ring-2 hover:ring-white/60 disabled:cursor-wait"
-              class:bg-emerald-500={p.positive}
-              class:bg-red-500={!p.positive}
+              class="group absolute grid size-3 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full disabled:cursor-wait touch:size-11"
+              data-testid="click-dot"
               style="left: {pos.left}px; top: {pos.top}px;"
               aria-label="Remove this point"
               disabled={editor.maskGenerating}
@@ -235,7 +235,20 @@
                   void editor.removeClickPoint(i);
                 }
               })}
-            ></button>
+            >
+              <span
+                class="grid size-3 place-items-center rounded-full border-2 border-white shadow transition group-hover:scale-125 group-hover:ring-2 group-hover:ring-white/60 touch:size-6"
+                class:bg-emerald-500={p.positive}
+                class:bg-red-500={!p.positive}
+              >
+                <Icon
+                  icon={p.positive ? mdiPlus : mdiMinus}
+                  size="14px"
+                  class="hidden text-white touch:block"
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
           {/snippet}
         </Tooltip>
       {/if}

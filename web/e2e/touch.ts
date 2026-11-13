@@ -123,3 +123,11 @@ export async function touchMoveTo(page: Page, point: TouchPoint): Promise<void> 
 export async function touchUp(page: Page): Promise<void> {
   await dispatch(page, 'touchEnd', []);
 }
+
+export async function fingersDown(page: Page, points: readonly TouchPoint[]): Promise<void> {
+  await dispatch(page, 'touchStart', points);
+}
+
+export async function fingersMove(page: Page, points: readonly TouchPoint[]): Promise<void> {
+  await dispatch(page, 'touchMove', points);
+}

@@ -11,7 +11,17 @@
   import MaskRangeControls from './MaskRangeControls.svelte';
   import MaskWheelHints from './MaskWheelHints.svelte';
 
-  let { layerId, component }: { layerId: string; component: MaskComponent } = $props();
+  let {
+    layerId,
+    component,
+    brushSize = true,
+    clickRefine = true
+  }: {
+    layerId: string;
+    component: MaskComponent;
+    brushSize?: boolean;
+    clickRefine?: boolean;
+  } = $props();
 
   const kind = $derived(component.kind);
   const clickPoints = $derived(
@@ -35,14 +45,14 @@
   </div>
 {/if}
 
-{#if kind.kind === 'brush' && maskModels.installed('click')}
+{#if kind.kind === 'brush' && clickRefine && maskModels.installed('click')}
   <MaskClickTool {layerId} points={clickPoints} />
 {/if}
 
 {#if component.generated}
   <MaskGeneratedControls {layerId} {component} />
 {:else if kind.kind === 'brush'}
-  <MaskBrushControls />
+  <MaskBrushControls showSize={brushSize} />
 {/if}
 
 {#if kind.kind === 'luma_range' || kind.kind === 'color_range'}

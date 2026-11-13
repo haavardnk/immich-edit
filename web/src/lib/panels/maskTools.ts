@@ -21,6 +21,7 @@ import {
   mdiSetCenter,
   mdiVectorPolygon
 } from '@mdi/js';
+import { layout } from '#lib/device/layout.svelte.ts';
 
 export interface MaskTarget {
   layerId: string | null;
@@ -112,10 +113,12 @@ export function promptInstall(kind: MaskKind): void {
 export async function addManualTool(target: MaskTarget, tool: ManualTool): Promise<void> {
   if (tool === 'polygon') {
     editor.beginPolygon(target.layerId, target.mode);
-    toasts.push(
-      'info',
-      `Click to place corners. Click the first one, or press ${keyLabel('Enter')}, to close.`
-    );
+    if (layout.mode !== 'touch') {
+      toasts.push(
+        'info',
+        `Click to place corners. Click the first one, or press ${keyLabel('Enter')}, to close.`
+      );
+    }
     return;
   }
   const kind = manualKind(tool);

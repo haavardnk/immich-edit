@@ -1,55 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, json, type InstallOpts } from './helpers';
-import { mockLibrary } from './touchShell';
-
-const MODELS = [
-  { id: 'ormbg', kind: 'subject', installed: true },
-  { id: 'skyseg', kind: 'sky', installed: true },
-  { id: 'depth', kind: 'depth', installed: false },
-  { id: 'sam', kind: 'click', installed: true }
-];
-
-async function openMasks(page: Page, opts: InstallOpts = {}): Promise<void> {
-  await mockLibrary(page, opts);
-  await page.route('**/api/masks/models', (route) =>
-    route.fulfill(
-      json({ runtime: 'cpu', enabled: true, models: MODELS, active: {}, semantic_classes: [] })
-    )
-  );
-  await page.goto(`/assets/${ASSET_ID}`);
-  await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
-  await modes(page).getByRole('tab', { name: 'Masks' }).tap();
-  await expect(page.getByRole('button', { name: 'New mask' })).toBeVisible();
-}
-
-function modes(page: Page): Locator {
-  return page.getByRole('tablist', { name: 'Editor modes' });
-}
-
-function sheet(page: Page): Locator {
-  return page.getByRole('dialog');
-}
-
-function cards(page: Page): Locator {
-  return page.getByTestId('mask-layer-card');
-}
-
-function shapes(page: Page): Locator {
-  return page.getByTestId('mask-shape-row');
-}
-
-async function addFromSheet(page: Page, trigger: Locator, tool: string): Promise<void> {
-  await trigger.tap();
-  await sheet(page).getByRole('button', { name: tool, exact: true }).tap();
-  await expect(sheet(page)).toHaveCount(0);
-}
-
-type SavedLayer = { name?: string; invert?: boolean; components?: { invert?: boolean }[] };
-
-function savedLayers(saves: Array<Record<string, unknown>>): SavedLayer[] {
-  const body = saves.at(-1) as { manifest?: { ops?: { masks?: { layers?: SavedLayer[] } } } };
-  return body?.manifest?.ops?.masks?.layers ?? [];
-}
+import { expect, test } from '@playwright/test';
+import { addFromSheet, cards, modes, openMasks, savedLayers, shapes, sheet } from './touchMasks';
 
 test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the add sheet lists AI tools then shapes in the desktop order', async ({ page }) => {
@@ -87,6 +37,9 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     await openMasks(page, { onSave: (body) => saves.push(body) });
 
     await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Radial gradient');
+    const tool = page.getByTestId('touch-shape-tool');
+    await expect(tool).toContainText('Mask 1 · base shape');
+    await tool.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(cards(page)).toHaveCount(1);
     await expect(cards(page).first()).toContainText('Mask 1');
     await expect(cards(page).first()).toContainText('1 shape');
@@ -96,6 +49,9 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     await page.getByRole('button', { name: 'Subtract', exact: true }).tap();
     await expect(page.getByRole('dialog', { name: 'Subtract from “Mask 1”' })).toBeVisible();
     await sheet(page).getByRole('button', { name: 'Linear gradient', exact: true }).tap();
+    await expect(tool).toContainText('Mask 1 · shape 2 of 2');
+    await expect(tool.getByRole('radio', { name: 'Subtract' })).toBeChecked();
+    await tool.getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(shapes(page)).toHaveCount(2);
     await expect(shapes(page).nth(1)).toContainText('Subtract');
 

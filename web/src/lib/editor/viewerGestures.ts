@@ -33,6 +33,7 @@ export type ViewerGestureSpec = {
   apply: (view: View, change: ViewChange) => void;
   zoomLevel: () => number;
   enabled: () => boolean;
+  paints?: () => boolean;
   tap: () => void;
   hold: { start: () => void; end: () => void };
   adjust: () => ViewerAdjust | null;
@@ -66,6 +67,10 @@ export function viewerGestures(spec: ViewerGestureSpec): Attachment<HTMLElement>
     );
   }
 
+  function oneFinger(): boolean {
+    return spec.enabled() && !spec.paints?.();
+  }
+
   function endAdjust(): void {
     adjusting?.end();
     adjusting = null;
@@ -76,16 +81,16 @@ export function viewerGestures(spec: ViewerGestureSpec): Attachment<HTMLElement>
     accept: (target) =>
       target === spec.element() || (target instanceof Element && target.hasAttribute(PHOTO_LAYER)),
     recognizers: [
-      tapRecognizer({ enabled: spec.enabled, tap: spec.tap, doubleTap: toggleZoom }),
+      tapRecognizer({ enabled: oneFinger, tap: spec.tap, doubleTap: toggleZoom }),
       longPressRecognizer({
-        enabled: spec.enabled,
+        enabled: oneFinger,
         thresholds: { longPressMs: HOLD_ORIGINAL_MS },
         start: spec.hold.start,
         end: spec.hold.end,
         cancel: spec.hold.end
       }),
       panRecognizer({
-        enabled: () => spec.enabled() && zoomed(),
+        enabled: () => oneFinger() && zoomed(),
         start: (pan) => {
           start = spec.view();
           spec.apply(panByPixels(spec.metrics(), start, pan.dx, pan.dy), 'pan');
@@ -93,7 +98,7 @@ export function viewerGestures(spec: ViewerGestureSpec): Attachment<HTMLElement>
         move: (pan) => spec.apply(panByPixels(spec.metrics(), start, pan.dx, pan.dy), 'pan')
       }),
       panRecognizer({
-        enabled: () => spec.enabled() && !zoomed() && spec.adjust() !== null,
+        enabled: () => oneFinger() && !zoomed() && spec.adjust() !== null,
         lockAxis: true,
         thresholds: { panSlop: 8 },
         start: (pan) => {

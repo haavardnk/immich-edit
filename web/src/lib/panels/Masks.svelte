@@ -16,7 +16,6 @@
   import {
     N_MAX_MASK_LAYERS,
     N_MAX_COMPONENTS_PER_LAYER,
-    N_MAX_TOTAL_COMPONENTS,
     type MaskComponent,
     type MaskComponentMode,
     type MaskLayer
@@ -24,6 +23,8 @@
   import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiPlus, mdiEye, mdiEyeOff, mdiChevronDown, mdiChevronRight } from '@mdi/js';
+  import MaskPolygonDraftControls from './MaskPolygonDraftControls.svelte';
+  import { layerLimitText, shapeLimitText } from './maskLimits';
 
   let layerMenu = $state<'header' | 'empty' | null>(null);
   let componentMenu = $state<MaskComponentMode | null>(null);
@@ -38,6 +39,7 @@
       : null
   );
   const cap = $derived(editor.maskCapacityFor(editor.activeLayerId));
+  const shapeLimit = $derived(shapeLimitText(cap));
   const compLabels = $derived(shapeLabels(active));
   const refineOpen = $derived(
     active
@@ -94,13 +96,7 @@
           onOpenChange={(v) => (layerMenu = v ? 'header' : null)}
         >
           {#snippet trigger(menuProps)}
-            <Tooltip
-              text={cap.layersFull
-                ? `You have used all ${N_MAX_MASK_LAYERS} masks. Delete one to add another.`
-                : cap.totalFull
-                  ? `You have used all ${N_MAX_TOTAL_COMPONENTS} shapes across every mask. Delete one to add another.`
-                  : 'Create a new mask'}
-            >
+            <Tooltip text={layerLimitText(cap) ?? 'Create a new mask'}>
               {#snippet child({ props })}
                 <Button
                   type="button"
@@ -174,6 +170,10 @@
   {#if pendingClick && editor.clickTool.layerId === null}
     <div class="px-1.5">
       <MaskClickTool layerId={null} pending />
+    </div>
+  {:else if editor.polygonDraft && editor.polygonDraft.layerId === null}
+    <div class="px-1.5">
+      <MaskPolygonDraftControls />
     </div>
   {:else if layers.length > 0 && !active}
     <div class="px-1.5 pt-1 text-[11px] text-dark/65">Select a mask to adjust it.</div>
@@ -252,12 +252,8 @@
           {/each}
         </div>
 
-        {#if cap.componentsFull || cap.totalFull}
-          <div class="px-1 text-[10px] text-dark/65">
-            {cap.componentsFull
-              ? `This mask is full at ${N_MAX_COMPONENTS_PER_LAYER} shapes. Delete one to add another.`
-              : `You have used all ${N_MAX_TOTAL_COMPONENTS} shapes across every mask. Delete one to add another.`}
-          </div>
+        {#if shapeLimit}
+          <div class="px-1 text-[10px] text-dark/65">{shapeLimit}</div>
         {/if}
 
         {#if active.components.length === 0}
@@ -283,6 +279,8 @@
           <MaskShapeControls layerId={active.id} component={activeComp} />
         {:else if pendingClick && editor.clickTool.layerId === active.id}
           <MaskClickTool layerId={active.id} pending />
+        {:else if editor.polygonDraft?.layerId === active.id}
+          <MaskPolygonDraftControls />
         {/if}
       {/if}
     </div>

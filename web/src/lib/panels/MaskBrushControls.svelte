@@ -7,6 +7,12 @@
   import { Button } from '@immich/ui';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { mdiBrush, mdiEraser } from '@mdi/js';
+
+  const TOUCH_SEGMENT = 'touch:h-full touch:flex-1 touch:rounded-[10px] touch:text-[13px]';
+
+  let { showSize = true }: { showSize?: boolean } = $props();
 
   const size = $derived(editor.brushTool.size);
   const hardness = $derived(editor.brushTool.hardness);
@@ -15,19 +21,24 @@
 </script>
 
 <div class="mt-1 flex flex-col gap-1">
-  <div class="flex h-7 items-center gap-2">
-    <div class="me-auto text-[10px] font-medium text-dark/65">Brush</div>
+  <div class="flex h-7 items-center gap-2 touch:h-auto">
+    <div class="me-auto text-[10px] font-medium text-dark/65 touch:hidden">Brush</div>
     {#if heldErase}
       <kbd class="rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-dark/65">
         {keysFor('brushEraseHold')}
       </kbd>
     {/if}
-    <div class="{segmented.tool.group} flex text-[10px]">
+    <div
+      class="{segmented.tool
+        .group} flex text-[10px] touch:h-12 touch:flex-1 touch:gap-0.5 touch:rounded-xl touch:bg-ghost touch:p-0.5 touch:ring-0"
+    >
       <Button
         type="button"
         size="tiny"
         variant={editor.brushTool.mode === 'paint' ? 'filled' : 'ghost'}
         color={editor.brushTool.mode === 'paint' ? 'primary' : 'secondary'}
+        class={TOUCH_SEGMENT}
+        leadingIcon={layout.mode === 'touch' ? mdiBrush : undefined}
         onclick={() => editor.setBrushTool({ mode: 'paint' })}
       >
         Paint
@@ -37,7 +48,10 @@
         size="tiny"
         variant={editor.brushTool.mode === 'erase' ? 'filled' : 'ghost'}
         color={editor.brushTool.mode === 'erase' ? 'primary' : 'secondary'}
-        class={heldErase ? 'outline-1 -outline-offset-1 outline-primary outline-dashed' : ''}
+        class="{TOUCH_SEGMENT} {heldErase
+          ? 'outline-1 -outline-offset-1 outline-primary outline-dashed'
+          : ''}"
+        leadingIcon={layout.mode === 'touch' ? mdiEraser : undefined}
         data-held={heldErase || undefined}
         onclick={() => editor.setBrushTool({ mode: 'erase' })}
       >
@@ -45,14 +59,16 @@
       </Button>
     </div>
   </div>
-  <SliderRow
-    label="Size"
-    value={size}
-    range={BRUSH_SIZE}
-    onLive={(v: number) => editor.setBrushTool({ size: v })}
-    onCommit={() => editor.setBrushTool({ size })}
-    format={(v: number) => formatBrushSize(v, editor.meta)}
-  />
+  {#if showSize}
+    <SliderRow
+      label="Size"
+      value={size}
+      range={BRUSH_SIZE}
+      onLive={(v: number) => editor.setBrushTool({ size: v })}
+      onCommit={() => editor.setBrushTool({ size })}
+      format={(v: number) => formatBrushSize(v, editor.meta)}
+    />
+  {/if}
   <SliderRow
     label="Hardness"
     value={hardness}

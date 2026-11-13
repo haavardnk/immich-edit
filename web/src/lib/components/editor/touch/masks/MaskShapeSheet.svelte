@@ -1,7 +1,7 @@
 <script lang="ts">
   import MenuRow from '#lib/components/MenuRow.svelte';
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
-  import { MODES, modeVerb, patchShape } from '#lib/panels/maskTools.ts';
+  import { MODES, modeVerb, patchShape, refineWith } from '#lib/panels/maskTools.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { MaskLayer } from '#lib/types/edits.ts';
   import {
@@ -9,8 +9,10 @@
     mdiArrowUp,
     mdiDeleteOutline,
     mdiFlagOutline,
+    mdiGestureTap,
     mdiInvertColors
   } from '@mdi/js';
+  import { maskModels } from '#lib/stores/maskModels.svelte.ts';
 
   let {
     layer,
@@ -43,6 +45,13 @@
   caption
 >
   {#if comp}
+    {#if comp.kind.kind === 'brush' && maskModels.installed('click')}
+      <MenuRow
+        icon={mdiGestureTap}
+        label="Refine with clicks"
+        onclick={() => refineWith(layer.id, false)}
+      />
+    {/if}
     {#if index > 0}
       {#each MODES as mode (mode.value)}
         <MenuRow

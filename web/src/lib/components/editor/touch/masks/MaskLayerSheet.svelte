@@ -24,6 +24,11 @@
   const index = $derived(layers.findIndex((layer) => layer.id === shownId));
   const layer = $derived(layers[index] ?? null);
   const cap = $derived(editor.maskCapacityFor(null));
+
+  async function duplicate(id: string): Promise<void> {
+    await editor.duplicateMaskLayer(id);
+    editor.setActiveMaskComponent(null);
+  }
 </script>
 
 <ActionSheet
@@ -39,7 +44,7 @@
       icon={mdiContentCopy}
       label="Duplicate"
       disabled={cap.layersFull || cap.totalFull}
-      onclick={() => void editor.duplicateMaskLayer(layer.id)}
+      onclick={() => void duplicate(layer.id)}
     />
     <MenuRow
       icon={mdiInvertColors}

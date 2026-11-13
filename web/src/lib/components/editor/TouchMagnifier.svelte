@@ -12,8 +12,18 @@
     u,
     v,
     width,
-    zoom = 3
-  }: { source: PreviewSurface; u: number; v: number; width: number; zoom?: number } = $props();
+    zoom = 3,
+    overlay = null,
+    ring = null
+  }: {
+    source: PreviewSurface;
+    u: number;
+    v: number;
+    width: number;
+    zoom?: number;
+    overlay?: HTMLCanvasElement | null;
+    ring?: number | null;
+  } = $props();
 
   let canvas = $state<HTMLCanvasElement | null>(null);
 
@@ -29,6 +39,19 @@
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, pixels, pixels);
     context.drawImage(source, u * w - side / 2, v * h - side / 2, side, side, 0, 0, pixels, pixels);
+    if (!overlay || overlay.width <= 0 || overlay.height <= 0) return;
+    const over = (MAGNIFIER_SIZE / zoom) * (overlay.width / width);
+    context.drawImage(
+      overlay,
+      u * overlay.width - over / 2,
+      v * overlay.height - over / 2,
+      over,
+      over,
+      0,
+      0,
+      pixels,
+      pixels
+    );
   });
 </script>
 
@@ -42,5 +65,14 @@
   style:transform="translate(-50%, calc(-100% - {MAGNIFIER_LIFT}px))"
 >
   <canvas bind:this={canvas} class="size-full"></canvas>
-  <span class="absolute top-1/2 left-1/2 size-3 -translate-1/2 border border-image-accent"></span>
+  {#if ring}
+    <span
+      data-testid="touch-magnifier-ring"
+      class="absolute top-1/2 left-1/2 -translate-1/2 rounded-full border-2 border-image-light shadow-[0_0_0_1px_var(--color-control-shadow)]"
+      style:width="{Math.min(ring, MAGNIFIER_SIZE - 8)}px"
+      style:height="{Math.min(ring, MAGNIFIER_SIZE - 8)}px"
+    ></span>
+  {:else}
+    <span class="absolute top-1/2 left-1/2 size-3 -translate-1/2 border border-image-accent"></span>
+  {/if}
 </span>

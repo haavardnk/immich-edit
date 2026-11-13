@@ -9,6 +9,8 @@
   import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
   import { HANDLE_DOT } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
 
   let {
     draft,
@@ -25,6 +27,7 @@
   let cursor = $state<{ x: number; y: number } | null>(null);
 
   const points = $derived(draft.points.map((p) => toPx(p)));
+  const touch = $derived(layout.mode === 'touch');
 
   function pointerMove(e: PointerEvent): void {
     cursor = elementPoint(e, e.currentTarget as SVGSVGElement);
@@ -115,22 +118,34 @@
         fill={i === 0 ? 'var(--color-image-light)' : 'var(--color-image-dark)'}
         stroke="var(--color-image-light)"
         stroke-width="2"
-        style={closable ? 'cursor: pointer;' : 'pointer-events: none;'}
-        role={closable ? 'button' : undefined}
-        aria-label={closable ? 'Close polygon' : undefined}
-        onpointerdown={(e) => close(e, i)}
+        style="pointer-events: none;"
       />
+      {#if closable}
+        <circle
+          cx={p.x}
+          cy={p.y}
+          r={Math.max(HANDLE_DOT.draftStart, handleHit())}
+          fill="transparent"
+          style="cursor: pointer;"
+          role="button"
+          tabindex="-1"
+          aria-label="Close polygon"
+          onpointerdown={(e) => close(e, i)}
+        />
+      {/if}
     {/each}
   {/if}
-  <text
-    x={rect.x + 12}
-    y={rect.y + 22}
-    fill="var(--color-image-light)"
-    font-size="12"
-    style="pointer-events: none; paint-order: stroke; stroke: var(--color-control-shadow); stroke-width: 3px;"
-  >
-    {draft.points.length < 3
-      ? `Click to place corners (${draft.points.length}/${MAX_POLYGON_POINTS})`
-      : `Click the first corner or press ${keyLabel('Enter')} to close. ${keyLabel('Escape')} cancels.`}
-  </text>
+  {#if !touch}
+    <text
+      x={rect.x + 12}
+      y={rect.y + 22}
+      fill="var(--color-image-light)"
+      font-size="12"
+      style="pointer-events: none; paint-order: stroke; stroke: var(--color-control-shadow); stroke-width: 3px;"
+    >
+      {draft.points.length < 3
+        ? `Click to place corners (${draft.points.length}/${MAX_POLYGON_POINTS})`
+        : `Click the first corner or press ${keyLabel('Enter')} to close. ${keyLabel('Escape')} cancels.`}
+    </text>
+  {/if}
 </svg>

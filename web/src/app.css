@@ -704,6 +704,20 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     outline: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-slider-fill) 25%, transparent);
   }
+  :where([data-layout='touch']) .dual-range {
+    height: 44px;
+  }
+  :where([data-layout='touch']) .dual-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-width: 3px;
+  }
+  :where([data-layout='touch']) .dual-range-thumb::before {
+    content: '';
+    position: absolute;
+    inset: -11px;
+    border-radius: 50%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
