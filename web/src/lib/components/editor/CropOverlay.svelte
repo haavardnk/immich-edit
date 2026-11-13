@@ -1,21 +1,7 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { cubicOut } from 'svelte/easing';
-  import { Tween } from 'svelte/motion';
   import { observeSize } from '#lib/actions/observeSize.ts';
-  import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
-  import {
-    rotatedBbox,
-    aspectRatioFor,
-    angleFromLine,
-    resizeCrop,
-    scaleCropAboutCentre,
-    type CropHandle,
-    type Point
-  } from '#lib/utils/geom.ts';
-  import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
-  import { stageFrame } from '#lib/editor/geometryStage.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import {
     IDENTITY_VIEW,
     cropFit,
@@ -23,20 +9,34 @@
     previewView,
     previewZoom
   } from '#lib/editor/cropFraming.ts';
-  import { cropExit } from '#lib/editor/cropExit.svelte.ts';
-  import PerspectiveCorners from './PerspectiveCorners.svelte';
-  import UprightGuides from './UprightGuides.svelte';
-  import CropGuide from './crop/CropGuide.svelte';
-  import CropHandles from './crop/CropHandles.svelte';
-  import PhotoPill from './PhotoPill.svelte';
-  import { cropDragReadout } from '#lib/panels/geometry/cropReadout.ts';
-  import { layout } from '#lib/device/layout.svelte.ts';
-  import type { CropRect } from '#lib/types/edits.ts';
-  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { stageFrame } from '#lib/editor/geometryStage.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import { boxHandleHit } from '#lib/editor/handles.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
-  import { boxHandleHit } from '#lib/editor/handles.ts';
-  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { cropDragReadout } from '#lib/panels/geometry/cropReadout.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import type { CropRect } from '#lib/types/edits.ts';
+  import {
+    angleFromLine,
+    aspectRatioFor,
+    resizeCrop,
+    rotatedBbox,
+    scaleCropAboutCentre,
+    type CropHandle,
+    type Point
+  } from '#lib/utils/geom.ts';
+  import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
+  import { untrack } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { Tween } from 'svelte/motion';
+  import CropGuide from './crop/CropGuide.svelte';
+  import CropHandles from './crop/CropHandles.svelte';
+  import PerspectiveCorners from './PerspectiveCorners.svelte';
+  import PhotoPill from './PhotoPill.svelte';
+  import UprightGuides from './UprightGuides.svelte';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);
@@ -128,7 +128,7 @@
       return;
     }
     if (active || line) return;
-    const target = framedView(crop, bbox, fit, box);
+    const target = ui.geometryTool === 'corners' ? IDENTITY_VIEW : framedView(crop, bbox, fit, box);
     const from = framed ? null : previewView(crop, bbox, fit, box);
     framed = true;
     untrack(() => {
