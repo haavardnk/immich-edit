@@ -4,7 +4,6 @@
   import { touchUi, type TrayDetent } from '#lib/stores/touchUi.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import CropDial from './CropDial.svelte';
-  import CropMoreSheet from './CropMoreSheet.svelte';
   import CropTools from './CropTools.svelte';
   import RatioKeypad from './RatioKeypad.svelte';
   import RatioSheet from './RatioSheet.svelte';
@@ -15,7 +14,6 @@
   useGeometrySession();
 
   let ratioOpen = $state(false);
-  let moreOpen = $state(false);
   let custom = $state(false);
   let before: TrayDetent = 'compact';
 
@@ -43,10 +41,9 @@
         <CropDial {sess} fill={!stacked} />
       {/if}
       <div class={['shrink-0', !stacked && 'mt-auto']}>
-        <CropTools onratio={() => (ratioOpen = true)} onmore={() => (moreOpen = true)} />
+        <CropTools onratio={() => (ratioOpen = true)} />
       </div>
     {/if}
   </div>
 {/if}
 <RatioSheet open={ratioOpen} onOpenChange={(next) => (ratioOpen = next)} oncustom={openCustom} />
-<CropMoreSheet open={moreOpen} onOpenChange={(next) => (moreOpen = next)} />

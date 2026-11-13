@@ -167,16 +167,16 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## Crop
 
-| Keys                                         | Action                                                                              | Available in |
-| -------------------------------------------- | ----------------------------------------------------------------------------------- | ------------ |
-| `A`                                          | Draw a line along the horizon to level the photo                                    | Crop         |
-| `Shift + drag or right-drag inside the crop` | Draw a straighten line without arming the tool                                      | Crop         |
-| `O`                                          | Cycle the crop guide: thirds, golden ratio, spiral, diagonals, triangle, grid, none | Crop         |
-| `Shift+O`                                    | Turn the golden spiral or triangle guide                                            | Crop         |
-| `Alt + drag a crop handle`                   | Resize the crop about its centre                                                    | Crop         |
-| `Shift + drag a crop handle`                 | Keep the current shape of a free crop while resizing                                | Crop         |
-| `Ctrl + scroll over the crop`                | Scale the crop about its centre                                                     | Crop         |
-| `Ctrl + drag inside the crop`                | Move the photo under a fixed crop                                                   | Crop         |
+| Keys                                         | Action                                                                                                            | Available in |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------ |
+| `A`                                          | Draw a line along the horizon to level the photo                                                                  | Crop         |
+| `Shift + drag or right-drag inside the crop` | Draw a straighten line without arming the tool                                                                    | Crop         |
+| `O`                                          | Cycle the crop guide: thirds, golden ratio, spiral and its mirror, diagonals, triangle and its mirror, grid, none | Crop         |
+| `Shift+O`                                    | Turn the golden spiral or triangle guide                                                                          | Crop         |
+| `Alt + drag a crop handle`                   | Resize the crop about its centre                                                                                  | Crop         |
+| `Shift + drag a crop handle`                 | Keep the current shape of a free crop while resizing                                                              | Crop         |
+| `Ctrl + scroll over the crop`                | Scale the crop about its centre                                                                                   | Crop         |
+| `Ctrl + drag inside the crop`                | Move the photo under a fixed crop                                                                                 | Crop         |
 
 ## Masks
 
