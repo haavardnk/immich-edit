@@ -9,6 +9,7 @@
   import MaskGeneratedControls from './MaskGeneratedControls.svelte';
   import MaskPolygonControls from './MaskPolygonControls.svelte';
   import MaskRangeControls from './MaskRangeControls.svelte';
+  import MaskWheelHints from './MaskWheelHints.svelte';
 
   let { layerId, component }: { layerId: string; component: MaskComponent } = $props();
 
@@ -50,4 +51,8 @@
 
 {#if kind.kind === 'polygon'}
   <MaskPolygonControls {layerId} {component} />
+{/if}
+
+{#if kind.kind === 'linear' || kind.kind === 'radial' || kind.kind === 'polygon'}
+  <MaskWheelHints />
 {/if}

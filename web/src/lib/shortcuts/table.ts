@@ -959,6 +959,22 @@ export const KEYBINDS = [
     label: 'Change the brush hardness over the photo',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
   },
+  {
+    id: 'maskShapeSizeWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Resize the selected shape over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + scroll`
+  },
+  {
+    id: 'maskShapeFeatherWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Change the selected shape feather over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
+  },
 
   {
     id: 'retouchHeal',

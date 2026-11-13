@@ -39,6 +39,7 @@
   import { maskHoverPill } from '#lib/panels/maskHoverPill.ts';
   import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
   import type { Snippet } from 'svelte';
+  import { shapeWheel } from '#lib/editor/shapeWheel.svelte.ts';
 
   let {
     ontap = () => {},
@@ -59,6 +60,7 @@
       presetStrip.pill ??
       lutPreview.pill ??
       maskOverlay.pill ??
+      shapeWheel.pill ??
       (editor.showingOriginal
         ? null
         : (editor.historySteps.pill ??
@@ -133,6 +135,11 @@
       : null;
   }
 
+  function onwheel(e: WheelEvent): void {
+    if (editor.geometrySession || shapeWheel.wheel(e)) return;
+    gestures.handlers.onwheel(e);
+  }
+
   function measured(size: { w: number; h: number }): void {
     if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
   }
@@ -167,6 +174,7 @@
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   {...editor.geometrySession ? {} : gestures.handlers}
+  {onwheel}
   {@attach touchGestures}
 >
   {#if editor.geometrySession?.frameUrl}

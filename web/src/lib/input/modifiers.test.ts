@@ -36,6 +36,7 @@ const TABLE: Record<ModifierRole, Key> = {
   resetAll: 'shift',
   resize: 'alt',
   hardness: 'shift',
+  feather: 'shift',
   lineBreak: 'shift',
   hueAxis: 'alt',
   lightnessAxis: 'shift'
