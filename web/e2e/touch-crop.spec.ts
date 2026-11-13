@@ -139,6 +139,60 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     expectEase(await sampledWidths(page), 'grows');
   });
 
+  test('corners shows the whole photo so every corner handle is reachable', async ({ page }) => {
+    await openCrop(page);
+    await pickRatio(page, '1:1');
+    const ruler = await centreOf(page.getByTestId('crop-dial'));
+    await drag(page, ruler, { x: ruler.x - 60, y: ruler.y });
+    await expect(page.getByTestId('crop-dial-value')).not.toHaveText('0.0°');
+
+    const box = page.getByRole('button', { name: 'resize nw' });
+    const framedWidth = async () => {
+      const nw = await centreOf(box);
+      const se = await centreOf(page.getByRole('button', { name: 'resize se' }));
+      return se.x - nw.x;
+    };
+    const settledWidth = async () => {
+      let last = Number.NaN;
+      await expect
+        .poll(
+          async () => {
+            const now = await framedWidth();
+            const still = Math.abs(now - last) < 0.5;
+            last = now;
+            return still;
+          },
+          { intervals: [300] }
+        )
+        .toBe(true);
+      return last;
+    };
+    const framed = await settledWidth();
+
+    await tools(page).getByRole('button', { name: 'Corners' }).tap();
+    const stage = await page.locator('.editor-stage').boundingBox();
+    if (!stage) throw new Error('stage has no box');
+    await expect
+      .poll(async () => {
+        for (let i = 1; i <= 4; i++) {
+          const at = await centreOf(page.getByRole('button', { name: `perspective corner ${i}` }));
+          const inside =
+            at.x >= stage.x &&
+            at.x <= stage.x + stage.width &&
+            at.y >= stage.y &&
+            at.y <= stage.y + stage.height;
+          if (!inside) return false;
+        }
+        return true;
+      })
+      .toBe(true);
+    expect(await framedWidth()).toBeLessThan(framed);
+
+    await tools(page).getByRole('button', { name: 'Corners' }).tap();
+    await expect(page.getByRole('button', { name: 'perspective corner 1' })).toHaveCount(0);
+    expect(await settledWidth()).toBeCloseTo(framed, 0);
+  });
+
   test('the ratio sheet, the custom keypad and the readout agree', async ({ page }) => {
     await openCrop(page);
     const readout = page.locator('[data-photo-pill]');
