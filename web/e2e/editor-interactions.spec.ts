@@ -461,7 +461,7 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
     )
     .toBe(true);
 
-  const picker = page.getByRole('button', { name: 'Pick color from image' });
+  const picker = page.getByRole('button', { name: 'Sample color from the photo' });
   const resetMask = page.getByRole('button', { name: 'Reset mask adjustments' });
   for (const control of [picker, resetMask]) {
     const bounds = await control.boundingBox();
@@ -497,12 +497,11 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   expect(kind?.sample_rgb).toHaveLength(3);
   expect(kind?.sample_rgb).not.toEqual([0.5, 0.5, 0.5]);
   await expect(maskPreview).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Pick color from image' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  await expect(picker).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
+  await expect(picker).toHaveAttribute('aria-pressed', 'false');
 });
 
 for (const [tool, pressed] of [
@@ -574,7 +573,7 @@ test('color range eyedropper keeps the maskless preview through a clipping toggl
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
-  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  await page.getByRole('button', { name: 'Sample color from the photo' }).click();
   const maskCount = (request: PreviewRequest | undefined): number =>
     ((request?.edits as { masks?: unknown[] } | undefined)?.masks ?? []).length;
   await expect.poll(() => previews.length > 0 && maskCount(previews.at(-1)) === 0).toBe(true);

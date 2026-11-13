@@ -41,6 +41,8 @@
   import type { Snippet } from 'svelte';
   import { shapeWheel } from '#lib/editor/shapeWheel.svelte.ts';
   import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
+  import { rangeSamplePill } from '#lib/panels/rangeSamplePill.ts';
+  import RangeSampleSurface from './RangeSampleSurface.svelte';
 
   let {
     ontap = () => {},
@@ -68,6 +70,7 @@
         : (editor.historySteps.pill ??
           maskHoverPill() ??
           maskClickPill() ??
+          rangeSamplePill() ??
           presetStrip.appliedPill)) ??
       (editor.geometrySession && layout.mode === 'touch' ? cropReadout() : null)
   );
@@ -214,6 +217,7 @@
       {/if}
       <MaskWeight img={imgEl} />
       <MaskOverlay img={imgEl} />
+      <RangeSampleSurface img={imgEl} />
       <WhiteBalancePicker img={imgEl} />
       <TargetOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />

@@ -107,6 +107,7 @@ describe('command registry', () => {
       'geometry.closeTool',
       'retouch.stopSampling',
       'retouch.deselect',
+      'masks.stopSampling',
       'masks.stopClickTool',
       'masks.deselectShape',
       'editor.exitFullscreen'

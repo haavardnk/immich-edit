@@ -36,6 +36,7 @@ import { budgetFor, type RenderBudget } from '#lib/render/budget.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
 import { measureServerTick } from './serverTick';
 import { ViewTiles } from './viewTiles.svelte';
+import type { RangePicker } from '#lib/stores/editor/rangePicker.ts';
 
 const VIEW_DEBOUNCE_MS = 150;
 
@@ -52,7 +53,7 @@ export type BaseArgs = {
   edits: Edits;
   maxEdge: number;
   previewMode: PreviewMode;
-  purpose?: 'color-picker';
+  purpose?: 'range-picker';
 };
 
 export interface PreviewCtx extends MaskWeightCtx, CompareLeftCtx {
@@ -73,7 +74,7 @@ export interface PreviewCtx extends MaskWeightCtx, CompareLeftCtx {
   readonly isRaw: boolean;
   editsPreview: EditsPreview | null;
   geometrySession: GeometrySession | null;
-  colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
+  rangePicker: RangePicker | null;
   proofSpace: ColorSpaceOpt;
   gamutWarn: boolean;
   readonly sourceRevision: string;
@@ -175,7 +176,7 @@ export class PreviewEngine {
       this.ctx.pending = false;
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (err instanceof ApiError && err.code === 'superseded') return;
-      this.ctx.colorPicker = null;
+      this.ctx.rangePicker = null;
       this.ctx.error = errorMessage(err);
     },
     () => this.baseIdle()
@@ -338,8 +339,8 @@ export class PreviewEngine {
 
   private settledArgs(maxEdge: number): BaseArgs {
     const edits = displayedEdits(this.ctx, this.snapshotEdits());
-    if (this.ctx.colorPicker) {
-      return { edits, maxEdge, previewMode: 'none', purpose: 'color-picker' };
+    if (this.ctx.rangePicker) {
+      return { edits, maxEdge, previewMode: 'none', purpose: 'range-picker' };
     }
     return { edits, maxEdge, previewMode: 'none' };
   }
@@ -371,8 +372,8 @@ export class PreviewEngine {
   }
 
   private markPickerReady(purpose: BaseArgs['purpose']): void {
-    if (purpose === 'color-picker' && this.ctx.colorPicker) {
-      this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
+    if (purpose === 'range-picker' && this.ctx.rangePicker) {
+      this.ctx.rangePicker = { ...this.ctx.rangePicker, ready: true };
     }
   }
 
@@ -416,7 +417,7 @@ export class PreviewEngine {
       !!this.ctx.editsPreview ||
       !!this.ctx.geometrySession ||
       this.previewing ||
-      !!this.ctx.colorPicker
+      !!this.ctx.rangePicker
     );
   }
 

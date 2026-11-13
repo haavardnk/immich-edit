@@ -75,6 +75,14 @@ import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 import type { UprightGuide } from '#lib/utils/upright.ts';
 import type { Roi } from '#lib/utils/viewGeometry.ts';
 import { CompareControl } from '#lib/stores/editor/compareControl.svelte.ts';
+import * as rangePicker from '#lib/stores/editor/rangePicker.ts';
+import {
+  rangePickerHidesOverlay,
+  type RangePicker,
+  type RangeSampleMode
+} from '#lib/stores/editor/rangePicker.ts';
+import type { RangeSample } from '#lib/editor/rangeSample.ts';
+import type { Rgb } from '#lib/utils/oklab.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -145,14 +153,14 @@ class EditorStore {
   maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
   maskRefineOpen = $state<Record<string, boolean>>({});
-  colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
+  rangePicker = $state<RangePicker | null>(null);
   maskOverlayHeld = $state(false);
   maskWeight = $state.raw<MaskWeightFrame | null>(null);
   maskStroke = $state<MaskStroke>('idle');
   maskOverlayLayerId = $derived(
     this.maskOverlayVisible &&
       !this.maskOverlayHeld &&
-      !this.colorPicker &&
+      !rangePickerHidesOverlay(this.rangePicker) &&
       !this.showingOriginal &&
       this.edits.masks.some((layer) => layer.id === this.activeLayerId)
       ? this.activeLayerId
@@ -347,7 +355,7 @@ class EditorStore {
     this.retouchAnchor = null;
     this.retouchSampling = false;
     this.retouchSourceMissed = false;
-    this.colorPicker = null;
+    this.rangePicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
     this.lastUpload = null;
@@ -540,13 +548,17 @@ class EditorStore {
 
   clearRetouch = (): Promise<void> => retouch.clearRetouch(this);
 
-  beginColorPicker = (layerId: string, componentId: string): void =>
-    maskLayers.beginColorPicker(this, layerId, componentId);
+  beginRangePicker = (layerId: string, componentId: string): void =>
+    rangePicker.beginRangePicker(this, layerId, componentId);
 
-  cancelColorPicker = (): void => maskLayers.cancelColorPicker(this);
+  cancelRangePicker = (): void => maskLayers.cancelRangePicker(this);
 
-  commitColorSample = (sampleRgb: [number, number, number]): Promise<void> =>
-    maskLayers.commitColorSample(this, sampleRgb);
+  previewRangeSample = (rgb: Rgb | null): void => rangePicker.previewRangeSample(this, rgb);
+
+  clearRangeSamples = (): void => rangePicker.clearRangeSamples(this);
+
+  commitRangeSample = (sample: RangeSample, mode: RangeSampleMode): Promise<void> =>
+    rangePicker.commitRangeSample(this, sample, mode);
 
   addMaskLayer = (kind: MaskComponentKind = defaultLinear()): Promise<string | null> =>
     maskLayers.addMaskLayer(this, kind);

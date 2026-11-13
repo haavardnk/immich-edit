@@ -12,7 +12,7 @@ function edited(): Edits {
 
 function ctx(patch: Partial<DisplayedCtx> = {}): DisplayedCtx {
   return {
-    colorPicker: null,
+    rangePicker: null,
     showingOriginal: false,
     bypassedSection: null,
     editsPreview: null,
@@ -50,7 +50,7 @@ describe('displayedEdits', () => {
 
   it('drops masks while the colour picker samples', () => {
     const edits = edited();
-    const shown = displayedEdits(ctx({ colorPicker: {}, showingOriginal: true }), edits);
+    const shown = displayedEdits(ctx({ rangePicker: {}, showingOriginal: true }), edits);
     expect(shown.masks).toEqual([]);
     expect(shown.basic.exposure_ev).toBe(1.2);
   });

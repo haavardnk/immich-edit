@@ -146,7 +146,7 @@ function context(): PreviewCtx {
     geometrySession: null,
     maskWeight: null,
     maskStroke: 'idle',
-    colorPicker: null,
+    rangePicker: null,
     proofSpace: 'srgb',
     gamutWarn: false,
     sourceRevision: ''
@@ -283,7 +283,15 @@ describe('preview lanes during a slider drag', () => {
     ],
     [
       'color picker',
-      (c) => (c.colorPicker = { layerId: 'layer-1', componentId: 'c-1', ready: false }),
+      (c) =>
+        (c.rangePicker = {
+          layerId: 'layer-1',
+          componentId: 'c-1',
+          ready: false,
+          samples: [],
+          tolerance: 0.1,
+          preview: null
+        }),
       (e) => ({ mode: 'none', edits: { ...e, masks: [] } })
     ],
     [

@@ -1,4 +1,5 @@
 import type { Edits, MaskComponentMode } from '#lib/types/edits.ts';
+import { rangePickerHidesOverlay, type RangePicker } from './rangePicker.ts';
 
 export type MaskHoverTarget = {
   layerId: string;
@@ -14,7 +15,7 @@ type TargetCtx = {
   activeLayerId: string | null;
   maskOverlayLayerId: string | null;
   maskOverlayHeld: boolean;
-  colorPicker: unknown;
+  rangePicker: RangePicker | null;
   showingOriginal: boolean;
 };
 
@@ -49,7 +50,7 @@ function previewed(ctx: TargetCtx, hover: MaskHoverTarget | null): WeightTarget 
 }
 
 function suppressed(ctx: TargetCtx): boolean {
-  return ctx.maskOverlayHeld || !!ctx.colorPicker || ctx.showingOriginal;
+  return ctx.maskOverlayHeld || rangePickerHidesOverlay(ctx.rangePicker) || ctx.showingOriginal;
 }
 
 export function weightTarget(ctx: TargetCtx, hover: MaskHoverTarget | null): WeightTarget | null {

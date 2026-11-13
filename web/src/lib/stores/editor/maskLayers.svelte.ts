@@ -20,6 +20,7 @@ import type {
   MaskedEditKey,
   Vec2f
 } from '#lib/types/edits.ts';
+import type { RangePicker } from './rangePicker.ts';
 
 export interface MaskLayersCtx {
   edits: Edits;
@@ -27,7 +28,7 @@ export interface MaskLayersCtx {
   activeLayerId: string | null;
   activeMaskComponentId: string | null;
   maskOverlayVisible: boolean;
-  colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
+  rangePicker: RangePicker | null;
   brushTool: BrushTool;
   brushBuffers: Record<string, BrushBuffer>;
   brushBufferSource: Record<string, string>;
@@ -65,7 +66,7 @@ export function activeLayer(ctx: MaskLayersCtx): MaskLayer | null {
 }
 
 export function setActiveLayer(ctx: MaskLayersCtx, id: string | null): void {
-  if (ctx.colorPicker && ctx.colorPicker.layerId !== id) cancelColorPicker(ctx);
+  if (ctx.rangePicker && ctx.rangePicker.layerId !== id) cancelRangePicker(ctx);
   if (ctx.activeLayerId !== id) ctx.activeMaskComponentId = null;
   ctx.activeLayerId = id;
 }
@@ -77,7 +78,7 @@ export function activeMaskComponent(ctx: MaskLayersCtx): MaskComponent | null {
 }
 
 export function setActiveMaskComponent(ctx: MaskLayersCtx, id: string | null): void {
-  if (ctx.colorPicker && ctx.colorPicker.componentId !== id) cancelColorPicker(ctx);
+  if (ctx.rangePicker && ctx.rangePicker.componentId !== id) cancelRangePicker(ctx);
   ctx.activeMaskComponentId = id;
 }
 
@@ -123,43 +124,10 @@ export function toggleLayerOverlay(ctx: MaskLayersCtx, id: string): void {
   ctx.maskOverlayVisible = true;
 }
 
-export function beginColorPicker(ctx: MaskLayersCtx, layerId: string, componentId: string): void {
-  const layer = ctx.edits.masks.find((item) => item.id === layerId);
-  const component = layer?.components.find((item) => item.id === componentId);
-  if (!component || component.kind.kind !== 'color_range') return;
-  ctx.compare.end();
-  ctx.colorPicker = { layerId, componentId, ready: false };
+export function cancelRangePicker(ctx: MaskLayersCtx): void {
+  if (!ctx.rangePicker) return;
+  ctx.rangePicker = null;
   ctx.onLive();
-}
-
-export function cancelColorPicker(ctx: MaskLayersCtx): void {
-  if (!ctx.colorPicker) return;
-  ctx.colorPicker = null;
-  ctx.onLive();
-}
-
-export async function commitColorSample(
-  ctx: MaskLayersCtx,
-  sampleRgb: [number, number, number]
-): Promise<void> {
-  const picker = ctx.colorPicker;
-  if (!picker) return;
-  const layer = ctx.edits.masks.find((item) => item.id === picker.layerId);
-  const component = layer?.components.find((item) => item.id === picker.componentId);
-  if (!component || component.kind.kind !== 'color_range') {
-    cancelColorPicker(ctx);
-    return;
-  }
-  ctx.colorPicker = null;
-  ctx.maskOverlayVisible = true;
-  updateMaskComponentKind(
-    ctx,
-    picker.layerId,
-    picker.componentId,
-    { ...component.kind, sample_rgb: sampleRgb },
-    false
-  );
-  await commitMasks(ctx);
 }
 
 export async function addMaskLayer(

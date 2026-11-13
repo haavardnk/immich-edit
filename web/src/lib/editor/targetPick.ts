@@ -1,7 +1,8 @@
 import type { GradeRegion } from '#lib/editor/params/colorGrading.ts';
 import { BW_CHANNELS, type BwChannel, type CurveChannel } from '#lib/types/edits.ts';
+import { linearToOklab, toLinear, type Rgb } from '#lib/utils/oklab.ts';
 
-export type Rgb = readonly [number, number, number];
+export type { Rgb } from '#lib/utils/oklab.ts';
 
 export interface PixelGrid {
   width: number;
@@ -19,10 +20,6 @@ const GRADE_PIVOT_BASE = 0.5;
 const GRADE_PIVOT_RANGE = 0.3;
 const GRADE_FEATHER_BASE = 0.15;
 const GRADE_FEATHER_RANGE = 0.25;
-
-function toLinear(channel: number): number {
-  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-}
 
 function linear([r, g, b]: Rgb): Rgb {
   return [toLinear(r), toLinear(g), toLinear(b)];
@@ -69,19 +66,12 @@ export function bwChannelAt(rgb: Rgb): BwChannel | null {
   return BW_CHANNELS[sector] ?? null;
 }
 
-function oklabLightness([r, g, b]: Rgb): number {
-  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
-  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
-  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
-  return 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
-}
-
 export function gradeRegionAt(
   rgb: Rgb,
   balance: number,
   blend: number
 ): Exclude<GradeRegion, 'global'> {
-  const y = Math.min(1, Math.max(0, oklabLightness(linear(rgb))));
+  const y = Math.min(1, Math.max(0, linearToOklab(linear(rgb)).l));
   const pivot = GRADE_PIVOT_BASE + GRADE_PIVOT_RANGE * (balance / 100);
   const feather = GRADE_FEATHER_BASE + GRADE_FEATHER_RANGE * (blend / 100);
   const sHi = Math.min(0.999, Math.max(0.001, pivot + feather * 0.5));

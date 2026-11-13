@@ -160,8 +160,8 @@ export class ClientPreview {
     this.ctx.previewUrl = null;
     this.ctx.pending = false;
     renderer.recordRender({ ms, pixels: frame.width * frame.height });
-    if (job.purpose === 'color-picker' && this.ctx.colorPicker) {
-      this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
+    if (job.purpose === 'range-picker' && this.ctx.rangePicker) {
+      this.ctx.rangePicker = { ...this.ctx.rangePicker, ready: true };
     }
     if (!job.view.histogram || !this.ctx.assetId) return;
     this.ctx.meta = frameMeta(this.ctx.assetId, frame, source.is_raw, 'browser');

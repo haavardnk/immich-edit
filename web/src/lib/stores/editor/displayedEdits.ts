@@ -3,7 +3,7 @@ import { originalPreviewEdits, type DevelopSection, type Edits } from '#lib/type
 import type { EditsPreview } from '#lib/stores/editor/editsPreview.ts';
 
 export interface DisplayedCtx {
-  readonly colorPicker: unknown;
+  readonly rangePicker: unknown;
   readonly showingOriginal: boolean;
   readonly bypassedSection: DevelopSection | null;
   readonly editsPreview: EditsPreview | null;
@@ -11,7 +11,7 @@ export interface DisplayedCtx {
 }
 
 export function displayedEdits(ctx: DisplayedCtx, edits: Edits): Edits {
-  if (ctx.colorPicker) return { ...edits, masks: [] };
+  if (ctx.rangePicker) return { ...edits, masks: [] };
   if (ctx.showingOriginal) return originalPreviewEdits(edits);
   if (ctx.bypassedSection) return neutraliseSection(edits, ctx.bypassedSection, ctx.isRaw);
   if (ctx.editsPreview) return ctx.editsPreview.edits;
