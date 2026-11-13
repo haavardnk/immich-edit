@@ -210,6 +210,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | --------------------- | --------------------------------- | ------------ |
 | `H`                   | Heal mode                         | Retouch      |
 | `C`                   | Clone mode                        | Retouch      |
+| `V`                   | Visualize spots                   | Retouch      |
 | `Backspace` / `Del`   | Delete the selected stroke        | Retouch      |
 | `Esc`                 | Deselect the current stroke       | Retouch      |
 | `Alt + click`         | Set the source point              | Retouch      |

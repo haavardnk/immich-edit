@@ -8,7 +8,6 @@
   import WhiteBalancePicker from './WhiteBalancePicker.svelte';
   import BrushCanvas from './BrushCanvas.svelte';
   import ClickCanvas from './ClickCanvas.svelte';
-  import RetouchOverlay from './RetouchOverlay.svelte';
   import PreviewImage from './PreviewImage.svelte';
   import CompareSideBySide from './compare/CompareSideBySide.svelte';
   import CompareSplit from './compare/CompareSplit.svelte';
@@ -44,6 +43,9 @@
   import { rangeSamplePill } from '#lib/panels/rangeSamplePill.ts';
   import RangeSampleSurface from './RangeSampleSurface.svelte';
   import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
+  import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
+  import RetouchOverlay from './retouch/RetouchOverlay.svelte';
+  import VisualizeFilter, { VISUALIZE_FILTER } from './retouch/VisualizeFilter.svelte';
 
   let {
     ontap = () => {},
@@ -67,6 +69,7 @@
       shapeWheel.pill ??
       brushErase.pill ??
       paintInput.pill ??
+      retouchView.pill ??
       (editor.showingOriginal
         ? null
         : (editor.historySteps.pill ??
@@ -108,6 +111,7 @@
   const imageEdge = $derived(
     ui.greyCanvas ? 'ring-1 ring-white/10' : 'shadow-image ring-1 ring-white/10'
   );
+  const visualize = $derived(retouchView.visualize ? ` filter: url(#${VISUALIZE_FILTER});` : '');
 
   const gestures = viewportGestures({
     element: () => container,
@@ -204,7 +208,7 @@
         frame={editor.previewFrame}
         alt={editor.asset?.originalFileName ?? ''}
         class="max-h-none max-w-none select-none object-contain {imageEdge}"
-        style={baseStyle + cropExit.transform}
+        style={baseStyle + cropExit.transform + visualize}
         testid="preview-image"
         onsize={measured}
       />
@@ -215,8 +219,11 @@
           alt=""
           testid="view-render"
           class="pointer-events-none absolute max-h-none max-w-none select-none"
-          style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px;"
+          style="left: {viewPlace.left}px; top: {viewPlace.top}px; width: {viewPlace.width}px; height: {viewPlace.height}px;{visualize}"
         />
+      {/if}
+      {#if visualize}
+        <VisualizeFilter />
       {/if}
       <MaskWeight img={imgEl} />
       <MaskOverlay img={imgEl} />

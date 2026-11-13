@@ -1,220 +1,39 @@
 <script lang="ts">
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import Notice from '#lib/components/Notice.svelte';
-  import { segmented } from '#lib/components/segmented.ts';
-  import { hint } from '#lib/shortcuts/labels.ts';
-  import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
-  import { RETOUCH_HARDNESS, RETOUCH_OPACITY, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
+  import { selectedStroke } from '#lib/editor/retouch/settings.ts';
+  import { RETOUCH_LIMIT_TEXT, strokeTitle } from '#lib/editor/retouch/text.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '#lib/types/edits.ts';
-  import { formatBrushSize } from '#lib/utils/brushSize.ts';
-  import { Button, Icon, IconButton, Tooltip } from '@immich/ui';
-  import { mdiBandage, mdiClose, mdiEye, mdiEyeOff, mdiRestore, mdiStamper } from '@mdi/js';
-  import { RadioGroup } from 'bits-ui';
+  import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
+  import RetouchModeChoice from './retouch/RetouchModeChoice.svelte';
+  import RetouchSliders from './retouch/RetouchSliders.svelte';
+  import RetouchSourceRow from './retouch/RetouchSourceRow.svelte';
+  import RetouchStrokeList from './retouch/RetouchStrokeList.svelte';
 
-  const strokes = $derived(editor.edits.retouch);
-  const selected = $derived<RetouchStroke | null>(
-    editor.activeRetouchId ? (strokes.find((s) => s.id === editor.activeRetouchId) ?? null) : null
-  );
-  const mode = $derived(selected ? selected.mode : editor.retouchTool.mode);
-  const size = $derived(selected ? selected.radius : editor.retouchTool.size);
-  const hardness = $derived(selected ? selected.hardness : editor.retouchTool.hardness);
-  const opacity = $derived(selected ? selected.opacity : editor.retouchTool.opacity);
-  const selectedIndex = $derived(selected ? strokes.indexOf(selected) : -1);
-
-  function setMode(m: RetouchMode): void {
-    editor.setRetouchMode(m);
-  }
-
-  function live(
-    patch: Partial<RetouchStroke>,
-    toolPatch: Partial<typeof editor.retouchTool>
-  ): void {
-    if (selected) {
-      void editor.setRetouchStroke(selected.id, patch, false);
-      return;
-    }
-    editor.setRetouchTool(toolPatch);
-  }
-
-  function commit(): void {
-    if (selected) void editor.commitRetouch();
-  }
-
-  function label(s: RetouchStroke, i: number): string {
-    return `${s.mode === 'heal' ? 'Heal' : 'Clone'} ${i + 1}`;
-  }
+  const selected = $derived(selectedStroke());
 </script>
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline">
     <div class="text-[9px] font-semibold uppercase text-dark/65">Tool</div>
-    <RadioGroup.Root
-      bind:value={() => mode, (v) => setMode(v as RetouchMode)}
-      orientation="horizontal"
-      aria-label="Retouch tool"
-      class={segmented.text.group}
-    >
-      <Tooltip
-        text="{hint('Heal', 'retouchHeal')} — blends texture from the source into the target"
-      >
-        {#snippet child({ props })}
-          <RadioGroup.Item value="heal" class="{segmented.text.radio} gap-1 px-2" {...props}>
-            <Icon icon={mdiBandage} size="12px" aria-hidden="true" />
-            Heal
-          </RadioGroup.Item>
-        {/snippet}
-      </Tooltip>
-      <Tooltip text="{hint('Clone', 'retouchClone')} — copies the source pixels exactly">
-        {#snippet child({ props })}
-          <RadioGroup.Item value="clone" class="{segmented.text.radio} gap-1 px-2" {...props}>
-            <Icon icon={mdiStamper} size="12px" aria-hidden="true" />
-            Clone
-          </RadioGroup.Item>
-        {/snippet}
-      </Tooltip>
-    </RadioGroup.Root>
+    <RetouchModeChoice />
   </div>
 
-  <div class="flex h-7 items-center gap-1.5">
-    <span class="editor-compact-label select-none">Source</span>
-    <span
-      class="rounded-full px-1.5 text-[10px] leading-4 {editor.retouchAnchor
-        ? 'bg-success-500/15 text-success-800'
-        : 'bg-danger-500/15 text-danger-800'}"
-    >
-      {editor.retouchAnchor ? 'Set' : 'Not set'}
-    </span>
-    <div class="ml-auto flex items-center gap-0.5">
-      <Button
-        type="button"
-        size="tiny"
-        variant={editor.retouchSampling ? 'filled' : 'ghost'}
-        color={editor.retouchSampling ? 'primary' : 'secondary'}
-        class="h-6 panel-action"
-        title={hint('Pick the source with the next click', 'retouchSample')}
-        aria-pressed={editor.retouchSampling}
-        onclick={editor.toggleRetouchSampling}
-      >
-        Sample
-      </Button>
-      <IconButton
-        size="tiny"
-        variant="ghost"
-        color="secondary"
-        icon={mdiClose}
-        title="Clear source"
-        aria-label="Clear source"
-        disabled={!editor.retouchAnchor}
-        onclick={editor.clearRetouchAnchor}
-      />
-    </div>
-  </div>
-  <div
-    role="status"
-    aria-live="polite"
-    class={editor.retouchSourceMissed && !editor.retouchAnchor
-      ? 'animate-pulse text-[10px] text-danger-800'
-      : 'sr-only'}
-  >
-    {editor.retouchSourceMissed && !editor.retouchAnchor ? 'Set a source before painting' : ''}
-  </div>
+  <RetouchSourceRow />
+  <CheckboxRow
+    label="Visualize spots"
+    checked={retouchView.visualize}
+    onChange={retouchView.toggleVisualize}
+  />
 
   <div class="flex h-6 items-center text-[10px] font-medium text-dark/65">
-    {selected ? `Stroke ${selectedIndex + 1}` : 'Brush'}
+    {selected ? strokeTitle(selected.stroke.mode, selected.index) : 'Brush'}
   </div>
+  <RetouchSliders />
 
-  <SliderRow
-    label="Size"
-    value={size}
-    range={RETOUCH_SIZE}
-    onLive={(v: number) => live({ radius: v }, { size: v })}
-    onCommit={commit}
-    format={(v: number) => formatBrushSize(v, editor.meta)}
-  />
-  <SliderRow
-    label="Hardness"
-    value={hardness}
-    range={RETOUCH_HARDNESS}
-    onLive={(v: number) => live({ hardness: v }, { hardness: v })}
-    onCommit={commit}
-  />
-  <SliderRow
-    label="Opacity"
-    value={opacity}
-    range={RETOUCH_OPACITY}
-    onLive={(v: number) => live({ opacity: v }, { opacity: v })}
-    onCommit={commit}
-  />
+  <RetouchStrokeList />
 
-  {#if strokes.length > 0}
-    <div class="flex flex-col gap-0.5">
-      {#each strokes as stroke, i (stroke.id)}
-        <div
-          class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {editor.activeRetouchId ===
-          stroke.id
-            ? 'border-primary/25 bg-primary/10'
-            : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
-        >
-          <Icon
-            icon={stroke.mode === 'heal' ? mdiBandage : mdiStamper}
-            size="13px"
-            class="shrink-0 opacity-50"
-            aria-hidden="true"
-          />
-          <Button
-            size="tiny"
-            variant="ghost"
-            color="secondary"
-            class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark hover:bg-transparent {stroke.enabled
-              ? ''
-              : 'opacity-50'}"
-            aria-pressed={editor.activeRetouchId === stroke.id}
-            onclick={() => (editor.activeRetouchId = stroke.id)}
-          >
-            {label(stroke, i)}
-          </Button>
-          <IconButton
-            size="tiny"
-            variant="ghost"
-            color="secondary"
-            icon={stroke.enabled ? mdiEye : mdiEyeOff}
-            title={stroke.enabled ? 'Disable' : 'Enable'}
-            aria-label="Toggle retouch stroke"
-            onclick={(e: MouseEvent) => {
-              e.stopPropagation();
-              void editor.toggleRetouchStroke(stroke.id);
-            }}
-          />
-          <IconButton
-            size="tiny"
-            variant="ghost"
-            color="secondary"
-            icon={mdiClose}
-            title="Delete"
-            aria-label="Delete retouch stroke"
-            onclick={(e: MouseEvent) => {
-              e.stopPropagation();
-              void editor.removeRetouchStroke(stroke.id);
-            }}
-          />
-        </div>
-      {/each}
-    </div>
-    <Button
-      type="button"
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      fullWidth
-      class="h-6 panel-action"
-      leadingIcon={mdiRestore}
-      onclick={() => void editor.clearRetouch()}
-    >
-      Remove all
-    </Button>
-  {/if}
-
-  {#if strokes.length >= MAX_RETOUCH_STROKES}
-    <Notice color="warning" message={`Limit of ${MAX_RETOUCH_STROKES} retouch strokes reached.`} />
+  {#if editor.retouchFull}
+    <Notice color="warning" message={RETOUCH_LIMIT_TEXT} />
   {/if}
 </div>

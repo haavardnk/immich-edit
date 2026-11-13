@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { RETOUCH_SOURCE_HIT } from '#lib/editor/handles.ts';
+  import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { normalizedPoint } from '#lib/gestures/point.ts';
+  import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+  import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '#lib/types/edits.ts';
+  import { brushWheel } from '#lib/utils/brushSize.ts';
   import {
     displayUvToSceneUv,
     scenePerDisplayAt,
@@ -11,13 +17,10 @@
     viewTransform
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-  import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
-  import { brushWheel } from '#lib/utils/brushSize.ts';
-  import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
-  import { pointerDrag } from '#lib/gestures/drag.ts';
-  import { normalizedPoint } from '#lib/gestures/point.ts';
-  import { RETOUCH_SOURCE_HIT } from '#lib/editor/handles.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { v4 as uuidv4 } from 'uuid';
+  import { distToPolyline, type Px } from './retouchDraw';
+  import { drawRetouch } from './retouchScene';
 
   let {
     img
@@ -28,7 +31,7 @@
   const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let layerEl: HTMLCanvasElement | null = null;
-  let drawPts = $state<[number, number][]>([]);
+  let drawPts = $state<Px[]>([]);
   let drawing = $state(false);
   let dragSourceId = $state<string | null>(null);
   let dragStroke = $state<{
@@ -40,15 +43,17 @@
     moved: boolean;
   } | null>(null);
   let hoverMovable = $state(false);
-  let hover = $state<[number, number] | null>(null);
+  let hoverPaints = $state(false);
+  let hover = $state<Px | null>(null);
   let sampleKey = $state(false);
-  let strokeOffset: [number, number] | null = null;
+  let strokeOffset: Px | null = null;
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
   const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
   const sampleHeld = $derived(sampleKey || latched('sample'));
+  const picking = $derived(sampleHeld || !anchor || editor.retouchSampling);
   const canPick = $derived(!!anchor || sampleHeld || editor.retouchSampling);
 
   function minSide(): number {
@@ -58,25 +63,6 @@
   function displayRadius(sceneRadius: number, nx: number, ny: number): number {
     const j = scenePerDisplayAt(view, nx, ny);
     return (sceneRadius / j) * minSide();
-  }
-
-  function strokeDisplayPoints(s: RetouchStroke): [number, number][] {
-    return s.points.map((p) => sceneUvToDisplayUv(view, p.x, p.y));
-  }
-
-  function distToPolyline(pts: [number, number][], x: number, y: number): number {
-    let best = Infinity;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[i + 1] ?? a;
-      if (!a || !b) continue;
-      const dx = b[0] - a[0];
-      const dy = b[1] - a[1];
-      const len2 = dx * dx + dy * dy;
-      const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / len2)) : 0;
-      best = Math.min(best, Math.hypot(x - (a[0] + dx * t), y - (a[1] + dy * t)));
-    }
-    return best;
   }
 
   function hitSourceHandle(nx: number, ny: number): string | null {
@@ -93,16 +79,17 @@
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
       if (!s) continue;
-      const pts = strokeDisplayPoints(s).map(
-        ([x, y]) => [x * rect.w, y * rect.h] as [number, number]
-      );
+      const pts = s.points.map((p) => {
+        const [x, y] = sceneUvToDisplayUv(view, p.x, p.y);
+        return [x * rect.w, y * rect.h] as Px;
+      });
       const rPx = displayRadius(s.radius, nx, ny);
       if (distToPolyline(pts, nx * rect.w, ny * rect.h) <= rPx) return s;
     }
     return null;
   }
 
-  function normalise(e: PointerEvent): [number, number] {
+  function normalise(e: PointerEvent): Px {
     if (!canvasEl) return [0, 0];
     const p = normalizedPoint(e, canvasEl);
     return [p.x, p.y];
@@ -175,7 +162,10 @@
       editor.activeRetouchId = hit.id;
       return;
     }
-    if (editor.retouchFull) return;
+    if (editor.retouchFull) {
+      retouchView.flashLimit();
+      return;
+    }
     if (!anchor) {
       editor.markRetouchSourceMissing();
       return;
@@ -184,6 +174,13 @@
     strokeOffset = [anchor.x - start[0], anchor.y - start[1]];
     drawing = true;
     drawPts = [[nx, ny]];
+  }
+
+  function trackHover(nx: number, ny: number): void {
+    const handle = !!hitSourceHandle(nx, ny);
+    const hit = handle ? null : hitStroke(nx, ny);
+    hoverMovable = !!editor.activeRetouchId && hit?.id === editor.activeRetouchId;
+    hoverPaints = !handle && !hit;
   }
 
   function trackPointer(e: PointerEvent): void {
@@ -212,10 +209,7 @@
       return;
     }
     if (!drawing) {
-      hoverMovable =
-        !!editor.activeRetouchId &&
-        !hitSourceHandle(nx, ny) &&
-        hitStroke(nx, ny)?.id === editor.activeRetouchId;
+      trackHover(nx, ny);
       return;
     }
     if (drawPts.length >= MAX_RETOUCH_POINTS) return;
@@ -252,10 +246,6 @@
     end: endPointer
   });
 
-  function onPointerLeave(): void {
-    hover = null;
-  }
-
   function onWheel(e: WheelEvent): void {
     brushWheel(
       e,
@@ -263,86 +253,6 @@
       { size: RETOUCH_SIZE, hardness: RETOUCH_HARDNESS },
       editor.setRetouchTool
     );
-  }
-
-  function ring(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    r: number,
-    colour: string,
-    dashed: boolean,
-    alpha: number
-  ): void {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.setLineDash(dashed ? [4, 3] : []);
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, Math.max(1, r), 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function tracePath(ctx: CanvasRenderingContext2D, pts: [number, number][], rPx: number): void {
-    const r = Math.max(0.5, rPx);
-    const head = pts[0];
-    if (!head) return;
-    if (pts.length === 1) {
-      ctx.beginPath();
-      ctx.arc(head[0], head[1], r, 0, Math.PI * 2);
-      ctx.fill();
-      return;
-    }
-    ctx.lineWidth = r * 2;
-    ctx.beginPath();
-    ctx.moveTo(head[0], head[1]);
-    for (const p of pts.slice(1)) ctx.lineTo(p[0], p[1]);
-    ctx.stroke();
-  }
-
-  function paintPath(
-    ctx: CanvasRenderingContext2D,
-    pts: [number, number][],
-    rPx: number,
-    fill: string,
-    fillAlpha: number,
-    line: string,
-    lineAlpha: number
-  ): void {
-    const w = ctx.canvas.width;
-    const h = ctx.canvas.height;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.globalAlpha = fillAlpha;
-    ctx.fillStyle = fill;
-    ctx.strokeStyle = fill;
-    tracePath(ctx, pts, rPx);
-    ctx.restore();
-
-    if (!layerEl) layerEl = document.createElement('canvas');
-    if (layerEl.width !== w) layerEl.width = w;
-    if (layerEl.height !== h) layerEl.height = h;
-    const lc = layerEl.getContext('2d');
-    if (!lc) return;
-    lc.clearRect(0, 0, w, h);
-    lc.lineCap = 'round';
-    lc.lineJoin = 'round';
-    lc.fillStyle = line;
-    lc.strokeStyle = line;
-    tracePath(lc, pts, rPx + 0.75);
-    lc.globalCompositeOperation = 'destination-out';
-    lc.fillStyle = line;
-    lc.strokeStyle = line;
-    tracePath(lc, pts, rPx - 0.75);
-    lc.globalCompositeOperation = 'source-over';
-
-    ctx.save();
-    ctx.globalAlpha = lineAlpha;
-    ctx.drawImage(layerEl, 0, 0);
-    ctx.restore();
   }
 
   function draw(): void {
@@ -353,117 +263,40 @@
     if (canvasEl.height !== h) canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
-    ctx.clearRect(0, 0, w, h);
+    layerEl ??= document.createElement('canvas');
     const styles = getComputedStyle(canvasEl);
-    const activeColour = styles.getPropertyValue('--color-retouch-active').trim();
-    const sourceColour = styles.getPropertyValue('--color-retouch-source').trim();
-    const lightColour = styles.getPropertyValue('--color-image-light').trim();
-
-    for (const s of strokes) {
-      if (!s.enabled) continue;
-      const pts = strokeDisplayPoints(s).map(([x, y]) => [x * w, y * h] as [number, number]);
-      const head = pts[0];
-      if (!head) continue;
-      const active = s.id === editor.activeRetouchId;
-      const rPx = displayRadius(s.radius, head[0] / w, head[1] / h);
-      paintPath(
-        ctx,
-        pts,
-        rPx,
-        active ? activeColour : lightColour,
-        active ? 0.2 : 0.05,
-        active ? activeColour : lightColour,
-        active ? 0.9 : 0.45
-      );
-      if (!active) continue;
-      const [sxN, syN] = sceneUvToDisplayUv(view, s.source.x, s.source.y);
-      const sx = sxN * w;
-      const sy = syN * h;
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = activeColour;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(head[0], head[1]);
-      ctx.lineTo(sx, sy);
-      ctx.stroke();
-      ctx.restore();
-      ring(ctx, sx, sy, rPx, sourceColour, true, 0.95);
-    }
-
-    if (anchor && !drawing) {
-      const [axN, ayN] = sceneUvToDisplayUv(view, anchor.x, anchor.y);
-      const rPx = displayRadius(editor.retouchTool.size, axN, ayN);
-      ring(ctx, axN * w, ayN * h, rPx, sourceColour, true, 0.95);
-      crosshair(ctx, axN * w, ayN * h, sourceColour, 0.95);
-    }
-
-    if (drawing && drawPts.length > 0) {
-      const first = drawPts[0];
-      const last = drawPts[drawPts.length - 1];
-      if (!first || !last) return;
-      const pts = drawPts.map(([x, y]) => [x * w, y * h] as [number, number]);
-      const rPx = displayRadius(editor.retouchTool.size, first[0], first[1]);
-      paintPath(ctx, pts, rPx, activeColour, 0.25, activeColour, 0.9);
-      if (strokeOffset) {
-        const sc = displayUvToSceneUv(view, last[0], last[1]);
-        const [sxN, syN] = sceneUvToDisplayUv(
-          view,
-          sc[0] + strokeOffset[0],
-          sc[1] + strokeOffset[1]
-        );
-        ring(ctx, sxN * w, syN * h, rPx, sourceColour, true, 0.95);
-        crosshair(ctx, sxN * w, syN * h, sourceColour, 0.95);
-      }
-      return;
-    }
-
-    if (!hover) return;
-    const rPx = displayRadius(editor.retouchTool.size, hover[0], hover[1]);
-    const picking = sampleHeld || !anchor || editor.retouchSampling;
-    ring(
-      ctx,
-      hover[0] * w,
-      hover[1] * h,
-      rPx,
-      picking ? sourceColour : lightColour,
+    drawRetouch(ctx, layerEl, {
+      view,
+      strokes,
+      activeId: editor.activeRetouchId,
+      anchor,
+      toolSize: editor.retouchTool.size,
+      drawPts: drawing ? drawPts : [],
+      strokeOffset,
+      hover,
       picking,
-      picking ? 0.9 : 0.8
-    );
-    if (picking) crosshair(ctx, hover[0] * w, hover[1] * h, sourceColour, 0.9);
-  }
-
-  function crosshair(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    colour: string,
-    alpha: number
-  ): void {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - 5, y);
-    ctx.lineTo(x + 5, y);
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x, y + 5);
-    ctx.stroke();
-    ctx.restore();
+      ghost: hoverPaints && !editor.retouchFull,
+      colours: {
+        active: styles.getPropertyValue('--color-retouch-active').trim(),
+        source: styles.getPropertyValue('--color-retouch-source').trim(),
+        light: styles.getPropertyValue('--color-image-light').trim()
+      },
+      radius: displayRadius
+    });
   }
 
   $effect(() => {
     void strokes;
     void drawPts;
     void hover;
-    void sampleHeld;
+    void hoverPaints;
+    void picking;
     void anchor;
     void view;
     void rect.w;
     void rect.h;
     void editor.activeRetouchId;
-    void editor.retouchSampling;
+    void editor.retouchFull;
     void editor.retouchTool.size;
     draw();
   });
@@ -482,7 +315,7 @@
           ? 'crosshair'
           : 'not-allowed'};"
     {...pointer.on()}
-    onpointerleave={onPointerLeave}
+    onpointerleave={() => (hover = null)}
     onwheel={onWheel}
   ></canvas>
 {/if}
