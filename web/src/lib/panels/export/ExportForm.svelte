@@ -29,6 +29,7 @@
     folded = false,
     presetMenu = true,
     destinations,
+    onWatermarkPick,
     downloadLabel,
     fileNotice
   }: {
@@ -38,6 +39,7 @@
     folded?: boolean;
     presetMenu?: boolean;
     destinations?: Snippet;
+    onWatermarkPick?: () => void;
     downloadLabel?: string;
     fileNotice?: Snippet;
   } = $props();
@@ -74,7 +76,7 @@
   summary={watermarkSummary(form, watermarkLibrary.nameOf(form.watermarkId))}
   {folded}
 >
-  <WatermarkOptions bind:form={exportSettings.form} />
+  <WatermarkOptions bind:form={exportSettings.form} onpick={onWatermarkPick} />
 </ExportSection>
 
 <ExportSection title="Name" summary={nameSummary(form)} mono {folded}>

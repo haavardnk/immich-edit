@@ -345,13 +345,14 @@ test('a download carries the chosen watermark', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   const exportButton = page.getByRole('button', { name: /Export JPEG/ });
-  const picker = page
-    .getByRole('region', { name: 'Watermark' })
-    .getByRole('combobox', { name: 'Image', exact: true });
+  const tiles = page.getByRole('radiogroup', { name: 'Watermark' });
 
-  await picker.click();
-  await page.getByRole('option', { name: 'Signature' }).click();
+  await expect(tiles.getByRole('radio', { name: 'None' })).toBeChecked();
+  await expect(page.getByTestId('watermark-preview')).toHaveCount(0);
+  await tiles.getByRole('radio', { name: 'Signature' }).click();
+  await expect(page.getByTestId('watermark-preview')).toBeVisible();
   await page.getByRole('slider', { name: 'Watermark opacity' }).fill('50');
+  await expect(page.getByTestId('watermark-preview')).toHaveCSS('opacity', '0.5');
   const topLeft = page.getByRole('button', { name: 'Top left' });
   await topLeft.click();
   await expect(topLeft).toHaveAttribute('aria-pressed', 'true');
@@ -369,6 +370,7 @@ test('a download carries the chosen watermark', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Watermark/ })).toContainText(
     'Signature · 20% · Top left'
   );
+  await expect(page.getByTestId('watermark-preview')).toHaveCount(0);
 
   await unfold(page, 'Watermark');
   await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
@@ -376,22 +378,11 @@ test('a download carries the chosen watermark', async ({ page }) => {
     mimeType: 'image/png',
     buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
   });
-  await expect(picker).toContainText('logo');
+  await expect(tiles.getByRole('radio', { name: 'logo' })).toBeChecked();
   await page.getByRole('button', { name: 'Delete watermark', exact: true }).click();
-  const region = page.getByRole('region', { name: 'Watermark' });
-  const rowButtons = region.locator('.panel-row').first().getByRole('button');
-  const boxes = await Promise.all(
-    [region.getByText('Image', { exact: true }), picker, ...(await rowButtons.all())].map(
-      (locator) => locator.boundingBox()
-    )
-  );
-  const edges = boxes.map((box) => {
-    if (!box) throw new Error('watermark row is not laid out');
-    return [box.x, box.x + box.width] as const;
-  });
-  expect(edges.length).toBe(4);
-  expect(edges.slice(1).every(([start], i) => start >= (edges[i]?.[1] ?? Infinity))).toBe(true);
   await page.getByRole('button', { name: 'Confirm delete watermark' }).click();
+  await expect(tiles.getByRole('radio', { name: 'None' })).toBeChecked();
+  await expect(tiles.getByRole('radio', { name: 'logo' })).toHaveCount(0);
   await expect(page.getByRole('slider', { name: 'Watermark size' })).toBeHidden();
   await exportButton.click();
   await expect.poll(() => sent.length).toBe(2);
@@ -548,4 +539,35 @@ test('a rendered file shares through the device share sheet', async ({ page }) =
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { shared: string[] }).shared))
     .toEqual(['IMG_0001_edit.jpg']);
+});
+
+test('a rejected watermark import shows its file and reason until dismissed', async ({ page }) => {
+  await installMocks(page);
+  await page.route('**/api/watermarks?name=*', (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'invalid_watermark',
+        message: 'unsupported: watermark is 6000x2000; the longest side may be at most 4096 px'
+      })
+    })
+  );
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
+    name: 'studio-banner.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+  });
+  const error = page.getByRole('alert').filter({ hasText: 'studio-banner.png' });
+  await expect(error).toContainText(
+    'Invalid watermark: unsupported: watermark is 6000x2000; the longest side may be at most 4096 px'
+  );
+  await expect(
+    page.getByRole('radiogroup', { name: 'Watermark' }).getByRole('radio', { name: 'None' })
+  ).toBeChecked();
+  await error.getByRole('button', { name: 'Dismiss watermark error' }).click();
+  await expect(error).toBeHidden();
 });

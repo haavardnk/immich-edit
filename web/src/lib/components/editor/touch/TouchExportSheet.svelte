@@ -1,25 +1,29 @@
 <script lang="ts">
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import DestinationToggle from '#lib/panels/export/DestinationToggle.svelte';
-  import ExportedFileActions from '#lib/panels/export/ExportedFileActions.svelte';
-  import ExportedFileDetails from '#lib/panels/export/ExportedFileDetails.svelte';
-  import ExportForm from '#lib/panels/export/ExportForm.svelte';
-  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
-  import ExportResult from '#lib/panels/export/ExportResult.svelte';
-  import ExportWarnings from '#lib/panels/export/ExportWarnings.svelte';
-  import ProofMismatchNotice from '#lib/panels/export/ProofMismatchNotice.svelte';
-  import SaveAutomatically from '#lib/panels/export/SaveAutomatically.svelte';
   import { EditorExporter } from '#lib/panels/export/editorExport.svelte.ts';
   import { renderTime } from '#lib/panels/export/exportedFile.ts';
+  import ExportedFileActions from '#lib/panels/export/ExportedFileActions.svelte';
+  import ExportedFileCard from '#lib/panels/export/ExportedFileCard.svelte';
+  import ExportFormStack from '#lib/panels/export/ExportFormStack.svelte';
+  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
   import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
   import { shareSupport } from '#lib/panels/export/shareFile.ts';
   import { outputSummary } from '#lib/panels/export/summary.ts';
   import { Button, Icon } from '@immich/ui';
-  import { mdiCellphone, mdiCheckCircle, mdiCloudOutline, mdiTuneVariant } from '@mdi/js';
+  import {
+    mdiCellphone,
+    mdiCheckCircle,
+    mdiCloudOutline,
+    mdiFileCheckOutline,
+    mdiTuneVariant
+  } from '@mdi/js';
 
   let { open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void } = $props();
 
   const exporter = new EditorExporter();
+
+  let detent = $state(1);
 
   let editing = $derived.by(() => {
     void exporter.file;
@@ -35,10 +39,6 @@
     return shareSupport(file).shareable ? 'Ready to share' : 'Ready to save';
   });
 </script>
-
-{#snippet proofNotice()}
-  <ProofMismatchNotice />
-{/snippet}
 
 {#snippet destinations()}
   <DestinationToggle
@@ -56,7 +56,9 @@
   title="Export"
   close="icon"
   closeLabel="Close export"
-  detents={ready ? ['content'] : [{ fraction: 1 }]}
+  detents={ready ? ['content'] : [{ fraction: 0.55 }, { fraction: 1 }]}
+  bind:detent
+  scrim={!ready && detent === 0 ? 'light' : 'dim'}
   bodyClass="px-3 py-2"
 >
   {#snippet header()}
@@ -73,6 +75,19 @@
         Settings
       </Button>
     {:else}
+      {#if exporter.file}
+        <Button
+          size="small"
+          variant="ghost"
+          color="secondary"
+          shape="round"
+          leadingIcon={mdiFileCheckOutline}
+          class="min-h-11"
+          onclick={() => (editing = false)}
+        >
+          File
+        </Button>
+      {/if}
       <ExportPresetMenu />
     {/if}
   {/snippet}
@@ -84,27 +99,16 @@
         <span class="font-medium text-light-950">{status}</span>
         <span class="ms-auto text-xs text-dark/65">{renderTime(exporter.file.renderMs)}</span>
       </div>
-      <div
-        role="group"
-        aria-label="Exported file"
-        class="rounded-xl border border-hairline bg-ghost p-3"
-      >
-        <ExportedFileDetails file={exporter.file} />
-      </div>
-      <ExportWarnings warnings={exporter.file.warnings} />
+      <ExportedFileCard file={exporter.file} />
     </div>
   {:else}
     <div class="flex flex-col gap-1">
-      <ExportForm
-        scope={exporter.scope}
-        crop={exporter.crop}
+      <ExportFormStack
+        {exporter}
         presetMenu={false}
         {destinations}
-        bind:replaceOriginal={exporter.replaceOriginal}
-        fileNotice={proofNotice}
+        onWatermarkPick={() => (detent = 0)}
       />
-      <ExportResult result={exporter.result} busy={exporter.busy} onRetry={exporter.retry} />
-      <SaveAutomatically />
     </div>
   {/if}
 

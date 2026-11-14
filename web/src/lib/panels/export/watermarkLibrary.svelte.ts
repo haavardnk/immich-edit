@@ -4,12 +4,13 @@ import { toasts } from '#lib/stores/toasts.svelte.ts';
 class WatermarkLibrary {
   items = $state<WatermarkMeta[]>([]);
 
-  async load(): Promise<void> {
+  async load(): Promise<boolean> {
     try {
       this.items = await listWatermarks();
+      return true;
     } catch (e) {
-      this.items = [];
       toasts.fail('watermarks', e);
+      return false;
     }
   }
 

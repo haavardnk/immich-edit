@@ -11,12 +11,14 @@
     folded = false,
     presetMenu = true,
     destinations,
+    onWatermarkPick,
     children
   }: {
     exporter: EditorExporter;
     folded?: boolean;
     presetMenu?: boolean;
     destinations?: Snippet;
+    onWatermarkPick?: () => void;
     children?: Snippet;
   } = $props();
 </script>
@@ -31,6 +33,7 @@
   {folded}
   {presetMenu}
   {destinations}
+  {onWatermarkPick}
   bind:replaceOriginal={exporter.replaceOriginal}
   fileNotice={proofNotice}
 />
