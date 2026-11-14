@@ -54,7 +54,20 @@ describe('preset export', () => {
       ['Print', 'tiff', '{name}_print']
     ]);
     expect(immich).toHaveLength(1);
-    expect(immich[0]?.options).toMatchObject({ albumIds: ['al'], replaceOriginal: false });
+    expect(immich[0]?.options).toMatchObject({
+      albumIds: ['al'],
+      replaceOriginal: false,
+      onConflict: 'keep_both'
+    });
+  });
+
+  it('applies the earlier-export choice to every Immich preset', () => {
+    const { immich } = presetVariants(
+      [preset('Family', 'immich'), preset('Share', 'immich')],
+      SCOPE,
+      'skip'
+    );
+    expect(immich.map((v) => v.options.onConflict)).toEqual(['skip', 'skip']);
   });
 
   it('queues one job per destination and downloads the ZIP when done', async () => {

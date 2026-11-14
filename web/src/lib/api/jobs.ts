@@ -8,6 +8,7 @@ import {
   type ExportOptions,
   type FinishParams,
   type ImmichExportOptions,
+  type OnConflict,
   type PngCompressionOpt,
   type StackPrimary,
   type TiffCompressionOpt
@@ -50,6 +51,8 @@ export interface Job {
 export interface JobItemResult {
   filename?: string;
   preset?: string;
+  status?: string;
+  replaced_asset_id?: string;
   warnings?: string[];
   original_trashed?: boolean;
 }
@@ -91,6 +94,12 @@ export function jobVariants(job: Job): JobVariant[] {
     preset: typeof variant.preset === 'string' ? variant.preset : '',
     params: isRecord(variant.params) ? variant.params : {}
   }));
+}
+
+export function jobParamSets(job: Job): Record<string, unknown>[] {
+  const variants = jobVariants(job);
+  if (variants.length > 0) return variants.map((variant) => variant.params);
+  return isRecord(job.params) ? [job.params] : [];
 }
 
 export function isJobActive(status: JobStatus): boolean {
@@ -166,6 +175,7 @@ interface ImmichJobParams extends ExportJobParams {
   stack_with_original: boolean;
   stack_primary: StackPrimary;
   replace_original: boolean;
+  on_conflict: OnConflict;
 }
 
 function immichParams(opts: ImmichExportOptions): ImmichJobParams {
@@ -176,7 +186,8 @@ function immichParams(opts: ImmichExportOptions): ImmichJobParams {
     favorite: opts.favorite,
     stack_with_original: opts.stackWithOriginal,
     stack_primary: opts.stackPrimary,
-    replace_original: opts.replaceOriginal
+    replace_original: opts.replaceOriginal,
+    on_conflict: opts.onConflict
   };
 }
 

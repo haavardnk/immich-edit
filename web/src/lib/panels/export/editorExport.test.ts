@@ -168,11 +168,33 @@ describe('EditorExporter upload', () => {
     const exporter = new EditorExporter();
     exporter.replaceOriginal = true;
 
+    vi.spyOn(exporter.earlier, 'take').mockReturnValue('replace');
+
     exporter.uploadFile();
     expect(upload).toHaveBeenCalledWith({
-      ...uploadOptions(exportSettings.form, exporter.scope, false),
+      ...uploadOptions(exportSettings.form, exporter.scope, false, 'replace'),
       ...options
     });
+  });
+
+  it('asks about earlier exports of this photo only for Immich', () => {
+    const exporter = new EditorExporter();
+    expect(exporter.earlierQuery).toEqual({ assetIds: ['a1'], presets: [] });
+    exportSettings.destination = 'download';
+    expect(exporter.earlierQuery).toBeNull();
+  });
+
+  it('sends the earlier-export choice and looks again after the upload', async () => {
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(true);
+    const exporter = new EditorExporter();
+    vi.spyOn(exporter.earlier, 'take').mockReturnValue('replace');
+    const refresh = vi.spyOn(exporter.earlier, 'refresh');
+
+    exporter.start();
+    expect(upload).toHaveBeenCalledWith(
+      uploadOptions(exportSettings.form, exporter.scope, false, 'replace')
+    );
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   });
 
   it('returns to the grid after a successful retry', async () => {
@@ -223,12 +245,37 @@ describe('EditorExporter presets', () => {
     const exporter = new EditorExporter();
     exporter.presets.toggle('web', true);
     exporter.presets.toggle('print', true);
+    vi.spyOn(exporter.earlierPresets, 'take').mockReturnValue('replace');
 
     await expect(exporter.exportPresets()).resolves.toBe(true);
-    expect(mocks.submitPresetExport).toHaveBeenCalledWith(['a1'], [web, print], exporter.scope);
+    expect(mocks.submitPresetExport).toHaveBeenCalledWith(
+      ['a1'],
+      [web, print],
+      exporter.scope,
+      'replace'
+    );
     expect(mocks.showJob).toHaveBeenCalledWith('job-1');
     expect(exporter.presets.picked).toEqual([]);
     expect(exporter.exportingPresets).toBe(false);
+  });
+
+  it('uploads one ticked Immich preset under its name with the earlier-export choice', async () => {
+    const share = { ...web, id: 'share', name: 'Share', destination: 'immich' as const };
+    exportPresets.presets = [web, share];
+    exportSettings.destination = 'download';
+    immichCapabilities.trash = true;
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(false);
+    const exporter = new EditorExporter();
+    exporter.presets.toggle('share', true);
+    expect(exporter.presetQuery).toEqual({ assetIds: ['a1'], presets: ['Share'] });
+    vi.spyOn(exporter.earlierPresets, 'take').mockReturnValue('replace');
+
+    await expect(exporter.exportPresets()).resolves.toBe(true);
+    expect(upload).toHaveBeenCalledWith({
+      ...uploadOptions(exportSettings.form, exporter.scope, false, 'replace'),
+      preset: 'Share'
+    });
+    expect(exporter.presetQuery).toBeNull();
   });
 
   it('refuses several presets while the edits are not saved', async () => {

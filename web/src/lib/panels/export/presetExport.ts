@@ -1,5 +1,5 @@
 import { runBulkJob } from '#lib/api/bulkJob.ts';
-import type { ExportOptions, ImmichExportOptions } from '#lib/api/export.ts';
+import type { ExportOptions, ImmichExportOptions, OnConflict } from '#lib/api/export.ts';
 import type { ExportPreset } from '#lib/api/exportPresets.ts';
 import {
   createImmichPresetsJob,
@@ -33,7 +33,8 @@ export function presetForm(preset: ExportPreset): ExportFormValues {
 
 export function presetVariants(
   presets: readonly ExportPreset[],
-  scope: ExportScope
+  scope: ExportScope,
+  onConflict: OnConflict = 'keep_both'
 ): { zip: PresetVariant<ExportOptions>[]; immich: PresetVariant<ImmichExportOptions>[] } {
   return {
     zip: presets
@@ -43,7 +44,7 @@ export function presetVariants(
       .filter((preset) => preset.destination === 'immich')
       .map((preset) => ({
         preset: preset.name,
-        options: uploadOptions(presetForm(preset), scope, false)
+        options: uploadOptions(presetForm(preset), scope, false, onConflict)
       }))
   };
 }
@@ -56,9 +57,10 @@ export interface StartedExport {
 export async function submitPresetExport(
   assetIds: string[],
   presets: readonly ExportPreset[],
-  scope: ExportScope
+  scope: ExportScope,
+  onConflict: OnConflict = 'keep_both'
 ): Promise<StartedExport[]> {
-  const { zip, immich } = presetVariants(presets, scope);
+  const { zip, immich } = presetVariants(presets, scope, onConflict);
   const started: StartedExport[] = [];
   if (zip.length > 0) {
     const job = await runBulkJob(

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Notice from '#lib/components/Notice.svelte';
+  import EarlierExport from '#lib/panels/export/EarlierExport.svelte';
   import ExportForm from '#lib/panels/export/ExportForm.svelte';
   import ExportPresetList from '#lib/panels/export/ExportPresetList.svelte';
   import ExportSection from '#lib/panels/export/ExportSection.svelte';
@@ -58,6 +59,12 @@
       {folded}
     />
   {/if}
+
+  <EarlierExport
+    earlier={exporter.earlier}
+    query={exporter.earlierQuery}
+    replaceReason={exporter.scope.conflictReason}
+  />
 
   {#if exporter.zipNotice}
     <Notice

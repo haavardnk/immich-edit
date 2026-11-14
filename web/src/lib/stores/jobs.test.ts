@@ -208,6 +208,29 @@ describe('tracked jobs', () => {
     );
   });
 
+  it('takes earlier exports a preset job replaced out of the grid', async () => {
+    const replace = job({
+      id: 'job-presets',
+      kind: 'export_immich',
+      params: { variants: [{ preset: 'Web', params: { on_conflict: 'replace' } }] }
+    });
+    mockedGetJob.mockResolvedValue({
+      job: replace,
+      items: [
+        { asset_id: 'a', result: { replaced_asset_id: 'old-a' } } as JobItem,
+        { asset_id: 'b', result: { status: 'skipped' } } as JobItem
+      ]
+    });
+    vi.mocked(trash.removeTrashed).mockClear();
+    jobs.track(replace);
+    jobs.receive({ ...replace, status: 'completed', completed: 2 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(trash.removeTrashed).toHaveBeenCalledWith(
+      ['old-a'],
+      'Moved 1 earlier export to the Immich trash'
+    );
+  });
+
   it('takes trashed originals out of the grid when the drawer poll sees the end', async () => {
     const replace = job({ kind: 'export_immich', params: { replace_original: true } });
     const done = { ...replace, status: 'completed' as const, completed: 1 };

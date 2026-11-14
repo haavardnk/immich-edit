@@ -8,9 +8,9 @@
     templateError,
     type NameContext
   } from '#lib/editor/filenameTemplate.ts';
-  import { Button, Icon } from '@immich/ui';
-  import { mdiImageOutline } from '@mdi/js';
+  import { Button } from '@immich/ui';
   import { tick } from 'svelte';
+  import FilenamePreview from './FilenamePreview.svelte';
 
   let {
     value = $bindable(),
@@ -95,12 +95,6 @@
       {error}
     </p>
   {:else if preview}
-    <p
-      id="{id}-result"
-      class="flex items-center gap-2 rounded-lg bg-ghost px-2.5 py-1.5 text-xs leading-snug"
-    >
-      <Icon icon={mdiImageOutline} size="1.1em" class="shrink-0 text-dark/60" aria-hidden="true" />
-      <span class="min-w-0 font-mono break-all text-dark">{preview}</span>
-    </p>
+    <FilenamePreview id="{id}-result" name={preview} />
   {/if}
 </div>

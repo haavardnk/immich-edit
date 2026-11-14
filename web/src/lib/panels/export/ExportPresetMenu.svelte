@@ -3,6 +3,8 @@
   import { countOf } from '#lib/utils/plural.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiLayersTripleOutline, mdiMenuDown } from '@mdi/js';
+  import EarlierExport from './EarlierExport.svelte';
+  import type { EarlierExports, EarlierQuery } from './earlierExports.svelte';
   import ExportPresetList from './ExportPresetList.svelte';
   import { exportPresets } from './exportPresets.svelte';
   import type { PresetSelection } from './presetSelection.svelte';
@@ -10,11 +12,17 @@
   let {
     selection,
     busy,
-    onExport
+    onExport,
+    earlier,
+    earlierQuery = null,
+    replaceReason = null
   }: {
     selection: PresetSelection;
     busy: boolean;
     onExport: () => Promise<boolean>;
+    earlier?: EarlierExports;
+    earlierQuery?: EarlierQuery | null;
+    replaceReason?: string | null;
   } = $props();
 
   let open = $state(false);
@@ -60,6 +68,11 @@
       open = false;
     }}
   />
+  {#if earlier && earlierQuery}
+    <div class="px-3 pb-2 touch:px-4">
+      <EarlierExport {earlier} query={earlierQuery} {replaceReason} />
+    </div>
+  {/if}
   {#if selection.picked.length > 0}
     <div
       class="sticky bottom-0 flex items-center gap-2 border-t border-dark/10 bg-light-100 px-3 py-2 touch:px-4 touch:py-3"

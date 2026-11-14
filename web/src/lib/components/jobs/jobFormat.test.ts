@@ -6,6 +6,7 @@ import {
   jobKindLabel,
   jobKindVerb,
   jobItemPreset,
+  jobItemState,
   jobOutcome,
   jobProgress,
   jobsEtaText,
@@ -136,5 +137,14 @@ describe('jobFormat', () => {
     expect(jobItemPreset(variants, item)).toBe('Print');
     expect(jobItemPreset(variants, { ...item, result: { preset: 'Print 2' } })).toBe('Print 2');
     expect(jobItemPreset(job({}), { ...item, variant: 0 })).toBeNull();
+  });
+
+  it('tells skipped and updated uploads apart from plain ones', () => {
+    const done = { status: 'completed', result: { filename: 'a.jpg' } } as JobItem;
+    expect(jobItemState(done)).toBe('completed');
+    expect(jobItemState({ ...done, result: { status: 'skipped' } })).toBe('skipped');
+    expect(jobItemState({ ...done, result: { status: 'duplicate' } })).toBe('duplicate');
+    expect(jobItemState({ ...done, result: { replaced_asset_id: 'old' } })).toBe('replaced');
+    expect(jobItemState({ ...done, status: 'failed' })).toBe('failed');
   });
 });

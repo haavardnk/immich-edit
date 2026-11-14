@@ -2,7 +2,11 @@ import { library } from '#lib/stores/library.svelte.ts';
 import { listAlbums } from '#lib/api/albums.ts';
 import { listTags } from '#lib/api/tags.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import { DEFAULT_FILENAME_TEMPLATE, templateError } from '#lib/editor/filenameTemplate.ts';
+import {
+  DEFAULT_FILENAME_TEMPLATE,
+  ORIGINAL_FILENAME_TEMPLATE,
+  templateError
+} from '#lib/editor/filenameTemplate.ts';
 import {
   DEFAULT_RESIZE_BOX,
   DEFAULT_RESIZE_MEGAPIXELS,
@@ -33,6 +37,7 @@ import type {
   ExportMetadata,
   ExportOptions,
   ImmichExportOptions,
+  OnConflict,
   PngCompressionOpt,
   StackPrimary,
   TiffCompressionOpt
@@ -72,7 +77,7 @@ export interface ExportFormValues {
   watermarkInset: number;
 }
 
-interface Option<T extends string> {
+export interface Option<T extends string> {
   value: T;
   label: string;
 }
@@ -380,17 +385,27 @@ export function immichOptions(
   f: ExportFormValues,
   {
     stackable = true,
-    replaceOriginal = false
-  }: { stackable?: boolean; replaceOriginal?: boolean } = {}
+    replaceOriginal = false,
+    onConflict = 'keep_both',
+    replaceExports = true
+  }: {
+    stackable?: boolean;
+    replaceOriginal?: boolean;
+    onConflict?: OnConflict;
+    replaceExports?: boolean;
+  } = {}
 ): ImmichExportOptions {
+  const base = baseOptions(f);
   return {
-    ...baseOptions(f),
+    ...base,
+    filenameTemplate: replaceOriginal ? ORIGINAL_FILENAME_TEMPLATE : base.filenameTemplate,
     albumIds: f.albumIds,
     tagIds: f.tagIds,
     favorite: f.favorite,
     stackWithOriginal: stackable && !replaceOriginal && f.stackWithOriginal,
     stackPrimary: f.stackPrimary,
-    replaceOriginal
+    replaceOriginal,
+    onConflict: onConflict === 'replace' && !replaceExports ? 'keep_both' : onConflict
   };
 }
 

@@ -29,7 +29,8 @@ const immich: ImmichExportOptions = {
   favorite: false,
   stackWithOriginal: false,
   stackPrimary: 'edited',
-  replaceOriginal: false
+  replaceOriginal: false,
+  onConflict: 'keep_both'
 };
 
 function stubFetch(): { body: () => Record<string, unknown> } {
@@ -80,6 +81,12 @@ describe('export jobs', () => {
     await createImmichExportJob(['a'], { ...immich, replaceOriginal: true });
     const params = req.body().params as Record<string, unknown>;
     expect(params).toMatchObject({ replace_original: true, stack_with_original: false });
+  });
+
+  it('sends the upload conflict policy', async () => {
+    const req = stubFetch();
+    await createImmichExportJob(['a'], { ...immich, onConflict: 'skip' });
+    expect(req.body().params).toMatchObject({ on_conflict: 'skip' });
   });
 
   it('sends concrete asset ids', async () => {

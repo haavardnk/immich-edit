@@ -109,6 +109,21 @@ describe('submitBulkExport', () => {
     );
     expect(mocks.downloadWhenDone).not.toHaveBeenCalled();
   });
+
+  it('queues an Immich export with the earlier-export choice', async () => {
+    const form = exportSettings.form;
+    await submitBulkExport({
+      form,
+      destination: 'immich',
+      scope: OPEN_SCOPE,
+      replaceOriginal: false,
+      onConflict: 'skip'
+    });
+    expect(mocks.createImmichExportJob).toHaveBeenCalledWith(
+      ['a', 'b'],
+      uploadOptions(form, OPEN_SCOPE, false, 'skip')
+    );
+  });
 });
 
 describe('BulkExporter', () => {
@@ -130,6 +145,32 @@ describe('BulkExporter', () => {
     exportSettings.destination = 'immich';
     expect(exporter.label).toBe('Export 2 to Immich');
     expect(exporter.icon).toBe(mdiCloudUpload);
+  });
+
+  it('asks about earlier uploads of the selection or its Immich presets', () => {
+    exportPresets.presets = [preset('web', 'download'), preset('family', 'immich')];
+    const exporter = new BulkExporter(() => {});
+    expect(exporter.earlierQuery).toBeNull();
+    selection.replace(['a', 'b']);
+    expect(exporter.earlierQuery).toBeNull();
+    exportSettings.destination = 'immich';
+    expect(exporter.earlierQuery).toEqual({ assetIds: ['a', 'b'], presets: [] });
+    exporter.presets.toggle('web', true);
+    expect(exporter.earlierQuery).toBeNull();
+    exporter.presets.toggle('family', true);
+    expect(exporter.earlierQuery).toEqual({ assetIds: ['a', 'b'], presets: ['family'] });
+  });
+
+  it('sends the earlier-export choice with the form', async () => {
+    selection.replace(['a', 'b']);
+    exportSettings.destination = 'immich';
+    const exporter = new BulkExporter(() => {});
+    vi.spyOn(exporter.earlier, 'take').mockReturnValue('skip');
+    await exporter.submit();
+    expect(mocks.createImmichExportJob).toHaveBeenCalledWith(
+      ['a', 'b'],
+      expect.objectContaining({ onConflict: 'skip' })
+    );
   });
 
   it('submits once, passes replace original and resets it', async () => {
@@ -228,7 +269,8 @@ describe('BulkExporter', () => {
     expect(mocks.submitPresetExport).toHaveBeenCalledWith(
       ['a', 'b'],
       exportPresets.presets,
-      exporter.scope
+      exporter.scope,
+      'keep_both'
     );
     expect(mocks.runBulkJob).not.toHaveBeenCalled();
     expect(started).toHaveBeenCalledOnce();

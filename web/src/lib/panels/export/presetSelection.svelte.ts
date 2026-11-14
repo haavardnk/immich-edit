@@ -12,6 +12,10 @@ export class PresetSelection {
     exportPresets.presets.filter((preset) => this.ids.has(preset.id))
   );
 
+  readonly immichNames = $derived(
+    this.picked.filter((preset) => preset.destination === 'immich').map((preset) => preset.name)
+  );
+
   readonly jobCount = $derived(new Set(this.picked.map((preset) => preset.destination)).size);
 
   readonly tooMany = $derived(

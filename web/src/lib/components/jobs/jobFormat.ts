@@ -34,6 +34,15 @@ export function jobItemPreset(job: Job, item: JobItem): string | null {
   return item.result?.preset ?? (jobVariants(job)[item.variant]?.preset || null);
 }
 
+export type JobItemState = JobItem['status'] | 'skipped' | 'duplicate' | 'replaced';
+
+export function jobItemState(item: JobItem): JobItemState {
+  if (item.status !== 'completed') return item.status;
+  const status = item.result?.status;
+  if (status === 'skipped' || status === 'duplicate') return status;
+  return item.result?.replaced_asset_id ? 'replaced' : 'completed';
+}
+
 export function jobOutcome(job: Job): string {
   if (isJobActive(job.status)) return `${job.completed + job.failed} of ${job.total}`;
   if (job.status === 'cancelled') return 'Cancelled';

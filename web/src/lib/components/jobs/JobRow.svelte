@@ -1,18 +1,13 @@
 <script lang="ts">
   import { jobs } from '#lib/stores/jobs.svelte.ts';
-  import {
-    isJobActive,
-    jobDownloadUrl,
-    type Job,
-    type JobItem,
-    type JobItemStatus,
-    zipReady
-  } from '#lib/api/jobs.ts';
+  import { isJobActive, jobDownloadUrl, type Job, type JobItem, zipReady } from '#lib/api/jobs.ts';
   import {
     jobEtaText,
     jobItemPreset,
+    jobItemState,
     jobKindLabel,
-    jobProgress
+    jobProgress,
+    type JobItemState
   } from '#lib/components/jobs/jobFormat.ts';
   import Notice from '#lib/components/Notice.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
@@ -40,14 +35,18 @@
     }
   }
 
-  function itemColor(status: JobItemStatus): string {
-    switch (status) {
+  function itemColor(state: JobItemState): string {
+    switch (state) {
       case 'completed':
+      case 'replaced':
         return 'text-success-800';
       case 'failed':
         return 'text-danger-800';
       case 'running':
         return 'text-primary';
+      case 'skipped':
+      case 'duplicate':
+        return 'text-warning-800';
       default:
         return 'text-dark/65';
     }
@@ -134,6 +133,7 @@
         <div class="flex flex-col gap-1">
           {#each jobs.items[job.id] as item (item.id)}
             {@const preset = jobItemPreset(job, item)}
+            {@const state = jobItemState(item)}
             <div class="min-w-0">
               <div class="flex items-baseline gap-2 text-[11px] touch:text-xs">
                 <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
@@ -150,7 +150,7 @@
                     {/snippet}
                   </TruncationTooltip>
                 {/if}
-                <span class="flex-none {itemColor(item.status)}">{item.status}</span>
+                <span class="flex-none {itemColor(state)}">{state}</span>
               </div>
               {#if item.status === 'failed' && item.error}
                 <Notice message={item.error} class="mt-1 whitespace-pre-wrap" />

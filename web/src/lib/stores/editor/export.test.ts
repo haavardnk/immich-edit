@@ -17,6 +17,7 @@ vi.mock('#lib/stores/trash.svelte.ts', () => ({ trash: { removeTrashed: mocks.re
 vi.mock('#lib/utils/download.ts', () => ({ downloadBlob: mocks.downloadBlob }));
 
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 const JPEG: ExportOptions = {
   format: 'jpeg',
@@ -174,7 +175,8 @@ describe('editor export results', () => {
       favorite: true,
       stackWithOriginal: false,
       stackPrimary: 'edited',
-      replaceOriginal: false
+      replaceOriginal: false,
+      onConflict: 'keep_both'
     });
     editor.unload();
     editor.assetId = 'asset-2';
@@ -207,7 +209,8 @@ describe('editor export results', () => {
       favorite: false,
       stackWithOriginal: false,
       stackPrimary: 'edited',
-      replaceOriginal: true
+      replaceOriginal: true,
+      onConflict: 'keep_both'
     });
     const message = 'Uploaded IMG_0001_edit.jpg to Immich; the original moved to the Immich trash';
     expect(mocks.removeTrashed).toHaveBeenCalledWith(
@@ -216,5 +219,77 @@ describe('editor export results', () => {
     );
     expect(editor.exports.lastUpload).toEqual({ kind: 'success', message, warnings: [] });
     expect(trashed).toBe(true);
+  });
+
+  it('warns when an upload was skipped and lists kept previous exports', async () => {
+    editor.assetId = 'asset-1';
+    const upload = {
+      ...JPEG,
+      albumIds: [],
+      tagIds: [],
+      favorite: false,
+      stackWithOriginal: false,
+      stackPrimary: 'edited' as const,
+      replaceOriginal: false,
+      onConflict: 'skip' as const
+    };
+    mocks.uploadToImmich.mockResolvedValueOnce({
+      asset_id: 'old',
+      filename: 'IMG_0001_edit.jpg',
+      status: 'skipped',
+      warnings: [],
+      original_trashed: false
+    });
+    await editor.exports.upload(upload);
+    expect(editor.exports.lastUpload).toEqual({
+      kind: 'warning',
+      message: 'Not uploaded: this photo is already in Immich from an earlier export',
+      warnings: []
+    });
+
+    const kept = 'Previous export kept: it has its own edits';
+    mocks.uploadToImmich.mockResolvedValueOnce({
+      asset_id: 'new',
+      filename: 'IMG_0001_edit.jpg',
+      status: 'created',
+      warnings: [kept],
+      original_trashed: false
+    });
+    await editor.exports.upload({ ...upload, onConflict: 'replace' });
+    expect(editor.exports.lastUpload).toEqual({
+      kind: 'success',
+      message: 'Uploaded IMG_0001_edit.jpg to Immich',
+      warnings: [kept]
+    });
+    expect(toasts.items.at(-1)).toMatchObject({ kind: 'warn', description: kept });
+    editor.unload();
+  });
+
+  it('takes a replaced earlier export out of the grid with an undo', async () => {
+    editor.assetId = 'asset-1';
+    mocks.removeTrashed.mockClear();
+    mocks.uploadToImmich.mockResolvedValueOnce({
+      asset_id: 'new',
+      filename: 'IMG_0001_edit.jpg',
+      status: 'created',
+      warnings: [],
+      original_trashed: false,
+      replaced_asset_id: 'old'
+    });
+    await editor.exports.upload({
+      ...JPEG,
+      albumIds: [],
+      tagIds: [],
+      favorite: false,
+      stackWithOriginal: false,
+      stackPrimary: 'edited',
+      replaceOriginal: false,
+      onConflict: 'replace'
+    });
+    expect(mocks.removeTrashed).toHaveBeenCalledWith(
+      ['old'],
+      'Uploaded IMG_0001_edit.jpg to Immich; the earlier export moved to the Immich trash'
+    );
+    editor.unload();
   });
 });

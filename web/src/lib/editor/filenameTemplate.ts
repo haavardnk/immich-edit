@@ -2,6 +2,7 @@ import type { ExifInfo } from '#lib/types/asset.ts';
 
 export const DEFAULT_FILENAME_TEMPLATE = '{name}_edit';
 export const PRESET_FILENAME_TEMPLATE = '{name}_{preset}';
+export const ORIGINAL_FILENAME_TEMPLATE = '{name}';
 export const FILENAME_TOKENS = [
   { token: '{name}', label: 'Original name' },
   { token: '{date}', label: 'Capture date' },

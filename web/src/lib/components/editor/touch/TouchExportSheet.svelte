@@ -92,6 +92,9 @@
         selection={exporter.presets}
         busy={exporter.exportingPresets}
         onExport={exporter.exportPresets}
+        earlier={exporter.earlierPresets}
+        earlierQuery={exporter.presetQuery}
+        replaceReason={exporter.scope.conflictReason}
       />
     {/if}
   {/snippet}

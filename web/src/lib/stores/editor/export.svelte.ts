@@ -10,6 +10,7 @@ import { sourceId } from '#lib/browse/assetKey.ts';
 import { resizedSize, type PixelSize } from '#lib/panels/export/resize.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
+import { uploadOutcome } from '#lib/stores/editor/uploadOutcome.ts';
 import type { AssetDetail } from '#lib/types/asset.ts';
 import type { Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
@@ -19,7 +20,7 @@ import { croppedOutputSize } from '#lib/utils/geom.ts';
 import { sameValue } from '#lib/utils/sameValue.ts';
 
 export interface ExportResult {
-  kind: 'success' | 'duplicate' | 'error';
+  kind: 'success' | 'warning' | 'error';
   message: string;
   warnings: string[];
 }
@@ -123,21 +124,21 @@ export class EditorExports {
     this.lastUpload = null;
     try {
       const result = await uploadToImmich(assetId, $state.snapshot(this.ctx.edits), options);
-      const duplicate = result.status.toLowerCase() === 'duplicate';
-      const outcome = duplicate
-        ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
-        : `Uploaded ${result.filename} to Immich`;
-      const message = result.original_trashed
-        ? `${outcome}; the original moved to the Immich trash`
-        : outcome;
-      if (result.original_trashed) trash.removeTrashed([sourceId(assetId)], message);
-      else toasts.push(duplicate ? 'warn' : 'success', message, { ttlMs: 10000 });
+      const { kind, message } = uploadOutcome(result);
+      const warned = kind === 'warning' || result.warnings.length > 0;
+      const trashed = [
+        ...(result.original_trashed ? [sourceId(assetId)] : []),
+        ...(result.replaced_asset_id ? [result.replaced_asset_id] : [])
+      ];
+      if (trashed.length > 0) trash.removeTrashed(trashed, message);
+      else {
+        toasts.push(warned ? 'warn' : 'success', message, {
+          ttlMs: 10000,
+          description: result.warnings.length > 0 ? result.warnings.join('\n') : undefined
+        });
+      }
       if (session !== this.session) return false;
-      this.lastUpload = {
-        kind: duplicate ? 'duplicate' : 'success',
-        message,
-        warnings: result.warnings
-      };
+      this.lastUpload = { kind, message, warnings: result.warnings };
       if (result.original_trashed) return true;
       if (options.stackWithOriginal || options.favorite) {
         const asset = await getAsset(assetId).catch(() => null);

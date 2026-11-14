@@ -1,6 +1,7 @@
 import { runBulkJob } from '#lib/api/bulkJob.ts';
-import { downloadName, downloadStoredExport } from '#lib/api/export.ts';
+import { downloadName, downloadStoredExport, type OnConflict } from '#lib/api/export.ts';
 import { createImmichExportJob, createZipExportJob, type Job } from '#lib/api/jobs.ts';
+import { EarlierExports, type EarlierQuery } from '#lib/panels/export/earlierExports.svelte.ts';
 import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
 import {
   runDirect,
@@ -34,17 +35,19 @@ export async function submitBulkExport({
   form,
   destination,
   scope,
-  replaceOriginal
+  replaceOriginal,
+  onConflict = 'keep_both'
 }: {
   form: ExportFormValues;
   destination: Destination;
   scope: ExportScope;
   replaceOriginal: boolean;
+  onConflict?: OnConflict;
 }): Promise<Job | null> {
   const job = await runBulkJob(
     (assetIds) =>
       destination === 'immich'
-        ? createImmichExportJob(assetIds, uploadOptions(form, scope, replaceOriginal))
+        ? createImmichExportJob(assetIds, uploadOptions(form, scope, replaceOriginal, onConflict))
         : createZipExportJob(assetIds, baseOptions(form)),
     'Failed to queue export'
   );
@@ -75,6 +78,8 @@ export class BulkExporter {
 
   readonly presets = new PresetSelection();
 
+  readonly earlier = new EarlierExports();
+
   private picked = $derived(browsing.assets.filter((asset) => selection.selected.has(asset.id)));
 
   scope = $derived(
@@ -82,6 +87,16 @@ export class BulkExporter {
   );
 
   usingPresets = $derived(this.presets.picked.length > 0);
+
+  earlierQuery = $derived.by<EarlierQuery | null>(() => {
+    const assetIds = [...selection.selected];
+    if (assetIds.length === 0) return null;
+    if (this.usingPresets) {
+      const presets = this.presets.immichNames;
+      return presets.length > 0 ? { assetIds, presets } : null;
+    }
+    return exportSettings.destination === 'immich' ? { assetIds, presets: [] } : null;
+  });
 
   run = $derived<ExportRun>({
     photos: selection.count,
@@ -131,7 +146,8 @@ export class BulkExporter {
     const started = await submitPresetExport(
       [...selection.selected],
       this.presets.picked,
-      this.scope
+      this.scope,
+      this.earlier.take()
     );
     for (const { destination } of started) this.presets.drop(destination);
     return started[0]?.job ?? null;
@@ -148,7 +164,8 @@ export class BulkExporter {
       form: exportSettings.form,
       destination: exportSettings.destination,
       scope: this.scope,
-      replaceOriginal
+      replaceOriginal,
+      onConflict: this.earlier.take()
     });
   }
 }

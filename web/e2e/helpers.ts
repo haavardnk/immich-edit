@@ -223,6 +223,7 @@ export interface InstallOpts {
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
   exportPresets?: Array<Record<string, unknown>>;
+  earlierExports?: (query: EarlierExportsQuery) => EarlierExportsFound;
   luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
@@ -260,6 +261,16 @@ export interface InstallOpts {
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
   metadataPushConsented?: boolean;
+}
+
+export interface EarlierExportsQuery {
+  asset_ids: string[];
+  presets: string[];
+}
+
+export interface EarlierExportsFound {
+  photos: number;
+  files: Array<{ filename: string; exported_at: string }>;
 }
 
 export interface MockSavedView {
@@ -638,6 +649,10 @@ export async function installMocks(
         preferences = { ...preferences, ...patch };
       }
       return route.fulfill(json(preferences));
+    }
+    if (p === '/api/export-outputs/query' && method === 'POST') {
+      const query = req.postDataJSON() as EarlierExportsQuery;
+      return route.fulfill(json(opts.earlierExports?.(query) ?? { photos: 0, files: [] }));
     }
     if (p === '/api/export-presets') {
       if (method === 'POST') {

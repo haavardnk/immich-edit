@@ -214,6 +214,7 @@ export async function downloadExport(
 }
 
 export type StackPrimary = 'edited' | 'original';
+export type OnConflict = 'keep_both' | 'skip' | 'replace';
 
 export interface ImmichExportOptions extends ExportOptions {
   albumIds: string[];
@@ -222,6 +223,8 @@ export interface ImmichExportOptions extends ExportOptions {
   stackWithOriginal: boolean;
   stackPrimary: StackPrimary;
   replaceOriginal: boolean;
+  onConflict: OnConflict;
+  preset?: string;
 }
 
 export interface ImmichExportResult {
@@ -230,6 +233,7 @@ export interface ImmichExportResult {
   status: string;
   warnings: string[];
   original_trashed: boolean;
+  replaced_asset_id?: string;
 }
 
 export async function uploadToImmich(
@@ -257,6 +261,8 @@ export async function uploadToImmich(
       stack_with_original: opts.stackWithOriginal,
       stack_primary: opts.stackPrimary,
       replace_original: opts.replaceOriginal,
+      on_conflict: opts.onConflict,
+      preset: opts.preset,
       filename_template: opts.filenameTemplate,
       ...finishParams(opts)
     },

@@ -18,11 +18,7 @@
 
 {#if result}
   <Notice
-    color={result.kind === 'success'
-      ? 'success'
-      : result.kind === 'duplicate'
-        ? 'warning'
-        : 'danger'}
+    color={result.kind === 'success' ? 'success' : result.kind === 'warning' ? 'warning' : 'danger'}
     message={result.message}
   >
     {#if result.kind === 'error'}

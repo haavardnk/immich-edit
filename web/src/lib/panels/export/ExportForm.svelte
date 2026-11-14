@@ -8,6 +8,7 @@
   import SharpenOptions from '#lib/panels/export/SharpenOptions.svelte';
   import WatermarkOptions from '#lib/panels/export/WatermarkOptions.svelte';
   import ImmichOptions from '#lib/panels/export/ImmichOptions.svelte';
+  import OriginalName from '#lib/panels/export/OriginalName.svelte';
   import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
   import { ensureLibraryLoaded } from '#lib/panels/export/settings.ts';
   import type { ExportScope } from '#lib/panels/export/scope.ts';
@@ -43,6 +44,9 @@
 
   const form = $derived(exportSettings.form);
   const destination = $derived(exportSettings.destination);
+  const keepsName = $derived(
+    destination === 'immich' && replaceOriginal && scope.replaceReason === null
+  );
 
   $effect(() => {
     if (destination === 'immich') ensureLibraryLoaded(exportSettings.form);
@@ -73,12 +77,21 @@
   <WatermarkOptions bind:form={exportSettings.form} onpick={onWatermarkPick} />
 </ExportSection>
 
-<ExportSection title="Name" summary={nameSummary(form)} mono {folded}>
-  <FilenameTemplateField
-    bind:value={exportSettings.form.filenameTemplate}
-    example={scope.nameExample}
-    extension={EXTENSION_BY_FORMAT[form.format]}
-  />
+<ExportSection
+  title="Name"
+  summary={keepsName ? 'Original name' : nameSummary(form)}
+  mono={!keepsName}
+  {folded}
+>
+  {#if keepsName}
+    <OriginalName example={scope.nameExample} extension={EXTENSION_BY_FORMAT[form.format]} />
+  {:else}
+    <FilenameTemplateField
+      bind:value={exportSettings.form.filenameTemplate}
+      example={scope.nameExample}
+      extension={EXTENSION_BY_FORMAT[form.format]}
+    />
+  {/if}
 </ExportSection>
 
 {#if destination === 'immich'}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EarlierExport from '#lib/panels/export/EarlierExport.svelte';
   import ExportForm from '#lib/panels/export/ExportForm.svelte';
   import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
   import ExportResult from '#lib/panels/export/ExportResult.svelte';
@@ -33,6 +34,9 @@
     selection={exporter.presets}
     busy={exporter.exportingPresets}
     onExport={exporter.exportPresets}
+    earlier={exporter.earlierPresets}
+    earlierQuery={exporter.presetQuery}
+    replaceReason={exporter.scope.conflictReason}
   />
 {/if}
 <ExportForm
@@ -43,6 +47,11 @@
   {onWatermarkPick}
   bind:replaceOriginal={exporter.replaceOriginal}
   fileNotice={proofNotice}
+/>
+<EarlierExport
+  earlier={exporter.earlier}
+  query={exporter.earlierQuery}
+  replaceReason={exporter.scope.conflictReason}
 />
 <ExportResult result={exporter.result} busy={exporter.busy} onRetry={exporter.retry} />
 {@render children?.()}
