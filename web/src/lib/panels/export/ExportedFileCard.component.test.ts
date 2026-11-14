@@ -21,6 +21,7 @@ function file(patch: Partial<ExportedFile> = {}): ExportedFile {
     edits: neutralEdits(),
     size: { w: 2048, h: 1365 },
     renderedAt: new Date(2026, 10, 14, 14, 32),
+    renderMs: 2400,
     saved: false,
     warnings: [],
     ...patch
@@ -30,10 +31,6 @@ function file(patch: Partial<ExportedFile> = {}): ExportedFile {
 function render(props: CardProps): void {
   component = mount(Host, { target, props: { component: ExportedFileCard, props } });
   flushSync();
-}
-
-function button(name: string): HTMLButtonElement | null {
-  return [...target.querySelectorAll('button')].find((b) => b.textContent?.trim() === name) ?? null;
 }
 
 beforeEach(() => {
@@ -50,15 +47,8 @@ afterEach(() => {
 });
 
 describe('ExportedFileCard', () => {
-  it('describes the file and runs Save and Upload', () => {
-    const onSave = vi.fn();
-    const onUpload = vi.fn();
-    render({
-      file: file({ warnings: ['Metadata not copied'] }),
-      uploading: false,
-      onSave,
-      onUpload
-    });
+  it('describes the file and lists its warnings', () => {
+    render({ file: file({ warnings: ['Metadata not copied'] }) });
 
     const text = target.textContent ?? '';
     expect(text).toContain('IMG_0001_edit.jpg');
@@ -66,17 +56,11 @@ describe('ExportedFileCard', () => {
     expect(text).toContain('Ready, not saved yet');
     expect(text).toContain('Metadata not copied');
     expect(target.querySelector('img')?.getAttribute('src')).toBe('blob:thumb');
-
-    button('Save')?.click();
-    button('Upload to Immich')?.click();
-    expect(onSave).toHaveBeenCalledOnce();
-    expect(onUpload).toHaveBeenCalledOnce();
   });
 
-  it('shows Saved, falls back to an icon and hides Copy without clipboard images', () => {
-    render({ file: file({ saved: true }), uploading: false, onSave: vi.fn(), onUpload: vi.fn() });
+  it('shows Saved and falls back to an icon when the browser cannot decode the file', () => {
+    render({ file: file({ saved: true }) });
     expect(target.textContent).toContain('Saved');
-    expect(button('Copy image')).toBeNull();
 
     target.querySelector('img')?.dispatchEvent(new Event('error'));
     flushSync();
@@ -85,7 +69,7 @@ describe('ExportedFileCard', () => {
   });
 
   it('revokes the thumbnail URL when it unmounts', () => {
-    render({ file: file(), uploading: false, onSave: vi.fn(), onUpload: vi.fn() });
+    render({ file: file() });
     if (component) void unmount(component);
     component = null;
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:thumb');

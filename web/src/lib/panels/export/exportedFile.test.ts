@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileBytes, fileMeasure, fileSpec } from './exportedFile';
+import { fileBytes, fileMeasure, fileSpec, renderTime } from './exportedFile';
 import { baseOptions, defaultExportForm } from './settings';
 
 describe('exported file details', () => {
@@ -17,5 +17,10 @@ describe('exported file details', () => {
     const renderedAt = new Date(2026, 10, 14, 14, 32);
     const time = renderedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     expect(fileSpec({ options, renderedAt })).toBe(`JPEG · Display P3 · rendered ${time}`);
+  });
+
+  it('give the render time in seconds', () => {
+    expect(renderTime(2412)).toBe('Rendered in 2.4 s');
+    expect(renderTime(180)).toBe('Rendered in 0.2 s');
   });
 });

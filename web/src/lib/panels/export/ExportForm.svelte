@@ -27,6 +27,8 @@
     replaceOriginal = $bindable(false),
     crop = null,
     folded = false,
+    presetMenu = true,
+    destinations,
     downloadLabel,
     fileNotice
   }: {
@@ -34,6 +36,8 @@
     replaceOriginal?: boolean;
     crop?: PixelSize | null;
     folded?: boolean;
+    presetMenu?: boolean;
+    destinations?: Snippet;
     downloadLabel?: string;
     fileNotice?: Snippet;
   } = $props();
@@ -46,8 +50,14 @@
   });
 </script>
 
-<ExportPresetMenu />
-<DestinationToggle bind:value={exportSettings.destination} {downloadLabel} />
+{#if presetMenu}
+  <ExportPresetMenu />
+{/if}
+{#if destinations}
+  {@render destinations()}
+{:else}
+  <DestinationToggle bind:value={exportSettings.destination} {downloadLabel} />
+{/if}
 
 <ExportSection title="File" summary={fileSummary(form)} {folded}>
   <FormatOptions bind:form={exportSettings.form} />

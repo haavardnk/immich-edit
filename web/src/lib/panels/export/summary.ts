@@ -55,6 +55,23 @@ export function watermarkSummary(form: ExportFormValues, name: string | null): s
   ].join(SEPARATOR);
 }
 
+export function outputSummary(
+  form: ExportFormValues,
+  crop: PixelSize | null
+): { size: string | null; spec: string } {
+  return {
+    size: crop ? `${pixelSize(resizedSize(crop, formResize(form)))} px` : null,
+    spec: [
+      formatLabel(form.format),
+      qualityShown(form) ? String(form.quality) : null,
+      bitDepthShown(form.format) ? labelOf(BIT_DEPTHS, form.bitDepth) : null,
+      spaceLabel(form.colorSpace)
+    ]
+      .filter((part) => part !== null)
+      .join(SEPARATOR)
+  };
+}
+
 export function nameSummary(form: ExportFormValues): string {
   return form.filenameTemplate.trim() || DEFAULT_FILENAME_TEMPLATE;
 }

@@ -529,3 +529,23 @@ test('saving automatically downloads each export at once on this device', async 
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await expect(automatic).not.toBeChecked();
 });
+
+test('a rendered file shares through the device share sheet', async ({ page }) => {
+  await page.addInitScript(() => {
+    const shared: string[] = [];
+    Object.assign(window, { shared });
+    navigator.canShare = () => true;
+    navigator.share = async (data?: ShareData) => {
+      shared.push(...(data?.files ?? []).map((file) => file.name));
+    };
+  });
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: /Export JPEG/ }).click();
+  await exportedFile(page).getByRole('button', { name: 'Share' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { shared: string[] }).shared))
+    .toEqual(['IMG_0001_edit.jpg']);
+});

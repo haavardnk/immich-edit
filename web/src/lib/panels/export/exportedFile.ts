@@ -26,3 +26,7 @@ export function fileSpec(file: Pick<ExportedFile, 'options' | 'renderedAt'>): st
     `rendered ${time}`
   ].join(SEPARATOR);
 }
+
+export function renderTime(ms: number): string {
+  return `Rendered in ${(ms / 1000).toFixed(1)} s`;
+}

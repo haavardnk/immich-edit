@@ -31,6 +31,7 @@ export interface ExportedFile {
   edits: Edits;
   size: PixelSize | null;
   renderedAt: Date;
+  renderMs: number;
   saved: boolean;
   warnings: string[];
 }
@@ -73,6 +74,7 @@ export class EditorExports {
     this.rendered = null;
     const edits = $state.snapshot(this.ctx.edits) as Edits;
     const size = this.outputSize(edits, options);
+    const started = performance.now();
     try {
       const download = await downloadExport(assetId, edits, options);
       if (session !== this.session) return;
@@ -85,6 +87,7 @@ export class EditorExports {
         edits,
         size,
         renderedAt: new Date(),
+        renderMs: performance.now() - started,
         saved: save,
         warnings: download.warnings
       };

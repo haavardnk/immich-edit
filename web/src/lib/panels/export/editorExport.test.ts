@@ -78,6 +78,7 @@ describe('EditorExporter download', () => {
       edits: editor.edits,
       size: null,
       renderedAt: new Date(),
+      renderMs: 10,
       saved: false,
       warnings: []
     });
@@ -145,6 +146,7 @@ describe('EditorExporter upload', () => {
       edits: editor.edits,
       size: null,
       renderedAt: new Date(),
+      renderMs: 2400,
       saved: false,
       warnings: []
     });

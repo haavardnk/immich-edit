@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultExportForm, type ExportFormValues } from './settings';
-import { fileSummary, nameSummary, sizeSummary, watermarkSummary } from './summary';
+import { fileSummary, nameSummary, outputSummary, sizeSummary, watermarkSummary } from './summary';
 
 function form(patch: Partial<ExportFormValues> = {}): ExportFormValues {
   return { ...defaultExportForm(), ...patch };
@@ -37,5 +37,16 @@ describe('export section summaries', () => {
   it('show the template, or the default when blank', () => {
     expect(nameSummary(form({ filenameTemplate: '{date}_{name}' }))).toBe('{date}_{name}');
     expect(nameSummary(form({ filenameTemplate: '  ' }))).toBe('{name}_edit');
+  });
+
+  it('sum up the output for the touch footer', () => {
+    expect(outputSummary(form(), { w: 6000, h: 4000 })).toEqual({
+      size: '6000 × 4000 px',
+      spec: 'JPEG · 90 · sRGB'
+    });
+    expect(outputSummary(form({ format: 'png', bitDepth: '16' }), null)).toEqual({
+      size: null,
+      spec: 'PNG · 16-bit · sRGB'
+    });
   });
 });

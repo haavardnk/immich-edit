@@ -1,5 +1,4 @@
 <script lang="ts">
-  import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import EditorMoreMenu from '#lib/components/editor/EditorMoreMenu.svelte';
   import { runCommand } from '#lib/commands/command.ts';
@@ -10,7 +9,7 @@
   import { clickGuard } from '#lib/gestures/clickGuard.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
   import { longPressRecognizer } from '#lib/gestures/longPress.ts';
-  import ExportPanel from '#lib/panels/Export.svelte';
+  import TouchExportSheet from '#lib/components/editor/touch/TouchExportSheet.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiDotsHorizontal, mdiExportVariant } from '@mdi/js';
@@ -67,13 +66,4 @@
   <EditorMoreMenu icon={mdiDotsHorizontal} />
 </nav>
 
-<BottomSheet
-  open={sharing}
-  onOpenChange={(open) => (sharing = open)}
-  title="Export"
-  close="done"
-  detents={[{ fraction: 1 }]}
-  bodyClass="px-3 py-2"
->
-  <ExportPanel />
-</BottomSheet>
+<TouchExportSheet open={sharing} onOpenChange={(open) => (sharing = open)} />
