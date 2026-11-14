@@ -562,7 +562,11 @@ test("another user's photo is read-only and says why", async ({ page }) => {
   await expect(stack).toBeDisabled();
   await expect(stack).not.toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Mark as favorite' })).toBeEnabled();
-  await stack.hover({ force: true });
+  await stack.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = await stack.boundingBox();
+  if (!box) throw new Error('stack checkbox is not laid out');
+  await page.mouse.move(box.x - 40, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
   await expect(page.getByText('Only the owner can stack it.')).toBeVisible();
 });
 

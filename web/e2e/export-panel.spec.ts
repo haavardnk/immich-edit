@@ -108,6 +108,32 @@ test('a download is named by the filename template', async ({ page }) => {
   await expect(page.getByText('Saved 2024-01-01_IMG_0001.jpg')).toBeVisible();
 });
 
+test('filename token chips insert at the caret', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).press('Enter');
+
+  const field = page.getByLabel('Filename', { exact: true });
+  const caret = (at: number) =>
+    field.evaluate((el: HTMLInputElement, to) => el.setSelectionRange(to, to), at);
+  await field.fill('_{name}');
+  await caret(0);
+  await page.keyboard.press('Tab');
+  const name = page.getByRole('button', { name: 'Insert {name}, Original name' });
+  await expect(name).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveValue('{name}_{name}');
+  await expect(name).toBeFocused();
+
+  await field.focus();
+  await caret(13);
+  await page.getByRole('button', { name: 'Insert {date}, Capture date' }).click();
+  await expect(field).toHaveValue('{name}_{name}{date}');
+  await expect(field).toBeFocused();
+  await page.keyboard.type('x');
+  await expect(field).toHaveValue('{name}_{name}{date}x');
+});
+
 test('a download carries the resize settings', async ({ page }) => {
   const sent: Array<Record<string, unknown>> = [];
   await installMocks(page, {

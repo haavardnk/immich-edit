@@ -3,10 +3,14 @@
   import {
     DEFAULT_FILENAME_TEMPLATE,
     FILENAME_TOKENS,
+    insertToken,
     renderTemplate,
     templateError,
     type NameContext
   } from '#lib/editor/filenameTemplate.ts';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiImageOutline } from '@mdi/js';
+  import { tick } from 'svelte';
 
   let {
     value = $bindable(),
@@ -23,25 +27,76 @@
   const preview = $derived(
     !error && example ? `${renderTemplate(value, example)}.${extension}` : null
   );
+
+  let input = $state<HTMLInputElement | null>(null);
+  let selection: { start: number | null; end: number | null } = { start: null, end: null };
+  let keepFocus = false;
+
+  function remember(): void {
+    if (!input) return;
+    selection = { start: input.selectionStart, end: input.selectionEnd };
+  }
+
+  function holdFocus(event: MouseEvent): void {
+    keepFocus = document.activeElement === input;
+    if (keepFocus) event.preventDefault();
+  }
+
+  async function insert(token: string): Promise<void> {
+    if (keepFocus) remember();
+    const edit = insertToken(value, token, selection.start, selection.end);
+    value = edit.value;
+    selection = { start: edit.caret, end: edit.caret };
+    if (!keepFocus) return;
+    keepFocus = false;
+    await tick();
+    input?.setSelectionRange(edit.caret, edit.caret);
+  }
 </script>
 
-<div class="group flex flex-col gap-1">
+<div class="flex flex-col gap-1.5">
   <TextInput
     label="Filename"
     compact
     color="neutral"
     class="ring-0 focus-within:ring-1 focus-within:ring-primary"
+    bind:ref={input}
     bind:value
+    onblur={remember}
     placeholder={DEFAULT_FILENAME_TEMPLATE}
     aria-invalid={error ? 'true' : undefined}
-    aria-describedby="{id}-hint"
+    aria-describedby={error || preview ? `${id}-result` : undefined}
   />
-  <p id="{id}-hint" class="px-1 text-[10px] leading-snug text-dark/65">
-    {#if error}
-      <span class="text-danger-800">{error}</span>
-    {:else if preview}
-      <span class="font-mono">{preview}</span>
-    {/if}
-    <span class="hidden group-focus-within:block">Tokens: {FILENAME_TOKENS.join(', ')}</span>
-  </p>
+  <div role="group" aria-label="Filename tokens" class="flex flex-wrap gap-1.5">
+    {#each FILENAME_TOKENS as { token, label } (token)}
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        shape="round"
+        class="h-7 gap-1.5 bg-ghost px-2.5 text-xs font-normal text-dark/70 hover:text-dark touch:h-9 touch:px-3 touch:text-sm"
+        aria-label="Insert {token}, {label}"
+        onmousedown={holdFocus}
+        onclick={() => insert(token)}
+      >
+        <code class="font-mono text-primary">{token}</code>{label}
+      </Button>
+    {/each}
+  </div>
+  {#if error}
+    <p
+      id="{id}-result"
+      class="rounded-lg bg-danger/10 px-2.5 py-1.5 text-xs leading-snug text-danger-800"
+    >
+      {error}
+    </p>
+  {:else if preview}
+    <p
+      id="{id}-result"
+      class="flex items-center gap-2 rounded-lg bg-ghost px-2.5 py-1.5 text-xs leading-snug"
+    >
+      <Icon icon={mdiImageOutline} size="1.1em" class="shrink-0 text-dark/60" aria-hidden="true" />
+      <span class="min-w-0 font-mono break-all text-dark">{preview}</span>
+    </p>
+  {/if}
 </div>

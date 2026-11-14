@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { captureDate, renderTemplate, templateError } from './filenameTemplate';
+import { captureDate, insertToken, renderTemplate, templateError } from './filenameTemplate';
 import type { ExifInfo } from '#lib/types/asset.ts';
 
 interface NamingCase {
@@ -73,5 +73,35 @@ describe('filename templates', () => {
     expect(captureDate({ ...asset, localDateTime: null })).toBe('2026-01-01');
     expect(captureDate({ ...asset, localDateTime: null, exifInfo: null })).toBe('2026-01-02');
     expect(captureDate({ exifInfo: null, fileCreatedAt: 'not a date' })).toBeNull();
+  });
+
+  it('inserts a token at the caret', () => {
+    expect(insertToken('{date}_{name}_', '{seq}', 14, 14)).toEqual({
+      value: '{date}_{name}_{seq}',
+      caret: 19
+    });
+    expect(insertToken('{name}_edit', '{date}_', 0, 0)).toEqual({
+      value: '{date}_{name}_edit',
+      caret: 7
+    });
+  });
+
+  it('replaces the selected text with the token', () => {
+    expect(insertToken('{name}_edit', '{seq}', 7, 11)).toEqual({
+      value: '{name}_{seq}',
+      caret: 12
+    });
+    expect(insertToken('{name}_edit', '{seq}', 9, 2)).toEqual({
+      value: '{name}_ed{seq}it',
+      caret: 14
+    });
+  });
+
+  it('appends the token when the caret is unknown or past the end', () => {
+    expect(insertToken('{name}', '_{seq}', null, null)).toEqual({
+      value: '{name}_{seq}',
+      caret: 12
+    });
+    expect(insertToken('{name}', '{seq}', 40, 40)).toEqual({ value: '{name}{seq}', caret: 11 });
   });
 });
