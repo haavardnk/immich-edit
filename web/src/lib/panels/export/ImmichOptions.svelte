@@ -76,7 +76,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="panel-row min-h-7 items-start">
-    <span class="editor-compact-label flex h-7 items-center select-none">Albums</span>
+    <span class="editor-compact-label flex h-7 items-center select-none touch:h-11">Albums</span>
     <div class="col-span-2 col-start-2 min-w-0">
       <SearchableSelect
         compact
@@ -95,7 +95,7 @@
   </div>
 
   <div class="panel-row min-h-7 items-start">
-    <span class="editor-compact-label flex h-7 items-center select-none">Tags</span>
+    <span class="editor-compact-label flex h-7 items-center select-none touch:h-11">Tags</span>
     <div class="col-span-2 col-start-2 min-w-0">
       <SearchableSelect
         compact
@@ -110,7 +110,7 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-2 gap-x-2">
+  <div class="grid grid-cols-2 gap-x-2 touch:grid-cols-1">
     <CheckboxRow
       label="Mark as favorite"
       checked={form.favorite}

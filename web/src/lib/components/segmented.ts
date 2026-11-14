@@ -1,9 +1,9 @@
 const textItem =
-  'flex h-6 items-center justify-center rounded-sm text-[10px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark';
+  'flex h-6 items-center justify-center rounded-sm text-[10px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark touch:h-11 touch:rounded-md touch:text-[13px]';
 
 export const segmented = {
   text: {
-    group: 'flex h-7 gap-0.5 rounded-sm bg-ghost p-0.5',
+    group: 'flex h-7 gap-0.5 rounded-sm bg-ghost p-0.5 touch:h-12 touch:rounded-lg',
     radio: `${textItem} aria-checked:bg-primary aria-checked:text-light`,
     tab: `${textItem} aria-selected:bg-primary aria-selected:text-light`
   },

@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-1.5">
+<div class="flex flex-col gap-1.5 touch:gap-2">
   <TextInput
     label="Filename"
     compact
@@ -67,14 +67,18 @@
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={error || preview ? `${id}-result` : undefined}
   />
-  <div role="group" aria-label="Filename tokens" class="flex flex-wrap gap-1.5">
+  <div
+    role="group"
+    aria-label="Filename tokens"
+    class="flex flex-wrap gap-1.5 scrollbar-hidden touch:-mx-3 touch:flex-nowrap touch:overflow-x-auto touch:px-3"
+  >
     {#each FILENAME_TOKENS as { token, label } (token)}
       <Button
         size="tiny"
         variant="ghost"
         color="secondary"
         shape="round"
-        class="h-7 gap-1.5 bg-ghost px-2.5 text-xs font-normal text-dark/70 hover:text-dark touch:h-9 touch:px-3 touch:text-sm"
+        class="h-7 gap-1.5 bg-ghost px-2.5 text-xs font-normal text-dark/70 hover:text-dark shrink-0 touch:h-9 touch:px-3 touch:text-[13px]"
         aria-label="Insert {token}, {label}"
         onmousedown={holdFocus}
         onclick={() => insert(token)}

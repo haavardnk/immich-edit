@@ -6,7 +6,7 @@
 {#if exportSettings.destination === 'download'}
   <CheckboxRow
     label="Save automatically"
-    class="mt-1 touch:h-11 touch:text-sm"
+    class="mt-1"
     checked={exportSettings.saveAutomatically}
     onChange={(checked) => (exportSettings.saveAutomatically = checked)}
   >

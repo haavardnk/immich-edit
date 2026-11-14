@@ -63,15 +63,21 @@
         </Collapsible.Trigger>
       {/snippet}
     </TruncationTooltip>
-    <Collapsible.Content class="flex flex-col gap-1 pb-1.5">
+    <Collapsible.Content class="flex flex-col gap-1 pb-1.5 touch:gap-2 touch:pb-3">
       {#if open}
         {@render children()}
       {/if}
     </Collapsible.Content>
   </Collapsible.Root>
 {:else}
-  <section aria-labelledby={id} class="flex flex-col gap-1 border-t border-hairline pt-1.5">
-    <h3 {id} class="text-[10px] font-medium tracking-wider text-dark/65 uppercase select-none">
+  <section
+    aria-labelledby={id}
+    class="flex flex-col gap-1 border-t border-hairline pt-1.5 touch:gap-2 touch:pt-3"
+  >
+    <h3
+      {id}
+      class="text-[10px] font-medium tracking-wider text-dark/65 uppercase select-none touch:text-[11px]"
+    >
       {title}
     </h3>
     {@render children()}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import { Field, Select } from '@immich/ui';
-  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
+  import ExportSlider from '#lib/panels/export/ExportSlider.svelte';
   import {
     BIT_DEPTHS,
     bitDepthShown,
@@ -35,22 +35,13 @@
 </Field>
 
 {#if showQuality}
-  <div class="panel-row h-7 items-center">
-    <span class="editor-compact-label select-none">Quality</span>
-    <RangeSlider
-      label="Quality"
-      min={1}
-      max={100}
-      step={1}
-      value={form.quality}
-      oninput={(event) => {
-        form.quality = (event.currentTarget as HTMLInputElement).valueAsNumber;
-      }}
-    />
-    <span class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65"
-      >{form.quality}</span
-    >
-  </div>
+  <ExportSlider
+    label="Quality"
+    min={1}
+    max={100}
+    value={form.quality}
+    onvalue={(v) => (form.quality = v)}
+  />
 {/if}
 
 {#if showBitDepth}

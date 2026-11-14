@@ -124,7 +124,7 @@
         />
       </div>
     {:else}
-      <div class="flex w-full items-center gap-3">
+      <div class="flex w-full items-center gap-2">
         <div class="flex min-w-0 flex-1 flex-col leading-tight">
           {#if output.size}
             <span class="truncate font-mono text-sm text-primary">{output.size}</span>
@@ -135,7 +135,7 @@
           size="large"
           color="primary"
           shape="round"
-          class="h-12 shrink-0 px-6 text-base"
+          class="h-12 shrink-0 px-4 text-[15px]"
           loading={exporter.busy}
           leadingIcon={exporter.icon}
           disabled={exporter.disabled}

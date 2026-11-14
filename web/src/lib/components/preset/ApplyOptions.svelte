@@ -31,20 +31,18 @@
   }
 
   const short = $derived(inline && layout.mode === 'touch');
-  const includeClass =
-    'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-[13px] touch:text-dark';
 </script>
 
 {#snippet includes()}
   <CheckboxRow
     label={short ? 'Crop' : 'Geometry & crop'}
-    class={inline ? includeClass : ''}
+    look={inline ? 'chip' : 'row'}
     checked={options.includeGeometry}
     onChange={(v) => (options.includeGeometry = v)}
   />
   <CheckboxRow
     label="Masks"
-    class={inline ? includeClass : ''}
+    look={inline ? 'chip' : 'row'}
     checked={options.includeMasks}
     onChange={(v) => (options.includeMasks = v)}
   />
@@ -56,7 +54,7 @@
     : ''}"
 >
   <div class="panel-row h-7 items-center touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem]">
-    <span class="editor-compact-label flex items-center gap-1.5 select-none touch:text-[13px]">
+    <span class="editor-compact-label flex items-center gap-1.5 select-none">
       {#if value !== LOOK_AMOUNT_FULL}
         <span class="hidden size-1.5 rounded-full bg-primary touch:block" aria-hidden="true"></span>
       {/if}
@@ -88,9 +86,7 @@
   {/if}
   {#if inline}
     <div class="flex items-center gap-3 touch:gap-2">
-      <span class="editor-compact-label select-none touch:w-24 touch:flex-none touch:text-[13px]"
-        >Include</span
-      >
+      <span class="editor-compact-label select-none touch:w-24 touch:flex-none">Include</span>
       {@render includes()}
     </div>
   {:else}

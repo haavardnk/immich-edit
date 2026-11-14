@@ -8,8 +8,8 @@
 
   const LOOKS = {
     panel: {
-      group: `${segmented.text.group} grid touch:h-12`,
-      item: `${segmented.text.radio} gap-1.5 px-3 touch:h-11 touch:text-xs`,
+      group: `${segmented.text.group} grid`,
+      item: `${segmented.text.radio} gap-1.5 px-3`,
       icon: 'shrink-0'
     },
     view: {

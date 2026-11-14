@@ -22,7 +22,7 @@
   const error = $derived(resizeError(formResize(form)));
   const outputSize = $derived(crop ? resizedSize(crop, formResize(form)) : null);
   const edgeInputClass =
-    'ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 [&_input]:px-2';
+    'ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 [&_input]:px-2 touch:[&_input]:h-11 touch:[&_input]:px-2.5';
 
   function readNumber(event: Event): number | null {
     const value = (event.currentTarget as HTMLInputElement).valueAsNumber;
@@ -57,7 +57,7 @@
 </Field>
 
 {#if form.resizeMode === 'dimensions'}
-  <div class="panel-row h-7 items-center">
+  <div class="panel-row h-7 items-center touch:h-11">
     <span class="editor-compact-label select-none">Pixels</span>
     <div class="col-span-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
       <TextInput
@@ -75,7 +75,9 @@
         aria-invalid={error ? 'true' : undefined}
         oninput={(event: Event) => setWidth(readNumber(event))}
       />
-      <span class="text-[11px] text-dark/65 select-none" aria-hidden="true">×</span>
+      <span class="text-[11px] text-dark/65 select-none touch:text-[13px]" aria-hidden="true"
+        >×</span
+      >
       <TextInput
         type="number"
         compact
@@ -128,7 +130,7 @@
 {/if}
 
 {#if error}
-  <p class="px-1 text-[10px] leading-snug text-danger-800">{error}</p>
+  <p class="px-1 text-[10px] leading-snug text-danger-800 touch:text-xs">{error}</p>
 {/if}
 
 {#if form.resizeMode === 'dimensions' || form.resizeMode === 'megapixels'}
@@ -140,9 +142,10 @@
 {/if}
 
 {#if outputSize}
-  <div class="panel-row h-7 items-center">
+  <div class="panel-row h-7 items-center touch:hidden">
     <span class="editor-compact-label select-none">Size</span>
-    <span class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65"
+    <span
+      class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:text-xs"
       >{fmtDim(outputSize.w, outputSize.h)} px</span
     >
   </div>

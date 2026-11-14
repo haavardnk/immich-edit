@@ -475,6 +475,25 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   padding: 0 10px;
 }
 
+[data-layout='touch'] .editor-compact-field {
+  height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-field [data-select-trigger] > div > span {
+  height: 44px;
+  line-height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-input-field input {
+  height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-field label,
+[data-layout='touch'] .editor-compact-input-field label,
+[data-layout='touch'] .editor-compact-label {
+  font-size: 13px;
+}
+
 .compact-date-field [data-date-field-input] {
   height: 28px;
   background-color: var(--immich-ui-light-200);

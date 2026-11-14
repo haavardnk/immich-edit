@@ -341,14 +341,16 @@
   <div class="relative contain-inline-size">
     <Button
       size={compact ? 'tiny' : 'small'}
-      variant="outline"
+      variant={color === 'neutral' ? 'ghost' : 'outline'}
       color="secondary"
       fullWidth
       {disabled}
       aria-label={label}
       aria-haspopup="dialog"
       aria-expanded={open}
-      class="min-h-11 justify-between font-normal {selectedLabel ? 'pr-12' : ''}"
+      class="min-h-11 justify-between font-normal {color === 'neutral'
+        ? 'bg-light-200 not-disabled:hover:bg-light-300'
+        : ''} {selectedLabel ? 'pr-12' : ''}"
       onclick={openSheet}
     >
       <span class="min-w-0 truncate {selectedLabel ? '' : 'text-dark/65'}">

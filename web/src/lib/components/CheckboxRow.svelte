@@ -7,6 +7,7 @@
     checked,
     label,
     disabled = false,
+    look = 'row',
     onChange,
     class: className,
     children,
@@ -15,16 +16,21 @@
     checked: boolean;
     label: string;
     disabled?: boolean;
+    look?: 'row' | 'chip';
     onChange: (checked: boolean) => void;
     class?: string;
     children?: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'class'> = $props();
 
   const id = $props.id();
+  const looks = {
+    row: 'touch:h-11 touch:gap-2.5 touch:text-[13px]',
+    chip: 'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-[13px] touch:text-dark'
+  };
 </script>
 
 <div
-  class="flex h-6 items-center gap-1.5 text-[11px] text-dark/80 {className ?? ''}"
+  class="flex h-6 items-center gap-1.5 text-[11px] text-dark/80 {looks[look]} {className ?? ''}"
   class:opacity-50={disabled}
   {...rest}
 >

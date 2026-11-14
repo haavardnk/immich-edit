@@ -1,6 +1,6 @@
 <script lang="ts">
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
-  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
+  import ExportSlider from '#lib/panels/export/ExportSlider.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import { ApiError } from '#lib/api/client.ts';
   import { deleteWatermark, importWatermark, watermarkPngUrl } from '#lib/api/watermarks.ts';
@@ -130,62 +130,76 @@
   onchange={(e) => void onFile(e)}
 />
 
-<div class="flex items-start gap-1 overflow-x-auto pb-1 scrollbar-hidden">
-  {#if session.isAdmin}
-    <Button
-      size="tiny"
-      variant="ghost"
-      color="primary"
-      class="{tile} h-auto text-primary"
-      disabled={importing}
-      aria-label="Import PNG watermark"
-      onclick={() => fileInput?.click()}
-    >
-      <span class="{face} border border-primary/40 bg-primary/10">
-        <Icon
-          icon={importing ? mdiLoading : mdiUpload}
-          size="18px"
-          class={importing ? 'animate-spin' : ''}
-          aria-hidden="true"
-        />
-      </span>
-      <span class="w-full truncate text-center">Import</span>
-    </Button>
-  {/if}
-  <RadioGroup.Root
-    value={form.watermarkId ?? NONE}
-    onValueChange={(id) => pick(id === NONE ? null : id)}
-    orientation="horizontal"
-    aria-label="Watermark"
-    class="flex items-start gap-1"
-  >
-    <RadioGroup.Item value={NONE} class="{tile} group aria-checked:text-dark">
-      <span
-        class="{face} group-aria-checked:ring-2 group-aria-checked:ring-primary group-aria-checked:ring-inset"
+<div class="flex items-start gap-1">
+  <div class="flex min-w-0 flex-1 items-start gap-1 overflow-x-auto pb-1 scrollbar-hidden">
+    {#if session.isAdmin}
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="primary"
+        class="{tile} h-auto text-primary"
+        disabled={importing}
+        aria-label="Import PNG watermark"
+        onclick={() => fileInput?.click()}
       >
-        <Icon icon={mdiBlockHelper} size="18px" aria-hidden="true" />
-      </span>
-      <span class="w-full truncate text-center">None</span>
-    </RadioGroup.Item>
-    {#each tiles as mark (mark.id)}
-      <TruncationTooltip text={mark.name}>
-        {#snippet child({ props })}
-          <RadioGroup.Item {...props} value={mark.id} class="{tile} group aria-checked:text-dark">
-            <span
-              class="{face} group-aria-checked:ring-2 group-aria-checked:ring-primary group-aria-checked:ring-inset"
-            >
-              <img
-                src={watermarkPngUrl(mark.id)}
-                alt=""
-                class="max-h-full max-w-full object-contain p-1"
-              />
-            </span>
-            <span data-truncate class="w-full truncate text-center">{mark.name}</span>
-          </RadioGroup.Item>
-        {/snippet}
-      </TruncationTooltip>
-    {/each}
-  </RadioGroup.Root>
+        <span class="{face} border border-primary/40 bg-primary/10">
+          <Icon
+            icon={importing ? mdiLoading : mdiUpload}
+            size="18px"
+            class={importing ? 'animate-spin' : ''}
+            aria-hidden="true"
+          />
+        </span>
+        <span class="w-full truncate text-center">Import</span>
+      </Button>
+    {/if}
+    <RadioGroup.Root
+      value={form.watermarkId ?? NONE}
+      onValueChange={(id) => pick(id === NONE ? null : id)}
+      orientation="horizontal"
+      aria-label="Watermark"
+      class="flex items-start gap-1"
+    >
+      <RadioGroup.Item value={NONE} class="{tile} group aria-checked:text-dark">
+        <span
+          class="{face} group-aria-checked:ring-2 group-aria-checked:ring-primary group-aria-checked:ring-inset"
+        >
+          <Icon icon={mdiBlockHelper} size="18px" aria-hidden="true" />
+        </span>
+        <span class="w-full truncate text-center">None</span>
+      </RadioGroup.Item>
+      {#each tiles as mark (mark.id)}
+        <TruncationTooltip text={mark.name}>
+          {#snippet child({ props })}
+            <RadioGroup.Item {...props} value={mark.id} class="{tile} group aria-checked:text-dark">
+              <span
+                class="{face} group-aria-checked:ring-2 group-aria-checked:ring-primary group-aria-checked:ring-inset"
+              >
+                <img
+                  src={watermarkPngUrl(mark.id)}
+                  alt=""
+                  class="max-h-full max-w-full object-contain p-1"
+                />
+              </span>
+              <span data-truncate class="w-full truncate text-center">{mark.name}</span>
+            </RadioGroup.Item>
+          {/snippet}
+        </TruncationTooltip>
+      {/each}
+    </RadioGroup.Root>
+  </div>
+  {#if selected && session.isAdmin}
+    <div class="flex shrink-0 items-center pt-3.5 touch:pt-2.5">
+      <DeleteConfirmation
+        bind:pending={pendingDelete}
+        label="Delete watermark"
+        confirmLabel="Confirm delete watermark"
+        deleteClass="touch:size-11"
+        confirmClass="touch:size-11"
+        onconfirm={confirmDelete}
+      />
+    </div>
+  {/if}
 </div>
 
 {#if importError}
@@ -211,44 +225,32 @@
   </div>
 {/if}
 
-{#if selected && session.isAdmin}
-  <div class="flex justify-end">
-    <DeleteConfirmation
-      bind:pending={pendingDelete}
-      label="Delete watermark"
-      confirmLabel="Confirm delete watermark"
-      onconfirm={confirmDelete}
-    />
-  </div>
-{/if}
-
 {#if selected}
   {#each sliders as slider (slider.label)}
-    <div class="panel-row h-7 items-center">
-      <span class="editor-compact-label select-none">{slider.label}</span>
-      <RangeSlider
-        label={`Watermark ${slider.label.toLowerCase()}`}
-        min={slider.range.min}
-        max={slider.range.max}
-        step={1}
-        value={slider.value}
-        oninput={(event) => slider.set((event.currentTarget as HTMLInputElement).valueAsNumber)}
-      />
-      <span class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65"
-        >{slider.value}%</span
-      >
-    </div>
+    <ExportSlider
+      label={slider.label}
+      name={`Watermark ${slider.label.toLowerCase()}`}
+      min={slider.range.min}
+      max={slider.range.max}
+      value={slider.value}
+      unit="%"
+      onvalue={slider.set}
+    />
   {/each}
-  <div class="panel-row items-center py-0.5">
+  <div class="panel-row items-center py-0.5 touch:py-1.5">
     <span class="editor-compact-label select-none">Position</span>
-    <div role="group" aria-label="Watermark position" class="grid w-fit grid-cols-3 gap-1">
+    <div
+      role="group"
+      aria-label="Watermark position"
+      class="grid w-fit grid-cols-3 gap-1 touch:rounded-lg touch:bg-ghost touch:p-1"
+    >
       {#each WATERMARK_ANCHORS as anchor (anchor.value)}
         <Tooltip text={anchor.label}>
           {#snippet child({ props })}
             <button
               {...mergeProps(props, {
                 type: 'button' as const,
-                class: `size-5 rounded-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
+                class: `size-5 rounded-sm transition-colors touch:h-7 touch:w-11 touch:rounded-md focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary ${
                   form.watermarkAnchor === anchor.value
                     ? 'bg-primary'
                     : 'bg-light-300 hover:bg-light-400'
