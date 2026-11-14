@@ -48,7 +48,8 @@ const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
   '/api/search/metadata': new Set(['filter', 'sort', 'size', 'cursor', 'withExif']),
   '/api/search/smart': new Set(['text', 'filter', 'size', 'cursor', 'withExif']),
   '/api/search/statistics': new Set(['filter']),
-  '/api/search/window': new Set(['assetId', 'radius', 'filter', 'sort']),
+  '/api/search/window': new Set(['assetId', 'radius', 'before', 'after', 'filter', 'sort']),
+  '/api/search/months': new Set(['filter']),
   '/api/search/suggestions': new Set(['field', 'make', 'model', 'country', 'state'])
 };
 
@@ -133,6 +134,10 @@ export interface MockAlbum {
   id: string;
   albumName: string;
   assetIds: string[];
+  ownerId?: string;
+  shared?: boolean;
+  updatedAt?: string;
+  endDate?: string;
 }
 
 export function matchesIds(ids: string[], set: IdSet | undefined): boolean {

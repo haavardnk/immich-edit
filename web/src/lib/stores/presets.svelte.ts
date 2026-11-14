@@ -2,6 +2,7 @@ import {
   createPreset,
   deletePreset,
   listPresets,
+  setPresetFavorite,
   updatePreset,
   type Preset,
   type PresetInput
@@ -54,7 +55,7 @@ class PresetsStore {
     try {
       const created = await createPreset(input);
       this.presets = [...this.presets, created];
-      toasts.push('success', `Saved preset "${created.name}"`, 5000);
+      toasts.push('success', `Saved preset "${created.name}"`, { ttlMs: 5000 });
       return created;
     } catch (e) {
       toasts.fail('Failed to save preset', e, 8000);
@@ -70,6 +71,15 @@ class PresetsStore {
     } catch (e) {
       toasts.fail('Failed to update preset', e, 8000);
       return null;
+    }
+  };
+
+  setFavorite = async (id: string, favorite: boolean): Promise<void> => {
+    try {
+      const updated = await setPresetFavorite(id, favorite);
+      this.presets = this.presets.map((p) => (p.id === id ? updated : p));
+    } catch (e) {
+      toasts.fail('Failed to update favourites', e, 8000);
     }
   };
 
@@ -118,9 +128,9 @@ class PresetsStore {
     const failed = fresh.length - created.length;
     const summary = importSummary(created.length, skipped, failed);
     if (failed > 0) {
-      toasts.push('error', `${summary}: ${errorMessage(firstError)}`, 8000);
+      toasts.push('error', `${summary}: ${errorMessage(firstError)}`, { ttlMs: 8000 });
     } else {
-      toasts.push(created.length > 0 ? 'success' : 'info', summary, 8000);
+      toasts.push(created.length > 0 ? 'success' : 'info', summary, { ttlMs: 8000 });
     }
   };
 }

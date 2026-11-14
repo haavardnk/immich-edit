@@ -23,27 +23,30 @@ async function openCompare(page: Page): Promise<void> {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await page.keyboard.press('c');
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
 }
 
-test('the compare rail toggles sync and keeps two panes', async ({ page }) => {
+test('the compare rail toggles sync and drops back to the surviving photo', async ({ page }) => {
   await openCompare(page);
   const sync = page.getByRole('button', { name: 'Sync zoom and pan' });
 
   await expect(sync).toHaveAttribute('aria-pressed', 'true');
   await sync.click();
   await expect(sync).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByRole('button', { name: 'Drop this photo' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Make select' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Drop this photo' }).click();
+  await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toHaveCount(0);
+  await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sync zoom and pan' })).toHaveCount(0);
 });
 
 test('I shows the focused pane in the info panel', async ({ page }) => {
   await openCompare(page);
-  const info = page.getByRole('region', { name: 'Photo info' });
+  const info = page.getByRole('complementary', { name: 'Info' });
 
   await page.keyboard.press('i');
   await page.getByRole('img', { name: 'IMG_0001.ARW' }).click();
@@ -139,7 +142,6 @@ test('keyboard focus never paints a ring inside a pane', async ({ page }) => {
 
 test('auto-advance swaps the rated pane for the next photo', async ({ page }) => {
   await openCompare(page);
-  await page.getByRole('button', { name: 'More loupe actions' }).click();
   await page.getByRole('button', { name: 'Auto-advance', exact: true }).click();
 
   await page.keyboard.press('3');

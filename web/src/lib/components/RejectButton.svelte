@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { coverageOf, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiCloseCircle, mdiCloseCircleOutline } from '@mdi/js';
 
   interface Props {
     isRejected: boolean;
@@ -13,20 +13,19 @@
 
   let { isRejected, mixed = false, size = 'tiny', disabled = false, ontoggle }: Props = $props();
 
-  const label = $derived(
-    isRejected && !mixed ? hint('Unreject', 'reject') : hint('Reject', 'reject')
-  );
+  const mark = $derived(rejectMark(coverageOf(isRejected, mixed)));
+  const label = $derived(hint(mark.label, 'reject'));
 </script>
 
 <IconButton
   {size}
   variant="ghost"
   color="secondary"
-  class={mixed ? 'text-amber-400/50' : isRejected ? 'text-amber-400' : ''}
-  icon={isRejected || mixed ? mdiCloseCircle : mdiCloseCircleOutline}
+  class={mark.tone}
+  icon={mark.icon}
   title={label}
   aria-label={label}
-  aria-pressed={mixed ? 'mixed' : isRejected}
+  aria-pressed={mark.pressed}
   {disabled}
   onclick={ontoggle}
 />

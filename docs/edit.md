@@ -21,7 +21,7 @@ The tool rail on the right switches between five tools:
 | **Develop** | `Shift+D` | Color, tone, detail and lens |
 | **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
 | **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
-| **Geometry** | `Shift+R` | Crop, straighten, rotate and perspective |
+| **Crop** | `Shift+R` | Crop, straighten, rotate and perspective |
 | **Export** | `Shift+E` | Downloading or uploading the result; see [export](export.md) |
 
 `←` and `→` move to the previous or next photo, and `G` goes back to the grid. `Tab` hides the
@@ -111,6 +111,11 @@ the toolbar; see [try variations](#try-variations).
 - A panel with changes shows a dot next to its name. Click the dot to reset the whole panel.
 - Press and hold a changed section's name, such as **Tone**, to see the photo without that section.
 - **Show modified only**, in the row at the top of **Develop**, hides every untouched panel.
+- **Customize sections** (`⋯`) at the end of that row reorders the panels: drag a row, or focus
+  its handle and press `↑` or `↓`. The eye hides a panel. A hidden panel still shows while it has
+  changes, and the settings filter and the command palette still find it. On a phone or tablet,
+  **More** > **Customize Develop** does the same for the tabs inside each group. Both layouts are
+  saved to your account.
 
 ### Black and white
 
@@ -132,10 +137,12 @@ and white. The panel's dot resets all of them.
 | Control | What it does |
 | --- | --- |
 | **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
-| **More editor actions** > **Before/After split**, or `Y` | Splits the view; drag the divider to move it |
+| **More editor actions** > **Compare**, or `Y` | Cycles a split view, a side-by-side view and off. The bar under the photo switches between the two views, sets the left side to the original, a snapshot or another version of the photo, and closes compare. Drag the split divider to move it; side by side zooms and pans both halves together. Phones in portrait have only the split. **Compare** on a snapshot in **Edit history** opens it beside the current edits |
+| **Navigator**, in the corner of a zoomed photo | Shows the whole photo with a box around the part on screen; drag the box, or press anywhere in it, to move the view. It hides again at fit |
 | **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
 | **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
 | **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
+| **More editor actions** > **Scope overlay**, or `S` | Floats a small scope over the photo. Click it to switch between the histogram and the last other scope, and drag it to any corner. On a phone the same switch is **More** > **Histogram**, and the overlay fades while you drag a slider outside **Light** |
 | **More editor actions** > **Soft proof** | Previews the photo in a **Proof space**; **Show gamut warning** marks colors it cannot show |
 | **More editor actions** > **Info**, or `I` | Shows the camera, lens and exposure details |
 | **More editor actions** > **Fullscreen**, or `F` | Hides everything but the photo; `Esc` brings the chrome back |
@@ -143,17 +150,21 @@ and white. The panel's dot resets all of them.
 ## Undo and history
 
 `Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes. **Edit history**, next to **Copy edits** at the top of
-**Develop**, lists every saved state. Expand an entry to see what changed, and click it to go back
-to that state.
+**Develop**, lists every saved state, newest first, and marks the current one. Hover an entry to
+preview it on the photo, expand it to see what changed, and click it to jump to that state. The list
+stays open after a jump, and the message that confirms it has an **Undo** button. `Ctrl+Z` after a
+jump goes back to where you were. On a phone or tablet, open **More editor actions** > **History**
+and tap a step; the photo shows which step you are on.
 
-{: .warning }
-Going back in **Edit history** deletes every entry after the one you pick. Make a
-[virtual copy](#try-variations) first if you might want the later state again.
+{: .note }
+Going back in **Edit history** keeps the newer entries. They are dimmed with a redo mark, and you
+can pick one of them to go forward again. Your next edit deletes them. Make a
+[virtual copy](#try-variations) if you want to keep both versions.
 
 **Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
 It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms
 the reset and names the undo key. Reset the crop in
-**Geometry**, and delete masks and strokes in their own tabs.
+**Crop**, and delete masks and strokes in their own tabs.
 
 ## Adjust part of the photo
 
@@ -186,18 +197,34 @@ set of adjustments.
 
 To refine a mask, open **Refine** on it and use **Add**, **Subtract** or **Intersect** with
 another shape. For example, a **Sky** mask with a **Linear gradient** intersected keeps only the
-top of the sky. **Invert** edits everything outside the shapes instead. An AI click mask also has
-**Click refine**: press **Add** or **Remove** and click the photo to grow or trim it, then **Done**.
+top of the sky. **Invert** edits everything outside the shapes instead. **Click to select** and
+any AI or brush mask show **Include** and **Exclude**: pick one and click the photo to grow or trim
+the mask. Shift-click or right-click does the opposite for one click, and clicking a dot deletes
+it. Press **Done** or Esc when you are finished.
 A **Depth** mask starts with the whole photo selected. On its **Near → Far** slider, drag the
 right handle left to drop the farthest areas, such as the sky, and the left handle right to drop
 the closest ones. The positions are shares of the photo, not distances: 40 on the right handle
 keeps the nearest 40% of the pixels. While you drag, the selection shows in red. Edge
 cleanup, **Grow** and **Feather** apply when you let go.
 
-`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay. The
-overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
-shows its paint while you draw. Masks lower in the list are applied on top of the
-ones above them, and **Duplicate layer** starts a new mask from an existing one.
+`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay.
+`Shift+O` cycles how it shows: **Color**, **Color on black and white** (the photo turns grey under
+the colour) and **White on black** (the mask alone, white where it applies). The arrow beside the
+eye above the mask list picks the mode and the overlay colour; the colour follows your account to
+every device, and the mode stays with this device. The overlay steps aside while you drag an
+adjustment so you can judge the edit, and a brush stroke shows its paint while you draw. Masks lower in the list are applied on top of the
+ones above them, and **Duplicate layer** starts a new mask from an existing one. Drag a mask or a
+shape by the handle on its left to reorder it, or focus the handle and use the arrow keys; the
+first shape starts the mask. Each mask row shows a small picture of what it covers, and holding the
+pointer over a mask or shape row shows its coverage on the photo.
+
+On a phone or tablet, **Masks** shows your masks as cards at the top of the tray. Tap **+** for a
+new mask, tap a card to select it, and tap its **⋯**, or touch and hold the card, to duplicate,
+invert, turn off, move or delete it. **Shapes** lists the selected mask's shapes with their mode;
+touch and hold a shape to see its coverage, and use its **⋯** to change the mode, invert, reorder
+or delete it. **Add**, **Subtract** and **Intersect** open the same tools as on a computer.
+**Adjust** holds the mask's sliders. The eye at the end of the cards opens the overlay mode and
+colour. A tablet in landscape shows the shapes and adjustments in one scrolling list.
 
 ## Remove spots and distractions
 
@@ -213,20 +240,25 @@ Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll
 
 ## Crop and straighten
 
-**Geometry** shows the whole photo while you work. Each change saves as soon as you let go, as its
+**Crop** shows the whole photo while you work. Each change saves as soon as you let go, as its
 own step in the history, so `Cmd+Z` or `Ctrl+Z` takes back the last crop or rotation without
 leaving the tool. The tool stays open until you pick another one.
 
-- **Crop**: drag the frame, or choose an **Aspect Ratio** such as **Original**, **Free**, **1:1**,
-  **3:2**, **5:4** or **7:5**; **Custom…** takes any whole-number width and height. The button beside
-  it swaps landscape and portrait, so **5:4** becomes **4:5**. The size the crop keeps,
-  in pixels of the original, shows beside **Crop**. Hold `Alt` while dragging a handle to resize about the centre, and `Shift` to keep the
-  shape of a free crop. `Ctrl` or `Cmd` with the mouse wheel scales the crop, and with a drag inside
-  it moves the photo under the crop. **Crop guide**, or `O`, cycles the overlay between rule of
-  thirds, golden ratio, diagonals, a grid and none, and remembers your choice.
-- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`,
-  and drag along a line that should be level or upright; hold `Shift` and drag inside the crop to do
-  the same without the button. **Rotate left 90°** and **Rotate right 90°** in the bar at the top
+- **Crop**: drag the frame, or pick an aspect ratio chip: **Original**, **Free**, **1:1**, **3:2**,
+  **4:3** or **16:9**, with **5:4** and **7:5** under **⋯**. **Ratio** takes any other shape, such
+  as `21:9`, `65:24` or a decimal like `2.39`. **Save ratio** adds it under **⋯** for every
+  photo, and **Remove ratio** takes it away again. The button beside **Ratio** swaps landscape and
+  portrait, so **5:4** becomes **4:5**. The size the crop keeps, in pixels of the original, shows
+  beside **Crop**, and on the photo with its ratio while you drag. Hold `Alt` while dragging a
+  handle to resize about the centre, and `Shift` to keep the shape of a free crop. `Ctrl` or `Cmd`
+  with the mouse wheel scales the crop, and with a drag inside it moves the photo under the crop.
+- **Crop guide**, or `O`, cycles the overlay between rule of thirds, golden ratio, golden spiral,
+  diagonals, golden triangle, a grid and none, and remembers your choice. **Turn guide**, or
+  `Shift+O`, turns and mirrors the spiral or triangle to point at your subject.
+- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`, and
+  drag along a line that should be level or upright; drag inside the crop with the right mouse
+  button, or hold `Shift` and drag, to do the same without the button. **Rotate left 90°** and
+  **Rotate right 90°** in the bar at the top
   turn the photo, and **Flip horizontal** and **Flip vertical** mirror it.
 - **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
   afterwards. **Corner handles** lets you drag the four corners onto a shape that
@@ -236,20 +268,36 @@ leaving the tool. The tool stays open until you pick another one.
   should be upright or level, such as the sides of a building or a horizon. A line within 35° of
   upright counts as upright and one within 35° of level counts as level; anything between is
   ignored. Up to two of each kind count, and a third replaces the oldest. One line of the other kind
-  also fixes any remaining slant. Drag a line's ends to adjust it, or click its **×** to remove it.
-  The lines stay until you leave the tool, rotate or flip the photo, or reset.
+  also fixes any remaining slant. Upright lines show in blue as V1 and V2, level ones in amber as H1
+  and H2, with a count of each on the photo and in the panel. While you draw, a label beside the
+  pointer says which kind the line will be, or that it is too diagonal and will be dropped. Drag a
+  line's ends to adjust it, or click its **×** to remove it; **Clear guides** removes them all and
+  keeps the correction. The lines stay until you leave the tool, rotate or flip the photo, or reset.
 - The reset arrow beside **Crop** or **Transform** undoes just that section. **Reset** in the bar at
   the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
   leaves your develop settings alone.
 
+On a phone or tablet, **Crop** shows a dial under the photo for **Straighten**, **Vertical**,
+**Horizontal** and **Aspect**: drag it sideways, and touch and hold the selected chip to see the
+photo without that setting. The row below it picks the aspect ratio, rotates, flips, turns on
+**Level**, **Upright** or **Corners**, and resets the geometry; **Custom…** in the ratio list opens
+a keypad for width and height, and **More** holds rotate right, flip vertical, the crop guide and
+**Reset crop**. After each
+change the view zooms to fit the crop, and while you draw an upright line a magnifier shows the
+photo under your finger.
+
 ## Reuse edits
 
-**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
-**Tone**, **Color**, **Detail**, **Lens Corrections**, **Effects**, **Geometry & crop**, **Masks**
-and **Retouch**. The last three start unchecked, because a crop or a mask rarely fits another
-photo. **Lens Blur** is never copied, because its depth map belongs to one photo. Then open
-another photo and press **Paste edits** (`Ctrl+V`). A short message confirms each copy and paste,
-or says when there is nothing to copy or paste. To paste onto many photos at once, use
+**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you check what to copy. Each Develop
+section has its own box, in panel order, so you can copy just **HSL** or just **White Balance**.
+**Modified only** checks the sections you changed on this photo, and **Last touched**
+checks only the one you changed last. **Geometry & crop**, **Masks** and **Retouch** start
+unchecked, because a crop or a mask rarely fits another photo. **Lens Blur** copies its settings
+but never its depth map, which belongs to one photo. Your choice is kept until you reload. Then
+open another photo and press **Paste edits** (`Ctrl+V`). **Paste only…** (`Ctrl+Shift+V`) shows the
+sections you copied so you can paste a few of them. A short message confirms each copy and paste,
+or says when there is nothing to copy or paste. To paste onto many photos at once, select them in
+the grid and press `Ctrl+V`, or use
 [**Edit and export selected**](export.md#export-many-photos).
 
 A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press
@@ -288,5 +336,6 @@ already in your library is skipped, so importing the same file twice adds nothin
 The **More editor actions** menu (the three dots in the toolbar) lists the original and its
 virtual copies under **Versions**. **Create virtual copy**, or `Ctrl+'`, starts a new version with
 its own edits and history. Rename a version with the pencil on its row; delete it with the bin,
-then confirm.
+then confirm. Press and hold another version's thumbnail, or hold `Space` on its focused row, to
+show that version on the photo until you let go.
 Culling and copies are covered in [browse and cull](cull.md#virtual-copies).

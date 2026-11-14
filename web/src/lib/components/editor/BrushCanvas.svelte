@@ -9,20 +9,21 @@
     type BrushBuffer
   } from '#lib/utils/brush.ts';
   import {
-    displayUvToSceneUv as toSceneUv,
     scenePerDisplayAt as scenePerDisplay,
     steppedSegment,
+    displayUvToSceneUv as toSceneUv,
     viewIsIdentity,
     viewTransform
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-  import {
-    BRUSH_SIZE,
-    HARDNESS,
-    wheelHardness,
-    wheelNotches,
-    wheelSize
-  } from '#lib/utils/brushSize.ts';
+  import { BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
+  import { brushWheel } from '#lib/utils/brushSize.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint, normalizedPoint } from '#lib/gestures/point.ts';
+  import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
+  import { paintInput, SECOND_FINGER_MS } from '#lib/stores/editor/paintInput.svelte.ts';
+  import TouchMagnifier from './TouchMagnifier.svelte';
 
   let {
     img
@@ -30,12 +31,19 @@
     img: PreviewSurface | null;
   } = $props();
 
+  const MAGNIFY = 2;
+
   const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
   let strokeActive = $state(false);
   let hover = $state<{ x: number; y: number } | null>(null);
   let lastPx: number | null = null;
   let lastPy: number | null = null;
+  let erasing = false;
+  let strokePointer: number | null = null;
+  let strokeStartedAt = 0;
+  let snapshot: Uint8Array | null = null;
+  let finger = $state<{ u: number; v: number } | null>(null);
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
 
@@ -141,8 +149,7 @@
     const buf = editor.brushBuffers[activeComp.id];
     if (!buf) return;
     const rect = canvasEl.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const { x: px, y: py } = elementPoint(e, rect);
     const color = maskOverlayRgb(canvasEl);
     if (lastPx !== null && lastPy !== null) {
       const radiusPx = editor.brushTool.size * 0.5 * Math.min(rect.width, rect.height);
@@ -174,7 +181,7 @@
     const cyBuf = scene[1] * buf.height;
     const radiusBuf = radiusScene * Math.min(buf.width, buf.height);
     const alphaByte = Math.round(editor.brushTool.flow * 255);
-    const erase = editor.brushTool.mode === 'erase';
+    const erase = erasing;
     stampBuffer(buf, cxBuf, cyBuf, radiusBuf, editor.brushTool.hardness, alphaByte, erase);
 
     const ctx = canvasEl.getContext('2d');
@@ -203,46 +210,111 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  async function onPointerDown(e: PointerEvent): Promise<void> {
-    if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    strokeActive = true;
-    lastPx = null;
-    lastPy = null;
-    editor.beginMaskStroke();
-    await editor.ensureBrushBuffer(activeComp.id, activeComp.kind.raster_id);
+  async function beginStroke(e: PointerEvent, id: string, rasterId: string | null): Promise<void> {
+    const buf = await editor.ensureBrushBuffer(id, rasterId);
+    if (!strokeActive) return;
+    snapshot = buf.bytes.slice();
     stampAt(e);
   }
 
-  function onPointerMove(e: PointerEvent): void {
-    const bounds = (e.currentTarget as Element).getBoundingClientRect();
-    hover = { x: e.clientX - bounds.left, y: e.clientY - bounds.top };
-    if (!strokeActive) return;
-    stampAt(e);
+  function trackHover(e: PointerEvent): void {
+    hover = elementPoint(e, e.currentTarget as Element);
+  }
+
+  function trackFinger(e: PointerEvent): void {
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    const at = normalizedPoint(e, e.currentTarget as Element);
+    finger = { u: at.x, v: at.y };
+  }
+
+  const stroke = pointerDrag<true>({
+    start(e) {
+      if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return null;
+      if (!paintInput.paints(e.pointerType)) return null;
+      e.preventDefault();
+      e.stopPropagation();
+      strokeActive = true;
+      strokePointer = e.pointerId;
+      strokeStartedAt = e.timeStamp;
+      erasing = brushErase.mode(editor.brushTool.mode, e) === 'erase';
+      lastPx = null;
+      lastPy = null;
+      snapshot = null;
+      paintInput.begin(e.pointerType);
+      trackFinger(e);
+      editor.beginMaskStroke();
+      void beginStroke(e, activeComp.id, activeComp.kind.raster_id);
+      return true;
+    },
+    hover: trackHover,
+    move(e) {
+      trackHover(e);
+      if (!strokeActive) return;
+      stampAt(e);
+      trackFinger(e);
+    },
+    end: () => void finishStroke(),
+    cancel: () => void finishStroke()
+  });
+
+  const handlers = stroke.on();
+
+  function onPointerDown(e: PointerEvent): void {
+    if (strokeActive && e.pointerType === 'touch' && e.pointerId !== strokePointer) {
+      if (e.timeStamp - strokeStartedAt <= SECOND_FINGER_MS) dropStroke();
+      else void finishStroke();
+      return;
+    }
+    handlers.onpointerdown(e);
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!e.altKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const notches = wheelNotches(e);
-    if (e.shiftKey) {
-      editor.setBrushTool({
-        hardness: wheelHardness(editor.brushTool.hardness, notches, HARDNESS)
-      });
-      return;
-    }
-    editor.setBrushTool({ size: wheelSize(editor.brushTool.size, notches, BRUSH_SIZE) });
+    brushWheel(
+      e,
+      editor.brushTool,
+      { size: BRUSH_SIZE, hardness: BRUSH_HARDNESS },
+      editor.setBrushTool
+    );
   }
 
-  async function onPointerUp(e: PointerEvent): Promise<void> {
-    if (!strokeActive) return;
+  function onModifier(e: KeyboardEvent): void {
+    if (isAnyModalOpen()) return;
+    brushErase.note(e);
+  }
+
+  $effect(() => {
+    if (!show) {
+      brushErase.release();
+      paintInput.reset();
+    }
+    return () => {
+      brushErase.release();
+      paintInput.reset();
+    };
+  });
+
+  function settle(): void {
     strokeActive = false;
+    strokePointer = null;
     lastPx = null;
     lastPy = null;
-    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+    finger = null;
+    paintInput.end();
+  }
+
+  function dropStroke(): void {
+    if (!strokeActive) return;
+    const buf = activeComp ? editor.brushBuffers[activeComp.id] : undefined;
+    if (buf && snapshot && snapshot.length === buf.bytes.length) buf.bytes.set(snapshot);
+    snapshot = null;
+    settle();
+    editor.endMaskStroke();
+  }
+
+  async function finishStroke(): Promise<void> {
+    if (!strokeActive) return;
+    settle();
+    snapshot = null;
     if (!active || !activeComp) {
       editor.endMaskStroke();
       return;
@@ -252,19 +324,40 @@
   }
 </script>
 
+<svelte:window
+  onkeydown={show ? onModifier : undefined}
+  onkeyup={show ? onModifier : undefined}
+  onblur={brushErase.release}
+/>
+
 {#if show}
   <canvas
     bind:this={canvasEl}
     class="absolute"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
+    {...handlers}
     onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
     onpointerleave={() => (hover = null)}
     onwheel={onWheel}
     data-testid="brush-canvas"
+    data-photo-layer
   ></canvas>
+  {#if finger && img}
+    <div
+      class="pointer-events-none absolute"
+      style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
+    >
+      <TouchMagnifier
+        source={img}
+        u={finger.u}
+        v={finger.v}
+        width={rect.w}
+        zoom={MAGNIFY}
+        overlay={canvasEl}
+        ring={ringRadius * 2 * MAGNIFY}
+      />
+    </div>
+  {/if}
   {#if hover}
     <div
       class="pointer-events-none absolute rounded-full border border-white/90 shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
@@ -272,7 +365,14 @@
         hover.y -
         ringRadius}px; width: {ringRadius * 2}px; height: {ringRadius * 2}px;"
       data-testid="brush-cursor"
+      data-erase={brushErase.mode(editor.brushTool.mode) === 'erase' || undefined}
       aria-hidden="true"
-    ></div>
+    >
+      {#if brushErase.mode(editor.brushTool.mode) === 'erase'}
+        <span
+          class="absolute top-1/2 left-1/2 h-0.5 w-3 -translate-x-1/2 -translate-y-1/2 bg-image-light shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
+        ></span>
+      {/if}
+    </div>
   {/if}
 {/if}

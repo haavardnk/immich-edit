@@ -12,6 +12,7 @@ function entry(over: Partial<EditHistoryEntry>): EditHistoryEntry {
     edits: neutralEdits(),
     created_at: '2024-01-01T00:00:00Z',
     action: null,
+    undone: false,
     ...over
   };
 }
@@ -106,18 +107,18 @@ describe('historyDetails', () => {
     const details = historyDetails(entry({ id: 2, edits: curr }), entry({ id: 1, edits: prev }));
 
     expect(details).toContainEqual({
-      key: 'basic',
-      label: 'Basic',
+      key: 'tone',
+      label: 'Tone',
       items: [{ kind: 'value', label: 'Exposure', before: '+0.50', after: '+1.50' }]
     });
     expect(details).toContainEqual({
-      key: 'detail',
-      label: 'Detail',
+      key: 'sharpening',
+      label: 'Sharpening',
       items: [{ kind: 'value', label: 'Sharpen Radius', before: '1.2', after: '2.0' }]
     });
     expect(details).toContainEqual({
       key: 'lens',
-      label: 'Lens',
+      label: 'Lens Corrections',
       items: [{ kind: 'value', label: 'Profile Corrections', before: 'Auto', after: 'On' }]
     });
   });
@@ -145,8 +146,8 @@ describe('historyDetails', () => {
 
     expect(details).toEqual([
       {
-        key: 'basic',
-        label: 'Basic',
+        key: 'white_balance',
+        label: 'White Balance',
         items: [{ kind: 'value', label: 'White Balance', before: beforeText, after: afterText }]
       }
     ]);
@@ -244,7 +245,7 @@ describe('historyDetails', () => {
 
     expect(details).toContainEqual({
       key: 'lens',
-      label: 'Lens',
+      label: 'Lens Corrections',
       items: [{ kind: 'summary', text: 'Profile data changed' }]
     });
   });
@@ -258,7 +259,7 @@ describe('historyDetails', () => {
     const curr = neutralEdits();
     curr.color.dcp.mode = mode;
     const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
-      (detail) => detail.key === 'color'
+      (detail) => detail.key === 'dcp'
     );
     expect(group?.items).toContainEqual({
       kind: 'summary',
@@ -294,7 +295,7 @@ describe('historyDetails', () => {
     const curr = neutralEdits();
     curr.color.lut_3d.lut_id = 'film';
     const group = historyDetails(entry({ edits: curr }), entry({ edits: prev })).find(
-      (detail) => detail.key === 'color'
+      (detail) => detail.key === 'lut'
     );
     expect(group?.items).toContainEqual({ kind: 'summary', text: 'LUT selection changed' });
   });

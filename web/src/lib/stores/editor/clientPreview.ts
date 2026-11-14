@@ -18,7 +18,7 @@ export interface ClientPreviewHooks {
   onSourceLong(long: number): void;
   onTile(request: RenderRequest, w: number, h: number): void;
   onFallback(): void;
-  refreshOriginal(): void;
+  refreshLeft(): void;
 }
 
 export class ClientPreview {
@@ -160,15 +160,15 @@ export class ClientPreview {
     this.ctx.previewUrl = null;
     this.ctx.pending = false;
     renderer.recordRender({ ms, pixels: frame.width * frame.height });
-    if (job.purpose === 'color-picker' && this.ctx.colorPicker) {
-      this.ctx.colorPicker = { ...this.ctx.colorPicker, ready: true };
+    if (job.purpose === 'range-picker' && this.ctx.rangePicker) {
+      this.ctx.rangePicker = { ...this.ctx.rangePicker, ready: true };
     }
     if (!job.view.histogram || !this.ctx.assetId) return;
     this.ctx.meta = frameMeta(this.ctx.assetId, frame, source.is_raw, 'browser');
     const long = Math.max(frame.source_w, frame.source_h);
     if (long > 0) this.hooks.onSourceLong(long);
     scopes.onGrids(frame.scopes ?? null);
-    if (this.ctx.splitMode) this.hooks.refreshOriginal();
+    this.hooks.refreshLeft();
   }
 
   private onTile(job: ClientJob, frame: RenderedFrame): void {
@@ -188,8 +188,9 @@ export class ClientPreview {
 
   private onError(err: unknown): void {
     if (err instanceof ApiError && err.code === 'superseded') return;
-    if (!(err instanceof ApiError || err instanceof NetworkError)) renderer.fail(err);
-    this.bound = null;
+    const recreate =
+      !(err instanceof ApiError || err instanceof NetworkError) && renderer.fail(err);
+    this.bound = recreate ? undefined : null;
     this.lanes();
     this.cancelTile();
     this.ctx.pending = false;

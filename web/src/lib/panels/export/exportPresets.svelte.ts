@@ -32,7 +32,7 @@ class ExportPresetsStore {
       this.presets = [...this.presets.filter((p) => p.id !== saved.id), saved].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       );
-      toasts.push('success', `Saved export preset "${saved.name}"`, 5000);
+      toasts.push('success', `Saved export preset "${saved.name}"`, { ttlMs: 5000 });
     } catch (e) {
       toasts.fail('Failed to save export preset', e, 8000);
     }

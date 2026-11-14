@@ -1,4 +1,9 @@
-import { solveUpright, withGuide, type UprightGuide } from '#lib/utils/upright.ts';
+import {
+  MIN_SOLVE_GUIDES,
+  solveUpright,
+  withGuide,
+  type UprightGuide
+} from '#lib/utils/upright.ts';
 import { commit, ready, refitDraftCrop, sourceDims, type GeometryCtx } from './geometry.svelte';
 
 const UPRIGHT_ACTION = 'Guided upright';
@@ -19,6 +24,18 @@ export function removeGuide(ctx: GeometryCtx, index: number): Promise<void> {
   );
 }
 
+export function noteDroppedGuide(ctx: GeometryCtx, degrees: number): void {
+  const sess = ready(ctx);
+  if (sess) sess.guideNote = { kind: 'dropped', degrees };
+}
+
+export function clearGuides(ctx: GeometryCtx): void {
+  const sess = ready(ctx);
+  if (!sess) return;
+  sess.guides = [];
+  sess.guideNote = null;
+}
+
 async function applyGuides(
   ctx: GeometryCtx,
   change: (guides: UprightGuide[]) => UprightGuide[] | null
@@ -29,6 +46,7 @@ async function applyGuides(
   sess.guides = guides;
   const { sw, sh } = sourceDims(sess);
   const solution = solveUpright(guides, sw, sh, sess.draftPerspective.aspect);
+  sess.guideNote = !solution && guides.length >= MIN_SOLVE_GUIDES ? { kind: 'unsolved' } : null;
   if (!solution) return;
   sess.draftAngle = solution.angle;
   sess.draftPerspective = solution.perspective;

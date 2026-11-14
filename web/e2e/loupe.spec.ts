@@ -18,13 +18,18 @@ const ASSETS = [
 const LOUPE_IMAGE = 'IMG_0001.ARW';
 const NEXT_IMAGE = 'IMG_0002.ARW';
 
-async function openLoupe(page: Page, opts: InstallOpts = {}): Promise<void> {
+async function openLoupe(
+  page: Page,
+  opts: InstallOpts = {},
+  prepare?: () => Promise<void>
+): Promise<void> {
   await installMocks(page, { assets: ASSETS, ...opts });
+  await prepare?.();
   await page.addInitScript(() => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
@@ -44,6 +49,59 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press(' ');
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+});
+
+async function countGhosts(page: Page): Promise<() => Promise<number>> {
+  await page.evaluate(() => {
+    let count = 0;
+    Reflect.set(window, '__ghosts', count);
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of record.addedNodes) if (node instanceof HTMLImageElement) count += 1;
+      Reflect.set(window, '__ghosts', count);
+    }).observe(document.body, { childList: true });
+  });
+  return () => page.evaluate(() => Number(Reflect.get(window, '__ghosts')));
+}
+
+test('the loupe zooms out of its tile and back into it', async ({ page }) => {
+  await installMocks(page, { assets: ASSETS });
+  await page.goto('/search?q=IMG');
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  const ghosts = await countGhosts(page);
+
+  await page.getByLabel('Quick review').first().click();
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+  await expect.poll(ghosts).toBe(1);
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
+  await expect.poll(ghosts).toBe(2);
+  await expect(page.locator('body > img')).toHaveCount(0);
+});
+
+test('the loupe paints the Immich preview while the render is pending', async ({ page }) => {
+  let release = (): void => {};
+  const rendered = new Promise<void>((resolve) => (release = resolve));
+  await openLoupe(page, { thumbnailRender: () => makePng(36, 24) }, () =>
+    page.route(`**/api/assets/${ASSET_ID}/preview?*`, async (route) => {
+      await rendered;
+      await route.fallback();
+    })
+  );
+
+  const immichPreview = page.getByTestId('loupe-immich-preview');
+  await expect(immichPreview).toHaveAttribute('src', `/api/assets/${ASSET_ID}/thumb?size=preview`);
+  await expect
+    .poll(() => immichPreview.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(36);
+  const status = page.getByTestId('preview-status');
+  await expect(status).toHaveText('Immich preview · rendering');
+
+  release();
+  await expect(status).toBeHidden();
+  await expect(immichPreview).toHaveCount(0);
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 
@@ -110,14 +168,23 @@ test('F toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
-test('the single loupe shows its position in the set', async ({ page }) => {
+test('a mouse drag at fit never swipes to another photo', async ({ page }) => {
   await openLoupe(page);
-  const rail = page.getByRole('navigation', { name: 'Photo actions' });
-  await expect(rail.getByText('1 of 2', { exact: true })).toBeVisible();
+  const pane = page.getByRole('button', { name: 'Zoom in' });
+  const box = await pane.boundingBox();
+  if (!box) throw new Error('no loupe pane');
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
 
-  await page.keyboard.press('ArrowRight');
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 300, y, { steps: 10 });
+  const track = page.getByTestId('loupe-track');
+  expect(await track.evaluate((element: HTMLElement) => element.style.transform)).toBe('');
+  await page.mouse.up();
 
-  await expect(rail.getByText('2 of 2', { exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toContainText(LOUPE_IMAGE);
+  await expect(pane).toHaveAccessibleName('Zoom in');
 });
 
 test('the shortcuts dialog lists the loupe gestures', async ({ page }) => {
@@ -208,6 +275,37 @@ test('Shift+digit rates and advances with auto-advance off', async ({ page }) =>
   await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
 });
 
+test('the rating HUD names the rating and auto-advance steps once after its bar', async ({
+  page
+}) => {
+  await page.clock.install();
+  await openLoupe(page, { assets: numberedAssets(3, { exifInfo: ASSET_EXIF }) });
+  const hud = page.getByTestId('rating-hud');
+  const pill = page.getByRole('button', { name: 'Auto-advance', exact: true });
+
+  await page.keyboard.press('3');
+  await expect(hud).toHaveText(/^\s*3 stars\s*$/);
+  await expect(page.getByTestId('rating-hud-progress')).toHaveCount(0);
+  await page.clock.runFor(1300);
+  await expect(hud).toBeHidden();
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+
+  await expect(pill).toHaveAttribute('aria-pressed', 'false');
+  await pill.click();
+  await expect(pill).toHaveAttribute('aria-pressed', 'true');
+
+  await page.keyboard.press('4');
+  await expect(hud).toContainText('4 stars');
+  await expect(hud).toContainText('· next photo');
+  await expect(page.getByTestId('rating-hud-progress')).toBeVisible();
+  await page.clock.runFor(800);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(hud).toBeHidden();
+  await page.clock.runFor(3000);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toHaveCount(0);
+});
+
 test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ page }) => {
   await openLoupe(page, { previewBody: makePng(60, 40) });
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
@@ -235,6 +333,27 @@ test('filmstrip thumbs with a context menu stay in the tab order', async ({ page
   await first.focus();
   await page.keyboard.press('Tab');
   await expect(next).toBeFocused();
+});
+
+test('a loupe click keeps the clicked point under the pointer', async ({ page }) => {
+  await openLoupe(page, { previewBody: makePng(1800, 1200) });
+  const image = page.getByRole('img', { name: LOUPE_IMAGE });
+  await expect(image.locator('xpath=..')).toHaveAttribute('aria-busy', 'false');
+  const before = await image.boundingBox();
+  if (!before) throw new Error('missing image');
+  const point = { x: before.x + before.width * 0.3, y: before.y + before.height * 0.5 };
+  const fraction = async (): Promise<string> => {
+    const box = await image.boundingBox();
+    if (!box) throw new Error('missing image');
+    const u = (point.x - box.x) / box.width;
+    const v = (point.y - box.y) / box.height;
+    return `${u.toFixed(2)} ${v.toFixed(2)} zoomed ${box.width > before.width * 1.5}`;
+  };
+
+  await page.mouse.click(point.x, point.y);
+
+  await expect(image).toHaveAttribute('style', /scale\([\d.]+\) translate\(/);
+  await expect.poll(fraction).toBe('0.30 0.50 zoomed true');
 });
 
 test('the filmstrip context menu opens a photo in the editor', async ({ page }) => {

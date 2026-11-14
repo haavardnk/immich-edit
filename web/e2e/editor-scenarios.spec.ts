@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test';
+import { editsToManifest } from '../src/lib/edits/manifest';
+import { neutralEdits } from '../src/lib/types/edits';
 import {
   ASSET_ID,
   ASSET_SUMMARY,
   NEUTRAL_RECORD,
+  gotoAsset,
   installMocks,
   json,
-  gotoAsset,
   numberedAssets,
   openPresetMenu,
   openPresetStrip,
   presetAction
 } from './helpers';
-import { editsToManifest } from '../src/lib/edits/manifest';
-import { neutralEdits } from '../src/lib/types/edits';
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -95,12 +95,12 @@ test('export quality uses the shared range control', async ({ page }) => {
   await expect(page.getByText('82', { exact: true })).toBeVisible();
 });
 
-test('split view toggles from the editor menu and reveals the slider', async ({ page }) => {
+test('compare opens the split from the editor menu', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
   const more = page.getByRole('button', { name: 'More editor actions' });
-  const split = page.getByRole('button', { name: 'Before/After split', exact: true });
+  const split = page.getByRole('button', { name: 'Compare', exact: true });
   await more.click();
   await expect(split).toHaveAttribute('aria-pressed', 'false');
   await split.click();
@@ -113,7 +113,7 @@ test('split view toggles from the editor menu and reveals the slider', async ({ 
 test('editor and loupe keep independent filmstrip visibility', async ({ page }) => {
   await installMocks(page);
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
     'aria-pressed',
@@ -173,7 +173,9 @@ test('editor and loupe layout choices survive reload', async ({ page }) => {
 
   await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
   await page.getByRole('button', { name: /^Back/ }).click();
-  await page.locator(`a[href^="/assets/${ASSET_ID}?"]`).evaluate((element) => element.click());
+  await page
+    .locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)
+    .evaluate((element) => element.click());
   await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 });
 
@@ -226,14 +228,16 @@ test('the copy dialog is a named modal that cancels back to the editor', async (
   await expect(dialog).toBeHidden();
 });
 
-test('narrow viewports show the desktop-required guard', async ({ page }) => {
+test('narrow viewports open the touch editor with a way back', async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await installMocks(page);
 
   await page.goto(`/assets/${ASSET_ID}`);
 
-  await expect(page.getByRole('heading', { name: 'Desktop required' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(0);
+  await expect(page.getByRole('tablist', { name: 'Editor modes' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(1);
+  await page.getByRole('button', { name: /^Back/ }).click();
+  await expect(page).toHaveURL('/photos');
 });
 
 test('deleting a preset requires explicit confirmation', async ({ page }) => {
@@ -474,6 +478,14 @@ test('the preset strip explains a disabled save and keeps failed thumbnails visi
 test('history restore waits for a save that is still in flight', async ({ page }) => {
   const entries = [
     {
+      id: 2,
+      manifest_hash: 'hash-neutral',
+      deleted: false,
+      manifest: editsToManifest(neutralEdits()),
+      created_at: '2024-01-02T00:00:00Z',
+      action: 'Latest'
+    },
+    {
       id: 1,
       manifest_hash: 'hash-prior',
       deleted: false,
@@ -637,7 +649,7 @@ test('develop reset keeps masks, retouch and the crop', async ({ page }) => {
 test('geometry action buttons rotate, flip and reset', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   const reset = page.getByRole('button', { name: 'Reset geometry', exact: true });
   await expect(reset).toBeDisabled();
 
@@ -657,7 +669,7 @@ test('geometry action buttons rotate, flip and reset', async ({ page }) => {
   await expect(reset).toBeDisabled();
 });
 
-test('the reset shortcut on the Geometry tab resets only geometry', async ({ page }) => {
+test('the reset shortcut on the Crop tab resets only geometry', async ({ page }) => {
   const edits = neutralEdits();
   edits.basic.exposure_ev = 1;
   edits.geometry.rotate = 90;
@@ -666,7 +678,7 @@ test('the reset shortcut on the Geometry tab resets only geometry', async ({ pag
     editRecord: { ...NEUTRAL_RECORD, manifest: editsToManifest(edits), hash: 'hash-edited' }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'Flip horizontal' })).toHaveAttribute(
     'aria-pressed',
     'true'

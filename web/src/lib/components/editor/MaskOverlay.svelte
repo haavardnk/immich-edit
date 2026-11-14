@@ -1,11 +1,10 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { surfaceSize, type PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { isKeybind } from '#lib/shortcuts/match.ts';
   import { isRadioGroupTarget, isTypingTarget } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
+  import { isAnyModalOpen } from '#lib/stores/overlays.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import { type Vec2f } from '#lib/types/edits.ts';
   import {
@@ -20,6 +19,10 @@
   import MaskRadialHandles from './MaskRadialHandles.svelte';
   import MaskPolygonHandles from './MaskPolygonHandles.svelte';
   import MaskPolygonDraft from './MaskPolygonDraft.svelte';
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
   let {
     img
@@ -41,10 +44,6 @@
   );
 
   const showOverlay = $derived(!!active && rect.w > 0 && rect.h > 0);
-  const showColorPicker = $derived(
-    !!editor.colorPicker?.ready && rect.w > 0 && rect.h > 0 && !!img
-  );
-
   function toPx(scene: Vec2f): { x: number; y: number } {
     const d = sceneUvToDisplayUv(view, scene.x, scene.y);
     return { x: rect.x + d[0] * rect.w, y: rect.y + d[1] * rect.h };
@@ -57,14 +56,31 @@
     return { x: s[0], y: s[1] };
   }
 
-  let drag = $state<{ componentId: string; kind: DragKind } | null>(null);
+  type MaskDrag = { componentId: string; kind: DragKind };
+
+  const maskDrag = pointerDrag<MaskDrag, MaskDrag>({
+    start(e, target) {
+      e.preventDefault();
+      e.stopPropagation();
+      editor.setActiveMaskComponent(target.componentId);
+      return target;
+    },
+    move(e, current) {
+      if (!active) return;
+      const comp = active.components.find((c) => c.id === current.componentId);
+      if (!comp) return;
+      const at = elementPoint(e, e.currentTarget as SVGSVGElement);
+      const n = fromPx(at.x, at.y);
+      const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: held('constrain', e) });
+      if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
+    },
+    end() {
+      void editor.commitMasks();
+    }
+  });
 
   function startDrag(e: PointerEvent, componentId: string, kind: DragKind): void {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    editor.setActiveMaskComponent(componentId);
-    drag = { componentId, kind };
+    maskDrag.begin(e, { componentId, kind });
   }
 
   function selectOnly(e: PointerEvent, componentId: string): void {
@@ -78,7 +94,7 @@
       return false;
     const comp = active.components.find((c) => c.id === editor.activeMaskComponentId);
     if (!comp) return false;
-    const step = e.shiftKey ? 10 : 1;
+    const step = held('coarse', e) ? 10 : 1;
     const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
     const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
     const next = nudgedKind(comp.kind, dx, dy, toPx, fromPx);
@@ -90,12 +106,7 @@
   }
 
   function onKeyDown(e: KeyboardEvent): void {
-    if (isModalOpen()) return;
-    if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
-      e.preventDefault();
-      editor.cancelColorPicker();
-      return;
-    }
+    if (isAnyModalOpen()) return;
     if (nudge(e)) return;
     if (!isKeybind(e, 'maskDelete')) return;
     if (ui.editorTab !== 'masks' || isTypingTarget(e)) return;
@@ -103,24 +114,6 @@
     e.preventDefault();
     void editor.removeMaskComponent(active.id, editor.activeMaskComponentId);
     toasts.push('info', `Shape deleted. Undo with ${keysFor('undo')}.`);
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (!drag || !active) return;
-    const current = drag;
-    const comp = active.components.find((c) => c.id === current.componentId);
-    if (!comp) return;
-    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const n = fromPx(e.clientX - r.left, e.clientY - r.top);
-    const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: e.shiftKey });
-    if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
-  }
-
-  function onPointerUp(e: PointerEvent): void {
-    if (!drag) return;
-    drag = null;
-    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
-    void editor.commitMasks();
   }
 
   function setPolygonPoints(componentId: string, points: Vec2f[]): void {
@@ -131,31 +124,6 @@
     void editor.commitMasks();
   }
 
-  function sampleColor(e: PointerEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!img || !editor.colorPicker?.ready) return;
-    const size = surfaceSize(img);
-    if (size.w < 1 || size.h < 1) return;
-    const bounds = img.getBoundingClientRect();
-    const u = clamp01((e.clientX - bounds.left) / Math.max(bounds.width, 1));
-    const v = clamp01((e.clientY - bounds.top) / Math.max(bounds.height, 1));
-    const sx = Math.min(size.w - 1, Math.floor(u * size.w));
-    const sy = Math.min(size.h - 1, Math.floor(v * size.h));
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) return;
-    context.drawImage(img, sx, sy, 1, 1, 0, 0, 1, 1);
-    const pixel = context.getImageData(0, 0, 1, 1).data;
-    void editor.commitColorSample([
-      (pixel[0] ?? 0) / 255,
-      (pixel[1] ?? 0) / 255,
-      (pixel[2] ?? 0) / 255
-    ]);
-  }
-
   const draft = $derived(editor.polygonDraft);
   const drafting = $derived(!!draft && rect.w > 0 && rect.h > 0);
   const activeCompId = $derived(editor.activeMaskComponentId);
@@ -163,25 +131,13 @@
 
 <svelte:window onkeydown={onKeyDown} />
 
-{#if showColorPicker}
-  <button
-    type="button"
-    class="absolute z-30 cursor-crosshair bg-transparent"
-    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
-    aria-label="Sample mask color"
-    onpointerdown={sampleColor}
-  ></button>
-{/if}
-
 {#if showOverlay && active}
   <svg
     class="absolute inset-0 pointer-events-none"
     width="100%"
     height="100%"
     role="presentation"
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...maskDrag.follow}
   >
     {#each active.components as comp (comp.id)}
       {#if comp.enabled && activeCompId === comp.id}

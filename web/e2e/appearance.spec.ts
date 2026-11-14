@@ -120,7 +120,9 @@ function serveAppearance(page: Page, appearance: MockAppearance): Promise<void> 
 
 test('the server appearance replaces a stale cache after boot', async ({ page }) => {
   await installMocks(page);
+  const booted = page.waitForResponse('**/api/appearance');
   await page.goto('/photos');
+  await booted;
   await expect.poll(() => rootState(page)).toEqual(DARK);
 
   await serveAppearance(page, { ...DEFAULT_APPEARANCE, mode: 'light' });
@@ -243,13 +245,13 @@ test('an accent recolours primary, the logo and the favicon but not on-photo str
     .toEqual({ ...DEFAULT_APPEARANCE, accents: { dark: 'teal' } });
 
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await page.getByRole('button', { name: 'Corner handles' }).click();
   const handle = page.getByRole('button', { name: 'perspective corner 1' });
   await expect(handle).toBeVisible();
-  expect(await handle.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
-    VIOLET
-  );
+  expect(
+    await handle.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor)
+  ).toBe(VIOLET);
   expect(
     await page
       .locator('polygon[stroke="var(--color-image-accent)"]')

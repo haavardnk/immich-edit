@@ -7,7 +7,7 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
+    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, Partner, PeopleResponse,
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
     TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
 };
@@ -170,6 +170,16 @@ impl ImmichClient {
 
     pub async fn list_albums(&self) -> ImmichResult<Vec<AlbumSummary>> {
         self.get_json("api/albums").await
+    }
+
+    pub async fn albums_with_asset(&self, asset: Uuid) -> ImmichResult<Vec<AlbumSummary>> {
+        self.get_json_query("api/albums", &[("assetId", &asset.to_string())])
+            .await
+    }
+
+    pub async fn create_album(&self, name: &str) -> ImmichResult<AlbumSummary> {
+        self.post_json("api/albums", &serde_json::json!({ "albumName": name }))
+            .await
     }
 
     pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumDetail> {
@@ -417,9 +427,28 @@ impl ImmichClient {
         parse_json(&bytes)
     }
 
+    pub async fn timeline_partners(&self) -> ImmichResult<Vec<Partner>> {
+        let url = self.url("api/partners")?;
+        let req = self.http.get(url).query(&[("direction", "shared-with")]);
+        let bytes = send(self.authed(req)).await?;
+        let partners: Vec<Partner> = parse_json(&bytes)?;
+        Ok(partners
+            .into_iter()
+            .filter(|partner| partner.in_timeline)
+            .collect())
+    }
+
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> ImmichResult<T> {
+        self.get_json_query(path, &[]).await
+    }
+
+    async fn get_json_query<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> ImmichResult<T> {
         let url = self.url(path)?;
-        let bytes = send(self.authed(self.http.get(url))).await?;
+        let bytes = send(self.authed(self.http.get(url).query(query))).await?;
         parse_json(&bytes)
     }
 
@@ -532,6 +561,8 @@ pub struct ServerConfig {
     pub oauth_button_text: String,
     #[serde(default)]
     pub trash_days: Option<u32>,
+    #[serde(default)]
+    pub external_domain: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

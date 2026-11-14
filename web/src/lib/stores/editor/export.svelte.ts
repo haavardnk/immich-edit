@@ -1,7 +1,7 @@
 import { getAsset } from '#lib/api/assets.ts';
 import {
   downloadExport,
-  EXTENSION_BY_FORMAT,
+  downloadName,
   uploadToImmich,
   type ExportOptions,
   type ImmichExportOptions
@@ -39,7 +39,7 @@ export async function onExport(ctx: ExportCtx, opts: ExportOptions): Promise<voi
   ctx.lastDownload = null;
   try {
     const download = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), opts);
-    const name = download.filename ?? `${ctx.assetId}.${EXTENSION_BY_FORMAT[opts.format]}`;
+    const name = downloadName(ctx.assetId, download, opts.format);
     downloadBlob(download.blob, name);
     ctx.lastDownload = {
       kind: 'success',
@@ -87,7 +87,7 @@ export async function onUploadToImmich(
       trash.removeTrashed([sourceId(ctx.assetId)], message);
       return true;
     }
-    toasts.push(duplicate ? 'warn' : 'success', message, 10000);
+    toasts.push(duplicate ? 'warn' : 'success', message, { ttlMs: 10000 });
     if (opts.stackWithOriginal || opts.favorite) {
       ctx.asset = await getAsset(ctx.assetId).catch(() => ctx.asset);
     }
@@ -95,7 +95,7 @@ export async function onUploadToImmich(
   } catch (e) {
     const message = errorMessage(e);
     ctx.lastUpload = { kind: 'error', message: `Upload failed: ${message}`, warnings: [] };
-    toasts.push('error', `Upload failed: ${message}`, 10000);
+    toasts.push('error', `Upload failed: ${message}`, { ttlMs: 10000 });
     return false;
   } finally {
     ctx.exportingToImmich = false;

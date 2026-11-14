@@ -1,7 +1,16 @@
 import { formatChord, keyLabel } from './chord';
 
 export type KeybindContext =
-  'global' | 'grid' | 'loupe' | 'compare' | 'survey' | 'editor' | 'geometry' | 'masks' | 'retouch';
+  | 'global'
+  | 'grid'
+  | 'loupe'
+  | 'compare'
+  | 'survey'
+  | 'editor'
+  | 'geometry'
+  | 'masks'
+  | 'retouch'
+  | 'viewer';
 
 export interface Keybind {
   readonly id: string;
@@ -10,6 +19,7 @@ export interface Keybind {
   readonly group: string;
   readonly label: string;
   readonly display?: string | ((mac: boolean) => string);
+  readonly fixed?: boolean;
 }
 
 export const KEYBINDS = [
@@ -31,6 +41,7 @@ export const KEYBINDS = [
 
   {
     id: 'rate',
+    fixed: true,
     keys: ['0', '1', '2', '3', '4', '5'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
     group: 'Culling',
@@ -39,6 +50,7 @@ export const KEYBINDS = [
   },
   {
     id: 'rateAdvance',
+    fixed: true,
     keys: [
       'Shift+Digit0',
       'Shift+Digit1',
@@ -75,6 +87,7 @@ export const KEYBINDS = [
   },
   {
     id: 'label',
+    fixed: true,
     keys: ['6', '7', '8', '9'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
     group: 'Culling',
@@ -91,6 +104,7 @@ export const KEYBINDS = [
 
   {
     id: 'gridMove',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'],
     contexts: ['grid'],
     group: 'Grid',
@@ -98,6 +112,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridExtend',
+    fixed: true,
     keys: [
       'Shift+ArrowLeft',
       'Shift+ArrowRight',
@@ -116,6 +131,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridEdge',
+    fixed: true,
     keys: ['Home', 'End'],
     contexts: ['grid'],
     group: 'Grid',
@@ -123,6 +139,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridPage',
+    fixed: true,
     keys: ['PageUp', 'PageDown'],
     contexts: ['grid'],
     group: 'Grid',
@@ -130,11 +147,20 @@ export const KEYBINDS = [
   },
   {
     id: 'gridSize',
+    fixed: true,
     keys: ['-', '_', '=', '+'],
     contexts: ['grid'],
     group: 'Grid',
     label: 'Thumbnail size',
     display: '− / +'
+  },
+  {
+    id: 'gridWheelZoom',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Change the thumbnail size around the pointer',
+    display: (mac: boolean) => `${keyLabel('Mod', mac)} scroll · pinch`
   },
   {
     id: 'gridTileInfo',
@@ -159,10 +185,28 @@ export const KEYBINDS = [
   },
   {
     id: 'gridClearSelection',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['grid'],
     group: 'Grid',
     label: 'Clear the selection'
+  },
+  {
+    id: 'gridMarquee',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Box-select the photos it touches',
+    display: 'Drag from a gap'
+  },
+  {
+    id: 'gridMarqueeAdd',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Add the boxed photos to the selection',
+    display: (mac: boolean) =>
+      `${keyLabel('Shift', mac)} or ${keyLabel('Mod', mac)} + drag from a gap`
   },
   {
     id: 'focusBulkBar',
@@ -177,6 +221,14 @@ export const KEYBINDS = [
     contexts: ['grid'],
     group: 'Grid',
     label: 'Open the loupe'
+  },
+  {
+    id: 'peek',
+    keys: ['w'],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Hold to peek at the photo',
+    display: 'W (hold)'
   },
   {
     id: 'openEditor',
@@ -202,6 +254,7 @@ export const KEYBINDS = [
 
   {
     id: 'loupeNav',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -209,6 +262,7 @@ export const KEYBINDS = [
   },
   {
     id: 'zoomPan',
+    fixed: true,
     keys: ['Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'Loupe',
@@ -216,6 +270,7 @@ export const KEYBINDS = [
   },
   {
     id: 'loupeEdge',
+    fixed: true,
     keys: ['Home', 'End'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -243,6 +298,24 @@ export const KEYBINDS = [
     label: 'Toggle the tags panel'
   },
   {
+    id: 'recentTag',
+    fixed: true,
+    keys: [
+      'Alt+Digit1',
+      'Alt+Digit2',
+      'Alt+Digit3',
+      'Alt+Digit4',
+      'Alt+Digit5',
+      'Alt+Digit6',
+      'Alt+Digit7',
+      'Alt+Digit8'
+    ],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe',
+    label: 'Add one of the eight recent tags',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} 1 – 8`
+  },
+  {
     id: 'clipWarn',
     keys: ['j'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
@@ -251,6 +324,7 @@ export const KEYBINDS = [
   },
   {
     id: 'loupeClose',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -259,6 +333,7 @@ export const KEYBINDS = [
 
   {
     id: 'compareFocus',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['compare'],
     group: 'Compare',
@@ -266,6 +341,7 @@ export const KEYBINDS = [
   },
   {
     id: 'paneFocusCycle',
+    fixed: true,
     keys: ['Tab', 'Shift+Tab'],
     contexts: ['compare', 'survey'],
     group: 'Compare',
@@ -273,6 +349,7 @@ export const KEYBINDS = [
   },
   {
     id: 'paneSwap',
+    fixed: true,
     keys: ['Alt+ArrowLeft', 'Alt+ArrowRight'],
     contexts: ['compare', 'survey'],
     group: 'Compare',
@@ -308,6 +385,7 @@ export const KEYBINDS = [
   },
   {
     id: 'compareExit',
+    fixed: true,
     keys: ['e', 'Escape'],
     contexts: ['compare'],
     group: 'Compare',
@@ -316,6 +394,7 @@ export const KEYBINDS = [
 
   {
     id: 'surveyFocus',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'],
     contexts: ['survey'],
     group: 'Survey',
@@ -330,6 +409,7 @@ export const KEYBINDS = [
   },
   {
     id: 'surveyExit',
+    fixed: true,
     keys: ['e', 'Escape'],
     contexts: ['survey'],
     group: 'Survey',
@@ -339,7 +419,7 @@ export const KEYBINDS = [
   {
     id: 'fullscreen',
     keys: ['f'],
-    contexts: ['loupe', 'compare', 'survey', 'editor'],
+    contexts: ['loupe', 'compare', 'survey', 'editor', 'viewer'],
     group: 'View',
     label: 'Toggle fullscreen'
   },
@@ -349,6 +429,13 @@ export const KEYBINDS = [
     contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'View',
     label: 'Hide or show the filmstrip'
+  },
+  {
+    id: 'floatScope',
+    keys: ['s'],
+    contexts: ['editor'],
+    group: 'View',
+    label: 'Show or hide the scope overlay'
   },
 
   {
@@ -395,6 +482,7 @@ export const KEYBINDS = [
 
   {
     id: 'editorNav',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['editor'],
     group: 'Editor',
@@ -426,7 +514,7 @@ export const KEYBINDS = [
     keys: ['Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Open Geometry'
+    label: 'Open Crop'
   },
   {
     id: 'openRetouch',
@@ -457,11 +545,18 @@ export const KEYBINDS = [
     label: 'Create a virtual copy'
   },
   {
+    id: 'newSnapshot',
+    keys: ['Mod+Shift+s'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Save a snapshot of the current edits'
+  },
+  {
     id: 'beforeAfter',
     keys: ['y'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Toggle the before / after split'
+    label: 'Cycle compare: split, side by side, off'
   },
   {
     id: 'holdOriginal',
@@ -493,6 +588,13 @@ export const KEYBINDS = [
     label: 'Pick white balance from a neutral area'
   },
   {
+    id: 'targetAdjust',
+    keys: ['t'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Adjust HSL, Curves, B&W or Color Grading on the photo'
+  },
+  {
     id: 'autoAdjust',
     keys: ['Mod+u'],
     contexts: ['editor'],
@@ -500,11 +602,25 @@ export const KEYBINDS = [
     label: 'Auto adjust'
   },
   {
+    id: 'searchSettings',
+    keys: ['Mod+k'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Search settings, presets and actions'
+  },
+  {
+    id: 'pinSetting',
+    keys: ['Shift+Enter'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Pin or unpin the highlighted palette setting'
+  },
+  {
     id: 'resetEdits',
     keys: ['Mod+Shift+r'],
     contexts: ['editor'],
     group: 'Editor',
-    label: 'Reset develop settings, or geometry on the Geometry tab'
+    label: 'Reset develop settings, or geometry on the Crop tab'
   },
   {
     id: 'copyEdits',
@@ -521,6 +637,13 @@ export const KEYBINDS = [
     label: 'Paste edits'
   },
   {
+    id: 'pasteOnly',
+    keys: ['Mod+Shift+v'],
+    contexts: ['editor', 'grid', 'loupe'],
+    group: 'Editor',
+    label: 'Paste only some settings'
+  },
+  {
     id: 'openExport',
     keys: ['Shift+e'],
     contexts: ['editor'],
@@ -529,6 +652,7 @@ export const KEYBINDS = [
   },
   {
     id: 'editorEscape',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['editor'],
     group: 'Editor',
@@ -543,6 +667,40 @@ export const KEYBINDS = [
     label: 'Move a focused slider ten steps',
     display: (mac: boolean) =>
       `${formatChord('Shift+ArrowLeft', mac)} / ${formatChord('Shift+ArrowRight', mac)}`
+  },
+  {
+    id: 'sliderFineStep',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Move a focused slider by its finest step',
+    display: (mac: boolean) =>
+      `${formatChord('Alt+ArrowLeft', mac)} / ${formatChord('Alt+ArrowRight', mac)}`
+  },
+  {
+    id: 'sliderWheel',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust the slider under the pointer once it has rested there, ten steps or fine',
+    display: (mac: boolean) =>
+      `Wheel, ${keyLabel('Shift', mac)} + wheel, ${keyLabel('Alt', mac)} + wheel`
+  },
+  {
+    id: 'sliderScrub',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust a slider from its current value; move away from the track to slow down',
+    display: 'Drag the label or track'
+  },
+  {
+    id: 'sliderTypedValue',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Type a value, or +5, x1.5 or /2 to change the current one',
+    display: 'Click the value'
   },
   {
     id: 'sliderReset',
@@ -568,34 +726,65 @@ export const KEYBINDS = [
     label: 'Reset every band or channel at once, on HSL and Curves',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + click the reset button`
   },
+  {
+    id: 'curveFineDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Move a curve point at a quarter of the speed',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a curve point`
+  },
+  {
+    id: 'targetHueDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust hue while dragging on the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag on the photo`
+  },
+  {
+    id: 'targetLightnessDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust luminance while dragging on the photo',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag on the photo`
+  },
 
   {
     id: 'straighten',
     keys: ['a'],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Draw a line along the horizon to level the photo'
   },
   {
     id: 'straightenDrag',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Draw a straighten line without arming the tool',
-    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag inside the crop`
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag or right-drag inside the crop`
   },
   {
     id: 'cropGrid',
     keys: ['o'],
     contexts: ['geometry'],
-    group: 'Geometry',
-    label: 'Cycle the crop guide: thirds, golden ratio, diagonals, grid, none'
+    group: 'Crop',
+    label: 'Cycle the crop guide: thirds, golden ratio, spiral, diagonals, triangle, grid, none'
+  },
+  {
+    id: 'cropGuideTurn',
+    keys: ['Shift+o'],
+    contexts: ['geometry'],
+    group: 'Crop',
+    label: 'Turn the golden spiral or triangle guide'
   },
   {
     id: 'cropFromCentre',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Resize the crop about its centre',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a crop handle`
   },
@@ -603,7 +792,7 @@ export const KEYBINDS = [
     id: 'cropLockRatio',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Keep the current shape of a free crop while resizing',
     display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag a crop handle`
   },
@@ -611,7 +800,7 @@ export const KEYBINDS = [
     id: 'cropScale',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Scale the crop about its centre',
     display: (mac: boolean) => `${keyLabel('Mod', mac)} + scroll over the crop`
   },
@@ -619,7 +808,7 @@ export const KEYBINDS = [
     id: 'cropPan',
     keys: [],
     contexts: ['geometry'],
-    group: 'Geometry',
+    group: 'Crop',
     label: 'Move the photo under a fixed crop',
     display: (mac: boolean) => `${keyLabel('Mod', mac)} + drag inside the crop`
   },
@@ -654,6 +843,7 @@ export const KEYBINDS = [
   },
   {
     id: 'maskNudge',
+    fixed: true,
     keys: [
       'ArrowUp',
       'ArrowDown',
@@ -716,11 +906,19 @@ export const KEYBINDS = [
     label: 'Toggle the mask overlay'
   },
   {
+    id: 'maskOverlayMode',
+    keys: ['Shift+o'],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Cycle the mask overlay: color, color on black and white, white on black'
+  },
+  {
     id: 'maskCancelDraw',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['masks'],
     group: 'Masks',
-    label: 'Cancel drawing, box select or the eyedropper'
+    label: 'Cancel drawing, click select, box select or the eyedropper'
   },
   {
     id: 'maskClosePolygon',
@@ -731,6 +929,7 @@ export const KEYBINDS = [
   },
   {
     id: 'brushSize',
+    fixed: true,
     keys: ['[', ']'],
     contexts: ['masks', 'retouch'],
     group: 'Masks',
@@ -738,6 +937,7 @@ export const KEYBINDS = [
   },
   {
     id: 'brushHardness',
+    fixed: true,
     keys: ['{', '}'],
     contexts: ['masks', 'retouch'],
     group: 'Masks',
@@ -759,6 +959,30 @@ export const KEYBINDS = [
     label: 'Change the brush hardness over the photo',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
   },
+  {
+    id: 'brushEraseHold',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Erase with the mask brush while held',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} (hold)`
+  },
+  {
+    id: 'maskShapeSizeWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Resize the selected shape over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + scroll`
+  },
+  {
+    id: 'maskShapeFeatherWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Change the selected shape feather over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
+  },
 
   {
     id: 'retouchHeal',
@@ -775,6 +999,13 @@ export const KEYBINDS = [
     label: 'Clone mode'
   },
   {
+    id: 'retouchVisualize',
+    keys: ['v'],
+    contexts: ['retouch'],
+    group: 'Retouch',
+    label: 'Visualize spots'
+  },
+  {
     id: 'retouchDelete',
     keys: ['Backspace', 'Delete'],
     contexts: ['retouch'],
@@ -783,10 +1014,11 @@ export const KEYBINDS = [
   },
   {
     id: 'retouchDeselect',
-    keys: ['Escape'],
+    keys: [],
     contexts: ['retouch'],
     group: 'Retouch',
-    label: 'Deselect the current stroke'
+    label: 'Deselect the current stroke',
+    display: (mac: boolean) => keyLabel('Escape', mac)
   },
   {
     id: 'retouchSample',

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
-  import { createApplyPresetJob, type ApplyPresetOptions } from '#lib/api/jobs.ts';
-  import { runBulkJob } from '#lib/api/bulkJob.ts';
-  import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
+  import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+  import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+  import { defaultApplyOptions } from '#lib/edits/applyPreset.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import PresetApplyOptions from '#lib/components/preset/ApplyOptions.svelte';
   import PresetPicker from '#lib/components/preset/PresetPicker.svelte';
@@ -11,13 +11,7 @@
   import { mdiAutoFix } from '@mdi/js';
 
   let presetId = $state<string | null>(null);
-  let applyOptions = $state<ApplyPresetOptions>({
-    includeGeometry: false,
-    includeMasks: false,
-    amount: LOOK_AMOUNT_FULL
-  });
-  let busy = $state(false);
-
+  let applyOptions = $state<ApplyPresetOptions>(defaultApplyOptions());
   $effect(() => {
     if (!presets.loaded && !presets.loading) void presets.load();
   });
@@ -29,15 +23,8 @@
   let selected = $derived(presets.presets.find((p) => p.id === presetId) ?? null);
 
   async function submit(): Promise<void> {
-    if (busy || !presetId) return;
-    const id = presetId;
-    const options = $state.snapshot(applyOptions);
-    busy = true;
-    await runBulkJob(
-      (target) => createApplyPresetJob(target, id, options),
-      'Failed to queue preset'
-    );
-    busy = false;
+    if (!presetId) return;
+    await bulkActions.applyPreset(presetId, $state.snapshot(applyOptions));
   }
 </script>
 
@@ -58,9 +45,9 @@
         size="tiny"
         color="primary"
         fullWidth
-        loading={busy}
+        loading={bulkActions.busy}
         leadingIcon={mdiAutoFix}
-        disabled={busy || selection.count === 0}
+        disabled={bulkActions.metaBusy || selection.count === 0}
         onclick={() => void submit()}
       >
         Apply {selected.name} to {selection.count}

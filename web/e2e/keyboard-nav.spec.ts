@@ -39,7 +39,7 @@ test('a popover closes on Escape and restores focus to its trigger', async ({ pa
   await trigger.focus();
   await page.keyboard.press('Enter');
 
-  const search = page.getByRole('combobox', { name: 'Add tags…' });
+  const search = page.getByRole('textbox', { name: 'Add tags…' });
   await expect(search).toBeFocused();
 
   await page.keyboard.press('Escape');
@@ -74,7 +74,7 @@ test('the rating radiogroup keeps its arrow keys from the editor keymap', async 
   });
 
   await page.goto('/photos');
-  const link = page.locator(`a[href^="/assets/${ASSET_ID}?"]`).first();
+  const link = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`).first();
   await link.evaluate((el) => (el as HTMLAnchorElement).click());
   await expect(page).toHaveURL(new RegExp(`/assets/${ASSET_ID}(?:\\?.*)?$`));
 

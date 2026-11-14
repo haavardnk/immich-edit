@@ -1,27 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button } from '@immich/ui';
-  import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '#lib/api/tags.ts';
+  import { listTags, type TagSummary } from '#lib/api/tags.ts';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
   import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
-  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
-
-  type RunPool = <T>(items: T[], limit: number, fn: (item: T) => Promise<void>) => Promise<void>;
-
-  let {
-    ids,
-    runPool,
-    busy = $bindable()
-  }: { ids: string[]; runPool: RunPool; busy: boolean } = $props();
 
   let tags = $state<TagSummary[]>([]);
   let tagsLoaded = $state(false);
   let chosenTags = $state<string[]>([]);
 
-  let metaBusy = $derived(busy);
   let chosenTagItems = $derived(tags.filter((tag) => chosenTags.includes(tag.id)));
 
   onMount(() => {
@@ -35,35 +26,14 @@
   });
 
   async function applyTags(add: boolean): Promise<void> {
-    if (busy || chosenTags.length === 0) return;
-    if (!(await metadataConsent.gate())) return;
-    busy = true;
-    let failed = 0;
-    const pairs = ids.flatMap((id) => chosenTags.map((tagId) => ({ id, tagId })));
-    await runPool(pairs, 6, async ({ id, tagId }) => {
-      try {
-        await (add ? addTagToAsset(tagId, id) : removeTagFromAsset(tagId, id));
-      } catch {
-        failed += 1;
-      }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} tag updates failed`, 6000);
-    } else {
-      toasts.push(
-        'success',
-        `${add ? 'Added' : 'Removed'} tags on ${countOf(ids.length, 'asset')}`,
-        4000
-      );
-    }
-    chosenTags = [];
+    if (chosenTags.length === 0) return;
+    if (await bulkActions.setTags(chosenTagItems.map(toTagRef), add)) chosenTags = [];
   }
 </script>
 
-<div class="flex flex-col gap-2 border-t px-4 py-3">
+<div class="flex flex-col gap-2 border-t px-4 py-3 touch:border-t-0 touch:px-0">
   <span class="px-1 text-xs text-dark/60">
-    Pick tags, then apply them to the {countOf(ids.length, 'selected asset')}
+    Pick tags, then apply them to the {countOf(bulkScope.count, 'selected asset')}
   </span>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <div class="min-w-0 flex-1 sm:min-w-55">
@@ -85,8 +55,8 @@
       <Button
         size="tiny"
         color="primary"
-        class="h-7 whitespace-nowrap"
-        disabled={metaBusy || chosenTags.length === 0}
+        class="h-7 whitespace-nowrap touch:h-11"
+        disabled={bulkActions.metaBusy || chosenTags.length === 0}
         onclick={() => void applyTags(true)}
       >
         Add to selected
@@ -95,8 +65,8 @@
         size="tiny"
         variant="ghost"
         color="secondary"
-        class="h-7 whitespace-nowrap"
-        disabled={metaBusy || chosenTags.length === 0}
+        class="h-7 whitespace-nowrap touch:h-11"
+        disabled={bulkActions.metaBusy || chosenTags.length === 0}
         onclick={() => void applyTags(false)}
       >
         Remove from selected

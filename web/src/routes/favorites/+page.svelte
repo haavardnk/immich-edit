@@ -4,27 +4,24 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import { resumeId } from '#lib/browse/gridReturn.ts';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
   const feed = new BrowseFeed({ baseFilter: () => ({ favorite: true }) });
 
   onMount(() => {
     browseControls.enter('timeline', readFilterParams(page.url));
-    void feed.fetchPage(true);
+    void feed.open(resumeId(page.url));
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowseShell
+<BrowsePage
+  {feed}
   title="Favorites"
-  assets={feed.assets}
-  loading={feed.loading && !feed.loadedOnce}
   loadingLabel="Loading favorites…"
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
-  totalCount={feed.totalCount}
   favoriteLocked
   emptyTitle="No favorites yet"
   emptyMessage="Mark photos as favorites in Immich to see them here."

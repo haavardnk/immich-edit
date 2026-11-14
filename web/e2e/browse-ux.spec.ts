@@ -27,7 +27,7 @@ test('each thumbnail info mode shows more than the last', async ({ page }) => {
     assets: [{ ...ASSET_SUMMARY, isFavorite: true, exifInfo: { rating: 3 } }]
   });
   await page.goto('/photos');
-  const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+  const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
   const heart = tile.getByRole('img', { name: 'Favorite' });
   const row = tile.getByTestId('tile-info');
   const name = tile.getByTestId('tile-name');
@@ -59,7 +59,7 @@ test('clicking a star on a hovered tile rates that photo', async ({ page }) => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/photos');
-  const tile = page.locator(`div[title="${ASSET_SUMMARY.originalFileName}"]`);
+  const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
   const update = page.waitForRequest(
     (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_SUMMARY.id}`)
   );
@@ -77,14 +77,37 @@ test('clicking a star on a hovered tile rates that photo', async ({ page }) => {
   expect(await tile.evaluate((el) => el.contains(document.activeElement))).toBe(false);
 });
 
+for (const path of ['/edited', '/folders?path=%2Fphotos']) {
+  test(`a star on a tile in ${path} shows the new rating`, async ({ page }) => {
+    await installMocks(page, {
+      assets: [ASSET_SUMMARY],
+      edits: [{ id: ASSET_SUMMARY.id, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' }]
+    });
+    await page.route('**/api/folders/assets?*', (route) => route.fulfill(json([ASSET_SUMMARY])));
+    await page.addInitScript(() => {
+      localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    });
+    await page.goto(path);
+    const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
+    const update = page.waitForRequest(
+      (r) => r.method() === 'PUT' && r.url().endsWith(`/api/assets/${ASSET_SUMMARY.id}`)
+    );
+
+    await tile.hover();
+    await tile.getByRole('radio', { name: '4 stars' }).click();
+    expect((await update).postDataJSON()).toMatchObject({ rating: 4 });
+    await expect(tile.getByRole('radio', { name: '4 stars' })).toBeChecked();
+  });
+}
+
 test('a ticked photo hides its stars off hover and the arrows still move', async ({ page }) => {
   await installMocks(page, { assets: PAGED_ASSETS });
   await page.addInitScript(() => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/photos');
-  const first = page.locator('div[title="IMG_0001.ARW"]');
-  const second = page.locator('div[title="IMG_0002.ARW"]');
+  const first = page.locator('[data-name="IMG_0001.ARW"]');
+  const second = page.locator('[data-name="IMG_0002.ARW"]');
 
   await first.hover();
   await first.getByRole('button', { name: 'Select', exact: true }).click();
@@ -128,12 +151,9 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   await expectTooltip(sort, /^Sort: date/);
 
   const panel = await openFilters(page, 'Rating & label');
-  await expectTooltip(panel.getByRole('radio', { name: 'Green label' }), 'Green label');
-  await expectTooltip(panel.getByRole('radio', { name: '3 stars' }), '3 stars');
-  await expectTooltip(
-    page.getByRole('button', { name: /^Rating match/ }),
-    'Match ratings at least the selected stars'
-  );
+  await expectTooltip(panel.getByRole('button', { name: 'Green label' }), 'Green label');
+  await expectTooltip(panel.getByRole('button', { name: '3 stars' }), '3 stars');
+  await expectTooltip(panel.getByRole('button', { name: '3 stars' }), '3 stars');
 });
 
 test('select all loads every page and enables local actions', async ({ page }) => {
@@ -157,7 +177,7 @@ test('select all loads every page and enables local actions', async ({ page }) =
   await expect.poll(() => releasePages.has(2)).toBe(true);
   releasePages.get(2)?.();
   await expect(page.getByText('2 selected')).toBeVisible();
-  await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator('[data-name="IMG_0002.ARW"]')).toHaveAttribute('data-selected', 'true');
   await expect.poll(() => releasePages.has(3)).toBe(true);
   releasePages.get(3)?.();
   await expect(page.getByText('3 selected')).toBeVisible();
@@ -167,6 +187,45 @@ test('select all loads every page and enables local actions', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Edit and export selected' })).toBeEnabled();
 });
 
+for (const via of ['the X', 'Escape'] as const) {
+  test(`${via} stops select all`, async ({ page }) => {
+    const releasePages = new Map<number, () => void>();
+    await installMocks(page, {
+      assets: PAGED_ASSETS,
+      searchPages: PAGED_ASSETS.map((asset) => [asset]),
+      onMetadata: async (body) => {
+        if (typeof body.cursor !== 'string') return;
+        const pageNumber = Number(body.cursor);
+        await new Promise<void>((resolve) => releasePages.set(pageNumber, resolve));
+      }
+    });
+
+    await page.goto('/photos');
+    await page.getByRole('button', { name: 'Select', exact: true }).click();
+    const bar = page.getByRole('toolbar', { name: 'Selection actions' });
+    await bar.getByRole('button', { name: 'Select all', exact: true }).click();
+    await expect.poll(() => releasePages.has(2)).toBe(true);
+    const clear = bar.getByRole('button', { name: 'Clear selection' });
+    await expect(clear).toBeEnabled();
+
+    if (via === 'Escape') await page.keyboard.press('Escape');
+    else await clear.click();
+
+    releasePages.get(2)?.();
+    await expect(page.locator('[data-name="IMG_0002.ARW"]')).toBeVisible();
+    await expect(page.locator('[data-name="IMG_0002.ARW"]')).not.toHaveAttribute('data-selected');
+    const first = page.locator('[data-name="IMG_0001.ARW"]');
+    if (via === 'Escape') {
+      await expect(first).toHaveAttribute('data-selected', 'true');
+      await expect(bar.getByText('1 selected')).toBeVisible();
+    } else {
+      await expect(first).not.toHaveAttribute('data-selected');
+      await expect(bar).toHaveCount(0);
+    }
+    expect(releasePages.has(3)).toBe(false);
+  });
+}
+
 test('changing a browse filter clears hidden selection', async ({ page }) => {
   await installMocks(page);
 
@@ -175,7 +234,7 @@ test('changing a browse filter clears hidden selection', async ({ page }) => {
   await expect(page.getByText('1 selected')).toBeVisible();
 
   await openFilters(page, 'File');
-  await page.getByLabel('Filename').fill('portrait');
+  await page.getByRole('textbox', { name: 'Name contains' }).fill('portrait');
 
   await expect(page.getByText('1 selected')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Clear selection' })).toBeHidden();
@@ -187,12 +246,12 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
 
   await page.goto('/photos');
 
+  await page.getByRole('button', { name: 'View & filters', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'View & filters' });
+  const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
   for (const size of ['S', 'M', 'L', 'XL']) {
-    await expect(page.getByRole('button', { name: `Thumbnail size ${size}` })).toBeInViewport();
+    await expect(sizes.getByRole('radio', { name: size, exact: true })).toBeInViewport();
   }
-  await page.getByRole('button', { name: 'Thumbnail size XL' }).click();
-  await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await sizes.getByRole('radio', { name: 'XL', exact: true }).click();
+  await expect(sizes.getByRole('radio', { name: 'XL', exact: true })).toBeChecked();
 });

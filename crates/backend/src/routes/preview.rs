@@ -216,8 +216,11 @@ async fn render_to_response(
     } else {
         max_edge
     };
-    let stores_meta =
-        matches!(preview_mode, PreviewMode::None) && !gamut_warn && !clip_warn && roi.is_none();
+    let stores_meta = matches!(preview_mode, PreviewMode::None)
+        && !gamut_warn
+        && !clip_warn
+        && roi.is_none()
+        && lane != RenderLane::Viewer;
     let opts = raw_pipeline::frame::RenderOptions {
         max_edge,
         quality: false,

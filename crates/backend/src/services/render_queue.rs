@@ -42,9 +42,12 @@ pub enum RenderLane {
     #[default]
     Base,
     Original,
+    Reference,
     Weight,
+    MaskThumb,
     Roi,
     Geometry,
+    Viewer,
     Source,
     SourceTile,
 }
@@ -270,6 +273,14 @@ mod tests {
         drop(superseded);
         if newest.is_cancelled() {
             panic!("a superseded guard should not cancel the newest render");
+        }
+    }
+
+    #[test]
+    fn mask_thumb_is_its_own_lane() {
+        match serde_json::from_str::<RenderLane>("\"mask_thumb\"") {
+            Ok(RenderLane::MaskThumb) => {}
+            other => panic!("expected the mask_thumb lane, got {other:?}"),
         }
     }
 

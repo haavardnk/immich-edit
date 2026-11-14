@@ -1,18 +1,18 @@
-import { expect, type Locator, type Page, type Route } from '@playwright/test';
+import { expect, type BrowserContext, type Locator, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
-import type { EditRecord } from '../src/lib/types/edits';
 import type { ExifInfo } from '../src/lib/types/asset';
+import type { EditRecord } from '../src/lib/types/edits';
 import {
-  type ExifFilter,
-  searchShapeProblem,
   matchesExif,
-  suggestions,
-  type ManagedFilter,
-  type IdSet,
-  type MockPerson,
-  type MockAlbum,
   matchesIds,
-  matchesManagedTags
+  matchesManagedTags,
+  searchShapeProblem,
+  suggestions,
+  type ExifFilter,
+  type IdSet,
+  type ManagedFilter,
+  type MockAlbum,
+  type MockPerson
 } from './searchMocks';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
@@ -37,12 +37,28 @@ function pngChunk(type: string, data: Buffer): Buffer {
 }
 
 export function makePng(width: number, height: number, fill = 0): Buffer {
+  return encodePng(width, height, Buffer.alloc(width * 3, fill));
+}
+
+export function makeStripesPng(
+  width: number,
+  height: number,
+  colors: readonly (readonly [number, number, number])[]
+): Buffer {
+  const pixels = Array.from({ length: width }, (_, x) => {
+    const color = colors[Math.floor((x * colors.length) / width)] ?? [0, 0, 0];
+    return Buffer.from(color);
+  });
+  return encodePng(width, height, Buffer.concat(pixels));
+}
+
+function encodePng(width: number, height: number, pixels: Buffer): Buffer {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 2;
-  const row = Buffer.concat([Buffer.alloc(1), Buffer.alloc(width * 3, fill)]);
+  const row = Buffer.concat([Buffer.alloc(1), pixels]);
   const raw = Buffer.concat(Array.from({ length: height }, () => row));
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -155,6 +171,12 @@ export interface PreviewRequest {
   scopes?: boolean;
 }
 
+export function recordViewPreviews(into: PreviewRequest[]): (req: PreviewRequest) => void {
+  return (req) => {
+    if (req.lane !== 'mask_thumb') into.push(req);
+  };
+}
+
 const SCOPE_SHAPES: Record<string, { tag: number; width: number; height: number; ch: number }> = {
   waveform: { tag: 0, width: 512, height: 256, ch: 1 },
   parade: { tag: 1, width: 192, height: 256, ch: 3 },
@@ -200,6 +222,7 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -228,9 +251,28 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
+  clickTarget?: 'editor' | 'loupe';
+  pinnedSettings?: string[] | null;
+  shortcuts?: Record<string, string[]>;
+  desktopSections?: { id: string; hidden: boolean }[] | null;
+  touchSubviews?: { id: string; hidden: boolean }[] | null;
+  onPreferences?: (body: Record<string, unknown>) => void;
+  savedViews?: MockSavedView[];
+  metadataPushConsented?: boolean;
 }
 
-export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
+export interface MockSavedView {
+  id: string;
+  name: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function installMocks(
+  page: Page | BrowserContext,
+  opts: InstallOpts = {}
+): Promise<void> {
   const choice = opts.renderer ?? 'server';
   if (choice !== 'auto') {
     await page.addInitScript(
@@ -238,11 +280,27 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       JSON.stringify({ choice })
     );
   }
+  if (opts.metadataPushConsented) {
+    await page.addInitScript(() => {
+      localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    });
+  }
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets: Array<Record<string, unknown>> = [];
+  const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
+  let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
+  let preferences: Record<string, unknown> = {
+    click_target: opts.clickTarget ?? 'editor',
+    pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
+    mask_overlay_color: null,
+    shortcuts: opts.shortcuts ?? {},
+    desktop_sections: opts.desktopSections ?? null,
+    touch_subviews: opts.touchSubviews ?? null,
+    crop_ratios: null
+  };
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();
   const tagList: MockTag[] = [...(opts.tags ?? [])];
@@ -250,7 +308,17 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
   const people = opts.people ?? [];
-  const albums = opts.albums ?? [];
+  const albums = [...(opts.albums ?? [])];
+  const albumSummary = (album: MockAlbum) => ({
+    id: album.id,
+    albumName: album.albumName,
+    assetCount: album.assetIds.length,
+    albumThumbnailAssetId: null,
+    updatedAt: album.updatedAt ?? null,
+    ownerId: album.ownerId ?? SESSION_USER.id,
+    shared: album.shared ?? false,
+    endDate: album.endDate ?? null
+  });
   const matchesPeople = (id: string, set: IdSet | undefined): boolean =>
     matchesIds(
       people.filter((person) => person.assetIds.includes(id)).map((person) => person.id),
@@ -296,21 +364,28 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
           body: opts.previewBody
         }
       : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
-  const searchResult = (body: Record<string, unknown>) => {
-    const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
-    const pageAssets = opts.searchPages ? (opts.searchPages[pageNumber - 1] ?? []) : assets;
+  type DatedFilter = { takenAfter?: string; takenBefore?: string };
+  type Listed = MockAssetSummary & { copyOf?: string; tags: MockTag[] };
+  const takenWithin = (a: MockAssetSummary, filter: DatedFilter): boolean => {
+    const at = Date.parse(a.fileCreatedAt);
+    if (filter.takenAfter && at < Date.parse(filter.takenAfter)) return false;
+    return !filter.takenBefore || at <= Date.parse(filter.takenBefore);
+  };
+  const matching = (body: Record<string, unknown>, pageAssets: MockAssetSummary[]): Listed[] => {
     const filter = (body.filter ?? {}) as {
       scope?: { tag?: string };
       albums?: IdSet;
       people?: IdSet;
       tags?: IdSet;
     } & ManagedFilter &
-      ExifFilter;
+      ExifFilter &
+      DatedFilter;
     const scopeTag = filter.scope?.tag;
     const tagIds = scopeTag && tagList.some((t) => t.id === scopeTag) ? [scopeTag] : [];
-    const items = expanded(ordered(body.sort as MockSort, pageAssets))
+    return expanded(ordered(body.sort as MockSort, pageAssets))
       .filter((a) => !trashed.has(a.id.split('_')[0] ?? a.id))
-      .map((a) => ({ ...a, tags: tagsOf(a.id, a.tags) }))
+      .filter((a) => takenWithin(a, filter))
+      .map((a): Listed => ({ ...a, tags: tagsOf(a.id, a.tags) }))
       .filter((a) => tagIds.length === 0 || a.tags.some((t) => tagIds.includes(t.id)))
       .filter((a) => matchesManagedTags(a.tags, filter))
       .filter((a) =>
@@ -322,9 +397,56 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       .filter((a) => matchesExif(a, filter))
       .filter((a) => matchesPeople(a.id.split('_')[0] ?? a.id, filter.people))
       .filter((a) => matchesAlbums(a.id.split('_')[0] ?? a.id, filter.albums));
-    const nextCursor =
-      opts.searchPages && pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
+  };
+  const masterRuns = (items: Listed[]): Listed[][] =>
+    items.reduce<Listed[][]>((runs, item) => {
+      const last = runs.at(-1);
+      if (item.copyOf && last) last.push(item);
+      else runs.push([item]);
+      return runs;
+    }, []);
+  const searchResult = (body: Record<string, unknown>) => {
+    const pageNumber = typeof body.cursor === 'string' ? Number(body.cursor) : 1;
+    if (opts.searchPages) {
+      const items = matching(body, opts.searchPages[pageNumber - 1] ?? []);
+      const nextCursor = pageNumber < opts.searchPages.length ? `${pageNumber + 1}` : null;
+      return { items, nextCursor };
+    }
+    const size = typeof body.size === 'number' ? body.size : Number.POSITIVE_INFINITY;
+    const runs = masterRuns(matching(body, assets));
+    const items = runs.slice((pageNumber - 1) * size, pageNumber * size).flat();
+    const nextCursor = pageNumber * size < runs.length ? `${pageNumber + 1}` : null;
     return { items, nextCursor };
+  };
+  const searchWindow = (body: Record<string, unknown>) => {
+    const reach = (key: 'before' | 'after'): number => {
+      const value = body[key] ?? body.radius ?? 250;
+      return typeof value === 'number' ? value : 250;
+    };
+    const runs = masterRuns(matching({ ...body, size: undefined }, assets));
+    const anchor = String(body.assetId).split('_')[0];
+    const at = runs.findIndex((run) => run[0]?.id === anchor);
+    if (at < 0) return { items: [], hasBefore: false, hasAfter: false };
+    const start = Math.max(0, at - reach('before'));
+    const end = Math.min(runs.length, at + reach('after') + 1);
+    return {
+      items: runs.slice(start, end).flat(),
+      hasBefore: start > 0,
+      hasAfter: end < runs.length
+    };
+  };
+  const searchMonths = (body: Record<string, unknown>) => {
+    const counts = new Map<string, number>();
+    for (const a of matching({ ...body, sort: { field: 'taken', direction: 'desc' } }, assets)) {
+      if (a.copyOf) continue;
+      const month = new Date(a.fileCreatedAt).toISOString().slice(0, 7);
+      counts.set(month, (counts.get(month) ?? 0) + 1);
+    }
+    return {
+      months: [...counts]
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([month, count]) => ({ month, count }))
+    };
   };
 
   await page.route('**/api/**', async (route) => {
@@ -340,6 +462,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(
         json({
           immich_version: structured ? '3.2.2' : '3.1.0',
+          external_host: 'photos.example.net',
           structured_search: structured,
           smart_search: opts.smartSearch ?? true,
           ocr: opts.ocr ?? true,
@@ -400,16 +523,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json(suggestions(assets, req.postDataJSON())));
     }
     if (p === '/api/search/window') {
-      const body = req.postDataJSON() as {
-        assetId: string;
-        radius: number;
-        sort?: MockSort;
-      };
-      const feed = ordered(body.sort);
-      const at = feed.findIndex((a) => a.id === body.assetId.split('_')[0]);
-      const items =
-        at < 0 ? [] : expanded(feed.slice(Math.max(0, at - body.radius), at + body.radius + 1));
-      return route.fulfill(json({ items }));
+      return route.fulfill(
+        json(searchWindow((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
+    }
+    if (p === '/api/search/months') {
+      return route.fulfill(
+        json(searchMonths((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
     }
     if (p === '/api/edits') {
       const entries = opts.edits ?? [];
@@ -419,18 +540,25 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
-    if (p === '/api/albums')
+    if (p === '/api/albums' && method === 'POST') {
+      const { albumName } = req.postDataJSON() as { albumName: string };
+      const album = { id: `album-${albums.length + 1}`, albumName: albumName.trim(), assetIds: [] };
+      albums.push(album);
+      return route.fulfill(json(albumSummary(album)));
+    }
+    if (p === '/api/albums') {
+      const holding = url.searchParams.get('assetId')?.split('_')[0];
       return route.fulfill(
         json(
-          albums.map(({ id, albumName, assetIds }) => ({
-            id,
-            albumName,
-            assetCount: assetIds.length,
-            albumThumbnailAssetId: null,
-            updatedAt: null
-          }))
+          albums.filter(({ assetIds }) => !holding || assetIds.includes(holding)).map(albumSummary)
         )
       );
+    }
+    const albumDetail = albums.find((album) => p === `/api/albums/${album.id}`);
+    if (albumDetail && method === 'GET') {
+      const { id, albumName, assetCount, updatedAt } = albumSummary(albumDetail);
+      return route.fulfill(json({ id, albumName, assetCount, updatedAt }));
+    }
     if (p === '/api/tags') {
       if (method === 'PUT') {
         const values = (req.postDataJSON() as { tags: string[] }).tags;
@@ -486,6 +614,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         const created = {
           ...body,
           id: `preset-${presets.length + 1}`,
+          favorite: false,
           created_at: '2024-01-01T00:00:00Z',
           updated_at: '2024-01-01T00:00:00Z'
         };
@@ -500,6 +629,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         opts.onAppearance?.(appearance);
       }
       return route.fulfill(json(appearance));
+    }
+    if (p === '/api/preferences') {
+      if (method === 'PATCH') {
+        const patch = req.postDataJSON() as Record<string, unknown>;
+        opts.onPreferences?.(patch);
+        preferences = { ...preferences, ...patch };
+      }
+      return route.fulfill(json(preferences));
     }
     if (p === '/api/export-presets') {
       if (method === 'POST') {
@@ -528,7 +665,45 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       exportPresets[idx] = updated;
       return route.fulfill(json(updated));
     }
-    if (p === '/api/luts') return route.fulfill(json([]));
+    if (p === '/api/saved-views') {
+      if (method === 'POST') {
+        const body = req.postDataJSON() as { name: string; url: string };
+        savedViewSeq += 1;
+        const at = new Date(Date.UTC(2026, 0, 1, 0, 0, savedViewSeq)).toISOString();
+        const created = {
+          id: `saved-view-${savedViewSeq}`,
+          name: body.name.trim(),
+          url: body.url,
+          created_at: at,
+          updated_at: at
+        };
+        savedViews.push(created);
+        return route.fulfill(json(created));
+      }
+      const listed = savedViews
+        .slice()
+        .sort(
+          (a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) ||
+            a.created_at.localeCompare(b.created_at)
+        );
+      return route.fulfill(json(listed));
+    }
+    const savedViewMatch = p.match(/^\/api\/saved-views\/([^/]+)$/);
+    if (savedViewMatch) {
+      const idx = savedViews.findIndex((v) => v.id === savedViewMatch[1]);
+      const found = savedViews[idx];
+      if (!found) return route.fulfill(json({ error: 'not_found' }, 404));
+      if (method === 'DELETE') {
+        savedViews.splice(idx, 1);
+        return route.fulfill({ status: 204, body: '' });
+      }
+      const body = req.postDataJSON() as { name: string; url: string };
+      const updated = { ...found, name: body.name.trim(), url: body.url };
+      savedViews[idx] = updated;
+      return route.fulfill(json(updated));
+    }
+    if (p === '/api/luts') return route.fulfill(json(opts.luts ?? []));
     if (p === '/api/watermarks') {
       if (method === 'POST') {
         const created = {
@@ -588,6 +763,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const updated = { ...(presets[idx] ?? {}), ...body };
       if (idx >= 0) presets[idx] = updated;
       return route.fulfill(json(updated));
+    }
+
+    const favoriteMatch = p.match(/^\/api\/presets\/([^/]+)\/favorite$/);
+    if (favoriteMatch && method === 'PUT') {
+      const body = JSON.parse(route.request().postData() ?? '{}') as { favorite?: unknown };
+      const idx = presets.findIndex((preset) => preset.id === favoriteMatch[1]);
+      if (idx < 0) return route.fulfill({ status: 404, body: '{}' });
+      presets[idx] = { ...presets[idx], favorite: body.favorite === true };
+      return route.fulfill(json(presets[idx]));
     }
 
     const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);
@@ -674,6 +858,10 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       return route.fulfill(json([]));
     }
 
+    if (p.match(/^\/api\/assets\/[^/]+\/snapshots$/) && method === 'GET') {
+      return route.fulfill(json([]));
+    }
+
     if (p.match(/^\/api\/assets\/[^/]+\/edits\/restore$/)) {
       if (opts.onRestore) return opts.onRestore(route);
       return route.fulfill(json(null));
@@ -728,6 +916,9 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
     if (p.match(/^\/api\/assets\/[^/]+\/preview$/)) {
       if (method === 'POST') {
         const body = req.postDataJSON() as PreviewRequest | null;
+        if (body && (body.max_edge < 64 || body.max_edge > 65535)) {
+          return route.fulfill({ status: 400, body: `max_edge out of range: ${body.max_edge}` });
+        }
         if (body && opts.onPreview) opts.onPreview(body);
         if (body && opts.previewRender) {
           return route.fulfill({
@@ -776,8 +967,9 @@ export async function gotoAsset(page: Page): Promise<void> {
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
-  await page.getByRole('button', { name: /^Filters/ }).click();
-  const panel = page.getByRole('complementary', { name: 'Filters' });
+  await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
+  const name = /^(View & filters|Filters)$/;
+  const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
   for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
   return panel;
 }

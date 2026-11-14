@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
+import { openTileLoupe } from './touch';
 
 const SIZES = [
   { width: 1600, height: 832 },
@@ -23,6 +24,54 @@ async function sidewaysScrollers(page: Page): Promise<string[]> {
       out.push(`${el.tagName.toLowerCase()}.${el.className || '(no class)'}`);
     }
     return out;
+  });
+}
+
+async function brokenControls(bar: Locator): Promise<string[]> {
+  return bar.evaluate((nav) => {
+    const controls = Array.from(nav.querySelectorAll<HTMLElement>('button, [role="status"]'));
+    const name = (control: HTMLElement): string =>
+      control.getAttribute('aria-label') ?? control.textContent?.trim() ?? '';
+    const boxes = controls.map((control) => control.getBoundingClientRect());
+    const out: string[] = [];
+    controls.forEach((control, index) => {
+      const box = boxes[index];
+      if (!box) return;
+      for (
+        let node = control.parentElement;
+        node && nav.contains(node);
+        node = node.parentElement
+      ) {
+        if (getComputedStyle(node).overflowX === 'visible') continue;
+        const frame = node.getBoundingClientRect();
+        if (box.left < frame.left - 0.5 || box.right > frame.right + 0.5) {
+          out.push(`${name(control)} clipped`);
+          break;
+        }
+      }
+      boxes.slice(index + 1).forEach((other, offset) => {
+        const across = Math.min(box.right, other.right) - Math.max(box.left, other.left);
+        const down = Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top);
+        if (across > 0.5 && down > 0.5) {
+          out.push(`${name(control)} overlaps ${name(controls[index + offset + 1] ?? control)}`);
+        }
+      });
+    });
+    return out;
+  });
+}
+
+for (const width of [768, 800, 900, 1000, 1024, 1280]) {
+  test(`the editor bottom bar keeps every control whole at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installMocks(page);
+
+    await gotoAsset(page);
+
+    const bar = page.getByRole('navigation', { name: 'Editor status and view controls' });
+    await expect(bar.getByRole('button', { name: /^Tags/ })).toBeInViewport({ ratio: 1 });
+    await expect(bar.getByRole('button', { name: 'Hide filmstrip' })).toBeInViewport({ ratio: 1 });
+    expect(await brokenControls(bar)).toEqual([]);
   });
 }
 
@@ -270,8 +319,8 @@ test('the editor filmstrip preserves mixed source orientations', async ({ page }
   }
 });
 
-test('the mobile browse shell uses a toggleable 256px sidebar', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('the narrow desktop browse shell uses a toggleable 256px sidebar', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 844 });
   await installMocks(page);
 
   await page.goto('/photos');
@@ -316,29 +365,29 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
   await installMocks(page);
 
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'Select photos' }).click();
+  await page
+    .locator('[data-name]')
+    .first()
+    .click({ position: { x: 20, y: 20 } });
 
-  const bulkBar = page.getByRole('navigation').filter({ hasText: '1 selected' });
-  const bulkSurfaceFits = (): Promise<boolean> =>
-    bulkBar.evaluate((element) => {
-      const surface = element.parentElement;
-      if (!surface) return false;
-      const bounds = surface.getBoundingClientRect();
-      return bounds.left >= 0 && bounds.right <= window.innerWidth;
-    });
-  const clearSelection = page.getByRole('button', { name: 'Clear selection' });
-  const tags = page.getByRole('button', { name: 'Tags', exact: true });
-  await expect.poll(bulkSurfaceFits).toBe(true);
-  await expect(clearSelection).toBeInViewport();
-  await tags.scrollIntoViewIfNeeded();
-  await expect(tags).toBeInViewport();
-  await expect(clearSelection).toBeInViewport();
+  const bulkBar = page.getByRole('toolbar', { name: 'Selection actions' });
+  await expect(page.locator('header[data-app-bar]')).toContainText('1 selected');
+  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+  for (const name of ['Rate', 'Label', 'Reject', 'Album', 'Export', 'More']) {
+    await expect(bulkBar.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+  }
+  const bounds = await bulkBar.boundingBox();
+  expect(bounds?.x).toBe(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBe(390);
 
-  await tags.click();
+  await bulkBar.getByRole('button', { name: 'More', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'More actions' })
+    .getByRole('button', { name: 'Tags' })
+    .click();
   await expect(page.getByRole('button', { name: 'Add to selected' })).toBeInViewport();
   await expect(page.getByRole('button', { name: 'Remove from selected' })).toBeInViewport();
-  await expect(clearSelection).toBeInViewport();
-  await expect.poll(bulkSurfaceFits).toBe(true);
 });
 
 for (const size of [
@@ -350,12 +399,14 @@ for (const size of [
     await installMocks(page);
     await page.goto('/photos');
 
-    await page.getByLabel('Quick review').click();
+    await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
     await expect(page.getByRole('button', { name: /^Back/ })).toBeInViewport();
     await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toBeInViewport();
 
-    if (size.width === 390) {
+    if (size.width !== 390) {
+      await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toBeInViewport();
+    } else {
+      await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeInViewport();
       await page.getByRole('button', { name: 'More loupe actions' }).click();
       const clipping = page.getByRole('button', { name: /^Clipping overlay/ });
       await expect(clipping).toBeInViewport();
@@ -371,13 +422,14 @@ for (const size of [
   { width: 767, height: 800 },
   { width: 390, height: 844 }
 ]) {
-  test(`the editor guard fits ${size.width}x${size.height}`, async ({ page }) => {
+  test(`the touch editor fits ${size.width}x${size.height}`, async ({ page }) => {
     await page.setViewportSize(size);
     await installMocks(page);
 
     await page.goto(`/assets/${ASSET_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Desktop required' })).toBeVisible();
+    await expect(page.getByRole('tablist', { name: 'Editor modes' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeHidden();
     expect(await sidewaysScrollers(page)).toEqual([]);
   });
@@ -393,12 +445,7 @@ test('the editor fits at the desktop breakpoint', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Export', exact: true })).toBeVisible();
   await expect(page.getByRole('slider', { name: 'Exposure' })).toBeVisible();
   await page.getByRole('button', { name: 'More editor actions' }).click();
-  for (const name of [
-    'Create virtual copy',
-    'View original',
-    'Before/After split',
-    'Clipping overlay'
-  ]) {
+  for (const name of ['Create virtual copy', 'Hold for original', 'Compare', 'Clipping overlay']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
   }
   expect(await sidewaysScrollers(page)).toEqual([]);

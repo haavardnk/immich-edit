@@ -11,7 +11,7 @@
     "prepare": "svelte-kit sync || echo ''",
     "format": "prettier --write .",
     "lint": "svelte-kit sync && prettier --check . && eslint .",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p src/service-worker/tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
@@ -53,6 +53,7 @@
     "bits-ui": "2.20.2",
     "justified-layout": "^4.1.0",
     "luxon": "^3.7.2",
+    "thumbhash": "^0.1.1",
     "uuid": "^14.0.3"
   },
   "overrides": {

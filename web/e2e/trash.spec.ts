@@ -162,9 +162,10 @@ test('a finished cull moves every reject to the trash', async ({ page }) => {
   });
   await page.goto('/photos');
   await openFilters(page, 'Library');
-  await page.getByRole('combobox', { name: 'Rejected', exact: true }).click();
-  await page.getByRole('option', { name: 'Only', exact: true }).click();
-  await page.keyboard.press('Escape');
+  await page
+    .getByRole('radiogroup', { name: 'Rejected', exact: true })
+    .getByRole('radio', { name: 'Only', exact: true })
+    .click();
 
   await page.getByRole('button', { name: 'Move rejected to trash' }).click();
   const dialog = page.getByRole('dialog', { name: 'Move to Immich trash' });

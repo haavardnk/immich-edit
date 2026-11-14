@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
+  import type { Reorder } from '#lib/gestures/reorder.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
   import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
-  import { kindIcon, MODES } from './maskTools';
+  import { kindIcon, modeBadge, MODES, patchShape } from './maskTools';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
@@ -11,6 +13,7 @@
     mdiChevronDown,
     mdiChevronUp,
     mdiClose,
+    mdiDragVertical,
     mdiEye,
     mdiEyeOff,
     mdiInvertColors
@@ -20,21 +23,30 @@
     layerId,
     comp,
     index,
-    total,
+    order,
+    reorder,
     label
   }: {
     layerId: string;
     comp: MaskComponent;
     index: number;
-    total: number;
+    order: readonly string[];
+    reorder: Reorder;
     label: string;
   } = $props();
 
+  const total = $derived(order.length);
   const isActive = $derived(editor.activeMaskComponentId === comp.id);
+  const lifted = $derived(reorder.dragging?.id === comp.id);
+  const badge = $derived(modeBadge(index === 0 ? 'add' : comp.mode));
+
+  function hover(e: PointerEvent): void {
+    if (e.pointerType !== 'mouse' || reorder.dragging) return;
+    maskHover.enter({ layerId, componentId: comp.id, label, mode: index === 0 ? null : comp.mode });
+  }
 
   function patch(patchValue: Partial<MaskComponent>): void {
-    editor.patchMaskComponent(layerId, comp.id, patchValue, false);
-    void editor.commitMasks();
+    patchShape(layerId, comp.id, patchValue);
   }
 
   function setMode(mode: MaskComponentMode): void {
@@ -43,129 +55,163 @@
 </script>
 
 <div
-  class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {isActive
-    ? 'border-primary/20 bg-primary/8'
-    : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
+  role="listitem"
+  data-reorder-item
+  data-testid="mask-shape-row"
+  style:translate={reorder.active(layerId)
+    ? `0 ${reorder.offset(layerId, order, comp.id)}px`
+    : undefined}
+  class="flex flex-col gap-1 rounded-md {lifted
+    ? 'relative z-10 bg-light-200 shadow-popover'
+    : reorder.active(layerId)
+      ? 'transition-[translate] duration-150'
+      : ''}"
+  onpointerenter={hover}
+  onpointerleave={() => maskHover.leave(layerId, comp.id)}
 >
-  <IconButton
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    icon={comp.enabled ? mdiEye : mdiEyeOff}
-    title={comp.enabled ? 'Disable shape' : 'Enable shape'}
-    aria-label="Toggle shape"
-    onclick={(e: MouseEvent) => {
-      e.stopPropagation();
-      patch({ enabled: !comp.enabled });
-    }}
-  />
-  <Icon
-    icon={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
-    size="12px"
-    class="opacity-50 shrink-0"
-    aria-hidden="true"
-  />
-  <Button
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark/65 hover:bg-transparent"
-    aria-pressed={isActive}
-    onclick={() => editor.setActiveMaskComponent(isActive ? null : comp.id)}
+  <div
+    class="flex h-7 items-center gap-1 rounded-md border px-1 transition-colors {isActive
+      ? 'border-primary/20 bg-primary/8'
+      : 'border-transparent hover:border-hairline hover:bg-light-950/4'}"
   >
-    {label}
-  </Button>
-  {#if index === 0}
-    <ElementTooltip text="The first shape starts the mask">
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={mdiDragVertical}
+      title="Drag or use the arrow keys to reorder. The first shape starts the mask."
+      aria-label="Reorder {label}"
+      disabled={total < 2}
+      class="-mx-0.5 w-4 shrink-0 cursor-grab touch-none opacity-50 hover:opacity-100"
+      {...reorder.handle(layerId, order, comp.id)}
+    />
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={comp.enabled ? mdiEye : mdiEyeOff}
+      title={comp.enabled ? 'Disable shape' : 'Enable shape'}
+      aria-label="Toggle shape"
+      onclick={(e: MouseEvent) => {
+        e.stopPropagation();
+        patch({ enabled: !comp.enabled });
+      }}
+    />
+    <ElementTooltip text={badge.hint}>
       {#snippet child({ props })}
-        <span
-          {...mergeProps(props, { tabindex: -1 })}
-          class="shrink-0 text-[9px] uppercase tracking-wider text-dark/65">Base</span
-        >
+        <span {...mergeProps(props, { tabindex: -1 })} class="flex shrink-0 {badge.tone}">
+          <Icon icon={badge.icon} size="14px" aria-hidden="true" />
+        </span>
       {/snippet}
     </ElementTooltip>
-  {/if}
-  <IconButton
-    size="tiny"
-    variant="ghost"
-    color="secondary"
-    icon={mdiClose}
-    title="Delete shape"
-    aria-label="Delete shape"
-    onclick={(e: MouseEvent) => {
-      e.stopPropagation();
-      void editor.removeMaskComponent(layerId, comp.id);
-    }}
-  />
-</div>
-{#if isActive}
-  <div class="mx-1 flex min-h-7 items-center gap-1 border-l border-primary/25 px-2 pb-1">
-    {#if index > 0}
-      <div class="{compactSegmentedControlClass} flex text-[10px]">
-        {#each MODES as m (m.value)}
+    <Icon
+      icon={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
+      size="12px"
+      class="opacity-50 shrink-0"
+      aria-hidden="true"
+    />
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark/65 hover:bg-transparent"
+      aria-pressed={isActive}
+      onclick={() => editor.setActiveMaskComponent(isActive ? null : comp.id)}
+    >
+      {label}
+    </Button>
+    {#if index === 0}
+      <ElementTooltip text="The first shape starts the mask">
+        {#snippet child({ props })}
+          <span
+            {...mergeProps(props, { tabindex: -1 })}
+            class="shrink-0 text-[9px] uppercase tracking-wider text-dark/65">Base</span
+          >
+        {/snippet}
+      </ElementTooltip>
+    {/if}
+    <IconButton
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      icon={mdiClose}
+      title="Delete shape"
+      aria-label="Delete shape"
+      onclick={(e: MouseEvent) => {
+        e.stopPropagation();
+        void editor.removeMaskComponent(layerId, comp.id);
+      }}
+    />
+  </div>
+  {#if isActive}
+    <div class="mx-1 flex min-h-7 items-center gap-1 px-2 pb-1">
+      {#if index > 0}
+        <div class="{segmented.tool.group} flex text-[10px]">
+          {#each MODES as m (m.value)}
+            <IconButton
+              size="tiny"
+              variant="ghost"
+              color={comp.mode === m.value ? 'primary' : 'secondary'}
+              icon={m.icon}
+              title={m.hint}
+              aria-label={m.hint}
+              aria-pressed={comp.mode === m.value}
+              onclick={() => setMode(m.value)}
+            />
+          {/each}
+        </div>
+      {/if}
+      <Button
+        type="button"
+        size="tiny"
+        variant={comp.invert ? 'filled' : 'ghost'}
+        color={comp.invert ? 'primary' : 'secondary'}
+        class="shrink-0"
+        leadingIcon={mdiInvertColors}
+        title={comp.invert
+          ? 'Using everything outside this shape. Click to go back.'
+          : 'Use everything outside this shape instead'}
+        aria-pressed={comp.invert}
+        onclick={() => patch({ invert: !comp.invert })}
+      >
+        Invert
+      </Button>
+      {#if total > 1}
+        <div class="ml-auto flex items-center gap-0.5">
+          {#if index > 0}
+            <Button
+              type="button"
+              size="tiny"
+              variant="ghost"
+              color="secondary"
+              title="Start the mask from this shape"
+              onclick={() => void editor.reorderMaskComponent(layerId, comp.id, 0)}
+            >
+              Make base
+            </Button>
+          {/if}
           <IconButton
             size="tiny"
             variant="ghost"
-            color={comp.mode === m.value ? 'primary' : 'secondary'}
-            icon={m.icon}
-            title={m.hint}
-            aria-label={m.hint}
-            aria-pressed={comp.mode === m.value}
-            onclick={() => setMode(m.value)}
+            color="secondary"
+            icon={mdiChevronUp}
+            title="Apply this shape earlier"
+            aria-label="Move shape up"
+            disabled={index === 0}
+            onclick={() => void editor.reorderMaskComponent(layerId, comp.id, index - 1)}
           />
-        {/each}
-      </div>
-    {/if}
-    <Button
-      type="button"
-      size="tiny"
-      variant={comp.invert ? 'filled' : 'ghost'}
-      color={comp.invert ? 'primary' : 'secondary'}
-      class="shrink-0"
-      leadingIcon={mdiInvertColors}
-      title={comp.invert
-        ? 'Using everything outside this shape. Click to go back.'
-        : 'Use everything outside this shape instead'}
-      aria-pressed={comp.invert}
-      onclick={() => patch({ invert: !comp.invert })}
-    >
-      Invert
-    </Button>
-    {#if total > 1}
-      <div class="ml-auto flex items-center gap-0.5">
-        {#if index > 0}
-          <Button
-            type="button"
+          <IconButton
             size="tiny"
             variant="ghost"
             color="secondary"
-            title="Start the mask from this shape"
-            onclick={() => void editor.reorderMaskComponent(layerId, comp.id, 0)}
-          >
-            Make base
-          </Button>
-        {/if}
-        <IconButton
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          icon={mdiChevronUp}
-          title="Apply this shape earlier"
-          aria-label="Move shape up"
-          disabled={index === 0}
-          onclick={() => void editor.reorderMaskComponent(layerId, comp.id, index - 1)}
-        />
-        <IconButton
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          icon={mdiChevronDown}
-          title="Apply this shape later"
-          aria-label="Move shape down"
-          disabled={index === total - 1}
-          onclick={() => void editor.reorderMaskComponent(layerId, comp.id, index + 1)}
-        />
-      </div>
-    {/if}
-  </div>
-{/if}
+            icon={mdiChevronDown}
+            title="Apply this shape later"
+            aria-label="Move shape down"
+            disabled={index === total - 1}
+            onclick={() => void editor.reorderMaskComponent(layerId, comp.id, index + 1)}
+          />
+        </div>
+      {/if}
+    </div>
+  {/if}
+</div>

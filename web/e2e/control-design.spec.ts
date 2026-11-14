@@ -118,7 +118,7 @@ test('editor and loupe use the same black image canvas', async ({ page }) => {
   expect((await metricsOf(page.getByRole('application'))).background).toBe(canvas);
 
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
 
   const loupeCanvases = page.locator('.bg-image-canvas');
@@ -454,7 +454,7 @@ test('export is anchored at the bottom of the editor tool rail', async ({ page }
   await gotoAsset(page);
 
   const rail = page.getByRole('tablist', { name: 'Editor tools' });
-  const geometry = page.getByRole('tab', { name: 'Geometry' });
+  const geometry = page.getByRole('tab', { name: 'Crop' });
   const exportTab = page.getByRole('tab', { name: 'Export', exact: true });
   const positions = await Promise.all(
     [rail, geometry, exportTab].map((locator) =>
@@ -538,44 +538,22 @@ test('bottom bar toggles mark their on state with a tile, not colour alone', asy
   await expect.poll(() => background('Hide filmstrip')).toBe(tile);
 });
 
-test('upward tag picker uses neutral joined surfaces', async ({ page }) => {
+test('the tag picker opens as one panel with its search on top', async ({ page }) => {
   await installMocks(page);
   await page.route('**/api/tags', (route) =>
-    route.fulfill(json([{ id: 'tag-1', value: 'Landscape' }]))
+    route.fulfill(json([{ id: 'tag-1', name: 'Landscape', value: 'Landscape', createdAt: null }]))
   );
   await gotoAsset(page);
   await page.getByRole('button', { name: 'Tags (Shift+T)' }).click();
 
-  const search = page.getByRole('combobox', { name: 'Add tags…' });
-  const input = containerOf(search);
-  const content = page.locator('.editor-compact-combobox-content');
-  const neutral = await resolvedColor(page, '--color-neutral-800');
+  const panel = page.locator('[data-popover-content]');
+  const search = panel.getByRole('textbox', { name: 'Add tags…' });
+  await expect(search).toBeFocused();
+  expect((await metricsOf(panel)).background).toBe(await resolvedBackground(page, 'bg-light-100'));
 
-  await expect(content).toBeVisible();
-  expect((await metricsOf(input)).background).toBe(neutral);
-  expect((await metricsOf(content)).background).toBe(neutral);
-
-  const radii = await Promise.all(
-    [input, content].map((element) =>
-      element.evaluate((node) => {
-        const style = getComputedStyle(node);
-        return {
-          topLeft: Number.parseFloat(style.borderTopLeftRadius),
-          topRight: Number.parseFloat(style.borderTopRightRadius),
-          bottomLeft: Number.parseFloat(style.borderBottomLeftRadius),
-          bottomRight: Number.parseFloat(style.borderBottomRightRadius)
-        };
-      })
-    )
-  );
-  expect(radii[0].topLeft).toBe(0);
-  expect(radii[0].topRight).toBe(0);
-  expect(radii[0].bottomLeft).toBeGreaterThan(0);
-  expect(radii[0].bottomRight).toBeGreaterThan(0);
-  expect(radii[1].topLeft).toBeGreaterThan(0);
-  expect(radii[1].topRight).toBeGreaterThan(0);
-  expect(radii[1].bottomLeft).toBe(0);
-  expect(radii[1].bottomRight).toBe(0);
+  const field = await search.boundingBox();
+  const row = await panel.getByRole('checkbox', { name: 'Landscape' }).boundingBox();
+  expect(field && row && row.y > field.y + field.height).toBe(true);
 });
 
 test('scopes panel has a slight inset without a frame', async ({ page }) => {
@@ -735,7 +713,7 @@ test('panel header actions match develop action buttons', async ({ page }) => {
   expect(maskMetrics[0]).toEqual(metrics[5]);
   expect(maskMetrics[1]).toEqual(metrics[0]);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   const geometryMetrics = await Promise.all(
     [
       page.getByRole('button', { name: 'Reset geometry', exact: true }),
@@ -925,27 +903,27 @@ test('bulk export shows the neutral filename template field for both destination
   ).toBe(true);
   await expectPrimaryFocusRing(page, template);
 
-  await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
+  await dialog.getByRole('radio', { name: 'Download', exact: true }).click();
   await expect(template).toBeVisible();
 });
 
 test('crop ratio controls share the neutral grey surface', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
 
-  const aspect = page.getByRole('combobox', { name: 'Aspect Ratio' });
+  const field = page.getByRole('textbox', { name: 'Ratio' });
   const orientation = page.getByRole('button', { name: /^Switch to/ });
   const neutral = await resolvedColor(page, '--color-neutral-800');
 
-  expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
+  expect((await metricsOf(field.locator('xpath=..'))).background).toBe(neutral);
   expect((await metricsOf(orientation)).background).toBe(neutral);
 });
 
 test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await installMocks(page, { assets: numberedAssets(2) });
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
   await page.getByRole('button', { name: 'Thumbnail size XL' }).hover();
   await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();
@@ -969,59 +947,37 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Clipping overlay' })).toContainText('J');
 });
 
-test('browse filter panel controls share the dense inspector row', async ({ page }) => {
+test('browse filter chips and fields keep the dense desktop sizes', async ({ page }) => {
   await installMocks(page, { structuredSearch: true });
-  await page.goto('/photos');
+  await page.goto('/photos?minsize=25');
 
-  const panel = await openFilters(page, 'Library', 'Date', 'Camera', 'Place', 'File');
-  const visibility = panel.getByRole('combobox', { name: 'Visibility', exact: true });
-  const takenAfter = panel.getByRole('group', { name: 'Taken after' });
-  const controls = [
-    visibility,
-    panel.getByRole('combobox', { name: 'Rejected', exact: true }),
-    takenAfter,
-    panel.getByRole('group', { name: 'Taken before' }),
-    panel.getByLabel('Filename'),
-    panel.getByLabel('Min size (MB)'),
-    panel.getByRole('combobox', { name: 'Make' }),
-    panel.getByRole('combobox', { name: 'City' })
+  const panel = await openFilters(page, 'Library', 'Date', 'File');
+  const chips = [
+    panel.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: 'Timeline' }),
+    panel.getByRole('radiogroup', { name: 'Rejected' }).getByRole('radio', { name: 'Hide' }),
+    panel.getByRole('button', { name: 'Favorites only' }),
+    panel.getByRole('group', { name: 'File size' }).getByRole('button', { name: '1–10 MB' })
   ];
-  for (const control of controls) {
-    expect((await control.boundingBox())?.height).toBe(28);
+  for (const chip of chips) {
+    expect((await chip.boundingBox())?.height).toBe(26);
+  }
+  expect((await panel.getByRole('textbox', { name: 'Name contains' }).boundingBox())?.height).toBe(
+    30
+  );
+
+  await panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' }).click();
+  const from = panel.getByRole('group', { name: 'From' });
+  for (const field of [
+    from,
+    panel.getByRole('group', { name: 'To' }),
+    panel.getByLabel('Min size (MB)')
+  ]) {
+    expect((await field.boundingBox())?.height).toBe(28);
   }
   const neutral = await resolvedColor(page, '--color-neutral-800');
-  expect(
-    await visibility
-      .locator('div')
-      .first()
-      .evaluate((element) => getComputedStyle(element).backgroundColor)
-  ).toBe(neutral);
-  expect(await takenAfter.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
-    neutral
-  );
-  const looks = await Promise.all(
-    [
-      takenAfter,
-      containerOf(panel.getByLabel('Filename')),
-      containerOf(panel.getByRole('combobox', { name: 'Make' }))
-    ].map((box) =>
-      box.evaluate((element) => {
-        const text = element.querySelector('input, [data-segment]');
-        const spreads = [
-          ...getComputedStyle(element).boxShadow.matchAll(/0px 0px 0px (\d+(?:\.\d+)?)px/g)
-        ].map((m) => Number(m[1]));
-        const inset = text
-          ? text.getBoundingClientRect().left -
-            element.getBoundingClientRect().left +
-            parseFloat(getComputedStyle(text).paddingLeft)
-          : -1;
-        return { ring: Math.max(0, ...spreads), inset };
-      })
-    )
-  );
-  expect(looks).toEqual(Array(3).fill({ ring: 0, inset: 16 }));
+  expect(await from.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(neutral);
 
-  const day = takenAfter.locator('[data-segment="day"]');
+  const day = from.locator('[data-segment="day"]');
   await day.focus();
   expect(
     await day.evaluate((element) => {

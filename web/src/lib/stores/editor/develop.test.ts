@@ -1,18 +1,29 @@
 import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { DEFAULT_COPY_SECTIONS } from '#lib/editor/copyPaste.ts';
+import { DEFAULT_COPY_SELECTION, selectionOf } from '#lib/editor/copyTools.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import {
+  autoAdjust,
   canPaste,
   canResetDevelop,
   copyEdits,
   pasteEdits,
+  pasteOnly,
   resetDevelop,
   type DevelopCtx
 } from './develop.svelte';
+
+const api = vi.hoisted(() => ({
+  autoEdits: vi.fn<(id: string, edits: unknown) => Promise<unknown>>()
+}));
+
+vi.mock('#lib/api/edits.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/api/edits.ts')>()),
+  autoEdits: api.autoEdits
+}));
 
 function edited(): Edits {
   const edits = neutralEdits();
@@ -26,7 +37,7 @@ function context(edits: Edits): DevelopCtx {
     initialised: true,
     edits,
     saving: false,
-    autoBusy: false,
+    autoRunning: null,
     error: null,
     onLive: vi.fn(),
     onCommit: vi.fn(() => Promise.resolve())
@@ -57,7 +68,7 @@ describe('develop feedback', () => {
     ]
   ])('%s toasts', async (_name, run, message) => {
     await run();
-    expect(push).toHaveBeenCalledWith(expect.any(String), message, 3000);
+    expect(push).toHaveBeenCalledWith(expect.any(String), message, { ttlMs: 3000 });
   });
 
   it('confirms a copy only after the dialog copies', () => {
@@ -66,22 +77,52 @@ describe('develop feedback', () => {
 
     copyDialog.confirm();
 
-    expect(push).toHaveBeenCalledWith('success', 'Copied settings', 3000);
+    expect(push).toHaveBeenCalledWith('success', 'Copied settings', { ttlMs: 3000 });
   });
 
   it('pastes as one history step and offers undo', async () => {
-    clipboard.copy(edited(), { ...DEFAULT_COPY_SECTIONS });
+    clipboard.copy(edited(), { ...DEFAULT_COPY_SELECTION });
     const ctx = context(neutralEdits());
 
     await pasteEdits(ctx);
 
     expect(ctx.edits.basic.exposure_ev).toBe(1);
     expect(ctx.onCommit).toHaveBeenCalledWith('Paste');
-    expect(push).toHaveBeenCalledWith(
-      'success',
-      `Pasted settings. Undo with ${keysFor('undo')}.`,
-      3000
-    );
+    expect(push).toHaveBeenCalledWith('success', `Pasted settings. Undo with ${keysFor('undo')}.`, {
+      ttlMs: 3000
+    });
+  });
+
+  it('names the tool the newest step changed when copying', () => {
+    const after = edited();
+    copyEdits(context(after), { before: neutralEdits(), after });
+    expect(copyDialog.touched).toBe('tone');
+  });
+
+  it('pastes only the tools checked in the paste dialog as one step', async () => {
+    const source = edited();
+    source.effects.grain_amount = 25;
+    clipboard.copy(source, { ...DEFAULT_COPY_SELECTION });
+    const ctx = context(neutralEdits());
+
+    pasteOnly(ctx);
+    expect(copyDialog.mode).toBe('paste');
+    copyDialog.pickOnly(['grain']);
+    copyDialog.confirm();
+    await vi.waitFor(() => expect(ctx.onCommit).toHaveBeenCalledWith('Paste'));
+
+    expect(ctx.onCommit).toHaveBeenCalledTimes(1);
+    expect(ctx.edits.effects.grain_amount).toBe(25);
+    expect(ctx.edits.basic.exposure_ev).toBe(0);
+  });
+
+  it('pastes only what the clipboard holds', async () => {
+    clipboard.copy(edited(), selectionOf(['hsl']));
+    const ctx = context(neutralEdits());
+
+    await pasteEdits(ctx);
+
+    expect(ctx.edits.basic.exposure_ev).toBe(0);
   });
 });
 
@@ -115,7 +156,7 @@ describe('develop guards', () => {
   });
 
   it('does not paste while a save is in flight', async () => {
-    clipboard.copy(edited(), { ...DEFAULT_COPY_SECTIONS });
+    clipboard.copy(edited(), { ...DEFAULT_COPY_SELECTION });
     const ctx = saving(neutralEdits());
 
     expect(canPaste(ctx)).toBe(false);
@@ -130,9 +171,36 @@ describe('develop guards', () => {
     const ctx = context(neutralEdits());
     expect(canPaste(ctx)).toBe(false);
 
-    clipboard.copy(edited(), { ...DEFAULT_COPY_SECTIONS });
+    clipboard.copy(edited(), { ...DEFAULT_COPY_SELECTION });
 
     expect(canPaste(ctx)).toBe(true);
     expect(canResetDevelop(context(edited()))).toBe(true);
+  });
+});
+
+describe('auto', () => {
+  it('runs one section as its own history step and clears the busy state', async () => {
+    const suggested = neutralEdits();
+    suggested.tone.highlights = -30;
+    suggested.basic.clarity = 9;
+    api.autoEdits.mockResolvedValue(suggested);
+    const ctx = context(neutralEdits());
+
+    const running = autoAdjust(ctx, 'tone');
+    expect(ctx.autoRunning).toBe('tone');
+    await running;
+
+    expect(ctx.edits.tone.highlights).toBe(-30);
+    expect(ctx.edits.basic.clarity).toBe(0);
+    expect(ctx.onCommit).toHaveBeenCalledWith('Auto Tone');
+    expect(ctx.autoRunning).toBeNull();
+  });
+
+  it('ignores a second Auto while one is analysing', async () => {
+    api.autoEdits.mockReset();
+    const ctx = { ...context(neutralEdits()), autoRunning: 'all' as const };
+    await autoAdjust(ctx, 'tone');
+    expect(api.autoEdits).not.toHaveBeenCalled();
+    expect(ctx.autoRunning).toBe('all');
   });
 });

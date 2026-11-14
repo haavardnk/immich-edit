@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::time::Duration;
 
 use axum::Router;
@@ -17,7 +18,6 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{
     MakeRequestId, PropagateRequestIdLayer, RequestId, SetRequestIdLayer,
 };
-use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
 use uuid::Uuid;
@@ -29,6 +29,7 @@ use crate::telemetry::http::{REQUEST_ID_HEADER, report_rejection, trace_layer};
 
 mod cors;
 mod middleware;
+mod static_files;
 
 use cors::build_cors;
 use middleware::{
@@ -75,6 +76,11 @@ fn model_routes() -> Router<AppState> {
 }
 
 pub fn router(state: AppState) -> Router {
+    let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
+    router_with_web_dir(state, Path::new(&web_dir))
+}
+
+pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
     let heavy_cfg = std::sync::Arc::new(
         GovernorConfigBuilder::default()
             .key_extractor(GlobalKeyExtractor)
@@ -158,7 +164,10 @@ pub fn router(state: AppState) -> Router {
             post(routes::client_log::post)
                 .layer(DefaultBodyLimit::max(routes::client_log::BODY_LIMIT)),
         )
-        .route("/albums", get(routes::albums::list))
+        .route(
+            "/albums",
+            get(routes::albums::list).post(routes::albums::create),
+        )
         .route("/albums/{id}", get(routes::albums::detail))
         .route(
             "/albums/{id}/assets",
@@ -176,6 +185,7 @@ pub fn router(state: AppState) -> Router {
         .route("/search/metadata", post(routes::search::metadata))
         .route("/search/smart", post(routes::search::smart))
         .route("/search/statistics", post(routes::search::statistics))
+        .route("/search/months", post(routes::search::months))
         .route("/search/window", post(routes::search::window))
         .route("/search/suggestions", post(routes::search::suggestions))
         .route("/edits", get(routes::edits::list))
@@ -189,6 +199,7 @@ pub fn router(state: AppState) -> Router {
                 .put(routes::presets::update)
                 .delete(routes::presets::delete),
         )
+        .route("/presets/{id}/favorite", put(routes::presets::favorite))
         .route(
             "/export-presets",
             get(routes::export_presets::list).post(routes::export_presets::create),
@@ -198,8 +209,20 @@ pub fn router(state: AppState) -> Router {
             put(routes::export_presets::update).delete(routes::export_presets::delete),
         )
         .route(
+            "/saved-views",
+            get(routes::saved_views::list).post(routes::saved_views::create),
+        )
+        .route(
+            "/saved-views/{id}",
+            put(routes::saved_views::update).delete(routes::saved_views::delete),
+        )
+        .route(
             "/appearance",
             get(routes::appearance::get).put(routes::appearance::update),
+        )
+        .route(
+            "/preferences",
+            get(routes::preferences::get).patch(routes::preferences::update),
         )
         .route(
             "/jobs",
@@ -209,6 +232,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/jobs/{id}", get(routes::jobs::get))
         .route("/jobs/{id}/cancel", post(routes::jobs::cancel))
+        .route("/jobs/{id}/retry", post(routes::jobs::retry))
         .route("/jobs/{id}/download", get(routes::jobs::download))
         .route("/jobs/{id}/events", get(routes::jobs::events))
         .route(
@@ -241,6 +265,18 @@ pub fn router(state: AppState) -> Router {
         .route("/assets/{id}/edits/auto", post(routes::edits::auto))
         .route("/assets/{id}/edits/history", get(routes::edits::history))
         .route("/assets/{id}/edits/restore", post(routes::edits::restore))
+        .route(
+            "/assets/{id}/snapshots",
+            get(routes::snapshots::list).post(routes::snapshots::create),
+        )
+        .route(
+            "/assets/{id}/snapshots/{snapshot_id}",
+            patch(routes::snapshots::update).delete(routes::snapshots::delete),
+        )
+        .route(
+            "/assets/{id}/snapshots/{snapshot_id}/restore",
+            post(routes::snapshots::restore),
+        )
         .route(
             "/assets/{id}/edits/white-balance",
             post(routes::edits::white_balance_sample),
@@ -309,14 +345,9 @@ pub fn router(state: AppState) -> Router {
         .layer(from_fn(request_id_scope))
         .layer(map_response(report_rejection));
 
-    let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "./web".into());
-    let fallback_file = format!("{web_dir}/200.html");
-    let has_web = std::path::Path::new(&fallback_file).exists();
-
     let mut root = Router::new().nest("/api", api);
-    if has_web {
-        let spa = ServeDir::new(&web_dir).fallback(ServeFile::new(&fallback_file));
-        root = root.fallback_service(spa);
+    if let Some(web) = static_files::router(web_dir) {
+        root = root.fallback_service(web);
     }
 
     let body_bytes = (state.config.max_body_mb as usize).saturating_mul(1024 * 1024);

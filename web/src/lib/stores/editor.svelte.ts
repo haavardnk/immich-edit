@@ -1,74 +1,88 @@
-import {
-  aiDenoiseActive,
-  neutralEdits,
-  isIdentity,
-  effectiveLens,
-  MAX_RETOUCH_STROKES,
-  type AspectLock,
-  type AsShotWhite,
-  type CropRect,
-  type DevelopSection,
-  type Edits,
-  type EditManifest,
-  type GeometryEdits,
-  type LensEdits,
-  type MaskComponent,
-  type MaskComponentKind,
-  type MaskComponentMode,
-  type MaskLayer,
-  type MaskedEditKey,
-  type RetouchMode,
-  type RetouchStroke,
-  type Vec2f
-} from '#lib/types/edits.ts';
-import { manifestToEdits } from '#lib/edits/manifest.ts';
-import type { PresetPreview } from '#lib/edits/applyPreset.ts';
-import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
-import { defaultLinear, maskCapacity } from '#lib/types/masks.ts';
-import type { BrushBuffer } from '#lib/utils/brush.ts';
-import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
-import * as develop from '#lib/stores/editor/develop.svelte.ts';
-import * as exportActions from '#lib/stores/editor/export.svelte.ts';
-import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
-import * as maskGen from '#lib/stores/editor/maskGen.ts';
-import * as metadata from '#lib/stores/editor/metadata.ts';
-import * as retouch from '#lib/stores/editor/retouch.ts';
-import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
-import * as upright from '#lib/stores/editor/upright.ts';
-import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
-import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
-import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
-import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
-import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
-import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
-import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
-import type { MaskWeightFrame, MaskStroke } from '#lib/stores/editor/maskWeight.svelte.ts';
-import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
-import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
-import { ViewportNav } from '#lib/stores/editor/viewport.ts';
-import type { PreviewMeta } from '#lib/types/preview.ts';
-import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
+import { getAsset } from '#lib/api/assets.ts';
 import { getEdits, type WhiteBalanceSample } from '#lib/api/edits.ts';
-import { type PreviewMode } from '#lib/api/preview.ts';
 import {
   type ColorSpaceOpt,
   type ExportOptions,
   type ImmichExportOptions
 } from '#lib/api/export.ts';
-import { getAsset } from '#lib/api/assets.ts';
+import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
+import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
+import { type PreviewMode } from '#lib/api/preview.ts';
+import type { AutoScope } from '#lib/editor/autoScope.ts';
+import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
+import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
+import * as develop from '#lib/stores/editor/develop.svelte.ts';
+import type { EditsPreview, EditsPreviewOwner } from '#lib/stores/editor/editsPreview.ts';
+import * as exportActions from '#lib/stores/editor/export.svelte.ts';
+import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
+import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
+import { EditHistory, type EntryRestore } from '#lib/stores/editor/history.svelte.ts';
+import { HistorySteps } from '#lib/stores/editor/historySteps.svelte.ts';
+import { fetchLensProfile } from '#lib/stores/editor/lensProfile.ts';
+import * as maskGen from '#lib/stores/editor/maskGen.ts';
+import * as maskLayers from '#lib/stores/editor/maskLayers.svelte.ts';
+import type { MaskStroke, MaskWeightFrame } from '#lib/stores/editor/maskWeight.svelte.ts';
+import { maskHover, weightTarget } from '#lib/stores/editor/maskHover.svelte.ts';
+import * as metadata from '#lib/stores/editor/metadata.ts';
+import { PresetApplied, type PresetSource } from '#lib/stores/editor/presetApplied.svelte.ts';
+import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
+import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
+import * as retouch from '#lib/stores/editor/retouch.ts';
+import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
+import { SnapshotStore } from '#lib/stores/editor/snapshots.svelte.ts';
+import * as upright from '#lib/stores/editor/upright.ts';
+import { VersionStore } from '#lib/stores/editor/versions.svelte.ts';
+import { ViewportNav } from '#lib/stores/editor/viewport.ts';
+import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
-import { clipboard } from '#lib/stores/clipboard.svelte.ts';
-import { ui, type BrushTool, type RetouchTool } from '#lib/stores/ui.svelte.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
-import type { Roi } from '#lib/utils/viewGeometry.ts';
-import { errorMessage } from '#lib/utils/errors.ts';
+import { ui, type BrushTool, type RetouchTool } from '#lib/stores/ui.svelte.ts';
 import { loadFaceData } from '#lib/stores/zoomTargets.ts';
-import type { PanStep } from '#lib/utils/imageViewport.ts';
+import type { AssetDetail, TagRef } from '#lib/types/asset.ts';
+import {
+  aiDenoiseActive,
+  effectiveLens,
+  isIdentity,
+  MAX_RETOUCH_STROKES,
+  neutralEdits,
+  type AspectLock,
+  type AsShotWhite,
+  type CropRect,
+  type DevelopSection,
+  type Edits,
+  type GeometryEdits,
+  type LensEdits,
+  type MaskComponent,
+  type MaskComponentKind,
+  type MaskComponentMode,
+  type MaskedEditKey,
+  type MaskLayer,
+  type RetouchMode,
+  type RetouchStroke,
+  type Vec2f
+} from '#lib/types/edits.ts';
+import { defaultLinear, maskCapacity } from '#lib/types/masks.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
+import type { BrushBuffer } from '#lib/utils/brush.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
+import type { PanStep, ViewportMetrics } from '#lib/utils/imageViewport.ts';
 import type { PerspectiveEdits } from '#lib/utils/perspective.ts';
-import type { UprightGuide } from '#lib/utils/upright.ts';
 import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
+import type { UprightGuide } from '#lib/utils/upright.ts';
+import type { Roi } from '#lib/utils/viewGeometry.ts';
+import { CompareControl } from '#lib/stores/editor/compareControl.svelte.ts';
+import * as rangePicker from '#lib/stores/editor/rangePicker.ts';
+import {
+  rangePickerHidesOverlay,
+  type RangePicker,
+  type RangeSampleMode
+} from '#lib/stores/editor/rangePicker.ts';
+import type { RangeSample } from '#lib/editor/rangeSample.ts';
+import type { Rgb } from '#lib/utils/oklab.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -83,9 +97,13 @@ class EditorStore {
   }
 
   set meta(value: PreviewMeta | null) {
-    const wasRaw = this.previewMeta?.is_raw === true;
+    const wasRaw = this.isRaw;
     this.previewMeta = value;
     if ((value?.is_raw === true) !== wasRaw) this.syncAiDenoise();
+  }
+
+  get isRaw(): boolean {
+    return this.previewMeta?.is_raw === true;
   }
 
   lensProfile = $state<LensProfileMatch | null>(null);
@@ -93,6 +111,7 @@ class EditorStore {
   pending = $state(false);
   saving = $state(false);
   savedHash = $state<string>('');
+  restoreCount = $state(0);
   saveError = $state<string | null>(null);
   exporting = $state(false);
   exportingToImmich = $state(false);
@@ -102,12 +121,12 @@ class EditorStore {
   lensView: LensEdits = $derived(
     effectiveLens(
       this.edits.lens,
-      this.meta?.is_raw && this.lensProfile?.auto ? this.lensProfile.edits : null
+      this.isRaw && this.lensProfile?.auto ? this.lensProfile.edits : null
     )
   );
   lastImmichOpts: ImmichExportOptions | null = null;
   lastDownloadOpts: ExportOptions | null = null;
-  autoBusy = $state(false);
+  autoRunning = $state<AutoScope | null>(null);
   wbPicking = $state(false);
   wbBusy = $state(false);
   asShot = $state<AsShotWhite | null>(null);
@@ -116,13 +135,11 @@ class EditorStore {
   error = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
-  presetPreview = $state.raw<PresetPreview | null>(null);
-  splitMode = $state(false);
-  splitPos = $state(0.5);
+  editsPreview = $state.raw<EditsPreview | null>(null);
   proofSpace = $state<ColorSpaceOpt>('srgb');
   gamutWarn = $state(false);
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
-  originalUrl = $state<string | null>(null);
+  compareUrl = $state<string | null>(null);
   viewUrl = $state<string | null>(null);
   viewFrame = $state.raw<PreviewFrame | null>(null);
   viewRoi = $state<Roi | null>(null);
@@ -136,19 +153,20 @@ class EditorStore {
   maskRetry: (() => Promise<unknown>) | null = null;
   maskOverlayVisible = $state(true);
   maskRefineOpen = $state<Record<string, boolean>>({});
-  colorPicker = $state<{ layerId: string; componentId: string; ready: boolean } | null>(null);
+  rangePicker = $state<RangePicker | null>(null);
   maskOverlayHeld = $state(false);
   maskWeight = $state.raw<MaskWeightFrame | null>(null);
   maskStroke = $state<MaskStroke>('idle');
   maskOverlayLayerId = $derived(
     this.maskOverlayVisible &&
       !this.maskOverlayHeld &&
-      !this.colorPicker &&
+      !rangePickerHidesOverlay(this.rangePicker) &&
       !this.showingOriginal &&
       this.edits.masks.some((layer) => layer.id === this.activeLayerId)
       ? this.activeLayerId
       : null
   );
+  maskWeightTarget = $derived(weightTarget(this, maskHover.target));
   brushBuffers = $state<Record<string, BrushBuffer>>({});
   brushBufferSource: Record<string, string> = {};
   clickTool = $state<{
@@ -191,12 +209,22 @@ class EditorStore {
     ui.setRetouchTool(tool);
   }
 
-  private history = new EditHistory(this);
   private saves = new SaveQueue(this);
+  private history = new EditHistory(this, this.saves);
   private previews = new PreviewEngine(this);
-  private viewport = new ViewportNav(this, () => this.previews.snapshot);
+  private viewport = new ViewportNav(this);
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
+  readonly snapshots = new SnapshotStore(this);
+  readonly historySteps = new HistorySteps(this);
+  readonly versions = new VersionStore(this);
+  readonly presetApplied = new PresetApplied(this, {
+    steps: this.history,
+    save: (edits, action) => this.saves.commit(edits, action)
+  });
+  readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
+    this.previews.compareChanged(wasOn)
+  );
 
   get sourceRevision(): string {
     return this.aiDenoise.revision;
@@ -208,14 +236,17 @@ class EditorStore {
   }
 
   private syncAiDenoise(): void {
-    const raw = this.meta?.is_raw === true;
-    this.aiDenoise.sync(this.assetId, raw && aiDenoiseActive(this.edits.detail));
+    this.aiDenoise.sync(this.assetId, this.isRaw && aiDenoiseActive(this.edits.detail));
   }
 
   initialised = $state(false);
 
   get sourceLong(): number {
     return this.previews.sourceLong;
+  }
+
+  get dragging(): boolean {
+    return this.previews.dragActive;
   }
 
   get viewScale(): number | null {
@@ -226,20 +257,16 @@ class EditorStore {
     this.previews.clearView();
   }
 
-  onViewChange = (snap: ViewSnapshot): void => {
+  onViewChange = (snap: ViewSnapshot, metrics: ViewportMetrics): void => {
+    this.viewport.setMetrics(metrics);
     this.previews.onViewChange(snap);
   };
 
   setBaseImage = (element: PreviewSurface | null): void => this.viewport.setBaseImage(element);
 
-  zoomCycle = (): void => this.viewport.zoomCycle();
+  cycleZoom = (): void => this.viewport.cycleZoom();
 
   panBy = (step: PanStep): void => this.viewport.panBy(step);
-
-  toggleSplit = (): void => {
-    if (this.geometrySession) return;
-    this.previews.toggleSplit();
-  };
 
   setProofSpace = (space: ColorSpaceOpt): void => {
     if (this.proofSpace === space) return;
@@ -257,10 +284,6 @@ class EditorStore {
     this.previews.reproof();
   };
 
-  setSplitPos = (p: number): void => {
-    this.splitPos = Math.min(1, Math.max(0, p));
-  };
-
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
     await this.endGeometrySession();
@@ -275,6 +298,7 @@ class EditorStore {
       this.saves.begin(id, s.hash);
       this.initialised = true;
       this.history.push($state.snapshot(this.edits) as Edits);
+      void this.snapshots.load(id);
       fetchLensProfile(this, id);
       void loadFaceData(id);
       this.onLive();
@@ -295,6 +319,7 @@ class EditorStore {
 
   unload(): void {
     this.previews.reset();
+    this.compare.reset();
     this.viewport.reset();
     this.depthPreview.reset();
     void geometry.endSession(this);
@@ -315,9 +340,13 @@ class EditorStore {
     this.saveError = null;
     this.saves.end();
     this.history.reset();
+    this.snapshots.reset();
+    this.historySteps.reset();
+    this.versions.reset();
+    this.presetApplied.drop();
     this.showingOriginal = false;
     this.bypassedSection = null;
-    this.presetPreview = null;
+    this.editsPreview = null;
     this.activeLayerId = null;
     this.activeMaskComponentId = null;
     this.maskRefineOpen = {};
@@ -326,7 +355,7 @@ class EditorStore {
     this.retouchAnchor = null;
     this.retouchSampling = false;
     this.retouchSourceMissed = false;
-    this.colorPicker = null;
+    this.rangePicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
     this.lastUpload = null;
@@ -343,13 +372,9 @@ class EditorStore {
     return this.history.canRedo;
   }
 
-  undo = (): void => {
-    this.history.undo();
-  };
+  undo = (): void => this.history.undo();
 
-  redo = (): void => {
-    this.history.redo();
-  };
+  redo = (): void => this.history.redo();
 
   loadPersisted(): void {
     this.previews.loadPersisted();
@@ -370,33 +395,32 @@ class EditorStore {
     this.syncAiDenoise();
   };
 
-  beginDrag = (): void => {
-    this.previews.beginDrag();
-  };
+  beginDrag = (): void => this.previews.beginDrag();
 
-  endDrag = (): void => {
-    this.previews.endDrag();
-  };
+  endDrag = (): void => this.previews.endDrag();
 
-  onPreview = (mode: PreviewMode): void => {
-    this.previews.preview(mode);
-  };
+  onPreview = (mode: PreviewMode): void => this.previews.preview(mode);
 
-  endPreview = (): void => {
-    this.previews.live();
-  };
+  endPreview = (): void => this.previews.live();
 
   onCommit = async (action?: string): Promise<void> => {
     if (!this.initialised || !this.saves.open) return;
+    this.presetApplied.drop();
     const replaying = this.history.skipping;
     if (!replaying) this.history.push($state.snapshot(this.edits) as Edits);
     this.onLive();
     await this.saves.commit($state.snapshot(this.edits) as Edits, replaying ? undefined : action);
   };
 
-  restoreHistoryEntry = (entryId: number): Promise<void> => this.saves.restoreEntry(entryId);
+  restoreHistoryEntry = (restore: EntryRestore): Promise<boolean> =>
+    this.history.restoreEntry(restore);
+
+  restoreSnapshot = (snapshotId: string, name: string): Promise<boolean> =>
+    this.history.restoreSnapshot(snapshotId, name);
 
   retrySave = (): Promise<void> => this.saves.retry();
+
+  settled = (): Promise<void> => this.saves.settled();
 
   canResetDevelop = $derived(develop.canResetDevelop(this));
 
@@ -408,35 +432,34 @@ class EditorStore {
 
   resetGeometryTransform = (): Promise<void> => geometry.resetTransform(this);
 
-  copyEdits = (): void => develop.copyEdits(this);
+  copyEdits = (): void => develop.copyEdits(this, this.history.lastChange);
 
   pasteEdits = (): Promise<void> => develop.pasteEdits(this);
 
+  pasteOnly = (): void => develop.pasteOnly(this);
+
   canPaste = $derived(develop.canPaste(this));
 
-  hasClipboard = $derived(clipboard.has);
-
-  applyPreset = (
-    manifest: EditManifest,
-    opts: ApplyPresetOptions,
-    name?: string
-  ): Promise<void> => {
-    this.presetPreview = null;
-    return develop.applyPreset(this, manifest, opts, name);
+  applyPreset = (preset: PresetSource, opts: ApplyPresetOptions): Promise<void> => {
+    this.editsPreview = null;
+    return this.presetApplied.apply(preset, opts);
   };
 
-  previewPreset = (preview: PresetPreview): void => {
-    this.presetPreview = preview;
-    this.previews.live();
-  };
+  previewPreset = (preview: PresetPreview): void =>
+    this.previewEdits('preset', presetEdits($state.snapshot(this.edits) as Edits, preview));
 
-  endPresetPreview = (): void => {
-    if (!this.presetPreview) return;
-    this.presetPreview = null;
-    this.previews.live();
-  };
+  endPresetPreview = (): void => this.endEditsPreview('preset');
 
-  onAutoAdjust = (): Promise<void> => develop.autoAdjust(this);
+  previewEdits = (owner: EditsPreviewOwner, edits: Edits): void =>
+    this.previews.showEdits({ owner, edits });
+
+  endEditsPreview = (owner: EditsPreviewOwner): void => this.previews.endEdits(owner);
+
+  get autoBusy(): boolean {
+    return this.autoRunning !== null;
+  }
+
+  onAutoAdjust = (scope: AutoScope = 'all'): Promise<void> => develop.autoAdjust(this, scope);
 
   toggleWbPicker = (): void => whiteBalance.toggleWbPicker(this);
 
@@ -484,7 +507,11 @@ class EditorStore {
     this.maskOverlayHeld = false;
   };
 
-  syncMaskWeight = (): void => this.previews.syncWeight(this.maskOverlayLayerId);
+  syncMaskWeight = (): void =>
+    this.previews.syncWeight(
+      this.maskWeightTarget?.layerId ?? null,
+      this.maskWeightTarget?.componentId ?? null
+    );
 
   beginMaskStroke = (): void => {
     this.maskStroke = 'painting';
@@ -521,13 +548,17 @@ class EditorStore {
 
   clearRetouch = (): Promise<void> => retouch.clearRetouch(this);
 
-  beginColorPicker = (layerId: string, componentId: string): void =>
-    maskLayers.beginColorPicker(this, layerId, componentId);
+  beginRangePicker = (layerId: string, componentId: string): void =>
+    rangePicker.beginRangePicker(this, layerId, componentId);
 
-  cancelColorPicker = (): void => maskLayers.cancelColorPicker(this);
+  cancelRangePicker = (): void => maskLayers.cancelRangePicker(this);
 
-  commitColorSample = (sampleRgb: [number, number, number]): Promise<void> =>
-    maskLayers.commitColorSample(this, sampleRgb);
+  previewRangeSample = (rgb: Rgb | null): void => rangePicker.previewRangeSample(this, rgb);
+
+  clearRangeSamples = (): void => rangePicker.clearRangeSamples(this);
+
+  commitRangeSample = (sample: RangeSample, mode: RangeSampleMode): Promise<void> =>
+    rangePicker.commitRangeSample(this, sample, mode);
 
   addMaskLayer = (kind: MaskComponentKind = defaultLinear()): Promise<string | null> =>
     maskLayers.addMaskLayer(this, kind);
@@ -570,6 +601,8 @@ class EditorStore {
   undoPolygonPoint = (): void => maskLayers.undoPolygonPoint(this);
 
   cancelPolygon = (): void => maskLayers.cancelPolygon(this);
+
+  stopClickTool = (): void => maskLayers.stopClickTool(this);
 
   finishPolygon = (): Promise<void> => maskLayers.finishPolygon(this);
 
@@ -703,11 +736,12 @@ class EditorStore {
 
   clearFlags = (): Promise<void> => metadata.clearFlags(this);
 
-  refreshScopes = (): void => {
-    this.previews.refreshBase();
-  };
+  refreshScopes = (): void => this.previews.refreshBase();
 
-  startGeometrySession = (): void => geometry.startSession(this);
+  startGeometrySession = (): void => {
+    this.compare.end();
+    geometry.startSession(this);
+  };
 
   endGeometrySession = (): Promise<void> => geometry.endSession(this);
 
@@ -741,6 +775,10 @@ class EditorStore {
     upright.moveGuide(this, index, guide);
 
   removeUprightGuide = (index: number): Promise<void> => upright.removeGuide(this, index);
+
+  noteDroppedUprightGuide = (degrees: number): void => upright.noteDroppedGuide(this, degrees);
+
+  clearUprightGuides = (): void => upright.clearGuides(this);
 }
 
 export const editor = new EditorStore();

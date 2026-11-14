@@ -1,12 +1,21 @@
+import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
+import { gridSizeHud } from '#lib/browse/gridSizeHud.svelte.ts';
+import { listenForCommands } from '#lib/commands/listen.ts';
+import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
+import { session } from '#lib/stores/session.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
+import { asset } from '#lib/testing/assets.ts';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import type { AssetSummary } from '#lib/types/album.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
-import ComponentHost from '#lib/testing/ComponentHost.svelte';
-import { selection } from '#lib/stores/selection.svelte.ts';
-import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { browseControls } from '#lib/stores/browseControls.svelte.ts';
-import { session } from '#lib/stores/session.svelte.ts';
-import type { AssetSummary } from '#lib/types/album.ts';
+import BulkBar from './bulk/BulkBar.svelte';
+import FilterPanel from './filters/FilterPanel.svelte';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -17,46 +26,58 @@ vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/albums/a1'), params: {} }
 }));
 
-const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
+const setRating = vi.hoisted(() =>
+  vi.fn(async (_target: MetaTarget, _rating: number | null): Promise<MetaOutcome> => 'saved')
+);
 const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.fn() }));
 
 vi.mock('#lib/browse/copyPaste.ts', () => clipboard);
 
-vi.mock('#lib/browse/cull.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#lib/browse/cull.ts')>()),
-  rateAsset
+const copies = vi.hoisted(() => ({ createVirtualCopies: vi.fn() }));
+
+vi.mock('#lib/editor/copies.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/editor/copies.ts')>()),
+  createVirtualCopies: copies.createVirtualCopies
+}));
+
+vi.mock('#lib/browse/assetMeta.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/browse/assetMeta.ts')>()),
+  setRating
 }));
 
 type GridProps = ComponentProps<typeof AssetGrid>;
 
 const Host: Component<{ component: Component<GridProps>; props: GridProps }> = ComponentHost;
 
-function asset(id: string): AssetSummary {
-  return {
-    id,
-    originalFileName: `${id}.jpg`,
-    type: 'IMAGE',
-    fileCreatedAt: null,
-    updatedAt: null,
-    checksum: null,
-    isFavorite: false,
-    exifInfo: null,
-    tags: []
-  };
-}
+type BarProps = ComponentProps<typeof BulkBar>;
+
+const BarHost: Component<{ component: Component<BarProps>; props: BarProps }> = ComponentHost;
+
+type PanelProps = ComponentProps<typeof FilterPanel>;
+
+const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
 
 const assets = [asset('a'), asset('b'), asset('c')];
 
 let scroller: HTMLDivElement;
 let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
+let bar: Record<string, unknown> | null = null;
 
 function render(props: Partial<GridProps> = {}): void {
   component = mount(Host, {
     target,
     props: { component: AssetGrid, props: { assets, ...props } }
   });
+  bar ??= mount(BarHost, {
+    target: document.body,
+    props: { component: BulkBar, props: { placement: 'float' } }
+  });
   flushSync();
+}
+
+function ratedIds(): [string, number | null][] {
+  return setRating.mock.calls.map(([target, rating]) => [target.id, rating]);
 }
 
 function tiles(): HTMLElement[] {
@@ -79,11 +100,17 @@ function press(key: string, init: KeyboardEventInit = {}): void {
   flushSync();
 }
 
+let stopCommands = (): void => {};
+
 beforeEach(() => {
-  rateAsset.mockClear();
-  rateAsset.mockResolvedValue(true);
+  stopCommands = listenForCommands();
+  setRating.mockClear();
+  setRating.mockResolvedValue('saved');
   clipboard.copyEditsFrom.mockClear();
   clipboard.pasteEditsTo.mockClear();
+  copies.createVirtualCopies.mockReset();
+  ui.closeKeybindsHelp();
+  browseView.setFiltersOpen(false);
   selection.clear();
   browseView.setActive(null);
   browseControls.filters.rejected = 'any';
@@ -95,16 +122,27 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopCommands();
   if (component) void unmount(component);
   component = null;
+  if (bar) void unmount(bar);
+  bar = null;
   scroller.remove();
   window.getSelection()?.removeAllRanges();
+  editedThumbs.remove('b');
+  browseView.setTileInfo('badges');
+  browseView.setGridSize('md');
+  gridSizeHud.hide();
 });
 
 describe('AssetGrid', () => {
   it('renders a tile per asset', () => {
     render();
-    expect(tiles().map((tile) => tile.title)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(tiles().map((tile) => tile.getAttribute('data-name'))).toEqual([
+      'a.jpg',
+      'b.jpg',
+      'c.jpg'
+    ]);
   });
 
   it('toggles selection from a tile checkbox', () => {
@@ -161,13 +199,60 @@ describe('AssetGrid', () => {
     browseView.setActive('a');
     render();
     press('3');
-    expect(rateAsset).not.toHaveBeenCalled();
+    expect(setRating).not.toHaveBeenCalled();
   });
 
   it('makes a ticked photo the active one', () => {
     render();
     click(selectButton(1));
     expect(browseView.activeId).toBe('b');
+  });
+
+  it("creates one virtual copy per Mod+' press, ignoring key repeat", async () => {
+    copies.createVirtualCopies.mockResolvedValue(undefined);
+    render();
+    click(selectButton(0));
+    press("'", { ctrlKey: true });
+    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
+    press("'", { ctrlKey: true, repeat: true });
+    expect(copies.createVirtualCopies).toHaveBeenCalledExactlyOnceWith(['a']);
+  });
+
+  it('toggles the filter panel with Shift+F', async () => {
+    const panel = mount(PanelHost, {
+      target,
+      props: { component: FilterPanel, props: { sortBasis: 'capture', title: 'Photos' } }
+    });
+    render();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(true);
+    expect(document.querySelector('aside[aria-label="Filters"]')).not.toBeNull();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(false);
+    await unmount(panel);
+  });
+
+  it('swallows the help key while selecting all', async () => {
+    let loaded = (_: boolean): void => {};
+    render({ onLoadAll: () => new Promise<boolean>((done) => (loaded = done)) });
+    press('?', { shiftKey: true });
+    expect(ui.keybindsHelpOpen).toBe(true);
+    ui.closeKeybindsHelp();
+
+    press('a', { ctrlKey: true });
+    const help = new KeyboardEvent('keydown', {
+      key: '?',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.body.dispatchEvent(help);
+    flushSync();
+    expect(help.defaultPrevented).toBe(true);
+    expect(ui.keybindsHelpOpen).toBe(false);
+
+    loaded(true);
+    await vi.waitFor(() => expect(selection.count).toBe(3));
   });
 
   it.each([
@@ -196,14 +281,15 @@ describe('AssetGrid', () => {
   });
 
   it.each([
-    ['moves the tick to the next photo', true, ['b'], 'b'],
-    ['stays when the rating fails to save', false, ['a'], 'a']
-  ])('Shift+3 on one ticked photo %s', async (_name, ok, selected, active) => {
-    rateAsset.mockResolvedValue(ok);
+    ['moves the tick to the next photo', 'saved', ['b'], 'b'],
+    ['moves on even when Immich refuses the rating', 'failed', ['b'], 'b'],
+    ['stays when the rating is not written', 'skipped', ['a'], 'a']
+  ] as const)('Shift+3 on one ticked photo %s', async (_name, outcome, selected, active) => {
+    setRating.mockResolvedValue(outcome);
     render();
     click(selectButton(0));
     press('#', { code: 'Digit3', shiftKey: true });
-    await vi.waitFor(() => expect(rateAsset).toHaveBeenCalledWith('a', 3));
+    await vi.waitFor(() => expect(ratedIds()).toEqual([['a', 3]]));
     await Promise.resolve();
     flushSync();
     expect([...selection.selected]).toEqual(selected);
@@ -215,7 +301,7 @@ describe('AssetGrid', () => {
     click(selectButton(0));
     click(selectButton(1));
     press('#', { code: 'Digit3', shiftKey: true });
-    expect(rateAsset.mock.calls).toEqual([
+    expect(ratedIds()).toEqual([
       ['a', 3],
       ['b', 3]
     ]);
@@ -243,5 +329,108 @@ describe('AssetGrid', () => {
     expect(tags()?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[aria-label="Albums"]')?.disabled).toBe(false);
+  });
+
+  it('marks edited photos in badges and name-and-date, never in hover-only', () => {
+    editedThumbs.upsert('b', 'h1', 'u1');
+    render();
+    const marked = (): boolean[] =>
+      tiles().map((tile) => tile.querySelector('[role="img"][aria-label="Edited"]') !== null);
+
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('full');
+    flushSync();
+    expect(marked()).toEqual([false, true, false]);
+    browseView.setTileInfo('none');
+    flushSync();
+    expect(marked()).toEqual([false, false, false]);
+  });
+
+  it('steps the thumbnail size from the keyboard and shows the size HUD', () => {
+    render();
+    const status = (): Element | null =>
+      document.querySelector('[role="status"]:has([data-testid="grid-size-hud"])');
+    const live = Array.from(document.querySelectorAll('[role="status"]'));
+    expect(status()).toBeNull();
+
+    press('=');
+    expect(browseView.gridSize).toBe('lg');
+    expect(live).toContain(status());
+    const hud = document.querySelector('[data-testid="grid-size-hud"]');
+    expect(hud?.textContent).toContain('220 px');
+    expect(hud?.textContent).toContain('Ctrl scroll · pinch');
+
+    press('-');
+    press('-');
+    expect(browseView.gridSize).toBe('sm');
+    expect(document.querySelector('[data-testid="grid-size-hud"]')?.textContent).toContain(
+      '110 px'
+    );
+  });
+
+  function dated(id: string, at: string, city: string | null = null): AssetSummary {
+    return {
+      ...asset(id),
+      fileCreatedAt: at,
+      localDateTime: at,
+      exifInfo: { city }
+    } as AssetSummary;
+  }
+
+  const days = [
+    dated('a', '2025-07-04T18:00:00Z', 'Bergen'),
+    dated('b', '2025-07-04T09:00:00Z', 'Bergen'),
+    dated('c', '2025-07-03T12:00:00Z')
+  ];
+
+  function headers(): HTMLElement[] {
+    return [...scroller.querySelectorAll<HTMLElement>('[data-testid="day-header"]')];
+  }
+
+  it('puts day headers over each capture day only when asked', () => {
+    render({ assets: days });
+    expect(headers()).toEqual([]);
+    if (component) void unmount(component);
+    render({ assets: days, dayHeaders: true });
+    expect(headers().map((header) => header.querySelector('h2')?.textContent)).toEqual([
+      'Friday 4 July 2025',
+      'Thursday 3 July 2025'
+    ]);
+    expect(headers()[0]?.textContent).toContain('Bergen · 2');
+  });
+
+  it('selects and deselects a whole day from its header circle', async () => {
+    render({ assets: days, dayHeaders: true });
+    const circle = (): HTMLElement => {
+      const button = headers()[0]?.querySelector<HTMLElement>('button');
+      if (!button) throw new Error('no day circle');
+      return button;
+    };
+    expect(circle().getAttribute('aria-label')).toBe('Select day');
+
+    click(circle());
+    await vi.waitFor(() => expect([...selection.selected]).toEqual(['a', 'b']));
+    flushSync();
+    expect(circle().getAttribute('aria-label')).toBe('Deselect day');
+
+    click(circle());
+    await vi.waitFor(() => expect(selection.active).toBe(false));
+  });
+
+  it('says when earlier photos are loading above the grid', () => {
+    render({ loadingPrevious: true });
+    const status = [...document.querySelectorAll('[role="status"]')].map((node) =>
+      node.textContent?.trim()
+    );
+    expect(status).toContain('Loading earlier photos…');
+  });
+
+  it('offers Select all while only earlier photos are missing', () => {
+    render({ onLoadPrevious: () => {} });
+    click(selectButton(0));
+    click(selectButton(1));
+    click(selectButton(2));
+    const bar = document.querySelector('[aria-label="Selection actions"]');
+    expect(bar?.textContent).toContain('Select all');
   });
 });

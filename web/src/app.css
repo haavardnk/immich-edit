@@ -1,24 +1,11 @@
 @import '@immich/ui/theme/default.css';
+@import './fonts.css';
+@import './pageMotion.css';
 
 @source '../node_modules/@immich/ui/dist';
 
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans%5BGRAD,opsz,wght%5D.ttf') format('truetype-variations');
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 106.25%;
-  size-adjust: 106.25%;
-}
-
-@font-face {
-  font-family: 'Google Sans Code';
-  src: url('/fonts/GoogleSansCode%5BMONO,wght%5D.ttf') format('truetype-variations');
-  font-weight: 300 800;
-  font-style: normal;
-  font-display: swap;
-}
+@custom-variant touch (&:where([data-layout="touch"], [data-layout="touch"] *));
+@custom-variant wide (&:where([data-wide], [data-wide] *));
 
 @theme {
   --font-sans: 'Google Sans', sans-serif;
@@ -45,6 +32,8 @@
   --color-image-accent: #b7a1fb;
   --color-retouch-active: var(--color-image-accent);
   --color-retouch-source: #78dc8c;
+  --color-guide-vertical: #5ab4ff;
+  --color-guide-horizontal: #f5b041;
   --color-mask-overlay: #ff3b30;
   --color-temperature-cool: #4a90d9;
   --color-temperature-warm: #b8a44c;
@@ -63,9 +52,22 @@
   --shadow-popover: 0 18px 48px var(--color-popover-shadow);
   --shadow-filmstrip: 0 -8px 24px color-mix(in srgb, var(--color-black) 18%, transparent);
   --shadow-split: 0 0 4px color-mix(in srgb, var(--color-black) 60%, transparent);
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 :root {
+  --app-height: min(100vh, calc(100dvh + env(safe-area-inset-top, 0px)));
+  --sheet-gap: 8px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --tab-bar-pad: max(0px, calc(var(--safe-bottom) - 12px));
   --color-slider-fill: var(--color-primary);
   --color-slider-track: color-mix(in srgb, var(--immich-ui-dark) 16%, transparent);
   --color-slider-marker: color-mix(in srgb, var(--immich-ui-dark) 40%, transparent);
@@ -271,7 +273,7 @@
 
   html,
   body {
-    height: 100%;
+    height: var(--app-height);
     width: 100%;
     overflow: hidden;
     margin: 0;
@@ -282,6 +284,7 @@
     letter-spacing: 0;
     color: var(--immich-ui-dark);
     background-color: var(--immich-ui-light);
+    touch-action: manipulation;
   }
 
   button:not(:disabled),
@@ -326,6 +329,33 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+}
+
+@utility fade-r {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+@utility safe-frame {
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+@utility app-frame {
+  @apply safe-frame h-(--app-height) w-screen bg-light text-dark;
+}
+
+@utility no-callout {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @utility panel-action {
@@ -445,7 +475,7 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   padding: 0 10px;
 }
 
-.editor-compact-input-field [data-date-field-input] {
+.compact-date-field [data-date-field-input] {
   height: 28px;
   background-color: var(--immich-ui-light-200);
   transition: background-color 150ms;
@@ -455,38 +485,38 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   padding-inline: 16px;
 }
 
-#browse-filters
-  .editor-compact-input-field
-  :is(div:has(> input), [data-date-field-input]):not(:focus-within) {
+[data-layout='touch'] .compact-date-field [data-date-field-input] {
+  height: 44px;
+}
+
+#browse-filters .compact-date-field [data-date-field-input]:not(:focus-within) {
   box-shadow: none;
 }
 
-.editor-compact-input-field [data-date-field-input]:hover {
+.compact-date-field [data-date-field-input]:hover {
   background-color: var(--immich-ui-light-300);
 }
 
-.editor-compact-input-field [data-date-field-input] > div {
+.compact-date-field [data-date-field-input] > div {
   padding: 0 0 0 12px;
   font-weight: 400;
 }
 
-.editor-compact-input-field [data-date-field-input] [aria-valuetext='Empty'],
-.editor-compact-input-field
-  [data-date-field-input]:has([aria-valuetext='Empty'])
-  [data-segment='literal'] {
+.compact-date-field [data-date-field-input] [aria-valuetext='Empty'],
+.compact-date-field [data-date-field-input]:has([aria-valuetext='Empty']) [data-segment='literal'] {
   color: color-mix(in oklab, currentcolor 50%, transparent);
 }
 
-.editor-compact-input-field [data-date-field-input] [data-segment]:focus {
+.compact-date-field [data-date-field-input] [data-segment]:focus {
   background-color: var(--immich-ui-primary-400);
   color: white;
 }
 
-:root.light .editor-compact-input-field [data-date-field-input] [data-segment]:focus {
+:root.light .compact-date-field [data-date-field-input] [data-segment]:focus {
   background-color: var(--immich-ui-primary-600);
 }
 
-.editor-compact-input-field [data-date-field-input] button {
+.compact-date-field [data-date-field-input] button {
   margin-inline-end: 0;
 }
 
@@ -540,6 +570,17 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   animation: editor-compact-combobox-open 250ms cubic-bezier(0.33, 1, 0.68, 1);
 }
 
+[data-flash] {
+  animation: setting-flash 1.2s var(--ease-standard);
+}
+
+@keyframes setting-flash {
+  0%,
+  35% {
+    background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  }
+}
+
 @keyframes editor-compact-combobox-open {
   from {
     opacity: 0;
@@ -564,6 +605,7 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
 
 @layer components {
   .slider-range {
+    --slider-thumb: 11px;
     width: 100%;
     height: 14px;
     appearance: none;
@@ -578,8 +620,8 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   }
   .slider-range::-webkit-slider-thumb {
     appearance: none;
-    width: 11px;
-    height: 11px;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
     border-radius: 50%;
     background: var(--color-image-light);
     border: 2px solid var(--color-slider-fill);
@@ -593,8 +635,8 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
   }
   .slider-range::-moz-range-thumb {
-    width: 11px;
-    height: 11px;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
     border-radius: 50%;
     background: var(--color-image-light);
     border: 2px solid var(--color-slider-fill);
@@ -606,6 +648,10 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   .slider-range::-moz-range-thumb:hover {
     transform: scale(1.14);
     box-shadow: 0 1px 7px var(--color-slider-thumb-shadow);
+  }
+  [data-layout='touch'] .slider-range {
+    --slider-thumb: 18px;
+    height: 24px;
   }
   .slider-range:focus-visible {
     outline: none;
@@ -657,6 +703,20 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
   .dual-range-thumb:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-slider-fill) 25%, transparent);
+  }
+  :where([data-layout='touch']) .dual-range {
+    height: 44px;
+  }
+  :where([data-layout='touch']) .dual-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-width: 3px;
+  }
+  :where([data-layout='touch']) .dual-range-thumb::before {
+    content: '';
+    position: absolute;
+    inset: -11px;
+    border-radius: 50%;
   }
 }
 

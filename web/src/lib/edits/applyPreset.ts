@@ -1,7 +1,11 @@
 import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
-import { withLookAmount } from '#lib/edits/lookAmount.ts';
+import { LOOK_AMOUNT_FULL, withLookAmount } from '#lib/edits/lookAmount.ts';
 import { manifestToEdits } from '#lib/edits/manifest.ts';
 import type { EditManifest, Edits } from '#lib/types/edits.ts';
+
+export function defaultApplyOptions(): ApplyPresetOptions {
+  return { includeGeometry: false, includeMasks: false, amount: LOOK_AMOUNT_FULL };
+}
 
 export interface PresetPreview {
   manifest: EditManifest;

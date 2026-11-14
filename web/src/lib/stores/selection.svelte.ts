@@ -1,5 +1,6 @@
 class SelectionStore {
   selected = $state(new Set<string>());
+  mode = $state(false);
   anchorId: string | null = null;
   rangeBase = new Set<string>();
 
@@ -10,6 +11,30 @@ class SelectionStore {
   get active(): boolean {
     return this.selected.size > 0;
   }
+
+  get selecting(): boolean {
+    return this.mode || this.active;
+  }
+
+  enterMode = (): void => {
+    this.mode = true;
+  };
+
+  exitMode = (): void => {
+    this.mode = false;
+  };
+
+  anchorAt = (id: string): void => {
+    this.anchorId = id;
+    this.rangeBase = new Set(this.selected);
+  };
+
+  replace = (ids: Iterable<string>, anchorId?: string | null): void => {
+    const next = new Set(ids);
+    this.selected = next;
+    this.anchorId = anchorId === undefined ? ([...next].at(-1) ?? null) : anchorId;
+    this.rangeBase = new Set(next);
+  };
 
   has = (id: string): boolean => this.selected.has(id);
 
@@ -61,10 +86,15 @@ class SelectionStore {
     this.selected = this.rangeTarget(orderedIds, toId);
   };
 
-  selectLoaded = (ids: string[]): void => {
-    this.selected = new Set(ids);
-    this.anchorId = ids.at(-1) ?? null;
-    this.rangeBase = new Set(ids);
+  setMany = (ids: readonly string[], on: boolean): void => {
+    const next = new Set(this.selected);
+    for (const id of ids) {
+      if (on) next.add(id);
+      else next.delete(id);
+    }
+    this.selected = next;
+    this.anchorId = ids.at(-1) ?? this.anchorId;
+    this.rangeBase = new Set(next);
   };
 
   forget = (ids: ReadonlySet<string>): void => {
@@ -76,6 +106,7 @@ class SelectionStore {
 
   clear = (): void => {
     this.selected = new Set();
+    this.mode = false;
     this.anchorId = null;
     this.rangeBase = new Set();
   };

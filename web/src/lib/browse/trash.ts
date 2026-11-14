@@ -1,3 +1,4 @@
+import { NOT_OWNER_TRASH } from '#lib/browse/bulk/bulkMarks.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { isCopy, sourceId } from './assetKey';
 import { ownsAsset } from './ownership';
@@ -22,8 +23,6 @@ export interface TrashDialogText {
 
 export const TRASH_CHUNK = 1000;
 
-export const NOT_OWNER_TRASH =
-  'Shared by another Immich user. Only the owner can move a photo to the trash.';
 export const TRASH_OFF =
   "The Immich trash is turned off, so Immich would delete photos for good. Turn the trash on in Immich's administration settings first.";
 
@@ -60,6 +59,10 @@ export function chunked<T>(items: readonly T[], size = TRASH_CHUNK): T[][] {
 
 export function trashLabel(copy: boolean): string {
   return copy ? 'Delete virtual copy' : 'Move to Immich trash';
+}
+
+export function trashLabelFor(id: string | null): string {
+  return trashLabel(id !== null && isCopy(id));
 }
 
 export function trashPeriod(trashDays: number | null): string {

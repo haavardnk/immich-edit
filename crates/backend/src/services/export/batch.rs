@@ -16,7 +16,8 @@ use crate::services::trash;
 use crate::state::AppState;
 
 use super::archive::write_unique;
-use super::immich::replace_fits;
+use super::immich::{replace_fits, trashes};
+use super::variants::{ItemExport, idempotency_key, item_export, tag_preset};
 use super::*;
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +36,8 @@ pub struct ExportJobParams {
     pub stack_primary: StackPrimary,
     #[serde(default)]
     pub replace_original: bool,
+    #[serde(default)]
+    pub on_conflict: ConflictPolicy,
     #[serde(default, rename = "filename_suffix")]
     legacy_suffix: Option<String>,
     #[serde(default)]
@@ -42,7 +45,7 @@ pub struct ExportJobParams {
 }
 
 impl ExportJobParams {
-    fn parse(value: &serde_json::Value) -> Result<Self, JobItemError> {
+    pub(super) fn parse(value: &serde_json::Value) -> Result<Self, JobItemError> {
         let mut parsed: Self = serde_json::from_value(value.clone())
             .map_err(|e| JobItemError::msg(format!("invalid export params: {e}")))?;
         if parsed.params.filename_template.is_none()
@@ -54,16 +57,22 @@ impl ExportJobParams {
     }
 }
 
-pub async fn validate_export_job(
+pub(super) async fn validate_export_job(
     immich: &ImmichClient,
-    params: &serde_json::Value,
+    parsed: &ExportJobParams,
     asset_ids: &[String],
 ) -> Result<(), AppError> {
-    let parsed = ExportJobParams::parse(params).map_err(|e| AppError::BadRequest(e.to_string()))?;
     replace_fits(parsed.replace_original, parsed.stack_with_original)?;
-    if !parsed.replace_original {
-        return Ok(());
+    if parsed.replace_original {
+        one_version_per_source(asset_ids)?;
     }
+    if trashes(parsed.replace_original, parsed.on_conflict) {
+        trash::ensure_enabled(immich).await?;
+    }
+    Ok(())
+}
+
+fn one_version_per_source(asset_ids: &[String]) -> Result<(), AppError> {
     let mut sources = HashSet::new();
     for id in asset_ids {
         let key = id
@@ -75,14 +84,7 @@ pub async fn validate_export_job(
             ));
         }
     }
-    trash::ensure_enabled(immich).await
-}
-
-fn item_seq(job: &JobRecord, item: &JobItemRecord) -> Seq {
-    Seq {
-        position: u32::try_from(item.position).unwrap_or(1).max(1),
-        total: u32::try_from(job.total).unwrap_or(1).max(1),
-    }
+    Ok(())
 }
 
 pub struct BatchExecutor {
@@ -172,7 +174,11 @@ async fn run_immich_item(
     asset_id: AssetKey,
 ) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
-    let params = ExportJobParams::parse(&job.params)?;
+    let ItemExport {
+        preset,
+        params,
+        seq,
+    } = item_export(job, item)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let body = ExportToImmichBody {
         edits: edits.clamped(),
@@ -183,8 +189,8 @@ async fn run_immich_item(
         stack_with_original: params.stack_with_original,
         stack_primary: params.stack_primary,
         replace_original: params.replace_original,
+        on_conflict: params.on_conflict,
     };
-    let idempotency_key = format!("job-{}", job.id);
     let result = export_to_immich(
         state,
         &immich,
@@ -193,13 +199,15 @@ async fn run_immich_item(
             asset_id,
             server_epoch: job.server_epoch,
             body: &body,
-            idempotency_key: Some(idempotency_key),
+            idempotency_key: Some(idempotency_key(job.id, item.variant)),
             priority: RenderPriority::Background,
-            seq: item_seq(job, item),
+            seq,
+            preset: preset.as_deref(),
+            variant: item.variant,
         },
     )
     .await?;
-    Ok(serde_json::to_value(result)?)
+    Ok(tag_preset(serde_json::to_value(result)?, preset.as_deref()))
 }
 
 async fn run_zip_item(
@@ -209,7 +217,11 @@ async fn run_zip_item(
     asset_id: AssetKey,
 ) -> ItemOutcome {
     let immich = job_immich(state, job).await?;
-    let params = ExportJobParams::parse(&job.params)?;
+    let ItemExport {
+        preset,
+        params,
+        seq,
+    } = item_export(job, item)?;
     let edits = job_edits(state, job.user_id, &params, asset_id).await?;
     let template = NameTemplate::parse(params.params.filename_template.as_deref())?;
     let original = immich.asset(asset_id.source()).await?;
@@ -234,16 +246,20 @@ async fn run_zip_item(
     let stem = template.render(&NameContext {
         original: &original.original_file_name,
         date: capture_date(&original),
-        seq: item_seq(job, item),
+        seq,
+        preset: preset.as_deref(),
     });
     let filename = write_unique(&dir, &stem, rendered.output.extension(), &rendered.bytes)
         .await
         .map_err(|e| JobItemError::msg(format!("write export file: {e}")))?;
-    Ok(serde_json::json!({
-        "filename": filename,
-        "bytes": rendered.bytes.len(),
-        "warnings": rendered.warnings,
-    }))
+    Ok(tag_preset(
+        serde_json::json!({
+            "filename": filename,
+            "bytes": rendered.bytes.len(),
+            "warnings": rendered.warnings,
+        }),
+        preset.as_deref(),
+    ))
 }
 
 #[cfg(test)]

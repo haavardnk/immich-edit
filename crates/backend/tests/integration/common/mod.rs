@@ -27,7 +27,7 @@ use immich_edit_backend::services::preview_scopes::PreviewScopeStore;
 use immich_edit_backend::services::raster_store::RasterStore;
 use immich_edit_backend::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use immich_edit_backend::services::render_queue::RenderQueue;
-use immich_edit_backend::services::search::TimelineCache;
+use immich_edit_backend::services::search::SearchCaches;
 use immich_edit_backend::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use immich_edit_backend::services::segment::SegmentService;
@@ -39,14 +39,23 @@ use wiremock::MockServer;
 
 #[cfg(feature = "ml")]
 mod denoise;
+mod edits;
+mod export_conflict;
+mod export_jobs;
 mod http;
 mod immich;
+mod jobs;
 mod logs;
+pub mod search_library;
 
 #[cfg(feature = "ml")]
 pub use denoise::*;
+pub use edits::*;
+pub use export_conflict::*;
+pub use export_jobs::*;
 pub use http::*;
 pub use immich::*;
+pub use jobs::*;
 pub use logs::*;
 
 pub const TEST_API_KEY: &str = "test-key";
@@ -169,7 +178,9 @@ pub async fn test_state(server: &MockServer) -> AppState {
         denoise,
         tag_counts: AssetCountCache::new(Scope::Tag),
         people_counts: AssetCountCache::new(Scope::Person),
-        timelines: TimelineCache::default(),
+        search_caches: SearchCaches::default(),
+        stack_locks: Default::default(),
+        export_output_locks: Default::default(),
     }
 }
 
@@ -177,14 +188,17 @@ pub fn router(state: AppState) -> axum::Router {
     app::router(state)
 }
 
-pub async fn seed_session(server: &MockServer, state: &AppState) -> String {
-    let user = ImmichUser {
+pub fn admin_user() -> ImmichUser {
+    ImmichUser {
         id: test_user_id(),
         email: "admin@test.local".into(),
         name: "Admin".into(),
         is_admin: true,
-    };
-    seed_session_as(server, state, user, AuthKind::ApiKey).await
+    }
+}
+
+pub async fn seed_session(server: &MockServer, state: &AppState) -> String {
+    seed_session_as(server, state, admin_user(), AuthKind::ApiKey).await
 }
 
 pub async fn seed_session_as(
@@ -252,12 +266,6 @@ pub async fn two_owner_routers(
     server: &MockServer,
     state: AppState,
 ) -> (axum::Router, axum::Router) {
-    let admin = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
     let member = ImmichUser {
         id: member_user_id(),
         email: "member@test.local".into(),
@@ -267,7 +275,7 @@ pub async fn two_owner_routers(
     let admin_token = seed_session_with_cred(
         server,
         &state,
-        admin,
+        admin_user(),
         AuthKind::ApiKey,
         TEST_API_KEY.as_bytes(),
     )
@@ -286,6 +294,21 @@ pub async fn two_owner_routers(
     )
 }
 
+pub async fn rebind_instance(server: &MockServer, state: &AppState) {
+    state
+        .auth
+        .rebind_instance_and_create_session(
+            &server.uri(),
+            &admin_user(),
+            AuthKind::ApiKey,
+            TEST_API_KEY.as_bytes(),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+}
+
 pub async fn member_app(server: &MockServer) -> axum::Router {
     let state = test_state(server).await;
     let token = seed_member_session(server, &state).await;
@@ -294,13 +317,7 @@ pub async fn member_app(server: &MockServer) -> axum::Router {
 
 pub async fn password_app(server: &MockServer) -> axum::Router {
     let state = test_state(server).await;
-    let user = ImmichUser {
-        id: test_user_id(),
-        email: "admin@test.local".into(),
-        name: "Admin".into(),
-        is_admin: true,
-    };
-    let token = seed_session_as(server, &state, user, AuthKind::Password).await;
+    let token = seed_session_as(server, &state, admin_user(), AuthKind::Password).await;
     wrap_auth(app::router(state), token)
 }
 

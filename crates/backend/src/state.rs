@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use uuid::Uuid;
+
 use crate::config::Config;
 use crate::services::asset_counts::AssetCountCache;
 use crate::services::auth_store::AuthStore;
@@ -16,6 +18,7 @@ use crate::services::embedding_cache::EmbeddingCache;
 use crate::services::immich_capabilities::CapabilityCache;
 use crate::services::instance_store::InstanceStore;
 use crate::services::job_store::JobStore;
+use crate::services::keyed_lock::KeyedLocks;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
 #[cfg(feature = "ml")]
@@ -30,7 +33,7 @@ use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
-use crate::services::search::TimelineCache;
+use crate::services::search::SearchCaches;
 use crate::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use crate::services::segment::SegmentService;
@@ -67,7 +70,9 @@ pub struct AppState {
     pub denoise: DenoiseService,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
-    pub timelines: TimelineCache,
+    pub search_caches: SearchCaches,
+    pub stack_locks: KeyedLocks<(Uuid, Uuid)>,
+    pub export_output_locks: KeyedLocks<(Uuid, String, String)>,
 }
 
 impl AppState {
@@ -201,7 +206,9 @@ impl AppState {
             denoise,
             tag_counts: AssetCountCache::new(Scope::Tag),
             people_counts: AssetCountCache::new(Scope::Person),
-            timelines: TimelineCache::default(),
+            search_caches: SearchCaches::default(),
+            stack_locks: KeyedLocks::default(),
+            export_output_locks: KeyedLocks::default(),
         })
     }
 }

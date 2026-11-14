@@ -54,7 +54,7 @@ beforeEach(() => {
 describe('trash flow', () => {
   it('trashes after confirmation, leaves the grid in place and undoes', async () => {
     const feed = browsing.assets;
-    selection.selectLoaded([A, B]);
+    selection.replace([A, B]);
     browseView.openLoupe(A);
 
     expect(await confirmed([asset(A)])).toBe(true);

@@ -1,37 +1,38 @@
 <script lang="ts">
   import SliderRow from './SliderRow.svelte';
-  import type { SliderScale } from './sliderScale';
+  import type { Snippet } from 'svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { PreviewMode } from '#lib/api/preview.ts';
+  import type { SliderRange } from '#lib/editor/params/types.ts';
 
   let {
     label,
     commitAction,
     value = $bindable(),
-    min,
-    max,
-    step = 1,
-    scale,
-    defaultValue = 0,
-    disabled = false,
-    format = (v: number): string => v.toFixed(0),
+    range,
+    defaultValue,
     gradient,
+    disabled = false,
     previewMode,
-    onLive = editor.onLive
+    onLive = editor.onLive,
+    onLabelTap,
+    setting,
+    menu,
+    menuTitle
   }: {
     label: string;
     commitAction: string;
     value: number;
-    min: number;
-    max: number;
-    step?: number;
-    scale?: SliderScale;
+    range: SliderRange;
     defaultValue?: number;
-    disabled?: boolean;
-    format?: (v: number) => string;
     gradient?: string;
+    disabled?: boolean;
     previewMode?: PreviewMode;
     onLive?: (value: number) => void;
+    onLabelTap?: () => void;
+    setting?: string;
+    menu?: Snippet;
+    menuTitle?: string;
   } = $props();
 </script>
 
@@ -39,15 +40,15 @@
   {label}
   {commitAction}
   bind:value
-  {min}
-  {max}
-  {step}
-  {scale}
+  {range}
   {defaultValue}
-  {disabled}
-  {format}
   {gradient}
+  {disabled}
   {onLive}
+  {onLabelTap}
+  {setting}
+  {menu}
+  {menuTitle}
   onCommit={editor.onCommit}
   onPreviewStart={previewMode ? () => editor.onPreview(previewMode) : undefined}
   onPreviewEnd={previewMode ? editor.endPreview : undefined}

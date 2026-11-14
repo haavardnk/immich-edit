@@ -1,13 +1,7 @@
 import type { CurveChannel, CurvePoint } from '#lib/types/edits.ts';
-import type { Histogram } from '#lib/types/preview.ts';
 
-export const CURVE_SIZE = 232;
-export const CURVE_PAD = 16;
-export const CURVE_INNER = CURVE_SIZE - 2 * CURVE_PAD;
-
-const HIT_RADIUS = 12;
 const MIN_GAP = 0.01;
-const PATH_STEPS = 64;
+const PICK_SNAP = 0.03;
 
 export const CHANNEL_LABELS: Record<CurveChannel, string> = {
   composite: 'RGB',
@@ -16,42 +10,6 @@ export const CHANNEL_LABELS: Record<CurveChannel, string> = {
   b: 'Blue',
   luma: 'Luma'
 };
-
-export type SvgPoint = { x: number; y: number };
-export type GridLine = { x1: number; y1: number; x2: number; y2: number };
-export type HistLayer = { d: string; fill: string };
-type HistSource = { key: keyof Histogram; fill: string };
-
-const CHANNEL_HIST: Record<Exclude<CurveChannel, 'composite'>, HistSource> = {
-  r: { key: 'r', fill: 'color-mix(in srgb, var(--color-curve-red) 35%, transparent)' },
-  g: { key: 'g', fill: 'color-mix(in srgb, var(--color-curve-green) 35%, transparent)' },
-  b: { key: 'b', fill: 'color-mix(in srgb, var(--color-curve-blue) 35%, transparent)' },
-  luma: { key: 'l', fill: 'color-mix(in srgb, var(--color-channel-luma) 18%, transparent)' }
-};
-
-const COMPOSITE_HIST: HistSource[] = [
-  { key: 'r', fill: 'color-mix(in srgb, var(--color-curve-red) 22%, transparent)' },
-  { key: 'g', fill: 'color-mix(in srgb, var(--color-curve-green) 22%, transparent)' },
-  { key: 'b', fill: 'color-mix(in srgb, var(--color-curve-blue) 22%, transparent)' }
-];
-
-export const GRID_LINES: GridLine[] = [1, 2, 3].flatMap((i) => {
-  const pos = CURVE_PAD + (i / 4) * CURVE_INNER;
-  return [
-    { x1: pos, y1: CURVE_PAD, x2: pos, y2: CURVE_PAD + CURVE_INNER },
-    { x1: CURVE_PAD, y1: pos, x2: CURVE_PAD + CURVE_INNER, y2: pos }
-  ];
-});
-
-export function toSvg(p: CurvePoint): SvgPoint {
-  return { x: CURVE_PAD + p.x * CURVE_INNER, y: CURVE_PAD + (1 - p.y) * CURVE_INNER };
-}
-
-export function fromSvg(sx: number, sy: number): CurvePoint {
-  const x = Math.max(0, Math.min(1, (sx - CURVE_PAD) / CURVE_INNER));
-  const y = Math.max(0, Math.min(1, 1 - (sy - CURVE_PAD) / CURVE_INNER));
-  return { x, y };
-}
 
 function slope(a: CurvePoint, b: CurvePoint): number {
   return (b.y - a.y) / Math.max(b.x - a.x, 1e-10);
@@ -97,41 +55,6 @@ export function hermite(pts: CurvePoint[], x: number): number {
     (-2 * t3 + 3 * t2) * p1.y +
     (t3 - t2) * dx * m1;
   return Math.max(0, Math.min(1, v));
-}
-
-export function curvePath(pts: CurvePoint[]): string {
-  if (pts.length < 2) return '';
-  return Array.from({ length: PATH_STEPS + 1 }, (_, i) => {
-    const t = i / PATH_STEPS;
-    const sv = toSvg({ x: t, y: hermite(pts, t) });
-    return `${i === 0 ? 'M' : 'L'}${sv.x.toFixed(1)},${sv.y.toFixed(1)}`;
-  }).join(' ');
-}
-
-function histAreaPath(data: number[] | undefined): string {
-  if (!data || data.length === 0) return '';
-  const max = Math.max(...data, 1);
-  const base = CURVE_PAD + CURVE_INNER;
-  const steps = data.map((count, i) => {
-    const x = CURVE_PAD + (i / (data.length - 1)) * CURVE_INNER;
-    const y = base - (count / max) * CURVE_INNER * 0.8;
-    return ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-  });
-  return `M ${CURVE_PAD} ${base}${steps.join('')} L ${base} ${base} Z`;
-}
-
-export function histLayers(hist: Histogram | null, channel: CurveChannel): HistLayer[] {
-  if (!hist) return [];
-  const sources = channel === 'composite' ? COMPOSITE_HIST : [CHANNEL_HIST[channel]];
-  return sources.map(({ key, fill }) => ({ d: histAreaPath(hist[key]), fill }));
-}
-
-export function hitTest(pts: CurvePoint[], sx: number, sy: number, interior = false): number {
-  return pts.findIndex((p, i) => {
-    if (interior && (i === 0 || i === pts.length - 1)) return false;
-    const sp = toSvg(p);
-    return Math.hypot(sx - sp.x, sy - sp.y) < HIT_RADIUS;
-  });
 }
 
 export function insertPoint(
@@ -189,4 +112,19 @@ export function nudgePoint(
 export function removePoint(pts: CurvePoint[], idx: number): CurvePoint[] | null {
   if (idx <= 0 || idx >= pts.length - 1) return null;
   return pts.filter((_, i) => i !== idx);
+}
+
+export function pickPoint(
+  pts: CurvePoint[],
+  x: number,
+  snap = PICK_SNAP
+): { points: CurvePoint[]; index: number } {
+  const level = Math.max(0, Math.min(1, x));
+  const nearest = pts.reduce(
+    (best, p, i) => (Math.abs(p.x - level) < Math.abs((pts[best]?.x ?? 0) - level) ? i : best),
+    0
+  );
+  const near = pts[nearest];
+  if (near && Math.abs(near.x - level) <= snap) return { points: pts, index: nearest };
+  return insertPoint(pts, { x: level, y: hermite(pts, level) });
 }

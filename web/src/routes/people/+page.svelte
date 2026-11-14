@@ -1,0 +1,47 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import LibraryLoad from '#lib/components/library/LibraryLoad.svelte';
+  import ListFilter from '#lib/components/library/ListFilter.svelte';
+  import PersonFace from '#lib/components/library/PersonFace.svelte';
+  import PageFrame from '#lib/components/shell/PageFrame.svelte';
+  import { library } from '#lib/stores/library.svelte.ts';
+  import { personName } from '#lib/api/people.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+
+  const loaded = $derived(library.isLoaded('people'));
+
+  onMount(() => {
+    library.request('people');
+  });
+</script>
+
+<PageFrame
+  title="People"
+  count={loaded ? countOf(library.people.length, 'person', 'people') : undefined}
+>
+  <LibraryLoad view="people" label="people">
+    {#if library.people.length === 0}
+      <p class="px-6 py-16 text-center text-sm text-dark/65" role="status">No people</p>
+    {:else}
+      <ListFilter
+        items={library.people}
+        nameOf={personName}
+        noun={{ one: 'person', many: 'people' }}
+        class="px-4 sm:px-5"
+      >
+        {#snippet children(visible, query)}
+          {#if visible.length > 0}
+            <ul
+              aria-label="People"
+              class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] justify-items-center gap-x-2 gap-y-4 p-4 sm:p-5"
+            >
+              {#each visible as person (person.id)}
+                <li><PersonFace {person} {query} /></li>
+              {/each}
+            </ul>
+          {/if}
+        {/snippet}
+      </ListFilter>
+    {/if}
+  </LibraryLoad>
+</PageFrame>

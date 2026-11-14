@@ -1,13 +1,13 @@
 <script lang="ts">
   import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
-  import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
+  import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import { sectionLabel } from '#lib/editor/params/define.ts';
+  import { LENS_BLUR, lensBlurAmount, lensBlurBoost } from '#lib/editor/params/lensBlur.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { depthMap } from '#lib/stores/editor/depthMap.svelte.ts';
   import { maskModels } from '#lib/stores/maskModels.svelte.ts';
@@ -16,7 +16,6 @@
     LENS_BLUR_AMOUNT,
     NEUTRAL_LENS_BLUR,
     lensBlurActive,
-    resetLensBlur,
     type BokehShape
   } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
@@ -75,11 +74,6 @@
     void depthMap.generate(assetId, (rasterId) => applyDepth(assetId, rasterId));
   }
 
-  function reset(): void {
-    editor.edits.lens_blur = resetLensBlur(editor.edits.lens_blur);
-    void editor.onCommit('Reset Lens Blur');
-  }
-
   function setFocus([near, far]: [number, number]): void {
     editor.edits.lens_blur.focus_min = near;
     editor.edits.lens_blur.focus_max = far;
@@ -99,8 +93,8 @@
     title="Blur"
     section="lens_blur"
     modified={active}
-    onReset={reset}
-    resetTitle="Reset Lens Blur"
+    onReset={() => commitSectionReset(LENS_BLUR)}
+    resetTitle="Reset {sectionLabel(LENS_BLUR)}"
   />
   <div class="flex h-7 items-center justify-between gap-2">
     <span class="truncate text-[11px] text-dark/65" role="status">
@@ -136,13 +130,7 @@
     </Notice>
   {/if}
   {#if hasDepth}
-    <EditSlider
-      label="Amount"
-      commitAction="Lens Blur Amount"
-      bind:value={editor.edits.lens_blur.amount}
-      min={0}
-      max={100}
-    />
+    <ParamSlider param={lensBlurAmount} />
     <DualRangeSlider
       label="Focal Range"
       value={[blur.focus_min, blur.focus_max]}
@@ -160,22 +148,15 @@
         onValueChange={(v: string) => setShape(v as BokehShape)}
         orientation="horizontal"
         aria-label="Bokeh shape"
-        class="{segmentedControlClass} col-span-2"
+        class="{segmented.text.group} col-span-2"
       >
         {#each BOKEH_SHAPES as shape (shape)}
-          <RadioGroup.Item value={shape} class="{segmentedRadioItemClass} flex-1 px-2">
+          <RadioGroup.Item value={shape} class="{segmented.text.radio} flex-1 px-2">
             {SHAPE_LABELS[shape]}
           </RadioGroup.Item>
         {/each}
       </RadioGroup.Root>
     </div>
-    <EditSlider
-      label="Boost"
-      commitAction="Lens Blur Boost"
-      bind:value={editor.edits.lens_blur.boost}
-      min={0}
-      max={100}
-      disabled={!active}
-    />
+    <ParamSlider param={lensBlurBoost} />
   {/if}
 </div>

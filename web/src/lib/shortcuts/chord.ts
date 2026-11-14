@@ -26,16 +26,79 @@ function normalizeKey(key: string): string {
   return key.length === 1 ? key.toLowerCase() : key;
 }
 
+function isLetter(key: string): boolean {
+  return /^[a-z]$/.test(key);
+}
+
+function keyMatches(e: KeyboardEvent, chord: Chord): boolean {
+  if (chord.code) return e.code === chord.key;
+  if (normalizeKey(e.key) === chord.key) return true;
+  return chord.alt && isLetter(chord.key) && e.code === `Key${chord.key.toUpperCase()}`;
+}
+
 export function chordMatches(e: KeyboardEvent, chord: Chord): boolean {
   const layoutSymbol =
     !chord.alt && !chord.code && chord.key.length === 1 && !/[a-z0-9]/.test(chord.key);
   const altGraph = layoutSymbol && e.getModifierState('AltGraph');
   if (chord.mod !== (e.metaKey || (e.ctrlKey && !altGraph))) return false;
   if (!layoutSymbol && chord.alt !== e.altKey) return false;
-  if ((chord.code ? e.code : normalizeKey(e.key)) !== chord.key) return false;
+  if (!keyMatches(e, chord)) return false;
   if (chord.shift) return e.shiftKey;
   const shiftSensitive = chord.key.length > 1 || (chord.key >= 'a' && chord.key <= 'z');
   return shiftSensitive ? !e.shiftKey : true;
+}
+
+const UNRECORDABLE = new Set([
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'AltGraph',
+  'CapsLock',
+  'Fn',
+  'FnLock',
+  'Hyper',
+  'Super',
+  'OS',
+  'NumLock',
+  'ScrollLock',
+  'Symbol',
+  'SymbolLock',
+  'Escape',
+  'Dead',
+  'Process',
+  'Unidentified'
+]);
+
+export function isModifierOnly(e: KeyboardEvent): boolean {
+  return UNRECORDABLE.has(e.key) && e.key !== 'Escape';
+}
+
+function specKey(e: KeyboardEvent): string | null {
+  const typed = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (isLetter(typed)) return typed;
+  const letter = /^Key([A-Z])$/.exec(e.code)?.[1];
+  if (letter && (e.altKey || e.metaKey || e.ctrlKey)) return letter.toLowerCase();
+  const digit = /^Digit(\d)$/.exec(e.code)?.[1];
+  if (digit && (e.shiftKey || e.altKey)) return `Digit${digit}`;
+  if (e.key === ' ') return 'Space';
+  if (/^[!-~]$/.test(e.key)) return e.key;
+  if (/^[A-Z][A-Za-z0-9]*$/.test(e.key)) return e.key;
+  return null;
+}
+
+export function chordSpec(e: KeyboardEvent): string | null {
+  if (UNRECORDABLE.has(e.key)) return null;
+  const key = specKey(e);
+  if (!key) return null;
+  const symbol = key.length === 1 && !/[a-z0-9]/.test(key);
+  const altGraph = symbol && e.getModifierState('AltGraph');
+  const parts: string[] = [];
+  if (e.metaKey || (e.ctrlKey && !altGraph)) parts.push('Mod');
+  if (e.altKey && !symbol) parts.push('Alt');
+  if (e.shiftKey && !symbol) parts.push('Shift');
+  parts.push(key);
+  return parts.join('+');
 }
 
 const MAC_KEYS: Record<string, string> = {

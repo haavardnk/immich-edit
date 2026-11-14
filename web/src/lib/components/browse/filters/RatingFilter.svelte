@@ -1,116 +1,93 @@
 <script lang="ts">
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
-  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import Chip from '#lib/components/chips/Chip.svelte';
+  import IconToggle from '#lib/components/chips/IconToggle.svelte';
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import { structuredRoute } from '#lib/browse/browseRoutes.ts';
-  import { page } from '$app/state';
-  import { ratingOp, ratingStars, starRating, STARS, type RatingOp } from '#lib/browse/rating.ts';
+  import {
+    ratingOp,
+    ratingStars,
+    starRating,
+    STARS,
+    type RatingOp,
+    type Star
+  } from '#lib/browse/rating.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Icon, Tooltip } from '@immich/ui';
-  import { mergeProps, RadioGroup } from 'bits-ui';
-  import { mdiStar, mdiStarOffOutline, mdiStarOutline } from '@mdi/js';
+  import { page } from '$app/state';
+  import { Icon } from '@immich/ui';
+  import {
+    mdiEqual,
+    mdiGreaterThanOrEqual,
+    mdiLessThanOrEqual,
+    mdiStar,
+    mdiStarOffOutline,
+    mdiStarOutline
+  } from '@mdi/js';
 
-  const OPS: Record<RatingOp, { symbol: string; name: string; next: RatingOp }> = {
-    gte: { symbol: '≥', name: 'at least', next: 'lte' },
-    lte: { symbol: '≤', name: 'at most', next: 'eq' },
-    eq: { symbol: '=', name: 'exactly', next: 'gte' }
-  };
-
-  const starItemClass =
-    'flex h-6 flex-1 items-center justify-center rounded-sm transition-colors hover:bg-ghost';
+  const OPS: readonly { value: RatingOp; label: string; icon: string }[] = [
+    { value: 'gte', label: 'At least', icon: mdiGreaterThanOrEqual },
+    { value: 'lte', label: 'At most', icon: mdiLessThanOrEqual },
+    { value: 'eq', label: 'Exactly', icon: mdiEqual }
+  ];
 
   let hover = $state(0);
   let opChoice = $state<RatingOp>('gte');
 
+  const rating = $derived(browseControls.filters.rating);
   const ranges = $derived(structuredRoute(page.url));
-  const stars = $derived(ratingStars(browseControls.filters.rating));
-  const op = $derived(ranges ? (ratingOp(browseControls.filters.rating) ?? opChoice) : 'eq');
+  const stars = $derived(ratingStars(rating));
+  const op = $derived(ranges ? (ratingOp(rating) ?? opChoice) : 'eq');
   const lit = $derived(hover || stars);
 
-  function pickStar(value: string): void {
-    const n = STARS.find((star) => String(star) === value);
-    if (n) browseControls.filters.rating = starRating(n, op);
+  function pickStar(n: Star, pressed: boolean): void {
+    browseControls.filters.rating = pressed ? starRating(n, op) : 'any';
   }
 
-  function cycleOp(): void {
-    opChoice = OPS[op].next;
-    if (stars !== 0) browseControls.filters.rating = starRating(stars, opChoice);
+  function pickOp(next: RatingOp): void {
+    opChoice = next;
+    if (stars !== 0) browseControls.filters.rating = starRating(stars, next);
   }
 </script>
 
-<div class="flex flex-col gap-1">
-  <span class="editor-compact-label select-none">Rating</span>
-  <div class={segmentedControlClass}>
-    <RadioGroup.Root
-      bind:value={
-        () => (stars === 0 ? String(browseControls.filters.rating) : ''),
-        (v) => (browseControls.filters.rating = v === 'unrated' ? 'unrated' : 'any')
-      }
-      orientation="horizontal"
-      aria-label="Rating presets"
-      class="flex shrink-0 gap-0.5"
-    >
-      <RadioGroup.Item value="any" class="{segmentedRadioItemClass} px-2">Any</RadioGroup.Item>
-      <Tooltip text="Unrated">
-        {#snippet child({ props })}
-          <RadioGroup.Item
-            {...props}
-            value="unrated"
-            aria-label="Unrated"
-            class="{segmentedRadioItemClass} px-2"
-          >
-            <Icon icon={mdiStarOffOutline} size="14px" aria-hidden="true" />
-          </RadioGroup.Item>
-        {/snippet}
-      </Tooltip>
-    </RadioGroup.Root>
-    <span class="my-1 w-px shrink-0 bg-gray-300 dark:bg-gray-600" aria-hidden="true"></span>
-    {#if ranges}
-      <Tooltip text="Match ratings {OPS[op].name} the selected stars">
-        {#snippet child({ props })}
-          <button
-            {...mergeProps(props, {
-              type: 'button' as const,
-              class:
-                'flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-sm font-semibold text-primary transition-colors hover:bg-ghost',
-              'aria-label': `Rating match: ${OPS[op].name}`,
-              onclick: cycleOp
-            })}
-          >
-            {OPS[op].symbol}
-          </button>
-        {/snippet}
-      </Tooltip>
-    {/if}
-    <RadioGroup.Root
-      bind:value={() => (stars === 0 ? '' : String(stars)), pickStar}
-      orientation="horizontal"
-      aria-label="Rating"
-      class="flex flex-1 gap-0.5"
-      onmouseleave={() => (hover = 0)}
-    >
-      {#each STARS as n (n)}
-        <Tooltip text={countOf(n, 'star')}>
-          {#snippet child({ props })}
-            <RadioGroup.Item
-              {...props}
-              value={String(n)}
-              aria-label={countOf(n, 'star')}
-              class={starItemClass}
-              onmouseenter={() => (hover = n)}
-            >
-              <Icon
-                icon={n <= lit ? mdiStar : mdiStarOutline}
-                size="14px"
-                class={n <= lit ? 'text-primary' : 'text-dark/45'}
-                aria-hidden="true"
-              />
-            </RadioGroup.Item>
-          {/snippet}
-        </Tooltip>
-      {/each}
-    </RadioGroup.Root>
+<div class="flex items-center gap-2">
+  <div
+    role="group"
+    aria-label="Rating"
+    class="-ml-1 flex text-[17px] touch:-ml-2.5 touch:text-[26px]"
+  >
+    {#each STARS as n (n)}
+      <IconToggle
+        pressed={n === stars}
+        onPressedChange={(pressed) => pickStar(n, pressed)}
+        label={countOf(n, 'star')}
+        onpointerenter={() => (hover = n)}
+        onpointerleave={() => (hover = 0)}
+      >
+        <Icon
+          icon={n <= lit ? mdiStar : mdiStarOutline}
+          size="1em"
+          class={n <= lit ? 'text-primary' : 'text-dark/40'}
+          aria-hidden="true"
+        />
+      </IconToggle>
+    {/each}
   </div>
+  <span class="flex-1"></span>
+  <Chip
+    pressed={rating === 'unrated'}
+    onPressedChange={(pressed) => (browseControls.filters.rating = pressed ? 'unrated' : 'any')}
+    icon={mdiStarOffOutline}
+  >
+    Unrated
+  </Chip>
 </div>
+{#if ranges}
+  <SegmentedChoice
+    appearance="view"
+    fill
+    options={OPS}
+    value={op}
+    label="Rating match"
+    onChange={pickOp}
+  />
+{/if}

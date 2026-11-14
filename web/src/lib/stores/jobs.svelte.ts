@@ -3,15 +3,22 @@ import {
   clearJobs,
   getJob,
   isJobActive,
+  jobDownloadUrl,
+  JOB_KINDS,
   jobNeedsAttention,
   listJobs,
+  splitJobs,
+  TRANSFER_JOB_KINDS,
+  zipReady,
   type Job,
   type JobItem
 } from '#lib/api/jobs.ts';
 import { ApiError, url } from '#lib/api/client.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
+import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 
@@ -19,7 +26,11 @@ const POLL_BASE_MS = 4000;
 const MAX_BACKOFF_STEPS = 4;
 const MAX_STREAM_ERRORS = 5;
 const DONE_TOAST_MS = 6000;
-const REFRESHES_THUMBS = new Set(['apply_preset', 'paste_edits', 'reset_edits']);
+const REFRESHES_THUMBS: ReadonlySet<string> = new Set([
+  JOB_KINDS.applyPreset,
+  JOB_KINDS.pasteEdits,
+  JOB_KINDS.resetEdits
+]);
 
 function endedNow(previous: Job | undefined, next: Job): boolean {
   return previous !== undefined && isJobActive(previous.status) && !isJobActive(next.status);
@@ -35,7 +46,7 @@ function isGone(error: unknown): boolean {
 
 function replacesOriginals(job: Job): boolean {
   const params = job.params as { replace_original?: unknown } | null;
-  return job.kind === 'export_immich' && params?.replace_original === true;
+  return job.kind === JOB_KINDS.exportImmich && params?.replace_original === true;
 }
 
 class JobsStore {
@@ -47,6 +58,7 @@ class JobsStore {
   attention = $state(false);
   expanded = $state<string | null>(null);
 
+  private downloads = new Set<string>();
   private sources = new Map<string, EventSource>();
   private streamErrors = new Map<string, number>();
   private fallbacks = new Map<string, ReturnType<typeof setTimeout>>();
@@ -54,8 +66,10 @@ class JobsStore {
   private polling = false;
   private failures = 0;
 
-  activeCount = $derived(this.jobs.filter((j) => isJobActive(j.status)).length);
-  clearableCount = $derived(this.jobs.filter((j) => !isJobActive(j.status)).length);
+  active = $derived(splitJobs(this.jobs).running);
+  activeCount = $derived(this.active.length);
+  activeTransfers = $derived(this.active.filter((j) => TRANSFER_JOB_KINDS.has(j.kind)).length);
+  clearableCount = $derived(this.jobs.length - this.activeCount);
 
   load = async (): Promise<void> => {
     if (this.loading) return;
@@ -115,6 +129,10 @@ class JobsStore {
     else this.settle(job);
   };
 
+  downloadWhenDone = (id: string): void => {
+    this.downloads.add(id);
+  };
+
   unwatch = (id: string): void => {
     this.watched = this.watched.filter((w) => w !== id);
   };
@@ -130,7 +148,9 @@ class JobsStore {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
       void editedThumbs.refresh();
     }
+    libraryChanged();
     if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
+    if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
     this.disconnect(job.id);
     this.stopFallback(job.id);
     this.settle(job);
@@ -178,12 +198,12 @@ class JobsStore {
   clear = async (): Promise<void> => {
     try {
       await clearJobs();
-      const removed = new Set(this.jobs.filter((j) => !isJobActive(j.status)).map((j) => j.id));
+      const removed = new Set(splitJobs(this.jobs).finished.map((j) => j.id));
       for (const id of removed) {
         this.disconnect(id);
         this.streamErrors.delete(id);
       }
-      this.jobs = this.jobs.filter((j) => isJobActive(j.status));
+      this.jobs = splitJobs(this.jobs).running;
       this.watched = this.watched.filter((id) => !removed.has(id));
       const items = { ...this.items };
       for (const id of removed) delete items[id];

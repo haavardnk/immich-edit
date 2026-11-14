@@ -5,8 +5,9 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
+  import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: id } }) });
@@ -18,21 +19,19 @@
       void album.load(current);
       browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
-      void feed.fetchPage(true);
+      void feed.open(resumeId(page.url));
     });
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowseShell
+<BrowsePage
+  {feed}
   title={album.current?.albumName ?? 'Album'}
-  assets={feed.assets}
-  loading={(album.loading && !album.current) || (feed.loading && !feed.loadedOnce)}
+  loading={album.loading && !album.current}
   loadingLabel="Loading album…"
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
   totalCount={feed.totalCount ?? album.current?.assetCount}
   error={album.error}
   onRetry={() => {

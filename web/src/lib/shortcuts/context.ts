@@ -1,22 +1,13 @@
-import { page } from '$app/state';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { onEditorRoute, onViewerRoute } from '#lib/utils/route.ts';
 import type { KeybindContext } from './table';
-
-export const CONTEXT_STACKS = {
-  masks: ['masks', 'editor', 'global'],
-  retouch: ['retouch', 'editor', 'global'],
-  geometry: ['geometry', 'editor', 'global'],
-  editor: ['editor', 'global'],
-  compare: ['compare', 'global'],
-  survey: ['survey', 'global'],
-  loupe: ['loupe', 'global'],
-  grid: ['grid', 'global']
-} as const satisfies Record<string, readonly KeybindContext[]>;
+import { CONTEXT_STACKS } from './stacks';
 
 export function activeContexts(): readonly KeybindContext[] {
-  if (page.url.pathname.startsWith('/assets/')) {
+  if (onViewerRoute()) return CONTEXT_STACKS.viewer;
+  if (onEditorRoute()) {
     const tab = ui.editorTab;
     if (tab === 'masks' || tab === 'retouch' || tab === 'geometry') return CONTEXT_STACKS[tab];
     return CONTEXT_STACKS.editor;

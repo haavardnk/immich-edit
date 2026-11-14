@@ -1,19 +1,32 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
   import { setupStatus } from '#lib/api/auth.ts';
   import { isBackendDown } from '#lib/api/client.ts';
   import { session } from '#lib/stores/session.svelte.ts';
+  import { navHistory } from '#lib/stores/navHistory.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
+  import { isViewerPath } from '#lib/utils/route.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
+  import { listenForCommands } from '#lib/commands/listen.ts';
+  import { installLayout, layout } from '#lib/device/layout.svelte.ts';
+  import { COMPACT_PANES, compare, COMPARE_PANES, MAX_PANES } from '#lib/stores/compare.svelte.ts';
+  import { installPointerKind } from '#lib/device/pointerKind.svelte.ts';
+  import { showLayout } from '#lib/device/document.ts';
+  import { lockPageZoom } from '#lib/device/pageZoom.ts';
+  import '#lib/pwa/install.svelte.ts';
+  import { checkForUpdate, installServiceWorker } from '#lib/pwa/serviceWorker.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
-  import { setLocale, TooltipProvider } from '@immich/ui';
+  import AppTooltipProvider from '#lib/components/AppTooltipProvider.svelte';
+  import { setLocale } from '@immich/ui';
 
   let { children } = $props();
 
@@ -24,6 +37,7 @@
   let configured = $state(false);
 
   const bare = $derived(page.url.pathname === '/login' || page.url.pathname === '/setup');
+  const viewerWindow = $derived(isViewerPath(page.url.pathname));
 
   async function boot(): Promise<void> {
     bootState = 'loading';
@@ -32,6 +46,7 @@
       configured = st.configured;
       if (configured && (await session.load())) {
         void appearance.load();
+        void preferences.load();
         await immichCapabilities.load();
       }
       bootState = 'ready';
@@ -42,8 +57,21 @@
 
   onMount(boot);
   onMount(installFocusPolicy);
+  onMount(listenForCommands);
+  onMount(installLayout);
+  onMount(lockPageZoom);
+  onMount(() =>
+    compare.limitBy(() =>
+      layout.phone ? COMPARE_PANES : layout.compact ? COMPACT_PANES : MAX_PANES
+    )
+  );
+  onMount(installPointerKind);
+  onMount(() => installServiceWorker(() => editor.saving || editor.saveError !== null));
+  afterNavigate(checkForUpdate);
+  afterNavigate(navHistory.record);
 
   $effect(() => appearance.showScheme(appearance.scheme));
+  $effect(() => showLayout(layout.mode, layout.wide));
 
   $effect(() => {
     if (bootState !== 'ready') return;
@@ -65,19 +93,28 @@
   syncFilterUrl(() => bootState === 'ready');
 </script>
 
-<TooltipProvider>
+<AppTooltipProvider>
+  <div
+    aria-hidden="true"
+    data-status-bar-backing
+    class="pointer-events-none fixed inset-x-0 top-0 z-30 h-(--safe-top) bg-light"
+  ></div>
   {#if bootState === 'loading'}
-    <div class="h-screen w-screen bg-light text-dark flex items-center justify-center">
+    <div class="app-frame flex items-center justify-center">
       <div
         class="h-8 w-8 rounded-full border-2 border-light-950/20 border-t-primary animate-spin"
       ></div>
     </div>
   {:else if bootState === 'unreachable'}
-    <div class="h-screen w-screen bg-light text-dark">
+    <div class="app-frame">
       <BackendUnavailable retry={boot} />
     </div>
   {:else if bare}
-    <div class="h-screen w-screen bg-light text-dark">
+    <div class="app-frame">
+      {@render children()}
+    </div>
+  {:else if session.user && viewerWindow}
+    <div class="app-frame">
       {@render children()}
     </div>
   {:else if session.user}
@@ -85,11 +122,11 @@
       {@render children()}
     </Shell>
   {:else}
-    <div class="h-screen w-screen bg-light text-dark flex items-center justify-center">
+    <div class="app-frame flex items-center justify-center">
       <div
         class="h-8 w-8 rounded-full border-2 border-light-950/20 border-t-primary animate-spin"
       ></div>
     </div>
   {/if}
   <Toasts />
-</TooltipProvider>
+</AppTooltipProvider>

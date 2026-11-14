@@ -2,51 +2,94 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { scopes } from '#lib/stores/scopes.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import {
-    developPanels,
-    openDevelopPanels,
-    SCOPES_PANEL,
-    type PanelDef
-  } from '#lib/panels/registry.ts';
+  import { developPanels, openDevelopPanels, SCOPES_PANEL } from '#lib/panels/registry.ts';
   import { setDevelopPanel } from '#lib/panels/developPanels.ts';
-  import { resetDevelopPanel } from '#lib/panels/panelReset.ts';
+  import { commitPanelReset } from '#lib/components/editor/controls/paramReset.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
   import Disclosure from '#lib/components/Disclosure.svelte';
+  import { provideSettingFilter } from '#lib/components/editor/controls/settingFilter.ts';
+  import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
   import ScopesSection from './scopes/ScopesSection.svelte';
+  import TargetButton from '#lib/components/editor/controls/TargetButton.svelte';
+  import { pinnedParams } from '#lib/editor/quickSettings.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
+  import QuickPanel from './quick/QuickPanel.svelte';
+  import { desktopSections } from '#lib/stores/developSections.svelte.ts';
+
+  provideSettingFilter(settingSearch);
+
+  const pinned = $derived(pinnedParams(preferences.pins));
+  const browsing = $derived(!ui.developModifiedOnly && !settingSearch.filtering);
 
   const openPanels = $derived(openDevelopPanels(ui.developOpenPanels));
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
-
-  function resetPanel(panel: PanelDef): void {
-    editor.edits = resetDevelopPanel(editor.edits, panel.id);
-    void editor.onCommit(`Reset ${panel.title}`);
-  }
+  const matchedPanels = $derived(
+    new Set(settingSearch.matches.map((match) => match.setting.panel))
+  );
+  const orderedPanels = $derived(
+    desktopSections.entries.flatMap((entry) => {
+      const panel = developPanels.find((candidate) => candidate.id === entry.id);
+      return panel ? [{ panel, hidden: entry.hidden }] : [];
+    })
+  );
+  const shownPanels = $derived(
+    orderedPanels
+      .filter(
+        ({ panel, hidden }) =>
+          !hidden ||
+          settingSearch.filtering ||
+          modifiedPanels.has(panel.id) ||
+          desktopSections.revealed === panel.id
+      )
+      .map(({ panel }) => panel)
+      .filter(
+        (panel) =>
+          (!ui.developModifiedOnly || modifiedPanels.has(panel.id)) &&
+          (!settingSearch.filtering || matchedPanels.has(panel.id))
+      )
+  );
 </script>
 
-{#if !scopes.pinned && !ui.developModifiedOnly}
+{#if !scopes.pinned && browsing}
   <ScopesSection
     open={openPanels.has(SCOPES_PANEL)}
     onOpenChange={(open) => setDevelopPanel(SCOPES_PANEL, open)}
   />
 {/if}
-{#if ui.developModifiedOnly && modifiedPanels.size === 0}
-  <div class="px-4 py-8 text-center text-xs text-dark/65">No modified adjustments</div>
+{#if browsing && pinned.length > 0}
+  <QuickPanel params={pinned} />
+{/if}
+{#if shownPanels.length === 0}
+  <div class="px-4 py-8 text-center text-xs text-dark/65">
+    {settingSearch.filtering ? 'No matching settings' : 'No modified adjustments'}
+  </div>
 {:else}
-  {#each developPanels as panel (panel.id)}
-    {#if !ui.developModifiedOnly || modifiedPanels.has(panel.id)}
-      {@const Comp = panel.component}
+  {#each shownPanels as panel (panel.id)}
+    {@const Comp = panel.component}
+    {@const Actions = panel.actions}
+    {@const target = panel.target}
+    <div data-panel={panel.id}>
+      {#snippet panelActions()}
+        {#if target}
+          <TargetButton tool={target} />
+        {/if}
+        {#if Actions}
+          <Actions />
+        {/if}
+      {/snippet}
       <Disclosure
-        open={openPanels.has(panel.id)}
+        open={settingSearch.filtering || openPanels.has(panel.id)}
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
-        onReset={() => resetPanel(panel)}
+        onReset={() => commitPanelReset(panel)}
+        actions={Actions || target ? panelActions : undefined}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
         <div class="bg-recess px-3 pb-2 pt-1">
           <Comp />
         </div>
       </Disclosure>
-    {/if}
+    </div>
   {/each}
 {/if}
 <div class="h-8"></div>

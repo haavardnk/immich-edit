@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { cubicOut } from 'svelte/easing';
+  import { Tween } from 'svelte/motion';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui, type CropGrid } from '#lib/stores/ui.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     rotatedBbox,
     aspectRatioFor,
@@ -13,9 +16,27 @@
   } from '#lib/utils/geom.ts';
   import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
   import { stageFrame } from '#lib/editor/geometryStage.ts';
+  import {
+    IDENTITY_VIEW,
+    cropFit,
+    framedView,
+    previewView,
+    previewZoom
+  } from '#lib/editor/cropFraming.ts';
+  import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
+  import CropGuide from './crop/CropGuide.svelte';
+  import CropHandles from './crop/CropHandles.svelte';
+  import PhotoPill from './PhotoPill.svelte';
+  import { cropDragReadout } from '#lib/panels/geometry/cropReadout.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import type { CropRect } from '#lib/types/edits.ts';
+  import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { boxHandleHit } from '#lib/editor/handles.ts';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);
@@ -24,27 +45,7 @@
   let line = $state<{ from: Point; to: Point } | null>(null);
 
   const MIN_LINE_PX = 10;
-  const GOLDEN = 1 - 2 / (1 + Math.sqrt(5));
-
-  type GuideLine = [number, number, number, number];
-
-  function axisLines(stops: number[]): GuideLine[] {
-    return stops.flatMap((t): GuideLine[] => [
-      [t, 0, t, 1],
-      [0, t, 1, t]
-    ]);
-  }
-
-  const GUIDE_LINES: Record<CropGrid, GuideLine[]> = {
-    thirds: axisLines([1 / 3, 2 / 3]),
-    golden: axisLines([GOLDEN, 1 - GOLDEN]),
-    diagonal: [
-      [0, 0, 1, 1],
-      [1, 0, 0, 1]
-    ],
-    grid: axisLines([1, 2, 3, 4, 5, 6, 7].map((i) => i / 8)),
-    off: []
-  };
+  const view = new Tween(IDENTITY_VIEW, { duration: 250, easing: cubicOut });
 
   function measure(): void {
     if (!container) return;
@@ -58,9 +59,9 @@
   const sourceW = $derived(sess ? (swapped ? sess.srcH : sess.srcW) : 1);
   const sourceH = $derived(sess ? (swapped ? sess.srcW : sess.srcH) : 1);
   const bbox = $derived(sess ? rotatedBbox(sourceW, sourceH, sess.draftAngle) : { w: 1, h: 1 });
-  const scale = $derived(
-    Math.min((containerW * 0.92) / Math.max(bbox.w, 1), (containerH * 0.92) / Math.max(bbox.h, 1))
-  );
+  const box = $derived({ w: containerW, h: containerH });
+  const fit = $derived(cropFit(box, bbox));
+  const scale = $derived(fit * view.current.zoom);
   const bboxW = $derived(bbox.w * scale);
   const bboxH = $derived(bbox.h * scale);
   const imgW = $derived((sess?.srcW ?? 1) * scale);
@@ -80,6 +81,11 @@
   const perspCss = $derived(
     sess ? perspectiveCssMatrix(frame.forward, orientedW, orientedH) : 'none'
   );
+  const photoTransform = $derived(
+    sess
+      ? `translate(-50%, -50%) rotate(${sess.draftAngle}deg) ${perspCss} scaleY(${sess.draftFlipV ? -1 : 1}) scaleX(${sess.draftFlipH ? -1 : 1}) rotate(${sess.draftRotate}deg)`
+      : 'none'
+  );
   const crop = $derived(sess?.draftCrop ?? { x: 0, y: 0, w: 1, h: 1 });
   const cropPx = $derived({
     x: crop.x * bboxW,
@@ -90,11 +96,53 @@
 
   type DragKind = 'move' | 'pan' | CropHandle;
 
-  let dragKind = $state<DragKind | null>(null);
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragStartCrop: CropRect | null = null;
-  let dragLockedRatio: number | null = null;
+  type CropDrag =
+    | { kind: 'line' }
+    | {
+        kind: DragKind;
+        startX: number;
+        startY: number;
+        startCrop: CropRect;
+        ratio: number | null;
+      };
+
+  const hit = $derived(boxHandleHit(handleHit(), cropPx.w, cropPx.h));
+  const touch = $derived(layout.mode === 'touch');
+  let active = $state<DragKind | null>(null);
+  const activeHandle = $derived(
+    active === null || active === 'move' || active === 'pan' ? null : active
+  );
+  const dragReadout = $derived(active && !touch ? cropDragReadout() : null);
+  const viewOffset = $derived({
+    x: (0.5 - view.current.cx) * bboxW,
+    y: (0.5 - view.current.cy) * bboxH
+  });
+
+  let framed = false;
+  let exitScale: number | null = null;
+
+  $effect(() => {
+    if (containerW <= 0 || containerH <= 0) return;
+    if (!touch) {
+      untrack(() => void view.set(IDENTITY_VIEW, { duration: 0 }));
+      return;
+    }
+    if (active || line) return;
+    const target = framedView(crop, bbox, fit, box);
+    const from = framed ? null : previewView(crop, bbox, fit, box);
+    framed = true;
+    untrack(() => {
+      if (from) void view.set(from, { duration: 0 });
+      void view.set(target);
+    });
+  });
+
+  $effect(() => {
+    exitScale =
+      touch && framed && fit > 0 ? view.current.zoom / previewZoom(crop, bbox, fit, box) : null;
+  });
+
+  $effect(() => () => cropExit.hand(exitScale));
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop
@@ -103,27 +151,20 @@
   );
 
   function stagePoint(e: PointerEvent): Point {
-    const rect = stage?.getBoundingClientRect();
-    return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
+    return stage ? elementPoint(e, stage) : { x: e.clientX, y: e.clientY };
   }
 
-  function startLine(e: PointerEvent): void {
+  function startLine(e: PointerEvent): CropDrag {
     e.preventDefault();
     e.stopPropagation();
     const at = stagePoint(e);
     line = { from: at, to: at };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    return { kind: 'line' };
   }
 
-  function onLineMove(e: PointerEvent): void {
-    if (!line) return;
-    line = { from: line.from, to: stagePoint(e) };
-  }
-
-  function onLineUp(e: PointerEvent): void {
+  function endLine(): void {
     const drawn = line;
     line = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
     if (!drawn || !sess) return;
     const length = Math.hypot(drawn.to.x - drawn.from.x, drawn.to.y - drawn.from.y);
     if (length < MIN_LINE_PX) return;
@@ -132,76 +173,91 @@
     void editor.commitGeometry('Straighten');
   }
 
-  function startDrag(e: PointerEvent, kind: 'move' | CropHandle): void {
-    if (kind === 'move' && e.shiftKey) {
-      startLine(e);
-      return;
-    }
+  function startCrop(e: PointerEvent, kind: 'line' | 'move' | CropHandle): CropDrag | null {
+    if (kind === 'move' && e.button === 2) return startLine(e);
+    if (e.button !== 0) return null;
+    if (kind === 'line' || (kind === 'move' && held('straighten', e))) return startLine(e);
     e.preventDefault();
     e.stopPropagation();
-    if (!sess) return;
-    const panning = kind === 'move' && (e.ctrlKey || e.metaKey);
-    dragKind = panning ? 'pan' : kind;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragStartCrop = { ...sess.draftCrop };
+    if (!sess) return null;
+    const panning = kind === 'move' && held('pan', e);
+    const startCrop = { ...sess.draftCrop };
     panStartCrop = panning ? { ...sess.draftCrop } : null;
+    active = panning ? 'pan' : kind;
     const aspectRatio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
-    dragLockedRatio =
+    const ratio =
       aspectRatio ??
-      (e.shiftKey ? (dragStartCrop.w * bboxW) / Math.max(dragStartCrop.h * bboxH, 1) : null);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      (held('constrain', e) ? (startCrop.w * bboxW) / Math.max(startCrop.h * bboxH, 1) : null);
+    return {
+      kind: panning ? 'pan' : kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      startCrop,
+      ratio
+    };
   }
 
-  function onMove(e: PointerEvent): void {
-    if (line) {
-      onLineMove(e);
+  function moveCrop(e: PointerEvent, drag: CropDrag): void {
+    if (drag.kind === 'line') {
+      if (line) line = { from: line.from, to: stagePoint(e) };
       return;
     }
-    if (!dragKind || !dragStartCrop || !sess) return;
-    const dx = (e.clientX - dragStartX) / Math.max(bboxW, 1);
-    const dy = (e.clientY - dragStartY) / Math.max(bboxH, 1);
-    if (dragKind === 'move' || dragKind === 'pan') {
-      const sign = dragKind === 'pan' ? -1 : 1;
+    if (!sess) return;
+    const dx = (e.clientX - drag.startX) / Math.max(bboxW, 1);
+    const dy = (e.clientY - drag.startY) / Math.max(bboxH, 1);
+    if (drag.kind === 'move' || drag.kind === 'pan') {
+      const sign = drag.kind === 'pan' ? -1 : 1;
       editor.updateGeometryDraftCrop({
-        ...dragStartCrop,
-        x: dragStartCrop.x + sign * dx,
-        y: dragStartCrop.y + sign * dy
+        ...drag.startCrop,
+        x: drag.startCrop.x + sign * dx,
+        y: drag.startCrop.y + sign * dy
       });
       return;
     }
     editor.updateGeometryDraftCrop(
-      resizeCrop(dragStartCrop, dragKind, dx, dy, {
-        ratio: dragLockedRatio,
-        fromCentre: e.altKey,
+      resizeCrop(drag.startCrop, drag.kind, dx, dy, {
+        ratio: drag.ratio,
+        fromCentre: held('fromCentre', e),
         stageAspect: bboxW / Math.max(bboxH, 1)
       })
     );
   }
 
+  function endCrop(_: PointerEvent, drag: CropDrag): void {
+    if (drag.kind === 'line') {
+      endLine();
+      return;
+    }
+    panStartCrop = null;
+    active = null;
+    void editor.commitGeometry('Crop');
+  }
+
+  const cropDrag = pointerDrag<CropDrag, 'line' | 'move' | CropHandle>({
+    start: startCrop,
+    move: moveCrop,
+    end: endCrop
+  });
+
   function onWheel(e: WheelEvent): void {
-    if (!(e.ctrlKey || e.metaKey) || !sess) return;
+    if (!held('zoom', e) || !sess) return;
     e.preventDefault();
     editor.updateGeometryDraftCrop(
       scaleCropAboutCentre(sess.draftCrop, Math.exp(e.deltaY * 0.002))
     );
     editor.scheduleCropCommit();
   }
-
-  function onUp(e: PointerEvent): void {
-    if (line) {
-      onLineUp(e);
-      return;
-    }
-    const dragged = dragKind !== null;
-    dragKind = null;
-    dragStartCrop = null;
-    dragLockedRatio = null;
-    panStartCrop = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    if (dragged) void editor.commitGeometry('Crop');
-  }
 </script>
+
+{#snippet photo()}
+  <img
+    src={sess?.frameUrl}
+    alt=""
+    draggable="false"
+    class="absolute block"
+    style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: {photoTransform}; transform-origin: center; image-orientation: none;"
+  />
+{/snippet}
 
 <div
   bind:this={container}
@@ -211,22 +267,13 @@
   {#if sess && sess.frameUrl}
     <div
       bind:this={stage}
-      class="relative"
+      class="relative shrink-0"
       role="presentation"
-      style="width: {bboxW}px; height: {bboxH}px; transform: translate({panOffset.x}px, {panOffset.y}px);"
+      style="width: {bboxW}px; height: {bboxH}px; transform: translate({panOffset.x +
+        viewOffset.x}px, {panOffset.y + viewOffset.y}px);"
       onwheel={onWheel}
     >
-      <img
-        src={sess.frameUrl}
-        alt=""
-        draggable="false"
-        class="absolute block"
-        style="top: 50%; left: 50%; width: {imgW}px; height: {imgH}px; max-width: none; max-height: none; transform: translate(-50%, -50%) rotate({sess.draftAngle}deg) {perspCss} scaleY({sess.draftFlipV
-          ? -1
-          : 1}) scaleX({sess.draftFlipH
-          ? -1
-          : 1}) rotate({sess.draftRotate}deg); transform-origin: center; image-orientation: none;"
-      />
+      {@render photo()}
 
       <div
         class="absolute inset-0 pointer-events-none"
@@ -243,58 +290,19 @@
       <div
         class="absolute border border-white/90 cursor-move touch-none"
         style="left: {cropPx.x}px; top: {cropPx.y}px; width: {cropPx.w}px; height: {cropPx.h}px;"
-        onpointerdown={(e) => startDrag(e, 'move')}
-        onpointermove={onMove}
-        onpointerup={onUp}
-        onpointercancel={onUp}
+        {...cropDrag.on('move')}
+        oncontextmenu={(e) => e.preventDefault()}
         role="presentation"
       >
-        <svg
-          class="absolute inset-0 size-full pointer-events-none"
-          viewBox="0 0 1 1"
-          preserveAspectRatio="none"
-          data-testid="crop-guide"
-          data-mode={ui.cropGrid}
-          aria-hidden="true"
-        >
-          {#each GUIDE_LINES[ui.cropGrid] as [x1, y1, x2, y2], i (i)}
-            <line
-              {x1}
-              {y1}
-              {x2}
-              {y2}
-              stroke="rgb(255 255 255 / 0.3)"
-              stroke-width="1"
-              vector-effect="non-scaling-stroke"
-            />
-          {/each}
-        </svg>
-        {#each ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const as h (h)}
-          <button
-            class="absolute touch-none before:absolute before:inset-0.5 before:rounded-sm before:border before:border-black/60 before:bg-white"
-            style="
-              width: 16px; height: 16px;
-              {h.includes('n') ? 'top: -8px;' : ''}
-              {h.includes('s') ? 'bottom: -8px;' : ''}
-              {h.includes('w') ? 'left: -8px;' : ''}
-              {h.includes('e') ? 'right: -8px;' : ''}
-              {h === 'n' || h === 's' ? 'left: calc(50% - 8px);' : ''}
-              {h === 'w' || h === 'e' ? 'top: calc(50% - 8px);' : ''}
-              cursor: {h === 'n' || h === 's'
-              ? 'ns-resize'
-              : h === 'e' || h === 'w'
-                ? 'ew-resize'
-                : h === 'nw' || h === 'se'
-                  ? 'nwse-resize'
-                  : 'nesw-resize'};
-            "
-            onpointerdown={(e) => startDrag(e, h)}
-            onpointermove={onMove}
-            onpointerup={onUp}
-            onpointercancel={onUp}
-            aria-label="resize {h}"
-          ></button>
-        {/each}
+        <CropGuide
+          grid={ui.cropGrid}
+          turn={ui.cropGuideTurn}
+          aspect={cropPx.w / Math.max(cropPx.h, 1)}
+        />
+        <CropHandles {hit} {touch} active={activeHandle} onbegin={(e, h) => cropDrag.begin(e, h)} />
+        {#if dragReadout}
+          <PhotoPill {...dragReadout} placement="centre" />
+        {/if}
       </div>
 
       {#if ui.geometryTool === 'straighten'}
@@ -302,15 +310,12 @@
           class="absolute inset-0 cursor-crosshair touch-none"
           data-testid="straighten-surface"
           role="presentation"
-          onpointerdown={startLine}
-          onpointermove={onLineMove}
-          onpointerup={onLineUp}
-          onpointercancel={onLineUp}
+          {...cropDrag.on('line')}
         ></div>
       {/if}
 
       {#if ui.geometryTool === 'upright'}
-        <UprightGuides {frame} guides={sess.guides} />
+        <UprightGuides {frame} guides={sess.guides} photo={touch ? photo : undefined} />
       {/if}
 
       {#if line}

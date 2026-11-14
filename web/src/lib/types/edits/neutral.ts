@@ -53,103 +53,18 @@ export function originalPreviewEdits(edits: Edits): Edits {
 }
 
 export type DevelopSection =
+  | 'dcp'
   | 'white_balance'
   | 'tone'
   | 'presence'
+  | 'curves'
+  | 'hsl'
+  | 'color_grading'
+  | 'bw'
+  | 'lut'
   | 'sharpening'
   | 'noise_reduction'
-  | 'vignette'
-  | 'grain'
   | 'lens'
   | 'lens_blur'
-  | 'lut'
-  | 'bw';
-
-export function neutraliseSection(edits: Edits, section: DevelopSection): Edits {
-  const neutral = neutralEdits();
-  switch (section) {
-    case 'white_balance':
-      return { ...edits, basic: { ...edits.basic, white_balance: neutral.basic.white_balance } };
-    case 'tone':
-      return {
-        ...edits,
-        basic: {
-          ...edits.basic,
-          exposure_ev: neutral.basic.exposure_ev,
-          brightness: neutral.basic.brightness,
-          contrast: neutral.basic.contrast
-        },
-        tone: neutral.tone
-      };
-    case 'presence':
-      return {
-        ...edits,
-        basic: {
-          ...edits.basic,
-          texture: neutral.basic.texture,
-          clarity: neutral.basic.clarity,
-          dehaze: neutral.basic.dehaze,
-          vibrance: neutral.basic.vibrance,
-          saturation: neutral.basic.saturation
-        }
-      };
-    case 'sharpening':
-      return {
-        ...edits,
-        detail: {
-          ...edits.detail,
-          capture_sharpen: neutral.detail.capture_sharpen,
-          capture_corner_boost: neutral.detail.capture_corner_boost,
-          sharpen_amount: neutral.detail.sharpen_amount,
-          sharpen_radius: neutral.detail.sharpen_radius,
-          sharpen_detail: neutral.detail.sharpen_detail,
-          sharpen_masking: neutral.detail.sharpen_masking
-        }
-      };
-    case 'noise_reduction':
-      return {
-        ...edits,
-        detail: {
-          ...edits.detail,
-          luma_nr_amount: neutral.detail.luma_nr_amount,
-          luma_nr_detail: neutral.detail.luma_nr_detail,
-          luma_nr_contrast: neutral.detail.luma_nr_contrast,
-          color_nr_amount: neutral.detail.color_nr_amount,
-          color_nr_detail: neutral.detail.color_nr_detail,
-          color_nr_smoothness: neutral.detail.color_nr_smoothness,
-          ai_denoise: neutral.detail.ai_denoise,
-          ai_denoise_strength: neutral.detail.ai_denoise_strength,
-          ai_denoise_detail: neutral.detail.ai_denoise_detail
-        }
-      };
-    case 'vignette':
-      return {
-        ...edits,
-        effects: {
-          ...edits.effects,
-          vignette_amount: neutral.effects.vignette_amount,
-          vignette_midpoint: neutral.effects.vignette_midpoint,
-          vignette_feather: neutral.effects.vignette_feather,
-          vignette_roundness: neutral.effects.vignette_roundness
-        }
-      };
-    case 'grain':
-      return {
-        ...edits,
-        effects: {
-          ...edits.effects,
-          grain_amount: neutral.effects.grain_amount,
-          grain_size: neutral.effects.grain_size,
-          grain_roughness: neutral.effects.grain_roughness
-        }
-      };
-    case 'lens':
-      return { ...edits, lens: neutral.lens };
-    case 'lens_blur':
-      return { ...edits, lens_blur: resetLensBlur(edits.lens_blur) };
-    case 'lut':
-      return { ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } };
-    case 'bw':
-      return { ...edits, color: { ...edits.color, bw: neutral.color.bw } };
-  }
-}
+  | 'vignette'
+  | 'grain';

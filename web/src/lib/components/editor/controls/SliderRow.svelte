@@ -1,232 +1,313 @@
 <script lang="ts">
-  import TextInput from '#lib/components/TextInput.svelte';
   import { keysFor } from '#lib/shortcuts/labels.ts';
-  import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
-  import { SCALE_POSITIONS, type SliderScale } from './sliderScale';
+  import SliderValue from './SliderValue.svelte';
+  import { SCALE_POSITIONS } from './sliderScale';
+  import type { SliderRange } from '#lib/editor/params/types.ts';
+  import { untrack, type Snippet } from 'svelte';
+  import ContextMenu from '#lib/components/ContextMenu.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
+  import { panRecognizer } from '#lib/gestures/pan.ts';
+  import { tapRecognizer } from '#lib/gestures/tap.ts';
+  import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
+  import { dragBounds, dragPosition, valueAt } from './relativeDrag';
+  import { mouseScrub } from './mouseScrub';
+  import { SliderSession } from './sliderSession.svelte';
+  import { clampTo, nudgeValue } from './sliderStep';
+  import { sliderWheel } from './sliderWheel';
+  import { sliderDrag } from '#lib/stores/sliderDrag.svelte.ts';
+
+  const LABEL_SLOP = 3;
 
   let {
     label,
     value = $bindable(),
-    min,
-    max,
-    step = 0.1,
-    scale,
+    range,
+    defaultValue,
+    gradient,
+    format,
     onLive,
     onCommit,
     onPreviewStart,
     onPreviewEnd,
     onDragStart,
     onDragEnd,
-    format = (v: number): string => v.toFixed(2),
-    gradient,
-    defaultValue = 0,
+    onLabelTap,
     disabled = false,
-    commitAction
+    commitAction,
+    setting,
+    menu,
+    menuTitle
   }: {
     label: string;
     value: number;
-    min: number;
-    max: number;
-    step?: number;
-    scale?: SliderScale;
+    range: SliderRange;
+    defaultValue?: number;
+    gradient?: string;
+    format?: (value: number) => string;
     onLive: (value: number) => void;
     onCommit: (action?: string) => void;
     onPreviewStart?: () => void;
     onPreviewEnd?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
-    format?: (v: number) => string;
-    gradient?: string;
-    defaultValue?: number;
+    onLabelTap?: () => void;
     disabled?: boolean;
     commitAction?: string;
+    setting?: string;
+    menu?: Snippet;
+    menuTitle?: string;
   } = $props();
 
-  const isDefault = $derived(value === defaultValue);
+  const { min, max, step, fineStep, scale } = $derived(range);
+  const shown = $derived(format ? { ...range, format } : range);
+  const resetValue = $derived(defaultValue ?? range.defaultValue ?? 0);
+  const isDefault = $derived(value === resetValue);
   const supportsPreview = $derived(!!onPreviewStart && !!onPreviewEnd);
-  const displayValue = $derived(format(Object.is(value, -0) ? 0 : value));
   const position = $derived(scale ? scale.toPosition(value) : value);
-  let dragging = $state(false);
-  let altDown = $state(false);
-  let previewing = $state(false);
-  let editing = $state(false);
-  let draft = $state(0);
-  let editStart = 0;
-  let valueInput = $state<HTMLInputElement | null>(null);
+  const touch = $derived(layout.mode === 'touch');
+  let row = $state<HTMLDivElement | null>(null);
+  let track = $state<HTMLDivElement | null>(null);
+  const entryOwner = $derived(valueEntry.target?.owner ?? null);
+  const dimmed = $derived(entryOwner !== null && !row?.contains(entryOwner));
+  let relative: { position: number; centreY: number; width: number } | null = null;
 
-  $effect(() => {
-    if (!editing || !valueInput) return;
-    valueInput.focus();
-    valueInput.select();
+  const session = new SliderSession({
+    value: () => value,
+    disabled: () => disabled,
+    write: (next) => {
+      value = next;
+    },
+    live: (next) => onLive(next),
+    commit: () => onCommit(commitAction),
+    previewStart: () => onPreviewStart?.(),
+    previewEnd: () => onPreviewEnd?.(),
+    dragStart: () => {
+      sliderDrag.start(setting);
+      onDragStart?.();
+    },
+    dragEnd: () => {
+      sliderDrag.end();
+      onDragEnd?.();
+    }
   });
 
-  function normalize(next: number): number {
-    const clamped = Math.min(max, Math.max(min, next));
-    return Object.is(clamped, -0) ? 0 : clamped;
+  $effect(() => {
+    void session.previewHeld;
+    if (supportsPreview) untrack(session.sync);
+  });
+
+  $effect(() => () => session.end());
+
+  function apply(next: number): void {
+    value = next;
+    onLive(next);
   }
 
   function reset(): void {
     if (isDefault) return;
-    value = defaultValue;
-    onLive(defaultValue);
+    apply(resetValue);
     onCommit(commitAction);
   }
 
-  function beginEdit(): void {
-    if (disabled) return;
-    editStart = value;
-    draft = value;
-    editing = true;
+  function input(): HTMLInputElement | null {
+    return track?.querySelector('input') ?? null;
   }
 
-  function onDraftInput(e: Event): void {
-    const next = (e.currentTarget as HTMLInputElement).valueAsNumber;
-    draft = next;
-    if (!Number.isFinite(next)) return;
-    value = normalize(next);
-    onLive(value);
+  function thumbOf(element: HTMLInputElement): number {
+    return parseFloat(getComputedStyle(element).getPropertyValue('--slider-thumb')) || 0;
   }
 
-  function commitEdit(): void {
-    if (!editing) return;
-    const next = Number.isFinite(draft) ? normalize(draft) : editStart;
-    value = next;
-    onLive(next);
-    editing = false;
-    if (next !== editStart) onCommit(commitAction);
+  function relativeFrom(at: number): void {
+    const element = input();
+    if (!element) return;
+    const box = element.getBoundingClientRect();
+    relative = {
+      position: at,
+      centreY: box.top + box.height / 2,
+      width: box.width - thumbOf(element)
+    };
   }
 
-  function cancelEdit(): void {
-    value = editStart;
-    draft = editStart;
-    onLive(editStart);
-    editing = false;
+  function relativeMove(stepX: number, y: number): void {
+    if (!relative) return;
+    relative.position = dragPosition(relative.position, stepX, y - relative.centreY, {
+      ...dragBounds(range),
+      width: relative.width
+    });
+    const next = valueAt(relative.position, range);
+    if (next !== value) session.set(next);
   }
 
-  function updatePreview(): void {
-    if (!supportsPreview) return;
-    const wantPreview = dragging && altDown && !disabled;
-    if (wantPreview && !previewing) {
-      previewing = true;
-      onPreviewStart!();
-    } else if (!wantPreview && previewing) {
-      previewing = false;
-      onPreviewEnd!();
-    }
+  function relativeEnd(): void {
+    relative = null;
+    session.end();
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    if (disabled) return;
-    dragging = true;
-    altDown = e.altKey;
-    editor.beginDrag();
-    onDragStart?.();
-    updatePreview();
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-    window.addEventListener('keydown', onKeyChange);
-    window.addEventListener('keyup', onKeyChange);
+  function pressedAt(e: PointerEvent, element: HTMLInputElement): number {
+    const box = element.getBoundingClientRect();
+    const thumb = thumbOf(element);
+    const travel = box.width - thumb;
+    const bounds = dragBounds(range);
+    const span = bounds.max - bounds.min;
+    if (travel <= 0 || span <= 0) return position;
+    const thumbX = box.left + thumb / 2 + ((position - bounds.min) / span) * travel;
+    if (Math.abs(e.clientX - thumbX) <= thumb / 2) return position;
+    return bounds.min + clampTo((e.clientX - box.left - thumb / 2) / travel, 0, 1) * span;
   }
 
-  function onPointerUp(): void {
-    dragging = false;
-    window.removeEventListener('pointerup', onPointerUp);
-    window.removeEventListener('pointercancel', onPointerUp);
-    window.removeEventListener('keydown', onKeyChange);
-    window.removeEventListener('keyup', onKeyChange);
-    editor.endDrag();
-    onDragEnd?.();
-    if (previewing) {
-      previewing = false;
-      onPreviewEnd!();
-    }
+  function trackStart(e: PointerEvent): boolean {
+    const element = input();
+    if (!element) return false;
+    e.preventDefault();
+    element.focus({ preventScroll: true });
+    session.begin(e);
+    const at = pressedAt(e, element);
+    relativeFrom(at);
+    const next = valueAt(at, range);
+    if (at !== position && next !== value) session.set(next);
+    return true;
   }
 
-  function onKeyChange(e: KeyboardEvent): void {
-    altDown = e.altKey;
-    updatePreview();
+  function labelStart(e: PointerEvent): boolean {
+    session.begin(e);
+    relativeFrom(position);
+    return true;
+  }
+
+  const trackDrag = mouseScrub({
+    enabled: () => !disabled,
+    slop: 0,
+    start: trackStart,
+    move: relativeMove,
+    end: relativeEnd
+  });
+
+  const labelScrub = mouseScrub({
+    enabled: () => !disabled,
+    slop: LABEL_SLOP,
+    start: labelStart,
+    move: relativeMove,
+    end: relativeEnd
+  });
+
+  const wheel = sliderWheel({
+    enabled: () => !disabled,
+    nudge: (steps, size) => {
+      session.begin();
+      session.set(nudgeValue(value, range, steps, size));
+    },
+    settle: session.end
+  });
+
+  const touchDrag = gestures({
+    pointerTypes: ['touch', 'pen'],
+    touchAction: 'pan-y',
+    recognizers: [
+      panRecognizer({
+        enabled: () => touch && !disabled,
+        lockAxis: true,
+        thresholds: { panSlop: 8 },
+        start: (pan) => {
+          if (pan.axis !== 'x' || !track) return;
+          session.begin();
+          const box = track.getBoundingClientRect();
+          relative = { position, centreY: box.top + box.height / 2, width: track.clientWidth };
+        },
+        move: (pan) => relativeMove(pan.stepX, pan.y),
+        end: relativeEnd,
+        cancel: relativeEnd
+      }),
+      tapRecognizer({ enabled: () => touch && !disabled, doubleTap: reset })
+    ]
+  });
+
+  function onLabelClick(): void {
+    if (touch && onLabelTap) onLabelTap();
   }
 
   function onInput(e: Event): void {
     const raw = (e.currentTarget as HTMLInputElement).valueAsNumber;
-    const v = normalize(scale ? scale.fromPosition(raw) : raw);
-    value = v;
-    if (previewing) {
-      onPreviewStart!();
-    } else {
-      onLive(v);
-    }
+    session.set(clampTo(scale ? scale.fromPosition(raw) : raw, min, max));
   }
 </script>
 
-<div
-  class="panel-row group h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-light-950/3 {disabled
-    ? 'pointer-events-none opacity-50'
-    : ''}"
->
-  <Button
-    variant="ghost"
-    color="secondary"
-    size="tiny"
-    class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark"
-    title="double click to reset"
-    ondblclick={reset}
+{#snippet slider(rowProps: Record<string, unknown>, labelProps: Record<string, unknown>)}
+  <div
+    {...rowProps}
+    bind:this={row}
+    data-setting={setting}
+    class="panel-row group h-7 items-center rounded-sm px-0.5 transition-[background-color,opacity] hover:bg-light-950/3 touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem] {disabled
+      ? 'pointer-events-none opacity-50'
+      : dimmed
+        ? 'opacity-28'
+        : ''}"
+    {@attach wheel}
   >
-    <span class="truncate">{label}</span>
-  </Button>
-  <RangeSlider
-    {label}
-    min={scale ? 0 : min}
-    max={scale ? SCALE_POSITIONS : max}
-    step={scale ? 1 : step}
-    defaultValue={scale ? scale.toPosition(defaultValue) : defaultValue}
-    {disabled}
-    value={position}
-    valueText={scale ? displayValue : undefined}
-    {gradient}
-    title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
-    onpointerdown={onPointerDown}
-    oninput={onInput}
-    onchange={() => onCommit(commitAction)}
-    ondblclick={reset}
-  />
-  {#if editing}
-    <TextInput
-      bind:ref={valueInput}
-      type="number"
-      size="tiny"
-      class="h-5 bg-hairline [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-[10px] [&_input]:tabular-nums"
-      aria-label="{label} value"
-      value={String(draft)}
-      {min}
-      {max}
-      {step}
-      oninput={onDraftInput}
-      onblur={commitEdit}
-      onkeydown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commitEdit();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          cancelEdit();
-        }
-      }}
-    />
-  {:else}
     <Button
-      size="tiny"
+      {...labelProps}
       variant="ghost"
       color="secondary"
-      class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums {isDefault
-        ? 'text-dark/65'
-        : 'bg-primary/10 text-primary'}"
-      aria-label="Edit {label} value"
-      onclick={beginEdit}
+      size="tiny"
+      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px] {touch
+        ? ''
+        : 'cursor-ew-resize'}"
+      title={touch ? '' : 'Drag to adjust, double-click to reset'}
+      aria-label={touch && onLabelTap ? `Focus ${label}` : undefined}
+      onclick={onLabelClick}
+      ondblclick={reset}
+      {@attach labelScrub}
     >
-      {displayValue}
+      <span class="truncate">{label}</span>
     </Button>
-  {/if}
-</div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      bind:this={track}
+      class="flex min-w-0 items-center touch:h-11"
+      ondblclick={reset}
+      {@attach touchDrag}
+      {@attach trackDrag}
+    >
+      <RangeSlider
+        class="w-full touch:pointer-events-none"
+        {label}
+        min={scale ? 0 : min}
+        max={scale ? SCALE_POSITIONS : max}
+        step={scale ? 1 : step}
+        fineStep={scale ? 1 : fineStep}
+        defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
+        {disabled}
+        value={position}
+        valueText={scale ? shown.format(value) : undefined}
+        gradient={gradient ?? range.gradient}
+        title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
+        oninput={onInput}
+        onchange={() => onCommit(commitAction)}
+      />
+    </div>
+    <SliderValue
+      {label}
+      {value}
+      range={shown}
+      {resetValue}
+      modified={!isDefault}
+      {disabled}
+      onLive={apply}
+      onCommit={() => onCommit(commitAction)}
+      {setting}
+    />
+  </div>
+{/snippet}
+
+{#if menu}
+  <ContextMenu title={menuTitle}>
+    {#snippet trigger(props)}
+      {@render slider(touch ? {} : props, touch ? props : {})}
+    {/snippet}
+    {@render menu()}
+  </ContextMenu>
+{:else}
+  {@render slider({}, {})}
+{/if}

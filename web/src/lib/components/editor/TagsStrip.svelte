@@ -17,4 +17,5 @@
   onAdd={editor.addTag}
   onRemove={editor.removeTag}
   onCreate={editor.createAndAddTag}
+  subtitle={editor.asset?.originalFileName}
 />

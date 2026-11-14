@@ -1,15 +1,11 @@
 <script lang="ts">
-  import type { WhiteBalanceSample } from '#lib/api/edits.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { WhiteBalanceProbe } from '#lib/stores/editor/whiteBalanceProbe.svelte.ts';
   import type { Edits } from '#lib/types/edits.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
-  import { clamp01 } from '#lib/utils/geom.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
-
-  type Spot = { u: number; v: number; x: number; y: number; id: number };
-
-  const MIN_DRAG_PX = 6;
+  import TouchMagnifier, { MAGNIFIER_LIFT, MAGNIFIER_SIZE } from './TouchMagnifier.svelte';
+  import { PhotoPick } from '#lib/editor/photoPick.svelte.ts';
 
   let {
     img
@@ -24,51 +20,32 @@
       ? { assetId: editor.assetId, edits: $state.snapshot(editor.edits) as Edits }
       : null
   );
-  let start = $state<Spot | null>(null);
-  let pointer = $state<Spot | null>(null);
+  const pick = new PhotoPick({
+    busy: () => editor.wbBusy,
+    track: (box) => {
+      if (!editor.wbBusy) probe.probe(box);
+    },
+    pick: (box) => void editor.pickWhiteBalance(box)
+  });
 
-  const dragging = $derived(
-    !!start && !!pointer && Math.hypot(pointer.x - start.x, pointer.y - start.y) >= MIN_DRAG_PX
-  );
-  const sample = $derived<WhiteBalanceSample | null>(
-    start && dragging && pointer
-      ? boxSample(start, pointer)
-      : pointer
-        ? boxSample(pointer, pointer)
-        : null
-  );
+  const pointer = $derived(pick.pointer);
+  const sample = $derived(pick.box);
   const reading = $derived(probe.reading);
   const cardShift = $derived(
-    pointer
-      ? `${pointer.u > 0.7 ? 'calc(-100% - 16px)' : '16px'}, ${pointer.v > 0.8 ? 'calc(-100% - 16px)' : '16px'}`
-      : ''
+    !pointer
+      ? ''
+      : pick.touching
+        ? `-50%, calc(-100% - ${MAGNIFIER_LIFT + MAGNIFIER_SIZE + 8}px)`
+        : `${pointer.u > 0.7 ? 'calc(-100% - 16px)' : '16px'}, ${pointer.v > 0.8 ? 'calc(-100% - 16px)' : '16px'}`
   );
 
   $effect(() => {
     if (!active) return;
     return () => {
-      start = null;
-      pointer = null;
+      pick.reset();
       probe.clear();
     };
   });
-
-  function boxSample(a: Spot, b: Spot): WhiteBalanceSample {
-    const u = Math.min(a.u, b.u);
-    const v = Math.min(a.v, b.v);
-    return { u, v, w: Math.max(a.u, b.u) - u, h: Math.max(a.v, b.v) - v };
-  }
-
-  function spotAt(e: PointerEvent): Spot {
-    const b = (e.currentTarget as Element).getBoundingClientRect();
-    return {
-      u: clamp01((e.clientX - b.left) / Math.max(b.width, 1)),
-      v: clamp01((e.clientY - b.top) / Math.max(b.height, 1)),
-      x: e.clientX,
-      y: e.clientY,
-      id: e.pointerId
-    };
-  }
 
   function onKeyDown(e: KeyboardEvent): void {
     if (e.key !== 'Escape' || !editor.wbPicking) return;
@@ -76,38 +53,8 @@
     editor.cancelWbPicker();
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (editor.wbBusy || start || e.button !== 0) return;
-    start = spotAt(e);
-    pointer = start;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (start && e.pointerId !== start.id) return;
-    pointer = spotAt(e);
-    if (sample && !editor.wbBusy) probe.probe(sample);
-  }
-
-  function onPointerUp(e: PointerEvent): void {
-    if (!start || e.pointerId !== start.id) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    const picked = dragging && pointer ? boxSample(start, pointer) : boxSample(start, start);
-    start = null;
-    void editor.pickWhiteBalance(picked);
-  }
-
-  function onPointerCancel(e: PointerEvent): void {
-    if (start?.id === e.pointerId) start = null;
-  }
-
   function onPointerLeave(): void {
-    if (start) return;
-    pointer = null;
-    probe.clear();
+    if (pick.leave()) probe.clear();
   }
 </script>
 
@@ -120,19 +67,19 @@
     class="absolute z-30 cursor-crosshair bg-transparent"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none;"
     aria-label="Sample neutral color"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerCancel}
+    {...pick.handlers}
     onpointerleave={onPointerLeave}
   >
-    {#if dragging && sample}
+    {#if pick.dragging && sample}
       <span
         data-testid="wb-picker-box"
         class="pointer-events-none absolute block border-2 border-image-accent bg-image-accent/15"
         style="left: {sample.u * 100}%; top: {sample.v * 100}%; width: {sample.w *
           100}%; height: {sample.h * 100}%;"
       ></span>
+    {/if}
+    {#if pick.touching && pointer && img}
+      <TouchMagnifier source={img} u={pointer.u} v={pointer.v} width={rect.w} />
     {/if}
     {#if pointer}
       <span

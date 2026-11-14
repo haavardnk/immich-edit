@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { pickSort } from './browse';
 import { ASSET_SUMMARY, installMocks, json, openFilters } from './helpers';
 
 const OLD_ID = '00000000-0000-0000-0000-000000000001';
@@ -33,7 +34,7 @@ const OLDEST_FIRST = [OLD_ID, MID_ID, NEW_ID];
 const NEWEST_FIRST = [NEW_ID, MID_ID, OLD_ID];
 
 async function expectOrder(page: Page, ids: string[]): Promise<void> {
-  const tiles = page.locator('a[href^="/assets/"]');
+  const tiles = page.locator('[role="group"] > a[href^="/assets/"]');
   await expect(tiles).toHaveCount(ids.length);
   await expect
     .poll(() =>
@@ -42,12 +43,6 @@ async function expectOrder(page: Page, ids: string[]): Promise<void> {
       )
     )
     .toEqual(ids);
-}
-
-async function pickSort(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: /^Sort:/ }).click();
-  await page.locator('[data-popover-content]').getByRole('radio', { name, exact: true }).click();
-  await page.keyboard.press('Escape');
 }
 
 test('collections open oldest first while the timeline opens newest first', async ({ page }) => {
@@ -249,10 +244,10 @@ test('edited view filters the loaded photos', async ({ page }) => {
   await expect(page).not.toHaveURL(/visibility/);
 
   const panel = await openFilters(page, 'Library', 'File');
-  await expect(panel.getByRole('combobox', { name: 'Rejected', exact: true })).toBeVisible();
-  await expect(panel.getByRole('combobox', { name: 'Visibility', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('radiogroup', { name: 'Rejected', exact: true })).toBeVisible();
+  await expect(panel.getByRole('radiogroup', { name: 'Show', exact: true })).toHaveCount(0);
   await expect(panel.getByLabel('Min size (MB)')).toHaveValue('15');
-  await panel.getByLabel('Filename').fill('0003');
+  await panel.getByRole('textbox', { name: 'Name contains' }).fill('0003');
   await expectOrder(page, [NEW_ID]);
 });
 
@@ -275,10 +270,9 @@ test('edited view counts and steps through only the photos a filter keeps', asyn
   await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
 
   await page.getByLabel('Quick review').first().click();
-  await expect(page.getByText('1 of 2', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
-  await expect(page.getByText('2 of 2', { exact: true })).toBeVisible();
 });
 
 test('folder view counts only the photos a filter keeps', async ({ page }) => {
@@ -293,4 +287,30 @@ test('folder view counts only the photos a filter keeps', async ({ page }) => {
   await page.goto('/folders?path=%2Fphotos&make=SONY');
   await expectOrder(page, [MID_ID, NEW_ID]);
   await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
+});
+
+test('rating a photo in a folder sorted by rating keeps it in place', async ({ page }) => {
+  const assets = [
+    { ...ASSETS[0], exifInfo: { rating: 5 } },
+    { ...ASSETS[1], exifInfo: { rating: 3 } },
+    { ...ASSETS[2], exifInfo: { rating: 1 } }
+  ];
+  await installMocks(page, { assets, structuredSearch: true });
+  await page.route('**/api/folders/assets?*', (route) => route.fulfill(json(assets)));
+  await page.addInitScript(() => {
+    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    localStorage.setItem(
+      'immich-edit:browseSort',
+      JSON.stringify({ collection: { field: 'rating', direction: 'desc' } })
+    );
+  });
+
+  await page.goto('/folders?path=%2Fphotos');
+  await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
+
+  const tile = page.locator('[data-name="IMG_0003.ARW"]');
+  await tile.hover();
+  await tile.getByRole('radio', { name: '5 stars' }).click();
+  await expect(tile.getByRole('radio', { name: '5 stars' })).toBeChecked();
+  await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
 });

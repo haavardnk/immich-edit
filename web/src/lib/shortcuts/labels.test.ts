@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { keysFor } from './labels';
+import { afterEach, describe, expect, it } from 'vitest';
+import { preferences } from '#lib/stores/preferences.svelte.ts';
+import { defaultKeysFor, hint, keysFor } from './labels';
 import type { KeybindId } from './table';
 
 describe('platform labels', () => {
@@ -19,5 +20,22 @@ describe('platform labels', () => {
 
   it('honors display overrides', () => {
     expect(keysFor('rate', true)).toBe(keysFor('rate', false));
+  });
+
+  describe('custom keys', () => {
+    afterEach(() => preferences.reset());
+
+    it('shows the custom keys and keeps the default for the note', () => {
+      preferences.shortcuts = { autoAdjust: ['Mod+Shift+a'], help: ['F1'] };
+      expect(keysFor('autoAdjust', true)).toBe('⌘⇧A');
+      expect(defaultKeysFor('autoAdjust', true)).toBe('⌘U');
+      expect(keysFor('help', false)).toBe('F1');
+      expect(hint('Auto', 'autoAdjust', false)).toBe('Auto (Ctrl+Shift+A)');
+    });
+
+    it('drops the brackets for an unbound action', () => {
+      preferences.shortcuts = { autoAdjust: [] };
+      expect(hint('Auto', 'autoAdjust', false)).toBe('Auto');
+    });
   });
 });

@@ -30,11 +30,11 @@ export interface UprightSolution {
   perspective: PerspectiveEdits;
 }
 
-const MAX_GUIDES_PER_KIND = 2;
-const MIN_SOLVE_GUIDES = 2;
+export const MAX_GUIDES_PER_KIND = 2;
+export const MIN_SOLVE_GUIDES = 2;
 
-const MIN_GUIDE_FRACTION = 0.02;
-const MAX_GUIDE_TILT_DEG = 35;
+export const MIN_GUIDE_FRACTION = 0.02;
+export const MAX_GUIDE_TILT_DEG = 35;
 const MIN_SHEAR = 1e-6;
 const SHEAR_FIT_STEPS = 12;
 const EPS = 1e-12;

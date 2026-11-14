@@ -6,6 +6,9 @@ export interface AlbumSummary {
   assetCount: number;
   albumThumbnailAssetId: string | null;
   updatedAt: string | null;
+  ownerId: string | null;
+  shared: boolean;
+  endDate: string | null;
 }
 
 export interface AlbumDetail {
@@ -18,6 +21,7 @@ export interface AlbumDetail {
 export interface AssetSummary {
   id: string;
   originalFileName: string;
+  originalPath?: string;
   type: AssetType;
   ownerId?: string;
   localDateTime?: string | null;
@@ -25,6 +29,7 @@ export interface AssetSummary {
   createdAt?: string | null;
   updatedAt: string | null;
   checksum: string | null;
+  thumbhash?: string | null;
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
   tags: TagRef[];

@@ -21,8 +21,8 @@ test('the tag multi-select filters, picks and clears its query', async ({ page }
   await page.route('**/api/tags', (route) => route.fulfill(json(TAGS)));
 
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.locator('div[title="IMG_0001.ARW"]').getByLabel('Select', { exact: true }).click();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await page.locator('[data-name="IMG_0001.ARW"]').getByLabel('Select', { exact: true }).click();
   await page.getByRole('button', { name: 'Tags', exact: true }).click();
 
   const search = page.getByLabel('Choose tags…');

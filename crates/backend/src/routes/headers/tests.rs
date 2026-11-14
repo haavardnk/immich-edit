@@ -47,6 +47,16 @@ fn etags_are_quoted_and_matched_against_if_none_match() {
 }
 
 #[test]
+fn if_match_is_read_with_or_without_quotes() {
+    for (value, expected) in [("\"abc\"", "abc"), ("abc", "abc"), ("\"\"", "")] {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::IF_MATCH, HeaderValue::from_static(value));
+        assert_eq!(if_match(&headers).as_deref(), Some(expected), "{value:?}");
+    }
+    assert_eq!(if_match(&HeaderMap::new()), None);
+}
+
+#[test]
 fn zstd_is_accepted_only_when_listed_with_a_positive_quality() {
     for (accept, expected) in [
         ("gzip, deflate, br, zstd", true),

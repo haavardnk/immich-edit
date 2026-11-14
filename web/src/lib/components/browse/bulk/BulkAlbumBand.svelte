@@ -2,18 +2,14 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { Button } from '@immich/ui';
-  import { addAssetsToAlbum, listAlbums, removeAssetsFromAlbum } from '#lib/api/albums.ts';
+  import { listAlbums } from '#lib/api/albums.ts';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
-  import { sourceId } from '#lib/browse/assetKey.ts';
-  import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
   import { countOf } from '#lib/utils/plural.ts';
-
-  let { ids, busy = $bindable() }: { ids: string[]; busy: boolean } = $props();
 
   let albums = $state<AlbumSummary[]>([]);
   let chosen = $state<string[]>([]);
@@ -21,7 +17,7 @@
   const currentAlbum = $derived(
     page.route.id === '/albums/[id]' ? (albums.find((a) => a.id === page.params.id) ?? null) : null
   );
-  const photos = $derived(countOf(ids.length, 'selected photo'));
+  const photos = $derived(countOf(bulkScope.count, 'selected photo'));
 
   onMount(() => {
     listAlbums()
@@ -32,55 +28,11 @@
   });
 
   async function add(): Promise<void> {
-    if (busy || chosen.length === 0) return;
-    if (!(await metadataConsent.gate())) return;
-    busy = true;
-    let failed = 0;
-    for (const albumId of chosen) {
-      try {
-        const results = await addAssetsToAlbum(albumId, ids);
-        failed += results.filter((r) => !r.success && r.error !== 'duplicate').length;
-      } catch {
-        failed += ids.length;
-      }
-    }
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} album additions failed`, 6000);
-      return;
-    }
-    toasts.push(
-      'success',
-      `Added ${photos} to ${chosen.length === 1 ? 'the album' : `${chosen.length} albums`}`,
-      4000
-    );
-    chosen = [];
-  }
-
-  async function remove(album: AlbumSummary): Promise<void> {
-    if (busy) return;
-    if (!(await metadataConsent.gate())) return;
-    busy = true;
-    try {
-      const results = await removeAssetsFromAlbum(album.id, ids);
-      const removed = new Set(results.filter((r) => r.success).map((r) => r.id));
-      browsing.assets
-        .filter((a) => removed.has(sourceId(a.id)))
-        .forEach((a) => browsing.remove(a.id));
-      selection.clear();
-      const failed = results.length - removed.size;
-      if (failed > 0)
-        toasts.push('warn', `${failed} could not be removed from ${album.albumName}`, 6000);
-      else toasts.push('success', `Removed ${removed.size} from ${album.albumName}`, 4000);
-    } catch (e) {
-      toasts.fail('Failed to remove from album', e, 6000);
-    } finally {
-      busy = false;
-    }
+    if (await bulkActions.addToAlbums(chosen)) chosen = [];
   }
 </script>
 
-<div class="flex flex-col gap-2 border-t px-4 py-3">
+<div class="flex flex-col gap-2 border-t px-4 py-3 touch:border-t-0 touch:px-0">
   <span class="px-1 text-xs text-dark/60">Pick albums, then add the {photos} to them</span>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <div class="min-w-0 flex-1 sm:min-w-55">
@@ -104,8 +56,8 @@
       <Button
         size="tiny"
         color="primary"
-        class="h-7 whitespace-nowrap"
-        disabled={busy || chosen.length === 0}
+        class="h-7 whitespace-nowrap touch:h-11"
+        disabled={bulkActions.metaBusy || chosen.length === 0}
         onclick={() => void add()}
       >
         Add to albums
@@ -115,9 +67,9 @@
           size="tiny"
           variant="ghost"
           color="secondary"
-          class="h-7 whitespace-nowrap"
-          disabled={busy}
-          onclick={() => currentAlbum && void remove(currentAlbum)}
+          class="h-7 whitespace-nowrap touch:h-11"
+          disabled={bulkActions.metaBusy}
+          onclick={() => currentAlbum && void bulkActions.removeFromAlbum(currentAlbum)}
         >
           Remove from {currentAlbum.albumName}
         </Button>

@@ -1,3 +1,5 @@
+import { DESKTOP_PANELS } from '#lib/editor/params/catalog.ts';
+import type { DesktopPanelId } from '#lib/editor/params/types.ts';
 import type { Component } from 'svelte';
 import BasicPanel from './Basic.svelte';
 import CurvesPanel from './Curves.svelte';
@@ -10,29 +12,49 @@ import DetailPanel from './Detail.svelte';
 import LensPanel from './Lens.svelte';
 import LensBlurPanel from './LensBlur.svelte';
 import EffectsPanel from './Effects.svelte';
+import CurvePopOutButton from './curves/CurvePopOutButton.svelte';
+import { targetToolOf } from '#lib/editor/targetTools.ts';
+import type { TargetTool } from '#lib/stores/targetAdjust.svelte.ts';
 
 export interface PanelDef {
-  id: string;
+  id: DesktopPanelId;
   title: string;
   component: Component;
+  actions?: Component;
+  target?: TargetTool;
   defaultOpen: boolean;
 }
 
 export const SCOPES_PANEL = 'scopes';
 
-export const developPanels: PanelDef[] = [
-  { id: 'dcp', title: 'Camera Profile', component: DcpPanel, defaultOpen: false },
-  { id: 'basic', title: 'Basic', component: BasicPanel, defaultOpen: true },
-  { id: 'curves', title: 'Curves', component: CurvesPanel, defaultOpen: false },
-  { id: 'hsl', title: 'HSL', component: HslPanel, defaultOpen: false },
-  { id: 'color-grading', title: 'Color Grading', component: ColorGradingPanel, defaultOpen: false },
-  { id: 'bw', title: 'Black & White', component: BwPanel, defaultOpen: false },
-  { id: 'lut', title: 'LUT', component: LutPanel, defaultOpen: false },
-  { id: 'detail', title: 'Detail', component: DetailPanel, defaultOpen: false },
-  { id: 'lens', title: 'Lens Corrections', component: LensPanel, defaultOpen: false },
-  { id: 'lens-blur', title: 'Lens Blur', component: LensBlurPanel, defaultOpen: false },
-  { id: 'effects', title: 'Effects', component: EffectsPanel, defaultOpen: false }
-];
+const COMPONENTS: Record<DesktopPanelId, Component> = {
+  dcp: DcpPanel,
+  basic: BasicPanel,
+  curves: CurvesPanel,
+  hsl: HslPanel,
+  'color-grading': ColorGradingPanel,
+  bw: BwPanel,
+  lut: LutPanel,
+  detail: DetailPanel,
+  lens: LensPanel,
+  'lens-blur': LensBlurPanel,
+  effects: EffectsPanel
+};
+
+const ACTIONS: Partial<Record<DesktopPanelId, Component>> = {
+  curves: CurvePopOutButton
+};
+
+const DEFAULT_OPEN: readonly DesktopPanelId[] = ['basic'];
+
+export const developPanels: PanelDef[] = DESKTOP_PANELS.map(({ id, title }) => ({
+  id,
+  title,
+  component: COMPONENTS[id],
+  actions: ACTIONS[id],
+  target: targetToolOf(id) ?? undefined,
+  defaultOpen: DEFAULT_OPEN.includes(id)
+}));
 
 const defaultOpenPanels = [
   SCOPES_PANEL,

@@ -13,6 +13,7 @@ import {
 import { browseView } from './browseView.svelte';
 import { browsing, type Removal } from './browsing.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';
+import { libraryChanged } from './libraryChange';
 import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
 
@@ -37,6 +38,7 @@ function dropFromView(ids: ReadonlySet<string>): Removal {
   const active = browseView.activeId;
   if (active && ids.has(active)) browseView.setActive(neighbourOf(active, ids));
   selection.forget(ids);
+  libraryChanged();
   return browsing.removeMany(ids);
 }
 
@@ -144,20 +146,21 @@ class TrashStore {
     if (trashed.length === 0 && deleted.length === 0) return false;
     const message = trashedMessage(trashed.length, deleted.length);
     if (trashed.length > 0) this.offerUndo(trashed, removal, message);
-    else toasts.push('success', message, UNDO_TTL_MS);
+    else toasts.push('success', message, { ttlMs: UNDO_TTL_MS });
     return true;
   }
 
   private offerUndo(ids: string[], removal: Removal, message: string): void {
-    toasts.push('success', message, UNDO_TTL_MS, {
-      label: 'Undo',
-      run: () => void this.restore(ids, removal)
+    toasts.push('success', message, {
+      ttlMs: UNDO_TTL_MS,
+      action: { label: 'Undo', run: () => void this.restore(ids, removal) }
     });
   }
 
   private async restore(ids: string[], removal: Removal): Promise<void> {
     const { done, error } = await inChunks(ids, restoreAssets);
     const restored = new Set(done);
+    if (done.length > 0) libraryChanged();
     browsing.reinsert(removal, (asset) => restored.has(sourceId(asset.id)));
     if (error) {
       toasts.fail('Restore from trash', error);

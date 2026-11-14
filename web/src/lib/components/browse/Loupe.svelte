@@ -1,61 +1,55 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
-  import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
-  import { trash } from '#lib/stores/trash.svelte.ts';
-  import { compare, CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
-    rateAsset,
-    toggleFavorite,
-    toggleReject,
-    clearFlags,
-    setLabel
-  } from '#lib/browse/cull.ts';
-  import { labelOf, nextLabelFromKey, type LabelColor } from '#lib/stores/labels.ts';
+    loupeAsset,
+    loupeCullActions,
+    loupeFocusedId,
+    loupeTagActions
+  } from '#lib/browse/loupeActions.ts';
+  import { loupeHost } from '#lib/commands/loupe/loupeHost.ts';
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
-  import { isRejected } from '#lib/browse/reject.ts';
-  import { ownsAsset } from '#lib/browse/ownership.ts';
+  import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
-  import { paneColumns, paneGridStyle } from '#lib/browse/loupeLayout.ts';
-  import {
-    advanceFocused,
-    enterMulti,
-    leaveMulti,
-    openLastLoupe,
-    pickFromStrip,
-    selectViewMode,
-    stepLoupe
-  } from '#lib/browse/loupeNav.ts';
+  import { INFO_SHEET_INSET, paneGridStyle, paneWindow } from '#lib/browse/loupeLayout.ts';
+  import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+  import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
   import { putBounded } from '#lib/utils/boundedRecord.ts';
-  import { cachedFaceData, loadFaceData } from '#lib/stores/zoomTargets.ts';
+  import { loadFaceData } from '#lib/stores/zoomTargets.ts';
+  import { ZoomCycle } from '#lib/stores/zoomCycle.ts';
   import {
-    faceTargets,
-    nextTargetIndex,
-    sharpestPoint,
-    type ZoomTarget
-  } from '#lib/utils/zoomTarget.ts';
-  import { editorHref } from '#lib/editor/navigation.ts';
-  import type { TagRef } from '#lib/types/asset.ts';
-  import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
+    FIT_VIEW,
+    isZoomed,
+    panByStep,
+    withZoom,
+    type View,
+    type ViewportMetrics
+  } from '#lib/utils/imageViewport.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { zoomIn } from '#lib/browse/loupeZoom.ts';
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
   import LoupePaneGrid from '#lib/components/browse/LoupePaneGrid.svelte';
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
-  import ExifRows from '#lib/components/ExifRows.svelte';
-  import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
-  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+  import RatingHud from '#lib/components/browse/RatingHud.svelte';
+  import LoupeInfo from '#lib/components/browse/info/LoupeInfo.svelte';
+  import CompactLoupeBar from '#lib/components/browse/CompactLoupeBar.svelte';
+  import LoupeCullBar from '#lib/components/browse/LoupeCullBar.svelte';
+  import LoupeEditPill from '#lib/components/browse/LoupeEditPill.svelte';
+  import LoupeFilmstrip from '#lib/components/browse/LoupeFilmstrip.svelte';
+  import LoupePaneControls from '#lib/components/browse/LoupePaneControls.svelte';
+  import LoupePaneRail from '#lib/components/browse/LoupePaneRail.svelte';
+  import LoupeStepButtons from '#lib/components/browse/LoupeStepButtons.svelte';
+  import LoupeViewTools from '#lib/components/browse/LoupeViewTools.svelte';
+  import WideLoupeBar from '#lib/components/browse/WideLoupeBar.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { matchKeybind } from '#lib/shortcuts/match.ts';
-  import { hasTextSelection, isRadioGroupTarget, yieldsToControl } from '#lib/shortcuts/targets.ts';
-  import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
-  import { clampZoom, writeZoomLevel } from '#lib/utils/zoomLevel.ts';
-  import { panStep } from '#lib/utils/imageViewport.ts';
-  import { IconButton, isModalOpen } from '@immich/ui';
-  import ContextMenuItem from '#lib/components/ContextMenuItem.svelte';
-  import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
+  import { paneDrop, panePromote } from '#lib/commands/loupe/panes.ts';
+  import { IconButton } from '@immich/ui';
+  import { mdiFullscreenExit } from '@mdi/js';
 
   const MAX_EDGE = 2560;
 
@@ -63,46 +57,70 @@
 
   const currentId = $derived(browseView.loupeId);
   const multi = $derived(compare.mode !== 'single');
-  const contexts = $derived(
-    compare.mode === 'single' ? CONTEXT_STACKS.loupe : CONTEXT_STACKS[compare.mode]
+  const shown = $derived(paneWindow(compare.members.length, compare.focusIndex, compare.paneLimit));
+  const panes = $derived(
+    multi ? compare.members.slice(shown.start, shown.end) : currentId ? [currentId] : []
   );
-  const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
-  const focusedId = $derived(multi ? compare.focusedId : currentId);
-  const asset = $derived(
-    focusedId ? (browsing.assets.find((a) => a.id === focusedId) ?? null) : null
-  );
-  const rating = $derived(asset?.exifInfo?.rating ?? 0);
-  const rejected = $derived(asset ? isRejected(asset) : false);
-  const label = $derived(asset ? labelOf(asset) : null);
+  const focusedId = $derived(loupeFocusedId());
+  const asset = $derived(loupeAsset());
   const copyBadge = $derived(
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
-  const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
-  const cols = $derived(paneColumns(panes.length));
-  const gridStyle = $derived(paneGridStyle(multi, panes.length));
-  const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
-  const canDrop = $derived(compare.members.length > (compare.mode === 'compare' ? 2 : 1));
-  const position = $derived(
-    multi ? compare.focusIndex + 1 : currentId ? browsing.positionOf(currentId) : 0
+  const paneView = $derived(focusedId ? compare.viewOf(focusedId) : FIT_VIEW);
+  const touch = $derived(layout.mode === 'touch');
+  const stacked = $derived(layout.compact && !layout.landscape);
+  const underBar = $derived(layout.compact && !ui.fullscreen);
+  const paneArea = $derived(
+    `${multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'} ${underBar ? 'pt-[calc(3.5rem+var(--safe-top))]' : ''}`
   );
-  const count = $derived(multi ? panes.length : browsing.count);
+  const gridStyle = $derived(
+    paneGridStyle(multi, panes.length, stacked) +
+      (browseView.loupeInfoSheet && !ui.fullscreen ? INFO_SHEET_INSET : '')
+  );
+  const moreActive = $derived(ui.clipWarn || (touch && browseView.loupeAutoAdvance));
 
-  let fitZooms = $state<Record<string, number>>({});
+  let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
   let paneImageOrder = $state<string[]>([]);
-  let targetIndex = $state<number | null>(null);
   const currentTags = $derived(loupeTags.tagsOf(focusedId));
-  const focusedFitZoom = $derived(focusedId ? (fitZooms[focusedId] ?? 100) : 100);
+  const focusedFitZoom = $derived((focusedId ? paneMetrics[focusedId]?.fitZoom : null) ?? 100);
   const zoom = $derived(paneView.zoom ?? focusedFitZoom);
-  const zoomed = $derived(paneView.zoom !== null && paneView.zoom > focusedFitZoom);
+  const zoomCycle = new ZoomCycle({
+    shown: () => focusedId,
+    transform: (data) => data.savedView,
+    image: (id) => paneImages[id] ?? null,
+    metrics: (id) => paneMetrics[id] ?? null,
+    zoomLevel: () => ui.zoomLevel,
+    view: (id) => compare.viewOf(id),
+    apply: (id, view) => compare.applyView(id, view)
+  });
+
+  const preloader = new ImagePreloader();
+  const stepShown: StepFn = (id, direction) =>
+    direction > 0 ? browsing.nextOf(id) : browsing.prevOf(id);
 
   onDestroy(() => {
     ui.fullscreen = false;
+    preloader.keep([]);
+    ratingHud.clear();
   });
+
+  onMount(() =>
+    loupeHost.attach({
+      cycleZoom: () => zoomCycle.next(),
+      panBy: (dx, dy) => {
+        const id = focusedId;
+        const metrics = id ? paneMetrics[id] : null;
+        if (!id || !metrics) return;
+        const view = compare.viewOf(id);
+        if (isZoomed(metrics, view)) compare.applyView(id, panByStep(metrics, view, [dx, dy]));
+      }
+    })
+  );
 
   $effect(() => {
     const id = focusedId;
-    targetIndex = null;
+    zoomCycle.reset();
     if (id) void loadFaceData(id);
   });
 
@@ -111,26 +129,15 @@
     if (id) void loupeTags.ensure(id);
   });
 
-  function addTag(tag: TagRef): Promise<void> {
-    return focusedId ? loupeTags.add(focusedId, tag) : Promise.resolve();
-  }
-
-  function removeTag(tagId: string): Promise<void> {
-    return focusedId ? loupeTags.remove(focusedId, tagId) : Promise.resolve();
-  }
-
-  function createAndAddTag(value: string): Promise<TagRef | null> {
-    return focusedId ? loupeTags.createAndAdd(focusedId, value) : Promise.resolve(null);
-  }
+  $effect(() => {
+    const id = focusedId;
+    untrack(() => ratingHud.follow(id));
+  });
 
   $effect(() => {
-    if (multi || !currentId) return;
-    for (const neighbor of [browsing.nextOf(currentId), browsing.prevOf(currentId)]) {
-      if (neighbor) {
-        const img = new Image();
-        img.src = persistedPreviewUrl(neighbor.id, paneMaxEdge, ui.clipWarn);
-      }
-    }
+    const id = multi ? null : currentId;
+    const render = (neighbour: string) => persistedPreviewUrl(neighbour, paneMaxEdge, ui.clipWarn);
+    preloader.keep(id ? preloadUrls(browsing.find(id) ?? { id }, stepShown, render) : []);
   });
 
   $effect(() => {
@@ -138,72 +145,30 @@
     if (id) untrack(() => browsing.prefetchNear(id));
   });
 
-  let paneGrid = $state<ReturnType<typeof LoupePaneGrid>>();
+  let scrim = $state<HTMLDivElement | null>(null);
 
-  function dropFocused(): void {
-    if (!canDrop) return;
-    compare.drop(compare.focusIndex);
-  }
-
-  function toggleZoom(): void {
-    const id = focusedId;
-    if (!id) return;
-    if (cachedFaceData(id) === null) {
-      void loadFaceData(id).then(() => stepZoomTarget(id));
-      return;
-    }
-    stepZoomTarget(id);
-  }
-
-  function zoomTargetsFor(id: string): ZoomTarget[] {
-    const data = cachedFaceData(id);
-    const faces = data?.savedView ? faceTargets(data.faces, data.savedView) : [];
-    if (faces.length > 0) return faces;
-    const image = paneImages[id];
-    return [(image ? sharpestPoint(image) : null) ?? { u: 0.5, v: 0.5 }];
-  }
-
-  function stepZoomTarget(id: string): void {
-    if (id !== focusedId) return;
-    const targets = zoomTargetsFor(id);
-    const next = nextTargetIndex(zoomed ? targetIndex : null, targets.length);
-    targetIndex = next;
-    const target = next === null ? null : targets[next];
-    if (!target) {
-      compare.applyView(id, CENTERED);
-      return;
-    }
-    compare.applyView(id, { zoom: ui.zoomLevel, cx: target.u, cy: target.v });
-  }
+  const enter: Attachment<HTMLElement> = (root) => untrack(() => zoomIn(currentId, root));
 
   function setZoom(value: number): void {
     const id = focusedId;
     if (!id) return;
-    const nextZoom = clampZoom(value, focusedFitZoom);
-    const view = compare.viewOf(id);
-    compare.applyView(
-      id,
-      nextZoom > focusedFitZoom ? { ...view, zoom: nextZoom } : { ...CENTERED, zoom: nextZoom }
-    );
-    if (nextZoom <= focusedFitZoom) return;
-    ui.zoomLevel = nextZoom;
-    writeZoomLevel(nextZoom);
+    const next = withZoom(compare.viewOf(id), value, focusedFitZoom);
+    compare.applyView(id, next);
+    ui.rememberZoomLevel(next.zoom, focusedFitZoom);
   }
 
   function fitZoom(): void {
     const id = focusedId;
     if (!id) return;
-    compare.applyView(id, CENTERED);
+    compare.applyView(id, FIT_VIEW);
   }
 
-  function applyPaneView(id: string, view: PaneView, solo?: boolean): void {
-    targetIndex = null;
+  function applyPaneView(id: string, view: View, solo?: boolean): void {
     compare.applyView(id, view, solo);
   }
 
-  function setFitZoom(id: string, value: number): void {
-    if (fitZooms[id] === value) return;
-    fitZooms = { ...fitZooms, [id]: value };
+  function setPaneMetrics(id: string, metrics: ViewportMetrics): void {
+    paneMetrics = { ...paneMetrics, [id]: metrics };
   }
 
   function setPaneImage(id: string, element: HTMLImageElement): void {
@@ -212,385 +177,136 @@
     paneImages = next.record;
     paneImageOrder = next.order;
   }
-
-  function autoAdvance(id: string): void {
-    if (!browseView.loupeAutoAdvance) return;
-    if (!multi) {
-      stepLoupe(1);
-      return;
-    }
-    if (compare.focusedId === id) advanceFocused(1);
-  }
-
-  function rate(value: number | null): void {
-    const id = focusedId;
-    if (!id) return;
-    void rateAsset(id, value).then((ok) => {
-      if (ok) autoAdvance(id);
-    });
-  }
-
-  function favorite(): void {
-    const id = focusedId;
-    if (!id) return;
-    void toggleFavorite(id).then((ok) => {
-      if (ok) autoAdvance(id);
-    });
-  }
-
-  function reject(): void {
-    const id = focusedId;
-    if (!id) return;
-    void toggleReject(id).then((ok) => {
-      if (!ok) return;
-      const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) loupeTags.set(id, updated.tags);
-      autoAdvance(id);
-    });
-  }
-
-  function moveToTrash(): void {
-    if (multi || !asset) return;
-    void trash.request([asset]);
-  }
-
-  function openEditor(id: string | null = focusedId): void {
-    if (!id) return;
-    browseView.leaveLoupeForEditor(id);
-    void goto(editorHref(id, `${page.url.pathname}${page.url.search}`));
-  }
-
-  function unflag(): void {
-    const id = focusedId;
-    if (!id) return;
-    void clearFlags(id).then((ok) => {
-      if (!ok) return;
-      const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) loupeTags.set(id, updated.tags);
-    });
-  }
-
-  function applyLabel(color: LabelColor | null): void {
-    const id = focusedId;
-    if (!id) return;
-    void setLabel(id, color).then((ok) => {
-      if (ok) autoAdvance(id);
-    });
-  }
-
-  function onKeydown(e: KeyboardEvent): void {
-    if (!currentId || isModalOpen()) return;
-    if (e.key === 'Escape' && ui.fullscreen) {
-      e.preventDefault();
-      ui.toggleFullscreen();
-      return;
-    }
-    const el = document.activeElement;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
-      return;
-    }
-    if (isRadioGroupTarget(e) || yieldsToControl(e)) return;
-
-    const bind = matchKeybind(e, contexts);
-    if (!bind) return;
-
-    switch (bind) {
-      case 'help':
-        e.preventDefault();
-        return ui.toggleKeybindsHelp();
-      case 'loupeClose':
-        e.preventDefault();
-        return browseView.closeLoupe();
-      case 'compareExit':
-      case 'surveyExit':
-        e.preventDefault();
-        return leaveMulti();
-      case 'backToGrid':
-        e.preventDefault();
-        if (multi) leaveMulti();
-        return browseView.closeLoupe();
-      case 'loupeNav':
-        e.preventDefault();
-        return stepLoupe(e.key === 'ArrowRight' ? 1 : -1);
-      case 'zoomPan': {
-        e.preventDefault();
-        const step = panStep(e.key);
-        if (step && focusedId) paneGrid?.panBy(focusedId, step[0], step[1]);
-        return;
-      }
-      case 'loupeEdge':
-        e.preventDefault();
-        if (e.key === 'Home') {
-          const first = browsing.visible[0];
-          if (first) browseView.openLoupe(first.id);
-          return;
-        }
-        void openLastLoupe();
-        return;
-      case 'compareFocus':
-        e.preventDefault();
-        return compare.focusDelta(e.key === 'ArrowRight' ? 1 : -1);
-      case 'surveyFocus':
-        e.preventDefault();
-        if (e.key === 'ArrowRight') return compare.focusDelta(1);
-        if (e.key === 'ArrowLeft') return compare.focusDelta(-1);
-        return compare.focusDelta(e.key === 'ArrowDown' ? cols : -cols);
-      case 'paneFocusCycle':
-        e.preventDefault();
-        return compare.focusDelta(e.shiftKey ? -1 : 1);
-      case 'paneSwap':
-        e.preventDefault();
-        return advanceFocused(e.key === 'ArrowRight' ? 1 : -1);
-      case 'paneDrop':
-        e.preventDefault();
-        return dropFocused();
-      case 'paneSync':
-        e.preventDefault();
-        compare.syncView = !compare.syncView;
-        return;
-      case 'panePromote':
-        e.preventDefault();
-        return compare.promote(compare.focusIndex);
-      case 'surveyKeep':
-        e.preventDefault();
-        return compare.keepOnly(compare.focusIndex);
-      case 'enterCompare':
-        e.preventDefault();
-        return enterMulti('compare');
-      case 'enterSurvey':
-        e.preventDefault();
-        return enterMulti('survey');
-      case 'openEditor':
-      case 'paneOpenEditor':
-        e.preventDefault();
-        return openEditor();
-      case 'favorite':
-        e.preventDefault();
-        return favorite();
-      case 'reject':
-        e.preventDefault();
-        return reject();
-      case 'unflag':
-        e.preventDefault();
-        return unflag();
-      case 'trash':
-        e.preventDefault();
-        return moveToTrash();
-      case 'label': {
-        const next = nextLabelFromKey(e.key, label);
-        if (next === undefined) return;
-        e.preventDefault();
-        return applyLabel(next);
-      }
-      case 'zoomToggle':
-        e.preventDefault();
-        return toggleZoom();
-      case 'toggleInfo':
-        e.preventDefault();
-        browseView.toggleLoupeInfo();
-        return;
-      case 'toggleTags':
-        e.preventDefault();
-        browseView.loupeTagsOpen = !browseView.loupeTagsOpen;
-        return;
-      case 'clipWarn':
-        e.preventDefault();
-        ui.toggleClipWarn();
-        return;
-      case 'fullscreen':
-        e.preventDefault();
-        ui.toggleFullscreen();
-        return;
-      case 'filmstrip':
-        e.preventDefault();
-        ui.toggleLoupeFilmstrip();
-        return;
-      case 'copyEdits':
-        if (!focusedId || hasTextSelection()) return;
-        e.preventDefault();
-        void copyEditsFrom(focusedId);
-        return;
-      case 'pasteEdits':
-        if (!focusedId || hasTextSelection()) return;
-        e.preventDefault();
-        void pasteEditsTo([focusedId]);
-        return;
-      case 'rate': {
-        const next = nextRatingFromKey(e.key, rating);
-        if (next === undefined) return;
-        e.preventDefault();
-        return rate(next);
-      }
-      case 'rateAdvance': {
-        const next = ratingFromCode(e.code);
-        const id = focusedId;
-        if (next === undefined || !id) return;
-        e.preventDefault();
-        void rateAsset(id, next).then((ok) => {
-          if (!ok) return;
-          if (!multi) stepLoupe(1);
-          else if (compare.focusedId === id) advanceFocused(1);
-        });
-        return;
-      }
-    }
-  }
-
-  const hasPrev = $derived(!multi && currentId ? browsing.prevOf(currentId) !== null : false);
-  const atLoadedEnd = $derived(currentId ? browsing.nextOf(currentId) === null : false);
-  const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
 </script>
 
-{#snippet stripMenu(id: string)}
-  {@const paneAction = multi && compare.members.includes(id) ? 'Remove from' : 'Add to'}
-  {@const paneLabel = `${paneAction} ${compare.mode === 'survey' ? 'survey' : 'compare'}`}
-  <ContextMenuItem title={hint('Open in editor', 'openEditor')} onSelect={() => openEditor(id)}>
-    Open in editor
-  </ContextMenuItem>
-  <ContextMenuItem disabled={!multi && id === currentId} onSelect={() => pickFromStrip(id, true)}>
-    {paneLabel}
-  </ContextMenuItem>
+{#snippet viewTools()}
+  {#if multi}
+    <LoupePaneControls variant="pill" />
+  {/if}
+  <LoupeViewTools
+    {zoom}
+    fitZoom={focusedFitZoom}
+    fitMode={paneView.zoom === null}
+    onZoom={setZoom}
+    onFit={fitZoom}
+  />
 {/snippet}
 
-<svelte:window onkeydown={onKeydown} />
+{#snippet editPill()}
+  <LoupeEditPill />
+{/snippet}
+
+{#snippet cullBar(density: 'stacked' | 'row', trailing: Snippet)}
+  {#if asset}
+    <LoupeCullBar
+      cull={cullState(asset)}
+      actions={loupeCullActions}
+      tags={currentTags}
+      tagActions={loupeTagActions}
+      fileName={asset.originalFileName}
+      {density}
+      {trailing}
+    />
+  {/if}
+{/snippet}
 
 {#if asset}
-  <div class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
-    {#if !ui.fullscreen}
-      <LoupeToolbar
-        filename={asset.originalFileName}
-        {copyBadge}
-        {multi}
-        {moreActive}
-        onSelectViewMode={selectViewMode}
-        onOpenEditor={() => openEditor()}
-        onTrash={moveToTrash}
-      />
+  <div
+    class="fixed inset-0 z-40 flex min-w-0 flex-col {layout.compact
+      ? 'pr-(--safe-right) pl-(--safe-left)'
+      : 'safe-frame'} {touch ? '[--color-editor-chrome:var(--color-light)]' : ''}"
+    {@attach enter}
+  >
+    <div
+      bind:this={scrim}
+      data-loupe-scrim
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 -z-10 bg-image-canvas"
+    ></div>
+    {#if !ui.fullscreen && !layout.compact}
+      {#if touch}
+        <WideLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} />
+      {:else}
+        <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
+      {/if}
     {/if}
 
-    <div
-      class="flex-1 min-h-0 relative {multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'}"
-      style={gridStyle}
-    >
-      <LoupePaneGrid
-        bind:this={paneGrid}
-        {panes}
-        {focusedId}
-        {multi}
-        {canDrop}
-        onView={applyPaneView}
-        onSize={(size) => (paneMaxEdge = size)}
-        onFitZoom={setFitZoom}
-        onImage={setPaneImage}
-      />
+    <div class="flex min-h-0 flex-1">
+      <div class="flex min-w-0 flex-1 flex-col">
+        <div class="relative min-h-0 flex-1 {paneArea}" style={gridStyle}>
+          <LoupePaneGrid
+            {panes}
+            {focusedId}
+            first={multi ? shown.start : 0}
+            {multi}
+            paneActions={touch ? [panePromote] : [panePromote, paneDrop]}
+            pills={touch}
+            scrim={() => scrim}
+            onView={applyPaneView}
+            onSize={(size) => (paneMaxEdge = size)}
+            onMetrics={setPaneMetrics}
+            onImage={setPaneImage}
+          />
 
-      {#if hasPrev && !ui.fullscreen}
-        <IconButton
-          type="button"
-          size="medium"
-          variant="ghost"
-          color="secondary"
-          shape="round"
-          class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-          icon={mdiChevronLeft}
-          title={hint('Previous', 'loupeNav')}
-          aria-label="Previous"
-          onclick={() => stepLoupe(-1)}
-        />
-      {/if}
-      {#if hasNext && !ui.fullscreen}
-        <IconButton
-          type="button"
-          size="medium"
-          variant="ghost"
-          color="secondary"
-          shape="round"
-          class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/70"
-          icon={mdiChevronRight}
-          title={hint('Next', 'loupeNav')}
-          aria-label="Next"
-          loading={atLoadedEnd && browsing.loadingMore}
-          onclick={() => stepLoupe(1)}
-        />
-      {/if}
+          <RatingHud />
 
-      {#if browseView.loupeInfoOpen && !ui.fullscreen}
-        <section
-          aria-label="Photo info"
-          class="absolute top-2 right-2 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/95 dark:border-gray-700 dark:bg-gray-900/95 p-3 shadow-xl"
-        >
-          <div class="flex items-start gap-2">
-            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-light-950/90">
-              {asset.originalFileName}
-            </span>
+          {#if !ui.fullscreen}
+            {#if layout.compact}
+              <CompactLoupeBar filename={asset.originalFileName} {copyBadge} {moreActive} {multi} />
+            {/if}
+            <LoupeStepButtons {currentId} {multi} />
+          {:else}
             <IconButton
-              size="tiny"
-              variant="ghost"
-              color="secondary"
+              size="small"
+              variant="filled"
+              color="primary"
               shape="round"
-              class="-mt-2 -me-2"
-              icon={mdiClose}
-              title={hint('Close', 'toggleInfo')}
-              aria-label="Close info"
-              onclick={() => browseView.toggleLoupeInfo()}
+              class="fixed top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-40 shadow-lg"
+              icon={mdiFullscreenExit}
+              title={hint('Exit fullscreen', 'fullscreen')}
+              aria-label={hint('Exit fullscreen', 'fullscreen')}
+              onclick={ui.toggleFullscreen}
             />
-          </div>
-          <ExifRows {asset} />
-        </section>
-      {/if}
+          {/if}
+        </div>
 
-      {#if ui.fullscreen}
-        <IconButton
-          size="small"
-          variant="filled"
-          color="primary"
-          shape="round"
-          class="fixed top-3 right-3 z-40 shadow-lg"
-          icon={mdiFullscreenExit}
-          title={hint('Exit fullscreen', 'fullscreen')}
-          aria-label={hint('Exit fullscreen', 'fullscreen')}
-          onclick={ui.toggleFullscreen}
-        />
+        {#if !ui.fullscreen && !browseView.loupeInfoSheet}
+          <div class="flex shrink-0 flex-col">
+            {#if !touch}
+              <LoupeActionRail
+                cull={cullState(asset)}
+                tags={currentTags}
+                fileName={asset.originalFileName}
+                {multi}
+                {zoom}
+                fitZoom={focusedFitZoom}
+                fitMode={paneView.zoom === null}
+                actions={loupeCullActions}
+                onAddTag={loupeTagActions.add}
+                onRemoveTag={loupeTagActions.remove}
+                onCreateTag={loupeTagActions.create}
+                onZoom={setZoom}
+                onFit={fitZoom}
+              />
+              <LoupeFilmstrip {focusedId} {currentId} {multi} />
+            {:else if layout.compact}
+              {#if multi}
+                <LoupePaneRail fileName={asset.originalFileName} />
+              {/if}
+              {#if browseView.loupeFilmstripShown}
+                <LoupeFilmstrip {focusedId} {currentId} {multi} />
+              {/if}
+              {@render cullBar('stacked', editPill)}
+            {:else}
+              {@render cullBar('row', viewTools)}
+              <LoupeFilmstrip {focusedId} {currentId} {multi} />
+            {/if}
+          </div>
+        {/if}
+      </div>
+      {#if !ui.fullscreen}
+        <LoupeInfo {asset} />
       {/if}
     </div>
-
-    {#if !ui.fullscreen}
-      <LoupeActionRail
-        {rating}
-        isFavorite={asset.isFavorite}
-        {rejected}
-        {label}
-        tags={currentTags}
-        owned={ownsAsset(asset)}
-        {multi}
-        {position}
-        {count}
-        {zoom}
-        fitZoom={focusedFitZoom}
-        fitMode={paneView.zoom === null}
-        onRate={rate}
-        onFavorite={favorite}
-        onReject={reject}
-        onLabel={applyLabel}
-        onAddTag={addTag}
-        onRemoveTag={removeTag}
-        onCreateTag={createAndAddTag}
-        onZoom={setZoom}
-        onFit={fitZoom}
-        {canDrop}
-        onDrop={dropFocused}
-      />
-
-      <Filmstrip
-        currentId={focusedId}
-        highlightIds={compare.members}
-        onSelect={pickFromStrip}
-        resizable
-        size={72}
-        showBadges
-        collapsed={ui.loupeFilmstripCollapsed}
-        menu={stripMenu}
-      />
-    {/if}
   </div>
 {/if}

@@ -1,3 +1,15 @@
+import {
+  BRUSH_FLOW,
+  BRUSH_HARDNESS,
+  BRUSH_SIZE,
+  RETOUCH_HARDNESS,
+  RETOUCH_OPACITY,
+  RETOUCH_SIZE
+} from '#lib/editor/params/brush.ts';
+import { GUIDE_TURNS } from '#lib/editor/cropGuides.ts';
+import type { ToolRange } from '#lib/editor/params/types.ts';
+import type { RetouchMode } from '#lib/types/edits.ts';
+import { withZoom, type View, type ViewChange, type ZoomedView } from '#lib/utils/imageViewport.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import {
   clampZoom,
@@ -6,18 +18,19 @@ import {
   readZoomLevel,
   writeZoomLevel
 } from '#lib/utils/zoomLevel.ts';
-import type { RetouchMode } from '#lib/types/edits.ts';
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
-export type CropGrid = 'thirds' | 'golden' | 'diagonal' | 'grid' | 'off';
+export type CropGrid = 'thirds' | 'golden' | 'spiral' | 'diagonal' | 'triangle' | 'grid' | 'off';
 
 export type GeometryTool = 'straighten' | 'upright' | 'corners';
 
 export const CROP_GRIDS: { id: CropGrid; label: string }[] = [
   { id: 'thirds', label: 'Rule of thirds' },
   { id: 'golden', label: 'Golden ratio' },
+  { id: 'spiral', label: 'Golden spiral' },
   { id: 'diagonal', label: 'Diagonals' },
+  { id: 'triangle', label: 'Golden triangle' },
   { id: 'grid', label: 'Grid' },
   { id: 'off', label: 'No guide' }
 ];
@@ -43,22 +56,31 @@ export interface RetouchTool {
   opacity: number;
 }
 
-const DEFAULT_BRUSH_TOOL: BrushTool = { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' };
-const DEFAULT_RETOUCH_TOOL: RetouchTool = { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 };
+const DEFAULT_BRUSH_TOOL: BrushTool = {
+  size: BRUSH_SIZE.defaultValue,
+  hardness: BRUSH_HARDNESS.defaultValue,
+  flow: BRUSH_FLOW.defaultValue,
+  mode: 'paint'
+};
+const DEFAULT_RETOUCH_TOOL: RetouchTool = {
+  mode: 'heal',
+  size: RETOUCH_SIZE.defaultValue,
+  hardness: RETOUCH_HARDNESS.defaultValue,
+  opacity: RETOUCH_OPACITY.defaultValue
+};
 
-function clampStored(value: unknown, min: number, max: number, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+function clampStored(value: unknown, { min, max, defaultValue }: ToolRange): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return defaultValue;
   return Math.min(max, Math.max(min, value));
 }
 
 function restoreBrushTool(
   stored: Partial<Record<keyof BrushTool, unknown>> | undefined
 ): BrushTool {
-  const d = DEFAULT_BRUSH_TOOL;
   return {
-    size: clampStored(stored?.size, 0.005, 0.5, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    flow: clampStored(stored?.flow, 0.01, 1, d.flow),
+    size: clampStored(stored?.size, BRUSH_SIZE),
+    hardness: clampStored(stored?.hardness, BRUSH_HARDNESS),
+    flow: clampStored(stored?.flow, BRUSH_FLOW),
     mode: stored?.mode === 'erase' ? 'erase' : 'paint'
   };
 }
@@ -66,12 +88,11 @@ function restoreBrushTool(
 function restoreRetouchTool(
   stored: Partial<Record<keyof RetouchTool, unknown>> | undefined
 ): RetouchTool {
-  const d = DEFAULT_RETOUCH_TOOL;
   return {
     mode: stored?.mode === 'clone' ? 'clone' : 'heal',
-    size: clampStored(stored?.size, 0.005, 0.3, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    opacity: clampStored(stored?.opacity, 0.05, 1, d.opacity)
+    size: clampStored(stored?.size, RETOUCH_SIZE),
+    hardness: clampStored(stored?.hardness, RETOUCH_HARDNESS),
+    opacity: clampStored(stored?.opacity, RETOUCH_OPACITY)
   };
 }
 
@@ -81,11 +102,13 @@ type PersistedEditorUi = {
   rightCollapsed?: boolean;
   editorFilmstripCollapsed?: boolean;
   loupeFilmstripCollapsed?: boolean;
+  loupeCompactFilmstrip?: boolean;
   developOpenPanels?: string[];
   brushTool?: BrushTool;
   retouchTool?: RetouchTool;
   greyCanvas?: boolean;
   cropGrid?: CropGrid;
+  cropGuideTurn?: number;
 };
 
 export type MetaPopover = 'exif' | 'tags' | 'zoom';
@@ -97,6 +120,7 @@ class UiStore {
   editorFilmstripCollapsed = $state(false);
   presetStrip = $state(false);
   loupeFilmstripCollapsed = $state(false);
+  loupeCompactFilmstrip = $state(false);
   developOpenPanels = $state<string[] | null>(null);
   developModifiedOnly = $state(false);
   searchQuery = $state('');
@@ -105,13 +129,14 @@ class UiStore {
   fitZoom = $state(100);
   fitMode = $state(true);
   zoomLevel = $state(readZoomLevel());
-  panX = $state(0);
-  panY = $state(0);
+  cx = $state(0.5);
+  cy = $state(0.5);
   keybindsHelpOpen = $state(false);
   metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
   geometryTool = $state<GeometryTool | null>(null);
   cropGrid = $state<CropGrid>('thirds');
+  cropGuideTurn = $state(0);
   clipWarn = $state(false);
   greyCanvas = $state(false);
   brushTool = $state<BrushTool>(DEFAULT_BRUSH_TOOL);
@@ -142,11 +167,17 @@ class UiStore {
     if (typeof stored?.loupeFilmstripCollapsed === 'boolean') {
       this.loupeFilmstripCollapsed = stored.loupeFilmstripCollapsed;
     }
+    this.loupeCompactFilmstrip = stored?.loupeCompactFilmstrip === true;
     if (Array.isArray(stored?.developOpenPanels)) {
       this.developOpenPanels = stored.developOpenPanels.filter((id) => typeof id === 'string');
     }
     this.greyCanvas = stored?.greyCanvas === true;
     this.cropGrid = CROP_GRIDS.find((g) => g.id === stored?.cropGrid)?.id ?? 'thirds';
+    const turn = stored?.cropGuideTurn;
+    this.cropGuideTurn =
+      typeof turn === 'number' && Number.isInteger(turn)
+        ? ((turn % GUIDE_TURNS) + GUIDE_TURNS) % GUIDE_TURNS
+        : 0;
   }
 
   setDevelopPanels = (ids: string[]): void => {
@@ -161,11 +192,13 @@ class UiStore {
       rightCollapsed: this.rightCollapsed,
       editorFilmstripCollapsed: this.editorFilmstripCollapsed,
       loupeFilmstripCollapsed: this.loupeFilmstripCollapsed,
+      loupeCompactFilmstrip: this.loupeCompactFilmstrip,
       developOpenPanels: this.developOpenPanels ?? undefined,
       brushTool: this.brushTool,
       retouchTool: this.retouchTool,
       greyCanvas: this.greyCanvas,
-      cropGrid: this.cropGrid
+      cropGrid: this.cropGrid,
+      cropGuideTurn: this.cropGuideTurn
     } satisfies PersistedEditorUi);
   };
 
@@ -210,6 +243,11 @@ class UiStore {
     this.persistEditorUi();
   };
 
+  turnCropGuide = (): void => {
+    this.cropGuideTurn = (this.cropGuideTurn + 1) % GUIDE_TURNS;
+    this.persistEditorUi();
+  };
+
   openTab = (tab: EditorTab): void => {
     this.fullscreen = false;
     this.rightCollapsed = false;
@@ -247,8 +285,9 @@ class UiStore {
     this.persistEditorUi();
   };
 
-  toggleLoupeFilmstrip = (): void => {
-    this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
+  toggleLoupeFilmstrip = (compact = false): void => {
+    if (compact) this.loupeCompactFilmstrip = !this.loupeCompactFilmstrip;
+    else this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
     this.persistEditorUi();
   };
 
@@ -273,8 +312,7 @@ class UiStore {
   zoomFit = (): void => {
     this.fitMode = true;
     this.zoom = this.fitZoom;
-    this.panX = 0;
-    this.panY = 0;
+    this.centre();
   };
 
   toggleKeybindsHelp = (): void => {
@@ -297,14 +335,12 @@ class UiStore {
     this.metaPopover = null;
   };
 
-  closeMetadataPopovers = (): boolean => {
-    if (!this.metaPopover) return false;
-    this.metaPopover = null;
-    return true;
-  };
-
   get zoomed(): boolean {
     return this.zoom > this.fitZoom;
+  }
+
+  get view(): View {
+    return { zoom: this.fitMode ? null : this.zoom, cx: this.cx, cy: this.cy };
   }
 
   setFitZoom = (value: number): void => {
@@ -319,27 +355,44 @@ class UiStore {
   };
 
   setZoom = (value: number): void => {
-    this.fitMode = false;
-    this.zoom = clampZoom(value, this.fitZoom);
-    if (!this.zoomed) {
-      this.panX = 0;
-      this.panY = 0;
-    }
+    this.show(withZoom(this.view, value, this.fitZoom));
   };
 
   userZoom = (value: number): void => {
     this.setZoom(value);
-    if (!this.zoomed) return;
-    this.zoomLevel = this.zoom;
-    writeZoomLevel(this.zoom);
+    this.rememberZoomLevel(this.zoom);
   };
 
-  setView = (zoom: number, panX: number, panY: number): void => {
-    this.setZoom(zoom);
-    if (!this.zoomed) return;
-    this.panX = panX;
-    this.panY = panY;
+  setView = (view: View): void => {
+    if (view.zoom === null) {
+      this.zoomFit();
+      return;
+    }
+    this.show(withZoom(view, view.zoom, this.fitZoom));
   };
+
+  applyView = (view: View, change: ViewChange): void => {
+    this.setView(view);
+    if (change === 'zoom') this.rememberZoomLevel(this.zoom);
+  };
+
+  rememberZoomLevel = (zoom: number, fitZoom: number = this.fitZoom): void => {
+    if (zoom <= fitZoom) return;
+    this.zoomLevel = zoom;
+    writeZoomLevel(zoom);
+  };
+
+  private show(view: ZoomedView): void {
+    this.fitMode = false;
+    this.zoom = view.zoom;
+    this.cx = view.cx;
+    this.cy = view.cy;
+  }
+
+  private centre(): void {
+    this.cx = 0.5;
+    this.cy = 0.5;
+  }
 
   zoomNative = (): void => {
     this.userZoom(100);

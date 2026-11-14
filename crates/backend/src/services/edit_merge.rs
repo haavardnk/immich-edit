@@ -1,173 +1,216 @@
-use raw_pipeline::edits::Edits;
+use raw_pipeline::edits::{
+    BasicEdits, ColorEdits, DetailEdits, Edits, EffectsEdits, LensBlurEdits,
+};
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+pub mod legacy;
+#[cfg(test)]
+mod tests;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
 pub struct MergeSections {
-    #[serde(default)]
-    pub basic: bool,
-    #[serde(default)]
+    pub dcp: bool,
+    pub white_balance: bool,
     pub tone: bool,
-    #[serde(default)]
-    pub color: bool,
-    #[serde(default)]
-    pub detail: bool,
-    #[serde(default)]
-    pub effects: bool,
-    #[serde(default)]
+    pub presence: bool,
+    pub curves: bool,
+    pub hsl: bool,
+    pub color_grading: bool,
+    pub bw: bool,
+    pub lut: bool,
+    pub sharpening: bool,
+    pub noise_reduction: bool,
     pub lens: bool,
-    #[serde(default)]
+    pub lens_blur: bool,
+    pub vignette: bool,
+    pub grain: bool,
     pub geometry: bool,
-    #[serde(default)]
     pub masks: bool,
-    #[serde(default)]
     pub retouch: bool,
 }
 
 impl MergeSections {
     pub fn look_only() -> Self {
         Self {
-            basic: true,
+            dcp: true,
+            white_balance: true,
             tone: true,
-            color: true,
-            detail: true,
-            effects: true,
+            presence: true,
+            curves: true,
+            hsl: true,
+            color_grading: true,
+            bw: true,
+            lut: true,
+            sharpening: true,
+            noise_reduction: true,
             lens: true,
-            geometry: false,
-            masks: false,
-            retouch: false,
+            vignette: true,
+            grain: true,
+            ..Self::default()
         }
     }
 
     pub fn paste_default() -> Self {
-        Self::look_only()
-    }
-}
-
-fn pick<T>(use_incoming: bool, incoming: T, current: T) -> T {
-    if use_incoming { incoming } else { current }
-}
-
-pub fn merge_edits(current: Edits, incoming: Edits, sections: MergeSections) -> Edits {
-    Edits {
-        basic: pick(sections.basic, incoming.basic, current.basic),
-        tone: pick(sections.tone, incoming.tone, current.tone),
-        color: pick(sections.color, incoming.color, current.color),
-        detail: pick(sections.detail, incoming.detail, current.detail),
-        effects: pick(sections.effects, incoming.effects, current.effects),
-        lens: pick(sections.lens, incoming.lens, current.lens),
-        geometry: pick(sections.geometry, incoming.geometry, current.geometry),
-        masks: pick(sections.masks, incoming.masks, current.masks),
-        retouch: pick(sections.retouch, incoming.retouch, current.retouch),
-        lens_blur: current.lens_blur,
-        unknown_ops: current.unknown_ops,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use raw_pipeline::edits::{RetouchMode, RetouchStroke, Vec2f};
-
-    fn stroke(id: &str) -> RetouchStroke {
-        RetouchStroke {
-            id: id.to_string(),
-            mode: RetouchMode::Heal,
-            points: vec![Vec2f { x: 0.5, y: 0.5 }],
-            radius: 0.02,
-            hardness: 0.5,
-            opacity: 1.0,
-            source: Vec2f { x: 0.6, y: 0.6 },
-            enabled: true,
+        Self {
+            lens_blur: true,
+            ..Self::look_only()
         }
     }
+}
 
-    fn incoming() -> Edits {
-        let mut e = Edits::default();
-        e.effects.vignette_amount = 40.0;
-        e.geometry.rotate = 2;
-        e.retouch = vec![stroke("incoming")];
-        e
+fn take<T>(on: bool, target: &mut T, source: T) {
+    if on {
+        *target = source;
     }
+}
 
-    fn no_sections() -> MergeSections {
-        MergeSections {
-            basic: false,
-            tone: false,
-            color: false,
-            detail: false,
-            effects: false,
-            lens: false,
-            geometry: false,
-            masks: false,
-            retouch: false,
-        }
-    }
+fn merge_basic(target: &mut BasicEdits, source: BasicEdits, tools: MergeSections) {
+    let BasicEdits {
+        exposure_ev,
+        brightness,
+        contrast,
+        saturation,
+        vibrance,
+        white_balance,
+        texture,
+        clarity,
+        dehaze,
+        curves,
+    } = source;
+    take(
+        tools.white_balance,
+        &mut target.white_balance,
+        white_balance,
+    );
+    take(tools.tone, &mut target.exposure_ev, exposure_ev);
+    take(tools.tone, &mut target.brightness, brightness);
+    take(tools.tone, &mut target.contrast, contrast);
+    take(tools.presence, &mut target.texture, texture);
+    take(tools.presence, &mut target.clarity, clarity);
+    take(tools.presence, &mut target.dehaze, dehaze);
+    take(tools.presence, &mut target.vibrance, vibrance);
+    take(tools.presence, &mut target.saturation, saturation);
+    take(tools.curves, &mut target.curves, curves);
+}
 
-    #[test]
-    fn paste_default_applies_look() {
-        let mut current = Edits::default();
-        current.geometry.rotate = 3;
-        current
-            .unknown_ops
-            .insert("future_op".to_string(), serde_json::json!({ "x": 1 }));
-        let merged = merge_edits(current, incoming(), MergeSections::paste_default());
-        assert_eq!(merged.effects.vignette_amount, 40.0);
-        assert_eq!(merged.geometry.rotate, 3);
-        assert!(merged.unknown_ops.contains_key("future_op"));
-    }
+fn merge_color(target: &mut ColorEdits, source: ColorEdits, tools: MergeSections) {
+    let ColorEdits {
+        hsl,
+        color_grade,
+        lut_3d,
+        dcp,
+        bw,
+    } = source;
+    take(tools.dcp, &mut target.dcp, dcp);
+    take(tools.hsl, &mut target.hsl, hsl);
+    take(tools.color_grading, &mut target.color_grade, color_grade);
+    take(tools.bw, &mut target.bw, bw);
+    take(tools.lut, &mut target.lut_3d, lut_3d);
+}
 
-    #[test]
-    fn only_selected_sections_apply() {
-        let current = Edits::default();
-        let sections = MergeSections {
-            geometry: true,
-            ..no_sections()
-        };
-        let merged = merge_edits(current, incoming(), sections);
-        assert_eq!(merged.geometry.rotate, 2);
-        assert_eq!(merged.effects.vignette_amount, 0.0);
-    }
+fn merge_detail(target: &mut DetailEdits, source: DetailEdits, tools: MergeSections) {
+    let DetailEdits {
+        sharpen_amount,
+        sharpen_radius,
+        sharpen_detail,
+        sharpen_masking,
+        luma_nr_amount,
+        luma_nr_detail,
+        luma_nr_contrast,
+        color_nr_amount,
+        color_nr_detail,
+        color_nr_smoothness,
+        capture_sharpen,
+        capture_corner_boost,
+        ai_denoise,
+        ai_denoise_strength,
+        ai_denoise_detail,
+    } = source;
+    let sharpen = tools.sharpening;
+    take(sharpen, &mut target.capture_sharpen, capture_sharpen);
+    take(
+        sharpen,
+        &mut target.capture_corner_boost,
+        capture_corner_boost,
+    );
+    take(sharpen, &mut target.sharpen_amount, sharpen_amount);
+    take(sharpen, &mut target.sharpen_radius, sharpen_radius);
+    take(sharpen, &mut target.sharpen_detail, sharpen_detail);
+    take(sharpen, &mut target.sharpen_masking, sharpen_masking);
+    let noise = tools.noise_reduction;
+    take(noise, &mut target.luma_nr_amount, luma_nr_amount);
+    take(noise, &mut target.luma_nr_detail, luma_nr_detail);
+    take(noise, &mut target.luma_nr_contrast, luma_nr_contrast);
+    take(noise, &mut target.color_nr_amount, color_nr_amount);
+    take(noise, &mut target.color_nr_detail, color_nr_detail);
+    take(noise, &mut target.color_nr_smoothness, color_nr_smoothness);
+    take(noise, &mut target.ai_denoise, ai_denoise);
+    take(noise, &mut target.ai_denoise_strength, ai_denoise_strength);
+    take(noise, &mut target.ai_denoise_detail, ai_denoise_detail);
+}
 
-    #[test]
-    fn look_only_excludes_geometry_masks_and_retouch() {
-        let current = Edits {
-            retouch: vec![stroke("current")],
-            ..Default::default()
-        };
-        let merged = merge_edits(current, incoming(), MergeSections::look_only());
-        assert_eq!(merged.effects.vignette_amount, 40.0);
-        assert_eq!(merged.geometry.rotate, 0);
-        assert_eq!(merged.retouch, vec![stroke("current")]);
-    }
+fn merge_effects(target: &mut EffectsEdits, source: EffectsEdits, tools: MergeSections) {
+    let EffectsEdits {
+        vignette_amount,
+        vignette_midpoint,
+        vignette_feather,
+        vignette_roundness,
+        grain_amount,
+        grain_size,
+        grain_roughness,
+    } = source;
+    let vignette = tools.vignette;
+    take(vignette, &mut target.vignette_amount, vignette_amount);
+    take(vignette, &mut target.vignette_midpoint, vignette_midpoint);
+    take(vignette, &mut target.vignette_feather, vignette_feather);
+    take(vignette, &mut target.vignette_roundness, vignette_roundness);
+    take(tools.grain, &mut target.grain_amount, grain_amount);
+    take(tools.grain, &mut target.grain_size, grain_size);
+    take(tools.grain, &mut target.grain_roughness, grain_roughness);
+}
 
-    #[test]
-    fn a_depth_map_never_travels_to_another_photo() {
-        let mut current = Edits::default();
-        current.lens_blur.depth_raster_id = "mine".into();
-        let mut other = incoming();
-        other.lens_blur.amount = 60.0;
-        other.lens_blur.depth_raster_id = "theirs".into();
-        let all = MergeSections {
-            geometry: true,
-            masks: true,
-            retouch: true,
-            ..MergeSections::look_only()
-        };
-        let merged = merge_edits(current.clone(), other, all);
-        assert_eq!(merged.lens_blur, current.lens_blur);
-    }
+fn merge_lens_blur(target: &mut LensBlurEdits, source: LensBlurEdits, tools: MergeSections) {
+    let LensBlurEdits {
+        amount,
+        focus_min,
+        focus_max,
+        shape,
+        boost,
+        depth_raster_id: _,
+    } = source;
+    let on = tools.lens_blur;
+    take(on, &mut target.amount, amount);
+    take(on, &mut target.focus_min, focus_min);
+    take(on, &mut target.focus_max, focus_max);
+    take(on, &mut target.shape, shape);
+    take(on, &mut target.boost, boost);
+}
 
-    #[test]
-    fn retouch_section_copies_strokes() {
-        let current = Edits {
-            retouch: vec![stroke("current")],
-            ..Default::default()
-        };
-        let sections = MergeSections {
-            retouch: true,
-            ..no_sections()
-        };
-        let merged = merge_edits(current, incoming(), sections);
-        assert_eq!(merged.retouch, vec![stroke("incoming")]);
-    }
+pub fn merge_edits(current: Edits, incoming: Edits, tools: MergeSections) -> Edits {
+    let Edits {
+        basic,
+        tone,
+        color,
+        detail,
+        effects,
+        lens,
+        geometry,
+        masks,
+        retouch,
+        lens_blur,
+        unknown_ops: _,
+    } = incoming;
+    let mut merged = current;
+    merge_basic(&mut merged.basic, basic, tools);
+    take(tools.tone, &mut merged.tone, tone);
+    merge_color(&mut merged.color, color, tools);
+    merge_detail(&mut merged.detail, detail, tools);
+    merge_effects(&mut merged.effects, effects, tools);
+    take(tools.lens, &mut merged.lens, lens);
+    merge_lens_blur(&mut merged.lens_blur, lens_blur, tools);
+    take(tools.geometry, &mut merged.geometry, geometry);
+    take(tools.masks, &mut merged.masks, masks);
+    take(tools.retouch, &mut merged.retouch, retouch);
+    merged
 }

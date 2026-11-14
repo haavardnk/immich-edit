@@ -1,52 +1,47 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
-  import { afterNavigate, goto } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
-  import AssetTile from './AssetTile.svelte';
-  import BulkActionBar from './bulk/BulkActionBar.svelte';
+  import GridDayHeaders from '#lib/components/browse/GridDayHeaders.svelte';
+  import MarqueeBox from '#lib/components/browse/MarqueeBox.svelte';
+  import GridSizeHud from '#lib/components/browse/GridSizeHud.svelte';
+  import GridTiles from '#lib/components/browse/GridTiles.svelte';
+  import RangeBubble from '#lib/components/browse/RangeBubble.svelte';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { hides } from '#lib/browse/loadedFilter.ts';
-  import { compare } from '#lib/stores/compare.svelte.ts';
-  import { multiMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
-  import { trash } from '#lib/stores/trash.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
-  import { isCopy } from '#lib/browse/assetKey.ts';
-  import {
-    rateAsset,
-    toggleFavorite,
-    toggleReject,
-    clearFlags,
-    setLabel
-  } from '#lib/browse/cull.ts';
-  import { labelOf, nextLabelFromKey } from '#lib/stores/labels.ts';
-  import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
-  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
-  import { editorHref } from '#lib/editor/navigation.ts';
-  import { matchKeybind } from '#lib/shortcuts/match.ts';
-  import { hasTextSelection, yieldsToControl } from '#lib/shortcuts/targets.ts';
-  import { isModalOpen } from '@immich/ui';
-  import { CONTEXT_STACKS } from '#lib/shortcuts/context.ts';
-  import {
-    createAssetGridLayout,
-    verticalAssetIndex,
-    visibleAssetRange,
-    type AssetGridBox
-  } from '#lib/browse/assetGridLayout.ts';
+  import { gridHost } from '#lib/commands/grid/gridHost.ts';
+  import { visibleAssetRange, type AssetGridBox } from '#lib/browse/assetGridLayout.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { createDayGridLayout } from '#lib/browse/dayLayout.ts';
+  import { groupDays } from '#lib/browse/dayGroups.ts';
+  import { GridMarquee } from '#lib/browse/gridMarquee.svelte.ts';
+  import { GridScroll } from '#lib/browse/gridScroll.svelte.ts';
+  import { GridSelectAll } from '#lib/browse/gridSelectAll.svelte.ts';
+  import { gridMover } from '#lib/browse/gridMove.ts';
+  import { gridPinch, watchGridZoom } from '#lib/browse/gridPinch.ts';
+  import { TouchRange } from '#lib/browse/touchRange.svelte.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
 
   let {
     assets,
+    total,
     loadingMore = false,
+    loadingPrevious = false,
+    dayHeaders = false,
     onLoadMore,
+    onLoadPrevious,
     onLoadAll
   }: {
     assets: AssetSummary[];
+    total?: number;
     loadingMore?: boolean;
+    loadingPrevious?: boolean;
+    dayHeaders?: boolean;
     onLoadMore?: () => void;
-    onLoadAll?: () => Promise<boolean>;
+    onLoadPrevious?: () => void;
+    onLoadAll?: (signal: AbortSignal) => Promise<boolean>;
   } = $props();
 
   const GAP = 4;
@@ -54,473 +49,169 @@
   const OVERSCAN = 2;
 
   let root: HTMLDivElement | undefined = $state();
-  let scrollParent: HTMLElement | null = null;
-  let gridWidth = $state(0);
-  let parentHeight = $state(0);
-  let viewTop = $state(0);
-  let scrollKey = '';
-  let pendingRestore: number | null = null;
-  let revealOnReturn = false;
-  let loupeWasOpen = false;
-  let shiftPressed = $state(false);
-  let hoveredId = $state<string | null>(null);
-  let selectingAll = $state(false);
-  let bulkBar: BulkActionBar | undefined = $state();
 
   const items = $derived(assets.filter((a) => !hides(browseControls.filters, a)));
 
+  const days = $derived(dayHeaders ? groupDays(items) : null);
+
+  const scroll = new GridScroll({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    gap: GAP,
+    loadMore: () => onLoadMore,
+    loadPrevious: () => onLoadPrevious,
+    loadingMore: () => loadingMore,
+    loadingPrevious: () => loadingPrevious
+  });
+
   const layout = $derived.by(() => {
-    const inner = Math.max(0, gridWidth - PAD * 2);
-    const geometry = createAssetGridLayout(items, inner, browseView.minTile, GAP);
+    const geometry = createDayGridLayout(items, days, {
+      width: Math.max(0, scroll.width - PAD * 2),
+      rowHeight: browseView.rowHeight,
+      rowTolerance: browseView.rowTolerance,
+      gap: GAP,
+      headerHeight: browseView.dayHeaderHeight
+    });
     return { ...geometry, totalHeight: PAD * 2 + geometry.height };
   });
 
-  const view = $derived.by(() => {
-    return visibleAssetRange(layout, viewTop - PAD, viewTop + parentHeight - PAD, OVERSCAN);
-  });
+  const view = $derived(
+    visibleAssetRange(layout, scroll.viewTop - PAD, scroll.viewTop + scroll.height - PAD, OVERSCAN)
+  );
 
-  const visibleAssets = $derived(
+  const tiles = $derived(
     items
       .slice(view.startIndex, view.endIndex)
       .map((asset, offset) => ({ asset, box: layout.boxes[view.startIndex + offset] }))
       .filter((item): item is { asset: AssetSummary; box: AssetGridBox } => item.box !== undefined)
   );
 
-  const rangePreview = $derived.by(() => {
-    if (selectingAll || !shiftPressed || !hoveredId) return null;
-    return selection.rangeTarget(
-      items.map((asset) => asset.id),
-      hoveredId
-    );
+  const selectAll = new GridSelectAll({
+    items: () => items,
+    loadingMore: () => loadingMore,
+    loadAll: () => onLoadAll
   });
 
-  function findScrollParent(el: HTMLElement): HTMLElement | null {
-    let p = el.parentElement;
-    while (p) {
-      const oy = getComputedStyle(p).overflowY;
-      if (oy === 'auto' || oy === 'scroll') return p;
-      p = p.parentElement;
-    }
-    return null;
-  }
-
-  function measure(): void {
-    if (!root || !scrollParent) return;
-    gridWidth = root.clientWidth;
-    parentHeight = scrollParent.clientHeight;
-    viewTop = scrollParent.getBoundingClientRect().top - root.getBoundingClientRect().top;
-  }
-
-  function onResize(): void {
-    measure();
-    restoreScroll();
-  }
-
-  function saveScroll(): void {
-    if (!scrollParent || !scrollKey || pendingRestore !== null) return;
-    browseView.setGridScroll(scrollKey, scrollParent.scrollTop);
-  }
-
-  function onScroll(): void {
-    measure();
-    saveScroll();
-    if (onLoadMore && !loadingMore && layout.totalHeight - (viewTop + parentHeight) < 400) {
-      onLoadMore();
-    }
-  }
-
-  function restoreScroll(): void {
-    if (!scrollParent || pendingRestore === null) return;
-    const maxTop = Math.max(0, scrollParent.scrollHeight - scrollParent.clientHeight);
-    if (pendingRestore > maxTop + 1) {
-      if (onLoadMore && !loadingMore) onLoadMore();
-      return;
-    }
-    scrollParent.scrollTop = Math.min(pendingRestore, maxTop);
-    pendingRestore = null;
-    measure();
-  }
-
-  function ensureVisible(id: string): void {
-    const idx = items.findIndex((a) => a.id === id);
-    if (idx < 0 || !scrollParent) return;
-    const box = layout.boxes[idx];
-    if (!box) return;
-    const rowTop = PAD + box.top;
-    const rowBottom = rowTop + box.height;
-    if (rowTop < viewTop) {
-      scrollParent.scrollTop -= viewTop - rowTop + GAP;
-    } else if (rowBottom > viewTop + parentHeight) {
-      scrollParent.scrollTop += rowBottom - (viewTop + parentHeight) + GAP;
-    }
-  }
-
-  function centerIfHidden(box: AssetGridBox): void {
-    const rowTop = PAD + box.top;
-    if (rowTop + box.height > viewTop && rowTop < viewTop + parentHeight) return;
-    const center = rowTop + box.height / 2 - parentHeight / 2;
-    pendingRestore = Math.min(Math.max(0, center), Math.max(0, layout.totalHeight - parentHeight));
-    restoreScroll();
-  }
-
-  function revealActive(): boolean {
-    const id = browseView.activeId;
-    if (!id) return true;
-    const box = layout.boxes[items.findIndex((a) => a.id === id)];
-    if (box) {
-      centerIfHidden(box);
-      return true;
-    }
-    if (!onLoadMore) return true;
-    if (!loadingMore) onLoadMore();
-    return false;
-  }
-
-  function isTyping(): boolean {
-    const el = document.activeElement;
-    if (!el) return false;
-    const tag = el.tagName;
-    return (
-      tag === 'INPUT' ||
-      tag === 'TEXTAREA' ||
-      tag === 'SELECT' ||
-      (el as HTMLElement).isContentEditable
-    );
-  }
-
-  function targets(): string[] {
-    return [...selection.selected];
-  }
-
-  function current(): string | null {
-    const id = browseView.activeId;
-    if (id && selection.has(id)) return id;
-    return items.find((asset) => selection.has(asset.id))?.id ?? null;
-  }
-
-  function applyRating(rating: number | null): void {
-    const ids = targets();
-    if (ids.length === 0) return;
-    ids.forEach((id) => void rateAsset(id, rating));
-  }
-
-  function applyFavorite(): void {
-    targets().forEach((id) => void toggleFavorite(id));
-  }
-
-  function applyReject(): void {
-    targets().forEach((id) => void toggleReject(id));
-  }
-
-  function applyUnflag(): void {
-    targets().forEach((id) => void clearFlags(id));
-  }
-
-  function applyTrash(): boolean {
-    const ids = new Set(targets());
-    if (ids.size === 0) return false;
-    void trash.request(items.filter((asset) => ids.has(asset.id)));
-    return true;
-  }
-
-  function applyLabelKey(key: string): boolean {
-    const ids = targets();
-    if (ids.length === 0) return false;
-    const idSet = new Set(ids);
-    const labels = items.filter((a) => idSet.has(a.id)).map((a) => labelOf(a));
-    const common = labels.every((l) => l === labels[0]) ? (labels[0] ?? null) : null;
-    const next = nextLabelFromKey(key, common);
-    if (next === undefined) return false;
-    ids.forEach((id) => void setLabel(id, next));
-    return true;
-  }
-
-  function moveIndex(key: string): number {
-    if (key === 'Home') return 0;
-    if (key === 'End') return items.length - 1;
-    const cursor = selection.active ? current() : browseView.activeId;
-    const index = cursor ? items.findIndex((asset) => asset.id === cursor) : -1;
-    if (index < 0 || !selection.active) return Math.max(0, index);
-    if (key === 'ArrowRight') return index + 1;
-    if (key === 'ArrowLeft') return index - 1;
-    const rows = key.startsWith('Page')
-      ? Math.max(1, Math.floor(parentHeight / browseView.minTile))
-      : 1;
-    return verticalAssetIndex(layout, index, key === 'ArrowUp' || key === 'PageUp' ? -rows : rows);
-  }
-
-  function selectMove(e: KeyboardEvent): void {
-    e.preventDefault();
-    const target = items[Math.min(items.length - 1, Math.max(0, moveIndex(e.key)))];
-    if (!target) return;
-    if (e.shiftKey && selection.active)
-      selection.range(
-        items.map((asset) => asset.id),
-        target.id
-      );
-    else selection.selectLoaded([target.id]);
-    browseView.setActive(target.id);
-    ensureVisible(target.id);
-  }
-
-  function openMulti(mode: MultiMode): void {
-    const members = multiMembers(
-      mode,
-      items.map((a) => a.id),
-      selection.selected,
-      current()
-    );
-    const first = members[0];
-    if (members.length < 2 || !first) {
-      toasts.push('info', `${mode} needs two photos`);
-      return;
-    }
-    browseView.openLoupe(first);
-    compare.enter(mode, members);
-  }
-
-  async function selectAll(): Promise<boolean> {
-    if (loadingMore || selectingAll) return false;
-    selectingAll = true;
-    try {
-      if (onLoadAll && !(await onLoadAll())) return false;
-      selection.selectLoaded(items.map((asset) => asset.id));
-      return true;
-    } finally {
-      selectingAll = false;
-    }
-  }
-
-  function onKeydown(e: KeyboardEvent): void {
-    shiftPressed = e.shiftKey;
-    if (browseView.loupeId || isModalOpen() || isTyping() || yieldsToControl(e)) return;
-
-    const bind = matchKeybind(e, CONTEXT_STACKS.grid);
-    if (!bind) return;
-    if (selectingAll) {
-      e.preventDefault();
-      return;
-    }
-
-    switch (bind) {
-      case 'help':
-        e.preventDefault();
-        return ui.toggleKeybindsHelp();
-      case 'gridClearSelection':
-        if (!selection.active) return;
-        e.preventDefault();
-        return selection.clear();
-      case 'focusBulkBar':
-        if (!selection.active) return;
-        e.preventDefault();
-        return bulkBar?.focusFirst();
-      case 'gridSelectAll':
-        e.preventDefault();
-        void selectAll();
-        return;
-      case 'gridMove':
-      case 'gridEdge':
-      case 'gridPage':
-      case 'gridExtend':
-        return selectMove(e);
-      case 'gridSize':
-        e.preventDefault();
-        return browseView.stepGridSize(e.key === '-' || e.key === '_' ? -1 : 1);
-      case 'gridTileInfo':
-        e.preventDefault();
-        return browseView.cycleTileInfo();
-      case 'favorite':
-        e.preventDefault();
-        return applyFavorite();
-      case 'reject':
-        e.preventDefault();
-        return applyReject();
-      case 'unflag':
-        e.preventDefault();
-        return applyUnflag();
-      case 'trash':
-        if (applyTrash()) e.preventDefault();
-        return;
-      case 'label':
-        if (applyLabelKey(e.key)) e.preventDefault();
-        return;
-      case 'enterCompare':
-        e.preventDefault();
-        return openMulti('compare');
-      case 'enterSurvey':
-        e.preventDefault();
-        return openMulti('survey');
-      case 'openEditor': {
-        const id = current();
-        if (!id) return;
-        e.preventDefault();
-        void goto(editorHref(id, `${window.location.pathname}${window.location.search}`));
-        return;
-      }
-      case 'openLoupe': {
-        const id = current();
-        if (!id) return;
-        e.preventDefault();
-        browseView.openLoupe(id);
-        return;
-      }
-      case 'copyEdits': {
-        const ids = targets();
-        if (ids.length !== 1 || !ids[0] || hasTextSelection()) return;
-        e.preventDefault();
-        void copyEditsFrom(ids[0]);
-        return;
-      }
-      case 'pasteEdits': {
-        const ids = targets();
-        if (ids.length === 0 || hasTextSelection()) return;
-        e.preventDefault();
-        void pasteEditsTo(ids);
-        return;
-      }
-      case 'rate': {
-        const ids = targets();
-        if (ids.length === 0) return;
-        e.preventDefault();
-        const idSet = new Set(ids);
-        const ratings = items.filter((a) => idSet.has(a.id)).map((a) => a.exifInfo?.rating ?? null);
-        const current = ratings.every((r) => r === ratings[0]) ? ratings[0] : undefined;
-        const next = nextRatingFromKey(e.key, current);
-        if (next !== undefined) applyRating(next);
-        return;
-      }
-      case 'rateAdvance': {
-        const next = ratingFromCode(e.code);
-        const ids = targets();
-        if (next === undefined || ids.length === 0) return;
-        e.preventDefault();
-        const [only] = ids;
-        if (ids.length > 1 || !only) return applyRating(next);
-        const following = items[items.findIndex((asset) => asset.id === only) + 1];
-        void rateAsset(only, next).then((ok) => {
-          if (!ok || !following) return;
-          selection.selectLoaded([following.id]);
-          browseView.setActive(following.id);
-          ensureVisible(following.id);
-        });
-        return;
-      }
-    }
-  }
-
-  function onKeyup(e: KeyboardEvent): void {
-    shiftPressed = e.shiftKey;
-  }
-
-  function clearShiftPreview(): void {
-    shiftPressed = false;
-    hoveredId = null;
-  }
-
-  afterNavigate(() => {
-    const path = `${window.location.pathname}${window.location.search}`;
-    if (scrollKey && scrollKey !== path) {
-      scrollKey = path;
-      browseView.setLastGridPath(path);
-    }
-    restoreScroll();
+  const move = gridMover({
+    items: () => items,
+    layout: () => layout,
+    viewHeight: () => scroll.height,
+    reveal: scroll.ensureVisible
   });
+
+  const idle = (): boolean => browseView.loupeId === null && !selectAll.busy;
+
+  const marquee = new GridMarquee({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    enabled: idle
+  });
+
+  const range = new TouchRange({
+    items: () => items,
+    layout: () => layout,
+    pad: PAD,
+    root: () => root ?? null,
+    scroller: () => scroll.parent
+  });
+
+  const rangeBox = $derived.by(() => {
+    const target = range.target;
+    if (!target || range.added <= 0) return null;
+    return layout.boxes[items.findIndex((asset) => asset.id === target)] ?? null;
+  });
+
+  const touchGestures = gestures({
+    touchAction: 'pan-y',
+    pointerTypes: ['touch'],
+    recognizers: [gridPinch(idle), range.recognizer(idle)]
+  });
+
+  onMount(() =>
+    gridHost.attach({
+      items: () => items,
+      selectingAll: () => selectAll.busy,
+      selectAll: selectAll.run,
+      cancelSelectAll: selectAll.cancel,
+      move,
+      reveal: scroll.ensureVisible,
+      scrollTo: scroll.scrollToAsset,
+      holdAnchor: scroll.holdAnchor,
+      dragging: () => marquee.dragging || range.dragging,
+      cancelDrag: () => {
+        marquee.cancel();
+        range.cancel();
+      }
+    })
+  );
+
+  onMount(() =>
+    bulkScope.attach({
+      items: () => items,
+      selectingAll: () => selectAll.busy,
+      selectAll: selectAll.run,
+      cancelSelectAll: selectAll.cancel,
+      partial: () => onLoadMore !== undefined || onLoadPrevious !== undefined,
+      loadingMore: () => loadingMore,
+      total: () => total,
+      preview: () => range.preview
+    })
+  );
 
   onMount(() => {
-    const path = `${window.location.pathname}${window.location.search}`;
-    if (browseView.lastGridPath !== path) selection.clear();
-    else revealOnReturn = true;
     if (!root) return;
-    scrollKey = path;
-    browseView.setLastGridPath(scrollKey);
-    const savedTop = browseView.getGridScroll(scrollKey);
-    pendingRestore = savedTop > 0 ? savedTop : null;
-    scrollParent = findScrollParent(root);
-    const parentResize = scrollParent ? observeSize(scrollParent, onResize) : undefined;
-    if (scrollParent) {
-      scrollParent.addEventListener('scroll', onScroll, { passive: true });
-    }
+    const detach = scroll.attach(root);
+    const scroller = scroll.parent;
+    const stopZoom = scroller ? watchGridZoom(scroller) : undefined;
+    const stopMarquee = scroller ? marquee.attach(root, scroller) : undefined;
     return () => {
-      parentResize?.destroy?.();
-      scrollParent?.removeEventListener('scroll', onScroll);
+      stopMarquee?.();
+      stopZoom?.();
+      range.cancel();
+      selection.exitMode();
+      detach();
     };
-  });
-
-  $effect(() => {
-    const _tracked = items.length;
-    measure();
-    restoreScroll();
-    if (revealOnReturn && pendingRestore === null && items.length > 0)
-      revealOnReturn = !untrack(revealActive);
-  });
-
-  $effect(() => {
-    const open = browseView.loupeId !== null;
-    if (loupeWasOpen && !open) untrack(revealActive);
-    loupeWasOpen = open;
   });
 </script>
 
-<svelte:window onkeydown={onKeydown} onkeyup={onKeyup} onblur={clearShiftPreview} />
-
+{#if loadingPrevious}
+  <div class="pointer-events-none sticky top-0 z-10 h-0">
+    <div
+      class="mx-auto mt-2 w-max rounded-full bg-light-50 px-3 py-1 text-xs text-dark/65 shadow-md"
+      role="status"
+    >
+      Loading earlier photos…
+    </div>
+  </div>
+{/if}
 <div
   bind:this={root}
-  use:observeSize={onResize}
-  class="relative"
+  use:observeSize={scroll.onResize}
+  {@attach touchGestures}
+  {@attach range.guard}
+  class="relative select-none"
   style:height="{layout.totalHeight}px"
 >
-  {#each visibleAssets as item (item.asset.id)}
-    <div
-      class="absolute"
-      style:top="{PAD + item.box.top}px"
-      style:left="{PAD + item.box.left}px"
-      style:width="{item.box.width}px"
-      style:height="{item.box.height}px"
-    >
-      <AssetTile
-        asset={item.asset}
-        info={browseView.tileInfo}
-        selected={selectingAll || selection.has(item.asset.id)}
-        rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
-        selectionActive={selection.active || selectingAll}
-        onToggle={() => {
-          if (selectingAll) return;
-          selection.toggle(item.asset.id);
-          if (selection.has(item.asset.id)) browseView.setActive(item.asset.id);
-        }}
-        onPreview={() => (hoveredId = item.asset.id)}
-        onPreviewEnd={() => {
-          if (hoveredId === item.asset.id) hoveredId = null;
-        }}
-        onRange={() => {
-          if (selectingAll) return;
-          selection.range(
-            items.map((a) => a.id),
-            item.asset.id
-          );
-        }}
-        onActivate={() => browseView.setActive(item.asset.id)}
-        onLoupe={() => browseView.openLoupe(item.asset.id)}
-        onRate={(rating) => void rateAsset(item.asset.id, rating)}
-        onDeleteCopy={isCopy(item.asset.id)
-          ? () => void trash.removeCopy(item.asset.id)
-          : undefined}
-      />
-    </div>
-  {/each}
+  {#if days}
+    <GridDayHeaders
+      headers={layout.headers}
+      {days}
+      {items}
+      startIndex={view.startIndex}
+      endIndex={view.endIndex}
+      pad={PAD}
+      locked={selectAll.busy}
+    />
+  {/if}
+  <GridTiles {items} {tiles} pad={PAD} selectingAll={selectAll.busy} dragPreview={range.preview} />
+  <MarqueeBox {marquee} />
+  {#if rangeBox}
+    <RangeBubble box={rangeBox} pad={PAD} added={range.added} />
+  {/if}
 </div>
 {#if loadingMore}
   <div class="py-4 text-center text-xs text-muted" role="status">Loading more photos…</div>
 {/if}
-
-<BulkActionBar
-  bind:this={bulkBar}
-  assets={items}
-  selectedIds={[...selection.selected]}
-  onClear={selection.clear}
-  onMulti={openMulti}
-  onSelectAll={selectAll}
-  hasMore={onLoadMore !== undefined}
-  {loadingMore}
-  {selectingAll}
-/>
+<GridSizeHud />

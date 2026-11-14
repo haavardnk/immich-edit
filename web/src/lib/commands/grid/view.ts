@@ -1,0 +1,19 @@
+import { gridCommand } from '#lib/commands/grid/context.ts';
+import type { Command } from '#lib/commands/types.ts';
+import { stepGrid } from '#lib/browse/gridResize.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
+
+export const GRID_VIEW_COMMANDS: readonly Command[] = [
+  gridCommand({
+    id: 'grid.size',
+    bind: 'gridSize',
+    run: (_, trigger) => {
+      if (trigger) stepGrid(trigger.key === '-' || trigger.key === '_' ? -1 : 1);
+    }
+  }),
+  gridCommand({
+    id: 'grid.tileInfo',
+    bind: 'gridTileInfo',
+    run: () => browseView.cycleTileInfo()
+  })
+];

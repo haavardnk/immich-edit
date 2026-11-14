@@ -5,7 +5,8 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import { resumeId } from '#lib/browse/gridReturn.ts';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { person: id } }) });
@@ -16,21 +17,12 @@
     untrack(() => {
       browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
-      void feed.fetchPage(true);
+      void feed.open(resumeId(page.url));
     });
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowseShell
-  {title}
-  assets={feed.assets}
-  loading={feed.loading && !feed.loadedOnce}
-  loadingLabel="Loading photos…"
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
-  totalCount={feed.totalCount}
-  emptyTitle="No photos for this person"
-/>
+<BrowsePage {feed} {title} loadingLabel="Loading photos…" emptyTitle="No photos for this person" />

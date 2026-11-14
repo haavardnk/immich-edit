@@ -5,6 +5,14 @@ export function listAlbums(): Promise<AlbumSummary[]> {
   return getJson('/api/albums');
 }
 
+export function createAlbum(albumName: string): Promise<AlbumSummary> {
+  return sendJson('POST', '/api/albums', { albumName });
+}
+
+export function albumsWithAsset(assetId: string): Promise<AlbumSummary[]> {
+  return getJson(url`/api/albums?assetId=${assetId}`);
+}
+
 export function getAlbum(id: string): Promise<AlbumDetail> {
   return getJson(url`/api/albums/${id}`);
 }

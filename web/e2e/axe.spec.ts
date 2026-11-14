@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, DEFAULT_APPEARANCE, gotoAsset, installMocks, openFilters } from './helpers';
+import { openTileLoupe } from './touch';
 
 const IMPACTS = new Set(['serious', 'critical']);
 
@@ -27,6 +28,7 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
 for (const [theme, path] of [
   ['immich-edit-light', '/photos'],
   ['immich-edit-light', '/settings#appearance'],
+  ['immich-edit-light', '/settings#layout'],
   ['catppuccin-latte', '/photos'],
   ['catppuccin-latte', '/settings#appearance'],
   ['one-light', '/photos'],
@@ -52,7 +54,34 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await page.goto('/photos');
 
   await openFilters(page, 'Date', 'File', 'Camera', 'Place');
-  await expect(page.getByRole('combobox', { name: 'City' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Place', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+  expect(await audit(page)).toEqual([]);
+});
+
+test('saved views and the save form have no serious accessibility violations', async ({ page }) => {
+  await installMocks(page, {
+    savedViews: [
+      {
+        id: 'view-1',
+        name: 'Favorites',
+        url: '/photos?favorite=1',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z'
+      }
+    ]
+  });
+  await page.goto('/photos?favorite=1');
+
+  const panel = await openFilters(page);
+  await panel.getByRole('button', { name: 'Save view', exact: true }).click();
+  await expect(panel.getByRole('textbox', { name: 'View name' })).toBeFocused();
+  const saved = page.getByRole('list', { name: 'Saved views' }).getByRole('link');
+  await expect(saved).toHaveAttribute('aria-current', 'page');
+  await expect(saved).not.toHaveAttribute('tabindex');
+  await expect(saved).not.toHaveAttribute('type');
   expect(await audit(page)).toEqual([]);
 });
 
@@ -62,9 +91,9 @@ test('the loupe and mobile action menu have no serious accessibility violations'
   await page.setViewportSize({ width: 390, height: 844 });
   await installMocks(page);
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
-  await page.getByLabel('Quick review').click();
+  await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await page.getByRole('button', { name: 'More loupe actions' }).click();
   await expect(page.getByRole('button', { name: /^Clipping overlay/ })).toBeVisible();
 

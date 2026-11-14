@@ -1,0 +1,307 @@
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
+import ContainerHarness from '#lib/testing/ContainerHarness.svelte';
+import { isAnyModalOpen } from '#lib/stores/overlays.ts';
+import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('#lib/device/layout.svelte.ts', async () => ({
+  layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
+}));
+
+type HarnessProps = ComponentProps<typeof ContainerHarness>;
+
+const Host: Component<{ component: Component<HarnessProps>; props: HarnessProps }> = ComponentHost;
+
+let target: HTMLDivElement;
+let component: Record<string, unknown> | null = null;
+
+async function settle(): Promise<void> {
+  flushSync();
+  await tick();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  flushSync();
+}
+
+async function render(kind: HarnessProps['kind'], closeOnRow = false) {
+  const spies = { onClose: vi.fn(), onOpenChange: vi.fn(), onRow: vi.fn() };
+  component = mount(Host, {
+    target,
+    props: { component: ContainerHarness, props: { kind, closeOnRow, ...spies } }
+  });
+  await settle();
+  return spies;
+}
+
+function button(name: string): HTMLButtonElement {
+  const element = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) =>
+      candidate.getAttribute('aria-label') === name || candidate.textContent.trim() === name
+  );
+  if (!element) throw new Error(`no button ${name}`);
+  return element;
+}
+
+function hasButton(name: string): boolean {
+  return [...document.querySelectorAll('button')].some(
+    (candidate) =>
+      candidate.getAttribute('aria-label') === name || candidate.textContent.trim() === name
+  );
+}
+
+function sheetHandle(): Element | null {
+  return document.querySelector('button[data-sheet-handle]');
+}
+
+function popoverContent(): Element | null {
+  return document.querySelector('[data-popover-content]');
+}
+
+async function exited(find: () => Element | null): Promise<void> {
+  await vi.waitFor(() => expect(find()).toBeNull());
+}
+
+function dialogName(dialog: Element): string {
+  const id = dialog.getAttribute('aria-labelledby');
+  return id ? (document.getElementById(id)?.textContent.trim() ?? '') : '';
+}
+
+function touchPointer(element: Element, type: string): void {
+  element.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: 'touch',
+      button: 0,
+      buttons: type === 'pointerup' ? 0 : 1,
+      clientX: 10,
+      clientY: 10
+    })
+  );
+}
+
+beforeEach(() => {
+  resetLayout();
+  target = document.createElement('div');
+  document.body.appendChild(target);
+});
+
+afterEach(() => {
+  if (component) void unmount(component);
+  component = null;
+  target.remove();
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+});
+
+describe('Dialog presentation', () => {
+  it('keeps the centred modal on desktop', async () => {
+    await render('dialog');
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(button('close')).toBeTruthy();
+    expect(sheetHandle()).toBeNull();
+  });
+
+  it('becomes a bottom sheet named by its title on touch', async () => {
+    layoutState.mode = 'touch';
+    const { onClose } = await render('dialog');
+    const dialog = document.querySelector('[role="dialog"]');
+    if (!dialog) throw new Error('no dialog');
+    expect(dialogName(dialog)).toBe('Dialog title');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(sheetHandle()).not.toBeNull();
+    expect(dialog.textContent).toContain('Dialog body');
+    button('close').click();
+    await settle();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes the touch sheet on Escape', async () => {
+    layoutState.mode = 'touch';
+    const { onClose } = await render('dialog');
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    await settle();
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('Popover presentation', () => {
+  it('keeps the anchored popover on desktop', async () => {
+    await render('menu');
+    button('Toggle').click();
+    await settle();
+    expect(popoverContent()?.className).toContain('max-h-80');
+    expect(sheetHandle()).toBeNull();
+  });
+
+  it('renders a panel exactly like a menu on desktop', async () => {
+    await render('panel');
+    button('Toggle').click();
+    await settle();
+    expect(popoverContent()?.className).toContain('max-h-80');
+    expect(popoverContent()?.className).toContain('rounded-md');
+    expect(hasButton('Done')).toBe(false);
+  });
+
+  it('opens a menu as an action sheet with Cancel on touch', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange, onRow } = await render('menu');
+    expect(popoverContent()).toBeNull();
+    button('Toggle').click();
+    await settle();
+    const content = popoverContent();
+    expect(content?.getAttribute('role')).toBe('dialog');
+    expect(content && dialogName(content)).toBe('Popover title');
+    expect(content?.className).not.toContain('max-h-80');
+    expect(sheetHandle()).toBeNull();
+    expect(button('Cancel')).toBeTruthy();
+    button('Run row').click();
+    await settle();
+    expect(onRow).toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    await exited(popoverContent);
+  });
+
+  it('closes the action sheet from Cancel', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange, onRow } = await render('menu');
+    button('Toggle').click();
+    await settle();
+    button('Cancel').click();
+    await settle();
+    expect(onRow).not.toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('keeps a menu reopened while the previous action sheet was still leaving', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange, onRow } = await render('menu', true);
+    button('Toggle').click();
+    await settle();
+    popoverContent()?.setAttribute('style', 'transition-duration: 300ms');
+    button('Run row').click();
+    await settle();
+    expect(onRow).toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+    button('Toggle').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    expect(popoverContent()).not.toBeNull();
+  });
+
+  it('opens a panel as a modal bottom sheet with Done on touch', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange } = await render('panel');
+    button('Toggle').click();
+    await settle();
+    const content = popoverContent();
+    expect(content?.getAttribute('aria-modal')).toBe('true');
+    expect(content && dialogName(content)).toBe('Popover title');
+    expect(sheetHandle()).not.toBeNull();
+    expect(hasButton('Cancel')).toBe(false);
+    expect(content?.querySelector('.max-h-80')).toBeNull();
+    button('Done').click();
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(popoverContent()).toBeNull();
+  });
+
+  it('opens a control popover as a modal sheet with its title, a close and a light scrim', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange } = await render('control');
+    button('Toggle').click();
+    await settle();
+    const content = popoverContent();
+    expect(content?.getAttribute('role')).toBe('dialog');
+    expect(content?.getAttribute('aria-modal')).toBe('true');
+    expect(content && dialogName(content)).toBe('Popover title');
+    expect(
+      document.getElementById(content?.getAttribute('aria-labelledby') ?? '')?.className
+    ).not.toContain('sr-only');
+    expect(document.querySelector('[data-dialog-overlay]')?.className).toContain('bg-black/20');
+    expect(hasButton('Cancel')).toBe(false);
+    expect(hasButton('Done')).toBe(false);
+    button('Close').click();
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(popoverContent()).toBeNull();
+  });
+
+  it('holds keys for itself and closes a control sheet on Escape', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange } = await render('control');
+    button('Toggle').click();
+    await settle();
+    expect(isAnyModalOpen()).toBe(true);
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(popoverContent()).toBeNull();
+    expect(isAnyModalOpen()).toBe(false);
+  });
+});
+
+describe('ContextMenu presentation', () => {
+  it('opens the desktop menu on right click', async () => {
+    await render('context');
+    button('Thumb').dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+    );
+    await settle();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('opens an action sheet on long press on touch and runs the row', async () => {
+    layoutState.mode = 'touch';
+    const { onRow } = await render('context');
+    vi.useFakeTimers();
+    touchPointer(button('Thumb'), 'pointerdown');
+    vi.advanceTimersByTime(600);
+    flushSync();
+    touchPointer(button('Thumb'), 'pointerup');
+    vi.useRealTimers();
+    await settle();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(button('Cancel')).toBeTruthy();
+    const row = document.querySelector<HTMLButtonElement>('button[data-menu-row]');
+    expect(row?.textContent.trim()).toBe('Open row');
+    row?.click();
+    await settle();
+    expect(onRow).toHaveBeenCalled();
+    await exited(() => document.querySelector('[role="dialog"]'));
+  });
+
+  it('opens the action sheet from the context menu key on touch', async () => {
+    layoutState.mode = 'touch';
+    await render('context');
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    button('Thumb').dispatchEvent(event);
+    await settle();
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    button('Cancel').click();
+    await settle();
+    await exited(() => document.querySelector('[role="dialog"]'));
+  });
+
+  it('does not open on a short touch press', async () => {
+    layoutState.mode = 'touch';
+    await render('context');
+    vi.useFakeTimers();
+    touchPointer(button('Thumb'), 'pointerdown');
+    vi.advanceTimersByTime(100);
+    touchPointer(button('Thumb'), 'pointerup');
+    vi.useRealTimers();
+    await settle();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+});

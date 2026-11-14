@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { browsing, type BrowsePager } from '#lib/stores/browsing.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -7,7 +7,7 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
   advanceFocused,
-  enterMulti,
+  canStepLoupe,
   leaveMulti,
   openLastLoupe,
   pickFromStrip,
@@ -19,11 +19,15 @@ function summary(id: string): AssetSummary {
   return { id, originalFileName: `${id}.arw` } as AssetSummary;
 }
 
-function load(ids: string[], pages: string[][] = []): void {
+function load(ids: string[], pages: string[][] = [], earlier: string[][] = []): void {
   const pending = [...pages];
+  const before = [...earlier];
   const pager: BrowsePager = {
     get hasMore() {
       return pending.length > 0;
+    },
+    get hasPrevious() {
+      return before.length > 0;
     },
     loadingMore: false,
     loadMore: () => {
@@ -31,7 +35,20 @@ function load(ids: string[], pages: string[][] = []): void {
       if (!page) return Promise.resolve(false);
       browsing.assets = [...browsing.assets, ...page.map(summary)];
       return Promise.resolve(true);
-    }
+    },
+    loadPrevious: () => {
+      const page = before.shift();
+      if (!page) return Promise.resolve(false);
+      browsing.assets = [...page.map(summary), ...browsing.assets];
+      return Promise.resolve(true);
+    },
+    loadEdge: (end) => {
+      if (end === 'last') return Promise.resolve(false);
+      const earlier = before.splice(0).reverse().flat();
+      browsing.assets = [...earlier.map(summary), ...browsing.assets];
+      return Promise.resolve(true);
+    },
+    jumpTo: () => Promise.resolve(false)
   };
   browsing.set(ids.map(summary), pager);
 }
@@ -39,7 +56,15 @@ function load(ids: string[], pages: string[][] = []): void {
 function deferPage(ids: string[], more: string[]): () => Promise<void> {
   let resolvePage = (_loaded: boolean): void => undefined;
   const page = new Promise<boolean>((resolve) => (resolvePage = resolve));
-  browsing.set(ids.map(summary), { hasMore: true, loadingMore: false, loadMore: () => page });
+  browsing.set(ids.map(summary), {
+    hasMore: true,
+    hasPrevious: false,
+    loadingMore: false,
+    loadMore: () => page,
+    loadPrevious: () => Promise.resolve(false),
+    loadEdge: () => Promise.resolve(false),
+    jumpTo: () => Promise.resolve(false)
+  });
   return async () => {
     browsing.assets = [...browsing.assets, ...more.map(summary)];
     resolvePage(true);
@@ -66,6 +91,15 @@ describe('loupe navigation', () => {
     expect(browseView.loupeId).toBe(expected);
   });
 
+  it('can step towards a loaded neighbour or a page still to load, but not past an end', () => {
+    expect(canStepLoupe('a', -1)).toBe(false);
+    expect(canStepLoupe('a', 1)).toBe(true);
+    expect(canStepLoupe('d', 1)).toBe(false);
+    load(['c', 'd'], [['e']], [['a', 'b']]);
+    expect(canStepLoupe('c', -1)).toBe(true);
+    expect(canStepLoupe('d', 1)).toBe(true);
+  });
+
   it('loads the next page when stepping past the end', async () => {
     load(['a', 'b'], [['c']]);
     browseView.openLoupe('b');
@@ -73,6 +107,17 @@ describe('loupe navigation', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(browseView.loupeId).toBe('c');
+  });
+
+  it('loads the earlier page when stepping back past the near end', async () => {
+    load(['c', 'd'], [], [['a', 'b']]);
+    browseView.openLoupe('c');
+    stepLoupe(-1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(browseView.loupeId).toBe('b');
+    stepLoupe(-1);
+    expect(browseView.loupeId).toBe('a');
   });
 
   it('keeps every step pressed while the next page loads', async () => {
@@ -113,7 +158,7 @@ describe('loupe navigation', () => {
     ['survey', ['b', 'c', 'd']]
   ] as const)('enters %s from the open asset', (mode, members) => {
     browseView.openLoupe('b');
-    enterMulti(mode);
+    selectViewMode(mode);
     expect(compare.mode).toBe(mode);
     expect(compare.members).toEqual(members);
   });
@@ -121,14 +166,14 @@ describe('loupe navigation', () => {
   it('refuses to compare a lone photo', () => {
     load(['a']);
     browseView.openLoupe('a');
-    enterMulti('compare');
+    selectViewMode('compare');
     expect(compare.mode).toBe('single');
     expect(toasts.items.map((t) => t.message)).toEqual(['compare needs two photos']);
   });
 
   it('selects the survivors of a pruned survey on leave', () => {
     browseView.openLoupe('a');
-    enterMulti('survey');
+    selectViewMode('survey');
     compare.drop(0);
     leaveMulti();
     expect(compare.mode).toBe('single');
@@ -158,9 +203,53 @@ describe('loupe navigation', () => {
 
   it('removes a compare member from the strip back to single', () => {
     browseView.openLoupe('a');
-    enterMulti('compare');
+    selectViewMode('compare');
     pickFromStrip('a', true);
     expect(compare.mode).toBe('single');
     expect(browseView.loupeId).toBe('b');
+  });
+
+  describe('with a four-pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => {
+      release = compare.limitBy(() => 4);
+      load(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+      browseView.openLoupe('a');
+    });
+
+    afterEach(() => release());
+
+    it('surveys at most four photos', () => {
+      selectViewMode('survey');
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('refuses a fifth pane from the strip and says why', () => {
+      selectViewMode('survey');
+      pickFromStrip('e', true);
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+      expect(toasts.items.map((t) => t.message)).toEqual(['Survey holds up to 4 photos']);
+    });
+  });
+
+  describe('with a two-pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => {
+      release = compare.limitBy(() => 2);
+      load(['a', 'b', 'c', 'd']);
+      browseView.openLoupe('a');
+    });
+
+    afterEach(() => release());
+
+    it('refuses a third pane from the strip and keeps compare', () => {
+      selectViewMode('compare');
+      pickFromStrip('c', true);
+      expect(compare.mode).toBe('compare');
+      expect(compare.members).toEqual(['a', 'b']);
+      expect(toasts.items.map((t) => t.message)).toEqual(['Compare holds 2 photos']);
+    });
   });
 });

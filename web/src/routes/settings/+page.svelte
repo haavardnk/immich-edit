@@ -11,20 +11,30 @@
   import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
   import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
   import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
+  import BrowsingSection from '#lib/components/settings/BrowsingSection.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
+  import InstallSection from '#lib/components/settings/InstallSection.svelte';
+  import { install } from '#lib/pwa/install.svelte.ts';
   import {
     mdiAccountCircleOutline,
+    mdiCellphoneLink,
     mdiCogOutline,
-    mdiMonitorShimmer,
     mdiPaletteOutline
   } from '@mdi/js';
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
+  const DEVICE_HASHES = ['#device', '#layout', '#rendering', '#install'];
+
   let appOpen = $state(false);
   let accountOpen = $state(false);
   let sessionsOpen = $state(false);
   let appearanceOpen = $state(false);
+  let deviceOpen = $state(false);
+  let layoutOpen = $state(false);
   let renderingOpen = $state(false);
+  let installOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
   const requestedAdminSection = $derived(adminSectionFromHash(page.url.hash));
@@ -69,6 +79,14 @@
       appOpen = false;
       accountOpen = false;
       appearanceOpen = true;
+    }
+    if (DEVICE_HASHES.includes(page.url.hash)) {
+      appOpen = false;
+      accountOpen = false;
+      deviceOpen = true;
+      layoutOpen = page.url.hash === '#layout';
+      renderingOpen = page.url.hash === '#rendering';
+      installOpen = page.url.hash === '#install';
     }
   });
 </script>
@@ -140,22 +158,54 @@
 
     <SettingsGroup
       title="Appearance"
-      description="Choose light, dark or system mode and a theme for each."
+      description={layout.mode === 'desktop'
+        ? 'Choose the theme and what a click on a photo opens.'
+        : 'Choose light, dark or system mode and a theme for each.'}
       icon={mdiPaletteOutline}
       open={appearanceOpen}
       onOpenChange={(open) => (appearanceOpen = open)}
     >
       <AppearanceSection />
+      {#if layout.mode === 'desktop'}
+        <BrowsingSection />
+      {/if}
     </SettingsGroup>
 
     <SettingsGroup
-      title="Preview rendering"
-      description="Choose where editor previews render on this device."
-      icon={mdiMonitorShimmer}
-      open={renderingOpen}
-      onOpenChange={(open) => (renderingOpen = open)}
+      title="This device"
+      description="Settings kept in this browser."
+      icon={mdiCellphoneLink}
+      open={deviceOpen}
+      onOpenChange={(open) => (deviceOpen = open)}
     >
-      <PreviewRenderingSection />
+      <div class="space-y-3">
+        <SettingsGroup
+          title="Layout"
+          description="Choose the desktop or touch layout, or let this screen decide."
+          open={layoutOpen}
+          onOpenChange={(open) => (layoutOpen = open)}
+        >
+          <LayoutSection />
+        </SettingsGroup>
+        <SettingsGroup
+          title="Preview rendering"
+          description="Choose where editor previews render on this device."
+          open={renderingOpen}
+          onOpenChange={(open) => (renderingOpen = open)}
+        >
+          <PreviewRenderingSection />
+        </SettingsGroup>
+        {#if install.state.kind !== 'hidden'}
+          <SettingsGroup
+            title="Install app"
+            description="Open immich-edit in its own window from the Home Screen, Dock or app list."
+            open={installOpen}
+            onOpenChange={(open) => (installOpen = open)}
+          >
+            <InstallSection />
+          </SettingsGroup>
+        {/if}
+      </div>
     </SettingsGroup>
   </div>
 {/if}

@@ -22,17 +22,17 @@ const PANES = ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW'];
 async function openGrid(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 }
 
 async function selectTile(page: Page, name: string): Promise<void> {
-  await page.locator(`div[title="${name}"]`).getByLabel('Select', { exact: true }).click();
+  await page.locator(`[data-name="${name}"]`).getByLabel('Select', { exact: true }).click();
 }
 
 async function openSurvey(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await page.getByLabel('Quick review').first().click();
   await page.keyboard.press('n');
   for (const name of PANES) {
@@ -161,7 +161,7 @@ test('c opens a compare of the grid selection', async ({ page }) => {
 test('hovering a survey pane offers a drop button for that photo', async ({ page }) => {
   await openSurvey(page);
   const pane = page.locator('div.group', { has: page.getByRole('img', { name: 'IMG_0002.ARW' }) });
-  const drop = pane.getByRole('button', { name: 'Drop from survey' });
+  const drop = pane.getByRole('button', { name: /^Drop this photo/ });
 
   await expect(drop).toHaveCSS('opacity', '0');
   await pane.hover();

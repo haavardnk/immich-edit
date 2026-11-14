@@ -5,8 +5,11 @@ import { getJob, listJobs, type Job, type JobItem } from '#lib/api/jobs.ts';
 import { ApiError } from '#lib/api/client.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
+import { downloadUrl } from '#lib/utils/download.ts';
 
 vi.mock('#lib/stores/trash.svelte.ts', () => ({ trash: { removeTrashed: vi.fn() } }));
+
+vi.mock('#lib/utils/download.ts', () => ({ downloadUrl: vi.fn() }));
 
 vi.mock('#lib/stores/editedThumbs.svelte.ts', () => ({
   editedThumbs: { refresh: vi.fn().mockResolvedValue(undefined) }
@@ -155,6 +158,33 @@ describe('tracked jobs', () => {
     expect(jobs.watched).toEqual([]);
     expect(jobs.attention).toBe(false);
     expect(editedThumbs.refresh).toHaveBeenCalled();
+  });
+
+  it('downloads a ZIP it was asked for once when it finishes', async () => {
+    vi.mocked(downloadUrl).mockClear();
+    const zip = job({ kind: 'download_zip' });
+    const done = { ...zip, status: 'completed' as const, completed: 4 };
+    jobs.track(zip);
+    jobs.downloadWhenDone(zip.id);
+    jobs.receive(done);
+    mockedListJobs.mockResolvedValue([{ ...zip, status: 'running' }]);
+    await jobs.load();
+    mockedListJobs.mockResolvedValue([done]);
+    await jobs.load();
+
+    expect(downloadUrl).toHaveBeenCalledExactlyOnceWith('/api/jobs/job-1/download');
+  });
+
+  it('downloads neither an empty ZIP nor one nobody asked for', () => {
+    vi.mocked(downloadUrl).mockClear();
+    const zip = job({ kind: 'download_zip' });
+    jobs.track(zip);
+    jobs.downloadWhenDone(zip.id);
+    jobs.receive({ ...zip, status: 'completed', failed: 4 });
+    jobs.track(job({ id: 'job-2', kind: 'download_zip' }));
+    jobs.receive(job({ id: 'job-2', kind: 'download_zip', status: 'completed', completed: 4 }));
+
+    expect(downloadUrl).not.toHaveBeenCalled();
   });
 
   it('takes trashed originals of a replace export out of the grid', async () => {

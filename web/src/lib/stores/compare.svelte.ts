@@ -1,25 +1,45 @@
+import { FIT_VIEW, type View } from '#lib/utils/imageViewport.ts';
+
 export type CompareMode = 'single' | 'compare' | 'survey';
 
-export interface PaneView {
-  zoom: number | null;
-  cx: number;
-  cy: number;
-}
-
-export const CENTERED: PaneView = { zoom: null, cx: 0.5, cy: 0.5 };
-
 export const MAX_PANES = 9;
+
+export const COMPACT_PANES = 4;
+
+export const COMPARE_PANES = 2;
+
+const ANY_LAYOUT = (): number => MAX_PANES;
 
 class CompareStore {
   mode = $state<CompareMode>('single');
   members = $state<string[]>([]);
   focusIndex = $state(0);
   syncView = $state(true);
-  views = $state<Record<string, PaneView>>({});
+  views = $state<Record<string, View>>({});
   startCount = $state(0);
+  #limit = $state.raw(ANY_LAYOUT);
 
   get focusedId(): string | null {
     return this.members[this.focusIndex] ?? null;
+  }
+
+  get paneLimit(): number {
+    return Math.min(MAX_PANES, this.#limit());
+  }
+
+  get full(): boolean {
+    return this.members.length >= this.paneLimit;
+  }
+
+  get surveyAvailable(): boolean {
+    return this.paneLimit > COMPARE_PANES;
+  }
+
+  limitBy(limit: () => number): () => void {
+    this.#limit = limit;
+    return () => {
+      if (this.#limit === limit) this.#limit = ANY_LAYOUT;
+    };
   }
 
   get pruned(): boolean {
@@ -27,11 +47,12 @@ class CompareStore {
   }
 
   enter(mode: CompareMode, ids: string[], focus = 0): void {
+    const members = mode === 'survey' ? ids.slice(0, this.paneLimit) : ids;
     this.mode = mode;
-    this.members = ids;
-    this.focusIndex = Math.min(Math.max(0, focus), Math.max(0, ids.length - 1));
+    this.members = members;
+    this.focusIndex = Math.min(Math.max(0, focus), Math.max(0, members.length - 1));
     this.views = {};
-    this.startCount = ids.length;
+    this.startCount = members.length;
   }
 
   exit(): void {
@@ -58,8 +79,8 @@ class CompareStore {
   }
 
   addMember(id: string): void {
-    if (this.members.includes(id) || this.members.length >= MAX_PANES) return;
-    const view = this.focusedId ? this.viewOf(this.focusedId) : CENTERED;
+    if (this.members.includes(id) || this.full) return;
+    const view = this.focusedId ? this.viewOf(this.focusedId) : FIT_VIEW;
     this.members.push(id);
     this.views[id] = { ...view };
     this.focusIndex = this.members.length - 1;
@@ -88,11 +109,11 @@ class CompareStore {
     this.focusIndex = 0;
   }
 
-  viewOf(id: string): PaneView {
-    return this.views[id] ?? CENTERED;
+  viewOf(id: string): View {
+    return this.views[id] ?? FIT_VIEW;
   }
 
-  applyView(id: string, view: PaneView, solo = false): void {
+  applyView(id: string, view: View, solo = false): void {
     if (this.syncView && !solo && this.mode !== 'single') {
       for (const member of this.members) this.views[member] = { ...view };
       return;

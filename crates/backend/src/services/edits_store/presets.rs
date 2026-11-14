@@ -7,7 +7,7 @@ use super::*;
 impl EditsStore {
     pub async fn list_presets(&self, owner: Uuid) -> Result<Vec<PresetRecord>, EditsStoreError> {
         Ok(sqlx::query_as::<_, PresetRecord>(
-            "SELECT id, name, group_name, manifest_json, created_at, updated_at \
+            "SELECT id, name, group_name, manifest_json, created_at, updated_at, favorite \
              FROM presets WHERE user_id = ?1 ORDER BY group_name IS NULL, group_name, name",
         )
         .bind(owner.to_string())
@@ -21,7 +21,7 @@ impl EditsStore {
         id: Uuid,
     ) -> Result<Option<PresetRecord>, EditsStoreError> {
         Ok(sqlx::query_as::<_, PresetRecord>(
-            "SELECT id, name, group_name, manifest_json, created_at, updated_at \
+            "SELECT id, name, group_name, manifest_json, created_at, updated_at, favorite \
              FROM presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
@@ -60,6 +60,7 @@ impl EditsStore {
             manifest: manifest.clone(),
             created_at: now.clone(),
             updated_at: now,
+            favorite: false,
         })
     }
 
@@ -86,6 +87,24 @@ impl EditsStore {
         .bind(owner.to_string())
         .execute(&self.pool)
         .await?;
+        if res.rows_affected() == 0 {
+            return Ok(None);
+        }
+        self.get_preset(owner, id).await
+    }
+
+    pub async fn set_preset_favorite(
+        &self,
+        owner: Uuid,
+        id: Uuid,
+        favorite: bool,
+    ) -> Result<Option<PresetRecord>, EditsStoreError> {
+        let res = sqlx::query("UPDATE presets SET favorite = ?3 WHERE user_id = ?2 AND id = ?1")
+            .bind(id.to_string())
+            .bind(owner.to_string())
+            .bind(favorite)
+            .execute(&self.pool)
+            .await?;
         if res.rows_affected() == 0 {
             return Ok(None);
         }

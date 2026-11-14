@@ -18,6 +18,9 @@ export interface ExifInfo {
   timeZone: string | null;
   rating: number | null;
   fileSizeInByte: number | null;
+  description: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface TagRef {
@@ -31,6 +34,7 @@ export interface TagRef {
 export interface AssetDetail {
   id: string;
   originalFileName: string;
+  originalPath?: string;
   type: AssetType;
   ownerId?: string;
   originalMimeType: string | null;
@@ -39,6 +43,7 @@ export interface AssetDetail {
   createdAt?: string | null;
   updatedAt: string | null;
   checksum: string | null;
+  thumbhash?: string | null;
   isFavorite: boolean;
   exifInfo: ExifInfo | null;
   tags: TagRef[];

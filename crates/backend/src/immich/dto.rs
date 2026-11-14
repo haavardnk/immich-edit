@@ -4,16 +4,66 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "ImmichAlbum")]
 pub struct AlbumSummary {
     pub id: Uuid,
     #[serde(rename = "albumName")]
     pub album_name: String,
-    #[serde(rename = "assetCount", default)]
+    #[serde(rename = "assetCount")]
     pub asset_count: u32,
-    #[serde(rename = "albumThumbnailAssetId", default)]
+    #[serde(rename = "albumThumbnailAssetId")]
     pub album_thumbnail_asset_id: Option<Uuid>,
-    #[serde(rename = "updatedAt", default)]
+    #[serde(rename = "updatedAt")]
     pub updated_at: Option<String>,
+    #[serde(rename = "ownerId")]
+    pub owner_id: Option<Uuid>,
+    pub shared: bool,
+    #[serde(rename = "endDate")]
+    pub end_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbum {
+    id: Uuid,
+    #[serde(rename = "albumName")]
+    album_name: String,
+    #[serde(rename = "assetCount", default)]
+    asset_count: u32,
+    #[serde(rename = "albumThumbnailAssetId", default)]
+    album_thumbnail_asset_id: Option<Uuid>,
+    #[serde(rename = "updatedAt", default)]
+    updated_at: Option<String>,
+    #[serde(rename = "albumUsers", default)]
+    album_users: Vec<ImmichAlbumUser>,
+    #[serde(default)]
+    shared: bool,
+    #[serde(rename = "endDate", default)]
+    end_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbumUser {
+    user: ImmichAlbumMember,
+}
+
+#[derive(Deserialize)]
+struct ImmichAlbumMember {
+    id: Uuid,
+}
+
+impl From<ImmichAlbum> for AlbumSummary {
+    fn from(album: ImmichAlbum) -> Self {
+        Self {
+            id: album.id,
+            album_name: album.album_name,
+            asset_count: album.asset_count,
+            album_thumbnail_asset_id: album.album_thumbnail_asset_id,
+            updated_at: album.updated_at,
+            owner_id: album.album_users.first().map(|owner| owner.user.id),
+            shared: album.shared,
+            end_date: album.end_date,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +82,12 @@ pub struct AssetSummary {
     pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
+    #[serde(
+        rename = "originalPath",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_path: Option<String>,
     #[serde(rename = "type", default)]
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]
@@ -46,6 +102,8 @@ pub struct AssetSummary {
     pub updated_at: Option<String>,
     #[serde(default)]
     pub checksum: Option<String>,
+    #[serde(default)]
+    pub thumbhash: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
     #[serde(rename = "exifInfo", default)]
@@ -63,6 +121,12 @@ pub struct AssetDetail {
     pub id: AssetKey,
     #[serde(rename = "originalFileName", default)]
     pub original_file_name: String,
+    #[serde(
+        rename = "originalPath",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_path: Option<String>,
     #[serde(rename = "type", default)]
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]
@@ -81,6 +145,8 @@ pub struct AssetDetail {
     pub width: Option<u32>,
     #[serde(default)]
     pub checksum: Option<String>,
+    #[serde(default)]
+    pub thumbhash: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
     #[serde(rename = "isTrashed", default)]
@@ -289,6 +355,13 @@ pub struct TimeBucketAssets {
     pub created_at: Vec<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Partner {
+    pub id: Uuid,
+    #[serde(rename = "inTimeline", default)]
+    pub in_timeline: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchStatistics {
     #[serde(default)]
@@ -325,5 +398,13 @@ mod tests {
         let asset: AssetSummary = serde_json::from_str(json).unwrap();
         assert_eq!(asset.tags.len(), 1);
         assert_eq!(asset.tags[0].value, "Reject");
+    }
+
+    #[test]
+    fn asset_summary_passes_the_thumbhash_through() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","thumbhash":"1QcSHQRnh493V4dIh4eXh1h4kJUI"}"#;
+        let asset: AssetSummary = serde_json::from_str(json).unwrap();
+        let out = serde_json::to_value(&asset).unwrap();
+        assert_eq!(out["thumbhash"], "1QcSHQRnh493V4dIh4eXh1h4kJUI");
     }
 }

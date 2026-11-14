@@ -1,7 +1,6 @@
 use crate::common::*;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use serde_json::Value;
 use tower::ServiceExt;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -44,13 +43,6 @@ async fn mock_asset_for_admin(server: &MockServer, id: uuid::Uuid) {
         .await;
 }
 
-fn manifest_body(ev: f64) -> Value {
-    serde_json::json!({
-        "schema_version": 2,
-        "ops": { "exposure": { "ev": ev } }
-    })
-}
-
 async fn save_admin_edits(admin: &axum::Router, id: uuid::Uuid) -> String {
     let saved = body_json(
         expect_status(
@@ -58,7 +50,7 @@ async fn save_admin_edits(admin: &axum::Router, id: uuid::Uuid) -> String {
             json_request(
                 "PUT",
                 &format!("/api/assets/{id}/edits"),
-                manifest_body(1.5),
+                exposure_manifest(1.5),
             ),
             StatusCode::OK,
             "owner put edits",
@@ -135,7 +127,7 @@ async fn a_member_cannot_overwrite_another_owners_edits() {
         json_request(
             "PUT",
             &format!("/api/assets/{id}/edits"),
-            manifest_body(-2.0),
+            exposure_manifest(-2.0),
         ),
         StatusCode::BAD_GATEWAY,
         "member put edits",
@@ -161,6 +153,61 @@ async fn a_member_cannot_overwrite_another_owners_edits() {
     .await;
     if record["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
         panic!("member changed the owner's edits: {record}");
+    }
+}
+
+#[tokio::test]
+async fn history_restore_is_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_for_admin(&server, id).await;
+    let (admin, member) = two_owner_apps(&server).await;
+    save_admin_edits(&admin, id).await;
+    expect_status(
+        &admin,
+        json_request(
+            "PUT",
+            &format!("/api/assets/{id}/edits"),
+            exposure_manifest(0.5),
+        ),
+        StatusCode::OK,
+        "owner second put",
+    )
+    .await;
+    let history_uri = format!("/api/assets/{id}/edits/history");
+    let history =
+        body_json(expect_status(&admin, get(&history_uri), StatusCode::OK, "owner history").await)
+            .await;
+    let older = history[1]["id"].as_i64().expect("older entry id");
+    let restore = || {
+        json_request(
+            "POST",
+            &format!("/api/assets/{id}/edits/restore"),
+            serde_json::json!({ "entry_id": older }),
+        )
+    };
+
+    expect_status(
+        &member,
+        restore(),
+        StatusCode::NOT_FOUND,
+        "member restore owner entry",
+    )
+    .await;
+    let history =
+        body_json(expect_status(&admin, get(&history_uri), StatusCode::OK, "owner history").await)
+            .await;
+    if history
+        .as_array()
+        .is_none_or(|h| h.iter().any(|e| e["undone"] != false))
+    {
+        panic!("member restore touched the owner's history: {history}");
+    }
+
+    let restored =
+        body_json(expect_status(&admin, restore(), StatusCode::OK, "owner restore").await).await;
+    if restored["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
+        panic!("owner restore body: {restored}");
     }
 }
 
@@ -246,7 +293,7 @@ async fn presets_are_scoped_to_the_owner() {
             json_request(
                 "POST",
                 "/api/presets",
-                serde_json::json!({ "name": "Owner look", "manifest": manifest_body(0.5) }),
+                serde_json::json!({ "name": "Owner look", "manifest": exposure_manifest(0.5) }),
             ),
             StatusCode::OK,
             "owner create preset",
@@ -275,10 +322,21 @@ async fn presets_are_scoped_to_the_owner() {
         json_request(
             "PUT",
             &format!("/api/presets/{preset_id}"),
-            serde_json::json!({ "name": "stolen", "manifest": manifest_body(9.0) }),
+            serde_json::json!({ "name": "stolen", "manifest": exposure_manifest(9.0) }),
         ),
         StatusCode::NOT_FOUND,
         "member update preset",
+    )
+    .await;
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            &format!("/api/presets/{preset_id}/favorite"),
+            serde_json::json!({ "favorite": true }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member star preset",
     )
     .await;
     expect_status(
@@ -310,7 +368,7 @@ async fn presets_are_scoped_to_the_owner() {
         .await,
     )
     .await;
-    if owned["name"] != "Owner look" {
+    if owned["name"] != "Owner look" || owned["favorite"] != false {
         panic!("owner preset after member calls: {owned}");
     }
 }
@@ -678,6 +736,260 @@ async fn appearance_is_scoped_to_the_owner() {
     .await;
     if owned != chosen {
         panic!("owner appearance after member calls: {owned}");
+    }
+}
+
+#[tokio::test]
+async fn preferences_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let chosen = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({
+                    "click_target": "loupe",
+                    "mask_overlay_color": "#ff0000",
+                    "shortcuts": { "help": ["F1"] },
+                    "crop_ratios": [{ "num": 3, "den": 2 }]
+                }),
+            ),
+            StatusCode::OK,
+            "owner patch preferences",
+        )
+        .await,
+    )
+    .await;
+
+    let seen = body_json(
+        expect_status(
+            &member,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "member get preferences",
+        )
+        .await,
+    )
+    .await;
+    if seen["click_target"] != "editor"
+        || !seen["mask_overlay_color"].is_null()
+        || seen["shortcuts"] != serde_json::json!({})
+        || !seen["crop_ratios"].is_null()
+    {
+        panic!("member read the owner's preferences: {seen}");
+    }
+
+    let member_saved = body_json(
+        expect_status(
+            &member,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({
+                    "pinned_settings": ["exposure"],
+                    "crop_ratios": [{ "num": 7, "den": 5 }]
+                }),
+            ),
+            StatusCode::OK,
+            "member patch preferences",
+        )
+        .await,
+    )
+    .await;
+    if member_saved["click_target"] != "editor"
+        || member_saved["shortcuts"] != serde_json::json!({})
+        || member_saved["crop_ratios"] != serde_json::json!([{ "num": 7, "den": 5 }])
+    {
+        panic!("member patch merged onto the owner's preferences: {member_saved}");
+    }
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "owner get preferences",
+        )
+        .await,
+    )
+    .await;
+    if owned != chosen
+        || !owned["pinned_settings"].is_null()
+        || owned["crop_ratios"] != serde_json::json!([{ "num": 3, "den": 2 }])
+    {
+        panic!("owner preferences after member calls: {owned}");
+    }
+}
+
+#[tokio::test]
+async fn saved_views_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+
+    let view = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                "/api/saved-views",
+                serde_json::json!({ "name": "Five stars", "url": "/photos?rating=5" }),
+            ),
+            StatusCode::OK,
+            "owner create saved view",
+        )
+        .await,
+    )
+    .await;
+    let view_id = view["id"].as_str().expect("saved view id").to_string();
+
+    let listed = body_json(
+        expect_status(
+            &member,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "member list",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's saved views: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            &format!("/api/saved-views/{view_id}"),
+            serde_json::json!({ "name": "stolen", "url": "/stolen" }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update saved view",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("DELETE", &format!("/api/saved-views/{view_id}")),
+        StatusCode::NOT_FOUND,
+        "member delete saved view",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "owner list",
+        )
+        .await,
+    )
+    .await;
+    if owned.as_array().map(Vec::len) != Some(1) || owned[0] != view {
+        panic!("owner saved views after member calls: {owned}");
+    }
+}
+
+#[tokio::test]
+async fn snapshots_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_for_admin(&server, id).await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let snapshots_uri = format!("/api/assets/{id}/snapshots");
+
+    let snapshot = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                &snapshots_uri,
+                serde_json::json!({ "name": "Owner look", "manifest": exposure_manifest(1.5) }),
+            ),
+            StatusCode::OK,
+            "owner create snapshot",
+        )
+        .await,
+    )
+    .await;
+    let snapshot_uri = format!("{snapshots_uri}/{}", snapshot["id"].as_str().unwrap());
+
+    let listed = body_json(
+        expect_status(
+            &member,
+            get(&snapshots_uri),
+            StatusCode::OK,
+            "member list snapshots",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's snapshots: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PATCH",
+            &snapshot_uri,
+            serde_json::json!({ "name": "stolen" }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member rename snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
+        json_request(
+            "PATCH",
+            &snapshot_uri,
+            serde_json::json!({ "manifest": exposure_manifest(4.0) }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("POST", &format!("{snapshot_uri}/restore")),
+        StatusCode::NOT_FOUND,
+        "member restore snapshot",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("DELETE", &snapshot_uri),
+        StatusCode::NOT_FOUND,
+        "member delete snapshot",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get(&snapshots_uri),
+            StatusCode::OK,
+            "owner list snapshots",
+        )
+        .await,
+    )
+    .await;
+    if owned.as_array().map(Vec::len) != Some(1) || owned[0] != snapshot {
+        panic!("owner snapshots after member calls: {owned}");
+    }
+    let restored = body_json(
+        expect_status(
+            &admin,
+            empty_request("POST", &format!("{snapshot_uri}/restore")),
+            StatusCode::OK,
+            "owner restore snapshot",
+        )
+        .await,
+    )
+    .await;
+    if restored["manifest"]["ops"]["exposure"]["ev"] != 1.5 {
+        panic!("owner restore body: {restored}");
     }
 }
 

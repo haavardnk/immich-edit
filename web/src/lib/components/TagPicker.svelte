@@ -1,15 +1,13 @@
 <script lang="ts">
-  import { hint } from '#lib/shortcuts/labels.ts';
-  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
-  import Popover from '#lib/components/Popover.svelte';
-  import { library } from '#lib/stores/library.svelte.ts';
-  import type { TagSummary } from '#lib/api/tags.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
-  import type { TagRef } from '#lib/types/asset.ts';
   import { isManagedTag } from '#lib/browse/managedTags.ts';
+  import AddChip from '#lib/components/AddChip.svelte';
+  import TagChip from '#lib/components/tags/TagChip.svelte';
+  import TagChipStrip from '#lib/components/tags/TagChipStrip.svelte';
+  import TagPickerPopover from '#lib/components/tags/TagPickerPopover.svelte';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import type { TagRef } from '#lib/types/asset.ts';
   import { Icon, IconButton } from '@immich/ui';
-  import { mdiClose, mdiPlus, mdiTagOutline } from '@mdi/js';
-  import { onMount } from 'svelte';
+  import { mdiPlus, mdiTagOutline } from '@mdi/js';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
@@ -25,8 +23,9 @@
     disabled = false,
     anchor = 'top',
     align = 'start',
-    rootClass = 'flex min-w-0 items-center gap-1.5 overflow-hidden',
-    pillsClass = 'flex items-center gap-1 overflow-x-auto scrollbar-hidden min-w-0'
+    addLabel,
+    subtitle,
+    wrap = false
   }: {
     tags: TagRef[];
     open: boolean;
@@ -38,113 +37,68 @@
     disabled?: boolean;
     anchor?: Anchor;
     align?: Align;
-    rootClass?: string;
-    pillsClass?: string;
+    addLabel?: string;
+    subtitle?: string;
+    wrap?: boolean;
   } = $props();
 
-  onMount(() => {
-    library.ensureTags().catch((e: unknown) => toasts.fail('tags', e));
-  });
-
-  function leafOf(value: string): string {
-    const i = value.lastIndexOf('/');
-    return i >= 0 ? value.slice(i + 1) : value;
-  }
-
-  function parentOf(value: string): string {
-    const i = value.lastIndexOf('/');
-    return i >= 0 ? value.slice(0, i + 1) : '';
-  }
-
-  function toRef(t: TagSummary): TagRef {
-    return { id: t.id, name: t.name, value: t.value, parentId: t.parentId, color: t.color };
-  }
-
-  const allTags = $derived((library.tags ?? []).filter((t) => !isManagedTag(toRef(t))));
   const visibleTags = $derived(tags.filter((t) => !isManagedTag(t)));
-  const selectedIds = $derived(visibleTags.map((tag) => tag.id));
 
-  function updateSelection(next: string[]): void {
-    const current = new Set(selectedIds);
-    const addedId = next.find((id) => !current.has(id));
-    if (addedId) {
-      const tag = allTags.find((item) => item.id === addedId);
-      if (tag) void onAdd(toRef(tag));
-      return;
-    }
-    const nextSet = new Set(next);
-    const removedId = selectedIds.find((id) => !nextSet.has(id));
-    if (removedId) void onRemove(removedId);
-  }
-
-  async function create(value: string): Promise<void> {
-    await onCreate(value);
+  function more(): void {
+    if (!open) onToggle();
   }
 </script>
 
-<div class={rootClass}>
-  <Icon icon={mdiTagOutline} size="14px" class="opacity-30 shrink-0" aria-hidden="true" />
-  <div class={pillsClass}>
-    {#each visibleTags as t (t.id)}
-      <span
-        class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2 text-[11px] whitespace-nowrap"
-        title={t.value}
-      >
-        {#if t.color}
-          <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {t.color}"></span>
-        {/if}
-        {#if parentOf(t.value)}<span class="opacity-40">{parentOf(t.value)}</span>{/if}{leafOf(
-          t.value
-        )}
-        <IconButton
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="opacity-50 hover:text-red-400 hover:opacity-100"
-          icon={mdiClose}
-          title="Remove"
-          aria-label="Remove"
-          {disabled}
-          onclick={() => onRemove(t.id)}
-        />
-      </span>
-    {/each}
-  </div>
-  <Popover
-    open={open && !disabled}
+{#snippet picker(hidden: number)}
+  <TagPickerPopover
+    {tags}
+    {open}
+    {onToggle}
+    {onClose}
+    {onAdd}
+    {onRemove}
+    {onCreate}
+    {disabled}
     {anchor}
     {align}
-    onOpenChange={(v) => (v ? onToggle() : onClose())}
-    contentClass="w-72 overflow-visible! border-0! bg-transparent! p-0 shadow-none! ring-0!"
-    tooltip={hint('Tags', 'toggleTags')}
+    {subtitle}
+    showApplied={hidden > 0}
+    tooltip={addLabel ? undefined : hint('Tags', 'toggleTags')}
   >
     {#snippet trigger(popoverProps)}
-      <IconButton
-        size="tiny"
-        variant={open ? 'filled' : 'ghost'}
-        color={open ? 'primary' : 'secondary'}
-        class="shrink-0"
-        icon={mdiPlus}
-        title=""
-        aria-label={hint('Tags', 'toggleTags')}
-        {...popoverProps}
-        {disabled}
-      />
+      {#if addLabel}
+        <AddChip label={addLabel} aria-label="{addLabel} tags" {...popoverProps} {disabled} />
+      {:else}
+        <IconButton
+          size="tiny"
+          variant={open ? 'filled' : 'ghost'}
+          color={open ? 'primary' : 'secondary'}
+          class="shrink-0"
+          icon={mdiPlus}
+          title=""
+          aria-label={hint('Tags', 'toggleTags')}
+          {...popoverProps}
+          {disabled}
+        />
+      {/if}
     {/snippet}
-    <SearchableSelect
-      options={allTags}
-      selected={selectedIds}
-      getId={(tag) => tag.id}
-      getLabel={(tag) => tag.value}
-      getColor={(tag) => tag.color}
-      placeholder="Add tags…"
-      compact
-      color="neutral"
-      side="top"
-      autofocus
-      closeOnSelect={false}
-      onSelectedChange={updateSelection}
-      onCreate={create}
-    />
-  </Popover>
+  </TagPickerPopover>
+{/snippet}
+
+<div class="flex min-w-0 items-center gap-1.5 {wrap ? 'flex-wrap' : 'flex-1 overflow-hidden'}">
+  <Icon icon={mdiTagOutline} size="14px" class="opacity-30 shrink-0" aria-hidden="true" />
+  {#if wrap}
+    <div class="flex min-w-0 flex-wrap items-center gap-1">
+      {#each visibleTags as t (t.id)}
+        <TagChip tag={t} {disabled} onRemove={(id) => void onRemove(id)} />
+      {/each}
+    </div>
+    {@render picker(0)}
+  {:else}
+    <TagChipStrip tags={visibleTags} {disabled} onRemove={(id) => void onRemove(id)} onMore={more}>
+      {#snippet children(hidden)}
+        {@render picker(hidden)}
+      {/snippet}
+    </TagChipStrip>
+  {/if}
 </div>

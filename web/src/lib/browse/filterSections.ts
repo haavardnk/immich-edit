@@ -1,9 +1,4 @@
-import {
-  FILTER_DEFAULTS,
-  isDefaultFilter,
-  type BrowseFilters,
-  type FilterKey
-} from '#lib/stores/browseControls.svelte.ts';
+import type { FilterKey } from '#lib/stores/browseControls.svelte.ts';
 import { CAMERA_FILTERS, PLACE_FILTERS } from '#lib/browse/exifFilters.ts';
 import { ID_EXCLUSIONS, ID_FILTERS } from '#lib/browse/idFilters.ts';
 
@@ -38,13 +33,4 @@ export function isFilterSectionId(value: unknown): value is FilterSectionId {
   return FILTER_SECTIONS.some((section) => section.id === value);
 }
 
-export function sectionModified(filters: BrowseFilters, section: FilterSection): boolean {
-  return section.keys.some((key) => !isDefaultFilter(filters, key));
-}
-
-export function withoutSection(filters: BrowseFilters, section: FilterSection): BrowseFilters {
-  return {
-    ...filters,
-    ...Object.fromEntries(section.keys.map((key) => [key, FILTER_DEFAULTS[key]]))
-  };
-}
+export const VIEW_AND_FILTERS = 'View & filters';

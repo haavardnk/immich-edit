@@ -1,8 +1,8 @@
 use crate::common::*;
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{self, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
@@ -31,6 +31,78 @@ async fn asset_thumb_proxies_bytes_and_content_type() {
             panic!("{query}: not jpeg soi");
         }
     }
+}
+
+#[tokio::test]
+async fn an_unversioned_asset_thumb_caches_for_a_day_and_revalidates_by_etag() {
+    let server = MockServer::start().await;
+    mock_thumb(&server, "preview").await;
+    let app = test_app(&server).await;
+    let uri = format!("/api/assets/{}/thumb?size=preview", asset_id());
+
+    let resp = app.clone().oneshot(get(&uri)).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        header_str(&resp, "cache-control").as_deref(),
+        Some("private, max-age=86400")
+    );
+    let etag = header_str(&resp, "etag").unwrap();
+    assert!(etag.len() > 2 && etag.starts_with('"') && etag.ends_with('"'));
+
+    let mut req = get(&uri);
+    req.headers_mut()
+        .insert("if-none-match", HeaderValue::from_str(&etag).unwrap());
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_MODIFIED);
+    assert_eq!(header_str(&resp, "etag").as_deref(), Some(etag.as_str()));
+    assert!(body_bytes(resp).await.is_empty());
+
+    let mut req = get(&uri);
+    req.headers_mut()
+        .insert("if-none-match", HeaderValue::from_static("\"stale\""));
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_versioned_asset_thumb_is_immutable() {
+    let server = MockServer::start().await;
+    mock_thumb(&server, "preview").await;
+    let app = test_app(&server).await;
+    let uri = format!(
+        "/api/assets/{}/thumb?size=preview&c=1QcSHQRnh493V4dIh4eXh1h4kJUI",
+        asset_id()
+    );
+
+    let resp = app.clone().oneshot(get(&uri)).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        header_str(&resp, "cache-control").as_deref(),
+        Some("private, max-age=31536000, immutable")
+    );
+    let etag = header_str(&resp, "etag").unwrap();
+
+    let mut req = get(&uri);
+    req.headers_mut()
+        .insert("if-none-match", HeaderValue::from_str(&etag).unwrap());
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_MODIFIED);
+    assert_eq!(
+        header_str(&resp, "cache-control").as_deref(),
+        Some("private, max-age=31536000, immutable")
+    );
+
+    let resp = app
+        .oneshot(get(&format!(
+            "/api/assets/{}/thumb?size=preview&c=",
+            asset_id()
+        )))
+        .await
+        .unwrap();
+    assert_eq!(
+        header_str(&resp, "cache-control").as_deref(),
+        Some("private, max-age=86400")
+    );
 }
 
 #[tokio::test]
@@ -86,6 +158,49 @@ async fn asset_detail_returns_exif_and_favorite() {
     }
     if json["ownerId"] != test_user_id().to_string() {
         panic!("owner: {json}");
+    }
+    if json["originalPath"] != "/library/2026/01/DSC0001.ARW" {
+        panic!("path: {json}");
+    }
+    if json["thumbhash"] != "1QcSHQRnh493V4dIh4eXh1h4kJUI" {
+        panic!("thumbhash: {json}");
+    }
+    if json["exifInfo"]["description"] != "Harbour at dawn" || json["exifInfo"]["latitude"] != 59.91
+    {
+        panic!("description and place: {json}");
+    }
+}
+
+#[tokio::test]
+async fn asset_update_forwards_a_description_for_the_source() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path(format!("/api/assets/{}", asset_id())))
+        .and(matchers::body_json(json!({ "description": "Fjord" })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": asset_id(),
+            "originalFileName": "DSC0001.ARW",
+            "exifInfo": { "description": "Fjord" },
+            "tags": []
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let resp = test_app(&server)
+        .await
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/assets/{}_1", asset_id()),
+            json!({ "description": "Fjord" }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json["exifInfo"]["description"] != "Fjord" || json["copyOf"] != asset_id().to_string() {
+        panic!("body: {json}");
     }
 }
 

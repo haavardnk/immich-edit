@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PreviewMode, RenderLane } from '#lib/api/preview.ts';
 import type { RenderView, RenderedFrame } from '#lib/render/protocol.ts';
+import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
+import { ORIGINAL_SOURCE, type CompareMode } from '#lib/editor/compare.ts';
 import {
-  neutraliseSection,
   neutralEdits,
   originalPreviewEdits,
   type Edits,
@@ -107,6 +108,10 @@ const PRESET_HOVER: PresetPreview = {
   }),
   opts: { includeGeometry: false, includeMasks: false, amount: 50 }
 };
+const HISTORY_STEP: Edits = {
+  ...neutralEdits(),
+  basic: { ...neutralEdits().basic, clarity: -38 }
+};
 
 class DecodedImage {
   src = '';
@@ -125,21 +130,23 @@ function context(): PreviewCtx {
     meta: null,
     previewUrl: null,
     previewFrame: null,
-    originalUrl: null,
+    compareUrl: null,
+    compare: { mode: 'off', source: ORIGINAL_SOURCE },
+    snapshots: { items: [] },
     viewUrl: null,
     viewFrame: null,
     viewRoi: null,
     viewNat: null,
     pending: false,
     error: null,
-    splitMode: false,
     showingOriginal: false,
     bypassedSection: null,
-    presetPreview: null,
+    isRaw: false,
+    editsPreview: null,
     geometrySession: null,
     maskWeight: null,
     maskStroke: 'idle',
-    colorPicker: null,
+    rangePicker: null,
     proofSpace: 'srgb',
     gamutWarn: false,
     sourceRevision: ''
@@ -272,24 +279,43 @@ describe('preview lanes during a slider drag', () => {
     [
       'section bypass',
       (c) => (c.bypassedSection = 'tone'),
-      (e) => ({ mode: 'none', edits: neutraliseSection(e, 'tone') })
+      (e) => ({ mode: 'none', edits: neutraliseSection(e, 'tone', false) })
     ],
     [
       'color picker',
-      (c) => (c.colorPicker = { layerId: 'layer-1', componentId: 'c-1', ready: false }),
+      (c) =>
+        (c.rangePicker = {
+          layerId: 'layer-1',
+          componentId: 'c-1',
+          ready: false,
+          samples: [],
+          tolerance: 0.1,
+          preview: null
+        }),
       (e) => ({ mode: 'none', edits: { ...e, masks: [] } })
     ],
     [
       'preset hover',
-      (c) => (c.presetPreview = PRESET_HOVER),
+      (c) => (c.editsPreview = { owner: 'preset', edits: presetEdits(c.edits, PRESET_HOVER) }),
       (e) => ({ mode: 'none', edits: presetEdits(e, PRESET_HOVER) })
+    ],
+    [
+      'history hover',
+      (c) => (c.editsPreview = { owner: 'history', edits: HISTORY_STEP }),
+      () => ({ mode: 'none', edits: HISTORY_STEP })
     ]
   ];
   const settles: Array<[string, (e: PreviewEngine) => void]> = [
     ['live', (e) => e.live()],
     ['reproof', (e) => e.reproof()],
     ['refreshBase', (e) => e.refreshBase()],
-    ['toggleSplit', (e) => e.toggleSplit()]
+    [
+      'compare',
+      (e) => {
+        (ctx.compare as { mode: CompareMode }).mode = 'split';
+        e.compareChanged(false);
+      }
+    ]
   ];
 
   it.each(

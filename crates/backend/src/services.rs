@@ -22,6 +22,7 @@ pub mod immich_capabilities;
 pub mod instance_store;
 pub mod job_runner;
 pub mod job_store;
+pub mod keyed_lock;
 pub mod login_limiter;
 pub mod login_session;
 pub mod lut_store;
@@ -50,6 +51,8 @@ pub mod reset_edits;
 pub mod search;
 #[cfg(feature = "ml")]
 pub mod segment;
+pub mod single_flight;
 pub mod trash;
+pub mod ttl_cache;
 pub mod watermark_store;
 pub mod white_balance;

@@ -29,7 +29,7 @@ const memoryStorage: Storage = {
   }
 };
 
-vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+globalThis.ResizeObserver = ResizeObserverStub;
 vi.stubGlobal('localStorage', memoryStorage);
 
 window.matchMedia = (query: string): MediaQueryList =>
@@ -45,6 +45,7 @@ window.matchMedia = (query: string): MediaQueryList =>
   }) as MediaQueryList;
 
 Element.prototype.scrollTo = (): void => {};
+Element.prototype.scrollIntoView = (): void => {};
 
 Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
   configurable: true,
