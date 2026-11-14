@@ -1,5 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { JPEG_BLOB, gotoAsset, installMocks } from './helpers';
+
+function exportedFile(page: Page) {
+  return page.getByRole('group', { name: 'Exported file' });
+}
+
+async function unfold(page: Page, section: string): Promise<void> {
+  await page.getByRole('button', { name: new RegExp(`^${section}`) }).click();
+}
 
 test('a failed download export offers a retry beside the button', async ({ page }) => {
   let failures = 1;
@@ -21,10 +29,9 @@ test('a failed download export offers a retry beside the button', async ({ page 
   const panel = page.getByRole('tabpanel');
   await expect(panel.getByText(/^Export failed/)).toBeVisible();
 
-  const downloadPromise = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Retry' }).click();
-  await downloadPromise;
-  await expect(panel.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
+  await expect(exportedFile(page)).toContainText('IMG_0001_edit.jpg');
+  await expect(panel.getByText(/^Export failed/)).toBeHidden();
 });
 
 test('a download lists the metadata it could not copy', async ({ page }) => {
@@ -45,11 +52,9 @@ test('a download lists the metadata it could not copy', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
-  await downloadPromise;
   const panel = page.getByRole('tabpanel');
-  await expect(panel.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
+  await expect(exportedFile(page)).toContainText('IMG_0001_edit.jpg');
   await expect(
     panel.getByText('Metadata not copied: no readable EXIF in the original')
   ).toBeVisible();
@@ -101,11 +106,14 @@ test('a download is named by the filename template', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Export JPEG/ })).toBeDisabled();
 
   await field.fill('{date}_{name}');
-  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
+  await expect(exportedFile(page)).toContainText('Ready, not saved yet');
+  const downloadPromise = page.waitForEvent('download');
+  await exportedFile(page).getByRole('button', { name: 'Save' }).click();
   expect((await downloadPromise).suggestedFilename()).toBe('2024-01-01_IMG_0001.jpg');
   expect(templates).toEqual(['{date}_{name}']);
-  await expect(page.getByText('Saved 2024-01-01_IMG_0001.jpg')).toBeVisible();
+  await expect(exportedFile(page)).toContainText('2024-01-01_IMG_0001.jpg');
+  await expect(exportedFile(page)).toContainText('Saved');
 });
 
 test('filename token chips insert at the caret', async ({ page }) => {
@@ -174,15 +182,15 @@ test('a download carries the resize settings', async ({ page }) => {
   const dontEnlarge = page.getByRole('checkbox', { name: "Don't enlarge" });
   await expect(dontEnlarge).toBeChecked();
   await dontEnlarge.click();
-  const downloadPromise = page.waitForEvent('download');
   await exportButton.click();
-  await downloadPromise;
+  await expect(exportedFile(page)).toContainText('750 × 500');
   expect(
     ['resize_mode', 'resize_width', 'resize_height', 'resize_enlarge'].map((key) =>
       String(sent[0]?.[key])
     )
   ).toEqual(['dimensions', '750', '500', 'true']);
 
+  await unfold(page, 'Size');
   await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Megapixels' }).click();
   await page.getByRole('spinbutton', { name: 'Megapixels' }).fill('6');
@@ -211,9 +219,8 @@ test('a download carries the metadata choice', async ({ page }) => {
 
   await page.getByRole('combobox', { name: 'Metadata' }).click();
   await page.getByRole('option', { name: 'All but location' }).click();
-  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
-  await downloadPromise;
+  await expect(exportedFile(page)).toBeVisible();
   expect(sent[0]?.metadata).toBe('no-location');
   expect(sent[0]).not.toHaveProperty('include_exif');
 });
@@ -251,21 +258,20 @@ test('a download carries the output sharpening settings', async ({ page }) => {
   await expect(exportButton).toBeDisabled();
 
   await ppi.fill('240');
-  const downloadPromise = page.waitForEvent('download');
   await exportButton.click();
-  await downloadPromise;
+  await expect(exportedFile(page)).toBeVisible();
   expect(
     ['output_sharpen_media', 'output_sharpen_amount', 'output_sharpen_ppi'].map((key) =>
       String(sent[0]?.[key])
     )
   ).toEqual(['matte', 'high', '240']);
 
+  await unfold(page, 'Size');
   await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Screen' }).click();
   await expect(ppi).toBeHidden();
-  const second = page.waitForEvent('download');
   await exportButton.click();
-  await second;
+  await expect.poll(() => sent.length).toBe(2);
   expect(sent[1]?.output_sharpen_media).toBe('screen');
   expect(sent[1]).not.toHaveProperty('output_sharpen_ppi');
 });
@@ -349,9 +355,8 @@ test('a download carries the chosen watermark', async ({ page }) => {
   const topLeft = page.getByRole('button', { name: 'Top left' });
   await topLeft.click();
   await expect(topLeft).toHaveAttribute('aria-pressed', 'true');
-  const first = page.waitForEvent('download');
   await exportButton.click();
-  await first;
+  await expect(exportedFile(page)).toBeVisible();
   expect(
     [
       'watermark_id',
@@ -361,7 +366,11 @@ test('a download carries the chosen watermark', async ({ page }) => {
       'watermark_inset'
     ].map((key) => String(sent[0]?.[key]))
   ).toEqual(['wm-signature', '0.2', '0.5', 'top_left', '0.03']);
+  await expect(page.getByRole('button', { name: /^Watermark/ })).toContainText(
+    'Signature · 20% · Top left'
+  );
 
+  await unfold(page, 'Watermark');
   await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
     name: 'logo.png',
     mimeType: 'image/png',
@@ -384,9 +393,8 @@ test('a download carries the chosen watermark', async ({ page }) => {
   expect(edges.slice(1).every(([start], i) => start >= (edges[i]?.[1] ?? Infinity))).toBe(true);
   await page.getByRole('button', { name: 'Confirm delete watermark' }).click();
   await expect(page.getByRole('slider', { name: 'Watermark size' })).toBeHidden();
-  const second = page.waitForEvent('download');
   await exportButton.click();
-  await second;
+  await expect.poll(() => sent.length).toBe(2);
   expect(sent[1]).not.toHaveProperty('watermark_id');
 });
 
@@ -458,4 +466,66 @@ test('an export preset saves and restores the export settings', async ({ page })
   await page.getByRole('button', { name: 'Export presets' }).click();
   await page.getByRole('button', { name: 'Delete export preset Web AVIF' }).click();
   await expect(page.getByText('No saved presets')).toBeVisible();
+});
+
+test('an export waits on a result card that saves, copies and folds the form', async ({
+  page,
+  context
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  await page.getByRole('button', { name: /Export JPEG/ }).click();
+  const file = exportedFile(page);
+  await expect(file).toContainText('IMG_0001_edit.jpg');
+  await expect(file).toContainText('6000 × 4000');
+  await expect(file).toContainText(/JPEG · sRGB · rendered/);
+  await expect(file).toContainText('Ready, not saved yet');
+  await expect(page.getByRole('button', { name: /^File/ })).toContainText(
+    'JPEG · Quality 90 · sRGB · Metadata All'
+  );
+  await expect(page.getByRole('button', { name: /^Name/ })).toContainText('{name}_edit');
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeHidden();
+  await unfold(page, 'File');
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeVisible();
+
+  await file.getByRole('button', { name: 'Copy image' }).click();
+  await expect(page.getByText('Image copied')).toBeVisible();
+  const types = await page.evaluate(async () => (await navigator.clipboard.read())[0]?.types);
+  expect(types).toEqual(['image/png']);
+
+  const downloadPromise = page.waitForEvent('download');
+  await file.getByRole('button', { name: 'Save' }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('IMG_0001_edit.jpg');
+  await expect(file).toContainText('Saved');
+
+  await page.getByRole('tab', { name: 'Develop', exact: true }).click();
+  await page.getByRole('slider', { name: 'Exposure', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await expect(file).toBeHidden();
+  await expect(page.getByRole('combobox', { name: 'Format' })).toBeVisible();
+});
+
+test('saving automatically downloads each export at once on this device', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+
+  const automatic = page.getByRole('checkbox', { name: 'Save automatically' });
+  await automatic.click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /Export JPEG/ }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('IMG_0001_edit.jpg');
+  await expect(exportedFile(page)).toContainText('Saved');
+
+  await page.goto('/settings#export');
+  const setting = page.getByRole('switch', { name: 'Save automatically' });
+  await expect(setting).toBeChecked();
+  await setting.click();
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await expect(automatic).not.toBeChecked();
 });

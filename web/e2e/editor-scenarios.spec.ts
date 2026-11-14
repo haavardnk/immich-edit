@@ -76,11 +76,14 @@ test('export download triggers a file download', async ({ page }) => {
 
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
+  const file = page.getByRole('group', { name: 'Exported file' });
+  await expect(file).toContainText('Ready, not saved yet');
+  const downloadPromise = page.waitForEvent('download');
+  await file.getByRole('button', { name: 'Save' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/IMG_0001.*\.jpg$/);
-  await expect(page.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
+  await expect(file).toContainText('Saved');
 });
 
 test('export quality uses the shared range control', async ({ page }) => {

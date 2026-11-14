@@ -2,12 +2,8 @@
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
   import { ApiError } from '#lib/api/client.ts';
-  import {
-    deleteWatermark,
-    importWatermark,
-    listWatermarks,
-    type WatermarkMeta
-  } from '#lib/api/watermarks.ts';
+  import { deleteWatermark, importWatermark } from '#lib/api/watermarks.ts';
+  import { watermarkLibrary } from '#lib/panels/export/watermarkLibrary.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { IconButton, Select, Tooltip } from '@immich/ui';
@@ -18,7 +14,6 @@
 
   let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
-  let watermarks = $state<WatermarkMeta[]>([]);
   let loaded = $state(false);
   let importing = $state(false);
   let pendingDelete = $state(false);
@@ -26,9 +21,9 @@
 
   const options = $derived([
     { value: 'none', label: 'None' },
-    ...watermarks.map((w) => ({ value: w.id, label: w.name }))
+    ...watermarkLibrary.items.map((w) => ({ value: w.id, label: w.name }))
   ]);
-  const selected = $derived(watermarks.find((w) => w.id === form.watermarkId) ?? null);
+  const selected = $derived(watermarkLibrary.items.find((w) => w.id === form.watermarkId) ?? null);
   const sliders = $derived([
     {
       label: 'Size',
@@ -55,15 +50,8 @@
   });
 
   async function load(): Promise<void> {
-    try {
-      watermarks = await listWatermarks();
-      if (form.watermarkId && !watermarks.some((w) => w.id === form.watermarkId)) {
-        form.watermarkId = null;
-      }
-    } catch (e) {
-      watermarks = [];
-      toasts.fail('watermarks', e);
-    }
+    await watermarkLibrary.load();
+    if (form.watermarkId && !watermarkLibrary.has(form.watermarkId)) form.watermarkId = null;
     loaded = true;
   }
 
@@ -88,7 +76,7 @@
       if (err instanceof ApiError && err.status === 409) {
         const existing = err.message.split(':').pop()?.trim();
         await load();
-        if (existing && watermarks.some((w) => w.id === existing)) {
+        if (existing && watermarkLibrary.has(existing)) {
           select(existing);
           toasts.push('info', 'Watermark already imported — selected existing.');
         }

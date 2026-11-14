@@ -26,6 +26,7 @@ vi.mock('$app/state', () => ({
 }));
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
+const saveAutomatically: ControlRef = { role: 'checkbox', name: 'Save automatically' };
 
 function layouts(
   destination: 'download' | 'immich'
@@ -41,7 +42,11 @@ function layouts(
       'editor panel',
       Export,
       {},
-      { exclude: [button(immich ? 'Upload JPEG to Immich' : 'Export JPEG')] }
+      {
+        exclude: immich
+          ? [button('Upload JPEG to Immich')]
+          : [button('Export JPEG'), saveAutomatically]
+      }
     ),
     layout(
       'bulk export',
@@ -87,7 +92,7 @@ describe('ExportForm layout parity', () => {
     const found = await layoutControls([
       layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
       layout('notice', ProofMismatchNotice, {}),
-      layout('editor panel', Export, {}, { exclude: [button('Export JPEG')] }),
+      layout('editor panel', Export, {}, { exclude: [button('Export JPEG'), saveAutomatically] }),
       layout(
         'bulk export',
         BulkExport,

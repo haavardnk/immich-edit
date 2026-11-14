@@ -304,6 +304,19 @@ export function formatLabel(format: ExportFormat): string {
   return FORMATS.find((f) => f.value === format)?.label ?? format;
 }
 
+export function qualityShown(f: Pick<ExportFormValues, 'format' | 'lossless'>): boolean {
+  return (
+    f.format === 'jpeg' ||
+    f.format === 'avif' ||
+    f.format === 'heic' ||
+    (f.format === 'webp' && !f.lossless)
+  );
+}
+
+export function bitDepthShown(format: ExportFormat): boolean {
+  return format === 'png' || format === 'tiff' || format === 'jxl';
+}
+
 export function spaceLabel(space: ColorSpaceOpt): string {
   return COLOR_SPACES.find((c) => c.value === space)?.label ?? space;
 }

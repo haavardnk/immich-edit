@@ -4,26 +4,21 @@
   import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
   import {
     BIT_DEPTHS,
+    bitDepthShown,
     changeFormat,
     COLOR_SPACES,
     FORMATS,
     METADATA_OPTIONS,
     PNG_COMPRESSIONS,
+    qualityShown,
     TIFF_COMPRESSIONS,
     type ExportFormValues
   } from './settings';
 
   let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
-  let showQuality = $derived(
-    form.format === 'jpeg' ||
-      form.format === 'avif' ||
-      form.format === 'heic' ||
-      (form.format === 'webp' && !form.lossless)
-  );
-  let showBitDepth = $derived(
-    form.format === 'png' || form.format === 'tiff' || form.format === 'jxl'
-  );
+  let showQuality = $derived(qualityShown(form));
+  let showBitDepth = $derived(bitDepthShown(form.format));
   let showPngCompression = $derived(form.format === 'png');
   let showTiffCompression = $derived(form.format === 'tiff');
   let showLossless = $derived(form.format === 'webp');

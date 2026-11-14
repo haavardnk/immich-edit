@@ -5,6 +5,7 @@ import { baseOptions, formatLabel, formInvalid } from '#lib/panels/export/settin
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { croppedOutputSize } from '#lib/utils/geom.ts';
+import { sameValue } from '#lib/utils/sameValue.ts';
 import { page } from '$app/state';
 import { mdiCloudUpload, mdiExport } from '@mdi/js';
 
@@ -27,9 +28,18 @@ export class EditorExporter {
 
   private download = $derived(exportSettings.destination === 'download');
 
-  busy = $derived(this.download ? editor.exporting : editor.exportingToImmich);
+  busy = $derived(this.download ? editor.exports.rendering : editor.exports.uploading);
 
-  result = $derived(this.download ? editor.lastDownload : editor.lastUpload);
+  result = $derived(this.download ? editor.exports.lastDownload : editor.exports.lastUpload);
+
+  file = $derived.by(() => {
+    const file = this.download ? editor.exports.file : null;
+    return file && sameValue(file.options, baseOptions(exportSettings.form)) ? file : null;
+  });
+
+  folded = $derived(this.download && (this.file !== null || this.busy));
+
+  uploading = $derived(editor.exports.uploading);
 
   label = $derived.by(() => {
     if (this.busy) return this.download ? 'Exporting…' : 'Uploading…';
@@ -43,17 +53,29 @@ export class EditorExporter {
 
   start = (): void => {
     if (this.download) {
-      void editor.onExport(baseOptions(exportSettings.form));
+      void editor.exports.render(
+        baseOptions(exportSettings.form),
+        exportSettings.saveAutomatically
+      );
       return;
     }
     const options = uploadOptions(exportSettings.form, this.scope, this.replaceOriginal);
     this.replaceOriginal = false;
-    void this.afterUpload(editor.onUploadToImmich(options));
+    void this.afterUpload(editor.exports.upload(options));
   };
 
   retry = (): void => {
-    if (this.download) void editor.retryExport();
-    else void this.afterUpload(editor.retryUpload());
+    if (this.download) void editor.exports.retryRender();
+    else void this.afterUpload(editor.exports.retryUpload());
+  };
+
+  save = (): void => editor.exports.save();
+
+  uploadFile = (): void => {
+    const file = this.file;
+    if (!file) return;
+    const options = { ...uploadOptions(exportSettings.form, this.scope, false), ...file.options };
+    void editor.exports.upload(options);
   };
 
   private async afterUpload(upload: Promise<boolean>): Promise<void> {

@@ -14,17 +14,26 @@
   import type { ExportScope } from '#lib/panels/export/scope.ts';
   import type { PixelSize } from '#lib/panels/export/resize.ts';
   import type { Snippet } from 'svelte';
+  import {
+    fileSummary,
+    nameSummary,
+    sizeSummary,
+    watermarkSummary
+  } from '#lib/panels/export/summary.ts';
+  import { watermarkLibrary } from '#lib/panels/export/watermarkLibrary.svelte.ts';
 
   let {
     scope,
     replaceOriginal = $bindable(false),
     crop = null,
+    folded = false,
     downloadLabel,
     fileNotice
   }: {
     scope: ExportScope;
     replaceOriginal?: boolean;
     crop?: PixelSize | null;
+    folded?: boolean;
     downloadLabel?: string;
     fileNotice?: Snippet;
   } = $props();
@@ -40,21 +49,25 @@
 <ExportPresetMenu />
 <DestinationToggle bind:value={exportSettings.destination} {downloadLabel} />
 
-<ExportSection title="File">
+<ExportSection title="File" summary={fileSummary(form)} {folded}>
   <FormatOptions bind:form={exportSettings.form} />
   {@render fileNotice?.()}
 </ExportSection>
 
-<ExportSection title="Size">
+<ExportSection title="Size" summary={sizeSummary(form, crop)} {folded}>
   <ResizeOptions bind:form={exportSettings.form} {crop} />
   <SharpenOptions bind:form={exportSettings.form} />
 </ExportSection>
 
-<ExportSection title="Watermark">
+<ExportSection
+  title="Watermark"
+  summary={watermarkSummary(form, watermarkLibrary.nameOf(form.watermarkId))}
+  {folded}
+>
   <WatermarkOptions bind:form={exportSettings.form} />
 </ExportSection>
 
-<ExportSection title="Name">
+<ExportSection title="Name" summary={nameSummary(form)} mono {folded}>
   <FilenameTemplateField
     bind:value={exportSettings.form.filenameTemplate}
     example={scope.nameExample}
