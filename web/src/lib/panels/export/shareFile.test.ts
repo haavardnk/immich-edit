@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { baseOptions, defaultExportForm } from './settings';
-import { shareFile, shareSupport } from './shareFile';
+import { saveOnly, shareFile, shareSupport } from './shareFile';
 
 function file(format: 'jpeg' | 'heic' | 'jxl' = 'jpeg') {
   return {
@@ -18,6 +18,14 @@ describe('share support', () => {
   it('is off without the Web Share API', () => {
     vi.stubGlobal('navigator', {});
     expect(shareSupport(file())).toEqual({ shareable: false, reason: null });
+    expect(saveOnly('heic')).toBe(false);
+  });
+
+  it('marks the formats a sharing browser refuses as save only', () => {
+    vi.stubGlobal('navigator', { canShare: () => true });
+    expect(saveOnly('heic')).toBe(true);
+    expect(saveOnly('jxl')).toBe(true);
+    expect(saveOnly('jpeg')).toBe(false);
   });
 
   it('asks the browser with a typed file', () => {

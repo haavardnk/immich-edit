@@ -1,7 +1,6 @@
 <script lang="ts">
   import { EXTENSION_BY_FORMAT } from '#lib/api/export.ts';
   import DestinationToggle from '#lib/panels/export/DestinationToggle.svelte';
-  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
   import ExportSection from '#lib/panels/export/ExportSection.svelte';
   import FilenameTemplateField from '#lib/panels/export/FilenameTemplateField.svelte';
   import FormatOptions from '#lib/panels/export/FormatOptions.svelte';
@@ -27,7 +26,6 @@
     replaceOriginal = $bindable(false),
     crop = null,
     folded = false,
-    presetMenu = true,
     destinations,
     onWatermarkPick,
     downloadLabel,
@@ -37,7 +35,6 @@
     replaceOriginal?: boolean;
     crop?: PixelSize | null;
     folded?: boolean;
-    presetMenu?: boolean;
     destinations?: Snippet;
     onWatermarkPick?: () => void;
     downloadLabel?: string;
@@ -52,9 +49,6 @@
   });
 </script>
 
-{#if presetMenu}
-  <ExportPresetMenu />
-{/if}
 {#if destinations}
   {@render destinations()}
 {:else}

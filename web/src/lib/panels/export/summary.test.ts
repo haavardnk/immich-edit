@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { defaultExportForm, type ExportFormValues } from './settings';
-import { fileSummary, nameSummary, outputSummary, sizeSummary, watermarkSummary } from './summary';
+import {
+  fileSummary,
+  nameSummary,
+  outputSummary,
+  presetSummary,
+  sizeSummary,
+  watermarkSummary
+} from './summary';
 
 function form(patch: Partial<ExportFormValues> = {}): ExportFormValues {
   return { ...defaultExportForm(), ...patch };
@@ -23,7 +30,14 @@ describe('export section summaries', () => {
     expect(sizeSummary(form({ resizeMode: 'dimensions', sharpenMedia: 'screen' }), crop)).toBe(
       '2048 × 1365 · Sharpen Screen'
     );
-    expect(sizeSummary(form({ resizeMode: 'percent' }), null)).toBe('Percentage');
+    expect(sizeSummary(form({ resizeMode: 'percent', resizePercent: 50 }), null)).toBe('50%');
+    expect(sizeSummary(form({ resizeMode: 'megapixels', resizeMegapixels: 12 }), null)).toBe(
+      '12 MP'
+    );
+    expect(sizeSummary(form({ resizeMode: 'dimensions', resizeHeight: null }), null)).toBe(
+      '2048 px wide'
+    );
+    expect(sizeSummary(form(), null)).toBe('Full size');
   });
 
   it('name the watermark with its size and corner', () => {
@@ -48,5 +62,23 @@ describe('export section summaries', () => {
       size: null,
       spec: 'PNG · 16-bit · sRGB'
     });
+  });
+
+  it('describe a preset on one line, with its upload albums', () => {
+    expect(presetSummary(form({ resizeMode: 'dimensions', sharpenMedia: 'screen' }), null)).toBe(
+      'JPEG 90 · 2048 × 2048 · sRGB · Sharpen Screen'
+    );
+    expect(
+      presetSummary(
+        form({ format: 'jxl', bitDepth: '16', colorSpace: 'displayp3', metadata: 'none' }),
+        null
+      )
+    ).toBe('JPEG XL 16-bit · Full size · Display P3 · Metadata None');
+    expect(
+      presetSummary(form({ format: 'webp', lossless: true, watermarkId: 'w1' }), {
+        albums: ['Family 2026']
+      })
+    ).toBe('WebP Lossless · Full size · sRGB · Watermark · to Immich, Family 2026');
+    expect(presetSummary(form(), { albums: [] })).toBe('JPEG 90 · Full size · sRGB · to Immich');
   });
 });

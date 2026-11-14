@@ -399,6 +399,10 @@ let tagsRequested = false;
 let albumsLoaded = false;
 let tagsLoaded = false;
 
+export function albumNames(ids: readonly string[]): string[] {
+  return library.albums.filter((album) => ids.includes(album.id)).map((album) => album.albumName);
+}
+
 export function pruneLibraryIds(form: ExportFormValues): void {
   if (albumsLoaded)
     form.albumIds = form.albumIds.filter((id) => library.albums.some((album) => album.id === id));

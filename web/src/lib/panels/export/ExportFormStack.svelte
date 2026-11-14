@@ -1,5 +1,6 @@
 <script lang="ts">
   import ExportForm from '#lib/panels/export/ExportForm.svelte';
+  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
   import ExportResult from '#lib/panels/export/ExportResult.svelte';
   import ProofMismatchNotice from '#lib/panels/export/ProofMismatchNotice.svelte';
   import SaveAutomatically from '#lib/panels/export/SaveAutomatically.svelte';
@@ -27,11 +28,17 @@
   <ProofMismatchNotice />
 {/snippet}
 
+{#if presetMenu}
+  <ExportPresetMenu
+    selection={exporter.presets}
+    busy={exporter.exportingPresets}
+    onExport={exporter.exportPresets}
+  />
+{/if}
 <ExportForm
   scope={exporter.scope}
   crop={exporter.crop}
   {folded}
-  {presetMenu}
   {destinations}
   {onWatermarkPick}
   bind:replaceOriginal={exporter.replaceOriginal}

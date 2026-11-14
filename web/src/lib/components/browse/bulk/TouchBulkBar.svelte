@@ -153,7 +153,7 @@
         disabled={empty || scope.selectingAll}
       />
     {/snippet}
-    <BulkExport onStarted={() => (sheet = null)} />
+    <BulkExport folded onStarted={() => (sheet = null)} />
   </Popover>
   <BarAction
     icon={mdiDotsHorizontal}

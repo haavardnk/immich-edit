@@ -14,10 +14,15 @@
   let presetsOpen = $state(true);
 </script>
 
-<Dialog title="Edit and export selected" size="medium" {onClose} bodyClass="min-h-96 p-0!">
+<Dialog
+  title="Edit and export selected"
+  size="medium"
+  {onClose}
+  bodyClass="flex min-h-96 flex-col overflow-hidden p-0!"
+>
   <Tabs.Root
     bind:value={() => tab, (value) => (tab = value as BulkTab)}
-    class="flex min-h-96 flex-col"
+    class="flex min-h-0 flex-1 flex-col"
   >
     <Tabs.List aria-label="Bulk actions" class="flex border-b border-hairline px-4">
       <Tabs.Trigger
@@ -49,7 +54,7 @@
         </Disclosure>
       {/if}
     </Tabs.Content>
-    <Tabs.Content value="export" class="min-h-0 flex-1 overflow-y-auto py-2">
+    <Tabs.Content value="export" class="min-h-0 flex-1 overflow-y-auto pt-2">
       {#if tab === 'export'}
         <BulkExportPanel onStarted={onClose} />
       {/if}

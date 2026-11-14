@@ -37,13 +37,25 @@ export function fileSummary(form: ExportFormValues): string {
     .join(SEPARATOR);
 }
 
+function resizeLabel(form: ExportFormValues): string {
+  const resize = formResize(form);
+  if (!resize) return labelOf(RESIZE_MODES, form.resizeMode);
+  if (resize.mode === 'percent') return `${resize.percent}%`;
+  if (resize.mode === 'megapixels') return `${resize.megapixels} MP`;
+  if (resize.width !== null && resize.height !== null) return `${resize.width} × ${resize.height}`;
+  if (resize.width !== null) return `${resize.width} px wide`;
+  return `${resize.height ?? ''} px high`;
+}
+
+function sharpenLabel(form: ExportFormValues): string | null {
+  return form.sharpenMedia === 'none'
+    ? null
+    : `Sharpen ${labelOf(SHARPEN_MEDIA, form.sharpenMedia)}`;
+}
+
 export function sizeSummary(form: ExportFormValues, crop: PixelSize | null): string {
-  const size = crop
-    ? pixelSize(resizedSize(crop, formResize(form)))
-    : labelOf(RESIZE_MODES, form.resizeMode);
-  const sharpen =
-    form.sharpenMedia === 'none' ? null : `Sharpen ${labelOf(SHARPEN_MEDIA, form.sharpenMedia)}`;
-  return [size, sharpen].filter((part) => part !== null).join(SEPARATOR);
+  const size = crop ? pixelSize(resizedSize(crop, formResize(form))) : resizeLabel(form);
+  return [size, sharpenLabel(form)].filter((part) => part !== null).join(SEPARATOR);
 }
 
 export function watermarkSummary(form: ExportFormValues, name: string | null): string {
@@ -70,6 +82,31 @@ export function outputSummary(
       .filter((part) => part !== null)
       .join(SEPARATOR)
   };
+}
+
+function specLabel(form: ExportFormValues): string {
+  if (qualityShown(form)) return `${formatLabel(form.format)} ${form.quality}`;
+  if (bitDepthShown(form.format)) {
+    return `${formatLabel(form.format)} ${labelOf(BIT_DEPTHS, form.bitDepth)}`;
+  }
+  return form.format === 'webp' && form.lossless ? 'WebP Lossless' : formatLabel(form.format);
+}
+
+export function presetSummary(
+  form: ExportFormValues,
+  immich: { albums: readonly string[] } | null
+): string {
+  return [
+    specLabel(form),
+    resizeLabel(form),
+    spaceLabel(form.colorSpace),
+    sharpenLabel(form),
+    form.metadata === 'all' ? null : `Metadata ${labelOf(METADATA_OPTIONS, form.metadata)}`,
+    form.watermarkId ? 'Watermark' : null,
+    immich ? ['to Immich', ...immich.albums].join(', ') : null
+  ]
+    .filter((part) => part !== null)
+    .join(SEPARATOR);
 }
 
 export function nameSummary(form: ExportFormValues): string {

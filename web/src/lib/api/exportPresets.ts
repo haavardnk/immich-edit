@@ -1,9 +1,11 @@
+import type { Destination } from '#lib/panels/export/settings.ts';
 import { getJson, sendJson, url } from './client';
 
 export interface ExportPreset {
   id: string;
   name: string;
   form: Record<string, unknown>;
+  destination: Destination;
   created_at: string;
   updated_at: string;
 }
@@ -11,6 +13,7 @@ export interface ExportPreset {
 export interface ExportPresetInput {
   name: string;
   form: Record<string, unknown>;
+  destination: Destination;
 }
 
 export function listExportPresets(): Promise<ExportPreset[]> {

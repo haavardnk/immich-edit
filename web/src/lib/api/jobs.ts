@@ -9,6 +9,7 @@ import {
   type FinishParams,
   type ImmichExportOptions,
   type PngCompressionOpt,
+  type StackPrimary,
   type TiffCompressionOpt
 } from './export';
 import type { EditManifest } from '#lib/types/edits.ts';
@@ -48,6 +49,7 @@ export interface Job {
 
 export interface JobItemResult {
   filename?: string;
+  preset?: string;
   warnings?: string[];
   original_trashed?: boolean;
 }
@@ -56,6 +58,8 @@ export interface JobItem {
   id: string;
   job_id: string;
   asset_id: string;
+  position: number;
+  variant: number;
   status: JobItemStatus;
   error: string | null;
   result: JobItemResult | null;
@@ -68,6 +72,25 @@ export interface JobItem {
 export interface JobDetail {
   job: Job;
   items: JobItem[];
+}
+
+export const MAX_JOB_PRESETS = 16;
+
+export interface JobVariant {
+  preset: string;
+  params: Record<string, unknown>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function jobVariants(job: Job): JobVariant[] {
+  if (!isRecord(job.params) || !Array.isArray(job.params.variants)) return [];
+  return job.params.variants.filter(isRecord).map((variant) => ({
+    preset: typeof variant.preset === 'string' ? variant.preset : '',
+    params: isRecord(variant.params) ? variant.params : {}
+  }));
 }
 
 export function isJobActive(status: JobStatus): boolean {
@@ -136,28 +159,65 @@ function baseParams(opts: ExportOptions): ExportJobParams {
   };
 }
 
+interface ImmichJobParams extends ExportJobParams {
+  album_ids: string[];
+  tag_ids: string[];
+  favorite: boolean;
+  stack_with_original: boolean;
+  stack_primary: StackPrimary;
+  replace_original: boolean;
+}
+
+function immichParams(opts: ImmichExportOptions): ImmichJobParams {
+  return {
+    ...baseParams(opts),
+    album_ids: opts.albumIds,
+    tag_ids: opts.tagIds,
+    favorite: opts.favorite,
+    stack_with_original: opts.stackWithOriginal,
+    stack_primary: opts.stackPrimary,
+    replace_original: opts.replaceOriginal
+  };
+}
+
+export interface PresetVariant<O> {
+  preset: string;
+  options: O;
+}
+
+function variantParams<O, P>(
+  variants: readonly PresetVariant<O>[],
+  build: (opts: O) => P
+): { variants: { preset: string; params: P }[] } {
+  return {
+    variants: variants.map(({ preset, options }) => ({ preset, params: build(options) }))
+  };
+}
+
+function createExportJob(kind: string, assetIds: string[], params: object): Promise<Job> {
+  return sendJson('POST', '/api/jobs', { kind, asset_ids: assetIds, params });
+}
+
 export function createImmichExportJob(assetIds: string[], opts: ImmichExportOptions): Promise<Job> {
-  return sendJson('POST', '/api/jobs', {
-    kind: JOB_KINDS.exportImmich,
-    asset_ids: assetIds,
-    params: {
-      ...baseParams(opts),
-      album_ids: opts.albumIds,
-      tag_ids: opts.tagIds,
-      favorite: opts.favorite,
-      stack_with_original: opts.stackWithOriginal,
-      stack_primary: opts.stackPrimary,
-      replace_original: opts.replaceOriginal
-    }
-  });
+  return createExportJob(JOB_KINDS.exportImmich, assetIds, immichParams(opts));
 }
 
 export function createZipExportJob(assetIds: string[], opts: ExportOptions): Promise<Job> {
-  return sendJson('POST', '/api/jobs', {
-    kind: JOB_KINDS.downloadZip,
-    asset_ids: assetIds,
-    params: baseParams(opts)
-  });
+  return createExportJob(JOB_KINDS.downloadZip, assetIds, baseParams(opts));
+}
+
+export function createImmichPresetsJob(
+  assetIds: string[],
+  variants: readonly PresetVariant<ImmichExportOptions>[]
+): Promise<Job> {
+  return createExportJob(JOB_KINDS.exportImmich, assetIds, variantParams(variants, immichParams));
+}
+
+export function createZipPresetsJob(
+  assetIds: string[],
+  variants: readonly PresetVariant<ExportOptions>[]
+): Promise<Job> {
+  return createExportJob(JOB_KINDS.downloadZip, assetIds, variantParams(variants, baseParams));
 }
 
 export interface ApplyPresetOptions {

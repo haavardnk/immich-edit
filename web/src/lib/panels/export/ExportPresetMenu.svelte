@@ -1,24 +1,31 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
-  import { Icon, Tooltip } from '@immich/ui';
-  import { mergeProps } from 'bits-ui';
-  import { mdiChevronDown, mdiContentSaveOutline, mdiDeleteOutline } from '@mdi/js';
+  import { countOf } from '#lib/utils/plural.ts';
+  import { Button, Icon } from '@immich/ui';
+  import { mdiLayersTripleOutline, mdiMenuDown } from '@mdi/js';
+  import ExportPresetList from './ExportPresetList.svelte';
   import { exportPresets } from './exportPresets.svelte';
+  import type { PresetSelection } from './presetSelection.svelte';
+
+  let {
+    selection,
+    busy,
+    onExport
+  }: {
+    selection: PresetSelection;
+    busy: boolean;
+    onExport: () => Promise<boolean>;
+  } = $props();
 
   let open = $state(false);
-  let name = $state('');
 
   function onOpenChange(next: boolean): void {
     open = next;
     if (next && !exportPresets.loaded) void exportPresets.load();
   }
 
-  async function save(e: SubmitEvent): Promise<void> {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    await exportPresets.save(trimmed);
-    name = '';
+  async function run(): Promise<void> {
+    if (await onExport()) open = false;
   }
 </script>
 
@@ -27,74 +34,59 @@
   {onOpenChange}
   align="start"
   appearance="panel"
-  contentClass="w-64"
+  contentClass="w-md"
   sheetClass="p-0"
   title="Export presets"
 >
   {#snippet trigger(props)}
-    <button
+    <Button
+      size="tiny"
+      variant="ghost"
+      color="secondary"
+      class="gap-1 self-start font-normal text-dark/65 touch:min-h-11 touch:text-sm"
+      title=""
       {...props}
-      type="button"
-      class="flex items-center gap-1 self-start rounded px-1.5 py-0.5 text-[11px] text-dark/75 hover:bg-light-950/5 hover:text-dark"
     >
       Export presets
-      <Icon icon={mdiChevronDown} size="14" />
-    </button>
+      <Icon icon={mdiMenuDown} size="16px" class="shrink-0" aria-hidden="true" />
+    </Button>
   {/snippet}
-  <ul class="py-1" aria-label="Export presets">
-    {#each exportPresets.presets as preset (preset.id)}
-      <li class="group flex items-center hover:bg-light-950/5">
-        <button
-          type="button"
-          class="min-w-0 flex-1 truncate px-3 py-1.5 text-left text-xs"
-          onclick={() => {
-            exportPresets.apply(preset);
-            open = false;
-          }}
-        >
-          {preset.name}
-        </button>
-        <Tooltip text="Delete">
-          {#snippet child({ props })}
-            <button
-              {...mergeProps(props, {
-                type: 'button' as const,
-                class: 'px-2 py-1.5 text-dark/50 hover:text-red-400',
-                'aria-label': `Delete export preset ${preset.name}`,
-                onclick: () => void exportPresets.remove(preset)
-              })}
-            >
-              <Icon icon={mdiDeleteOutline} size="14" />
-            </button>
-          {/snippet}
-        </Tooltip>
-      </li>
-    {:else}
-      <li class="px-3 py-1.5 text-xs text-dark/50">
-        {exportPresets.loaded ? 'No saved presets' : 'Loading…'}
-      </li>
-    {/each}
-  </ul>
-  <form class="flex items-center gap-1 border-t border-dark/10 p-2" onsubmit={save}>
-    <input
-      bind:value={name}
-      maxlength={80}
-      placeholder="Save current as…"
-      aria-label="Export preset name"
-      class="min-w-0 flex-1 rounded border border-dark/15 bg-transparent px-2 py-1 text-xs"
-    />
-    <Tooltip text="Save (overwrites a preset with the same name)">
-      {#snippet child({ props })}
-        <button
-          {...props}
-          type="submit"
-          class="p-1 text-dark/65 hover:text-dark disabled:opacity-40"
-          aria-label="Save export preset"
-          disabled={!name.trim()}
-        >
-          <Icon icon={mdiContentSaveOutline} size="16" />
-        </button>
-      {/snippet}
-    </Tooltip>
-  </form>
+  <div class="px-3 pt-2 text-xs font-medium text-dark touch:hidden">Export presets</div>
+  <ExportPresetList
+    {selection}
+    shareHints
+    onApply={(preset) => {
+      exportPresets.apply(preset);
+      open = false;
+    }}
+  />
+  {#if selection.picked.length > 0}
+    <div
+      class="sticky bottom-0 flex items-center gap-2 border-t border-dark/10 bg-light-100 px-3 py-2 touch:px-4 touch:py-3"
+    >
+      <span class="min-w-0 flex-1 text-[11px] leading-tight text-dark/65 touch:text-xs">
+        {selection.note}
+      </span>
+      <Button
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        class="touch:min-h-11 touch:text-sm"
+        onclick={selection.clear}
+      >
+        Clear
+      </Button>
+      <Button
+        size="tiny"
+        color="primary"
+        class="touch:min-h-11 touch:text-sm"
+        leadingIcon={mdiLayersTripleOutline}
+        loading={busy}
+        disabled={busy || selection.tooMany}
+        onclick={() => void run()}
+      >
+        Export with {countOf(selection.picked.length, 'preset')}
+      </Button>
+    </div>
+  {/if}
 </Popover>

@@ -27,10 +27,18 @@ function asFile(file: SharedFile): File {
   });
 }
 
+export function canShareFiles(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+}
+
+export function saveOnly(format: ExportFormat): boolean {
+  return canShareFiles() && REFUSED.includes(format);
+}
+
+export const SAVE_ONLY_REASON = `${REFUSED.map(formatLabel).join(' and ')} can't be shared from the browser, so they offer Save only.`;
+
 export function shareSupport(file: SharedFile): ShareSupport {
-  if (typeof navigator === 'undefined' || typeof navigator.canShare !== 'function') {
-    return { shareable: false, reason: null };
-  }
+  if (!canShareFiles()) return { shareable: false, reason: null };
   if (navigator.canShare({ files: [asFile(file)] })) return { shareable: true, reason: null };
   const format = file.options.format;
   return {

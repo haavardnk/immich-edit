@@ -60,7 +60,11 @@ for (const device of ['phone', 'tablet'] as const) {
       await expect(dialog.getByText('Saved', { exact: true }).first()).toBeVisible();
 
       await dialog.getByRole('button', { name: 'Settings' }).tap();
+      await expect(dialog.getByRole('combobox', { name: 'Format' })).toHaveCount(0);
+      const file = dialog.getByRole('region', { name: 'File' }).getByRole('button');
+      await file.tap();
       await expect(dialog.getByRole('combobox', { name: 'Format' })).toBeVisible();
+      await file.tap();
       await dialog.getByRole('button', { name: 'File', exact: true }).tap();
       await expect(dialog.getByRole('group', { name: 'Exported file' })).toBeVisible();
       await dialog.getByRole('button', { name: 'Settings' }).tap();
@@ -72,6 +76,7 @@ for (const device of ['phone', 'tablet'] as const) {
       await openExport(page);
       const dialog = sheet(page);
       const full = (await dialog.boundingBox())?.height ?? 0;
+      await dialog.getByRole('region', { name: 'Watermark' }).getByRole('button').first().tap();
       await dialog
         .getByRole('radiogroup', { name: 'Watermark' })
         .getByRole('radio', { name: 'Signature' })

@@ -17,6 +17,9 @@ import {
 import { asset } from '#lib/testing/assets.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ExportForm from './ExportForm.svelte';
+import ExportPresetList from './ExportPresetList.svelte';
+import ExportPresetMenu from './ExportPresetMenu.svelte';
+import { PresetSelection } from './presetSelection.svelte';
 import ProofMismatchNotice from './ProofMismatchNotice.svelte';
 
 vi.mock('$app/navigation', () => ({ afterNavigate: (): void => {}, goto: vi.fn() }));
@@ -28,11 +31,26 @@ vi.mock('$app/state', () => ({
 const button = (name: string): ControlRef => ({ role: 'button', name });
 const saveAutomatically: ControlRef = { role: 'checkbox', name: 'Save automatically' };
 
+const presetMenu = (): Layout<'preset menu'> =>
+  layout('preset menu', ExportPresetMenu, {
+    selection: new PresetSelection(),
+    busy: false,
+    onExport: async () => false
+  });
+
+const presetList = (): Layout<'preset list'> =>
+  layout('preset list', ExportPresetList, {
+    selection: new PresetSelection(),
+    onApply: () => {}
+  });
+
 function layouts(
   destination: 'download' | 'immich'
-): Layout<'body' | 'zip body' | 'editor panel' | 'bulk export'>[] {
+): Layout<'body' | 'zip body' | 'editor panel' | 'bulk export' | 'preset menu' | 'preset list'>[] {
   const immich = destination === 'immich';
   return [
+    presetMenu(),
+    presetList(),
     layout('body', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
     layout('zip body', ExportForm, {
       scope: exportScope({ assets: [], count: 0, trashOn: false }),
@@ -82,14 +100,16 @@ describe('ExportForm layout parity', () => {
       exportSettings.destination = destination;
       const found = await layoutControls(layouts(destination));
       expect(found.body.length).toBeGreaterThan(10);
-      expect(found['editor panel']).toEqual(found.body);
-      expect(found['bulk export']).toEqual(found['zip body']);
+      expect(found['preset menu']).toEqual([{ ...button('Export presets'), expanded: false }]);
+      expect(found['editor panel']).toEqual(mergeControls(found.body, found['preset menu']));
+      expect(found['bulk export']).toEqual(mergeControls(found['zip body'], found['preset list']));
     }
   );
 
   it('adds the soft-proof notice body to the editor panel only', async () => {
     editor.proofSpace = 'displayp3';
     const found = await layoutControls([
+      presetMenu(),
       layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
       layout('notice', ProofMismatchNotice, {}),
       layout('editor panel', Export, {}, { exclude: [button('Export JPEG'), saveAutomatically] }),
@@ -101,7 +121,9 @@ describe('ExportForm layout parity', () => {
       )
     ]);
     expect(found.notice).toEqual([{ role: 'button', name: 'Export Display P3' }]);
-    expect(found['editor panel']).toEqual(mergeControls(found.form, found.notice));
+    expect(found['editor panel']).toEqual(
+      mergeControls(found.form, found.notice, found['preset menu'])
+    );
     expect(found['bulk export']).not.toContainEqual(found.notice[0]);
   });
 
@@ -115,6 +137,7 @@ describe('ExportForm layout parity', () => {
     immichCapabilities.trash = true;
     exportSettings.destination = 'immich';
     const found = await layoutControls([
+      presetList(),
       layout('body', ExportForm, {
         scope: exportScope({ assets, count: assets.length, trashOn: true }),
         downloadLabel: 'Download ZIP'
@@ -128,6 +151,6 @@ describe('ExportForm layout parity', () => {
     ]);
     const replace = found.body.find((control) => control.name === 'Replace original');
     expect(replace?.disabled).toBe(owners.includes('me') ? undefined : true);
-    expect(found['bulk export']).toEqual(found.body);
+    expect(found['bulk export']).toEqual(mergeControls(found.body, found['preset list']));
   });
 });

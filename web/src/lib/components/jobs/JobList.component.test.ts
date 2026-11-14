@@ -34,6 +34,8 @@ const item: JobItem = {
   id: 'i1',
   job_id: 'zip',
   asset_id: 'asset-0001',
+  position: 1,
+  variant: 0,
   status: 'failed',
   error: 'Render failed',
   result: { warnings: ['Lens profile missing'] },
@@ -126,5 +128,27 @@ describe('JobList layout parity', () => {
       'Finished',
       'Download ZIP progress'
     ]);
+  });
+
+  it('names the preset of each item in a multi-preset job', async () => {
+    jobs.jobs = [
+      {
+        ...job('zip', 'download_zip', 'completed'),
+        params: { variants: [{ preset: 'Web' }, { preset: 'Print' }] }
+      }
+    ];
+    jobs.items = {
+      zip: [
+        { ...item, status: 'completed', result: { filename: 'a_web.jpg', preset: 'Web' } },
+        { ...item, id: 'i2', variant: 1, status: 'pending', error: null, result: null }
+      ]
+    };
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const destroy = layout('list', JobList, {}).render(target);
+    expect(target.textContent).toMatch(/a_web\.jpg\s*Web\s*completed/);
+    expect(target.textContent).toMatch(/asset-00\s*Print\s*pending/);
+    await destroy();
+    target.remove();
   });
 });

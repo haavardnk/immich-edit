@@ -179,6 +179,8 @@ test('@touch a single photo downloads directly and closes the sheet', async ({ p
   const { dialog } = await openTouchExport(page, 1, exports.opts);
   await expect(dialog).toHaveAccessibleName('Export 1 photo');
   await expect(dialog.getByText(/selected/)).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Format' })).toHaveCount(0);
+  await dialog.getByRole('button', { name: /^File/ }).tap();
   await dialog.getByRole('combobox', { name: 'Format' }).tap();
   await page.getByRole('option', { name: 'PNG' }).tap();
 

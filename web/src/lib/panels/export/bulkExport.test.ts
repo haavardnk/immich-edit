@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   showJob: vi.fn(),
   downloadWhenDone: vi.fn(),
   downloadStoredExport: vi.fn(),
-  downloadBlob: vi.fn()
+  downloadBlob: vi.fn(),
+  submitPresetExport: vi.fn()
 }));
 
 vi.mock('#lib/api/jobs.ts', async (original) => ({
@@ -20,6 +21,9 @@ vi.mock('#lib/api/export.ts', async (original) => ({
   ...(await original<typeof import('#lib/api/export.ts')>()),
   downloadStoredExport: mocks.downloadStoredExport
 }));
+vi.mock('#lib/panels/export/presetExport.ts', () => ({
+  submitPresetExport: mocks.submitPresetExport
+}));
 vi.mock('#lib/utils/download.ts', () => ({ downloadBlob: mocks.downloadBlob }));
 vi.mock('#lib/stores/jobs.svelte.ts', () => ({
   jobs: { showJob: mocks.showJob, downloadWhenDone: mocks.downloadWhenDone }
@@ -27,13 +31,15 @@ vi.mock('#lib/stores/jobs.svelte.ts', () => ({
 
 import type { Job } from '#lib/api/jobs.ts';
 import { BulkExporter, submitBulkExport } from '#lib/panels/export/bulkExport.svelte.ts';
+import type { ExportPreset } from '#lib/api/exportPresets.ts';
+import { exportPresets } from '#lib/panels/export/exportPresets.svelte.ts';
 import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
 import { exportScope, uploadOptions } from '#lib/panels/export/scope.ts';
 import { baseOptions } from '#lib/panels/export/settings.ts';
 import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import { mdiCloudUpload, mdiDownload, mdiFolderZip } from '@mdi/js';
+import { mdiCloudUpload, mdiDownload, mdiFolderZip, mdiLayersTripleOutline } from '@mdi/js';
 
 const OPEN_SCOPE = exportScope({ assets: [], count: 2, trashOn: true });
 
@@ -58,8 +64,20 @@ beforeEach(() => {
   });
 });
 
+function preset(id: string, destination: ExportPreset['destination']): ExportPreset {
+  return {
+    id,
+    name: id,
+    form: {},
+    destination,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  };
+}
+
 afterEach(() => {
   toasts.items = [];
+  exportPresets.presets = [];
   selection.clear();
   exportSettings.destination = 'download';
   immichCapabilities.trash = false;
@@ -187,5 +205,35 @@ describe('BulkExporter', () => {
     expect(started).not.toHaveBeenCalled();
     expect(exporter.busy).toBe(false);
     expect(toasts.items.map((toast) => toast.message)).toEqual(['Export failed: boom']);
+  });
+
+  it('exports ticked presets instead of the form and counts files', async () => {
+    exportPresets.presets = [preset('web', 'download'), preset('family', 'immich')];
+    selection.replace(['a', 'b']);
+    const started = vi.fn();
+    const exporter = new BulkExporter(started);
+    exporter.presets.toggle('web', true);
+    expect(exporter.usingPresets).toBe(true);
+    expect(exporter.label).toBe('Download 2 as ZIP');
+    expect(exporter.icon).toBe(mdiFolderZip);
+    exporter.presets.toggle('family', true);
+    expect(exporter.label).toBe('Export 4 files');
+    expect(exporter.icon).toBe(mdiLayersTripleOutline);
+    expect(exporter.summary).toBe('2 photos · 2 presets · ZIP and Immich');
+
+    exportSettings.form.filenameTemplate = '{bad}';
+    expect(exporter.disabled).toBe(false);
+    mocks.submitPresetExport.mockResolvedValue([{ destination: 'immich', job: JOB }]);
+    await exporter.submit();
+    expect(mocks.submitPresetExport).toHaveBeenCalledWith(
+      ['a', 'b'],
+      exportPresets.presets,
+      exporter.scope
+    );
+    expect(mocks.runBulkJob).not.toHaveBeenCalled();
+    expect(started).toHaveBeenCalledOnce();
+    expect(mocks.showJob).toHaveBeenCalledWith('job-1');
+    expect(exporter.presets.picked.map((preset) => preset.id)).toEqual(['web']);
+    exportSettings.form.filenameTemplate = '{name}_edit';
   });
 });

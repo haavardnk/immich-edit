@@ -1,10 +1,12 @@
 import type { ExifInfo } from '#lib/types/asset.ts';
 
 export const DEFAULT_FILENAME_TEMPLATE = '{name}_edit';
+export const PRESET_FILENAME_TEMPLATE = '{name}_{preset}';
 export const FILENAME_TOKENS = [
   { token: '{name}', label: 'Original name' },
   { token: '{date}', label: 'Capture date' },
-  { token: '{seq}', label: 'Number in batch' }
+  { token: '{seq}', label: 'Number in batch' },
+  { token: '{preset}', label: 'Preset name' }
 ] as const;
 
 const MAX_TEMPLATE_CHARS = 64;

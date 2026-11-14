@@ -45,6 +45,7 @@ describe('ExportResult layout parity', () => {
         {
           exclude: [
             { role: 'button', name: 'Export JPEG' },
+            { role: 'button', name: 'Export presets' },
             { role: 'checkbox', name: 'Save automatically' }
           ]
         }

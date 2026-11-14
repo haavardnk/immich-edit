@@ -88,7 +88,11 @@
           File
         </Button>
       {/if}
-      <ExportPresetMenu />
+      <ExportPresetMenu
+        selection={exporter.presets}
+        busy={exporter.exportingPresets}
+        onExport={exporter.exportPresets}
+      />
     {/if}
   {/snippet}
 
@@ -105,6 +109,7 @@
     <div class="flex flex-col gap-1">
       <ExportFormStack
         {exporter}
+        folded
         presetMenu={false}
         {destinations}
         onWatermarkPick={() => (detent = 0)}

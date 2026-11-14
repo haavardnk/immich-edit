@@ -222,6 +222,7 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  exportPresets?: Array<Record<string, unknown>>;
   luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
@@ -288,7 +289,7 @@ export async function installMocks(
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
-  const exportPresets: Array<Record<string, unknown>> = [];
+  const exportPresets = [...(opts.exportPresets ?? [])];
   const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
   let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
@@ -641,6 +642,7 @@ export async function installMocks(
     if (p === '/api/export-presets') {
       if (method === 'POST') {
         const created = {
+          destination: 'download',
           ...((req.postDataJSON() as Record<string, unknown>) ?? {}),
           id: `export-preset-${exportPresets.length + 1}`,
           created_at: '2024-01-01T00:00:00Z',
