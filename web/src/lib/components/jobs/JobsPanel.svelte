@@ -2,6 +2,7 @@
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import JobList from '#lib/components/jobs/JobList.svelte';
   import JobListActions from '#lib/components/jobs/JobListActions.svelte';
+  import JobNotifyToggle from '#lib/components/jobs/JobNotifyToggle.svelte';
   import { jobsSummary } from '#lib/components/jobs/jobFormat.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { IconButton } from '@immich/ui';
@@ -45,6 +46,7 @@
     <h2 id="jobs-panel-title" class="text-[15px] font-semibold text-light-950">Jobs</h2>
     <span class="text-xs text-dark/65">{jobsSummary(jobs.activeCount)}</span>
     <div class="ms-auto flex items-center gap-1">
+      <JobNotifyToggle />
       <IconButton
         size="small"
         variant="ghost"

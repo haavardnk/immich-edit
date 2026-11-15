@@ -124,6 +124,7 @@ test.describe('jobs on touch', { tag: '@touch' }, () => {
     const drawer = await openDrawer(page);
     await drawer.getByRole('button', { name: /^Jobs/ }).tap();
     const sheet = jobsPanel(page);
+    await expect(sheet.getByRole('button', { name: 'Notify when jobs finish' })).toBeVisible();
     const retry = sheet.getByRole('button', { name: 'Retry 1 failed' });
     await expect(retry).toHaveText('Retry 1');
     expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(36);

@@ -5,11 +5,12 @@ import { buildThemeCache, type ThemeCache } from '#lib/theme/cache.ts';
 import {
   pageThemeRevision,
   readThemeCache,
-  writeSchemeChrome,
-  writeTheme
+  writeTheme,
+  writeThemeColor
 } from '#lib/theme/document.ts';
+import { showFaviconAccent } from '#lib/theme/tabIcon.ts';
 import { DEFAULT_APPEARANCE, resolveAppearance } from '#lib/theme/registry.ts';
-import type { Appearance, Scheme, ThemeMode } from '#lib/theme/types.ts';
+import type { Appearance, ResolvedTheme, Scheme, ThemeMode } from '#lib/theme/types.ts';
 import { Theme, themeManager, ThemePreference } from '@immich/ui';
 
 type AppearanceEdit = (appearance: Appearance) => Appearance;
@@ -23,6 +24,7 @@ const PREFERENCE: Readonly<Record<ThemeMode, ThemePreference>> = {
 class AppearanceStore {
   current = $state<Appearance>(readThemeCache()?.appearance ?? DEFAULT_APPEARANCE);
   #cache: ThemeCache | null = null;
+  #themes: Readonly<Record<Scheme, ResolvedTheme>> | null = null;
   #mode: ThemeMode | null = null;
   #loading: Promise<void> | null = null;
   #queued: AppearanceEdit[] = [];
@@ -72,7 +74,9 @@ class AppearanceStore {
   }
 
   showScheme(scheme: Scheme): void {
-    if (this.#cache) writeSchemeChrome(this.#cache.chrome[scheme]);
+    if (!this.#cache || !this.#themes) return;
+    writeThemeColor(this.#cache.chrome[scheme].themeColor);
+    showFaviconAccent(this.#themes[scheme].accentColor);
   }
 
   async #fetch(): Promise<void> {
@@ -88,7 +92,8 @@ class AppearanceStore {
   }
 
   #apply(appearance: Appearance): void {
-    this.#cache = buildThemeCache(appearance, resolveAppearance(appearance), pageThemeRevision());
+    this.#themes = resolveAppearance(appearance);
+    this.#cache = buildThemeCache(appearance, this.#themes, pageThemeRevision());
     writeTheme(this.#cache);
     if (appearance.mode !== this.#mode) {
       themeManager.setPreference(PREFERENCE[appearance.mode]);

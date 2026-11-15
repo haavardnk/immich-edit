@@ -18,7 +18,8 @@ vi.mock('#lib/theme/document.ts', () => ({
   pageThemeRevision: () => 'test',
   readThemeCache: () => null,
   writeTheme: vi.fn(),
-  writeSchemeChrome: vi.fn()
+  writeThemeColor: vi.fn(),
+  writeFavicon: vi.fn()
 }));
 
 vi.mock('#lib/stores/toasts.svelte.ts', () => ({ toasts: { fail: ui.fail } }));

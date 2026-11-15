@@ -176,6 +176,7 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   const progress = page.getByRole('progressbar', { name: 'Apply Preset progress' });
   await expect(progress).toBeVisible();
   await expect(page.getByTestId('job-toast-outcome')).toHaveText('0 of 2');
+  await expect(page).toHaveTitle('(0%) immich-edit');
   await expect(page.getByRole('complementary', { name: 'Jobs' })).toHaveCount(0);
 
   await expect.poll(() => deliver !== null).toBe(true);
@@ -183,12 +184,14 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   await expect(page.getByTestId('job-toast-outcome')).toHaveText('1 of 2 failed');
   await expect(progress).toBeHidden();
   await expect(page.getByTestId('jobs-attention')).toBeVisible();
+  await expect(page).toHaveTitle('(!) immich-edit');
 
   await page.getByRole('button', { name: 'Details' }).click();
   const drawer = page.getByRole('complementary', { name: 'Jobs' });
   await expect(drawer.getByText('render failed')).toBeVisible();
   await expect(page.getByTestId('job-toast-outcome')).toHaveCount(0);
   await expect(page.getByTestId('jobs-attention')).toHaveCount(0);
+  await expect(page).toHaveTitle('immich-edit');
 });
 
 test('the jobs panel docks beside the grid and leaves it usable', async ({ page }) => {

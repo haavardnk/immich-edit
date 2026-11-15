@@ -11,6 +11,7 @@
   import TrashDialog from './TrashDialog.svelte';
   import SignOutConfirm from './SignOutConfirm.svelte';
   import JobsOverlay from '#lib/components/jobs/JobsOverlay.svelte';
+  import JobsTabStatus from '#lib/components/jobs/JobsTabStatus.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
@@ -82,6 +83,7 @@
 <MetadataConsentDialog />
 <TrashDialog />
 <JobsOverlay />
+<JobsTabStatus />
 <SignOutConfirm />
 {#if browseView.loupeId}
   <Loupe />

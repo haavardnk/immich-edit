@@ -25,6 +25,7 @@ import { trash } from '#lib/stores/trash.svelte.ts';
 import { endedNow, progressed, revives, supersedes } from '#lib/stores/jobs/transitions.ts';
 import { ItemRefresh } from '#lib/stores/jobs/itemRefresh.ts';
 import { JobWatch, pollDelay } from '#lib/stores/jobs/watch.ts';
+import { jobNotifications } from '#lib/stores/jobs/notify.svelte.ts';
 
 const DONE_TOAST_MS = 6000;
 const REFRESHES_THUMBS: ReadonlySet<string> = new Set([
@@ -171,6 +172,7 @@ class JobsStore {
     if (trashesAssets(job)) void this.forgetTrashed(job.id);
     if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
     this.watch.stop(job.id);
+    jobNotifications.notify(job);
     this.settle(job);
   }
 

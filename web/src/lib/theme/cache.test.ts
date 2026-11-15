@@ -49,4 +49,16 @@ describe('favicon', () => {
     expect(svg).toContain('prefers-color-scheme: dark');
     expect(svg).not.toContain(FAVICON_ACCENT);
   });
+
+  it('swaps the corner marks for a progress ring and adds a dot for an unseen failure', () => {
+    const ring = faviconSvg('#123456', { kind: 'progress', fraction: 0.5 });
+    expect(ring).not.toContain('M64 182');
+    expect(ring).toContain('stroke-dasharray="678.6 1357.2"');
+    expect(faviconSvg('#123456', { kind: 'progress', fraction: 2 })).toContain(
+      'stroke-dasharray="1357.2 1357.2"'
+    );
+    const alert = faviconSvg('#123456', { kind: 'alert' });
+    expect(alert).toContain('M64 182');
+    expect(alert).toContain('fill="#E5484D"');
+  });
 });

@@ -2,6 +2,7 @@
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import JobList from '#lib/components/jobs/JobList.svelte';
   import JobListActions from '#lib/components/jobs/JobListActions.svelte';
+  import JobNotifyToggle from '#lib/components/jobs/JobNotifyToggle.svelte';
   import { jobsSummary } from '#lib/components/jobs/jobFormat.ts';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
@@ -11,6 +12,10 @@
 
 {#snippet actions()}
   <JobListActions />
+{/snippet}
+
+{#snippet header()}
+  <JobNotifyToggle />
 {/snippet}
 
 {#if sheet.mounted}
@@ -24,6 +29,7 @@
     closeLabel="Close jobs"
     detents={[{ fraction: 1 }]}
     bodyClass="flex flex-col pb-3"
+    {header}
     footer={jobs.clearableCount > 0 ? actions : undefined}
   >
     <JobList grouped />
