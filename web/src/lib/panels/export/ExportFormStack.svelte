@@ -12,14 +12,12 @@
     exporter,
     folded = false,
     presetMenu = true,
-    destinations,
     onWatermarkPick,
     children
   }: {
     exporter: EditorExporter;
     folded?: boolean;
     presetMenu?: boolean;
-    destinations?: Snippet;
     onWatermarkPick?: () => void;
     children?: Snippet;
   } = $props();
@@ -30,20 +28,12 @@
 {/snippet}
 
 {#if presetMenu}
-  <ExportPresetMenu
-    selection={exporter.presets}
-    busy={exporter.exportingPresets}
-    onExport={exporter.exportPresets}
-    earlier={exporter.earlierPresets}
-    earlierQuery={exporter.presetQuery}
-    replaceReason={exporter.scope.conflictReason}
-  />
+  <ExportPresetMenu {exporter} />
 {/if}
 <ExportForm
   scope={exporter.scope}
   crop={exporter.crop}
   {folded}
-  {destinations}
   {onWatermarkPick}
   bind:replaceOriginal={exporter.replaceOriginal}
   fileNotice={proofNotice}

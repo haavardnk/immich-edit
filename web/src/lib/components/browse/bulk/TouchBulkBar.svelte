@@ -5,9 +5,10 @@
   import BarAction from '#lib/components/browse/BarAction.svelte';
   import BulkAlbumBand from '#lib/components/browse/bulk/BulkAlbumBand.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
-  import BulkExport from '#lib/components/browse/bulk/BulkExport.svelte';
   import BulkMoreSheet from '#lib/components/browse/bulk/BulkMoreSheet.svelte';
   import BulkTagBand from '#lib/components/browse/bulk/BulkTagBand.svelte';
+  import TouchBulkExportSheet from '#lib/components/browse/bulk/TouchBulkExportSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -33,6 +34,7 @@
   const rating = $derived(ratingLook(scope.rating));
   const labelDot = $derived(labelLook(scope.label));
   const photos = $derived(countOf(scope.targetCount, 'photo'));
+  const exportSheet = presence(() => sheet === 'export');
 
   function opener(name: Sheet): (open: boolean) => void {
     return (open) => {
@@ -138,23 +140,14 @@
     {/snippet}
     <BulkTagBand />
   </Popover>
-  <Popover
-    open={sheet === 'export'}
-    onOpenChange={opener('export')}
-    appearance="panel"
-    title="Export {photos}"
-    sheetClass="pb-3"
-  >
-    {#snippet trigger(props)}
-      <BarAction
-        {...props}
-        icon={mdiExportVariant}
-        label="Export"
-        disabled={empty || scope.selectingAll}
-      />
-    {/snippet}
-    <BulkExport folded onStarted={() => (sheet = null)} />
-  </Popover>
+  <BarAction
+    icon={mdiExportVariant}
+    label="Export"
+    aria-haspopup="dialog"
+    aria-expanded={sheet === 'export'}
+    disabled={empty || scope.selectingAll}
+    onclick={() => opener('export')(sheet !== 'export')}
+  />
   <BarAction
     icon={mdiDotsHorizontal}
     label="More"
@@ -173,6 +166,15 @@
 >
   <BulkApplyPreset />
 </Popover>
+
+{#if exportSheet.mounted}
+  <TouchBulkExportSheet
+    open={sheet === 'export'}
+    title="Export {photos}"
+    onOpenChange={opener('export')}
+    onExited={exportSheet.exited}
+  />
+{/if}
 
 {#if more}
   <BulkMoreSheet open={more} onOpenChange={closeMore} onPick={(name) => (next = name)} />

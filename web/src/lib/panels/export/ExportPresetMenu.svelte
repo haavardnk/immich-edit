@@ -5,26 +5,21 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiLayersTripleOutline, mdiMenuDown } from '@mdi/js';
   import EarlierExport from './EarlierExport.svelte';
-  import type { EarlierExports, EarlierQuery } from './earlierExports.svelte';
   import ExportPresetList from './ExportPresetList.svelte';
   import { exportPresets } from './exportPresets.svelte';
-  import type { PresetSelection } from './presetSelection.svelte';
+  import type { PresetExporter } from './presetExporter';
 
   let {
-    selection,
-    busy,
-    onExport,
-    earlier,
-    earlierQuery = null,
-    replaceReason = null
+    exporter,
+    shareHints = true,
+    align = 'start'
   }: {
-    selection: PresetSelection;
-    busy: boolean;
-    onExport: () => Promise<boolean>;
-    earlier?: EarlierExports;
-    earlierQuery?: EarlierQuery | null;
-    replaceReason?: string | null;
+    exporter: PresetExporter;
+    shareHints?: boolean;
+    align?: 'start' | 'end';
   } = $props();
+
+  const selection = $derived(exporter.presets);
 
   let open = $state(false);
 
@@ -34,14 +29,14 @@
   }
 
   async function run(): Promise<void> {
-    if (await onExport()) open = false;
+    if (await exporter.exportPresets()) open = false;
   }
 </script>
 
 <Popover
   {open}
   {onOpenChange}
-  align="start"
+  {align}
   appearance="panel"
   contentClass="w-md"
   sheetClass="p-0"
@@ -63,14 +58,19 @@
   <div class="px-3 pt-2 text-xs font-medium text-dark touch:hidden">Export presets</div>
   <ExportPresetList
     {selection}
-    shareHints
+    {shareHints}
     onApply={(preset) => {
       exportPresets.apply(preset);
       open = false;
     }}
   />
-  {#if earlier && earlierQuery}
-    <EarlierExport {earlier} query={earlierQuery} {replaceReason} class="mx-3 mb-2 touch:mx-4" />
+  {#if exporter.presetQuery}
+    <EarlierExport
+      earlier={exporter.earlierPresets}
+      query={exporter.presetQuery}
+      replaceReason={exporter.scope.conflictReason}
+      class="mx-3 mb-2 touch:mx-4"
+    />
   {/if}
   {#if selection.picked.length > 0}
     <div
@@ -94,8 +94,8 @@
         color="primary"
         class="touch:min-h-11 touch:text-sm"
         leadingIcon={mdiLayersTripleOutline}
-        loading={busy}
-        disabled={busy || selection.tooMany}
+        loading={exporter.exportingPresets}
+        disabled={exporter.exportingPresets || selection.tooMany}
         onclick={() => void run()}
       >
         Export with {countOf(selection.picked.length, 'preset')}

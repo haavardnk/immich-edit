@@ -140,6 +140,18 @@ test('filename token chips insert at the caret', async ({ page }) => {
   await expect(field).toBeFocused();
   await page.keyboard.type('x');
   await expect(field).toHaveValue('{name}_{name}{date}x');
+
+  const chips = page.getByRole('group', { name: 'Filename tokens' }).getByRole('button');
+  await expect(chips).toHaveText(['{name}', '{date}', '{seq}', '{preset}']);
+  const rows = new Set(
+    await chips.evaluateAll((all) => all.map((chip) => chip.getBoundingClientRect().top))
+  );
+  expect(rows.size).toBe(1);
+  const fieldBox = await field.boundingBox();
+  const chipBox = await chips.first().boundingBox();
+  expect(Math.abs((chipBox?.x ?? 0) - (fieldBox?.x ?? -100))).toBeLessThan(2);
+  await name.hover();
+  await expect(page.locator('.tooltip-content', { hasText: 'Original name' })).toBeVisible();
 });
 
 test('a download carries the resize settings', async ({ page }) => {
@@ -430,11 +442,8 @@ test('export options sit in the same sections in the editor and the bulk dialog'
   await page.getByRole('button', { name: 'Edit and export selected' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
   await dialog.getByRole('tab', { name: 'Export' }).click();
-  await expect(dialog.locator('section[aria-labelledby] > h3')).toHaveText([
-    'Presets',
-    ...titles,
-    'Immich'
-  ]);
+  await expect(dialog.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
+  await expect(dialog.getByRole('button', { name: 'Export presets' })).toBeVisible();
 });
 
 test('an export preset saves and restores the export settings', async ({ page }) => {

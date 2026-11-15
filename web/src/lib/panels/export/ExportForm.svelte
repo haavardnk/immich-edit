@@ -27,18 +27,14 @@
     replaceOriginal = $bindable(false),
     crop = null,
     folded = false,
-    destinations,
     onWatermarkPick,
-    downloadLabel,
     fileNotice
   }: {
     scope: ExportScope;
     replaceOriginal?: boolean;
     crop?: PixelSize | null;
     folded?: boolean;
-    destinations?: Snippet;
     onWatermarkPick?: () => void;
-    downloadLabel?: string;
     fileNotice?: Snippet;
   } = $props();
 
@@ -53,11 +49,7 @@
   });
 </script>
 
-{#if destinations}
-  {@render destinations()}
-{:else}
-  <DestinationToggle bind:value={exportSettings.destination} {downloadLabel} />
-{/if}
+<DestinationToggle bind:value={exportSettings.destination} />
 
 <ExportSection title="File" summary={fileSummary(form)} {folded}>
   <FormatOptions bind:form={exportSettings.form} />

@@ -4,6 +4,9 @@
   import BulkApplyPresetPanel from './BulkApplyPreset.svelte';
   import BulkCopyPastePanel from './BulkCopyPaste.svelte';
   import BulkExportPanel from './BulkExport.svelte';
+  import BulkExportFooter from './BulkExportFooter.svelte';
+  import ExportPresetMenu from '#lib/panels/export/ExportPresetMenu.svelte';
+  import { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
   import { Tabs } from 'bits-ui';
 
   let { onClose }: { onClose: () => void } = $props();
@@ -12,13 +15,27 @@
 
   let tab = $state<BulkTab>('edit');
   let presetsOpen = $state(true);
+
+  const exporter = new BulkExporter(() => onClose());
 </script>
+
+{#snippet presetMenu()}
+  {#if tab === 'export'}
+    <ExportPresetMenu {exporter} shareHints={false} align="end" />
+  {/if}
+{/snippet}
+
+{#snippet exportFooter()}
+  <BulkExportFooter {exporter} />
+{/snippet}
 
 <Dialog
   title="Edit and export selected"
   size="medium"
   {onClose}
   bodyClass="flex min-h-96 flex-col overflow-hidden p-0!"
+  actions={presetMenu}
+  footer={tab === 'export' ? exportFooter : undefined}
 >
   <Tabs.Root
     bind:value={() => tab, (value) => (tab = value as BulkTab)}
@@ -54,9 +71,9 @@
         </Disclosure>
       {/if}
     </Tabs.Content>
-    <Tabs.Content value="export" class="min-h-0 flex-1 overflow-y-auto pt-2">
+    <Tabs.Content value="export" class="min-h-0 flex-1 overflow-y-auto px-3 py-2">
       {#if tab === 'export'}
-        <BulkExportPanel onStarted={onClose} />
+        <BulkExportPanel {exporter} />
       {/if}
     </Tabs.Content>
   </Tabs.Root>

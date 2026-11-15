@@ -129,11 +129,38 @@ test('@touch a ZIP export closes the sheet, opens Jobs and downloads the ZIP', a
 
 test('@touch an export to Immich closes the sheet and opens Jobs', async ({ page }) => {
   const { dialog } = await openTouchExport(page);
-  await dialog.getByRole('radio', { name: 'To Immich' }).tap();
+  await dialog.getByRole('radio', { name: 'Immich', exact: true }).tap();
   await dialog.getByRole('button', { name: 'Export 2 to Immich' }).tap();
 
   await expect(dialog).toBeHidden();
   await expectJobsOn(page, 'Export to Immich');
+});
+
+test('@touch the sheet opens at full height with presets beside the close button', async ({
+  page
+}) => {
+  const { dialog } = await openTouchExport(page);
+  const viewport = page.viewportSize()?.height ?? 0;
+  await expect(dialog.getByRole('radio', { name: 'Device' })).toBeChecked();
+  await expect
+    .poll(async () => (await dialog.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(viewport * 0.8);
+  const presets = dialog.getByRole('button', { name: 'Export presets' });
+  const close = dialog.getByRole('button', { name: 'Close export' });
+  await expect
+    .poll(async () => {
+      const [a, b] = await Promise.all([presets.boundingBox(), close.boundingBox()]);
+      return Math.abs((a?.y ?? 0) + (a?.height ?? 0) / 2 - (b?.y ?? 0) - (b?.height ?? 0) / 2);
+    })
+    .toBeLessThan(4);
+  const full = (await dialog.boundingBox())?.height;
+
+  await dialog.getByRole('region', { name: 'File' }).getByRole('button').first().tap();
+  await expect(dialog.getByRole('combobox', { name: 'Format' })).toBeVisible();
+  expect((await dialog.boundingBox())?.height).toBe(full);
+
+  await dialog.getByRole('button', { name: 'Close export' }).tap();
+  await expect(dialog).toBeHidden();
 });
 
 function recordExports(): { opts: InstallOpts; requests: URL[] } {

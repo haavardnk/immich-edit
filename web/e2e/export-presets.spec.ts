@@ -132,7 +132,7 @@ test('a preset keeps its destination when saved and applied', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Export JPEG' })).toBeVisible();
 });
 
-test('the bulk dialog exports ticked presets and sums up the run', async ({ page }) => {
+test('the bulk dialog keeps presets in the menu and exports them from it', async ({ page }) => {
   await installMocks(page, { ...opts(), assets: ASSETS });
   const jobs = recordJobs(page);
   await page.goto('/photos');
@@ -143,38 +143,68 @@ test('the bulk dialog exports ticked presets and sums up the run', async ({ page
   const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
   await dialog.getByRole('tab', { name: 'Export' }).click();
 
-  await expect(dialog.getByRole('checkbox', { name: 'Current settings' })).toHaveCount(0);
-  const settings = dialog.getByRole('heading', { name: 'Settings', exact: true });
-  await expect(settings).toBeVisible();
-  await expect(dialog.getByText('Used when no preset is ticked', { exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Export with Family album' })).toHaveCount(0);
+  await expect(dialog.getByRole('heading', { name: 'Settings', exact: true })).toHaveCount(0);
   await expect(dialog.getByText('2 photos · ZIP', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('radio', { name: 'Download ZIP' })).toBeVisible();
 
-  await dialog.getByRole('checkbox', { name: 'Export with Family album' }).click();
-  await expect(dialog.getByText('Off while presets are ticked', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('radio', { name: 'Download ZIP' })).toHaveCount(0);
-  await expect(dialog.getByText('2 photos · 1 preset · to Immich', { exact: true })).toBeVisible();
-  await dialog.getByRole('checkbox', { name: 'Export with Web 2048' }).click();
+  const trigger = dialog.getByRole('button', { name: 'Export presets' });
+  const beside = await dialog.getByRole('button', { name: 'close', exact: true }).boundingBox();
+  const box = await trigger.boundingBox();
+  expect(
+    Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - (beside?.y ?? 0) - (beside?.height ?? 0) / 2)
+  ).toBeLessThan(4);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(beside?.x ?? 0);
   await expect(
-    dialog.getByText('2 photos · 2 presets · ZIP and Immich', { exact: true })
-  ).toBeVisible();
-  await expect(
-    dialog.getByText('Runs as 2 background jobs. Track progress in Jobs.')
-  ).toBeVisible();
+    dialog.getByRole('tabpanel').getByRole('button', { name: 'Download 2 as JPEG ZIP' })
+  ).toHaveCount(0);
+  await trigger.click();
+  const list = page.getByRole('list', { name: 'Export presets' });
+  await list.getByRole('checkbox', { name: 'Export with Family album' }).click();
+  await list.getByRole('checkbox', { name: 'Export with Web 2048' }).click();
+  await expect(page.getByText('2 selected · runs as 2 jobs')).toBeVisible();
+  await expect(list.getByText(/Save only/)).toHaveCount(0);
 
-  await dialog.getByRole('button', { name: 'Use settings', exact: true }).click();
-  await expect(dialog.getByRole('checkbox', { name: 'Export with Web 2048' })).not.toBeChecked();
-  await expect(dialog.getByRole('button', { name: 'Use settings', exact: true })).toHaveCount(0);
-  await expect(dialog.getByRole('radio', { name: 'Download ZIP' })).toBeVisible();
-  await dialog.getByRole('checkbox', { name: 'Export with Family album' }).click();
-  await dialog.getByRole('button', { name: 'Export 2 to Immich' }).click();
+  await trigger.click();
+  await expect(list).toBeHidden();
+  await expect(dialog.getByRole('radio', { name: 'Download', exact: true })).toBeChecked();
+  await expect(dialog.getByText('2 photos · ZIP', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Download 2 as JPEG ZIP' })).toBeEnabled();
+
+  await trigger.click();
+  await expect(list.getByRole('checkbox', { name: 'Export with Web 2048' })).toBeChecked();
+  await page.getByRole('button', { name: 'Export with 2 presets' }).click();
 
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
-  expect(jobs).toHaveLength(1);
-  expect(jobs[0]?.kind).toBe('export_immich');
-  expect(jobs[0]?.asset_ids).toHaveLength(2);
-  expect(jobs[0]?.params.variants?.map((v) => v.preset)).toEqual(['Family album']);
+  expect(jobs.map((job) => [job.kind, job.asset_ids.length])).toEqual([
+    ['download_zip', 2],
+    ['export_immich', 2]
+  ]);
+  expect(jobs.map((job) => job.params.variants?.map((v) => v.preset))).toEqual([
+    ['Web 2048'],
+    ['Family album']
+  ]);
+});
+
+test('the bulk form ignores ticked presets', async ({ page }) => {
+  await installMocks(page, { ...opts(), assets: ASSETS });
+  const jobs = recordJobs(page);
+  await page.goto('/photos');
+  const select = page.getByRole('button', { name: 'Select', exact: true });
+  await select.nth(0).click();
+  await select.nth(0).click();
+  await page.getByRole('button', { name: 'Edit and export selected' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  await dialog.getByRole('tab', { name: 'Export' }).click();
+
+  const trigger = dialog.getByRole('button', { name: 'Export presets' });
+  await trigger.click();
+  await page.getByRole('checkbox', { name: 'Export with Family album' }).click();
+  await trigger.click();
+  await dialog.getByRole('button', { name: 'Download 2 as JPEG ZIP' }).click();
+
+  await expect(dialog).toBeHidden();
+  expect(jobs.map((job) => [job.kind, job.params.variants])).toEqual([['download_zip', undefined]]);
 });
 
 for (const device of ['phone', 'tablet'] as const) {
@@ -247,8 +277,11 @@ for (const device of ['phone', 'tablet'] as const) {
       await expect(sheet.getByRole('combobox', { name: 'Format' })).toBeVisible();
     });
 
-    test('a batch export lists presets and says it saves a ZIP', async ({ page }) => {
+    test('a batch export keeps presets in a menu sheet and says it saves a ZIP', async ({
+      page
+    }) => {
       await stubShare(page);
+      const jobs = recordJobs(page);
       await open(page, '/photos', { ...opts(), assets: ASSETS });
       await page.getByRole('button', { name: 'Select photos' }).tap();
       for (const asset of ASSETS) {
@@ -263,20 +296,22 @@ for (const device of ['phone', 'tablet'] as const) {
         sheet.getByText('Saves one ZIP instead of sharing.', { exact: false })
       ).toBeVisible();
       await expect(sheet.getByRole('combobox', { name: 'Format' })).toHaveCount(0);
+      await expect(page.getByRole('checkbox', { name: 'Export with Family album' })).toHaveCount(0);
 
-      await expect(sheet.getByRole('checkbox', { name: 'Current settings' })).toHaveCount(0);
-      await expect(sheet.getByText('Used when no preset is ticked', { exact: true })).toBeVisible();
+      const trigger = sheet.getByRole('button', { name: 'Export presets' });
+      expect((await trigger.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await trigger.tap();
+      const presets = page.getByRole('dialog', { name: 'Export presets' });
+      await expect(presets).toBeVisible();
+      await expect(presets.getByText('Save only')).toHaveCount(0);
+      await presets.getByRole('checkbox', { name: 'Export with Family album' }).tap();
+      await presets.getByRole('button', { name: 'Export with 1 preset' }).tap();
 
-      await sheet.getByRole('checkbox', { name: 'Export with Family album' }).tap();
-      await expect(sheet.getByText(/Saves one ZIP/)).toHaveCount(0);
-      await expect(sheet.getByRole('button', { name: 'Export 2 to Immich' })).toBeVisible();
-      const useSettings = sheet.getByRole('button', { name: 'Use settings', exact: true });
-      expect((await useSettings.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-      await useSettings.tap();
-      await expect(
-        sheet.getByRole('checkbox', { name: 'Export with Family album' })
-      ).not.toBeChecked();
-      await expect(sheet.getByText(/Saves one ZIP/)).toBeVisible();
+      await expect(presets).toBeHidden();
+      await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
+      expect(jobs.map((job) => [job.kind, job.params.variants?.map((v) => v.preset)])).toEqual([
+        ['export_immich', ['Family album']]
+      ]);
     });
   });
 }

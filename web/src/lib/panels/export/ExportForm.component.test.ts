@@ -1,5 +1,6 @@
 import BulkExport from '#lib/components/browse/bulk/BulkExport.svelte';
 import Export from '#lib/panels/Export.svelte';
+import { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
 import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
 import { exportScope } from '#lib/panels/export/scope.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
@@ -17,7 +18,7 @@ import {
 import { asset } from '#lib/testing/assets.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ExportForm from './ExportForm.svelte';
-import ExportPresetList from './ExportPresetList.svelte';
+import { EarlierExports } from './earlierExports.svelte';
 import ExportPresetMenu from './ExportPresetMenu.svelte';
 import { PresetSelection } from './presetSelection.svelte';
 import ProofMismatchNotice from './ProofMismatchNotice.svelte';
@@ -33,28 +34,25 @@ const saveAutomatically: ControlRef = { role: 'checkbox', name: 'Save automatica
 
 const presetMenu = (): Layout<'preset menu'> =>
   layout('preset menu', ExportPresetMenu, {
-    selection: new PresetSelection(),
-    busy: false,
-    onExport: async () => false
-  });
-
-const presetList = (): Layout<'preset list'> =>
-  layout('preset list', ExportPresetList, {
-    selection: new PresetSelection(),
-    onApply: () => {}
+    exporter: {
+      presets: new PresetSelection(),
+      exportingPresets: false,
+      earlierPresets: new EarlierExports(),
+      presetQuery: null,
+      scope: exportScope({ assets: [], count: 1, trashOn: false }),
+      exportPresets: async () => false
+    }
   });
 
 function layouts(
   destination: 'download' | 'immich'
-): Layout<'body' | 'zip body' | 'editor panel' | 'bulk export' | 'preset menu' | 'preset list'>[] {
+): Layout<'body' | 'zip body' | 'editor panel' | 'bulk export' | 'preset menu'>[] {
   const immich = destination === 'immich';
   return [
     presetMenu(),
-    presetList(),
     layout('body', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
     layout('zip body', ExportForm, {
-      scope: exportScope({ assets: [], count: 0, trashOn: false }),
-      downloadLabel: 'Download ZIP'
+      scope: exportScope({ assets: [], count: 0, trashOn: false })
     }),
     layout(
       'editor panel',
@@ -66,12 +64,7 @@ function layouts(
           : [button('Export JPEG'), saveAutomatically]
       }
     ),
-    layout(
-      'bulk export',
-      BulkExport,
-      { onStarted: () => {} },
-      { exclude: [button(immich ? 'Export 0 to Immich' : 'Download 0 as JPEG ZIP')] }
-    )
+    layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
   ];
 }
 
@@ -102,7 +95,7 @@ describe('ExportForm layout parity', () => {
       expect(found.body.length).toBeGreaterThan(10);
       expect(found['preset menu']).toEqual([{ ...button('Export presets'), expanded: false }]);
       expect(found['editor panel']).toEqual(mergeControls(found.body, found['preset menu']));
-      expect(found['bulk export']).toEqual(mergeControls(found['zip body'], found['preset list']));
+      expect(found['bulk export']).toEqual(found['zip body']);
     }
   );
 
@@ -113,12 +106,7 @@ describe('ExportForm layout parity', () => {
       layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
       layout('notice', ProofMismatchNotice, {}),
       layout('editor panel', Export, {}, { exclude: [button('Export JPEG'), saveAutomatically] }),
-      layout(
-        'bulk export',
-        BulkExport,
-        { onStarted: () => {} },
-        { exclude: [button('Download 0 as JPEG ZIP')] }
-      )
+      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
     ]);
     expect(found.notice).toEqual([{ role: 'button', name: 'Export Display P3' }]);
     expect(found['editor panel']).toEqual(
@@ -137,20 +125,14 @@ describe('ExportForm layout parity', () => {
     immichCapabilities.trash = true;
     exportSettings.destination = 'immich';
     const found = await layoutControls([
-      presetList(),
+      presetMenu(),
       layout('body', ExportForm, {
-        scope: exportScope({ assets, count: assets.length, trashOn: true }),
-        downloadLabel: 'Download ZIP'
+        scope: exportScope({ assets, count: assets.length, trashOn: true })
       }),
-      layout(
-        'bulk export',
-        BulkExport,
-        { onStarted: () => {} },
-        { exclude: [button('Export 2 to Immich')] }
-      )
+      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
     ]);
     const replace = found.body.find((control) => control.name === 'Replace original');
     expect(replace?.disabled).toBe(owners.includes('me') ? undefined : true);
-    expect(found['bulk export']).toEqual(mergeControls(found.body, found['preset list']));
+    expect(found['bulk export']).toEqual(found.body);
   });
 });

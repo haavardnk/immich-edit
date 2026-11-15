@@ -16,8 +16,9 @@ import { croppedOutputSize } from '#lib/utils/geom.ts';
 import { sameValue } from '#lib/utils/sameValue.ts';
 import { page } from '$app/state';
 import { mdiCloudUpload, mdiExport } from '@mdi/js';
+import type { PresetExporter } from '#lib/panels/export/presetExporter.ts';
 
-export class EditorExporter {
+export class EditorExporter implements PresetExporter {
   replaceOriginal = $state(false);
 
   readonly presets = new PresetSelection();

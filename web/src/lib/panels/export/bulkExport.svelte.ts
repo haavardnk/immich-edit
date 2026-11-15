@@ -13,6 +13,7 @@ import {
 } from '#lib/panels/export/exportRun.ts';
 import { submitPresetExport } from '#lib/panels/export/presetExport.ts';
 import { PresetSelection } from '#lib/panels/export/presetSelection.svelte.ts';
+import type { PresetExporter } from '#lib/panels/export/presetExporter.ts';
 import { exportScope, uploadOptions, type ExportScope } from '#lib/panels/export/scope.ts';
 import { canShareFiles } from '#lib/panels/export/shareFile.ts';
 import {
@@ -29,7 +30,7 @@ import { jobs } from '#lib/stores/jobs.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { downloadBlob } from '#lib/utils/download.ts';
-import { mdiCloudUpload, mdiDownload, mdiFolderZip, mdiLayersTripleOutline } from '@mdi/js';
+import { mdiCloudUpload, mdiDownload, mdiFolderZip } from '@mdi/js';
 
 export async function submitBulkExport({
   form,
@@ -72,13 +73,16 @@ async function downloadPhoto(assetId: string, form: ExportFormValues): Promise<b
   }
 }
 
-export class BulkExporter {
+export class BulkExporter implements PresetExporter {
   busy = $state(false);
+  exportingPresets = $state(false);
   replaceOriginal = $state(false);
 
   readonly presets = new PresetSelection();
 
   readonly earlier = new EarlierExports();
+
+  readonly earlierPresets = new EarlierExports();
 
   private picked = $derived(browsing.assets.filter((asset) => selection.selected.has(asset.id)));
 
@@ -86,27 +90,24 @@ export class BulkExporter {
     exportScope({ assets: this.picked, count: selection.count, trashOn: immichCapabilities.trash })
   );
 
-  usingPresets = $derived(this.presets.picked.length > 0);
+  earlierQuery = $derived<EarlierQuery | null>(
+    selection.count > 0 && exportSettings.destination === 'immich'
+      ? { assetIds: [...selection.selected], presets: [] }
+      : null
+  );
 
-  earlierQuery = $derived.by<EarlierQuery | null>(() => {
-    const assetIds = [...selection.selected];
-    if (assetIds.length === 0) return null;
-    if (this.usingPresets) {
-      const presets = this.presets.immichNames;
-      return presets.length > 0 ? { assetIds, presets } : null;
-    }
-    return exportSettings.destination === 'immich' ? { assetIds, presets: [] } : null;
-  });
+  presetQuery = $derived<EarlierQuery | null>(
+    selection.count > 0 && this.presets.immichNames.length > 0
+      ? { assetIds: [...selection.selected], presets: this.presets.immichNames }
+      : null
+  );
 
   run = $derived<ExportRun>({
     photos: selection.count,
-    presets: this.presets.picked.map((preset) => preset.destination),
     destination: exportSettings.destination,
     format: formatLabel(exportSettings.form.format),
     albums: albumNames(exportSettings.form.albumIds)
   });
-
-  downloadLabel = $derived(selection.count === 1 ? 'Download' : 'Download ZIP');
 
   label = $derived(runLabel(this.run));
 
@@ -117,41 +118,41 @@ export class BulkExporter {
   zipNotice = $derived(runZips(this.run) && canShareFiles());
 
   icon = $derived.by(() => {
-    if (this.presets.jobCount > 1) return mdiLayersTripleOutline;
-    const destination = this.run.presets[0] ?? this.run.destination;
-    if (destination === 'immich') return mdiCloudUpload;
+    if (this.run.destination === 'immich') return mdiCloudUpload;
     return runDirect(this.run) ? mdiDownload : mdiFolderZip;
   });
 
-  disabled = $derived(
-    this.busy ||
-      selection.count === 0 ||
-      this.presets.tooMany ||
-      (!this.usingPresets && formInvalid(exportSettings.form))
-  );
+  disabled = $derived(this.busy || selection.count === 0 || formInvalid(exportSettings.form));
 
   constructor(private readonly onStarted: () => void) {}
 
   submit = async (): Promise<void> => {
     if (this.busy) return;
     this.busy = true;
-    const started = this.usingPresets ? await this.submitPresets() : await this.submitCurrent();
+    const started = await this.submitCurrent();
     this.busy = false;
     if (started === null) return;
     this.onStarted();
     if (started) jobs.showJob(started.id);
   };
 
-  private async submitPresets(): Promise<Job | null> {
+  exportPresets = async (): Promise<boolean> => {
+    if (this.exportingPresets || selection.count === 0) return false;
+    this.exportingPresets = true;
     const started = await submitPresetExport(
       [...selection.selected],
       this.presets.picked,
       this.scope,
-      this.earlier.take()
+      this.earlierPresets.take()
     );
+    this.exportingPresets = false;
     for (const { destination } of started) this.presets.drop(destination);
-    return started[0]?.job ?? null;
-  }
+    const [first] = started;
+    if (!first) return false;
+    this.onStarted();
+    jobs.showJob(first.job.id);
+    return this.presets.picked.length === 0;
+  };
 
   private async submitCurrent(): Promise<Job | false | null> {
     const [picked] = selection.selected;
