@@ -120,7 +120,7 @@ export class EditorExporter implements PresetExporter {
     await editor.settled();
     if (editor.saveError) {
       this.exportingPresets = false;
-      toasts.push('error', 'Presets export the saved edits; save them first', { ttlMs: 8000 });
+      toasts.push('error', 'Presets export the saved edits; save them first');
       return false;
     }
     const started = await submitPresetExport(

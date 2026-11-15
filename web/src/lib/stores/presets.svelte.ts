@@ -45,7 +45,7 @@ class PresetsStore {
       this.presets = await listPresets();
       this.loaded = true;
     } catch (e) {
-      toasts.fail('Failed to load presets', e, 8000);
+      toasts.fail('Failed to load presets', e);
     } finally {
       this.loading = false;
     }
@@ -55,10 +55,10 @@ class PresetsStore {
     try {
       const created = await createPreset(input);
       this.presets = [...this.presets, created];
-      toasts.push('success', `Saved preset "${created.name}"`, { ttlMs: 5000 });
+      toasts.push('success', `Saved preset "${created.name}"`);
       return created;
     } catch (e) {
-      toasts.fail('Failed to save preset', e, 8000);
+      toasts.fail('Failed to save preset', e);
       return null;
     }
   };
@@ -69,7 +69,7 @@ class PresetsStore {
       this.presets = this.presets.map((p) => (p.id === id ? updated : p));
       return updated;
     } catch (e) {
-      toasts.fail('Failed to update preset', e, 8000);
+      toasts.fail('Failed to update preset', e);
       return null;
     }
   };
@@ -79,7 +79,7 @@ class PresetsStore {
       const updated = await setPresetFavorite(id, favorite);
       this.presets = this.presets.map((p) => (p.id === id ? updated : p));
     } catch (e) {
-      toasts.fail('Failed to update favourites', e, 8000);
+      toasts.fail('Failed to update favourites', e);
     }
   };
 
@@ -88,7 +88,7 @@ class PresetsStore {
       await deletePreset(id);
       this.presets = this.presets.filter((p) => p.id !== id);
     } catch (e) {
-      toasts.fail('Failed to delete preset', e, 8000);
+      toasts.fail('Failed to delete preset', e);
     }
   };
 
@@ -110,7 +110,7 @@ class PresetsStore {
     try {
       incoming = parsePresetFile(await file.text());
     } catch (e) {
-      toasts.fail('Failed to import presets', e, 8000);
+      toasts.fail('Failed to import presets', e);
       return;
     }
     if (!this.loaded) await this.load();
@@ -128,9 +128,9 @@ class PresetsStore {
     const failed = fresh.length - created.length;
     const summary = importSummary(created.length, skipped, failed);
     if (failed > 0) {
-      toasts.push('error', `${summary}: ${errorMessage(firstError)}`, { ttlMs: 8000 });
+      toasts.push('error', `${summary}: ${errorMessage(firstError)}`);
     } else {
-      toasts.push(created.length > 0 ? 'success' : 'info', summary, { ttlMs: 8000 });
+      toasts.push(created.length > 0 ? 'success' : 'info', summary);
     }
   };
 }

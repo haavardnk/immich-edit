@@ -20,14 +20,13 @@ import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
-import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { TOAST_TTL_MS, toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import { endedNow, progressed, revives, supersedes } from '#lib/stores/jobs/transitions.ts';
 import { ItemRefresh } from '#lib/stores/jobs/itemRefresh.ts';
 import { JobWatch, pollDelay } from '#lib/stores/jobs/watch.ts';
 import { jobNotifications } from '#lib/stores/jobs/notify.svelte.ts';
 
-const DONE_TOAST_MS = 6000;
 const REFRESHES_THUMBS: ReadonlySet<string> = new Set([
   JOB_KINDS.applyPreset,
   JOB_KINDS.pasteEdits,
@@ -87,7 +86,7 @@ class JobsStore {
       this.syncStreams();
     } catch (e) {
       this.failures += 1;
-      if (this.failures === 1) toasts.fail('Failed to load jobs', e, 6000);
+      if (this.failures === 1) toasts.fail('Failed to load jobs', e);
     } finally {
       this.loading = false;
     }
@@ -132,7 +131,7 @@ class JobsStore {
     try {
       job = await retryJob(id);
     } catch (e) {
-      toasts.fail('Failed to retry job', e, 6000);
+      toasts.fail('Failed to retry job', e);
       return;
     }
     this.patch(job);
@@ -204,7 +203,7 @@ class JobsStore {
       if (!this.open) this.attention = true;
       return;
     }
-    setTimeout(() => this.unwatch(job.id), DONE_TOAST_MS);
+    setTimeout(() => this.unwatch(job.id), TOAST_TTL_MS.success);
   }
 
   close = (): void => {
@@ -216,7 +215,7 @@ class JobsStore {
     try {
       await cancelJob(id);
     } catch (e) {
-      toasts.fail('Failed to cancel job', e, 6000);
+      toasts.fail('Failed to cancel job', e);
     }
   };
 
@@ -231,7 +230,7 @@ class JobsStore {
       for (const id of removed) delete items[id];
       this.items = items;
     } catch (e) {
-      toasts.fail('Failed to clear jobs', e, 6000);
+      toasts.fail('Failed to clear jobs', e);
     }
   };
 
@@ -239,7 +238,7 @@ class JobsStore {
     try {
       await this.fetchItems(id);
     } catch (e) {
-      toasts.fail('Failed to load job items', e, 6000);
+      toasts.fail('Failed to load job items', e);
     }
   };
 

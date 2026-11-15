@@ -37,17 +37,17 @@ export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
   if (!canResetDevelop(ctx)) return;
   ctx.edits = resetDevelopEdits(ctx.edits);
   await ctx.onCommit('Reset Develop');
-  toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
+  toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`);
 }
 
 export function copyEdits(ctx: DevelopCtx, change: HistoryChange | null = null): void {
   if (isIdentity(ctx.edits)) {
-    toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
+    toasts.push('info', NO_EDITS_TO_COPY);
     return;
   }
   copyDialog.show(
     $state.snapshot(ctx.edits) as Edits,
-    () => toasts.push('success', 'Copied settings', { ttlMs: 3000 }),
+    () => toasts.push('success', 'Copied settings'),
     ctx.assetId ? (browsing.find(ctx.assetId)?.originalFileName ?? null) : null,
     lastTouchedTool(change)
   );
@@ -55,7 +55,7 @@ export function copyEdits(ctx: DevelopCtx, change: HistoryChange | null = null):
 
 function clipboardOrToast(): ReturnType<typeof clipboard.snapshot> {
   const snap = clipboard.snapshot();
-  if (!snap) toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
+  if (!snap) toasts.push('info', NOTHING_COPIED);
   return snap;
 }
 
@@ -77,7 +77,7 @@ async function pasteTools(ctx: DevelopCtx, edits: Edits, tools: CopySelection): 
   ctx.edits = applyCopyTools($state.snapshot(ctx.edits) as Edits, edits, tools);
   ctx.onLive();
   await ctx.onCommit('Paste');
-  toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
+  toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`);
 }
 
 export async function autoAdjust(ctx: DevelopCtx, scope: AutoScope = 'all'): Promise<void> {

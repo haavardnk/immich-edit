@@ -68,7 +68,7 @@ async function downloadPhoto(assetId: string, form: ExportFormValues): Promise<b
     });
     return true;
   } catch (e) {
-    toasts.fail('Export failed', e, 6000);
+    toasts.fail('Export failed', e);
     return false;
   }
 }

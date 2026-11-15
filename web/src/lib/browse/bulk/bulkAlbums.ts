@@ -27,12 +27,12 @@ export async function addToAlbums(
   assetAlbums.forget(ids);
   libraryChanged();
   if (failed > 0) {
-    toasts.push('warn', `${failed} album additions failed`, { ttlMs: 6000 });
+    toasts.push('warn', `${failed} album additions failed`);
     return false;
   }
   const photos = countOf(ids.length, noun);
   const where = albumIds.length === 1 ? 'the album' : `${albumIds.length} albums`;
-  toasts.push('success', `Added ${photos} to ${where}`, { ttlMs: 4000 });
+  toasts.push('success', `Added ${photos} to ${where}`);
   return true;
 }
 
@@ -48,12 +48,9 @@ export async function removeFromAlbum(ids: string[], album: AlbumSummary): Promi
       .forEach((a) => browsing.remove(a.id));
     selection.clear();
     const failed = results.length - removed.size;
-    if (failed > 0)
-      toasts.push('warn', `${failed} could not be removed from ${album.albumName}`, {
-        ttlMs: 6000
-      });
-    else toasts.push('success', `Removed ${removed.size} from ${album.albumName}`, { ttlMs: 4000 });
+    if (failed > 0) toasts.push('warn', `${failed} could not be removed from ${album.albumName}`);
+    else toasts.push('success', `Removed ${removed.size} from ${album.albumName}`);
   } catch (e) {
-    toasts.fail('Failed to remove from album', e, 6000);
+    toasts.fail('Failed to remove from album', e);
   }
 }

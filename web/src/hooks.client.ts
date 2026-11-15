@@ -10,7 +10,7 @@ export const init: ClientInit = () => {
 export const handleError: HandleClientError = ({ kind, error }) => {
   if (kind !== 'unknown') return;
   const message = errorMessage(error);
-  toasts.push('error', message, { ttlMs: 12000 });
+  toasts.push('error', message);
   reportClientError('svelte', error);
   return { message };
 };

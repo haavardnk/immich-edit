@@ -133,7 +133,6 @@ export class EditorExports {
       if (trashed.length > 0) trash.removeTrashed(trashed, message);
       else {
         toasts.push(warned ? 'warn' : 'success', message, {
-          ttlMs: 10000,
           description: result.warnings.length > 0 ? result.warnings.join('\n') : undefined
         });
       }
@@ -147,7 +146,7 @@ export class EditorExports {
       return false;
     } catch (e) {
       const message = errorMessage(e);
-      toasts.push('error', `Upload failed: ${message}`, { ttlMs: 10000 });
+      toasts.push('error', `Upload failed: ${message}`);
       if (session !== this.session) return false;
       this.lastUpload = { kind: 'error', message: `Upload failed: ${message}`, warnings: [] };
       return false;

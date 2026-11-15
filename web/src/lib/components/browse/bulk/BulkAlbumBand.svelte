@@ -24,7 +24,7 @@
       .then((items) => {
         albums = items.sort((a, b) => a.albumName.localeCompare(b.albumName));
       })
-      .catch((e: unknown) => toasts.fail('Failed to load albums', e, 6000));
+      .catch((e: unknown) => toasts.fail('Failed to load albums', e));
   });
 
   async function add(): Promise<void> {

@@ -98,7 +98,7 @@ class PreferencesStore implements Preferences {
     const pins = this.pins;
     if (pins.includes(id)) return this.#setPins(pins.filter((pin) => pin !== id));
     if (pins.length >= MAX_PINNED_SETTINGS) {
-      toasts.push('info', `Quick holds up to ${MAX_PINNED_SETTINGS} settings`, { ttlMs: 3000 });
+      toasts.push('info', `Quick holds up to ${MAX_PINNED_SETTINGS} settings`);
       return Promise.resolve();
     }
     return this.#setPins([...pins, id]);
@@ -109,7 +109,7 @@ class PreferencesStore implements Preferences {
     const next = longSideFirst(ratio);
     if (saved.some((entry) => sameRatio(entry, next))) return Promise.resolve();
     if (saved.length >= MAX_CROP_RATIOS) {
-      toasts.push('info', `You can save up to ${MAX_CROP_RATIOS} crop ratios`, { ttlMs: 3000 });
+      toasts.push('info', `You can save up to ${MAX_CROP_RATIOS} crop ratios`);
       return Promise.resolve();
     }
     return this.#write('cropRatios', [...saved, next]);

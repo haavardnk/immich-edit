@@ -68,7 +68,7 @@ describe('develop feedback', () => {
     ]
   ])('%s toasts', async (_name, run, message) => {
     await run();
-    expect(push).toHaveBeenCalledWith(expect.any(String), message, { ttlMs: 3000 });
+    expect(push).toHaveBeenCalledWith(expect.any(String), message);
   });
 
   it('confirms a copy only after the dialog copies', () => {
@@ -77,7 +77,7 @@ describe('develop feedback', () => {
 
     copyDialog.confirm();
 
-    expect(push).toHaveBeenCalledWith('success', 'Copied settings', { ttlMs: 3000 });
+    expect(push).toHaveBeenCalledWith('success', 'Copied settings');
   });
 
   it('pastes as one history step and offers undo', async () => {
@@ -88,9 +88,7 @@ describe('develop feedback', () => {
 
     expect(ctx.edits.basic.exposure_ev).toBe(1);
     expect(ctx.onCommit).toHaveBeenCalledWith('Paste');
-    expect(push).toHaveBeenCalledWith('success', `Pasted settings. Undo with ${keysFor('undo')}.`, {
-      ttlMs: 3000
-    });
+    expect(push).toHaveBeenCalledWith('success', `Pasted settings. Undo with ${keysFor('undo')}.`);
   });
 
   it('names the tool the newest step changed when copying', () => {

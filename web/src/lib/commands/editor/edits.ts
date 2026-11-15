@@ -120,7 +120,7 @@ export const virtualCopy = {
 
 async function saveSnapshot(): Promise<void> {
   const created = await editor.snapshots.create();
-  if (created) toasts.push('success', `Saved ${created.name}`, { ttlMs: 3000 });
+  if (created) toasts.push('success', `Saved ${created.name}`);
 }
 
 export const newSnapshot = {

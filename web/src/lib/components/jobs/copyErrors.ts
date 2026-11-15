@@ -5,8 +5,8 @@ import { toasts } from '#lib/stores/toasts.svelte.ts';
 export async function copyJobErrors(job: Job, items: readonly JobItem[]): Promise<void> {
   try {
     await navigator.clipboard.writeText(jobErrorsText(job, items));
-    toasts.push('success', 'Copied the errors', { ttlMs: 2500 });
+    toasts.push('success', 'Copied the errors');
   } catch (error) {
-    toasts.fail('Could not copy the errors', error, 6000);
+    toasts.fail('Could not copy the errors', error);
   }
 }
