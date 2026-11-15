@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { OnConflict } from '#lib/api/export.ts';
   import { segmented } from '#lib/components/segmented.ts';
+  import { reveal } from '#lib/motion/reveal.ts';
   import { Icon } from '@immich/ui';
   import { mdiHistory } from '@mdi/js';
   import { RadioGroup } from 'bits-ui';
@@ -10,11 +11,13 @@
   let {
     earlier,
     query,
-    replaceReason = null
+    replaceReason = null,
+    class: className = 'mt-1.5'
   }: {
     earlier: EarlierExports;
     query: EarlierQuery | null;
     replaceReason?: string | null;
+    class?: string;
   } = $props();
 
   $effect(() => {
@@ -33,7 +36,8 @@
 {#if run}
   {@const files = earlierFiles(run.found.files)}
   <div
-    class="mt-1.5 flex flex-col gap-2 rounded-lg border border-hairline p-2.5 touch:gap-2.5 touch:p-3"
+    transition:reveal
+    class="{className} flex flex-col gap-2 rounded-lg border border-hairline p-2.5 touch:gap-2.5 touch:p-3"
   >
     <div class="flex items-start gap-2">
       <Icon

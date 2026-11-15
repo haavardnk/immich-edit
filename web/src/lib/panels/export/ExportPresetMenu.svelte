@@ -1,5 +1,6 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
+  import { reveal } from '#lib/motion/reveal.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiLayersTripleOutline, mdiMenuDown } from '@mdi/js';
@@ -69,12 +70,11 @@
     }}
   />
   {#if earlier && earlierQuery}
-    <div class="px-3 pb-2 touch:px-4">
-      <EarlierExport {earlier} query={earlierQuery} {replaceReason} />
-    </div>
+    <EarlierExport {earlier} query={earlierQuery} {replaceReason} class="mx-3 mb-2 touch:mx-4" />
   {/if}
   {#if selection.picked.length > 0}
     <div
+      transition:reveal
       class="sticky bottom-0 flex items-center gap-2 border-t border-dark/10 bg-light-100 px-3 py-2 touch:px-4 touch:py-3"
     >
       <span class="min-w-0 flex-1 text-[11px] leading-tight text-dark/65 touch:text-xs">
