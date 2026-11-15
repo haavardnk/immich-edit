@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import JobList from './JobList.svelte';
 import JobListActions from './JobListActions.svelte';
-import JobsDrawer from './JobsDrawer.svelte';
+import JobsPanel from './JobsPanel.svelte';
 import JobsSheet from './JobsSheet.svelte';
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
@@ -60,15 +60,10 @@ afterEach(() => {
 });
 
 describe('JobList layout parity', () => {
-  it('exposes the same controls standalone and in the jobs drawer', async () => {
+  it('exposes the same controls standalone and in the jobs panel', async () => {
     const found = await layoutControls([
       layout('body', JobList, {}),
-      layout(
-        'drawer',
-        JobsDrawer,
-        {},
-        { exclude: [button('Close jobs'), button('Clear finished')] }
-      )
+      layout('panel', JobsPanel, {}, { exclude: [button('Close jobs'), button('Clear finished')] })
     ]);
     expect(found.body).toEqual([
       button('Cancel job'),
@@ -77,17 +72,17 @@ describe('JobList layout parity', () => {
       { ...button('Export to Immich details'), expanded: false },
       { role: 'link', name: 'Download ZIP' }
     ]);
-    expect(found.drawer).toEqual(found.body);
+    expect(found.panel).toEqual(found.body);
   });
 
-  it('exposes the list and its actions together in the jobs drawer', async () => {
+  it('exposes the list and its actions together in the jobs panel', async () => {
     const found = await layoutControls([
       layout('list', JobList, {}),
       layout('actions', JobListActions, {}),
-      layout('drawer', JobsDrawer, {}, { exclude: [button('Close jobs')] })
+      layout('panel', JobsPanel, {}, { exclude: [button('Close jobs')] })
     ]);
     expect(found.actions).toEqual([button('Clear finished')]);
-    expect(found.drawer).toEqual(mergeControls(found.list, found.actions));
+    expect(found.panel).toEqual(mergeControls(found.list, found.actions));
   });
 
   it('exposes the grouped list and its actions in the jobs sheet', async () => {

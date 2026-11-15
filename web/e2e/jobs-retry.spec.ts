@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { installMocks, json } from './helpers';
+import { installMocks, jobsPanel, json } from './helpers';
 import { mockLibrary, openDrawer } from './touchShell';
 
 const FAILED = {
@@ -81,7 +81,7 @@ test('a failed job retries its failed photos from the expanded row', async ({ pa
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Jobs', exact: true }).click();
 
-  const panel = page.getByRole('dialog', { name: 'Jobs' });
+  const panel = page.getByRole('complementary', { name: 'Jobs' });
   await expect(panel.getByText('1 of 3 failed', { exact: true })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Retry 1 failed' })).toHaveCount(0);
   await panel.getByRole('button', { name: 'Export to Immich details' }).click();
@@ -123,7 +123,7 @@ test.describe('jobs on touch', { tag: '@touch' }, () => {
 
     const drawer = await openDrawer(page);
     await drawer.getByRole('button', { name: /^Jobs/ }).tap();
-    const sheet = page.getByRole('dialog', { name: 'Jobs' });
+    const sheet = jobsPanel(page);
     const retry = sheet.getByRole('button', { name: 'Retry 1 failed' });
     await expect(retry).toHaveText('Retry 1');
     expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(36);
@@ -153,7 +153,7 @@ test.describe('jobs on touch', { tag: '@touch' }, () => {
 
     const drawer = await openDrawer(page);
     await drawer.getByRole('button', { name: /^Jobs/ }).tap();
-    const save = page.getByRole('dialog', { name: 'Jobs' }).getByRole('link', { name: 'Save ZIP' });
+    const save = jobsPanel(page).getByRole('link', { name: 'Save ZIP' });
     await expect(save).toHaveAttribute('href', '/api/jobs/job-z/download');
     await expect(save).toHaveAttribute('download');
   });

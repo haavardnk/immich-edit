@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { installMocks, json, SESSION_USER } from './helpers';
+import { installMocks, jobsPanel, json, SESSION_USER } from './helpers';
 
 const JOB = {
   id: 'job-1',
@@ -221,7 +221,7 @@ async function expectBoundedJobsDrawer(
   viewport: { width: number; height: number },
   downloadName: string
 ): Promise<void> {
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = jobsPanel(page);
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText('Done, 2 photos', { exact: true })).toBeVisible();
   await expect(drawer.getByRole('progressbar')).toHaveCount(0);
@@ -229,12 +229,18 @@ async function expectBoundedJobsDrawer(
   await expect(download).toBeVisible();
   await expect(download).not.toHaveAttribute('type');
 
-  const bounds = await drawer.boundingBox();
-  expect(bounds).not.toBeNull();
-  expect(bounds!.x).toBeGreaterThanOrEqual(0);
-  expect(bounds!.y).toBeGreaterThanOrEqual(0);
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+  await expect
+    .poll(async () => {
+      const bounds = await drawer.boundingBox();
+      return (
+        bounds !== null &&
+        bounds.x >= 0 &&
+        bounds.y >= 0 &&
+        bounds.x + bounds.width <= viewport.width &&
+        bounds.y + bounds.height <= viewport.height
+      );
+    })
+    .toBe(true);
   expect(await drawer.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
   expect(await seriousViolations(page)).toEqual([]);

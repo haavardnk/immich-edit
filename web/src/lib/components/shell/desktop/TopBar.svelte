@@ -74,9 +74,12 @@
         variant="ghost"
         color="secondary"
         shape="rectangle"
+        class={jobs.open ? 'bg-light-200' : ''}
         icon={mdiFormatListChecks}
         title={jobs.attention ? 'Jobs: a job finished with failures' : 'Jobs'}
         aria-label="Jobs"
+        aria-expanded={jobs.open}
+        aria-controls={jobs.open ? 'jobs-panel' : undefined}
         onclick={jobs.toggle}
       />
       {#if jobs.activeCount > 0}

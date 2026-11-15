@@ -142,6 +142,12 @@ export const NEUTRAL_RECORD = {
   hash: 'hash-neutral'
 };
 
+export function jobsPanel(page: Page): Locator {
+  return page
+    .getByRole('complementary', { name: 'Jobs' })
+    .or(page.getByRole('dialog', { name: 'Jobs' }));
+}
+
 export function json(data: unknown, status = 200): Parameters<Route['fulfill']>[0] {
   return { status, contentType: 'application/json', body: JSON.stringify(data) };
 }

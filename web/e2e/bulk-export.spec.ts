@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installMocks, json, numberedAssets, type InstallOpts } from './helpers';
+import { installMocks, jobsPanel, json, numberedAssets, type InstallOpts } from './helpers';
 import { tapCentre } from './touch';
 import { open } from './touchShell';
 
@@ -56,7 +56,7 @@ async function mockJobQueue(page: Page): Promise<QueuedJob> {
 }
 
 async function expectJobsOn(page: Page, label: string): Promise<void> {
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = jobsPanel(page);
   await expect(drawer).toBeVisible();
   await expect(drawer.getByRole('progressbar', { name: `${label} progress` })).toBeVisible();
 }
@@ -102,9 +102,7 @@ test('a ZIP export opens Jobs on the job and downloads the ZIP when it finishes'
   const download = page.waitForEvent('download');
   queue.finish();
   expect((await download).url()).toMatch(/\/api\/jobs\/job-queued\/download$/);
-  await expect(
-    page.getByRole('dialog', { name: 'Jobs' }).getByRole('link', { name: 'Download ZIP' })
-  ).toBeVisible();
+  await expect(jobsPanel(page).getByRole('link', { name: 'Download ZIP' })).toBeVisible();
 });
 
 test('an export to Immich opens Jobs on the job', async ({ page }) => {
@@ -198,7 +196,7 @@ test('a single photo downloads directly in the chosen format', async ({ page }) 
   expect((await download).suggestedFilename()).toBe('IMG_0001_edit.jpg');
   expectSingleExport(exports.requests);
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Jobs' })).toHaveCount(0);
+  await expect(jobsPanel(page)).toHaveCount(0);
 });
 
 test('@touch a single photo downloads directly and closes the sheet', async ({ page }) => {
@@ -216,5 +214,5 @@ test('@touch a single photo downloads directly and closes the sheet', async ({ p
   expect((await download).suggestedFilename()).toBe('IMG_0001_edit.jpg');
   expectSingleExport(exports.requests);
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Jobs' })).toHaveCount(0);
+  await expect(jobsPanel(page)).toHaveCount(0);
 });

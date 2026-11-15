@@ -225,7 +225,7 @@ test('a batch counts earlier uploads, can skip them, and Jobs marks skipped and 
   await expect(dialog.getByText('Only the other photo is uploaded.')).toBeVisible();
   await dialog.getByRole('button', { name: 'Export 2 to Immich' }).click();
 
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = page.getByRole('complementary', { name: 'Jobs' });
   await expect(drawer).toBeVisible();
   expect(bodies).toEqual([
     expect.objectContaining({ params: expect.objectContaining({ on_conflict: 'skip' }) })

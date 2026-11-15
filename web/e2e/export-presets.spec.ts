@@ -1,5 +1,12 @@
 import { expect, test, type Page, type Request } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, numberedAssets, type InstallOpts } from './helpers';
+import {
+  ASSET_ID,
+  gotoAsset,
+  installMocks,
+  jobsPanel,
+  numberedAssets,
+  type InstallOpts
+} from './helpers';
 import { tapCentre } from './touch';
 import { ALBUMS, mockLibrary, open } from './touchShell';
 
@@ -91,7 +98,7 @@ test('the preset menu sums up each preset and exports several from the photo', a
   await list.getByRole('checkbox', { name: 'Export with Family album' }).click();
   await page.getByRole('button', { name: 'Export with 3 presets' }).click();
 
-  await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Jobs' })).toBeVisible();
   await expect(list).toBeHidden();
   expect(jobs.map((job) => [job.kind, job.asset_ids])).toEqual([
     ['download_zip', [ASSET_ID]],
@@ -175,7 +182,7 @@ test('the bulk dialog keeps presets in the menu and exports them from it', async
   await page.getByRole('button', { name: 'Export with 2 presets' }).click();
 
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Jobs' })).toBeVisible();
   expect(jobs.map((job) => [job.kind, job.asset_ids.length])).toEqual([
     ['download_zip', 2],
     ['export_immich', 2]
@@ -231,7 +238,7 @@ for (const device of ['phone', 'tablet'] as const) {
       await presets.getByRole('checkbox', { name: 'Export with Archive' }).tap();
       await expect(presets.getByText('2 selected · runs as one job')).toBeVisible();
       await presets.getByRole('button', { name: 'Export with 2 presets' }).tap();
-      await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
+      await expect(jobsPanel(page)).toBeVisible();
       expect(jobs.map((job) => job.params.variants?.map((v) => v.preset))).toEqual([
         ['Archive', 'Web 2048']
       ]);
@@ -308,7 +315,7 @@ for (const device of ['phone', 'tablet'] as const) {
       await presets.getByRole('button', { name: 'Export with 1 preset' }).tap();
 
       await expect(presets).toBeHidden();
-      await expect(page.getByRole('dialog', { name: 'Jobs' })).toBeVisible();
+      await expect(jobsPanel(page)).toBeVisible();
       expect(jobs.map((job) => [job.kind, job.params.variants?.map((v) => v.preset)])).toEqual([
         ['export_immich', ['Family album']]
       ]);

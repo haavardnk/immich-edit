@@ -10,7 +10,7 @@
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
   import TrashDialog from './TrashDialog.svelte';
   import SignOutConfirm from './SignOutConfirm.svelte';
-  import JobsDrawer from '#lib/components/jobs/JobsDrawer.svelte';
+  import JobsOverlay from '#lib/components/jobs/JobsOverlay.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
@@ -81,7 +81,7 @@
 <CopyDialog />
 <MetadataConsentDialog />
 <TrashDialog />
-<JobsDrawer />
+<JobsOverlay />
 <SignOutConfirm />
 {#if browseView.loupeId}
   <Loupe />

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pick } from './browse';
 import { installMocks, json, numberedAssets } from './helpers';
 
 const RUNNING_JOB = {
@@ -47,7 +48,7 @@ test('cancelling a running job from the drawer reports the new status', async ({
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Jobs' }).click();
 
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = page.getByRole('complementary', { name: 'Jobs' });
   await expect(
     drawer.getByRole('progressbar', { name: 'Export to Immich progress' })
   ).toBeVisible();
@@ -99,7 +100,7 @@ test('the drawer lists the metadata each photo could not copy', async ({ page })
 
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Jobs' }).click();
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = page.getByRole('complementary', { name: 'Jobs' });
   await drawer.getByRole('button', { name: 'Download ZIP details' }).click();
 
   await expect(drawer.getByText('IMG_0001_edit.jpg')).toBeVisible();
@@ -175,7 +176,7 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   const progress = page.getByRole('progressbar', { name: 'Apply Preset progress' });
   await expect(progress).toBeVisible();
   await expect(page.getByTestId('job-toast-outcome')).toHaveText('0 of 2');
-  await expect(page.getByRole('dialog', { name: 'Jobs' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Jobs' })).toHaveCount(0);
 
   await expect.poll(() => deliver !== null).toBe(true);
   deliver?.();
@@ -184,8 +185,44 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   await expect(page.getByTestId('jobs-attention')).toBeVisible();
 
   await page.getByRole('button', { name: 'Details' }).click();
-  const drawer = page.getByRole('dialog', { name: 'Jobs' });
+  const drawer = page.getByRole('complementary', { name: 'Jobs' });
   await expect(drawer.getByText('render failed')).toBeVisible();
   await expect(page.getByTestId('job-toast-outcome')).toHaveCount(0);
   await expect(page.getByTestId('jobs-attention')).toHaveCount(0);
+});
+
+test('the jobs panel docks beside the grid and leaves it usable', async ({ page }) => {
+  const assets = numberedAssets(3);
+  await installMocks(page, { assets });
+  await page.route('**/api/jobs', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill(json([{ ...RUNNING_JOB, status: 'completed', completed: 4 }]))
+      : route.fallback()
+  );
+  await page.goto('/photos');
+  const trigger = page.getByRole('button', { name: 'Jobs', exact: true });
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await trigger.click();
+
+  const panel = page.getByRole('complementary', { name: 'Jobs' });
+  await expect(panel).toBeVisible();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const [grid, docked] = await Promise.all([
+        page.locator('main[data-page]').boundingBox(),
+        panel.boundingBox()
+      ]);
+      return (grid?.x ?? 0) + (grid?.width ?? 0) - (docked?.x ?? 0);
+    })
+    .toBeLessThanOrEqual(1);
+
+  await pick(page, assets[0]?.originalFileName ?? '');
+  await expect(page.getByText('1 selected')).toBeVisible();
+  await expect(panel).toBeVisible();
+
+  await trigger.click();
+  await expect(panel).toBeHidden();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });

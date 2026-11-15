@@ -328,9 +328,11 @@ test('the narrow desktop browse shell uses a toggleable 256px sidebar', async ({
   const sidebar = page.getByRole('complementary');
   const main = page.getByRole('main');
   const visibleMainWidth = (): Promise<number> =>
-    main.evaluate((element) => element.parentElement?.clientWidth ?? 0);
+    main.evaluate((element) => element.parentElement?.parentElement?.clientWidth ?? 0);
   const sidebarWidth = (): Promise<number> =>
-    main.evaluate((element) => element.parentElement?.previousElementSibling?.clientWidth ?? 0);
+    main.evaluate(
+      (element) => element.parentElement?.parentElement?.previousElementSibling?.clientWidth ?? 0
+    );
   await expect(page.getByRole('textbox', { name: 'Search your photos' })).toBeVisible();
   await expect(sidebar).toBeHidden();
   await expect.poll(visibleMainWidth).toBeGreaterThan(380);

@@ -465,7 +465,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     expect((account?.y ?? 0) + (account?.height ?? 0)).toBeGreaterThan(viewportHeight - 70);
 
     await jobsCard.tap();
-    const jobsDialog = page.getByRole('dialog', { name: 'Jobs' });
+    const jobsDialog = page.getByRole('complementary', { name: 'Jobs' });
     await expect(jobsDialog).toBeVisible();
     await jobsDialog.getByRole('button', { name: 'Close jobs' }).tap();
     await expect(jobsDialog).toBeHidden();
