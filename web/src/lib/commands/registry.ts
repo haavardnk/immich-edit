@@ -7,6 +7,7 @@ import { TOOL_COMMANDS } from '#lib/commands/editor/tools.ts';
 import { VIEW_COMMANDS } from '#lib/commands/editor/view.ts';
 import { GRID_CULLING_COMMANDS } from '#lib/commands/grid/culling.ts';
 import { GRID_EDIT_COMMANDS } from '#lib/commands/grid/edits.ts';
+import { GRID_EXPORT_COMMANDS } from '#lib/commands/grid/export.ts';
 import { GRID_FILTER_COMMANDS } from '#lib/commands/grid/filters.ts';
 import { GRID_NAVIGATION_COMMANDS } from '#lib/commands/grid/navigation.ts';
 import { GRID_SELECTION_COMMANDS } from '#lib/commands/grid/selection.ts';
@@ -39,6 +40,7 @@ export const COMMANDS: readonly Command[] = [
   ...GRID_SELECTION_COMMANDS,
   ...GRID_NAVIGATION_COMMANDS,
   ...GRID_EDIT_COMMANDS,
+  ...GRID_EXPORT_COMMANDS,
   ...GRID_CULLING_COMMANDS,
   ...GRID_FILTER_COMMANDS,
   ...VIEWER_COMMANDS

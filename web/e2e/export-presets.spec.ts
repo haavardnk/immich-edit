@@ -7,6 +7,7 @@ import {
   numberedAssets,
   type InstallOpts
 } from './helpers';
+import { openBulkExport } from './browse';
 import { tapCentre } from './touch';
 import { ALBUMS, mockLibrary, open } from './touchShell';
 
@@ -139,31 +140,28 @@ test('a preset keeps its destination when saved and applied', async ({ page }) =
   await expect(page.getByRole('button', { name: 'Export JPEG' })).toBeVisible();
 });
 
-test('the bulk dialog keeps presets in the menu and exports them from it', async ({ page }) => {
+test('the bulk export panel keeps presets in the menu and exports them from it', async ({
+  page
+}) => {
   await installMocks(page, { ...opts(), assets: ASSETS });
   const jobs = recordJobs(page);
   await page.goto('/photos');
   const select = page.getByRole('button', { name: 'Select', exact: true });
   await select.nth(0).click();
   await select.nth(0).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await dialog.getByRole('tab', { name: 'Export' }).click();
+  const dialog = await openBulkExport(page);
 
   await expect(page.getByRole('checkbox', { name: 'Export with Family album' })).toHaveCount(0);
   await expect(dialog.getByRole('heading', { name: 'Settings', exact: true })).toHaveCount(0);
   await expect(dialog.getByText('2 photos · ZIP', { exact: true })).toBeVisible();
 
   const trigger = dialog.getByRole('button', { name: 'Export presets' });
-  const beside = await dialog.getByRole('button', { name: 'close', exact: true }).boundingBox();
+  const beside = await dialog.getByRole('button', { name: 'Close export' }).boundingBox();
   const box = await trigger.boundingBox();
   expect(
     Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - (beside?.y ?? 0) - (beside?.height ?? 0) / 2)
   ).toBeLessThan(4);
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(beside?.x ?? 0);
-  await expect(
-    dialog.getByRole('tabpanel').getByRole('button', { name: 'Download 2 as JPEG ZIP' })
-  ).toHaveCount(0);
   await trigger.click();
   const list = page.getByRole('list', { name: 'Export presets' });
   await list.getByRole('checkbox', { name: 'Export with Family album' }).click();
@@ -200,9 +198,7 @@ test('the bulk form ignores ticked presets', async ({ page }) => {
   const select = page.getByRole('button', { name: 'Select', exact: true });
   await select.nth(0).click();
   await select.nth(0).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await dialog.getByRole('tab', { name: 'Export' }).click();
+  const dialog = await openBulkExport(page);
 
   const trigger = dialog.getByRole('button', { name: 'Export presets' });
   await trigger.click();

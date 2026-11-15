@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { JPEG_BLOB, gotoAsset, installMocks } from './helpers';
+import { openBulkExport } from './browse';
 
 function exportedFile(page: Page) {
   return page.getByRole('group', { name: 'Exported file' });
@@ -439,11 +440,9 @@ test('export options sit in the same sections in the editor and the bulk dialog'
 
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await dialog.getByRole('tab', { name: 'Export' }).click();
-  await expect(dialog.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
-  await expect(dialog.getByRole('button', { name: 'Export presets' })).toBeVisible();
+  const bulk = await openBulkExport(page);
+  await expect(bulk.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
+  await expect(bulk.getByRole('button', { name: 'Export presets' })).toBeVisible();
 });
 
 test('an export preset saves and restores the export settings', async ({ page }) => {

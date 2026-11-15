@@ -8,6 +8,7 @@ import {
   numberedAssets,
   openFilters
 } from './helpers';
+import { openBulkExport } from './browse';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -884,10 +885,7 @@ test('bulk export shows the neutral filename template field for both destination
   await installMocks(page);
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  await page.getByRole('tab', { name: 'Export' }).click();
-
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  const dialog = await openBulkExport(page);
   const template = dialog.getByLabel('Filename', { exact: true });
   await expect(template).toBeVisible();
   await expect(dialog.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();

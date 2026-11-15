@@ -9,7 +9,7 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { holdEscape } from '#lib/stores/overlays.ts';
 
-  type Anchor = 'top' | 'bottom';
+  type Anchor = 'top' | 'bottom' | 'right';
   type Align = 'start' | 'end' | 'center';
   type Appearance = 'menu' | 'panel' | 'control';
 

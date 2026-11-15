@@ -2,7 +2,7 @@
   import ExportActionBar from '#lib/panels/export/ExportActionBar.svelte';
   import type { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
 
-  let { exporter }: { exporter: BulkExporter } = $props();
+  let { exporter, stacked = false }: { exporter: BulkExporter; stacked?: boolean } = $props();
 </script>
 
 {#snippet summary()}
@@ -19,4 +19,5 @@
   disabled={exporter.disabled}
   onStart={() => void exporter.submit()}
   {summary}
+  {stacked}
 />

@@ -8,7 +8,7 @@ import {
   type MockAssetSummary
 } from './helpers';
 import { exposureManifest } from './snapshotMocks';
-import { bulkBar } from './browse';
+import { bulkBar, openBulkEdits } from './browse';
 import { mockLibrary, selectTwo } from './touchShell';
 
 interface PasteJob {
@@ -170,8 +170,7 @@ test.describe('copy and paste per section on desktop', () => {
     expect(checkedTools(only)).toEqual(['hsl']);
     await expect(paste).toBeHidden();
 
-    await page.getByRole('button', { name: 'Edit and export selected' }).click();
-    const bulk = page.getByRole('dialog', { name: 'Edit and export selected' });
+    const bulk = await openBulkEdits(page);
     await bulk.getByRole('button', { name: 'Paste only…', exact: true }).click();
     await expect(paste.getByRole('checkbox')).toHaveCount(3);
     await paste.getByRole('checkbox', { name: 'HSL', exact: true }).click();

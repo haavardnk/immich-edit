@@ -69,6 +69,13 @@ async function misfits(page: Page): Promise<string[]> {
   });
 }
 
+async function rowDrift(page: Page, first: string, last: string): Promise<number> {
+  const bar = bulkBar(page);
+  const a = await bar.getByRole('button', { name: first }).boundingBox();
+  const b = await bar.getByRole('button', { name: last }).boundingBox();
+  return Math.abs((a?.y ?? 0) - (b?.y ?? -100));
+}
+
 async function expectBarFits(page: Page, roomy: boolean): Promise<void> {
   const bar = bulkBar(page);
   for (const name of ALWAYS) await expect(bar.getByRole('button', { name })).toBeVisible();
@@ -83,12 +90,9 @@ async function expectBarFits(page: Page, roomy: boolean): Promise<void> {
     await expect(bar.getByRole('button', { name: 'Tags', exact: true })).toBeHidden();
   }
   await expect.poll(() => misfits(page)).toEqual([]);
+  await expect.poll(() => rowDrift(page, 'Compare selected', 'Colour label')).toBeLessThan(2);
   await expect
-    .poll(async () => {
-      const compare = await bar.getByRole('button', { name: 'Compare selected' }).boundingBox();
-      const trash = await bar.getByRole('button', { name: 'Move to Immich trash' }).boundingBox();
-      return Math.abs((compare?.y ?? 0) - (trash?.y ?? -100));
-    })
+    .poll(() => rowDrift(page, 'Export selected photos', 'Clear selection'))
     .toBeLessThan(2);
 }
 
@@ -127,7 +131,7 @@ test('a narrow column folds the stars and the organise group into menus', async 
 
   await bar.getByRole('button', { name: 'More actions' }).click();
   const menu = page.locator('[data-popover-content]');
-  for (const name of ['Create virtual copy', 'Edit and export selected', 'Tags']) {
+  for (const name of ['Create virtual copy', 'Edits', 'Tags']) {
     await expect(menu.getByRole('button', { name, exact: true })).toBeVisible();
   }
   await menu.getByRole('button', { name: 'Albums', exact: true }).click();

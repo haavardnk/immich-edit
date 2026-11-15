@@ -3,21 +3,17 @@
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { fileStem, multiDetail } from '#lib/browse/bulk/bulkRules.ts';
+  import { bulkEdits, type BulkEditAction } from '#lib/browse/bulk/bulkEdits.svelte.ts';
+  import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
   import { favoriteMark } from '#lib/browse/bulk/bulkMarks.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
-  import { clipboard, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
   import {
-    mdiClipboardCheckOutline,
     mdiCompare,
     mdiContentDuplicate,
-    mdiContentPaste,
-    mdiRestore,
     mdiTagOutline,
     mdiTrashCanOutline,
-    mdiViewGridOutline,
-    mdiViewGridPlusOutline
+    mdiViewGridOutline
   } from '@mdi/js';
 
   let {
@@ -36,13 +32,6 @@
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
   const favorite = $derived(favoriteMark(scope.favorite));
-  const pasteDetail = $derived(
-    clipboard.has
-      ? clipboard.source
-        ? `from ${fileStem(clipboard.source)}`
-        : null
-      : NOTHING_COPIED
-  );
 
   function owned(run: () => void): () => void {
     return () => {
@@ -55,6 +44,18 @@
   {#if text}
     <span class="shrink-0 text-[13px] text-dark/65">{text}</span>
   {/if}
+{/snippet}
+
+{#snippet editRow(action: BulkEditAction)}
+  <MenuRow
+    icon={action.icon}
+    label={action.label}
+    aria-label={action.label}
+    disabled={action.disabled}
+    onclick={action.run}
+  >
+    {@render detail(action.detail)}
+  </MenuRow>
 {/snippet}
 
 {#snippet multiRow(mode: MultiMode)}
@@ -78,31 +79,14 @@
     onclick={owned(() => onPick('tags'))}
   />
   <MenuRow
-    icon={mdiViewGridPlusOutline}
-    label="Apply preset"
-    disabled={busy}
+    icon={bulkEdits.applyPreset.icon}
+    label={bulkEdits.applyPreset.label}
+    disabled={bulkEdits.applyPreset.disabled}
     onclick={() => onPick('preset')}
   />
-  <MenuRow
-    icon={mdiContentPaste}
-    label="Paste edits"
-    disabled={busy || !clipboard.has}
-    onclick={() => void actions.paste()}
-  >
-    {@render detail(pasteDetail)}
-  </MenuRow>
-  <MenuRow
-    icon={mdiClipboardCheckOutline}
-    label="Paste only…"
-    disabled={busy || !clipboard.has}
-    onclick={actions.pasteOnly}
-  />
-  <MenuRow
-    icon={mdiRestore}
-    label="Reset edits"
-    disabled={busy}
-    onclick={() => void actions.resetEdits()}
-  />
+  {@render editRow(bulkEdits.paste)}
+  {@render editRow(bulkEdits.pasteOnly)}
+  {@render editRow(bulkEdits.reset)}
   {@render multiRow('compare')}
   {#if compare.surveyAvailable}
     {@render multiRow('survey')}

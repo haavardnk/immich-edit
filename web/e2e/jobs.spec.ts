@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { pick } from './browse';
+import { openBulkEdits, pick } from './browse';
 import { installMocks, json, numberedAssets } from './helpers';
 
 const RUNNING_JOB = {
@@ -120,10 +120,7 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   };
   const finished = { ...queued, status: 'completed', completed: 1, failed: 1 };
   let deliver: (() => void) | null = null;
-  await installMocks(page, {
-    assets: numberedAssets(2),
-    presets: [{ id: 'preset-warm', name: 'Warm', group_name: null, manifest: { ops: {} } }]
-  });
+  await installMocks(page, { assets: numberedAssets(2) });
   await page.route('**/api/jobs', (route) =>
     route.request().method() === 'POST'
       ? route.fulfill(json(queued))
@@ -165,13 +162,8 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   const select = page.getByRole('button', { name: 'Select', exact: true });
   await select.nth(0).click();
   await select.nth(0).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  const section = dialog.getByRole('button', { name: 'Presets', exact: true });
-  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
-  await dialog.getByRole('combobox', { name: 'Select a preset…' }).click();
-  await page.getByRole('option', { name: 'Warm', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Apply Warm to 2' }).click();
+  const edits = await openBulkEdits(page);
+  await edits.getByRole('button', { name: 'Reset edits' }).click();
 
   const progress = page.getByRole('progressbar', { name: 'Apply Preset progress' });
   await expect(progress).toBeVisible();

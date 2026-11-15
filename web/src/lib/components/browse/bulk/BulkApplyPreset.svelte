@@ -1,7 +1,7 @@
 <script lang="ts">
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
-  import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
+  import type { ApplyPresetOptions, Job } from '#lib/api/jobs.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { defaultApplyOptions } from '#lib/edits/applyPreset.ts';
   import { countOf } from '#lib/utils/plural.ts';
@@ -9,6 +9,8 @@
   import PresetPicker from '#lib/components/preset/PresetPicker.svelte';
   import { Button } from '@immich/ui';
   import { mdiAutoFix } from '@mdi/js';
+
+  let { onApplied }: { onApplied?: (job: Job) => void } = $props();
 
   let presetId = $state<string | null>(null);
   let applyOptions = $state<ApplyPresetOptions>(defaultApplyOptions());
@@ -24,13 +26,15 @@
 
   async function submit(): Promise<void> {
     if (!presetId) return;
-    await bulkActions.applyPreset(presetId, $state.snapshot(applyOptions));
+    const job = await bulkActions.applyPreset(presetId, $state.snapshot(applyOptions));
+    if (job) onApplied?.(job);
   }
 </script>
 
 <div class="flex flex-col gap-2 px-3 py-2">
-  <div class="text-[11px] text-dark/65 select-none">
-    {countOf(selection.count, 'asset')} selected
+  <div class="flex items-baseline gap-2 touch:hidden">
+    <span class="text-xs font-medium text-dark">Apply preset</span>
+    <span class="text-[11px] text-dark/65">{countOf(selection.count, 'photo')}</span>
   </div>
 
   {#if presets.presets.length === 0}
@@ -54,7 +58,7 @@
       </Button>
 
       <p class="text-[10px] leading-snug text-dark/65">
-        Runs as a background job. Track progress in the Jobs panel.
+        Runs as a background job. Track progress in Jobs.
       </p>
     {/if}
   {/if}

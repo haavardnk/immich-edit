@@ -9,6 +9,7 @@ import {
   type EarlierExportsQuery,
   type InstallOpts
 } from './helpers';
+import { openBulkExport } from './browse';
 import { mockLibrary } from './touchShell';
 
 const TWO_HOURS_AGO = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -210,9 +211,7 @@ test('a batch counts earlier uploads, can skip them, and Jobs marks skipped and 
   const select = page.getByRole('button', { name: 'Select', exact: true });
   await select.nth(0).click();
   await select.nth(0).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await dialog.getByRole('tab', { name: 'Export' }).click();
+  const dialog = await openBulkExport(page);
   await expect(dialog.getByText(/exported to Immich before/)).toHaveCount(0);
   await dialog.getByRole('radio', { name: 'To Immich' }).click();
 

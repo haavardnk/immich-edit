@@ -162,6 +162,7 @@
   onOpenChange={opener('preset')}
   appearance="panel"
   title="Apply preset"
+  subtitle={photos}
   sheetClass="pb-3"
 >
   <BulkApplyPreset />

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMocks, jobsPanel, json, numberedAssets, type InstallOpts } from './helpers';
+import { openBulkExport } from './browse';
 import { tapCentre } from './touch';
 import { open } from './touchShell';
 
@@ -68,9 +69,7 @@ async function openDesktopExport(page: Page, count = 2, opts: InstallOpts = {}) 
   const select = page.getByRole('button', { name: 'Select', exact: true });
   for (let picked = 0; picked < count; picked += 1) await select.nth(0).click();
   await expect(page.getByText(`${count} selected`)).toBeVisible();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await dialog.getByRole('tab', { name: 'Export' }).click();
+  const dialog = await openBulkExport(page);
   return { dialog, queue };
 }
 
