@@ -5,8 +5,9 @@ use crate::asset_key::AssetKey;
 use super::ExportToImmichBody;
 
 const ON_CONFLICT_KEY: &str = "on_conflict";
+const PRESET_KEY: &str = "preset";
 
-pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
+pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody, preset: Option<&str>) -> String {
     let mut album_ids = body.album_ids.clone();
     album_ids.sort();
     let mut tag_ids = body.tag_ids.clone();
@@ -44,8 +45,13 @@ pub fn hash_request(asset_id: AssetKey, body: &ExportToImmichBody) -> String {
         "watermark_anchor": format!("{:?}", body.params.watermark_anchor),
         "watermark_inset": body.params.watermark_inset,
     });
-    if let (Some(policy), Some(fields)) = (body.on_conflict.hashed(), canonical.as_object_mut()) {
-        fields.insert(ON_CONFLICT_KEY.into(), policy.into());
+    if let Some(fields) = canonical.as_object_mut() {
+        if let Some(policy) = body.on_conflict.hashed() {
+            fields.insert(ON_CONFLICT_KEY.into(), policy.into());
+        }
+        if let Some(preset) = preset {
+            fields.insert(PRESET_KEY.into(), preset.into());
+        }
     }
     let bytes = serde_json::to_vec(&canonical).unwrap_or_default();
     let mut h = Sha256::new();
@@ -76,7 +82,12 @@ mod tests {
             fields.insert(ON_CONFLICT_KEY.into(), policy.into());
         }
         let body: ExportToImmichBody = serde_json::from_value(value).unwrap();
-        hash_request(AssetKey::master(Uuid::nil()), &body)
+        hash_request(AssetKey::master(Uuid::nil()), &body, None)
+    }
+
+    fn preset_hash(preset: Option<&str>) -> String {
+        let body: ExportToImmichBody = serde_json::from_value(full()).unwrap();
+        hash_request(AssetKey::master(Uuid::nil()), &body, preset)
     }
 
     #[test]
@@ -95,5 +106,15 @@ mod tests {
         assert_ne!(skip, FULL_HASH);
         assert_ne!(replace, FULL_HASH);
         assert_ne!(skip, replace);
+    }
+
+    #[test]
+    fn a_preset_changes_the_hash_only_when_given() {
+        let web = preset_hash(Some("Web"));
+
+        assert_eq!(preset_hash(None), FULL_HASH);
+        assert_ne!(web, FULL_HASH);
+        assert_ne!(web, preset_hash(Some("Print")));
+        assert_ne!(web, preset_hash(Some("web")));
     }
 }

@@ -225,3 +225,83 @@ async fn a_copy_is_tracked_apart_from_its_master() {
     assert_eq!(conflicts.recorded_for(copy, "").await, Some(upload));
     assert_eq!(conflicts.recorded("").await, Some(previous));
 }
+
+fn preset_body(on_conflict: &str, preset: Option<&str>) -> Value {
+    let mut body = json!({
+        "metadata": "none",
+        "on_conflict": on_conflict,
+        "filename_template": "{name}_{preset}",
+    });
+    if let Some(preset) = preset {
+        body["preset"] = json!(preset);
+    }
+    body
+}
+
+#[tokio::test]
+async fn a_single_export_with_a_preset_is_tracked_under_that_preset() {
+    let conflicts = Conflicts::start(true).await;
+    let (web, plain) = (Uuid::new_v4(), Uuid::new_v4());
+    conflicts.uploads_as(web, "created").await;
+    conflicts.uploads_as(plain, "created").await;
+
+    let (status, json) = conflicts
+        .export(Some("key-1"), &preset_body("skip", Some(" Web ")))
+        .await;
+    assert_exported(status, &json, web, None);
+    assert_eq!(json["filename"], "DSC0001_Web.jpg");
+    assert_eq!(conflicts.recorded("web").await, Some(web));
+    assert_eq!(conflicts.recorded("").await, None);
+
+    let (status, json) = conflicts
+        .export(Some("key-2"), &preset_body("skip", Some("WEB")))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json["status"], "skipped");
+    assert_eq!(json["asset_id"], web.to_string());
+
+    let (status, json) = conflicts
+        .export(Some("key-3"), &preset_body("skip", None))
+        .await;
+    assert_exported(status, &json, plain, None);
+    assert_eq!(json["filename"], "DSC0001_.jpg");
+    assert_eq!(conflicts.recorded("").await, Some(plain));
+    assert_eq!(conflicts.recorded("web").await, Some(web));
+    assert_eq!(conflicts.uploads().await, 2);
+}
+
+#[tokio::test]
+async fn a_replayed_key_with_another_preset_is_refused() {
+    let conflicts = Conflicts::start(true).await;
+    let upload = Uuid::new_v4();
+    conflicts.uploads_as(upload, "created").await;
+    let web = preset_body("keep_both", Some("Web"));
+
+    let first = conflicts.export(Some("key-1"), &web).await;
+    let replay = conflicts.export(Some("key-1"), &web).await;
+    let (print, _) = conflicts
+        .export(Some("key-1"), &preset_body("keep_both", Some("Print")))
+        .await;
+    let (plain, _) = conflicts
+        .export(Some("key-1"), &preset_body("keep_both", None))
+        .await;
+
+    assert_exported(first.0, &first.1, upload, None);
+    assert_eq!(replay, first);
+    assert_eq!([print, plain], [StatusCode::BAD_REQUEST; 2]);
+    assert_eq!(conflicts.uploads().await, 1);
+}
+
+#[tokio::test]
+async fn a_single_export_refuses_an_invalid_preset_name() {
+    let conflicts = Conflicts::start(true).await;
+
+    for preset in ["  ", &"x".repeat(81), "Web\nPrint"] {
+        let (status, json) = conflicts
+            .export(Some("key-1"), &preset_body("keep_both", Some(preset)))
+            .await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{json}");
+    }
+    assert_eq!(conflicts.uploads().await, 0);
+}

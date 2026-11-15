@@ -33,9 +33,9 @@ impl ConflictPolicy {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Previous {
-    Live,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum Previous {
+    Live(String),
     Trashed,
     Gone,
 }
@@ -47,10 +47,10 @@ enum Plan {
     Replace,
 }
 
-fn plan(policy: ConflictPolicy, previous: Option<Previous>) -> Plan {
+fn plan(policy: ConflictPolicy, previous: Option<&Previous>) -> Plan {
     match (policy, previous) {
-        (ConflictPolicy::Skip, Some(Previous::Live)) => Plan::Skip,
-        (ConflictPolicy::Replace, Some(Previous::Live)) => Plan::Replace,
+        (ConflictPolicy::Skip, Some(Previous::Live(_))) => Plan::Skip,
+        (ConflictPolicy::Replace, Some(Previous::Live(_))) => Plan::Replace,
         _ => Plan::Export,
     }
 }
@@ -90,17 +90,21 @@ async fn conflict_with(
     policy: ConflictPolicy,
     id: Uuid,
 ) -> Result<Conflict, AppError> {
-    let (previous, filename) = match immich.asset(id).await {
-        Ok(detail) if detail.is_trashed => (Previous::Trashed, None),
-        Ok(detail) => (Previous::Live, Some(detail.original_file_name)),
-        Err(err) if is_missing(&err) => (Previous::Gone, None),
-        Err(err) => return Err(err.into()),
-    };
-    Ok(match plan(policy, Some(previous)) {
-        Plan::Export => Conflict::None,
-        Plan::Skip => Conflict::Skip(id, filename.unwrap_or_default()),
-        Plan::Replace => Conflict::Replace(id),
+    let previous = previous_export(immich, id).await?;
+    Ok(match (plan(policy, Some(&previous)), previous) {
+        (Plan::Skip, Previous::Live(filename)) => Conflict::Skip(id, filename),
+        (Plan::Replace, _) => Conflict::Replace(id),
+        _ => Conflict::None,
     })
+}
+
+pub(super) async fn previous_export(immich: &ImmichClient, id: Uuid) -> Result<Previous, AppError> {
+    match immich.asset(id).await {
+        Ok(detail) if detail.is_trashed => Ok(Previous::Trashed),
+        Ok(detail) => Ok(Previous::Live(detail.original_file_name)),
+        Err(err) if is_missing(&err) => Ok(Previous::Gone),
+        Err(err) => Err(err.into()),
+    }
 }
 
 pub(super) fn is_missing(err: &ImmichError) -> bool {
@@ -191,7 +195,7 @@ mod tests {
     fn plans(previous: Option<Previous>) -> Vec<Plan> {
         POLICIES
             .into_iter()
-            .map(|policy| plan(policy, previous))
+            .map(|policy| plan(policy, previous.as_ref()))
             .collect()
     }
 
@@ -217,7 +221,7 @@ mod tests {
     fn only_a_live_previous_export_conflicts() {
         for previous in [None, Some(Previous::Gone), Some(Previous::Trashed)] {
             assert_eq!(
-                plans(previous),
+                plans(previous.clone()),
                 [Plan::Export, Plan::Export, Plan::Export],
                 "{previous:?}"
             );
@@ -227,7 +231,7 @@ mod tests {
     #[test]
     fn a_live_previous_export_follows_the_policy() {
         assert_eq!(
-            plans(Some(Previous::Live)),
+            plans(Some(Previous::Live("a.jpg".into()))),
             [Plan::Export, Plan::Skip, Plan::Replace]
         );
     }

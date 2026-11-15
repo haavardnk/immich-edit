@@ -208,6 +208,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             "/export-presets/{id}",
             put(routes::export_presets::update).delete(routes::export_presets::delete),
         )
+        .route("/export-outputs/query", post(routes::export_outputs::query))
         .route(
             "/saved-views",
             get(routes::saved_views::list).post(routes::saved_views::create),

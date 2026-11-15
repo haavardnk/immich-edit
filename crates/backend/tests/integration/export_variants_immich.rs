@@ -127,7 +127,7 @@ async fn a_retried_preset_resumes_its_own_uploaded_export() {
         .edits
         .put_export_job_uploaded(
             variant_key(&key),
-            &hash_request(AssetKey::master(asset_id()), &body),
+            &hash_request(AssetKey::master(asset_id()), &body, Some("Print")),
             uploaded,
             "DSC0001_Print.png",
             "created",

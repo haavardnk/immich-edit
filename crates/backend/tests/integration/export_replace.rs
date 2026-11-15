@@ -123,7 +123,7 @@ impl Replace {
             .edits
             .put_export_job_uploaded(
                 job,
-                &hash_request(asset, &body),
+                &hash_request(asset, &body, None),
                 self.uploaded,
                 "IMG_0001_edit.jpg",
                 "created",
@@ -418,7 +418,7 @@ fn hash_request_differs_by_replace_original() {
         replace_original,
         on_conflict: ConflictPolicy::default(),
     };
-    if hash_request(asset, &make(true)) == hash_request(asset, &make(false)) {
+    if hash_request(asset, &make(true), None) == hash_request(asset, &make(false), None) {
         panic!("replace_original must change the request hash");
     }
 }

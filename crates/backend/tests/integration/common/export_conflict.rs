@@ -174,7 +174,7 @@ impl Conflicts {
     ) {
         let body: ExportToImmichBody = serde_json::from_value(request.clone()).unwrap();
         let job = export_job(master(), key);
-        let hash = hash_request(master(), &body);
+        let hash = hash_request(master(), &body, None);
         let edits = &self.state.edits;
         assert!(
             edits

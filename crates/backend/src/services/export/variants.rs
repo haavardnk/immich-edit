@@ -14,7 +14,7 @@ use super::batch::{ExportJobParams, validate_export_job};
 use super::naming::preset_key;
 use super::{DOWNLOAD_ZIP_KIND, EXPORT_JOB_KIND, Seq};
 
-const MAX_VARIANTS: usize = 16;
+pub(super) const MAX_VARIANTS: usize = 16;
 const VARIANTS_KEY: &str = "variants";
 const PRESET_KEY: &str = "preset";
 const VARIANT_TEMPLATE: &str = "{name}_{preset}";

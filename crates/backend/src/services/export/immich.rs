@@ -6,6 +6,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::immich::client::UploadRequest;
+use crate::names::display_name;
 use crate::services::edits_store::{ExportJobBaseline, ExportJobKey, ExportOutputKey};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
@@ -52,6 +53,24 @@ pub struct ExportToImmichBody {
 impl ExportToImmichBody {
     pub fn validate(&self) -> Result<(), AppError> {
         replace_fits(self.replace_original, self.stack_with_original)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SingleExportToImmichBody {
+    #[serde(flatten)]
+    pub export: ExportToImmichBody,
+    #[serde(default)]
+    pub preset: Option<String>,
+}
+
+impl SingleExportToImmichBody {
+    pub fn preset(&self) -> Result<Option<String>, AppError> {
+        self.preset
+            .as_deref()
+            .map(|name| display_name(name, "preset name"))
+            .transpose()
+            .map_err(AppError::BadRequest)
     }
 }
 
@@ -111,7 +130,7 @@ pub async fn export_to_immich(
         asset_id: id,
         key,
     });
-    let request_hash = job.map(|_| hash_request(id, body));
+    let request_hash = job.map(|_| hash_request(id, body, req.preset));
     let preset = preset_key(req.preset.unwrap_or_default());
     let output = ExportOutputKey {
         owner,
@@ -240,4 +259,55 @@ pub async fn export_to_immich(
         tracing::warn!(error = %ErrorChain(&error), "release pending export job");
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    use super::*;
+
+    fn single(body: Value) -> SingleExportToImmichBody {
+        serde_json::from_value(body).unwrap()
+    }
+
+    #[test]
+    fn the_single_body_keeps_the_export_params_beside_its_preset() {
+        let body = single(json!({
+            "format": "png",
+            "on_conflict": "skip",
+            "favorite": true,
+            "preset": "  Web 2048 ",
+        }));
+
+        assert_eq!(body.preset().unwrap().as_deref(), Some("Web 2048"));
+        assert_eq!(body.export.on_conflict, ConflictPolicy::Skip);
+        assert!(body.export.favorite);
+        assert_eq!(body.export.params.output_format().extension(), "png");
+    }
+
+    #[test]
+    fn the_single_body_preset_is_optional() {
+        for body in [json!({}), json!({ "preset": null })] {
+            assert_eq!(single(body).preset().unwrap(), None);
+        }
+    }
+
+    #[test]
+    fn the_single_body_preset_follows_the_variant_name_rules() {
+        for (name, message) in [
+            ("  ".to_string(), "preset name required"),
+            ("x".repeat(81), "preset name longer than 80 characters"),
+            (
+                "Web\n".repeat(2),
+                "preset name must not contain control characters",
+            ),
+        ] {
+            let rejected = single(json!({ "preset": name })).preset();
+            assert!(
+                matches!(&rejected, Err(AppError::BadRequest(m)) if m == message),
+                "{name:?}: {rejected:?}"
+            );
+        }
+    }
 }

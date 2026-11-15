@@ -28,6 +28,7 @@ mod export_conflict_jobs;
 mod export_conflict_replace;
 mod export_conflict_resume;
 mod export_immich;
+mod export_outputs;
 mod export_presets;
 mod export_replace;
 mod export_stacking;
