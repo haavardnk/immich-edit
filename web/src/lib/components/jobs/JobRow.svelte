@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isJobActive, jobNeedsAttention, type Job } from '#lib/api/jobs.ts';
+  import { isJobActive, type Job } from '#lib/api/jobs.ts';
   import JobDetails from '#lib/components/jobs/JobDetails.svelte';
   import { jobDetail, jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
   import { jobKindIcon } from '#lib/components/jobs/jobIcon.ts';
@@ -19,12 +19,9 @@
   const touch = $derived(layout.mode === 'touch');
   const detailsId = $derived(`job-${job.id}-details`);
   const muted = $derived(job.status === 'cancelled');
-  const tile = $derived.by(() => {
-    if (!touch) return 'size-5 text-dark/65';
-    if (jobNeedsAttention(job)) return 'size-10 rounded-xl bg-danger-500/15 text-danger-800';
-    if (job.status === 'completed') return 'size-10 rounded-xl bg-success-500/15 text-success-800';
-    return 'size-10 rounded-xl bg-light-200 text-dark/80';
-  });
+  const tile = $derived(
+    touch ? 'size-10 rounded-xl bg-light-200 text-dark/65' : 'size-5 text-dark/65'
+  );
 </script>
 
 <div class="border-b border-hairline {open ? 'bg-light-950/4' : ''}">
