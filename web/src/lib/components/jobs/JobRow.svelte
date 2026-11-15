@@ -1,167 +1,89 @@
 <script lang="ts">
+  import { isJobActive, jobNeedsAttention, type Job } from '#lib/api/jobs.ts';
+  import JobDetails from '#lib/components/jobs/JobDetails.svelte';
+  import { jobDetail, jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
+  import { jobKindIcon } from '#lib/components/jobs/jobIcon.ts';
+  import JobRowActions from '#lib/components/jobs/JobRowActions.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
-  import { isJobActive, jobDownloadUrl, type Job, type JobItem, zipReady } from '#lib/api/jobs.ts';
-  import {
-    jobEtaText,
-    jobItemPreset,
-    jobItemState,
-    jobKindLabel,
-    jobProgress,
-    type JobItemState
-  } from '#lib/components/jobs/jobFormat.ts';
-  import Notice from '#lib/components/Notice.svelte';
-  import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
-  import { mergeProps } from 'bits-ui';
-  import IconLink from '#lib/components/IconLink.svelte';
-  import { mdiChevronDown, mdiChevronRight, mdiCancel, mdiDownload } from '@mdi/js';
-  import { Badge, IconButton, ProgressBar, type Color } from '@immich/ui';
+  import { Icon, ProgressBar } from '@immich/ui';
+  import { mdiChevronDown, mdiChevronRight } from '@mdi/js';
 
   let { job }: { job: Job } = $props();
 
-  const eta = $derived(jobEtaText(job));
+  const SEPARATOR = ' · ';
 
-  function statusColor(status: Job['status']): Color {
-    switch (status) {
-      case 'running':
-        return 'primary';
-      case 'completed':
-        return 'success';
-      case 'failed':
-        return 'danger';
-      case 'cancelled':
-        return 'secondary';
-      default:
-        return 'info';
-    }
-  }
-
-  function itemColor(state: JobItemState): string {
-    switch (state) {
-      case 'completed':
-      case 'replaced':
-        return 'text-success-800';
-      case 'failed':
-        return 'text-danger-800';
-      case 'running':
-        return 'text-primary';
-      case 'skipped':
-      case 'duplicate':
-        return 'text-warning-800';
-      default:
-        return 'text-dark/65';
-    }
-  }
-
-  function itemName(item: JobItem): string {
-    return item.result?.filename ?? item.asset_id.slice(0, 8);
-  }
+  const label = $derived(jobKindLabel(job.kind));
+  const active = $derived(isJobActive(job.status));
+  const open = $derived(jobs.expanded === job.id);
+  const touch = $derived(layout.mode === 'touch');
+  const detailsId = $derived(`job-${job.id}-details`);
+  const muted = $derived(job.status === 'cancelled');
+  const tile = $derived.by(() => {
+    if (!touch) return 'size-5 text-dark/65';
+    if (jobNeedsAttention(job)) return 'size-10 rounded-xl bg-danger-500/15 text-danger-800';
+    if (job.status === 'completed') return 'size-10 rounded-xl bg-success-500/15 text-success-800';
+    return 'size-10 rounded-xl bg-light-200 text-dark/80';
+  });
 </script>
 
-<div
-  class="rounded-md border border-hairline bg-light-950/4 touch:rounded-none touch:border-0 touch:border-b touch:bg-transparent"
->
-  <div class="flex items-center gap-2 px-3 py-3 touch:ps-2 touch:pe-3 touch:py-2">
-    <IconButton
-      size="small"
-      variant="ghost"
-      color="secondary"
-      class="flex-none touch:size-11"
-      icon={jobs.expanded === job.id ? mdiChevronDown : mdiChevronRight}
+<div class="border-b border-hairline {open ? 'bg-light-950/4' : ''}">
+  <div class="relative">
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer hover:bg-light-950/4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+      aria-expanded={open}
+      aria-controls={open ? detailsId : undefined}
+      aria-label="{label} details"
       onclick={() => jobs.toggleExpanded(job.id)}
-      aria-label="Toggle details"
-    />
-    <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-medium truncate touch:text-[15px] touch:text-light-950"
-          >{jobKindLabel(job.kind)}</span
-        >
-        <Badge size="tiny" color={statusColor(job.status)}>{job.status}</Badge>
-      </div>
-      <ProgressBar
-        progress={jobProgress(job)}
-        max={100}
-        size="tiny"
-        shape="round"
-        color="primary"
-        class="mt-1"
-        stop={false}
-        aria-label={`${jobKindLabel(job.kind)} progress`}
-      />
-      <div class="mt-1 text-[10px] text-dark/65 touch:text-xs">
-        {job.completed + job.failed} / {job.total}
-        {#if eta}
-          · {eta}
-        {/if}
-        {#if job.failed > 0}
-          · <span class="text-danger-800">{job.failed} failed</span>
-        {/if}
-      </div>
-    </div>
-    {#if isJobActive(job.status)}
-      <IconButton
-        size="small"
-        variant="ghost"
-        color="secondary"
-        class="flex-none touch:size-11"
-        icon={mdiCancel}
-        onclick={() => jobs.cancel(job.id)}
-        title="Cancel"
-        aria-label="Cancel job"
-      />
-    {/if}
-    {#if zipReady(job)}
-      <IconLink
-        size="small"
-        variant="ghost"
-        color="secondary"
-        class="flex-none touch:size-11"
-        icon={mdiDownload}
-        href={jobDownloadUrl(job.id)}
-        download
-        aria-label="Download ZIP"
-      />
-    {/if}
-  </div>
-
-  {#if jobs.expanded === job.id}
+    ></button>
     <div
-      class="border-t border-hairline bg-recess dark:bg-black/15 px-3 py-2.5 touch:border-t-0 touch:bg-transparent touch:px-4 touch:pt-0 touch:pb-3 dark:touch:bg-transparent"
+      class="pointer-events-none relative flex items-center gap-3 py-2.5 ps-4 pe-2 touch:min-h-16 touch:pe-3"
     >
-      {#if jobs.items[job.id] === undefined}
-        <p class="text-[11px] text-dark/65">Loading…</p>
-      {:else}
-        <div class="flex flex-col gap-1">
-          {#each jobs.items[job.id] as item (item.id)}
-            {@const preset = jobItemPreset(job, item)}
-            {@const state = jobItemState(item)}
-            <div class="min-w-0">
-              <div class="flex items-baseline gap-2 text-[11px] touch:text-xs">
-                <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
-                {#if preset}
-                  <TruncationTooltip text={preset}>
-                    {#snippet child({ props })}
-                      <span
-                        {...mergeProps(props, { tabindex: -1 })}
-                        data-truncate
-                        class="max-w-1/3 flex-none truncate text-dark/65"
-                      >
-                        {preset}
-                      </span>
-                    {/snippet}
-                  </TruncationTooltip>
-                {/if}
-                <span class="flex-none {itemColor(state)}">{state}</span>
-              </div>
-              {#if item.status === 'failed' && item.error}
-                <Notice message={item.error} class="mt-1 whitespace-pre-wrap" />
-              {/if}
-              {#each item.result?.warnings ?? [] as warning, i (i)}
-                <Notice color="warning" message={warning} class="mt-1" />
-              {/each}
-            </div>
+      <span class="flex flex-none items-center justify-center self-start {tile}">
+        <Icon icon={jobKindIcon(job.kind)} size={touch ? '20' : '16'} aria-hidden="true" />
+      </span>
+      <div class="min-w-0 flex-1">
+        <p
+          class="truncate text-[13px] font-medium touch:text-[15px] {muted
+            ? 'text-dark/65'
+            : 'text-light-950'}"
+        >
+          {label}
+        </p>
+        {#if active}
+          <ProgressBar
+            progress={jobProgress(job)}
+            max={100}
+            size="tiny"
+            shape="round"
+            color="primary"
+            class="my-1.5"
+            stop={false}
+            aria-label="{label} progress"
+          />
+        {/if}
+        <p class="mt-0.5 text-[11px] text-dark/65 touch:text-[13px]">
+          {#each jobDetail(job) as part, i (i)}
+            {#if i > 0}{SEPARATOR}{/if}
+            <span class={part.danger ? 'text-danger-800' : ''}>{part.text}</span>
           {/each}
-        </div>
+        </p>
+      </div>
+      <div class="pointer-events-auto flex flex-none items-center gap-1.5">
+        <JobRowActions {job} />
+      </div>
+      {#if !touch}
+        <Icon
+          icon={open ? mdiChevronDown : mdiChevronRight}
+          size="16"
+          class="flex-none text-dark/65"
+          aria-hidden="true"
+        />
       {/if}
     </div>
+  </div>
+  {#if open}
+    <JobDetails {job} id={detailsId} />
   {/if}
 </div>

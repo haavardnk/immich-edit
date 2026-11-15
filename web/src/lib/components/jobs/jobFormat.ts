@@ -1,4 +1,11 @@
-import { isJobActive, JOB_KINDS, jobVariants, type Job, type JobItem } from '#lib/api/jobs.ts';
+import {
+  isJobActive,
+  JOB_KINDS,
+  jobNeedsAttention,
+  jobVariants,
+  type Job,
+  type JobItem
+} from '#lib/api/jobs.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 const KIND_LABELS: Record<string, string> = {
@@ -51,6 +58,52 @@ export function jobOutcome(job: Job): string {
   const presets = jobVariants(job).length;
   if (presets < 2) return `Done, ${countOf(job.completed, 'photo')}`;
   return `Done, ${countOf(Math.floor(job.completed / presets), 'photo')} × ${countOf(presets, 'preset')}`;
+}
+
+export function jobTime(iso: string, now: Date = new Date()): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = date.toDateString() === now.toDateString();
+  return new Intl.DateTimeFormat(
+    undefined,
+    today ? { hour: 'numeric', minute: '2-digit' } : { day: 'numeric', month: 'short' }
+  ).format(date);
+}
+
+export type JobDetailPart = { text: string; danger: boolean };
+
+function detailParts(parts: readonly (string | JobDetailPart | null)[]): JobDetailPart[] {
+  return parts
+    .filter((part) => part !== null)
+    .map((part) => (typeof part === 'string' ? { text: part, danger: false } : part));
+}
+
+export function jobDetail(job: Job, now: Date = new Date()): JobDetailPart[] {
+  const done = `${job.completed + job.failed} of ${job.total}`;
+  if (isJobActive(job.status)) {
+    const presets = jobVariants(job).length;
+    const started = jobTime(job.created_at, now);
+    return detailParts([
+      done,
+      presets > 1 ? countOf(presets, 'preset') : null,
+      jobEtaText(job) ?? (started ? `started ${started}` : null),
+      job.failed > 0 ? { text: `${job.failed} failed`, danger: true } : null
+    ]);
+  }
+  const ended = jobTime(job.updated_at, now);
+  if (job.status === 'cancelled') return detailParts(['Cancelled', `${done} done`, ended]);
+  return detailParts([{ text: jobOutcome(job), danger: jobNeedsAttention(job) }, ended]);
+}
+
+export function jobErrorsText(job: Job, items: readonly JobItem[]): string {
+  const lines = items
+    .filter((item) => item.status === 'failed')
+    .map((item) => {
+      const preset = jobItemPreset(job, item);
+      const name = item.result?.filename ?? item.asset_id;
+      return `${name}${preset ? ` (${preset})` : ''}: ${item.error ?? 'failed'}`;
+    });
+  return [`${jobKindLabel(job.kind)} ${job.id}: ${jobOutcome(job)}`, ...lines].join('\n');
 }
 
 export function jobsSummary(activeCount: number): string {

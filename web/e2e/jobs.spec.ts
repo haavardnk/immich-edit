@@ -48,10 +48,12 @@ test('cancelling a running job from the drawer reports the new status', async ({
   await page.getByRole('button', { name: 'Jobs' }).click();
 
   const drawer = page.getByRole('dialog', { name: 'Jobs' });
-  await expect(drawer.getByText('running', { exact: true })).toBeVisible();
+  await expect(
+    drawer.getByRole('progressbar', { name: 'Export to Immich progress' })
+  ).toBeVisible();
   await drawer.getByRole('button', { name: 'Cancel job' }).click();
 
-  await expect(drawer.getByText('cancelled', { exact: true })).toBeVisible();
+  await expect(drawer.getByText('Cancelled', { exact: true })).toBeVisible();
   await expect(drawer.getByRole('button', { name: 'Cancel job' })).toHaveCount(0);
   expect(cancelled).toBe(true);
 });
@@ -98,7 +100,7 @@ test('the drawer lists the metadata each photo could not copy', async ({ page })
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Jobs' }).click();
   const drawer = page.getByRole('dialog', { name: 'Jobs' });
-  await drawer.getByRole('button', { name: 'Toggle details' }).click();
+  await drawer.getByRole('button', { name: 'Download ZIP details' }).click();
 
   await expect(drawer.getByText('IMG_0001_edit.jpg')).toBeVisible();
   await expect(

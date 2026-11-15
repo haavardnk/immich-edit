@@ -72,8 +72,9 @@ describe('JobList layout parity', () => {
     ]);
     expect(found.body).toEqual([
       button('Cancel job'),
-      button('Toggle details'),
-      button('Toggle details'),
+      button('Copy errors'),
+      { ...button('Download ZIP details'), expanded: true },
+      { ...button('Export to Immich details'), expanded: false },
       { role: 'link', name: 'Download ZIP' }
     ]);
     expect(found.drawer).toEqual(found.body);
@@ -103,7 +104,7 @@ describe('JobList layout parity', () => {
     const target = document.createElement('div');
     document.body.appendChild(target);
     const destroy = layout('list', JobList, {}).render(target);
-    expect(target.textContent).toContain('1 / 2 · <1 min left');
+    expect(target.textContent).toMatch(/1 of 2\s*·\s*<1 min left/);
     await destroy();
     target.remove();
   });
@@ -114,19 +115,19 @@ describe('JobList layout parity', () => {
       const target = document.createElement('div');
       document.body.appendChild(target);
       const destroy = layout('list', JobList, { grouped }).render(target);
-      const found = [...target.querySelectorAll('h3, [aria-label$=" progress"]')].map(
+      const found = [...target.querySelectorAll('h3, [aria-label$=" details"]')].map(
         (element) => element.textContent?.trim() || (element.getAttribute('aria-label') ?? '')
       );
       await destroy();
       target.remove();
       return found;
     };
-    expect(await headings(false)).toEqual(['Download ZIP progress', 'Export to Immich progress']);
+    expect(await headings(false)).toEqual(['Download ZIP details', 'Export to Immich details']);
     expect(await headings(true)).toEqual([
-      'In progress',
-      'Export to Immich progress',
+      'Running',
+      'Export to Immich details',
       'Finished',
-      'Download ZIP progress'
+      'Download ZIP details'
     ]);
   });
 

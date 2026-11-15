@@ -127,14 +127,12 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expectLargeDetent(page, 'Jobs');
     const sheet = page.getByRole('dialog', { name: 'Jobs' });
     await expect(sheet.getByText('1 active', { exact: true })).toBeVisible();
-    await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['In progress', 'Finished']);
-    await expect(sheet.getByRole('progressbar')).toHaveCount(2);
-    await expect(sheet.getByRole('progressbar').first()).toHaveAccessibleName(
-      'Export to Immich progress'
-    );
+    await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['Running', 'Finished']);
+    await expect(sheet.getByRole('progressbar')).toHaveCount(1);
+    await expect(sheet.getByRole('progressbar')).toHaveAccessibleName('Export to Immich progress');
     await expect(sheet.getByRole('button', { name: 'Clear finished' })).toBeVisible();
 
-    await sheet.getByRole('button', { name: 'Toggle details' }).nth(1).tap();
+    await sheet.getByRole('button', { name: 'Paste Edits details' }).tap();
     await expect(sheet.getByText('IMG_3990.CR3')).toBeVisible();
     await expect(sheet.getByText('Unsupported raw format')).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
@@ -154,7 +152,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(drawer).toBeHidden();
     await expectLargeDetent(page, 'Jobs');
     const sheet = page.getByRole('dialog', { name: 'Jobs' });
-    await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['In progress', 'Finished']);
+    await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['Running', 'Finished']);
 
     await page.keyboard.press('Escape');
     await expect(sheet).toBeHidden();

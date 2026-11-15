@@ -3,7 +3,9 @@ import {
   createImmichExportJob,
   createImmichPresetsJob,
   createZipExportJob,
-  createZipPresetsJob
+  createZipPresetsJob,
+  jobRetryable,
+  type Job
 } from './jobs';
 import type { ExportOptions, ImmichExportOptions } from './export';
 
@@ -122,5 +124,29 @@ describe('export jobs', () => {
     expect(upload.params).toEqual({
       variants: [{ preset: 'Family', params: expect.objectContaining({ album_ids: [] }) }]
     });
+  });
+});
+
+describe('job retry', () => {
+  const finished: Job = {
+    id: 'j',
+    kind: 'export_immich',
+    status: 'completed',
+    target: null,
+    params: null,
+    total: 4,
+    completed: 3,
+    failed: 1,
+    cancelled_at: null,
+    created_at: '2026-01-01T10:00:00Z',
+    updated_at: '2026-01-01T10:00:00Z'
+  };
+
+  it('offers a retry only for a finished job with failed photos', () => {
+    expect(jobRetryable(finished)).toBe(true);
+    expect(jobRetryable({ ...finished, status: 'failed', completed: 0, failed: 4 })).toBe(true);
+    expect(jobRetryable({ ...finished, failed: 0 })).toBe(false);
+    expect(jobRetryable({ ...finished, status: 'running' })).toBe(false);
+    expect(jobRetryable({ ...finished, status: 'cancelled' })).toBe(false);
   });
 });

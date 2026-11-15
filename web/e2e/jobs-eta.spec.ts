@@ -45,7 +45,7 @@ async function expectEtaInside(control: Locator): Promise<void> {
 async function expectEtaInJobs(page: Page): Promise<void> {
   const jobs = page.getByRole('dialog', { name: 'Jobs' });
   await expect(jobs).toBeVisible();
-  await expect(jobs).toContainText(`3 / 12 · ${ETA}`);
+  await expect(jobs).toContainText(`3 of 12 · ${ETA}`);
 }
 
 test('the jobs drawer shows the ETA of a running job', async ({ page }) => {
