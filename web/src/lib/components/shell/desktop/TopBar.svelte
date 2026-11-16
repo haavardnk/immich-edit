@@ -1,12 +1,10 @@
 <script lang="ts">
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import { help } from '#lib/commands/app.ts';
-  import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
   import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
-  import ThemeToggle from '#lib/components/shell/ThemeToggle.svelte';
+  import AccountMenu from '#lib/components/shell/account/AccountMenu.svelte';
   import {
     ControlBar,
     ControlBarContent,
@@ -64,10 +62,6 @@
   </ControlBarContent>
 
   <ControlBarOverflow class="gap-0.5">
-    <ThemeToggle />
-
-    <CommandIconButton command={help} size="medium" variant="ghost" shape="rectangle" />
-
     <div class="relative">
       <IconButton
         size="medium"
@@ -94,5 +88,7 @@
     </div>
 
     <SettingsButton />
+
+    <AccountMenu />
   </ControlBarOverflow>
 </ControlBar>

@@ -3,9 +3,8 @@
   import MenuRow from '#lib/components/MenuRow.svelte';
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import SheetScrim from '#lib/components/sheet/SheetScrim.svelte';
-  import AccountBadges from '#lib/components/settings/AccountBadges.svelte';
   import ThemeModeChoice from '#lib/components/settings/ThemeModeChoice.svelte';
-  import ImmichServerLine from '#lib/components/shell/account/ImmichServerLine.svelte';
+  import AccountCard from '#lib/components/shell/account/AccountCard.svelte';
   import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
   import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { help } from '#lib/commands/app.ts';
@@ -17,7 +16,7 @@
   import { holdModalSheet } from '#lib/stores/overlays.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { Avatar, Button, Icon, IconButton, LoadingSpinner } from '@immich/ui';
+  import { Button, Icon, IconButton, LoadingSpinner } from '@immich/ui';
   import {
     mdiChevronRight,
     mdiClose,
@@ -141,19 +140,7 @@
             />
           </div>
           {#if user}
-            <div class="flex items-center gap-3.5 rounded-2xl bg-light-100 p-3.5">
-              <Avatar size="large" class="size-13" name={user.name || user.email} />
-              <div class="min-w-0 flex-1">
-                <div class="truncate text-base font-semibold text-light-950">
-                  {user.name || user.email}
-                </div>
-                <div class="truncate text-[13px] text-dark/65">{user.email}</div>
-                <div class="mt-1.5 flex flex-wrap gap-1.5">
-                  <AccountBadges {user} />
-                </div>
-              </div>
-            </div>
-            <ImmichServerLine class="truncate px-3.5 pt-2.5 pb-1.5 text-[12.5px] text-dark/65" />
+            <AccountCard {user} />
           {/if}
           <div class="mt-3 flex flex-col gap-0.5">
             <MenuRow

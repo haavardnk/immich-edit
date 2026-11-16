@@ -56,10 +56,6 @@ class AppearanceStore {
     this.#commit((appearance) => ({ ...appearance, mode }));
   }
 
-  toggleMode(): void {
-    this.setMode(this.scheme === 'dark' ? 'light' : 'dark');
-  }
-
   setTheme(scheme: Scheme, id: string): void {
     this.#commit((appearance) =>
       scheme === 'light' ? { ...appearance, lightTheme: id } : { ...appearance, darkTheme: id }

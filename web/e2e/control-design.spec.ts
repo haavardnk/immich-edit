@@ -6,6 +6,7 @@ import {
   installMocks,
   json,
   numberedAssets,
+  openAccountMenu,
   openFilters
 } from './helpers';
 import { openBulkExport } from './browse';
@@ -1015,7 +1016,7 @@ test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  await (await openAccountMenu(page)).getByRole('button', { name: 'Keyboard shortcuts' }).click();
   const filter = page.getByRole('textbox', { name: 'Filter shortcuts' });
   await expect(filter).toBeFocused();
 
@@ -1037,7 +1038,7 @@ test('the shortcuts dialog scrolls in one region', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  await (await openAccountMenu(page)).getByRole('button', { name: 'Keyboard shortcuts' }).click();
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   const list = dialog.getByRole('region', { name: 'Keyboard shortcuts' });
   await expect(list).toBeVisible();

@@ -475,6 +475,9 @@ export async function installMocks(
 
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+    if (p === '/api/auth/sessions' && method === 'GET') {
+      return route.fulfill(json({ sessions: [] }));
+    }
     if (p === '/api/immich/capabilities') {
       const structured = opts.structuredSearch ?? false;
       return route.fulfill(
@@ -987,6 +990,18 @@ export async function gotoAsset(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
   await expect(toolbar.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
+}
+
+export async function openAccountMenu(page: Page): Promise<Locator> {
+  await page
+    .getByRole('navigation', { name: 'Global navigation' })
+    .getByRole('button', { name: 'Account', exact: true })
+    .click();
+  const menu = page
+    .locator('[data-popover-content]')
+    .filter({ has: page.getByRole('radiogroup', { name: 'Theme' }) });
+  await expect(menu).toBeVisible();
+  return menu;
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {

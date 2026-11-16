@@ -1,5 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { DEFAULT_APPEARANCE, gotoAsset, installMocks, json, type MockAppearance } from './helpers';
+import {
+  DEFAULT_APPEARANCE,
+  gotoAsset,
+  installMocks,
+  json,
+  openAccountMenu,
+  type MockAppearance
+} from './helpers';
 
 interface RootState {
   dark: boolean;
@@ -86,24 +93,30 @@ test('system mode follows the OS scheme', async ({ page }) => {
   expect(await rootState(page)).toEqual(LIGHT);
 });
 
-test('the top bar toggle flips the scheme and saves the mode', async ({ page }) => {
+test('the account menu theme switch sets and saves the mode', async ({ page }) => {
   const record = recordAppearance();
   await installMocks(page, { onAppearance: record.onAppearance });
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+  const menu = await openAccountMenu(page);
+  const theme = menu.getByRole('radiogroup', { name: 'Theme' });
+  await theme.getByRole('radio', { name: 'Light' }).click();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
   await expect.poll(() => record.saved.at(-1)?.mode).toBe('light');
 
-  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await theme.getByRole('radio', { name: 'Dark' }).click();
   await expect.poll(() => rootState(page)).toEqual(DARK);
   await expect.poll(() => record.saved.at(-1)?.mode).toBe('dark');
+
+  await theme.getByRole('radio', { name: 'System' }).click();
+  await expect.poll(() => record.saved.at(-1)?.mode).toBe('system');
 });
 
 test('a reload paints the saved theme before the app starts', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
-  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+  const menu = await openAccountMenu(page);
+  await menu.getByRole('radio', { name: 'Light' }).click();
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
 
   await page.route(BLOCK_APP, (route) => route.abort());

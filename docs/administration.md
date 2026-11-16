@@ -50,7 +50,9 @@ in on:
 - **Light accent** and **Dark accent**: the highlight colour of each mode, picked under its theme
   from that theme's colours. The logo and the browser tab icon follow the accent on screen.
 
-The sun and moon button in the top bar switches between light and dark on wider screens. Photos,
+On a desktop, your avatar at the right of the top bar opens the account menu: **Settings**,
+**Theme** (**System**, **Light** or **Dark**), **Keyboard shortcuts**, **Signed-in devices** and
+**Sign out**. On a phone or tablet the same choices are in the account drawer. Photos,
 the editor canvas, scopes, curves and guides drawn on a photo keep neutral colours in every theme,
 so a theme never changes how a photo looks. Some palette colours are adjusted slightly so text
 keeps WCAG AA contrast.
