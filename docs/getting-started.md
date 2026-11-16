@@ -49,9 +49,10 @@ setup form claims an unconfigured instance.
 
 ## Claim the instance
 
-1. Enter the Immich server URL.
+1. Enter the Immich server URL and select **Continue**. A Docker network address such as
+   `http://immich-server:2283` works too.
 1. Sign in with an Immich administrator account, using the OAuth button, email and password, or
-   an API key.
+   an API key, and select **Connect and claim instance**.
 
 The OAuth button appears when Immich has OAuth enabled. It only works once immich-edit's addresses
 are registered with your identity provider; see [OAuth sign-in](oauth.md).

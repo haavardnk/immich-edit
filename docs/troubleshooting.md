@@ -41,7 +41,8 @@ Separate several environment values with commas.
 ### Setup stays on the first screen
 
 Setup requires an Immich administrator. Confirm the Immich URL is reachable from the immich-edit
-container and the selected account is an administrator.
+container and the selected account is an administrator. **Immich didn't answer at this address.**
+under the URL means the container could not reach Immich there.
 
 ### `immich url host is not allowed`
 
@@ -99,10 +100,16 @@ sign-in, in any tab, replaces the first. It also fails when a reverse proxy stri
 ### The OAuth button is missing
 
 immich-edit asks the Immich server which sign-in methods it offers and remembers the answer for a
-minute. Reload a minute after enabling OAuth in Immich. When the lookup fails, the login page shows
-the password form alone rather than guessing; check that the container can reach the Immich URL.
+minute. Reload a minute after enabling OAuth in Immich. When Immich does not answer, the login page
+shows **Can't reach Immich.** and retries until it does; check that the container can reach the
+Immich URL.
 
 ## Immich is unavailable
+
+When Immich does not answer as the app opens, immich-edit shows **Can't reach Immich.** and retries
+on its own, with a countdown to the next try. **Retry now** tries at once. An administrator can
+select **Change server…** to bind immich-edit to another Immich server. When the immich-edit
+server itself does not answer, the page reads **Can't reach the immich-edit server.** instead.
 
 Diagnostics distinguishes these states:
 

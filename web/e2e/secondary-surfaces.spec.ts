@@ -99,12 +99,11 @@ test('setup fits mobile and remains accessible', async ({ page }) => {
   });
   await page.goto('/setup');
 
-  await expect(page.getByRole('heading', { name: 'Connect Immich' })).toBeVisible();
-  await expect(page.getByLabel('Immich URL')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Email & password' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(page.getByRole('heading', { name: 'Set up immich-edit' })).toBeVisible();
+  await page.getByLabel('Immich URL').fill('https://immich.example.com');
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('radio', { name: 'Email & password' })).toBeChecked();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)
   ).toBe(true);
