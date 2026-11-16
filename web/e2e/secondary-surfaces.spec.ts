@@ -5,6 +5,7 @@ import {
   installMocks,
   jobsPanel,
   json,
+  openAccountMenu,
   SESSION_USER,
   settingsGroup,
   settingsPages
@@ -171,11 +172,12 @@ test('settings deep links and close returns to the previous page', async ({ page
   await expect(settingsGroup(page, 'Models')).toBeVisible();
 
   await page.goto('/favorites');
-  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close settings' })).toHaveCount(0);
+  const menu = await openAccountMenu(page);
   await page.evaluate(() => {
     history.replaceState({ ...history.state, settingsReturnMarker: 'favorites' }, '');
   });
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await menu.getByRole('button', { name: 'Settings' }).click();
   await expect(page).toHaveURL('/settings/preferences');
   await settingsPages(page).getByRole('link', { name: 'Diagnostics' }).click();
   await expect(page).toHaveURL('/settings/diagnostics');

@@ -178,7 +178,7 @@ describe('TouchBrowseShell', () => {
     expect(element.textContent).toContain('Hanne Kristiansen');
     expect(element.textContent).toContain('hanne@example.net');
     expect(element.textContent).toContain('admin');
-    expect(element.textContent).toContain('single sign-on');
+    expect(element.textContent).not.toContain('single sign-on');
     expect(buttonWithText('Settings')).not.toBeNull();
     expect(element.querySelector('[role="radiogroup"][aria-label="Theme"]')).not.toBeNull();
     expect(buttonWithText('Sign out')).not.toBeNull();

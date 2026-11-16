@@ -1,8 +1,7 @@
 <script lang="ts">
-  import AccountBadges from '#lib/components/settings/AccountBadges.svelte';
   import ImmichServerLine from '#lib/components/shell/account/ImmichServerLine.svelte';
   import type { SessionUser } from '#lib/api/auth.ts';
-  import { Avatar } from '@immich/ui';
+  import { Avatar, Badge } from '@immich/ui';
 
   let { user, inset = true }: { user: SessionUser; inset?: boolean } = $props();
 
@@ -19,9 +18,9 @@
     <div class="min-w-0 flex-1">
       <div class="truncate text-sm font-semibold text-light-950 touch:text-base">{name}</div>
       <div class="truncate text-xs text-dark/65 touch:text-[13px]">{user.email}</div>
-      <div class="mt-1.5 flex flex-wrap gap-1.5">
-        <AccountBadges {user} />
-      </div>
+      {#if user.is_admin}
+        <Badge size="tiny" color="primary" class="mt-1.5">admin</Badge>
+      {/if}
     </div>
   </div>
   <ImmichServerLine

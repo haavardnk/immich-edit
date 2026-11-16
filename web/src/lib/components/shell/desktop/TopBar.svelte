@@ -3,7 +3,7 @@
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
-  import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
+  import CloseSettingsButton from '#lib/components/shell/CloseSettingsButton.svelte';
   import AccountMenu from '#lib/components/shell/account/AccountMenu.svelte';
   import {
     ControlBar,
@@ -87,7 +87,7 @@
       {/if}
     </div>
 
-    <SettingsButton />
+    <CloseSettingsButton />
 
     <AccountMenu />
   </ControlBarOverflow>

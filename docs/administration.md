@@ -8,7 +8,7 @@ permalink: /administration/
 
 # Administration
 
-Open **Settings** from the gear in the top bar or from the account menu. Settings has four pages:
+Open **Settings** from the account menu under your avatar. Settings has four pages:
 
 - **Preferences**: **Appearance**, which follows your account to every device, and **This
   device**, kept in this browser only: **Layout**, **Preview renderer**, **Save exports
