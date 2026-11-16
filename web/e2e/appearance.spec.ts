@@ -210,6 +210,16 @@ test('the dark accent row offers the dark theme family accents', async ({ page }
   await expect(light.getByRole('radio', { name: 'Cyan' })).toHaveCount(0);
 });
 
+test('an accent dot names its colour in an app tooltip', async ({ page }) => {
+  await installMocks(page);
+  await openAppearance(page);
+
+  const dot = page.getByRole('radiogroup', { name: 'Dark accent' }).getByRole('radio').nth(2);
+  await expect(dot).not.toHaveAttribute('title');
+  await dot.hover();
+  await expect(page.locator('.tooltip-content')).toHaveText('Blue');
+});
+
 test('a theme that inherits the package palette drops the violet fallback', async ({ page }) => {
   await installMocks(page, {
     appearance: { ...DEFAULT_APPEARANCE, dark_theme: 'immich-dark' }

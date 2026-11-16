@@ -1,4 +1,5 @@
 <script lang="ts" generics="T">
+  import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import TextInput from '#lib/components/TextInput.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mdiCheck, mdiChevronDown, mdiClose, mdiEyeOutline, mdiMagnify, mdiPlus } from '@mdi/js';
@@ -219,7 +220,11 @@
     <span class="size-2 shrink-0 rounded-full" style:background-color={itemColor}></span>
   {/if}
   <span class="min-w-0 flex-1 text-left">
-    <span class="block truncate" title={getLabel(item)}>{getLabel(item)}</span>
+    <TruncationTooltip text={getLabel(item)}>
+      {#snippet child({ props })}
+        <span {...props} class="block truncate">{getLabel(item)}</span>
+      {/snippet}
+    </TruncationTooltip>
     {#if description}
       <span class="block truncate text-[10px] text-dark/65">{description}</span>
     {/if}

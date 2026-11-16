@@ -343,11 +343,14 @@ test('only sliders that drive a preview hint the alt drag', async ({ page }) => 
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Detail', exact: true }).click();
-  await expect(geometrySlider(page, 'Radius')).toHaveAttribute(
-    'title',
-    /^(⌥|Alt) \+ drag to preview$/
-  );
-  await expect(exposureSlider(page)).not.toHaveAttribute('title');
+  const tooltip = page.locator('.tooltip-content');
+  await geometrySlider(page, 'Radius').hover();
+  await expect(tooltip).toHaveText(/^(⌥|Alt) \+ drag to preview$/);
+  await geometrySlider(page, 'Radius').dispatchEvent('pointerdown');
+  await expect(tooltip).toHaveCount(0);
+  await exposureSlider(page).hover();
+  await page.waitForTimeout(1000);
+  await expect(tooltip).toHaveCount(0);
 });
 
 test('the clipping overlay toggles from the editor menu at desktop width', async ({ page }) => {
@@ -1162,6 +1165,7 @@ test('ratio chips, the orientation button and a typed ratio drive the output siz
   await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
   await expect(field).toHaveValue('4:5');
+  await page.mouse.move(0, 0);
 
   await chips.getByRole('radio', { name: '9:16', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(9 / 16, 2);

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
+  import { mergeProps } from 'bits-ui';
   import { arrowStepValue } from './sliderKeys';
 
   let {
@@ -68,26 +70,27 @@
   }
 </script>
 
-<input
-  bind:this={input}
-  type="range"
-  class="slider-range {className}"
-  style:background-image={background}
-  style:background-size={markerAt === null ? undefined : '1px 6px, 100% 2px'}
-  style:background-position={markerAt === null
-    ? undefined
-    : `calc(${markerAt}% - 0.5px) center, center`}
-  aria-label={label}
-  aria-valuetext={valueText}
-  {title}
-  {min}
-  {max}
-  step={fineStep}
-  {disabled}
-  {value}
-  {onpointerdown}
-  {oninput}
-  {onchange}
-  {ondblclick}
-  onkeydown={onKeyDown}
-/>
+<ElementTooltip text={title} disableCloseOnTriggerClick={false}>
+  {#snippet child({ props })}
+    <input
+      {...mergeProps(props, { onpointerdown, ondblclick, onkeydown: onKeyDown })}
+      bind:this={input}
+      type="range"
+      class="slider-range {className}"
+      style:background-image={background}
+      style:background-size={markerAt === null ? undefined : '1px 6px, 100% 2px'}
+      style:background-position={markerAt === null
+        ? undefined
+        : `calc(${markerAt}% - 0.5px) center, center`}
+      aria-label={label}
+      aria-valuetext={valueText}
+      {min}
+      {max}
+      step={fineStep}
+      {disabled}
+      {value}
+      {oninput}
+      {onchange}
+    />
+  {/snippet}
+</ElementTooltip>

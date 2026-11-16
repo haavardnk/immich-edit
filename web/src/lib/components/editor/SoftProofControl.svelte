@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import { segmented } from '#lib/components/segmented.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
@@ -19,12 +20,18 @@
       class="{segmented.text.group} w-36"
     >
       <RadioGroup.Item value="srgb" class="{segmented.text.radio} flex-1">sRGB</RadioGroup.Item>
-      <RadioGroup.Item
-        value="displayp3"
-        disabled={!wideGamut.current}
-        title={wideGamut.current ? undefined : 'Needs a wide-gamut display'}
-        class="{segmented.text.radio} flex-1 data-disabled:opacity-40">Display P3</RadioGroup.Item
-      >
+      <ElementTooltip text={wideGamut.current ? null : 'Needs a wide-gamut display'}>
+        {#snippet child({ props })}
+          <span {...props} class="flex flex-1">
+            <RadioGroup.Item
+              value="displayp3"
+              disabled={!wideGamut.current}
+              class="{segmented.text.radio} flex-1 data-disabled:opacity-40"
+              >Display P3</RadioGroup.Item
+            >
+          </span>
+        {/snippet}
+      </ElementTooltip>
     </RadioGroup.Root>
   </div>
   <CheckboxRow
