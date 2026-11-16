@@ -1,222 +1,30 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { session } from '#lib/stores/session.svelte.ts';
-  import SettingsGroup from '#lib/components/settings/SettingsGroup.svelte';
-  import AccountSection from '#lib/components/settings/AccountSection.svelte';
-  import SessionsSection from '#lib/components/settings/SessionsSection.svelte';
-  import UsersSection from '#lib/components/settings/UsersSection.svelte';
-  import ModelsSection from '#lib/components/settings/ModelsSection.svelte';
-  import InstanceSection from '#lib/components/settings/InstanceSection.svelte';
-  import RenderDefaultsSection from '#lib/components/settings/RenderDefaultsSection.svelte';
-  import PreviewRenderingSection from '#lib/components/settings/PreviewRenderingSection.svelte';
-  import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
-  import BrowsingSection from '#lib/components/settings/BrowsingSection.svelte';
+  import { page } from '$app/state';
+  import SettingsPagesNav from '#lib/components/settings/SettingsPagesNav.svelte';
+  import SettingsSearch from '#lib/components/settings/SettingsSearch.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
-  import InstallSection from '#lib/components/settings/InstallSection.svelte';
-  import ExportSavingSection from '#lib/components/settings/ExportSavingSection.svelte';
-  import { install } from '#lib/pwa/install.svelte.ts';
-  import {
-    mdiAccountCircleOutline,
-    mdiCellphoneLink,
-    mdiCogOutline,
-    mdiPaletteOutline
-  } from '@mdi/js';
+  import { legacyTarget, settingsHref } from '#lib/settings/pages.ts';
+  import { session } from '#lib/stores/session.svelte.ts';
 
-  type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
-
-  const DEVICE_HASHES = ['#device', '#layout', '#rendering', '#export', '#install'];
-
-  let appOpen = $state(false);
-  let accountOpen = $state(false);
-  let sessionsOpen = $state(false);
-  let appearanceOpen = $state(false);
-  let deviceOpen = $state(false);
-  let layoutOpen = $state(false);
-  let renderingOpen = $state(false);
-  let exportOpen = $state(false);
-  let installOpen = $state(false);
-  let adminSection = $state<AdminSection | null>(null);
-
-  const requestedAdminSection = $derived(adminSectionFromHash(page.url.hash));
-
-  function adminSectionFromHash(hash: string): AdminSection | null {
-    if (hash === '#users') return 'users';
-    if (hash === '#models') return 'models';
-    if (hash === '#defaults') return 'defaults';
-    if (hash === '#instance') return 'instance';
-    return null;
-  }
-
-  function setAdminSection(section: AdminSection, open: boolean): void {
-    if (!open) {
-      if (adminSection === section) adminSection = null;
-      return;
-    }
-    adminSection = section;
-    void goto(`/settings#${section}`, { replace: true, reset: false });
-  }
+  const legacy = $derived(legacyTarget(page.url.hash.slice(1)));
+  const target = $derived(
+    legacy
+      ? settingsHref(legacy.page, legacy.anchor)
+      : layout.compact
+        ? null
+        : settingsHref('preferences')
+  );
 
   $effect(() => {
-    const section = requestedAdminSection;
-    if (section) {
-      adminSection = section;
-      appOpen = true;
-      accountOpen = false;
-      return;
-    }
-    if (page.url.hash === '') {
-      appOpen = false;
-      accountOpen = false;
-      sessionsOpen = false;
-      return;
-    }
-    if (page.url.hash === '#account' || page.url.hash === '#sessions') {
-      appOpen = false;
-      accountOpen = true;
-      sessionsOpen = page.url.hash === '#sessions';
-    }
-    if (page.url.hash === '#appearance') {
-      appOpen = false;
-      accountOpen = false;
-      appearanceOpen = true;
-    }
-    if (DEVICE_HASHES.includes(page.url.hash)) {
-      appOpen = false;
-      accountOpen = false;
-      deviceOpen = true;
-      layoutOpen = page.url.hash === '#layout';
-      renderingOpen = page.url.hash === '#rendering';
-      exportOpen = page.url.hash === '#export';
-      installOpen = page.url.hash === '#install';
-    }
+    if (target) void goto(target, { replaceState: true });
   });
 </script>
 
-{#if session.user}
-  <div class="space-y-4">
-    {#if session.isAdmin}
-      <SettingsGroup
-        title="App settings"
-        description="Manage access, local models, editing defaults, and the connected Immich server."
-        icon={mdiCogOutline}
-        open={appOpen}
-        onOpenChange={(open) => (appOpen = open)}
-      >
-        <div class="space-y-3">
-          <SettingsGroup
-            title="Users"
-            description="Manage access to this immich-edit installation."
-            open={adminSection === 'users'}
-            onOpenChange={(open) => setAdminSection('users', open)}
-          >
-            <UsersSection />
-          </SettingsGroup>
-          <SettingsGroup
-            title="Models"
-            description="Manage models used for AI masks and AI Denoise."
-            open={adminSection === 'models'}
-            onOpenChange={(open) => setAdminSection('models', open)}
-          >
-            <ModelsSection />
-          </SettingsGroup>
-          <SettingsGroup
-            title="Editing defaults"
-            description="Choose instance-wide defaults for settings an edit leaves unset."
-            open={adminSection === 'defaults'}
-            onOpenChange={(open) => setAdminSection('defaults', open)}
-          >
-            <RenderDefaultsSection />
-          </SettingsGroup>
-          <SettingsGroup
-            title="Immich instance"
-            description="Manage the connected Immich server."
-            open={adminSection === 'instance'}
-            onOpenChange={(open) => setAdminSection('instance', open)}
-          >
-            <InstanceSection />
-          </SettingsGroup>
-        </div>
-      </SettingsGroup>
-    {/if}
-
-    <SettingsGroup
-      title="Account"
-      description="Review your identity, sign-in method, and active sessions."
-      icon={mdiAccountCircleOutline}
-      open={accountOpen}
-      onOpenChange={(open) => (accountOpen = open)}
-    >
-      <AccountSection />
-      <SettingsGroup
-        title="Signed-in devices"
-        description="Review and revoke active sessions."
-        open={sessionsOpen}
-        onOpenChange={(open) => (sessionsOpen = open)}
-      >
-        <SessionsSection />
-      </SettingsGroup>
-    </SettingsGroup>
-
-    <SettingsGroup
-      title="Appearance"
-      description={layout.mode === 'desktop'
-        ? 'Choose the theme and what a click on a photo opens.'
-        : 'Choose light, dark or system mode and a theme for each.'}
-      icon={mdiPaletteOutline}
-      open={appearanceOpen}
-      onOpenChange={(open) => (appearanceOpen = open)}
-    >
-      <AppearanceSection />
-      {#if layout.mode === 'desktop'}
-        <BrowsingSection />
-      {/if}
-    </SettingsGroup>
-
-    <SettingsGroup
-      title="This device"
-      description="Settings kept in this browser."
-      icon={mdiCellphoneLink}
-      open={deviceOpen}
-      onOpenChange={(open) => (deviceOpen = open)}
-    >
-      <div class="space-y-3">
-        <SettingsGroup
-          title="Layout"
-          description="Choose the desktop or touch layout, or let this screen decide."
-          open={layoutOpen}
-          onOpenChange={(open) => (layoutOpen = open)}
-        >
-          <LayoutSection />
-        </SettingsGroup>
-        <SettingsGroup
-          title="Preview rendering"
-          description="Choose where editor previews render on this device."
-          open={renderingOpen}
-          onOpenChange={(open) => (renderingOpen = open)}
-        >
-          <PreviewRenderingSection />
-        </SettingsGroup>
-        <SettingsGroup
-          title="Export"
-          description="Choose whether exports save to this device as soon as they render."
-          open={exportOpen}
-          onOpenChange={(open) => (exportOpen = open)}
-        >
-          <ExportSavingSection />
-        </SettingsGroup>
-        {#if install.state.kind !== 'hidden'}
-          <SettingsGroup
-            title="Install app"
-            description="Open immich-edit in its own window from the Home Screen, Dock or app list."
-            open={installOpen}
-            onOpenChange={(open) => (installOpen = open)}
-          >
-            <InstallSection />
-          </SettingsGroup>
-        {/if}
-      </div>
-    </SettingsGroup>
+{#if session.user && !target}
+  <div class="flex flex-col gap-3">
+    <SettingsSearch>
+      <SettingsPagesNav />
+    </SettingsSearch>
   </div>
 {/if}

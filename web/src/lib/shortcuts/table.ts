@@ -32,6 +32,13 @@ export const KEYBINDS = [
     display: '?'
   },
   {
+    id: 'settingsSearch',
+    keys: ['/'],
+    contexts: ['global'],
+    group: 'General',
+    label: 'Search settings while Settings is open'
+  },
+  {
     id: 'backToGrid',
     keys: ['g'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],

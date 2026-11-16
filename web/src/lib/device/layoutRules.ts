@@ -18,6 +18,12 @@ export interface Layout {
 
 export const LAYOUT_CHOICES: readonly LayoutChoice[] = ['auto', 'desktop', 'touch'];
 
+export const LAYOUT_CHOICE_LABELS: Readonly<Record<LayoutChoice, string>> = {
+  auto: 'Auto',
+  desktop: 'Desktop',
+  touch: 'Touch'
+};
+
 const NARROW_WIDTH = 768;
 const TOUCH_SHORT_SIDE = 1100;
 const WIDE_SHORT_SIDE = 600;

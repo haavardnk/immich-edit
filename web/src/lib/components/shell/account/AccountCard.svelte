@@ -4,14 +4,16 @@
   import type { SessionUser } from '#lib/api/auth.ts';
   import { Avatar } from '@immich/ui';
 
-  let { user }: { user: SessionUser } = $props();
+  let { user, inset = true }: { user: SessionUser; inset?: boolean } = $props();
 
   const name = $derived(user.name || user.email);
 </script>
 
 <div class="flex flex-col gap-2">
   <div
-    class="flex items-center gap-3 touch:gap-3.5 touch:rounded-2xl touch:bg-light-100 touch:p-3.5"
+    class="flex items-center gap-3 touch:gap-3.5 {inset
+      ? 'touch:rounded-2xl touch:bg-light-100 touch:p-3.5'
+      : ''}"
   >
     <Avatar size="large" class="size-10 touch:size-13" {name} />
     <div class="min-w-0 flex-1">
@@ -22,5 +24,8 @@
       </div>
     </div>
   </div>
-  <ImmichServerLine class="truncate text-xs text-dark/65 touch:px-3.5 touch:text-[12.5px]" dot />
+  <ImmichServerLine
+    class="truncate text-xs text-dark/65 touch:text-[12.5px] {inset ? 'touch:px-3.5' : ''}"
+    dot
+  />
 </div>

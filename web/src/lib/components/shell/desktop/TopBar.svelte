@@ -41,8 +41,8 @@
         shape="round"
         class="lg:hidden"
         icon={mdiMenu}
-        title={onSettings ? 'Administration' : 'Library'}
-        aria-label={onSettings ? 'Administration' : 'Library'}
+        title={onSettings ? 'Settings sections' : 'Library'}
+        aria-label={onSettings ? 'Settings sections' : 'Library'}
         onclick={onToggleSidebar}
       />
     {/if}

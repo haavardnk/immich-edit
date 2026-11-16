@@ -8,7 +8,7 @@
     label = 'Mode',
     fill = false,
     compact = false
-  }: { label?: string; fill?: boolean; compact?: boolean } = $props();
+  }: { label?: string; fill?: boolean | 'touch'; compact?: boolean } = $props();
 
   const MODES: { value: ThemeMode; label: string; icon: string }[] = [
     { value: 'system', label: 'System', icon: mdiMonitor },

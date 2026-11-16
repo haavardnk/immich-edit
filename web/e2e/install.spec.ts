@@ -28,16 +28,17 @@ type PromptProbe = { prompted: boolean };
 
 async function openInstall(page: Page): Promise<void> {
   await installMocks(page);
-  await page.goto('/settings#install');
-  await expect(page.getByRole('button', { name: /^Layout/ })).toBeVisible();
+  await page.goto('/settings/preferences#install');
+  await expect(page).toHaveURL(/\/settings(\/\w+)?(#\w+)?$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 }
 
 function installButton(page: Page): Locator {
-  return page.getByRole('button', { name: 'Install app', exact: true });
+  return installGroup(page).getByRole('button', { name: 'Install', exact: true });
 }
 
 function installGroup(page: Page): Locator {
-  return page.getByRole('button', { name: /^Install app Open immich-edit/ });
+  return page.locator('[data-setting-anchor="install"]');
 }
 
 function pngSize(body: Buffer): string {
@@ -203,14 +204,9 @@ test.describe('install entry', () => {
     });
     expect(prevented).toBe(true);
 
-    await expect(
-      page.getByText('Not installed. Your browser installs it in one step.')
-    ).toBeVisible();
     await installButton(page).click();
 
-    await expect(
-      page.getByText('Installed. Open immich-edit from your Home Screen, Dock or app list.')
-    ).toBeVisible();
+    await expect(installGroup(page).getByText('Installed', { exact: true })).toBeVisible();
     await expect(installButton(page)).toBeHidden();
     const prompted = await page.evaluate(
       () => (window as unknown as { installProbe: PromptProbe }).installProbe.prompted
@@ -244,7 +240,7 @@ test.describe('install entry', () => {
     await openInstall(page);
 
     await expect(installGroup(page)).toBeVisible();
-    await expect(page.getByText('Installing needs HTTPS.', { exact: false })).toBeVisible();
+    await expect(installGroup(page).getByText('Needs HTTPS.', { exact: false })).toBeVisible();
     await expect(page.getByRole('link', { name: 'How to set up HTTPS' })).toHaveAttribute(
       'href',
       /\/deploy\/#https-for-the-installed-app$/
@@ -314,7 +310,7 @@ test.describe('service worker', () => {
     const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
     expect(scope).toBe(new URL('/', page.url()).href);
     await page.reload();
-    await expect(page.getByRole('button', { name: /^This device/ })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Search settings' })).toBeVisible();
     expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   }
 

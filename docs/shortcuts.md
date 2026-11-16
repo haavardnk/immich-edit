@@ -26,10 +26,11 @@ Shortcuts do not run while focus is in a text field or another typing control.
 
 ## General
 
-| Keys            | Action                  | Available in                   |
-| --------------- | ----------------------- | ------------------------------ |
-| `?` / `Shift+/` | Show keyboard shortcuts | Anywhere                       |
-| `G`             | Back to the grid        | Loupe, Compare, Survey, Editor |
+| Keys            | Action                                 | Available in                   |
+| --------------- | -------------------------------------- | ------------------------------ |
+| `?` / `Shift+/` | Show keyboard shortcuts                | Anywhere                       |
+| `/`             | Search settings while Settings is open | Anywhere                       |
+| `G`             | Back to the grid                       | Loupe, Compare, Survey, Editor |
 
 ## Culling
 

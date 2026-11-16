@@ -122,7 +122,7 @@
 {:else if error}
   <Notice message={error} class="text-sm" />
 {:else if health}
-  <section class="space-y-2">
+  <section class="space-y-2" data-setting-anchor="server">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Server</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
       <dt class="text-dark/65">Version</dt>
@@ -168,7 +168,7 @@
     </dl>
   </section>
 
-  <section class="space-y-2 pt-5">
+  <section class="space-y-2 pt-5" data-setting-anchor="browser-renderer">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Browser renderer</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
       <dt class="text-dark/65">Setting</dt>
@@ -257,7 +257,7 @@
   </section>
 
   {#if timings}
-    <section class="space-y-2 pt-5">
+    <section class="space-y-2 pt-5" data-setting-anchor="render-latency">
       <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Render latency</Heading>
       <div class="divide-y divide-hairline">
         {@render latencyRow('CPU', timings.render_latency.cpu)}

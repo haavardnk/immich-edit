@@ -1,6 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { installMocks, jobsPanel, json, SESSION_USER } from './helpers';
+import { mockDiagnostics } from './diagnosticsMocks';
+import {
+  installMocks,
+  jobsPanel,
+  json,
+  SESSION_USER,
+  settingsGroup,
+  settingsPages
+} from './helpers';
 
 const JOB = {
   id: 'job-1',
@@ -121,15 +129,9 @@ test('settings fit the mobile viewport', async ({ page }) => {
   await expect(
     page.locator('header[data-app-bar]').getByRole('button', { name: 'Back', exact: true })
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Diagnostics' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /App settings/ })).toHaveAttribute(
-    'aria-expanded',
-    'false'
-  );
-  await expect(page.getByRole('button', { name: /^Account\s\S/ })).toHaveAttribute(
-    'aria-expanded',
-    'false'
-  );
+  for (const name of ['Preferences', 'Account', /^Administration/, 'Diagnostics']) {
+    await expect(settingsPages(page).getByRole('link', { name })).toBeVisible();
+  }
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)
   ).toBe(true);
@@ -146,10 +148,9 @@ test('settings sign-out asks first while a transfer runs', async ({ page }) => {
   page.on('request', (request) => {
     if (request.url().includes('/api/auth/logout')) logouts.push(request.url());
   });
-  await page.goto('/settings');
+  await page.goto('/settings/account');
 
-  await page.getByRole('button', { name: /^Account\s\S/ }).click();
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Sign out', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Sign out?' });
   await expect(confirm).toBeVisible();
   await expect(confirm).toContainText('1 export or upload job still running');
@@ -161,22 +162,13 @@ test('settings sign-out asks first while a transfer runs', async ({ page }) => {
 
 test('settings deep links and close returns to the previous page', async ({ page }) => {
   await installSecondaryMocks(page);
-  await page.goto('/settings#sessions');
-  await expect(page.getByRole('button', { name: 'Signed-in devices' })).toHaveAttribute(
-    'aria-expanded',
-    'true'
-  );
+  await page.goto('/settings/account#sessions');
+  await expect(page).toHaveURL('/settings/account#sessions');
+  await expect(settingsGroup(page, 'Signed-in devices')).toBeVisible();
 
-  await page.goto('/settings#models');
-
-  await expect(page.getByRole('button', { name: /App settings/ })).toHaveAttribute(
-    'aria-expanded',
-    'true'
-  );
-  await expect(page.getByRole('button', { name: /^Models/ })).toHaveAttribute(
-    'aria-expanded',
-    'true'
-  );
+  await page.goto('/settings/administration#models');
+  await expect(page).toHaveURL('/settings/administration#models');
+  await expect(settingsGroup(page, 'Models')).toBeVisible();
 
   await page.goto('/favorites');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
@@ -184,8 +176,8 @@ test('settings deep links and close returns to the previous page', async ({ page
     history.replaceState({ ...history.state, settingsReturnMarker: 'favorites' }, '');
   });
   await page.getByRole('button', { name: 'Settings' }).click();
-  await expect(page).toHaveURL('/settings');
-  await page.getByRole('link', { name: 'Diagnostics' }).click();
+  await expect(page).toHaveURL('/settings/preferences');
+  await settingsPages(page).getByRole('link', { name: 'Diagnostics' }).click();
   await expect(page).toHaveURL('/settings/diagnostics');
   await page.getByRole('button', { name: 'Close settings' }).click();
   await expect(page).toHaveURL('/favorites');
@@ -204,7 +196,7 @@ test('admins can turn off automatic lens corrections', async ({ page }) => {
     }
     return route.fulfill(json({ lens_auto: lensAuto }));
   });
-  await page.goto('/settings#defaults');
+  await page.goto('/settings/administration#lens-auto');
 
   const toggle = page.getByRole('switch', { name: 'Automatic lens corrections' });
   await expect(toggle).toBeChecked();
@@ -280,85 +272,8 @@ test('jobs drawer opened from the account drawer stays bounded on a phone', asyn
 });
 
 test('diagnostics break render time down by stage and plan', async ({ page }) => {
-  const stats = (p50: number, p95: number) => ({
-    count: 3,
-    p50_us: p50,
-    p95_us: p95,
-    p99_us: p95,
-    max_us: p95
-  });
   await installSecondaryMocks(page);
-  await page.route('**/api/**', (route) => {
-    const path = new URL(route.request().url()).pathname;
-    if (path === '/api/health') {
-      return route.fulfill(
-        json({
-          status: 'ok',
-          version: '0.6.0',
-          renderer_mode: 'auto',
-          renderer_active: 'gpu',
-          gpu_adapter: 'Test GPU',
-          gpu_software: false,
-          gpu_memory: {
-            device: { bytes: 8 * 2 ** 30, unified: false },
-            host_budget_bytes: null,
-            budget_bytes: 7.2 * 2 ** 30,
-            texture_cache_bytes: 2 ** 30
-          },
-          host: {
-            os: 'linux',
-            arch: 'x86_64',
-            os_version: null,
-            cpu: null,
-            cores: 4,
-            memory_total_bytes: null,
-            memory_limit_bytes: null
-          },
-          heif_codecs: { hevc_decode: true, hevc_encode: true, av1_decode: true, av1_encode: true },
-          immich_reachable: true,
-          immich_status: { ok: true, kind: 'ok', message: 'Connected', status_code: null },
-          immich_version: '3.2.2',
-          db_ready: true,
-          db_migration_version: 1,
-          config: {}
-        })
-      );
-    }
-    if (path === '/api/debug/timings') {
-      return route.fulfill(
-        json({
-          renderer_active: 'gpu',
-          gpu_timestamps: true,
-          render_latency: { cpu: stats(0, 0), gpu: stats(42_000, 61_000) },
-          stages: [
-            { renderer: 'gpu', stage: 'demosaic', wall: stats(300, 500), gpu: stats(2_100, 2_600) },
-            { renderer: 'gpu', stage: 'encode', wall: stats(9_400, 12_000), gpu: null }
-          ],
-          plans: [
-            { renderer: 'gpu', plan: 'single_pass', edge: null, renders: 14, last_tiles: 1 },
-            { renderer: 'gpu', plan: 'display_tiled', edge: 2048, renders: 2, last_tiles: 24 }
-          ],
-          frames: {
-            fetch: stats(180_000, 240_000),
-            decode: stats(95_000, 130_000),
-            cache_hits: 3,
-            cache_misses: 1
-          },
-          request_timeouts: 2,
-          gpu_pool_bytes: null,
-          cache_bytes: {
-            preview_frames_used: 0,
-            preview_frames_cap: 0,
-            quality_frames_used: 0,
-            quality_frames_cap: 0,
-            rasters_disk_used: 0,
-            rasters_disk_cap: 0
-          }
-        })
-      );
-    }
-    return route.fallback();
-  });
+  await mockDiagnostics(page);
   await page.goto('/settings/diagnostics');
 
   await expect(page.getByText('3.2.2', { exact: true })).toBeVisible();

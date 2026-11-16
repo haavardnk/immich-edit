@@ -1,6 +1,9 @@
-import type { LayoutChoice, LayoutMode } from '#lib/device/layoutRules.ts';
+import {
+  LAYOUT_CHOICE_LABELS,
+  type LayoutChoice,
+  type LayoutMode
+} from '#lib/device/layoutRules.ts';
 
-export function layoutStatus(choice: LayoutChoice, mode: LayoutMode): string {
-  if (choice === 'auto') return `Using the ${mode} layout, picked for this screen.`;
-  return `Using the ${mode} layout.`;
+export function layoutHint(choice: LayoutChoice, mode: LayoutMode): string | null {
+  return choice === 'auto' ? `${LAYOUT_CHOICE_LABELS[mode]} on this screen` : null;
 }

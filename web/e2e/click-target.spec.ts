@@ -70,7 +70,7 @@ test('the keys keep their targets whatever a click opens', async ({ page }) => {
 
 test('the setting is chosen in Appearance and kept for the account', async ({ page }) => {
   const saved = await openGrid(page);
-  await page.goto('/settings#appearance');
+  await page.goto('/settings/preferences#appearance');
   const choice = page.getByRole('radiogroup', { name: 'Click a photo' });
   await expect(choice.getByRole('radio', { name: 'Open editor' })).toBeChecked();
 
@@ -91,7 +91,7 @@ test.describe('click target on touch', { tag: '@touch' }, () => {
 
   test('settings offer no click setting', async ({ page }) => {
     await installMocks(page);
-    await page.goto('/settings#appearance');
+    await page.goto('/settings/preferences#appearance');
     await expect(page.getByRole('radiogroup', { name: 'Mode' })).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Click a photo' })).toHaveCount(0);
   });

@@ -34,14 +34,15 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
 
 for (const [theme, path] of [
   ['immich-edit-light', '/photos'],
-  ['immich-edit-light', '/settings#appearance'],
-  ['immich-edit-light', '/settings#layout'],
+  ['immich-edit-light', '/settings/preferences#appearance'],
+  ['immich-edit-light', '/settings/account'],
+  ['immich-edit-light', '/settings/administration'],
   ['catppuccin-latte', '/photos'],
-  ['catppuccin-latte', '/settings#appearance'],
+  ['catppuccin-latte', '/settings/preferences#appearance'],
   ['one-light', '/photos'],
-  ['one-light', '/settings#appearance'],
+  ['one-light', '/settings/preferences#appearance'],
   ['everforest-light', '/photos'],
-  ['everforest-light', '/settings#appearance']
+  ['everforest-light', '/settings/preferences#appearance']
 ]) {
   test(`${path} has no serious accessibility violations in ${theme}`, async ({ page }) => {
     await installMocks(page, {

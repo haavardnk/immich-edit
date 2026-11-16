@@ -78,7 +78,7 @@ computers. Browsers only install web apps, and only run the service worker that 
 loading offline, on an HTTPS address with a trusted certificate:
 
 - A plain `http://` address on your network, such as `http://192.168.1.20:3000`, cannot install.
-  Editing still works there; **Settings** > **This device** > **Install app** explains why install
+  Editing still works there; **Settings** > **Preferences** > **Install app** explains why install
   is unavailable.
 - A certificate warning you clicked through is not enough. The browser still treats the page as
   untrusted.

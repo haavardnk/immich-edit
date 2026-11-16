@@ -8,9 +8,9 @@
   import { exportPresets } from './exportPresets.svelte';
   import type { PresetSelection } from './presetSelection.svelte';
   import { exportSettings } from './exportSettings.svelte';
-  import { albumNames, ensureLibraryLoaded, restoreExportForm } from './settings';
+  import { presetLine } from './presetLine';
+  import { ensureLibraryLoaded } from './settings';
   import { SAVE_ONLY_REASON, saveOnly } from './shareFile';
-  import { presetSummary } from './summary';
 
   let {
     selection,
@@ -27,13 +27,8 @@
 
   const rows = $derived(
     exportPresets.presets.map((preset) => {
-      const form = restoreExportForm(preset.form);
-      const immich = preset.destination === 'immich';
-      return {
-        preset,
-        summary: presetSummary(form, immich ? { albums: albumNames(form.albumIds) } : null),
-        saveOnly: shareHints && !immich && saveOnly(form.format)
-      };
+      const { form, immich, summary } = presetLine(preset);
+      return { preset, summary, saveOnly: shareHints && !immich && saveOnly(form.format) };
     })
   );
 

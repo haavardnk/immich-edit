@@ -524,8 +524,8 @@ test('saving automatically downloads each export at once on this device', async 
   expect((await downloadPromise).suggestedFilename()).toBe('IMG_0001_edit.jpg');
   await expect(exportedFile(page)).toContainText('Saved');
 
-  await page.goto('/settings#export');
-  const setting = page.getByRole('switch', { name: 'Save automatically' });
+  await page.goto('/settings/preferences#save-automatically');
+  const setting = page.getByRole('switch', { name: 'Save exports automatically' });
   await expect(setting).toBeChecked();
   await setting.click();
   await gotoAsset(page);

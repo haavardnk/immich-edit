@@ -120,6 +120,6 @@ test('without a depth model the generate button explains what is missing', async
   await expect(page.getByText('Lens Blur needs a depth model.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Models settings' })).toHaveAttribute(
     'href',
-    '/settings#models'
+    '/settings/administration#models'
   );
 });

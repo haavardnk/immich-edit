@@ -40,8 +40,15 @@ async function emulateScheme(page: Page, colorScheme: 'light' | 'dark'): Promise
 }
 
 async function openAppearance(page: Page): Promise<void> {
-  await page.goto('/settings#appearance');
+  await page.goto('/settings/preferences#appearance');
   await expect(page.getByRole('radiogroup', { name: 'Mode' })).toBeVisible();
+}
+
+async function openThemes(page: Page, scheme: 'Dark' | 'Light'): Promise<Locator> {
+  await page.getByRole('button', { name: new RegExp(`^${scheme} theme:`) }).click();
+  const grid = page.getByRole('radiogroup', { name: `${scheme} theme` });
+  await expect(grid).toBeVisible();
+  return grid;
 }
 
 function recordAppearance(): {
@@ -153,7 +160,7 @@ test('a theme tile switches the whole palette and saves it', async ({ page }) =>
   await installMocks(page, { onAppearance: record.onAppearance });
   await openAppearance(page);
 
-  await page.getByRole('radio', { name: 'Catppuccin Mocha' }).click();
+  await (await openThemes(page, 'Dark')).getByRole('radio', { name: 'Catppuccin Mocha' }).click();
 
   await expect
     .poll(() => rootState(page))
@@ -170,19 +177,14 @@ async function top(locator: Locator): Promise<number> {
   return box.y;
 }
 
-test('each mode has its own accent row under its theme grid', async ({ page }) => {
+test('the scheme in use comes first with its accents on the row', async ({ page }) => {
   const record = recordAppearance();
   await installMocks(page, { onAppearance: record.onAppearance });
   await openAppearance(page);
 
-  const lightGrid = page.getByRole('radiogroup', { name: 'Light theme' });
-  const light = page.getByRole('radiogroup', { name: 'Light accent' });
-  const darkGrid = page.getByRole('radiogroup', { name: 'Dark theme' });
   const dark = page.getByRole('radiogroup', { name: 'Dark accent' });
-  await expect(page.getByRole('radiogroup', { name: /accent/i })).toHaveCount(2);
-  expect(await top(lightGrid)).toBeLessThan(await top(light));
-  expect(await top(light)).toBeLessThan(await top(darkGrid));
-  expect(await top(darkGrid)).toBeLessThan(await top(dark));
+  const light = page.getByRole('radiogroup', { name: 'Light accent' });
+  expect(await top(dark)).toBeLessThan(await top(light));
 
   await light.getByRole('radio', { name: 'Teal' }).click();
 
@@ -305,7 +307,7 @@ test('the login page paints the cached accent before the app starts', async ({ p
 
 test('signing out paints the default theme for the next person', async ({ page }) => {
   await installMocks(page, { appearance: { ...DEFAULT_APPEARANCE, mode: 'light' } });
-  await page.goto('/settings#account');
+  await page.goto('/settings/account');
   await expect.poll(() => rootState(page)).toEqual(LIGHT);
 
   await page.route('**/api/setup/status', (route) => route.fulfill(json({ configured: true })));

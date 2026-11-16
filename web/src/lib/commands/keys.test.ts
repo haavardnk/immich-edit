@@ -73,6 +73,17 @@ describe('key dispatcher', () => {
     h.toast.mockReset();
   });
 
+  it('falls through to the next bind for the key when the first has no active command', () => {
+    const help = command({ id: 'help', bind: 'help', contexts: ['global'], active: () => false });
+    const search = command({ id: 'search', bind: 'settingsSearch', contexts: ['global'] });
+    const nordicSlash = press('/', { code: 'Digit7', shiftKey: true });
+
+    createKeyDispatcher([help, search]).keydown(nordicSlash, GRID);
+
+    expect(search.run).toHaveBeenCalledOnce();
+    expect(help.run).not.toHaveBeenCalled();
+  });
+
   it('runs the first active command for the shortcut and consumes the key', () => {
     const inactive = command({ id: 'a', bind: 'favorite', active: () => false });
     const active = command({ id: 'b', bind: 'favorite' });

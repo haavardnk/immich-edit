@@ -8,12 +8,22 @@ permalink: /administration/
 
 # Administration
 
-Open **Settings** from the gear in the top bar. Every user sees **Account**, with
-**Signed-in devices** inside it, **Appearance**, and **This device**, with **Layout** and
-**Preview rendering** inside it, plus **Diagnostics** in the sidebar.
-Administrators also get **App settings** with **Users**, **Models**, **Editing defaults** and
-**Immich instance**.
-Sections stay collapsed until you open them.
+Open **Settings** from the gear in the top bar or from the account menu. Settings has four pages:
+
+- **Preferences**: **Appearance**, which follows your account to every device, and **This
+  device**, kept in this browser only: **Layout**, **Preview renderer**, **Save exports
+  automatically** and **Install app**.
+- **Account**: who you are signed in as, **Signed-in devices** and **Export presets**.
+- **Administration**, for administrators only: **Server** (**Immich instance** and **Automatic
+  lens corrections**), **Users** and **Models**.
+- **Diagnostics**.
+
+On a desktop or a tablet in landscape the pages are listed in the sidebar, and Settings opens on
+**Preferences**. On a phone, Settings lists the pages; a tap opens one and **Back** returns to the
+list. **Search settings** above the pages finds a single control by name, such as `lens` for
+**Automatic lens corrections**, and opens its page with that control highlighted; `/` focuses it
+while Settings is open. **Export presets** lists the export presets you saved from the export
+panel, with their settings, and deletes them.
 
 ## Users
 
@@ -25,11 +35,12 @@ OAuth has its own page: [OAuth sign-in](oauth.md).
 Local edits, history, presets, jobs, and exports are private to each user. Ratings, favorites,
 tags, and reject marks are shared through Immich.
 
-Under **App settings** > **Users**, an administrator can:
+Under **Administration** > **Users**, an administrator can:
 
 - Enable or disable access for another user. Disabling revokes that user's sessions and cancels
   active jobs, but keeps their local data.
-- Purge another user's local data: edits, history, presets, exports, and jobs.
+- Purge another user's local data: edits, history, presets, exports, and jobs. The confirmation
+  requires that user's email.
 
 ## Signed-in devices
 
@@ -40,14 +51,14 @@ but this one. Signing out of a password or OAuth session also revokes the Immich
 
 ## Appearance
 
-**Settings** > **Appearance** sets how immich-edit looks for your account on every device you sign
-in on:
+**Preferences** > **Appearance** sets how immich-edit looks for your account on every device you
+sign in on:
 
 - **Mode**: **Dark**, the default, **Light**, or **System**, which follows the device setting.
 - **Light theme** and **Dark theme**: the theme each mode uses. Built in are immich-edit, Immich,
   Catppuccin, Rosé Pine, Tokyo Night, Gruvbox, Solarized, Nord, Dracula, One, GitHub and
   Everforest.
-- **Light accent** and **Dark accent**: the highlight colour of each mode, picked under its theme
+- **Light accent** and **Dark accent**: the highlight colour of each mode, picked beside its theme
   from that theme's colours. The logo and the browser tab icon follow the accent on screen.
 
 On a desktop, your avatar at the right of the top bar opens the account menu: **Settings**,
@@ -59,25 +70,26 @@ keeps WCAG AA contrast.
 
 ## This device
 
-**Settings** > **This device** holds settings kept in this browser only. Under **Layout**, **Auto**
-picks the touch layout below 768 px wide, or on a touch-first screen whose short side is at most
-1100 px. It re-evaluates live when you rotate or resize. **Desktop** and **Touch** force one layout
-for this browser. In the touch layout, menus, dialogs and pickers open as sheets from the bottom of
-the screen, and dragging a sheet's handle down closes it.
-**Preview rendering** is covered in [rendering](rendering.md#the-browser). **Install app** adds
+**Preferences** > **This device** holds settings kept in this browser only. Under **Layout**,
+**Auto** picks the touch layout below 768 px wide, or on a touch-first screen whose short side is at
+most 1100 px. It re-evaluates live when you rotate or resize. **Desktop** and **Touch** force one
+layout for this browser. In the touch layout, menus, dialogs and pickers open as sheets from the
+bottom of the screen, and dragging a sheet's handle down closes it.
+**Preview renderer** is covered in [rendering](rendering.md#the-browser). **Save exports
+automatically** downloads each export as soon as it finishes. **Install app** adds
 immich-edit to the Home Screen, Dock or app list; see below.
 
 ### Install the app
 
 The installed app opens in its own window without browser bars, and uses the same layouts as the
 browser. Installing needs an HTTPS address with a trusted certificate; on plain `http://`,
-**Install app** says it is unavailable and links to
+**Install app** says it needs HTTPS and links to
 [HTTPS for the installed app](deploy.md#https-for-the-installed-app). The entry is hidden while
 immich-edit already runs as an installed app.
 
-- **Chrome and Edge** (desktop and Android): open **Settings** > **This device** > **Install app**
-  and select **Install app**. The browser asks to confirm. The install icon in the address bar or
-  the browser menu does the same.
+- **Chrome and Edge** (desktop and Android): open **Settings** > **Preferences** and select
+  **Install** beside **Install app**. The browser asks to confirm. The install icon in the address
+  bar or the browser menu does the same.
 - **iPhone and iPad**: there is no one-tap install, so **Install app** shows the steps: tap
   **Share** in the browser toolbar, choose **Add to Home Screen**, keep **Open as Web App** on and
   tap **Add**.
@@ -96,8 +108,8 @@ tab becomes visible again.
 
 ## Editing defaults
 
-**App settings** > **Editing defaults** holds instance-wide defaults for settings an edit leaves
-unset. They apply to every user.
+**Administration** > **Server** > **Automatic lens corrections** is an instance-wide default for
+edits that leave it unset. It applies to every user.
 
 **Automatic lens corrections** is on by default: a RAW file with a matching lens profile gets
 distortion and vignetting correction until someone turns **Enable Profile Corrections** off for
@@ -107,8 +119,8 @@ Previews, exports, and edited thumbnails pick up the change on their next render
 
 ## Immich instance
 
-**App settings** > **Immich instance** shows the Immich server immich-edit is bound to, and can
-rebind it to another one.
+**Administration** > **Server** > **Immich instance** shows the Immich server immich-edit is bound
+to. **Change server…** rebinds it to another one.
 
 {: .warning }
 Rebinding validates an administrator on the new server, then removes local users, edits, and jobs
@@ -118,7 +130,8 @@ API key for it.
 
 ## Models
 
-AI masks and **AI Denoise** are optional. Install their models under **App settings** > **Models**.
+AI masks and **AI Denoise** are optional. Install their models under **Administration** >
+**Models**.
 
 Installs run one at a time and verify a pinned SHA-256 digest. A failed item shows the reason and a
 **Retry** action. **Cancel download** stops a running or queued install and deletes the partial

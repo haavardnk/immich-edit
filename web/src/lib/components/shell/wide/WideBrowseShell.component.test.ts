@@ -13,6 +13,7 @@ import { resetLayout } from '#lib/testing/layoutMock.ts';
 const route = vi.hoisted(() => ({ page: { url: new URL('http://localhost/photos'), params: {} } }));
 
 vi.mock('$app/state', () => route);
+vi.mock('#lib/pwa/install.svelte.ts', () => ({ install: { state: { kind: 'hidden' } } }));
 
 vi.mock('#lib/device/layout.svelte.ts', async () => ({
   layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
@@ -99,10 +100,10 @@ describe('WideBrowseShell', () => {
     expect(target.querySelector('main [role="search"]')).toBeNull();
   });
 
-  it('shows the administration sidebar on settings routes', () => {
+  it('shows the settings sidebar on settings routes', () => {
     render('/settings');
 
-    expect(target.querySelector('aside[aria-label="Administration"]')).not.toBeNull();
+    expect(target.querySelector('aside[aria-label="Settings"]')).not.toBeNull();
     expect(target.querySelector('aside[aria-label="Library"]')).toBeNull();
   });
 
