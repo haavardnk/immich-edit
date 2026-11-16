@@ -1,10 +1,12 @@
 use axum::Json;
 use axum::extract::State;
+use axum::http::StatusCode;
 use raw_pipeline::gpu::memory::GpuMemory;
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::config::{RedactedConfig, RendererMode};
+use crate::error::AppError;
 use crate::host::{HostInfo, host_info};
 use crate::immich::ImmichConnectionStatus;
 use crate::routes::auth::AuthCtx;
@@ -32,6 +34,11 @@ pub struct Health {
 
 pub async fn live() -> Json<Value> {
     Json(json!({ "status": "ok" }))
+}
+
+pub async fn immich_ping(ctx: AuthCtx) -> Result<StatusCode, AppError> {
+    ctx.immich.ping().await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Serialize)]
