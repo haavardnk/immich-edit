@@ -158,7 +158,14 @@ pub async fn rebind(
 }
 
 async fn require_fresh_admin(admin: &AdminCtx) -> Result<(), AppError> {
-    let user = admin.0.immich.me().await?;
+    let user = match admin.0.immich.me().await {
+        Ok(user) => user,
+        Err(err) if err.is_unreachable() => {
+            tracing::warn!(error = %err, "current immich unreachable; rebinding on the local admin session");
+            return Ok(());
+        }
+        Err(err) => return Err(err.into()),
+    };
     if user.id != admin.0.owner || !user.is_admin {
         return Err(AppError::AdminRequired);
     }

@@ -28,6 +28,13 @@ pub enum ImmichError {
 pub type ImmichResult<T> = Result<T, ImmichError>;
 
 impl ImmichError {
+    pub fn is_unreachable(&self) -> bool {
+        matches!(
+            self,
+            Self::Timeout | Self::Transport(_) | Self::Status(500..=599)
+        )
+    }
+
     pub fn short(&self) -> String {
         match self {
             Self::Unauthorized => "unauthorized".into(),

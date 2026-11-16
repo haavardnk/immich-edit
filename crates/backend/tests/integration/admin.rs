@@ -221,6 +221,53 @@ async fn a_rebind_needs_a_matching_confirmation_hostname() {
     );
 }
 
+fn rebind_request(confirm_hostname: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri("/api/admin/instance/rebind")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            serde_json::json!({
+                "immich_url": "http://192.168.1.10:2283",
+                "confirm_hostname": confirm_hostname,
+                "api_key": "other-key",
+            })
+            .to_string(),
+        ))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_rebind_goes_ahead_while_the_current_immich_is_unreachable() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/users/me"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let res = app.oneshot(rebind_request("192.168.1.11")).await.unwrap();
+
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body_json(res).await["message"],
+        "confirmation hostname does not match"
+    );
+}
+
+#[tokio::test]
+async fn a_rebind_still_needs_admin_rights_on_a_reachable_immich() {
+    let server = MockServer::start().await;
+    mock_me(&server, test_user_id(), false).await;
+    let app = test_app(&server).await;
+
+    let res = app.oneshot(rebind_request("192.168.1.10")).await.unwrap();
+
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    assert_eq!(body_json(res).await["code"], "admin_required");
+}
+
 #[tokio::test]
 async fn a_rebind_keeps_the_admins_account_settings() {
     let server = MockServer::start().await;
