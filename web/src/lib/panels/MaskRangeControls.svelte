@@ -70,7 +70,7 @@
       size="tiny"
       variant={picker ? 'filled' : 'ghost'}
       color={picker ? 'primary' : 'secondary'}
-      class="gap-1 px-2 touch:h-10 touch:px-3 touch:text-label"
+      class="gap-1 px-2 touch:h-11 touch:px-3 touch:text-label"
       aria-label="Sample {noun} from the photo"
       aria-pressed={picker !== null}
       onclick={toggleSample}

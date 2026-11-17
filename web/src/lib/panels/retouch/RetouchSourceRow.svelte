@@ -25,7 +25,7 @@
       size="medium"
       variant={editor.retouchSampling ? 'outline' : 'ghost'}
       color={editor.retouchSampling ? 'success' : 'secondary'}
-      class="ml-auto h-10 rounded-xl px-3.5 text-sm font-normal {editor.retouchSampling
+      class="ml-auto h-11 rounded-xl px-3.5 text-sm font-normal {editor.retouchSampling
         ? ''
         : 'bg-ghost'}"
       leadingIcon={mdiCrosshairsGps}

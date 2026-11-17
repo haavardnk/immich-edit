@@ -43,7 +43,7 @@
         variant="ghost"
         color="secondary"
         shape="round"
-        class="h-6 max-w-full gap-1.5 px-2 text-caption font-normal touch:h-9 touch:px-3 touch:text-sm {on
+        class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1 h-6 max-w-full gap-1.5 px-2 text-caption font-normal touch:h-9 touch:px-3 touch:text-sm {on
           ? 'bg-primary/15 hover:bg-primary/25'
           : 'bg-light-200'}"
         aria-label={tag.value}

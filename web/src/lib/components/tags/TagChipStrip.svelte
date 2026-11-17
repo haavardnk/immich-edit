@@ -61,7 +61,7 @@
         variant="ghost"
         color="secondary"
         shape="round"
-        class="h-6 shrink-0 bg-light-200 px-2 text-caption font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
+        class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1 h-6 shrink-0 bg-light-200 px-2 text-caption font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
         title={countOf(hidden, 'more tag')}
         aria-label={countOf(hidden, 'more tag')}
         {disabled}

@@ -17,7 +17,7 @@
     variant="ghost"
     color="primary"
     shape="round"
-    class="h-9 bg-transparent px-3 text-sm font-medium"
+    class="h-8 bg-transparent px-3 text-sm font-medium"
     leadingIcon={mdiRestore}
     aria-label="Reset all filters"
     disabled={count === 0}

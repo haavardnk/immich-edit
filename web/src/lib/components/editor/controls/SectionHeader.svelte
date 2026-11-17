@@ -57,7 +57,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="section-label -ms-1 h-5 min-h-0 rounded px-1 py-0 select-none {bypassing
+      class="section-label -ms-1 h-6 min-h-0 rounded px-1 py-0 select-none {bypassing
         ? 'text-dark/45'
         : 'text-dark/65'} hover:bg-hairline hover:text-dark"
       title="hold to bypass {title}"

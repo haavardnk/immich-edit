@@ -75,7 +75,7 @@
         variant="ghost"
         color="secondary"
         leadingIcon={mdiRestore}
-        class="mt-1 h-9 self-start rounded-full bg-ghost px-3.5 text-label"
+        class="mt-1 h-8 self-start rounded-full bg-ghost px-3.5 text-label"
         aria-label="Reset {label}"
         disabled={!modified.has(region)}
         onclick={() => commitParamReset(params, `Reset ${label}`)}

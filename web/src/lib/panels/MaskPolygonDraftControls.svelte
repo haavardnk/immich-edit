@@ -15,7 +15,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="touch:h-10 touch:px-3 touch:text-label"
+      class="touch:h-11 touch:px-3 touch:text-label"
       leadingIcon={mdiUndo}
       disabled={corners === 0}
       onclick={editor.undoPolygonPoint}
@@ -27,7 +27,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="touch:h-10 touch:px-3 touch:text-label"
+      class="touch:h-11 touch:px-3 touch:text-label"
       leadingIcon={mdiClose}
       onclick={editor.cancelPolygon}
     >
@@ -38,7 +38,7 @@
         type="button"
         size="tiny"
         color="primary"
-        class="touch:h-10 touch:px-3 touch:text-label"
+        class="touch:h-11 touch:px-3 touch:text-label"
         leadingIcon={mdiCheck}
         disabled={corners < 3}
         onclick={() => void editor.finishPolygon()}

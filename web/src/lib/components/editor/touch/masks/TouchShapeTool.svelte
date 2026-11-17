@@ -100,7 +100,7 @@
       size="medium"
       shape="round"
       color="primary"
-      class="h-10 shrink-0 px-5"
+      class="h-11 shrink-0 px-5"
       disabled={tool.kind === 'polygon' && (editor.polygonDraft?.points.length ?? 0) < 3}
       onclick={done}
     >

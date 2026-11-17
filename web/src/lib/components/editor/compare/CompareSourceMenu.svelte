@@ -50,7 +50,7 @@
         size="tiny"
         variant="ghost"
         color="secondary"
-        class="min-w-0 gap-1 font-normal text-dark/65 touch:h-10 touch:text-sm"
+        class="min-w-0 gap-1 font-normal text-dark/65 touch:h-11 touch:text-sm"
         title=""
         {...props}
       >

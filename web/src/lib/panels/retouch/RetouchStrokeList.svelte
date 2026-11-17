@@ -45,7 +45,7 @@
           size="tiny"
           variant="ghost"
           color="secondary"
-          class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-caption text-dark hover:bg-transparent {stroke.enabled
+          class="h-6 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-caption text-dark hover:bg-transparent {stroke.enabled
             ? ''
             : 'opacity-50'}"
           aria-pressed={editor.activeRetouchId === stroke.id}

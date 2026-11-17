@@ -72,7 +72,7 @@
     variant="ghost"
     color="secondary"
     leadingIcon={mdiClose}
-    class="ml-auto h-6 rounded-full px-2 text-caption touch:h-9 touch:bg-ghost touch:px-3.5 touch:text-label"
+    class="ml-auto h-6 rounded-full px-2 text-caption touch:h-11 touch:bg-ghost touch:px-3.5 touch:text-label"
     disabled={!interior}
     onclick={remove}
   >

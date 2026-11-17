@@ -7,7 +7,7 @@
   size="tiny"
   variant="ghost"
   color="secondary"
-  class="touch:h-9 touch:text-body touch:text-primary"
+  class="touch:h-11 touch:text-body touch:text-primary"
   aria-label="Check all"
   onclick={() => copyDialog.setAll(true)}
 >
@@ -18,7 +18,7 @@
   size="tiny"
   variant="ghost"
   color="secondary"
-  class="touch:h-9 touch:text-body touch:text-primary"
+  class="touch:h-11 touch:text-body touch:text-primary"
   aria-label="Check none"
   onclick={() => copyDialog.setAll(false)}
 >

@@ -286,7 +286,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="h-9 w-full justify-start rounded-none px-3 text-left text-xs touch:h-11 touch:px-4 touch:text-sm {color ===
+      class="h-8 w-full justify-start rounded-none px-3 text-left text-xs touch:h-11 touch:px-4 touch:text-sm {color ===
       'neutral'
         ? 'hover:bg-light-950/6'
         : 'hover:bg-primary-200'}"

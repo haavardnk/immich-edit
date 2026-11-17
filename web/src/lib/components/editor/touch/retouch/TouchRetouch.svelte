@@ -59,7 +59,7 @@
         size="medium"
         shape="round"
         color="primary"
-        class="h-10 shrink-0 px-5"
+        class="h-11 shrink-0 px-5"
         onclick={() => (editor.activeRetouchId = null)}
       >
         Done

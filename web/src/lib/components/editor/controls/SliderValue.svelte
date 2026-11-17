@@ -129,7 +129,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-micro tabular-nums touch:h-8 touch:text-xs {editing
+    class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1.5 h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-micro tabular-nums touch:h-8 touch:text-xs {editing
       ? 'bg-primary/10 text-primary outline-2 outline-primary'
       : modified
         ? 'bg-primary/10 text-primary'

@@ -111,7 +111,7 @@
           size="medium"
           variant="ghost"
           color="secondary"
-          class="h-10 min-w-0 gap-1 rounded-xl bg-ghost px-1.5 text-label font-normal"
+          class="h-11 min-w-0 gap-1 rounded-xl bg-ghost px-1.5 text-label font-normal"
           leadingIcon={entry.icon}
           disabled={addModeBlocked(entry.mode, active.id, active.components.length)}
           onclick={() => (adding = { layerId: active.id, mode: entry.mode })}

@@ -26,7 +26,7 @@
       size="tiny"
       variant={selected ? 'filled' : 'ghost'}
       color={selected ? 'primary' : 'secondary'}
-      class="relative shrink-0 whitespace-nowrap touch:h-8 touch:rounded-full touch:px-3 touch:text-sm touch:font-normal touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1.5 {selected
+      class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1.5 relative shrink-0 whitespace-nowrap touch:h-8 touch:rounded-full touch:px-3 touch:text-sm touch:font-normal touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1.5 {selected
         ? 'touch:bg-primary/22 touch:text-light-950'
         : 'touch:bg-ghost touch:text-dark'}"
       aria-pressed={selected}

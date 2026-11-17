@@ -27,7 +27,7 @@
     shape="round"
     variant="ghost"
     color={pressed ? 'primary' : 'secondary'}
-    class="h-9 shrink-0 gap-1 px-2.5 text-label touch:h-11 {pressed
+    class="h-8 shrink-0 gap-1 px-2.5 text-label touch:h-11 {pressed
       ? 'bg-primary/15'
       : 'bg-ghost'} {className}"
     leadingIcon={command.icon}

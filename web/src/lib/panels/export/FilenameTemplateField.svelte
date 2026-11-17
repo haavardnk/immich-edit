@@ -82,7 +82,7 @@
             variant="ghost"
             color="secondary"
             shape="round"
-            class="h-9 shrink-0 gap-1.5 bg-ghost px-3 text-label font-normal text-dark/80 hover:text-dark"
+            class="h-8 shrink-0 gap-1.5 bg-ghost px-3 text-label font-normal text-dark/80 hover:text-dark"
             aria-label="Insert {token}, {label}"
             onclick={() => insert(token)}
           >

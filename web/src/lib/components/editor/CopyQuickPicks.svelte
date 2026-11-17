@@ -25,7 +25,7 @@
     shape="round"
     variant="ghost"
     color={pressed ? 'primary' : 'secondary'}
-    class="h-7 shrink-0 gap-1 px-2.5 text-caption touch:h-9 touch:px-3 touch:text-label {pressed
+    class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1 h-7 shrink-0 gap-1 px-2.5 text-caption touch:h-9 touch:px-3 touch:text-label {pressed
       ? 'bg-primary/15'
       : 'bg-ghost'}"
     leadingIcon={icon}
