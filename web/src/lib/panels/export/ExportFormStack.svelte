@@ -10,13 +10,11 @@
 
   let {
     exporter,
-    folded = false,
     presetMenu = true,
     onWatermarkPick,
     children
   }: {
     exporter: EditorExporter;
-    folded?: boolean;
     presetMenu?: boolean;
     onWatermarkPick?: () => void;
     children?: Snippet;
@@ -33,7 +31,6 @@
 <ExportForm
   scope={exporter.scope}
   crop={exporter.crop}
-  {folded}
   {onWatermarkPick}
   bind:replaceOriginal={exporter.replaceOriginal}
   fileNotice={proofNotice}

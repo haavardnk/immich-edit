@@ -64,8 +64,6 @@ export class EditorExporter implements PresetExporter {
     return file && sameValue(file.options, baseOptions(exportSettings.form)) ? file : null;
   });
 
-  folded = $derived(this.download && (this.file !== null || this.busy));
-
   uploading = $derived(editor.exports.uploading);
 
   label = $derived.by(() => {

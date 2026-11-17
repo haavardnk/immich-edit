@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMocks, jobsPanel, json, numberedAssets, type InstallOpts } from './helpers';
+import { unfoldExport } from './exportSections';
 import { openBulkExport } from './browse';
 import { tapCentre } from './touch';
 import { open } from './touchShell';
@@ -187,6 +188,7 @@ function expectSingleExport(requests: URL[]): void {
 test('a single photo downloads directly in the chosen format', async ({ page }) => {
   const exports = recordExports();
   const { dialog } = await openDesktopExport(page, 1, exports.opts);
+  await unfoldExport(dialog);
   await dialog.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'PNG' }).click();
 

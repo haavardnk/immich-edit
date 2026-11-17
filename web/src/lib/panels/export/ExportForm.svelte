@@ -26,14 +26,12 @@
     scope,
     replaceOriginal = $bindable(false),
     crop = null,
-    folded = false,
     onWatermarkPick,
     fileNotice
   }: {
     scope: ExportScope;
     replaceOriginal?: boolean;
     crop?: PixelSize | null;
-    folded?: boolean;
     onWatermarkPick?: () => void;
     fileNotice?: Snippet;
   } = $props();
@@ -51,12 +49,12 @@
 
 <DestinationToggle bind:value={exportSettings.destination} />
 
-<ExportSection title="File" summary={fileSummary(form)} {folded}>
+<ExportSection title="File" summary={fileSummary(form)}>
   <FormatOptions bind:form={exportSettings.form} />
   {@render fileNotice?.()}
 </ExportSection>
 
-<ExportSection title="Size" summary={sizeSummary(form, crop)} {folded}>
+<ExportSection title="Size" summary={sizeSummary(form, crop)}>
   <ResizeOptions bind:form={exportSettings.form} {crop} />
   <SharpenOptions bind:form={exportSettings.form} />
 </ExportSection>
@@ -64,7 +62,6 @@
 <ExportSection
   title="Watermark"
   summary={watermarkSummary(form, watermarkLibrary.nameOf(form.watermarkId))}
-  {folded}
 >
   <WatermarkOptions bind:form={exportSettings.form} onpick={onWatermarkPick} />
 </ExportSection>
@@ -73,7 +70,6 @@
   title="Name"
   summary={keepsName ? 'Original name' : nameSummary(form)}
   mono={!keepsName}
-  {folded}
 >
   {#if keepsName}
     <OriginalName example={scope.nameExample} extension={EXTENSION_BY_FORMAT[form.format]} />
@@ -87,7 +83,7 @@
 </ExportSection>
 
 {#if destination === 'immich'}
-  <ExportSection title="Immich">
+  <ExportSection title="Immich" foldable={false}>
     <ImmichOptions
       bind:form={exportSettings.form}
       bind:replaceOriginal

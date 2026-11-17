@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { bulkBar, openBulkExport, pick } from './browse';
+import { unfoldExport } from './exportSections';
 import { installMocks, jobsPanel, numberedAssets, openFilters } from './helpers';
 
 const ASSETS = numberedAssets(4);
@@ -46,6 +47,7 @@ test('export docks beside the grid and follows the selection', async ({ page }) 
 test('escape and the X close the panel and return focus to the bar', async ({ page }) => {
   await selectTwo(page);
   const panel = await openBulkExport(page);
+  await unfoldExport(panel);
   await panel.getByRole('combobox', { name: 'Format' }).focus();
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();

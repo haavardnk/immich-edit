@@ -112,7 +112,7 @@
     </div>
   {:else}
     <div class="flex flex-col gap-1">
-      <ExportFormStack {exporter} folded presetMenu={false} onWatermarkPick={() => (detent = 0)} />
+      <ExportFormStack {exporter} presetMenu={false} onWatermarkPick={() => (detent = 0)} />
     </div>
   {/if}
 </ExportSheet>

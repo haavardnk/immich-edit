@@ -24,5 +24,5 @@
 {/snippet}
 
 <ExportSheet {open} {onOpenChange} {onExited} {title} {exporter} shareHints={false} {footer}>
-  <BulkExport {exporter} folded />
+  <BulkExport {exporter} />
 </ExportSheet>

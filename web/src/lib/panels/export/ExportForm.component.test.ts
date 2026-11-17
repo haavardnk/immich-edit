@@ -12,6 +12,7 @@ import {
   layout,
   layoutControls,
   mergeControls,
+  settle,
   type ControlRef,
   type Layout
 } from '#lib/testing/layoutParity.ts';
@@ -44,27 +45,47 @@ const presetMenu = (): Layout<'preset menu'> =>
     }
   });
 
+async function unfold(root: HTMLElement): Promise<void> {
+  for (const trigger of root.querySelectorAll<HTMLElement>(
+    '[data-collapsible-trigger][aria-expanded="false"]'
+  )) {
+    trigger.click();
+  }
+  await settle();
+}
+
+const unfolded = { open: unfold };
+
 function layouts(
   destination: 'download' | 'immich'
 ): Layout<'body' | 'zip body' | 'editor panel' | 'bulk export' | 'preset menu'>[] {
   const immich = destination === 'immich';
   return [
     presetMenu(),
-    layout('body', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
-    layout('zip body', ExportForm, {
-      scope: exportScope({ assets: [], count: 0, trashOn: false })
-    }),
+    layout(
+      'body',
+      ExportForm,
+      { scope: exportScope({ assets: [], count: 1, trashOn: false }) },
+      unfolded
+    ),
+    layout(
+      'zip body',
+      ExportForm,
+      { scope: exportScope({ assets: [], count: 0, trashOn: false }) },
+      unfolded
+    ),
     layout(
       'editor panel',
       Export,
       {},
       {
+        ...unfolded,
         exclude: immich
           ? [button('Upload JPEG to Immich')]
           : [button('Export JPEG'), saveAutomatically]
       }
     ),
-    layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
+    layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) }, unfolded)
   ];
 }
 
@@ -103,10 +124,20 @@ describe('ExportForm layout parity', () => {
     editor.proofSpace = 'displayp3';
     const found = await layoutControls([
       presetMenu(),
-      layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
+      layout(
+        'form',
+        ExportForm,
+        { scope: exportScope({ assets: [], count: 1, trashOn: false }) },
+        unfolded
+      ),
       layout('notice', ProofMismatchNotice, {}),
-      layout('editor panel', Export, {}, { exclude: [button('Export JPEG'), saveAutomatically] }),
-      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
+      layout(
+        'editor panel',
+        Export,
+        {},
+        { ...unfolded, exclude: [button('Export JPEG'), saveAutomatically] }
+      ),
+      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) }, unfolded)
     ]);
     expect(found.notice).toEqual([{ role: 'button', name: 'Export Display P3' }]);
     expect(found['editor panel']).toEqual(
@@ -126,10 +157,13 @@ describe('ExportForm layout parity', () => {
     exportSettings.destination = 'immich';
     const found = await layoutControls([
       presetMenu(),
-      layout('body', ExportForm, {
-        scope: exportScope({ assets, count: assets.length, trashOn: true })
-      }),
-      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) })
+      layout(
+        'body',
+        ExportForm,
+        { scope: exportScope({ assets, count: assets.length, trashOn: true }) },
+        unfolded
+      ),
+      layout('bulk export', BulkExport, { exporter: new BulkExporter(() => {}) }, unfolded)
     ]);
     const replace = found.body.find((control) => control.name === 'Replace original');
     expect(replace?.disabled).toBe(owners.includes('me') ? undefined : true);

@@ -9,7 +9,7 @@
 </script>
 
 <div class="flex flex-col gap-1">
-  <ExportFormStack {exporter} folded={exporter.folded}>
+  <ExportFormStack {exporter}>
     {#if exporter.file}
       {@const file = exporter.file}
       <div class="mt-1.5 flex flex-col gap-1">

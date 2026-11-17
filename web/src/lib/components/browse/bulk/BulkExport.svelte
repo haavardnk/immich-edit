@@ -4,11 +4,11 @@
   import ExportForm from '#lib/panels/export/ExportForm.svelte';
   import type { BulkExporter } from '#lib/panels/export/bulkExport.svelte.ts';
 
-  let { exporter, folded = false }: { exporter: BulkExporter; folded?: boolean } = $props();
+  let { exporter }: { exporter: BulkExporter } = $props();
 </script>
 
 <div class="flex flex-col gap-1">
-  <ExportForm scope={exporter.scope} bind:replaceOriginal={exporter.replaceOriginal} {folded} />
+  <ExportForm scope={exporter.scope} bind:replaceOriginal={exporter.replaceOriginal} />
 
   <EarlierExport
     earlier={exporter.earlier}

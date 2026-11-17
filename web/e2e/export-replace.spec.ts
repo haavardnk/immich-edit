@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ASSET_ID, gotoAsset, installMocks, json, type InstallOpts } from './helpers';
+import { unfoldExport } from './exportSections';
 import { mockLibrary } from './touchShell';
 
 async function openImmichExport(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -7,6 +8,7 @@ async function openImmichExport(page: Page, opts: InstallOpts = {}): Promise<voi
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
+  await unfoldExport(page.getByRole('tabpanel'));
 }
 
 test('replace original warns, drops stacking and leaves for the grid', async ({ page }) => {

@@ -103,15 +103,6 @@ describe('EditorExporter download', () => {
     expect(exporter.file).toBeNull();
     exportSettings.form.quality = quality;
   });
-
-  it('folds the form while a render runs', () => {
-    const exporter = new EditorExporter();
-    expect(exporter.folded).toBe(false);
-    editor.exports.rendering = true;
-    expect(exporter.folded).toBe(true);
-    exportSettings.destination = 'immich';
-    expect(exporter.folded).toBe(false);
-  });
 });
 
 describe('EditorExporter upload', () => {

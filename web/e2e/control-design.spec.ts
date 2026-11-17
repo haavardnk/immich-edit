@@ -9,6 +9,7 @@ import {
   openAccountMenu,
   openFilters
 } from './helpers';
+import { unfoldExport } from './exportSections';
 import { openBulkExport } from './browse';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
@@ -138,6 +139,7 @@ test('text inputs retain the package focus ring', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
+  await unfoldExport(page.getByRole('tabpanel'));
   await expectPrimaryFocusRing(page, page.getByLabel('Filename', { exact: true }));
 });
 
@@ -798,6 +800,7 @@ test('dense panel fields and selects share package sizing and states', async ({ 
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
+  await unfoldExport(page.getByRole('tabpanel'));
 
   const template = page.getByLabel('Filename', { exact: true });
   await expect(template).toBeVisible();
@@ -887,6 +890,7 @@ test('bulk export shows the neutral filename template field for both destination
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
   const dialog = await openBulkExport(page);
+  await unfoldExport(dialog);
   const template = dialog.getByLabel('Filename', { exact: true });
   await expect(template).toBeVisible();
   await expect(dialog.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();

@@ -8,25 +8,22 @@
   let {
     title,
     summary = '',
-    folded = false,
+    foldable = true,
     mono = false,
     children
   }: {
     title: string;
     summary?: string;
-    folded?: boolean;
+    foldable?: boolean;
     mono?: boolean;
     children: Snippet;
   } = $props();
 
   const id = $props.id();
-  let open = $derived.by(() => {
-    void folded;
-    return false;
-  });
+  let open = $state(false);
 </script>
 
-{#if folded}
+{#if foldable}
   <Collapsible.Root
     bind:open
     role="region"

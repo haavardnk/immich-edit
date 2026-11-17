@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { JPEG_BLOB, gotoAsset, installMocks } from './helpers';
 import { openBulkExport } from './browse';
+import { openExportTab } from './exportSections';
 
 function exportedFile(page: Page) {
   return page.getByRole('group', { name: 'Exported file' });
@@ -24,7 +25,7 @@ test('a failed download export offers a retry beside the button', async ({ page 
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('button', { name: /Export JPEG/ }).click();
   const panel = page.getByRole('tabpanel');
@@ -51,7 +52,7 @@ test('a download lists the metadata it could not copy', async ({ page }) => {
       })
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('button', { name: /Export JPEG/ }).click();
   const panel = page.getByRole('tabpanel');
@@ -64,7 +65,7 @@ test('a download lists the metadata it could not copy', async ({ page }) => {
 test('export settings survive a reload', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'AVIF' }).click();
@@ -96,7 +97,7 @@ test('a download is named by the filename template', async ({ page }) => {
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   const field = page.getByLabel('Filename', { exact: true });
   await expect(field).toHaveValue('{name}_edit');
@@ -121,6 +122,7 @@ test('filename token chips insert at the caret', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).press('Enter');
+  await page.getByRole('button', { name: /^Name/ }).press('Enter');
 
   const field = page.getByLabel('Filename', { exact: true });
   const caret = (at: number) =>
@@ -173,7 +175,7 @@ test('a download carries the resize settings', async ({ page }) => {
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Dimensions' }).click();
@@ -203,7 +205,6 @@ test('a download carries the resize settings', async ({ page }) => {
     )
   ).toEqual(['dimensions', '750', '500', 'true']);
 
-  await unfold(page, 'Size');
   await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Megapixels' }).click();
   await page.getByRole('spinbutton', { name: 'Megapixels' }).fill('6');
@@ -228,7 +229,7 @@ test('a download carries the metadata choice', async ({ page }) => {
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('combobox', { name: 'Metadata' }).click();
   await page.getByRole('option', { name: 'All but location' }).click();
@@ -256,7 +257,7 @@ test('a download carries the output sharpening settings', async ({ page }) => {
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Matte paper' }).click();
@@ -279,7 +280,6 @@ test('a download carries the output sharpening settings', async ({ page }) => {
     )
   ).toEqual(['matte', 'high', '240']);
 
-  await unfold(page, 'Size');
   await page.getByRole('combobox', { name: 'Sharpen', exact: true }).click();
   await page.getByRole('option', { name: 'Screen' }).click();
   await expect(ppi).toBeHidden();
@@ -295,7 +295,7 @@ test('every export option label fits on one line', async ({ page }) => {
   );
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   await page.getByRole('radio', { name: 'To Immich' }).click();
   await page.getByRole('combobox', { name: 'Resize' }).click();
   await page.getByRole('option', { name: 'Dimensions' }).click();
@@ -356,7 +356,7 @@ test('a download carries the chosen watermark', async ({ page }) => {
     }
   });
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   const exportButton = page.getByRole('button', { name: /Export JPEG/ });
   const tiles = page.getByRole('radiogroup', { name: 'Watermark' });
 
@@ -383,9 +383,11 @@ test('a download carries the chosen watermark', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Watermark/ })).toContainText(
     'Signature · 20% · Top left'
   );
+  const watermark = page.getByRole('button', { name: /^Watermark/ });
+  await watermark.click();
   await expect(page.getByTestId('watermark-preview')).toHaveCount(0);
+  await watermark.click();
 
-  await unfold(page, 'Watermark');
   await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
     name: 'logo.png',
     mimeType: 'image/png',
@@ -406,7 +408,7 @@ test('export warns when it will not match the soft proof', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   await page.getByRole('combobox', { name: 'Color space' }).click();
   await page.getByRole('option', { name: 'Display P3' }).click();
 
@@ -427,9 +429,11 @@ test('export options sit in the same sections in the editor and the bulk dialog'
   const titles = ['File', 'Size', 'Watermark', 'Name'];
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   const panel = page.getByRole('tabpanel');
-  const headings = panel.locator('section[aria-labelledby] > h3');
+  const headings = panel.locator(
+    '[role="region"] [data-collapsible-trigger] > span[id], section[aria-labelledby] > h3'
+  );
   await expect(headings).toHaveText(titles);
   await expect(panel.getByRole('region', { name: 'Size' })).toContainText('6000 × 4000 px');
   await page.getByRole('radio', { name: 'To Immich' }).click();
@@ -441,14 +445,18 @@ test('export options sit in the same sections in the editor and the bulk dialog'
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
   const bulk = await openBulkExport(page);
-  await expect(bulk.locator('section[aria-labelledby] > h3')).toHaveText([...titles, 'Immich']);
+  await expect(
+    bulk.locator(
+      '[role="region"] [data-collapsible-trigger] > span[id], section[aria-labelledby] > h3'
+    )
+  ).toHaveText([...titles, 'Immich']);
   await expect(bulk.getByRole('button', { name: 'Export presets' })).toBeVisible();
 });
 
 test('an export preset saves and restores the export settings', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('combobox', { name: 'Format' }).click();
   await page.getByRole('option', { name: 'AVIF' }).click();
@@ -471,7 +479,7 @@ test('an export preset saves and restores the export settings', async ({ page })
   await expect(page.getByText('No saved presets')).toBeVisible();
 });
 
-test('an export waits on a result card that saves, copies and folds the form', async ({
+test('an export waits on a result card that saves and copies beside the folded form', async ({
   page,
   context
 }) => {
@@ -509,13 +517,12 @@ test('an export waits on a result card that saves, copies and folds the form', a
   await page.keyboard.press('ArrowRight');
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await expect(file).toBeHidden();
-  await expect(page.getByRole('combobox', { name: 'Format' })).toBeVisible();
 });
 
 test('saving automatically downloads each export at once on this device', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   const automatic = page.getByRole('checkbox', { name: 'Save automatically' });
   await automatic.click();
@@ -544,7 +551,7 @@ test('a rendered file shares through the device share sheet', async ({ page }) =
   });
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.getByRole('button', { name: /Export JPEG/ }).click();
   await exportedFile(page).getByRole('button', { name: 'Share' }).click();
@@ -566,7 +573,7 @@ test('a rejected watermark import shows its file and reason until dismissed', as
     })
   );
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
 
   await page.locator('input[type="file"][accept="image/png"]').setInputFiles({
     name: 'studio-banner.png',

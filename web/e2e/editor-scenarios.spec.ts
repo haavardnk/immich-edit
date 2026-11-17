@@ -13,6 +13,7 @@ import {
   openPresetStrip,
   presetAction
 } from './helpers';
+import { openExportTab } from './exportSections';
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -90,7 +91,7 @@ test('export quality uses the shared range control', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   const quality = page.getByRole('slider', { name: 'Quality' });
   await quality.fill('82');
 
