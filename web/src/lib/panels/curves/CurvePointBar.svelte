@@ -66,9 +66,6 @@
         onCommit={commit}
       />
     </div>
-  {:else}
-    <span class="touch:hidden">Click the curve to add a point</span>
-    <span class="hidden touch:inline">Tap the curve to add a point</span>
   {/if}
   <Button
     size="small"

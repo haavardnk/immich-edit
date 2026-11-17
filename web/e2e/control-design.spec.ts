@@ -991,7 +991,7 @@ test('browse filter chips and fields keep the dense desktop sizes', async ({ pag
 
 test('tall mask picker stays inside the viewport', async ({ page }) => {
   await installMocks(page);
-  await page.setViewportSize({ width: 1024, height: 420 });
+  await page.setViewportSize({ width: 1024, height: 340 });
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
@@ -1008,7 +1008,7 @@ test('tall mask picker stays inside the viewport', async ({ page }) => {
     };
   });
   expect(geometry.top).toBeGreaterThanOrEqual(8);
-  expect(geometry.bottom).toBeLessThanOrEqual(413);
+  expect(geometry.bottom).toBeLessThanOrEqual(333);
   expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
 });
 

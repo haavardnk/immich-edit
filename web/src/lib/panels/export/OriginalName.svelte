@@ -13,11 +13,6 @@
   );
 </script>
 
-<div class="flex flex-col gap-1.5 touch:gap-2">
-  <p class="text-xs leading-snug text-dark/70 touch:text-[13px]">
-    Replace original keeps the original name.
-  </p>
-  {#if preview}
-    <FilenamePreview name={preview} />
-  {/if}
-</div>
+{#if preview}
+  <FilenamePreview name={preview} />
+{/if}

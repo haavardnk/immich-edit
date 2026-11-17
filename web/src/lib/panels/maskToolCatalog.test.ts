@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiTools, MISSING_MODEL } from './maskToolCatalog';
+import { aiTools } from './maskToolCatalog';
 
 describe('aiTools', () => {
   it('follows the picker order with Background and Box select beside their models', () => {
@@ -19,13 +19,11 @@ describe('aiTools', () => {
       'Click to select',
       'Box select'
     ]);
-    expect(tools.find((tool) => tool.id === 'depth')?.hint).toBe(MISSING_MODEL);
+    expect(tools.find((tool) => tool.id === 'depth')?.installed).toBe(false);
     expect(tools.find((tool) => tool.id === 'semantic')?.scene).toBe(true);
   });
 
-  it('says tap for click to select on touch and hides helpers of missing models', () => {
-    const tools = aiTools([{ kind: 'click', installed: true }], true);
-    expect(tools[0]?.hint).toBe('Tap the photo to select');
+  it('hides the helpers of missing models', () => {
     expect(aiTools([{ kind: 'subject', installed: false }]).map((tool) => tool.id)).toEqual([
       'subject'
     ]);

@@ -219,8 +219,7 @@ test.describe('versions on a phone', { tag: ['@touch', '@phone'] }, () => {
     await page.getByRole('button', { name: 'Copy edits…', exact: true }).tap();
 
     const dialog = page.getByRole('dialog', { name: 'Copy settings' });
-    await expect(dialog).toContainText('Then open another photo and use More › Paste edits');
-    await expect(dialog).toContainText('Each paste is one history step.');
+    await expect(dialog).not.toContainText('Then open another photo');
     await dialog.getByRole('button', { name: 'Copy', exact: true }).tap();
     await expect(dialog).toBeHidden();
 

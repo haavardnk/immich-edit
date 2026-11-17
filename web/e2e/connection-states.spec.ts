@@ -60,7 +60,12 @@ test('an unreachable Immich gets its own page and the app returns with it', asyn
 
   await page.getByRole('button', { name: 'Change server…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Change Immich server' });
-  await expect(dialog.getByRole('textbox', { name: 'Immich server URL' })).toBeVisible();
+  const confirm = dialog.getByRole('textbox', { name: 'Confirm hostname' });
+  await expect(confirm).toHaveAttribute('placeholder', 'Type the new server’s hostname to confirm');
+  await dialog
+    .getByRole('textbox', { name: 'Immich server URL' })
+    .fill('https://photos.example.net');
+  await expect(confirm).toHaveAttribute('placeholder', 'Type photos.example.net to confirm');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
 

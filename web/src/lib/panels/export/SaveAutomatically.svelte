@@ -9,7 +9,5 @@
     class="mt-1"
     checked={exportSettings.saveAutomatically}
     onChange={(checked) => (exportSettings.saveAutomatically = checked)}
-  >
-    <span class="ms-1 text-dark/50">on this device</span>
-  </CheckboxRow>
+  />
 {/if}

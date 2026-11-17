@@ -126,7 +126,6 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await pill.tap();
     await expectLargeDetent(page, 'Jobs');
     const sheet = page.getByRole('dialog', { name: 'Jobs' });
-    await expect(sheet.getByText('1 active', { exact: true })).toBeVisible();
     await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['Running', 'Finished']);
     await expect(sheet.getByRole('progressbar')).toHaveCount(1);
     await expect(sheet.getByRole('progressbar')).toHaveAccessibleName('Export to Immich progress');

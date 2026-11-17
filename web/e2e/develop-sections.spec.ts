@@ -46,7 +46,7 @@ test.describe('develop sections on desktop', () => {
   async function openMenu(page: Page): Promise<Locator> {
     await page.getByRole('button', { name: 'Customize sections' }).click();
     const menu = page.locator('[data-popover-content]');
-    await expect(menu).toContainText('Drag to reorder · the eye hides a section');
+    await expect(menu).toContainText('Customize sections');
     return menu;
   }
 

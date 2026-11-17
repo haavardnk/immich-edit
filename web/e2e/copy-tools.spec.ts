@@ -237,7 +237,7 @@ test.describe('copy and paste per section on touch', { tag: ['@touch'] }, () => 
       await expect(action.getByText(text, { exact: true })).toBeVisible();
       await expect(action.getByText(name, { exact: true })).toBeHidden();
     }
-    await expect(sheet).toContainText('Then open another photo and use More › Paste edits');
+    await expect(sheet).not.toContainText('Then open another photo');
     const tone = sheet.getByRole('checkbox', { name: 'Tone', exact: true });
     const row = tone.locator('xpath=../..');
     const box = await row.boundingBox();

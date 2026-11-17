@@ -175,8 +175,6 @@
     <div class="px-1.5">
       <MaskPolygonDraftControls />
     </div>
-  {:else if layers.length > 0 && !active}
-    <div class="px-1.5 pt-1 text-[11px] text-dark/65">Select a mask to adjust it.</div>
   {/if}
 
   {#if active}

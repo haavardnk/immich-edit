@@ -14,8 +14,7 @@ import {
   jobTime,
   jobsEtaText,
   jobsProgressFraction,
-  jobsProgressText,
-  jobsSummary
+  jobsProgressText
 } from './jobFormat';
 
 function job(patch: Partial<Job>): Job {
@@ -36,11 +35,6 @@ function job(patch: Partial<Job>): Job {
 }
 
 describe('jobFormat', () => {
-  it('summarises the active job count', () => {
-    expect(jobsSummary(0)).toBe('No active jobs');
-    expect(jobsSummary(2)).toBe('2 active');
-  });
-
   it('describes running jobs for the jobs pill and card', () => {
     expect(
       jobsProgressText([job({ kind: 'export_immich', total: 12, completed: 3, failed: 0 })])

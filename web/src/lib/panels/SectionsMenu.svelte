@@ -48,7 +48,6 @@
   {/snippet}
   <div class="px-1.5 pt-1 pb-1.5">
     <p class="text-[10px] font-medium tracking-wider text-dark/65 uppercase">Customize sections</p>
-    <p class="text-[11px] text-dark/55">Drag to reorder · the eye hides a section</p>
   </div>
   <SectionList
     {groups}

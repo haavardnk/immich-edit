@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { layout } from '#lib/device/layout.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { MAX_POLYGON_POINTS } from '#lib/types/masks.ts';
   import { Button } from '@immich/ui';
   import { mdiCheck, mdiClose, mdiUndo } from '@mdi/js';
 
@@ -11,10 +9,7 @@
 </script>
 
 <div class="mt-1 flex flex-col gap-1" data-testid="polygon-draft-controls">
-  <div class="flex items-center gap-1">
-    <span class="me-auto text-[10px] text-dark/65 tabular-nums touch:text-[12px]">
-      {corners} of {MAX_POLYGON_POINTS} corners
-    </span>
+  <div class="flex items-center justify-end gap-1">
     <Button
       type="button"
       size="tiny"
@@ -52,9 +47,4 @@
       </Button>
     {/if}
   </div>
-  <p class="text-[10px] text-dark/65 touch:text-[12px]">
-    {corners < 3
-      ? 'Place at least three corners on the photo.'
-      : `${layout.mode === 'touch' ? 'Tap' : 'Click'} the first corner or Done to close the polygon.`}
-  </p>
 </div>

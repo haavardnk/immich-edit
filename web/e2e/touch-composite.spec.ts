@@ -57,7 +57,7 @@ test.describe('touch composite controls', { tag: '@touch' }, () => {
 
     await deletePoint.tap();
     await expect(plot.locator('circle')).toHaveCount(2);
-    await expect(view.getByText('Tap the curve to add a point')).toBeVisible();
+    await expect(deletePoint).toBeDisabled();
   });
 
   test('a Mix band shows its modified dot', async ({ page }) => {

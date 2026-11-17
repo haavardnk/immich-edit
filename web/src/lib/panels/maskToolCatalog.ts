@@ -27,7 +27,6 @@ export type ToolPick =
 export type AiTool = {
   id: string;
   label: string;
-  hint: string;
   icon: string;
   installed: boolean;
   scene: boolean;
@@ -38,7 +37,6 @@ export type AiTool = {
 export type ManualToolEntry = {
   tool: ManualTool;
   label: string;
-  hint: string;
   icon: string;
   bind?: KeybindId;
 };
@@ -47,53 +45,47 @@ export const MANUAL_TOOLS: readonly ManualToolEntry[] = [
   {
     tool: 'linear',
     label: 'Linear gradient',
-    hint: 'Fades across a straight edge',
     icon: mdiGradientHorizontal,
     bind: 'addLinearLayer'
   },
   {
     tool: 'radial',
     label: 'Radial gradient',
-    hint: 'Fades out from an ellipse',
     icon: mdiCircleOutline,
     bind: 'addRadialLayer'
   },
   {
     tool: 'brush',
     label: 'Brush',
-    hint: 'Paint the area by hand',
     icon: mdiBrush,
     bind: 'addBrushLayer'
   },
   {
     tool: 'polygon',
     label: 'Polygon',
-    hint: 'Drag the corners to fit a shape',
     icon: mdiVectorPolygon
   },
   {
     tool: 'luma_range',
     label: 'Luminance range',
-    hint: 'Picks a brightness band',
     icon: mdiBrightness6
   },
   {
     tool: 'color_range',
     label: 'Color range',
-    hint: 'Picks colors near a sample',
     icon: mdiPalette
   }
 ];
 
 const AI_ORDER: readonly MaskKind[] = ['subject', 'people', 'sky', 'depth', 'semantic', 'click'];
 
-const AI_LOOKS: Record<string, { hint: string; icon: string }> = {
-  subject: { hint: 'Isolates the main subject', icon: mdiAccountOutline },
-  people: { hint: 'Finds every person', icon: mdiAccountMultipleOutline },
-  sky: { hint: 'Finds the sky', icon: mdiWeatherCloudy },
-  depth: { hint: 'Selects a distance band', icon: mdiLayersOutline },
-  semantic: { hint: 'Water, foliage, buildings and more', icon: mdiShapeOutline },
-  click: { hint: 'Click the photo to select', icon: mdiCursorDefaultClick }
+const AI_ICONS: Record<string, string> = {
+  subject: mdiAccountOutline,
+  people: mdiAccountMultipleOutline,
+  sky: mdiWeatherCloudy,
+  depth: mdiLayersOutline,
+  semantic: mdiShapeOutline,
+  click: mdiCursorDefaultClick
 };
 
 export const MISSING_MODEL = 'Needs a model download';
@@ -103,19 +95,13 @@ function rank(kind: MaskKind): number {
   return at < 0 ? AI_ORDER.length : at;
 }
 
-export function aiTools(
-  kinds: readonly { kind: MaskKind; installed: boolean }[],
-  touch = false
-): AiTool[] {
+export function aiTools(kinds: readonly { kind: MaskKind; installed: boolean }[]): AiTool[] {
   const sorted = [...kinds].sort((a, b) => rank(a.kind) - rank(b.kind));
   return sorted.flatMap(({ kind, installed }) => {
-    const look = AI_LOOKS[kind] ?? { hint: '', icon: mdiShapeOutline };
-    const hint = kind === 'click' && touch ? 'Tap the photo to select' : look.hint;
     const entry: AiTool = {
       id: kind,
       label: generatedLabel(kind),
-      hint: installed ? hint : MISSING_MODEL,
-      icon: look.icon,
+      icon: AI_ICONS[kind] ?? mdiShapeOutline,
       installed,
       scene: kind === 'semantic' && installed,
       generates: kind !== 'click',
@@ -128,7 +114,6 @@ export function aiTools(
         {
           id: 'background',
           label: 'Background',
-          hint: 'Everything but the subject',
           icon: mdiVectorDifference,
           installed,
           scene: false,
@@ -143,7 +128,6 @@ export function aiTools(
         {
           id: 'box',
           label: 'Box select',
-          hint: 'Drag a box around a subject',
           icon: mdiSelectDrag,
           installed,
           scene: false,

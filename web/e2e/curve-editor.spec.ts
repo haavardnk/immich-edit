@@ -63,7 +63,7 @@ test.describe('wide curve on desktop', () => {
     if (!point) throw new Error('no point');
     await page.mouse.dblclick(point.x + point.width / 2, point.y + point.height / 2);
     await expect(outValue(page)).toHaveCount(0);
-    await expect(page.getByText('Click the curve to add a point')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete point' })).toBeDisabled();
     await expect(plot.locator('circle')).toHaveCount(2);
   });
 

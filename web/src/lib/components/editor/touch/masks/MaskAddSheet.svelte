@@ -1,7 +1,12 @@
 <script lang="ts">
   import MenuRow from '#lib/components/MenuRow.svelte';
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
-  import { aiTools, MANUAL_TOOLS, type ToolPick } from '#lib/panels/maskToolCatalog.ts';
+  import {
+    aiTools,
+    MANUAL_TOOLS,
+    MISSING_MODEL,
+    type ToolPick
+  } from '#lib/panels/maskToolCatalog.ts';
   import { runPick, type MaskTarget } from '#lib/panels/maskTools.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { maskModels } from '#lib/stores/maskModels.svelte.ts';
@@ -33,7 +38,7 @@
     if (shown.mode === 'intersect') return 'Pick a tool. Only the overlap stays.';
     return 'Pick a tool. Its area joins the mask.';
   });
-  const tools = $derived(aiTools(maskModels.kinds, true));
+  const tools = $derived(aiTools(maskModels.kinds));
   const sceneClasses = $derived(visibleSceneClasses(maskModels.semanticClasses, maskModels.kinds));
   const heading = 'px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wider text-dark/65 uppercase';
   const cell =
@@ -93,13 +98,11 @@
               <span class="truncate text-[14px] {entry.installed ? '' : 'text-dark/65'}">
                 {entry.label}
               </span>
-              <span
-                class="line-clamp-2 text-[11.5px] leading-tight {entry.installed
-                  ? 'text-dark/65'
-                  : 'text-warning'}"
-              >
-                {entry.hint}
-              </span>
+              {#if !entry.installed}
+                <span class="line-clamp-2 text-[11.5px] leading-tight text-warning">
+                  {MISSING_MODEL}
+                </span>
+              {/if}
             </span>
             {#if !entry.installed}
               <Icon icon={mdiDownloadOutline} size="18px" class="shrink-0" aria-hidden="true" />

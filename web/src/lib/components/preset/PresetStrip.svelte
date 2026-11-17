@@ -25,9 +25,7 @@
 {#snippet items()}
   <PresetCreateColumn oncreate={() => (dialog = {})} />
   {#if presets.presets.length === 0}
-    <li class="flex items-center ps-2 text-xs text-dark/65">
-      No presets yet. Save the current look or import a preset file.
-    </li>
+    <li class="flex items-center ps-2 text-xs text-dark/65">No presets yet.</li>
   {:else if presetStrip.shown.length === 0}
     <li class="flex items-center ps-2 text-xs text-dark/65">No presets match.</li>
   {/if}

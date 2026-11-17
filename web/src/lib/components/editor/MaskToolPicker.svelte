@@ -2,7 +2,12 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiChevronDown, mdiChevronUp, mdiDownloadOutline } from '@mdi/js';
   import type { MaskKind, SemanticClass } from '#lib/api/masks.ts';
-  import { aiTools, MANUAL_TOOLS, type ToolPick } from '#lib/panels/maskToolCatalog.ts';
+  import {
+    aiTools,
+    MANUAL_TOOLS,
+    MISSING_MODEL,
+    type ToolPick
+  } from '#lib/panels/maskToolCatalog.ts';
   import { visibleSceneClasses } from '#lib/types/masks.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
 
@@ -48,7 +53,9 @@
         <Icon icon={entry.icon} size="14px" class="mt-0.5 shrink-0 opacity-70" aria-hidden="true" />
         <span class="flex-1 min-w-0">
           <span class="block text-xs truncate">{entry.label}</span>
-          <span class="block text-[10px] text-dark/65 truncate">{entry.hint}</span>
+          {#if !entry.installed}
+            <span class="block text-[10px] text-dark/65 truncate">{MISSING_MODEL}</span>
+          {/if}
         </span>
         {#if !entry.installed}
           <Icon icon={mdiDownloadOutline} size="13px" class="mt-0.5 shrink-0" aria-hidden="true" />
@@ -98,10 +105,7 @@
       onclick={() => onpick({ kind: 'manual', tool: item.tool })}
     >
       <Icon icon={item.icon} size="14px" class="mt-0.5 shrink-0 opacity-70" aria-hidden="true" />
-      <span class="flex-1 min-w-0">
-        <span class="block text-xs truncate">{item.label}</span>
-        <span class="block text-[10px] text-dark/65 truncate">{item.hint}</span>
-      </span>
+      <span class="flex-1 min-w-0 truncate text-xs">{item.label}</span>
       {#if item.bind}
         <span class="mt-0.5 shrink-0 font-mono text-[10px] text-dark/65">{keysFor(item.bind)}</span>
       {/if}

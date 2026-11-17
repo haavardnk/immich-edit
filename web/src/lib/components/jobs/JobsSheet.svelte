@@ -3,7 +3,6 @@
   import JobList from '#lib/components/jobs/JobList.svelte';
   import JobListActions from '#lib/components/jobs/JobListActions.svelte';
   import JobNotifyToggle from '#lib/components/jobs/JobNotifyToggle.svelte';
-  import { jobsSummary } from '#lib/components/jobs/jobFormat.ts';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
 
@@ -24,7 +23,6 @@
     onOpenChange={(open) => !open && jobs.close()}
     onExited={sheet.exited}
     title="Jobs"
-    subtitle={jobsSummary(jobs.activeCount)}
     close="icon"
     closeLabel="Close jobs"
     detents={[{ fraction: 1 }]}

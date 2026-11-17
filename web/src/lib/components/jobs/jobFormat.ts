@@ -106,10 +106,6 @@ export function jobErrorsText(job: Job, items: readonly JobItem[]): string {
   return [`${jobKindLabel(job.kind)} ${job.id}: ${jobOutcome(job)}`, ...lines].join('\n');
 }
 
-export function jobsSummary(activeCount: number): string {
-  return activeCount > 0 ? `${activeCount} active` : 'No active jobs';
-}
-
 function activeTotals(active: readonly Job[]): { done: number; total: number } {
   return {
     done: active.reduce((sum, job) => sum + job.completed + job.failed, 0),

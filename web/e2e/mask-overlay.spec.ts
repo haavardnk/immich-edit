@@ -21,6 +21,7 @@ async function addRadial(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Radial center' })).toBeVisible();
+  await page.mouse.move(0, 0);
 }
 
 test('shift O cycles the mask overlay modes with a pill', async ({ page }) => {

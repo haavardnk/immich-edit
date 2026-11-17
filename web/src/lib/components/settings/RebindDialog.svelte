@@ -112,15 +112,10 @@
         autocomplete="off"
       />
     {/if}
-    <p class="text-dark/75">
-      Type the new hostname
-      {#if host}<span class="font-mono">{host}</span>{/if}
-      to confirm.
-    </p>
     <TextInput
       class="font-mono"
       bind:value={confirm}
-      placeholder={host || 'hostname'}
+      placeholder={host ? `Type ${host} to confirm` : 'Type the new server’s hostname to confirm'}
       aria-label="Confirm hostname"
     />
     <div class="flex justify-end gap-2">

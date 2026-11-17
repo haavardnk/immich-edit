@@ -85,7 +85,7 @@
 {#snippet shapes()}
   {#if active}
     {#if active.components.length === 0}
-      <p class="px-4 py-3 text-[13px] text-dark/65">This mask is empty. Add a shape below.</p>
+      <p class="px-4 py-3 text-[13px] text-dark/65">No shapes</p>
     {:else}
       <TouchShapeList layer={active} {labels} onmenu={(id) => (shapeMenu = id)} />
     {/if}
@@ -131,9 +131,7 @@
   {:else if stacked && draft && draft.layerId === null}
     <div class="px-4 py-2"><MaskPolygonDraftControls /></div>
   {:else if editor.edits.masks.length === 0}
-    <p class="px-4 py-3 text-[13px] text-dark/65">Tap + to add a mask.</p>
-  {:else if !active}
-    <p class="px-4 py-3 text-[13px] text-dark/65">Tap a mask to edit it.</p>
+    <p class="px-4 py-3 text-[13px] text-dark/65">No masks</p>
   {/if}
 {/snippet}
 

@@ -34,7 +34,6 @@ test('replace original warns, drops stacking and leaves for the grid', async ({ 
   await expect(panel.getByText(/for good after 30 days/)).toBeVisible();
   await expect(panel.getByRole('checkbox', { name: 'Stack with original' })).toBeDisabled();
   await expect(panel.getByRole('textbox', { name: 'Filename' })).toHaveCount(0);
-  await expect(panel.getByText('Replace original keeps the original name.')).toBeVisible();
   await expect(panel.getByText('IMG_0001.jpg', { exact: true })).toBeVisible();
   await replace.click();
   await expect(panel.getByRole('textbox', { name: 'Filename' })).toHaveValue('{name}_edit');
@@ -77,7 +76,7 @@ for (const device of ['phone', 'tablet'] as const) {
       await sheet.getByRole('checkbox', { name: 'Replace original' }).tap();
       await expect(name).toContainText('Original name');
       await name.tap();
-      await expect(sheet.getByText('Replace original keeps the original name.')).toBeVisible();
+      await expect(sheet.getByText('IMG_0001.jpg', { exact: true })).toBeVisible();
     }
   );
 }
