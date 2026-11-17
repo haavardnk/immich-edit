@@ -17,9 +17,7 @@
     >
       {#each cells as cell (cell.label)}
         <div class="flex min-w-0 flex-col-reverse items-center gap-0.5 px-1 py-2 touch:py-2.5">
-          <dt
-            class="text-nano font-medium tracking-[.06em] text-light-950/65 uppercase touch:text-micro"
-          >
+          <dt class="section-label text-light-950/65">
             {cell.label}
           </dt>
           <dd

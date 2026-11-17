@@ -9,7 +9,7 @@
 </script>
 
 <div class="flex h-11 items-center gap-2 border-y border-hairline pr-1 pl-4">
-  <h3 class="text-xs font-semibold tracking-[.06em] text-dark/65 uppercase">Filters</h3>
+  <h3 class="section-label text-dark/65">Filters</h3>
   <FilterCount {count} />
   <span class="flex-1"></span>
   <Button

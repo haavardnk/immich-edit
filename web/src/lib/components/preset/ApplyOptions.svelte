@@ -90,7 +90,7 @@
       {@render includes()}
     </div>
   {:else}
-    <span class="uppercase tracking-wider text-micro text-dark/65">Apply includes</span>
+    <span class="section-label text-dark/65">Apply includes</span>
     {@render includes()}
   {/if}
 </div>

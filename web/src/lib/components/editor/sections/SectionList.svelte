@@ -42,7 +42,7 @@
   {/each}
   {#each groups as group (group.id)}
     {#if group.label}
-      <h3 class="px-2 pt-3 pb-1 text-caption font-medium tracking-wider text-dark/65 uppercase">
+      <h3 class="section-label px-2 pt-3 pb-1 text-dark/65">
         {group.label}
       </h3>
     {/if}

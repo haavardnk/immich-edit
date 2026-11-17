@@ -8,13 +8,11 @@
 </script>
 
 <div class="mt-1 flex flex-col gap-1 touch:hidden" data-testid="mask-wheel-hints">
-  <div class="text-micro font-medium tracking-wider text-dark/65 uppercase">Over the photo</div>
+  <div class="section-label text-dark/65">Over the photo</div>
   <dl class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-caption">
     {#each ROWS as row (row.keys)}
       <dt>
-        <kbd
-          class="rounded border border-hairline px-1.5 py-0.5 font-mono text-micro text-dark/65"
-        >
+        <kbd class="rounded border border-hairline px-1.5 py-0.5 font-mono text-micro text-dark/65">
           {keysFor(row.keys)}
         </kbd>
       </dt>

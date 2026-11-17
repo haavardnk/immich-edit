@@ -68,7 +68,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline px-1">
-    <div class="text-nano font-semibold uppercase text-dark/65">
+    <div class="section-label text-dark/65">
       Masks ({layers.length}/{N_MAX_MASK_LAYERS})
     </div>
     <div class="flex items-center gap-1">

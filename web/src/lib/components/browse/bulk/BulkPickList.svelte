@@ -52,8 +52,7 @@
   const held = $derived(shown.filter((item) => holding(item.id) > 0));
   const rest = $derived(shown.filter((item) => holding(item.id) <= 0));
   const summary = $derived(stageSummary(stages));
-  const heading =
-    'px-3 pt-3 pb-1 text-micro font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-caption';
+  const heading = 'section-label px-3 pt-3 pb-1 text-dark/65 touch:px-4';
 
   function ariaChecked(check: PickCheck): 'true' | 'false' | 'mixed' {
     return check === 'mixed' ? 'mixed' : check ? 'true' : 'false';

@@ -86,7 +86,8 @@
       {/if}
     {/if}
     {#if picker && samples > 0}
-      <span class="ms-auto text-caption text-dark/65 tabular-nums">{countOf(samples, 'sample')}</span
+      <span class="ms-auto text-caption text-dark/65 tabular-nums"
+        >{countOf(samples, 'sample')}</span
       >
       <Button
         type="button"

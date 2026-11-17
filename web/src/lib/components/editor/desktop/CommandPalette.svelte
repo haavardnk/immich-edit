@@ -38,7 +38,7 @@
 
   const SETTING_LIMIT = 8;
   const LIBRARY_LIMIT = 5;
-  const HEADING = 'px-3 pt-2.5 pb-1 text-micro font-semibold tracking-wide text-dark/65 uppercase';
+  const HEADING = 'section-label px-3 pt-2.5 pb-1 text-dark/65';
   const ROW =
     'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-label text-dark outline-none data-selected:bg-primary/12';
 

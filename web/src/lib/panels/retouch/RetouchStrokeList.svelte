@@ -9,7 +9,7 @@
 </script>
 
 <div class="flex h-7 items-center justify-between gap-2">
-  <span class="text-micro font-medium text-dark/65 uppercase">
+  <span class="section-label text-dark/65">
     Strokes <span class="tabular-nums">({strokeCount(strokes.length)})</span>
   </span>
   {#if strokes.length > 0}

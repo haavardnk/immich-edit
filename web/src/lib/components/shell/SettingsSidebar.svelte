@@ -10,11 +10,7 @@
   <div
     class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-3 pe-4 pb-4 ps-0 scrollbar-hidden wide:px-2.5"
   >
-    <div
-      class="ps-5 pt-2 text-micro font-semibold tracking-wide text-dark/65 uppercase wide:hidden"
-    >
-      Settings
-    </div>
+    <div class="section-label ps-5 pt-2 text-dark/65 wide:hidden">Settings</div>
     <div class="flex flex-col gap-3 ps-3 wide:ps-0">
       <SettingsSearch>
         <SettingsPagesNav />

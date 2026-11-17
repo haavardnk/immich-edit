@@ -15,7 +15,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline">
-    <div class="text-nano font-semibold uppercase text-dark/65">Tool</div>
+    <div class="section-label text-dark/65">Tool</div>
     <RetouchModeChoice />
   </div>
 

@@ -115,7 +115,7 @@
     <div class="my-1 border-t border-hairline"></div>
     <EditRows {then} />
     <div class="my-1 hidden border-t border-hairline touch:block"></div>
-    <span class="px-3 pt-1.5 pb-1 text-micro tracking-wider text-dark/65 uppercase">View</span>
+    <span class="section-label px-3 pt-1.5 pb-1 text-dark/65">View</span>
     <CommandList
       menu={EDITOR_VIEW_MENU}
       onrun={() => (open = false)}

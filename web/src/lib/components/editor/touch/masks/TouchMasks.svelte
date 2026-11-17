@@ -156,7 +156,7 @@
     {@render empty()}
     {#if active && stacked}
       <div class="flex h-9 items-center justify-between border-y border-hairline px-4">
-        <span class="text-caption font-medium tracking-wider text-dark/65 uppercase">Shapes</span>
+        <span class="section-label text-dark/65">Shapes</span>
         <span class="text-xs text-dark/65 tabular-nums">
           {active.components.length} of {N_MAX_COMPONENTS_PER_LAYER}
         </span>

@@ -10,11 +10,7 @@
 </script>
 
 <div class="flex min-h-8 items-center justify-between gap-2 px-4 pt-2 sm:px-5">
-  <svelte:element
-    this={`h${level}`}
-    {id}
-    class="text-caption font-medium tracking-[.06em] text-dark/65 uppercase"
-  >
+  <svelte:element this={`h${level}`} {id} class="section-label text-dark/65">
     {title}
   </svelte:element>
   {@render action?.()}

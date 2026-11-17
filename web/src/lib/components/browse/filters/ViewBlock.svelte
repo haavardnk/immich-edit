@@ -31,12 +31,7 @@
 </script>
 
 <section aria-labelledby="view-block-heading" class="flex flex-col gap-2 px-4 pb-4">
-  <h3
-    id="view-block-heading"
-    class="flex h-10 items-center text-xs font-semibold tracking-[.06em] text-dark/65 uppercase"
-  >
-    View
-  </h3>
+  <h3 id="view-block-heading" class="section-label flex h-10 items-center text-dark/65">View</h3>
   {#if sortBasis === 'capture'}
     <SegmentedChoice
       appearance="view"

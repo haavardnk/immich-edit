@@ -13,10 +13,7 @@
 >
   {#if title}
     <div class="flex min-h-5 items-center justify-between gap-2">
-      <h3
-        id={headingId}
-        class="text-micro font-medium tracking-[.06em] text-light-950/65 uppercase touch:text-caption"
-      >
+      <h3 id={headingId} class="section-label text-light-950/65">
         {title}
       </h3>
       {@render action?.()}

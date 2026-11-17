@@ -137,9 +137,7 @@
 
 {#snippet field(which: Side, label: string)}
   <div
-    class="relative min-w-0 flex-1 rounded-xl {side === which
-      ? 'outline-2 outline-primary'
-      : ''}"
+    class="relative min-w-0 flex-1 rounded-xl {side === which ? 'outline-2 outline-primary' : ''}"
   >
     <span
       class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-label text-dark/65"

@@ -52,9 +52,7 @@
 {#if available}
   <p
     role="status"
-    class="text-xs text-dark/65 touch:text-label {needle
-      ? 'py-1 touch:py-2'
-      : ''} {className}"
+    class="text-xs text-dark/65 touch:text-label {needle ? 'py-1 touch:py-2' : ''} {className}"
   >
     {needle ? listFilterStatus(visible.length, items.length, noun) : ''}
   </p>

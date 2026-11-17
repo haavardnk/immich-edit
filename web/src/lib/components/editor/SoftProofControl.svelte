@@ -10,7 +10,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5 px-3 pb-2">
-  <span class="pt-1.5 text-micro tracking-wider text-dark/65 uppercase">Soft proof</span>
+  <span class="section-label pt-1.5 text-dark/65">Soft proof</span>
   <div class="flex items-center justify-between gap-3 text-xs">
     <span>Proof space</span>
     <RadioGroup.Root

@@ -271,7 +271,7 @@
     {@const previous = suggestions[index - 1]}
     {@const previousGroup = previous ? getGroup?.(previous) : null}
     {#if group && group !== previousGroup}
-      <div class="px-3 pt-2 pb-1 text-nano font-semibold text-dark/65 uppercase">
+      <div class="section-label px-3 pt-2 pb-1 text-dark/65">
         {group}
       </div>
     {/if}

@@ -40,7 +40,7 @@
   });
   const tools = $derived(aiTools(maskModels.kinds));
   const sceneClasses = $derived(visibleSceneClasses(maskModels.semanticClasses, maskModels.kinds));
-  const heading = 'px-4 pt-3 pb-1.5 text-caption font-medium tracking-wider text-dark/65 uppercase';
+  const heading = 'section-label px-4 pt-3 pb-1.5 text-dark/65';
   const cell =
     'h-auto w-full rounded-none border-hairline px-3.5 py-3 font-normal text-dark not-disabled:hover:bg-dark/5';
 

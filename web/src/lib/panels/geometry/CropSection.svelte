@@ -52,9 +52,7 @@
       {/if}
     {/snippet}
   </SectionHeader>
-  <span class="text-micro font-medium tracking-wider text-dark/65 uppercase select-none"
-    >Aspect ratio</span
-  >
+  <span class="section-label text-dark/65 select-none">Aspect ratio</span>
   <RatioChips />
   <RatioField />
 </div>

@@ -72,7 +72,7 @@
   {#if live}
     {#each byTouchHome(modified) as group (group.home.path)}
       <section aria-label={group.home.path} class="flex flex-col px-3 pb-1">
-        <h3 class="px-1 pt-2 pb-0.5 text-caption font-semibold tracking-wide text-dark/65 uppercase">
+        <h3 class="section-label px-1 pt-2 pb-0.5 text-dark/65">
           {group.home.path}
         </h3>
         {#each group.settings as setting (setting.id)}

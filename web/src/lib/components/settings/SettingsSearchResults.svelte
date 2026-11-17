@@ -37,7 +37,7 @@
   {#each groups as group (group.page.id)}
     <section class="flex flex-col" aria-label="{group.page.title} results">
       <div
-        class="flex items-baseline justify-between px-3 pt-1 pb-0.5 text-caption font-semibold tracking-wide text-dark/80 uppercase touch:px-4 touch:text-caption"
+        class="section-label flex items-baseline justify-between px-3 pt-1 pb-0.5 text-dark/80 touch:px-4"
       >
         <h2>{group.page.title}</h2>
         <span class="tabular-nums">{group.hits.length}</span>

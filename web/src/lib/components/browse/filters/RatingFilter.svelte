@@ -50,11 +50,7 @@
 </script>
 
 <div class="flex items-center gap-2">
-  <div
-    role="group"
-    aria-label="Rating"
-    class="-ml-1 flex text-title touch:-ml-2.5 touch:text-2xl"
-  >
+  <div role="group" aria-label="Rating" class="-ml-1 flex text-title touch:-ml-2.5 touch:text-2xl">
     {#each STARS as n (n)}
       <IconToggle
         pressed={n === stars}

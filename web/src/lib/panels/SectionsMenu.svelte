@@ -47,7 +47,7 @@
     />
   {/snippet}
   <div class="px-1.5 pt-1 pb-1.5">
-    <p class="text-micro font-medium tracking-wider text-dark/65 uppercase">Customize sections</p>
+    <p class="section-label text-dark/65">Customize sections</p>
   </div>
   <SectionList
     {groups}

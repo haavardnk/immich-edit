@@ -33,9 +33,7 @@
 </script>
 
 <section aria-label="Snapshots" class="flex flex-col" bind:this={list}>
-  <span class="px-3 pt-2 pb-1 text-caption uppercase tracking-wider text-dark/65 touch:hidden">
-    Snapshots
-  </span>
+  <span class="section-label px-3 pt-2 pb-1 text-dark/65 touch:hidden"> Snapshots </span>
   {#if store.items.length > 0}
     <ul class="flex flex-col">
       {#each store.items as snapshot, index (snapshot.id)}

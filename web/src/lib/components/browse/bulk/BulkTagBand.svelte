@@ -63,11 +63,7 @@
 
 {#snippet recentChips()}
   {#if recent.length > 0}
-    <div
-      class="px-3 pt-3 pb-1 text-micro font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-caption"
-    >
-      Recent
-    </div>
+    <div class="section-label px-3 pt-3 pb-1 text-dark/65 touch:px-4">Recent</div>
     <div class="flex flex-wrap gap-2 px-3 pb-2 touch:px-4">
       {#each recent as tag (tag.id)}
         <Chip pressed={stages.get(tag.id) === 'add'} onPressedChange={() => toggle(tag.id)}>

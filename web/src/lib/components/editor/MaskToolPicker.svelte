@@ -33,7 +33,7 @@
 
 <div class="w-56 py-1">
   {#if tools.length > 0}
-    <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">AI</div>
+    <div class="section-label px-3 pt-1 pb-1 text-dark/65">AI</div>
     {#each tools as entry (entry.id)}
       <Button
         type="button"
@@ -87,13 +87,13 @@
     {/each}
     <div class="my-1 border-t border-hairline"></div>
   {:else if aiUnavailable}
-    <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">AI</div>
+    <div class="section-label px-3 pt-1 pb-1 text-dark/65">AI</div>
     <div class="px-3 pb-2 text-micro text-dark/65 leading-snug">
       {aiUnavailable}
     </div>
     <div class="my-1 border-t border-hairline"></div>
   {/if}
-  <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">Manual</div>
+  <div class="section-label px-3 pt-1 pb-1 text-dark/65">Manual</div>
   {#each MANUAL_TOOLS as item (item.tool)}
     <Button
       type="button"

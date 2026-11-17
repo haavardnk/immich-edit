@@ -7,7 +7,7 @@
 <div {id} class="space-y-2 bg-light-100 px-3 pt-1 pb-2.5">
   {#each details as group (group.key)}
     <div>
-      <div class="mb-0.5 text-nano uppercase tracking-wider text-dark/65">
+      <div class="section-label mb-0.5 text-dark/65">
         {group.label}
       </div>
       <div class="space-y-0.5">

@@ -56,8 +56,7 @@
       {/snippet}
     </TruncationTooltip>
     {#if count != null}
-      <span class="shrink-0 text-xs text-dark/65 tabular-nums touch:text-label">{count}</span
-      >
+      <span class="shrink-0 text-xs text-dark/65 tabular-nums touch:text-label">{count}</span>
     {/if}
   </label>
 </div>

@@ -72,8 +72,10 @@
       <div class="text-micro text-dark/65">{stats.count} renders</div>
     </div>
     <div>
-      <div class="text-micro uppercase text-dark/65">Typical</div>
-      <div class="font-mono text-title tabular-nums text-light-950/90">{formatUs(stats.p50_us)}</div>
+      <div class="section-label text-dark/65">Typical</div>
+      <div class="font-mono text-title tabular-nums text-light-950/90">
+        {formatUs(stats.p50_us)}
+      </div>
     </div>
     <dl class="grid grid-cols-3 gap-3 text-right text-micro">
       <div>

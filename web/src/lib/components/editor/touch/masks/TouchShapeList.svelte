@@ -72,7 +72,7 @@
       </Button>
       {#if index === 0}
         <span
-          class="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-caption tracking-wider text-dark/65 uppercase"
+          class="section-label shrink-0 rounded-full border border-hairline px-2 py-0.5 text-dark/65"
         >
           Base
         </span>

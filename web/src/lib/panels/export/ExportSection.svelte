@@ -37,10 +37,7 @@
           {...props}
           class="group flex h-9 w-full items-center gap-2 text-left text-xs outline-none select-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset touch:h-12 touch:text-sm"
         >
-          <span
-            {id}
-            class="w-20 shrink-0 text-micro font-medium tracking-wider text-dark/65 uppercase touch:w-24 touch:text-caption"
-          >
+          <span {id} class="section-label w-20 shrink-0 text-dark/65 touch:w-24">
             {title}
           </span>
           <span
@@ -70,10 +67,7 @@
     aria-labelledby={id}
     class="flex flex-col gap-1 border-t border-hairline pt-1.5 touch:gap-2 touch:pt-3"
   >
-    <h3
-      {id}
-      class="text-micro font-medium tracking-wider text-dark/65 uppercase select-none touch:text-caption"
-    >
+    <h3 {id} class="section-label text-dark/65 select-none">
       {title}
     </h3>
     {@render children()}

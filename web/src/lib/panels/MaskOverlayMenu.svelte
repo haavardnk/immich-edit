@@ -28,7 +28,7 @@
   };
   let { trigger: custom }: { trigger?: Snippet<[Record<string, unknown>]> } = $props();
 
-  const heading = 'px-3 pt-1.5 pb-1 text-micro tracking-wider text-dark/65 uppercase touch:px-4';
+  const heading = 'section-label px-3 pt-1.5 pb-1 text-dark/65 touch:px-4';
 
   let open = $state(false);
   const keys = $derived(layout.mode === 'desktop' || layout.hasKeyboard);

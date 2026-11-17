@@ -29,7 +29,7 @@
 
 <div class="mt-2 flex flex-col gap-1.5 border-t border-hairline pt-2">
   <div class="flex items-center gap-1 px-1">
-    <div class="flex-1 min-w-0 text-micro uppercase tracking-wider text-dark/65 truncate">
+    <div class="section-label flex-1 min-w-0 text-dark/65 truncate">
       Adjustments · {layer?.name ?? ''}
     </div>
     <ResetButton

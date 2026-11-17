@@ -170,16 +170,10 @@
             <span class="truncate text-dark touch:text-base touch:font-medium">{snapshot.name}</span
             >
             {#if restored}
-              <span
-                class="shrink-0 text-nano uppercase tracking-wider text-dark/65 touch:text-caption touch:font-semibold touch:text-primary"
-                >Restored</span
-              >
+              <span class="section-label shrink-0 text-dark/65 touch:text-primary">Restored</span>
             {/if}
             {#if compared}
-              <span
-                class="hidden shrink-0 text-caption font-semibold tracking-wider text-primary uppercase touch:inline"
-                >Compared</span
-              >
+              <span class="section-label hidden shrink-0 text-primary touch:inline">Compared</span>
             {/if}
           </span>
           <span class="hidden text-label text-dark/65 touch:block">

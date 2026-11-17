@@ -123,9 +123,8 @@
     {#if index === 0}
       <ElementTooltip text="The first shape starts the mask">
         {#snippet child({ props })}
-          <span
-            {...mergeProps(props, { tabindex: -1 })}
-            class="shrink-0 text-nano uppercase tracking-wider text-dark/65">Base</span
+          <span {...mergeProps(props, { tabindex: -1 })} class="section-label shrink-0 text-dark/65"
+            >Base</span
           >
         {/snippet}
       </ElementTooltip>

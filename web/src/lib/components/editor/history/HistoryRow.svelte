@@ -127,8 +127,7 @@
           >
             {#if tag}
               <span
-                class="text-nano tracking-wider uppercase touch:text-caption touch:font-semibold {tag ===
-                'previewing'
+                class="section-label {tag === 'previewing'
                   ? 'font-semibold text-primary'
                   : step.current
                     ? 'text-dark/65 touch:text-primary'

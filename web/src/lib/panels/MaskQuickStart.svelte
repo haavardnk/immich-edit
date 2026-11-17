@@ -12,9 +12,7 @@
 </script>
 
 <section aria-label="New mask" class="flex flex-col gap-2 px-2 py-2 touch:gap-0 touch:p-0">
-  <h3 class="hidden px-4 pt-3.5 pb-2 text-body font-medium text-light-950 touch:block">
-    New mask
-  </h3>
+  <h3 class="hidden px-4 pt-3.5 pb-2 text-body font-medium text-light-950 touch:block">New mask</h3>
   <div class="grid grid-cols-3 gap-1.5 touch:gap-2 touch:px-3">
     {#each tools as tool (tool.id)}
       <Button

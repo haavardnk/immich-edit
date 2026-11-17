@@ -100,10 +100,7 @@
         <span class="flex min-w-0 items-center gap-1.5">
           <span class="truncate touch:text-base touch:font-medium">{version.name}</span>
           {#if current}
-            <span
-              class="hidden shrink-0 text-caption font-semibold tracking-wider text-primary uppercase touch:inline"
-              >Current</span
-            >
+            <span class="section-label hidden shrink-0 text-primary touch:inline">Current</span>
           {/if}
         </span>
         {#if summary}
