@@ -38,7 +38,7 @@
   </div>
 
   {#if presets.presets.length === 0}
-    <div class="text-xs text-dark/65 py-1">No presets yet.</div>
+    <div class="text-xs text-dark/65 py-1">No presets yet</div>
   {:else}
     <PresetPicker bind:selectedId={presetId} />
 

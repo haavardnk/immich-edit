@@ -9,7 +9,7 @@
 <section class="space-y-2 pt-5">
   <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Render plans</Heading>
   {#if plans.length === 0}
-    <Text size="tiny" color="muted">No renders recorded yet.</Text>
+    <Text size="tiny" color="muted">No renders recorded yet</Text>
   {:else}
     <table class="w-full text-xs" aria-label="Render plans">
       <thead>

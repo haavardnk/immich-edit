@@ -278,7 +278,7 @@
     {@render row(item)}
   {:else}
     {#if !canCreate}
-      <p class="flex h-9 items-center px-3 text-xs text-muted">No matches</p>
+      <p class="flex h-9 items-center px-3 text-xs text-dark/65">No matches</p>
     {/if}
   {/each}
   {#if canCreate}

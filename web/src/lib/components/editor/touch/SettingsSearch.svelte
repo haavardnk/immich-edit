@@ -89,7 +89,7 @@
         {/each}
       </section>
     {:else}
-      <p class="px-4 py-8 text-center text-sm text-dark/65">No modified settings</p>
+      <p class="px-4 py-8 text-center text-xs text-dark/65">No modified settings</p>
     {/each}
   {:else}
     <ul aria-label="Settings" class="flex flex-col">
@@ -114,7 +114,7 @@
           </MenuRow>
         </li>
       {:else}
-        <li class="px-4 py-8 text-center text-sm text-dark/65">No matching settings</li>
+        <li class="px-4 py-8 text-center text-xs text-dark/65">No matching settings</li>
       {/each}
     </ul>
   {/if}

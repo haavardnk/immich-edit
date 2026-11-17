@@ -124,7 +124,7 @@
       class="immich-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 touch:max-h-[calc(var(--app-height)*0.7)]"
     >
       {#if sections.here.length === 0 && sections.elsewhere.length === 0}
-        <p class="text-xs text-dark/65">No shortcuts match “{query}”.</p>
+        <p class="text-xs text-dark/65">No shortcuts match “{query}”</p>
       {:else}
         {#if sections.here.length > 0}
           <h3 class="section-label text-primary mb-2">

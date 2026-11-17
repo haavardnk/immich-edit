@@ -142,7 +142,7 @@
     {:else if tree.length > 0}
       <TagTree nodes={tree} applied={appliedIds} {disabled} onToggle={pick} />
     {:else}
-      <p class="flex h-8 items-center px-3 text-xs text-muted touch:h-11 touch:px-4">No tags yet</p>
+      <p class="flex h-8 items-center px-3 text-xs text-dark/65 touch:h-11 touch:px-4">No tags yet</p>
     {/if}
   </section>
 </div>

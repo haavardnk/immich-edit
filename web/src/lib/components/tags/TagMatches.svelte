@@ -59,5 +59,5 @@
     <span class="min-w-0 truncate">Create “{query.trim()}”</span>
   </Button>
 {:else if matches.length === 0}
-  <p class="flex h-8 items-center px-3 text-xs text-muted touch:h-11 touch:px-4">No matches</p>
+  <p class="flex h-8 items-center px-3 text-xs text-dark/65 touch:h-11 touch:px-4">No matches</p>
 {/if}

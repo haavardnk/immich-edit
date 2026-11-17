@@ -103,7 +103,7 @@
         {/if}
       </div>
     {:else}
-      <div class="text-caption text-dark/65">No matching lens profile</div>
+      <div class="text-xs text-dark/65">No matching lens profile</div>
     {/if}
   </div>
 

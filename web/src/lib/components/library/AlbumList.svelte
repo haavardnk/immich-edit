@@ -10,7 +10,7 @@
 </script>
 
 {#if library.albums.length === 0}
-  <div class="px-5 py-3 text-xs text-muted" role="status">No albums</div>
+  <div class="px-5 py-3 text-xs text-dark/65" role="status">No albums</div>
 {:else}
   <ListFilter
     items={library.albums}

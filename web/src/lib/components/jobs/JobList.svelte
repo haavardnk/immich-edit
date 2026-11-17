@@ -11,7 +11,7 @@
 </script>
 
 {#if jobs.jobs.length === 0}
-  <Text size="tiny" color="muted" class="px-1 py-4 text-center">No jobs yet.</Text>
+  <Text size="tiny" color="muted" class="px-1 py-4 text-center">No jobs yet</Text>
 {/if}
 
 {#each sections as section (section.label)}

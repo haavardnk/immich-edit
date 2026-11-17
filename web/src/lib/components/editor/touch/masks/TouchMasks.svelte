@@ -86,7 +86,7 @@
 {#snippet shapes()}
   {#if active}
     {#if active.components.length === 0}
-      <p class="px-4 py-3 text-label text-dark/65">No shapes</p>
+      <p class="px-4 py-3 text-xs text-dark/65">No shapes</p>
     {:else}
       <TouchShapeList layer={active} {labels} onmenu={(id) => (shapeMenu = id)} />
     {/if}

@@ -141,7 +141,7 @@ test('search heads the group column and finds names in every group', async ({ pa
   await expect(strip.getByRole('button', { name: /^Apply / })).toHaveText(['Kodak 400', 'Mono']);
   await expect(groups.getByRole('button', { pressed: true })).toHaveCount(0);
   await search.fill('zzz');
-  await expect(strip.getByText('No presets match.')).toBeVisible();
+  await expect(strip.getByText('No presets match')).toBeVisible();
 
   await groups.getByRole('button', { name: 'Film' }).click();
   await expect(search).toHaveValue('');

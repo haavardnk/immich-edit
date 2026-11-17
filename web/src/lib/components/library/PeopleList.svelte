@@ -12,7 +12,7 @@
 </script>
 
 {#if library.people.length === 0}
-  <div class="px-5 py-3 text-xs text-muted" role="status">No people</div>
+  <div class="px-5 py-3 text-xs text-dark/65" role="status">No people</div>
 {:else}
   <ListFilter
     items={library.people}
