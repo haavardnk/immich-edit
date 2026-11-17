@@ -20,11 +20,13 @@
 {#snippet toggle(negative: boolean, on: boolean)}
   <Button
     type="button"
-    size="tiny"
+    size={touch ? 'medium' : 'tiny'}
     variant={on ? 'filled' : 'ghost'}
     color={on ? 'primary' : 'secondary'}
     leadingIcon={negative ? mdiMinusCircleOutline : mdiPlusCircleOutline}
-    class="touch:h-11 touch:flex-1 touch:text-sm"
+    class={touch
+      ? `h-11 min-w-0 gap-1.5 rounded-xl px-2 text-[14px] font-normal ${on ? '' : 'bg-ghost'}`
+      : ''}
     title={negative
       ? `Tap an object to cut it out of the mask${invertHint}`
       : `Tap an object to add it to the mask${invertHint}`}
@@ -39,7 +41,7 @@
 {/snippet}
 
 <div class="mt-1 flex h-7 items-center justify-between gap-1.5 touch:h-auto">
-  <div class="{segmented.tool.group} flex text-[10px] touch:gap-2 touch:bg-transparent touch:p-0">
+  <div class={touch ? 'grid w-full grid-cols-2 gap-2' : `${segmented.tool.group} flex text-[10px]`}>
     {@render toggle(false, including)}
     {@render toggle(true, excluding)}
   </div>
