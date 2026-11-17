@@ -24,8 +24,11 @@ describe('pageDirection', () => {
   it.each([
     ['/photos', '/albums'],
     ['/library', '/search'],
-    ['/people/a', '/tags/b']
-  ])('cross-fades between %s and %s at the same depth', (from, to) => {
+    ['/people/a', '/tags/b'],
+    ['/albums/a', '/search'],
+    ['/favorites', '/photos'],
+    ['/folders?path=a/b', '/albums']
+  ])('cross-fades between %s and %s', (from, to) => {
     expect(direction(from, to)).toBe('tab');
   });
 
