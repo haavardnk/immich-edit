@@ -144,28 +144,26 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4300 K');
   });
 
-  test('the tray steps, snaps, fits the chips at peek and toggles from the active chip', async ({
+  test('the tray steps from its handle or active chip, and closes by drag or its mode', async ({
     page
   }) => {
     await openEditor(page);
     const handle = page.getByRole('button', { name: 'Resize adjustments' });
+    const develop = page.getByRole('tablist', { name: 'Editor modes' }).getByRole('tab', {
+      name: 'Develop'
+    });
     await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
     await handle.tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
-    await handle.tap();
-    await expect(tray(page)).toHaveAttribute('data-detent', 'peek');
     await handle.tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
     await expect(tray(page)).not.toHaveAttribute('data-snapping');
 
     const grip = await centreOf(handle);
     await drag(page, grip, { x: grip.x, y: grip.y + 240 });
-    await expect(tray(page)).toHaveAttribute('data-detent', 'peek');
-    await expect(tray(page)).not.toHaveAttribute('data-snapping');
-    const chip = await groups(page).getByRole('tab', { name: 'Light' }).boundingBox();
-    const peek = await tray(page).boundingBox();
-    if (!chip || !peek) throw new Error('no chip or tray box');
-    expect(chip.y + chip.height).toBeLessThanOrEqual(peek.y + peek.height);
+    await expect(tray(page)).toHaveCount(0);
+    await develop.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
 
     await groups(page).getByRole('tab', { name: 'Color' }).tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
@@ -179,8 +177,12 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
 
     await groups(page).getByRole('tab', { name: 'Light' }).tap();
-    await expect(tray(page)).toHaveAttribute('data-detent', 'peek');
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
     await groups(page).getByRole('tab', { name: 'Light' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await develop.tap();
+    await expect(tray(page)).toHaveCount(0);
+    await develop.tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
     await groups(page).getByRole('tab', { name: 'Color' }).tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'compact');

@@ -2,7 +2,7 @@ import { TOUCH_GROUPS } from '#lib/editor/params/catalog.ts';
 import type { TouchGroup, TouchGroupId } from '#lib/editor/params/types.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 
-export const TRAY_DETENTS = ['peek', 'compact', 'expanded'] as const;
+export const TRAY_DETENTS = ['compact', 'expanded'] as const;
 
 export type TrayDetent = (typeof TRAY_DETENTS)[number];
 
@@ -17,7 +17,6 @@ type Persisted = {
   group: string;
   views: Record<string, string>;
   detents: Record<string, string>;
-  raised: Record<string, string>;
   filmstrip: boolean;
 };
 
@@ -57,7 +56,6 @@ export class TouchUiStore {
   group = $state<TrayGroupId>('light');
   views = $state<Partial<Record<TouchGroupId, string>>>({});
   detents = $state<Record<string, TrayDetent>>({});
-  raised = $state<Record<string, TrayDetent>>({});
   focused = $state<string | null>(null);
   searching = $state(false);
   filmstrip = $state(true);
@@ -67,7 +65,6 @@ export class TouchUiStore {
     this.group = restoreGroup(stored?.group);
     this.views = restoreViews(stored?.views);
     this.detents = restoreDetents(stored?.detents);
-    this.raised = restoreDetents(stored?.raised);
     this.filmstrip = stored?.filmstrip !== false;
   }
 
@@ -108,18 +105,11 @@ export class TouchUiStore {
   setDetent = (detent: TrayDetent): void => {
     const key = this.viewKey;
     this.detents = { ...this.detents, [key]: detent };
-    if (detent !== 'peek') this.raised = { ...this.raised, [key]: detent };
     this.persist();
-  };
-
-  raise = (): void => {
-    const key = this.viewKey;
-    if (this.detent === 'peek') this.setDetent(this.raised[key] ?? defaultDetent(key));
   };
 
   openSearch = (): void => {
     this.searching = true;
-    this.raise();
   };
 
   closeSearch = (): void => {
@@ -140,7 +130,6 @@ export class TouchUiStore {
       group: this.group,
       views: this.views,
       detents: this.detents,
-      raised: this.raised,
       filmstrip: this.filmstrip
     } satisfies Persisted);
   }

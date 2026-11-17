@@ -30,57 +30,31 @@ describe('touch editor ui', () => {
     const { touchUi } = await import('./touchUi.svelte');
     touchUi.setView('curve');
     expect(touchUi.detent).toBe('expanded');
-    touchUi.setDetent('peek');
+    touchUi.setDetent('compact');
     touchUi.setGroup('color');
     expect([touchUi.view, touchUi.detent]).toEqual(['basic', 'compact']);
     touchUi.setGroup('light');
-    expect([touchUi.view, touchUi.detent]).toEqual(['curve', 'peek']);
+    expect([touchUi.view, touchUi.detent]).toEqual(['curve', 'compact']);
     expect(JSON.parse(values.get(storageKey) ?? '{}')).toMatchObject({
       group: 'light',
       views: { light: 'curve' },
-      detents: { 'light/curve': 'peek' }
+      detents: { 'light/curve': 'compact' }
     });
   });
 
-  it('raises a peeked view to its last size, else its default, and leaves others alone', async () => {
-    const values = stubStorage();
-    const { touchUi } = await import('./touchUi.svelte');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('compact');
-    touchUi.setView('curve');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.setView('tone');
-    touchUi.setDetent('expanded');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    expect(JSON.parse(values.get(storageKey) ?? '{}')).toMatchObject({
-      raised: { 'light/tone': 'expanded' }
-    });
-  });
-
-  it('opens search at the current view size, raising it from peek', async () => {
+  it('opens search at the current view size', async () => {
     stubStorage();
     const { touchUi } = await import('./touchUi.svelte');
     touchUi.setDetent('expanded');
     touchUi.openSearch();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.closeSearch();
-    touchUi.setDetent('peek');
-    touchUi.openSearch();
-    expect(touchUi.detent).toBe('expanded');
+    expect([touchUi.searching, touchUi.detent]).toEqual([true, 'expanded']);
   });
 
   it('drops unknown stored groups, views and detents', async () => {
     stubStorage({
       group: 'bogus',
       views: { color: 'mix', light: 'nope' },
-      detents: { 'color/mix': 'expanded', 'light/tone': 'huge' },
+      detents: { 'color/mix': 'expanded', 'light/tone': 'huge', 'light/curve': 'peek' },
       filmstrip: false
     });
     const { touchUi } = await import('./touchUi.svelte');

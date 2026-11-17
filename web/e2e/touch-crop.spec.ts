@@ -328,7 +328,7 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
       await expect(tab).toHaveAttribute('aria-selected', 'true');
     };
     const settle = async (detent: string) => {
-      for (let step = 0; step < 3; step++) {
+      for (let step = 0; step < 2; step++) {
         const at = await tray.getAttribute('data-detent');
         if (at === detent) break;
         await handle.click();
@@ -338,7 +338,7 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
       await expect(tray).not.toHaveAttribute('data-snapping');
     };
 
-    for (const detent of ['expanded', 'peek', 'compact']) {
+    for (const detent of ['expanded', 'compact']) {
       await enter('Develop');
       await settle(detent);
       const develop = await height();
@@ -347,23 +347,18 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
       await expect(tray).toHaveAttribute('data-detent', detent);
       await expect(tray).not.toHaveAttribute('data-snapping');
       await expect.poll(height).toBe(develop);
-      if (detent === 'peek') {
-        await expect(dial(page).getByRole('tab', { name: 'Straighten' })).toBeInViewport();
-      } else {
-        await expect(dial(page)).toBeInViewport();
-        await expect(tools(page)).toBeInViewport({ ratio: 1 });
-        const bottom = async (target: Locator) => {
-          const box = await target.boundingBox();
-          return box ? box.y + box.height : 0;
-        };
-        expect(await bottom(tray)).toBeCloseTo(await bottom(tools(page)), -1.5);
-      }
+      await expect(dial(page)).toBeInViewport();
+      await expect(tools(page)).toBeInViewport({ ratio: 1 });
+      const bottom = async (target: Locator) => {
+        const box = await target.boundingBox();
+        return box ? box.y + box.height : 0;
+      };
+      expect(await bottom(tray)).toBeCloseTo(await bottom(tools(page)), -1.5);
     }
 
-    await settle('peek');
     for (const mode of ['Masks', 'Retouch', 'Presets', 'Develop']) {
       await enter(mode);
-      await expect(tray).toHaveAttribute('data-detent', 'peek');
+      await expect(tray).toHaveAttribute('data-detent', 'compact');
     }
 
     await settle('expanded');

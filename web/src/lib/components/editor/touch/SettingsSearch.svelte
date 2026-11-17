@@ -44,7 +44,6 @@
     close();
     touchUi.setGroup(group);
     touchUi.setView(view);
-    touchUi.raise();
     void revealSetting(setting.id, { fallback: `#touch-view-${group}-${view}` });
   }
 </script>
