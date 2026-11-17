@@ -375,7 +375,7 @@
   column-gap: 8px;
 }
 
-[data-popover-content] {
+[data-popover-content]:not([data-dialog-content]) {
   background-color: var(--immich-ui-light-100);
   border-color: var(--immich-ui-light-200);
 }
