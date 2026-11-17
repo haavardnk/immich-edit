@@ -49,7 +49,7 @@
             </span>
             <Icon
               icon={mdiChevronRight}
-              size="18px"
+              size="20px"
               class="shrink-0 text-dark/65"
               aria-hidden="true"
             />

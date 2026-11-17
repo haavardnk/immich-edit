@@ -28,7 +28,7 @@
   class="col-span-3 mb-1 flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5"
 >
   <p class="flex flex-wrap items-center gap-1.5 text-dark/80">
-    <Icon icon={mdiAlertOutline} size="15px" class="shrink-0 text-warning" aria-hidden="true" />
+    <Icon icon={mdiAlertOutline} size="16px" class="shrink-0 text-warning" aria-hidden="true" />
     <Kbd size="tiny">{formatChord(spec)}</Kbd>
     already runs
     <strong class="font-semibold text-light-950">{conflict.bind.label}</strong>

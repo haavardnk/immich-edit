@@ -66,7 +66,7 @@
         {@const lit = n <= cull.rating}
         <Icon
           icon={lit ? mdiStar : mdiStarOutline}
-          size="17px"
+          size="16px"
           class={lit ? 'text-warning-400' : 'text-white/40'}
           aria-hidden="true"
         />

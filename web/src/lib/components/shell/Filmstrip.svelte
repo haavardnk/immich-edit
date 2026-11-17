@@ -106,11 +106,11 @@
     <div
       class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-0.5 text-white drop-shadow-md"
     >
-      {#if favorite}<Icon icon={mdiHeart} size="13px" aria-hidden="true" />{/if}
-      {#if rejected}<Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />{/if}
+      {#if favorite}<Icon icon={mdiHeart} size="14px" aria-hidden="true" />{/if}
+      {#if rejected}<Icon icon={mdiCloseCircle} size="14px" aria-hidden="true" />{/if}
       {#if label}
         <div role="img" aria-label="{LABEL_NAMES[label]} label" class={LABEL_TEXT[label]}>
-          <Icon icon={mdiCircle} size="11px" aria-hidden="true" />
+          <Icon icon={mdiCircle} size="12px" aria-hidden="true" />
         </div>
       {/if}
     </div>

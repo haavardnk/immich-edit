@@ -23,7 +23,7 @@
   <div
     class="flex h-6 items-center gap-1.5 rounded bg-ghost px-2.5 text-[10px] text-light-950/65 touch:h-9 touch:text-xs"
   >
-    <Icon icon={mode.icon} size="13px" class="text-primary" aria-hidden="true" />
+    <Icon icon={mode.icon} size="14px" class="text-primary" aria-hidden="true" />
     <span class="font-medium text-light-950/85">{commandShortLabel(mode)}</span>
   </div>
   {#each actions as command (command.id)}

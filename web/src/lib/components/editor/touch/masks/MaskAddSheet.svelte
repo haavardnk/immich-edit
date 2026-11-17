@@ -86,11 +86,11 @@
             {/if}
           </span>
           {#if !entry.installed}
-            <Icon icon={mdiDownloadOutline} size="18px" class="shrink-0" aria-hidden="true" />
+            <Icon icon={mdiDownloadOutline} size="20px" class="shrink-0" aria-hidden="true" />
           {:else if entry.scene}
             <Icon
               icon={mdiChevronRight}
-              size="18px"
+              size="20px"
               class="shrink-0 opacity-70"
               aria-hidden="true"
             />

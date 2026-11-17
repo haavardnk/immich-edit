@@ -145,7 +145,7 @@
         <span class="{face} border border-primary/40 bg-primary/10">
           <Icon
             icon={importing ? mdiLoading : mdiUpload}
-            size="18px"
+            size="20px"
             class={importing ? 'animate-spin' : ''}
             aria-hidden="true"
           />
@@ -164,7 +164,7 @@
         <span
           class="{face} group-aria-checked:ring-2 group-aria-checked:ring-primary group-aria-checked:ring-inset"
         >
-          <Icon icon={mdiBlockHelper} size="18px" aria-hidden="true" />
+          <Icon icon={mdiBlockHelper} size="20px" aria-hidden="true" />
         </span>
         <span class="w-full truncate text-center">None</span>
       </RadioGroup.Item>

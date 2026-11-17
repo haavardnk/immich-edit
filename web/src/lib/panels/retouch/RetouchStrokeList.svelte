@@ -37,7 +37,7 @@
       >
         <Icon
           icon={RETOUCH_MODE_ICON[stroke.mode]}
-          size="13px"
+          size="14px"
           class="shrink-0 opacity-50"
           aria-hidden="true"
         />

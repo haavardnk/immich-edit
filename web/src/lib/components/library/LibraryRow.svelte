@@ -29,7 +29,7 @@
   <span
     class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-light-200 text-primary touch:size-9.5 touch:rounded-xl"
   >
-    <Icon {icon} size="18px" class="touch:size-5.5" aria-hidden="true" />
+    <Icon {icon} size="20px" class="touch:size-5.5" aria-hidden="true" />
   </span>
   <span
     class="flex min-h-11 min-w-0 flex-1 items-center gap-2 self-stretch touch:min-h-14.5 {last
@@ -42,6 +42,6 @@
     {#if count !== null}
       <span class="shrink-0 text-xs text-dark/65 tabular-nums touch:text-sm">{count}</span>
     {/if}
-    <Icon icon={mdiChevronRight} size="18px" class="shrink-0 text-dark/65" aria-hidden="true" />
+    <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
   </span>
 </TooltipLink>

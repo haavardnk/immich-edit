@@ -30,7 +30,7 @@
           ? 'bg-primary/12 text-light-950'
           : 'text-dark/65'}"
       >
-        <Icon icon={tab.icon} size="22px" class={active ? 'text-primary' : ''} aria-hidden="true" />
+        <Icon icon={tab.icon} size="20px" class={active ? 'text-primary' : ''} aria-hidden="true" />
         {tab.label}
       </span>
     </a>

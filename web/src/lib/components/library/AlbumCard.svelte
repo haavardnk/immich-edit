@@ -34,7 +34,7 @@
         role="img"
         aria-label="Shared"
       >
-        <Icon icon={mdiAccountMultiple} size="15px" aria-hidden="true" />
+        <Icon icon={mdiAccountMultiple} size="16px" aria-hidden="true" />
       </span>
     {/if}
   </span>

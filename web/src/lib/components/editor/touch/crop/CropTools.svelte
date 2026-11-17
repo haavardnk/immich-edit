@@ -70,7 +70,7 @@
     <span
       class="flex size-11 items-center justify-center rounded-full bg-ghost group-aria-pressed:bg-primary/22 group-aria-pressed:text-primary"
     >
-      <Icon {icon} size="22px" aria-hidden="true" />
+      <Icon {icon} size="20px" aria-hidden="true" />
     </span>
     <span class="max-w-full truncate">{label}</span>
   </Button>

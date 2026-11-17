@@ -37,7 +37,7 @@
         >
           <Icon
             icon={mode.icon}
-            size="22px"
+            size="20px"
             class="group-data-[state=active]:text-primary"
             aria-hidden="true"
           />

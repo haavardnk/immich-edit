@@ -56,7 +56,7 @@
           class="{CHIP} {grid ? 'min-w-0 rounded-lg px-1 text-[12px]' : ''}"
         >
           {#if chip.id === QUICK_GROUP && !grid}
-            <Icon icon={mdiPinOutline} size="15px" class="-me-0.5" aria-hidden="true" />
+            <Icon icon={mdiPinOutline} size="16px" class="-me-0.5" aria-hidden="true" />
           {/if}
           {chip.label}
           {#if chip.modified}

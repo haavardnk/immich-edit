@@ -174,7 +174,7 @@
   class="flex shrink-0 flex-col gap-2 px-3 pt-1 pb-(--tab-bar-pad)"
 >
   <div class="flex items-center gap-3 px-1">
-    <Icon icon={mdiCropLandscape} size="22px" class="shrink-0 text-primary" aria-hidden="true" />
+    <Icon icon={mdiCropLandscape} size="20px" class="shrink-0 text-primary" aria-hidden="true" />
     <div class="min-w-0 flex-1">
       <p class="text-[15px] font-semibold text-light-950">Aspect ratio</p>
       {#if readout}

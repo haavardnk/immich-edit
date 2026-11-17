@@ -98,7 +98,7 @@
               onkeydown: (event: KeyboardEvent) => onToolKeydown(event, index)
             })}
           >
-            <Icon icon={tool.icon} size="21px" aria-hidden="true" />
+            <Icon icon={tool.icon} size="20px" aria-hidden="true" />
             {#if modified}
               <span
                 data-modified-indicator

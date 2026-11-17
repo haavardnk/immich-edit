@@ -95,7 +95,7 @@
           : 'bg-light-200 text-dark/80'} {faded ? 'opacity-50' : ''}"
         aria-hidden="true"
       >
-        <Icon {icon} size="18px" />
+        <Icon {icon} size="20px" />
       </span>
       <span class="flex min-w-0 flex-1 flex-col items-start gap-0.5">
         <span class="flex w-full min-w-0 items-center gap-1.5 text-xs text-dark touch:text-base">

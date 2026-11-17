@@ -81,7 +81,7 @@
     {#if item.thumb}
       <img src={item.thumb} alt="" class="size-7 shrink-0 rounded-md object-cover touch:size-10" />
     {:else if item.icon}
-      <Icon icon={item.icon} size="18px" class="shrink-0 text-dark/65" aria-hidden="true" />
+      <Icon icon={item.icon} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
     {/if}
     <span class="flex min-w-0 flex-1 flex-col leading-tight">
       <span class="truncate text-[13px] text-light-950 touch:text-[15px]">{item.label}</span>

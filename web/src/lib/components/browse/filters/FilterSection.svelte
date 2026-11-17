@@ -55,7 +55,7 @@
         <span class="grid size-5 shrink-0 place-items-center text-dark/65 touch:size-11">
           <Icon
             icon={mdiChevronDown}
-            size="18px"
+            size="20px"
             class="transition-transform group-data-[state=open]:rotate-180"
             aria-hidden="true"
           />

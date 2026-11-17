@@ -61,7 +61,7 @@
       >
         <Icon
           icon={comp.generated ? mdiAutoFix : kindIcon(comp.kind)}
-          size="18px"
+          size="20px"
           class="shrink-0 opacity-80"
           aria-hidden="true"
         />

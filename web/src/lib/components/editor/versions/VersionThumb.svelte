@@ -56,7 +56,7 @@
       class="absolute right-1 bottom-1 hidden size-5 items-center justify-center rounded bg-black/60 text-white touch:flex"
       aria-hidden="true"
     >
-      <Icon icon={mdiContentDuplicate} size="13px" />
+      <Icon icon={mdiContentDuplicate} size="14px" />
     </span>
   {/if}
 </span>

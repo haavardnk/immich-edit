@@ -294,7 +294,7 @@
       </span>
       {#if copyBadge}
         <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
-          <Icon icon={mdiContentDuplicate} size="11px" aria-hidden="true" />
+          <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
           <span class="truncate">{copyBadge}</span>
         </span>
       {/if}

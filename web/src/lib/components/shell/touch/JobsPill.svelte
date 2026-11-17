@@ -24,7 +24,7 @@
       {#if jobsProgress.eta}
         <span class="shrink-0 text-dark/65 tabular-nums">{jobsProgress.eta}</span>
       {/if}
-      <Icon icon={mdiChevronRight} size="18px" class="shrink-0 text-dark/65" aria-hidden="true" />
+      <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
     </Button>
   </div>
 {/if}

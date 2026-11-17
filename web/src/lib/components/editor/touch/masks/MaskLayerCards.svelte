@@ -66,7 +66,7 @@
               class="flex size-9 shrink-0 items-center justify-center rounded-md text-dark/40 ring-1 ring-hairline"
               data-testid="mask-thumb-pending"
             >
-              <Icon icon={mdiLayersOutline} size="18px" aria-hidden="true" />
+              <Icon icon={mdiLayersOutline} size="20px" aria-hidden="true" />
             </span>
           {/if}
           <span class="flex min-w-0 flex-col text-left">

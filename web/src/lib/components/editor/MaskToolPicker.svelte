@@ -58,11 +58,11 @@
           {/if}
         </span>
         {#if !entry.installed}
-          <Icon icon={mdiDownloadOutline} size="13px" class="mt-0.5 shrink-0" aria-hidden="true" />
+          <Icon icon={mdiDownloadOutline} size="14px" class="mt-0.5 shrink-0" aria-hidden="true" />
         {:else if entry.scene}
           <Icon
             icon={semanticOpen ? mdiChevronUp : mdiChevronDown}
-            size="13px"
+            size="14px"
             class="mt-0.5 shrink-0"
             aria-hidden="true"
           />

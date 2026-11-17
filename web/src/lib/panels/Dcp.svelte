@@ -181,11 +181,11 @@
       <Collapsible.Trigger
         class="flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark"
       >
-        <Icon icon={mdiTuneVariant} size="13px" aria-hidden="true" />
+        <Icon icon={mdiTuneVariant} size="14px" aria-hidden="true" />
         <span class="flex-1 text-left">Profile options</span>
         <Icon
           icon={mdiChevronDown}
-          size="13px"
+          size="14px"
           class="transition-transform {optionsOpen ? 'rotate-180' : ''}"
           aria-hidden="true"
         />

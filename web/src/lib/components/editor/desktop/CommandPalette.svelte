@@ -161,7 +161,7 @@
         onkeydown={pinKey}
       >
         <div class="flex shrink-0 items-center gap-2 border-b border-hairline px-3">
-          <Icon icon={mdiMagnify} size="18px" class="text-dark/65" aria-hidden="true" />
+          <Icon icon={mdiMagnify} size="20px" class="text-dark/65" aria-hidden="true" />
           <Command.Input
             bind:value={query}
             aria-label="Search settings and actions"
@@ -183,7 +183,7 @@
                     class={ROW}
                     onSelect={() => choose(() => revealDevelopSetting(setting))}
                   >
-                    <Icon icon={mdiTuneVariant} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiTuneVariant} size="16px" class="shrink-0 text-dark/65" />
                     <span class="shrink-0 text-light-950">
                       <HighlightText text={setting.label} range={highlight} />
                     </span>
@@ -193,7 +193,7 @@
                     {#if preferences.isPinned(setting.id)}
                       <Icon
                         icon={mdiPinOutline}
-                        size="13px"
+                        size="14px"
                         class="shrink-0 text-primary"
                         aria-label="Pinned"
                       />
@@ -218,7 +218,7 @@
                     onpointerenter={() => previewPreset(preset)}
                     onpointerleave={editor.endPresetPreview}
                   >
-                    <Icon icon={mdiViewGridOutline} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiViewGridOutline} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 truncate text-light-950">
                       <HighlightText text={preset.name} range={at} />
                     </span>
@@ -233,7 +233,7 @@
                     class={ROW}
                     onSelect={() => choose(() => commitLut(lut.id))}
                   >
-                    <Icon icon={mdiCubeOutline} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiCubeOutline} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 truncate text-light-950">
                       <HighlightText text={lut.name} range={at} />
                     </span>
@@ -253,7 +253,7 @@
                     class={ROW}
                     onSelect={() => choose(action.run)}
                   >
-                    <Icon icon={action.icon} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={action.icon} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 flex-1 truncate text-light-950">
                       <HighlightText text={action.label} range={at} />
                     </span>

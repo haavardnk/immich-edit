@@ -78,7 +78,7 @@
       >
         <Icon
           icon={mdiAlertOutline}
-          size="18px"
+          size="20px"
           class="mt-px shrink-0 text-warning-800"
           aria-hidden="true"
         />
