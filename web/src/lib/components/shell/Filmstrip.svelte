@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reveal } from '#lib/motion/reveal.ts';
   import { page } from '$app/state';
   import { untrack } from 'svelte';
   import { observeSize } from '#lib/actions/observeSize.ts';
@@ -134,7 +135,7 @@
       <BottomPanelResizeHandle label="Resize filmstrip" />
     {/if}
     {#if !collapsed}
-      <div class="relative">
+      <div class="relative" transition:reveal>
         <div
           class="no-callout overflow-x-auto py-1.5 scrollbar-hidden"
           data-testid="filmstrip-scroll"

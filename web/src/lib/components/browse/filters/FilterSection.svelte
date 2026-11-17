@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import { Icon } from '@immich/ui';
   import { mdiChevronDown } from '@mdi/js';
@@ -62,11 +63,9 @@
       </Collapsible.Trigger>
     {/snippet}
   </TruncationTooltip>
-  <Collapsible.Content>
-    {#if open}
-      <div class="flex flex-col gap-2 bg-light-950/3 px-4 pt-0.5 pb-3.5 touch:gap-2.5 touch:pb-4">
-        {@render children()}
-      </div>
-    {/if}
-  </Collapsible.Content>
+  <RevealContent
+    class="flex flex-col gap-2 bg-light-950/3 px-4 pt-0.5 pb-3.5 touch:gap-2.5 touch:pb-4"
+  >
+    {@render children()}
+  </RevealContent>
 </Collapsible.Root>

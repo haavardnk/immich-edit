@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiChevronDown, mdiChevronRight, mdiPin, mdiPinOutline } from '@mdi/js';
   import { Collapsible } from 'bits-ui';
@@ -50,11 +51,7 @@
       />
     {/if}
   </div>
-  <Collapsible.Content>
-    {#if open}
-      <div class="bg-recess p-1">
-        <ScopesPanel />
-      </div>
-    {/if}
-  </Collapsible.Content>
+  <RevealContent class="bg-recess p-1">
+    <ScopesPanel />
+  </RevealContent>
 </Collapsible.Root>

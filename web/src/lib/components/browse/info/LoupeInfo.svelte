@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reveal } from '#lib/motion/reveal.ts';
   import LoupeInfoPanel from '#lib/components/browse/info/LoupeInfoPanel.svelte';
   import LoupeInfoSheet from '#lib/components/browse/info/LoupeInfoSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
@@ -12,6 +13,8 @@
   {#if layout.compact}
     <LoupeInfoSheet {asset} />
   {:else}
-    <LoupeInfoPanel {asset} />
+    <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
+      <LoupeInfoPanel {asset} />
+    </div>
   {/if}
 {/if}

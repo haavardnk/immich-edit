@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import DcpPicker from './dcp/DcpPicker.svelte';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
@@ -190,50 +191,46 @@
         />
       </Collapsible.Trigger>
 
-      <Collapsible.Content>
-        {#if optionsOpen}
-          <div class="flex flex-col gap-1 border-t border-hairline pt-1">
-            <div class="flex flex-col gap-1">
-              <span class="text-[10px] font-medium text-dark/65">Illuminant</span>
-              <RadioGroup.Root
-                bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
-                orientation="horizontal"
-                aria-label="Illuminant"
-                class={segmented.text.group}
-              >
-                {#each illuminants as illuminant (illuminant.value)}
-                  <RadioGroup.Item value={illuminant.value} class="{segmented.text.radio} flex-1">
-                    {illuminant.label}
-                  </RadioGroup.Item>
-                {/each}
-              </RadioGroup.Root>
-            </div>
+      <RevealContent class="flex flex-col gap-1 border-t border-hairline pt-1">
+        <div class="flex flex-col gap-1">
+          <span class="text-[10px] font-medium text-dark/65">Illuminant</span>
+          <RadioGroup.Root
+            bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
+            orientation="horizontal"
+            aria-label="Illuminant"
+            class={segmented.text.group}
+          >
+            {#each illuminants as illuminant (illuminant.value)}
+              <RadioGroup.Item value={illuminant.value} class="{segmented.text.radio} flex-1">
+                {illuminant.label}
+              </RadioGroup.Item>
+            {/each}
+          </RadioGroup.Root>
+        </div>
 
-            <div class="flex flex-col gap-0.5">
-              <CheckboxRow
-                label="Base table (HueSatMap)"
-                checked={dcp.use_base_table}
-                onChange={(v) => toggle('use_base_table', 'DCP Base Table', v)}
-              />
-              <CheckboxRow
-                label="Tone curve"
-                checked={dcp.use_tone_curve}
-                onChange={(v) => toggle('use_tone_curve', 'DCP Tone Curve', v)}
-              />
-              <CheckboxRow
-                label="Look table"
-                checked={dcp.use_look_table}
-                onChange={(v) => toggle('use_look_table', 'DCP Look Table', v)}
-              />
-              <CheckboxRow
-                label="Baseline exposure"
-                checked={dcp.use_baseline_exposure}
-                onChange={(v) => toggle('use_baseline_exposure', 'DCP Baseline Exposure', v)}
-              />
-            </div>
-          </div>
-        {/if}
-      </Collapsible.Content>
+        <div class="flex flex-col gap-0.5">
+          <CheckboxRow
+            label="Base table (HueSatMap)"
+            checked={dcp.use_base_table}
+            onChange={(v) => toggle('use_base_table', 'DCP Base Table', v)}
+          />
+          <CheckboxRow
+            label="Tone curve"
+            checked={dcp.use_tone_curve}
+            onChange={(v) => toggle('use_tone_curve', 'DCP Tone Curve', v)}
+          />
+          <CheckboxRow
+            label="Look table"
+            checked={dcp.use_look_table}
+            onChange={(v) => toggle('use_look_table', 'DCP Look Table', v)}
+          />
+          <CheckboxRow
+            label="Baseline exposure"
+            checked={dcp.use_baseline_exposure}
+            onChange={(v) => toggle('use_baseline_exposure', 'DCP Baseline Exposure', v)}
+          />
+        </div>
+      </RevealContent>
     </Collapsible.Root>
   {/if}
 </div>

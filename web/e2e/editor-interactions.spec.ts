@@ -1013,7 +1013,9 @@ test('collapsed editor controls leave the canvas and retain their state', async 
 
   await page.getByRole('tab', { name: 'Masks' }).click();
   await expect(page.getByRole('tab', { name: 'Masks' })).toHaveAttribute('aria-selected', 'true');
-  expect(await controls.evaluate((element) => element.getBoundingClientRect().width)).toBe(384);
+  await expect
+    .poll(() => controls.evaluate((element) => element.getBoundingClientRect().width))
+    .toBe(384);
 });
 
 test('Crop pane always exposes crop controls', async ({ page }) => {

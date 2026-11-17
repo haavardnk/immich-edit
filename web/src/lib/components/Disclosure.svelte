@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiChevronDown, mdiChevronRight, mdiRestore } from '@mdi/js';
   import { Collapsible } from 'bits-ui';
@@ -86,9 +87,7 @@
       />
     </Button>
   {/if}
-  <Collapsible.Content>
-    {#if open}
-      {@render children()}
-    {/if}
-  </Collapsible.Content>
+  <RevealContent>
+    {@render children()}
+  </RevealContent>
 </Collapsible.Root>

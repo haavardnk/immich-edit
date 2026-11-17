@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reveal } from '#lib/motion/reveal.ts';
   import FilterCount from '#lib/components/browse/filters/FilterCount.svelte';
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
   import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
@@ -54,6 +55,7 @@
         bind:this={panel}
         id="browse-filters"
         aria-label={heading}
+        transition:reveal={{ axis: 'x' }}
         class="flex w-80 shrink-0 flex-col border-l touch:w-90 border-hairline bg-light max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:pt-(--safe-top) max-md:pr-(--safe-right) max-md:pb-(--safe-bottom) max-md:shadow-popover"
       >
         <div

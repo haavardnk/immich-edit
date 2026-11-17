@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
   import { Collapsible } from 'bits-ui';
@@ -33,19 +34,15 @@
       aria-hidden="true"
     />
   </Collapsible.Trigger>
-  <Collapsible.Content>
-    {#if expanded}
-      <div class="pb-1">
-        {@render children()}
-        {#if more}
-          <a
-            href={more.href}
-            class="flex rounded-e-full py-1.5 ps-5 pe-4 text-xs font-medium text-primary outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-          >
-            {more.label}
-          </a>
-        {/if}
-      </div>
+  <RevealContent class="pb-1">
+    {@render children()}
+    {#if more}
+      <a
+        href={more.href}
+        class="flex rounded-e-full py-1.5 ps-5 pe-4 text-xs font-medium text-primary outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+      >
+        {more.label}
+      </a>
     {/if}
-  </Collapsible.Content>
+  </RevealContent>
 </Collapsible.Root>
