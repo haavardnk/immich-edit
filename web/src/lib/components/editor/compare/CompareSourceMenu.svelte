@@ -5,21 +5,14 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiContentDuplicate, mdiEyeOutline, mdiMenuDown, mdiStarOutline } from '@mdi/js';
-  import { onMount } from 'svelte';
-  import { leftName } from './compareText.ts';
+  import { hasCompareSources, leftName, otherVersions } from './compareText.ts';
 
   const heading = 'px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase touch:px-4';
 
   let open = $state(false);
   const name = $derived(leftName());
-  const versions = $derived(
-    editor.versions.items.filter((version) => version.id !== editor.assetId)
-  );
-  const choices = $derived(editor.snapshots.items.length + versions.length > 0);
-
-  onMount(() => {
-    void editor.versions.load();
-  });
+  const versions = $derived(otherVersions());
+  const choices = $derived(hasCompareSources());
 
   function chosen(source: CompareSource): boolean {
     return sameSource(source, editor.compare.source);
