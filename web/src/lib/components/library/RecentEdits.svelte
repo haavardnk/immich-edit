@@ -1,13 +1,23 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { tileOpen } from '#lib/browse/tileOpen.ts';
   import { recentEdits } from '#lib/browse/recentEdits.ts';
   import TooltipLink from '#lib/components/TooltipLink.svelte';
   import { editorHref } from '#lib/editor/navigation.ts';
+  import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 
   let { returnPath }: { returnPath: string } = $props();
 
   const entries = $derived(recentEdits(editedThumbs.entries));
+  const opens = tileOpen();
+
+  function openLoupe(event: MouseEvent, id: string): void {
+    if (opens() !== 'loupe') return;
+    event.preventDefault();
+    void goto('/edited').then(() => browseView.openLoupe(id));
+  }
 </script>
 
 {#if entries.length === 0}
@@ -24,6 +34,7 @@
           always
           tooltip={name ?? 'Open recent edit'}
           href={editorHref(entry.id, returnPath)}
+          onclick={(event) => openLoupe(event, entry.id)}
           aria-label={name ? `Open ${name}` : `Open recent edit ${index + 1}`}
           class="no-callout block h-28 w-42 overflow-hidden rounded-lg bg-light-200 outline-none focus-visible:ring-2 focus-visible:ring-primary touch:h-32 touch:w-48"
         >

@@ -143,15 +143,19 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(page.getByText(/not in this view/)).toHaveCount(0);
   });
 
-  test('the touch editor opens and goes back', async ({ page }) => {
+  test('a recent edit opens in the loupe, and the editor goes back to it', async ({ page }) => {
     await open(page, '/library');
     await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
+    await expect(page).toHaveURL('/edited');
+    const edit = page.getByRole('button', { name: 'Edit', exact: true });
+    await edit.tap();
     await expect(page).toHaveURL(/\/assets\//);
     await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);
 
     await page.getByRole('button', { name: /^Back/ }).tap();
-    await expect(page).toHaveURL('/library');
+    await expect(page).toHaveURL('/edited');
+    await expect(edit).toBeVisible();
   });
 
   test('editor Back returns after an in-app asset change without looping', async ({ page }) => {
