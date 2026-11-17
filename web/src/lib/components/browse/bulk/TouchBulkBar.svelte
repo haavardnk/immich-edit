@@ -12,7 +12,7 @@
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { labelLook, ratingLook, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
+  import { favoriteMark, labelLook, ratingLook, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
   import type { LabelColor } from '#lib/stores/labels.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { mdiDotsHorizontal, mdiExportVariant, mdiImageAlbum, mdiTagOutline } from '@mdi/js';
@@ -31,6 +31,7 @@
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
   const reject = $derived(rejectMark(scope.rejected));
+  const favorite = $derived(favoriteMark(scope.favorite));
   const rating = $derived(ratingLook(scope.rating));
   const labelDot = $derived(labelLook(scope.label));
   const photos = $derived(countOf(scope.targetCount, 'photo'));
@@ -46,6 +47,10 @@
 
   function toggleReject(): void {
     if (actions.ownedOrExplain()) void actions.setRejected(scope.rejected !== 'all');
+  }
+
+  function toggleFavorite(): void {
+    if (actions.ownedOrExplain()) void actions.setFavorite(scope.favorite !== 'all');
   }
 
   function closeMore(open: boolean): void {
@@ -99,6 +104,15 @@
     <LabelSwatches label={scope.label} size="large" onpick={label} />
   </Popover>
   <BarAction
+    icon={favorite.icon}
+    iconClass={favorite.tone}
+    label={favorite.label}
+    aria-pressed={favorite.pressed}
+    blocked={shared}
+    disabled={busy}
+    onclick={toggleFavorite}
+  />
+  <BarAction
     icon={reject.icon}
     iconClass={reject.tone}
     label={reject.label}
@@ -116,7 +130,13 @@
     sheetClass="px-4 pb-3"
   >
     {#snippet trigger(props)}
-      <BarAction {...props} icon={mdiImageAlbum} label="Album" disabled={busy} />
+      <BarAction
+        {...props}
+        icon={mdiImageAlbum}
+        label="Albums"
+        class="hidden wide:flex"
+        disabled={busy}
+      />
     {/snippet}
     <BulkAlbumBand />
   </Popover>

@@ -5,12 +5,12 @@
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { bulkEdits, type BulkEditAction } from '#lib/browse/bulk/bulkEdits.svelte.ts';
   import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
-  import { favoriteMark } from '#lib/browse/bulk/bulkMarks.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
   import {
     mdiCompare,
     mdiContentDuplicate,
+    mdiImageAlbum,
     mdiTagOutline,
     mdiTrashCanOutline,
     mdiViewGridOutline
@@ -23,7 +23,7 @@
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onPick: (sheet: 'tags' | 'preset') => void;
+    onPick: (sheet: 'album' | 'tags' | 'preset') => void;
   } = $props();
 
   const scope = bulkScope;
@@ -31,7 +31,6 @@
   const empty = $derived(scope.count === 0);
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
-  const favorite = $derived(favoriteMark(scope.favorite));
 
   function owned(run: () => void): () => void {
     return () => {
@@ -71,6 +70,13 @@
 
 <ActionSheet {open} {onOpenChange} title="More actions">
   <MenuRow
+    icon={mdiImageAlbum}
+    label="Albums"
+    class="wide:hidden"
+    disabled={busy}
+    onclick={() => onPick('album')}
+  />
+  <MenuRow
     icon={mdiTagOutline}
     label="Tags"
     class="wide:hidden {shared ? 'opacity-50' : ''}"
@@ -91,14 +97,6 @@
   {#if compare.surveyAvailable}
     {@render multiRow('survey')}
   {/if}
-  <MenuRow
-    icon={favorite.icon}
-    label={favorite.label}
-    class={shared ? 'opacity-50' : ''}
-    aria-disabled={shared || undefined}
-    disabled={busy}
-    onclick={owned(() => void actions.setFavorite(scope.favorite !== 'all'))}
-  />
   <MenuRow
     icon={mdiContentDuplicate}
     label="Create virtual copy"

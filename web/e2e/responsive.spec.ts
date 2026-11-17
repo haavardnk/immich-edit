@@ -376,7 +376,7 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
   const bulkBar = page.getByRole('toolbar', { name: 'Selection actions' });
   await expect(page.locator('header[data-app-bar]')).toContainText('1 selected');
   await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
-  for (const name of ['Rate', 'Label', 'Reject', 'Album', 'Export', 'More']) {
+  for (const name of ['Rate', 'Label', 'Favorite', 'Reject', 'Export', 'More']) {
     await expect(bulkBar.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
   }
   const bounds = await bulkBar.boundingBox();
