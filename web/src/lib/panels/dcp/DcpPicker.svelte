@@ -91,7 +91,7 @@
       variant="ghost"
       color="secondary"
       fullWidth
-      class="h-7 justify-start rounded-lg bg-light-200 px-2 text-[11px] hover:bg-light-300"
+      class="h-7 justify-start rounded-lg bg-light-200 px-2 text-[11px] hover:bg-light-300 touch:h-11 touch:px-3 touch:text-sm"
       {...popoverProps}
     >
       <span class="flex-1 truncate text-left">{label}</span>
