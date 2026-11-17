@@ -125,9 +125,11 @@
     open={sheet === 'album'}
     onOpenChange={opener('album')}
     appearance="panel"
-    title="Add to album"
+    title="Albums"
+    subtitle={photos}
     sheetPicker
-    sheetClass="px-4 pb-3"
+    sheetClose="icon"
+    sheetClass="flex min-h-full flex-col px-4"
   >
     {#snippet trigger(props)}
       <BarAction
@@ -138,15 +140,17 @@
         disabled={busy}
       />
     {/snippet}
-    <BulkAlbumBand />
+    <BulkAlbumBand onDone={() => (sheet = null)} />
   </Popover>
   <Popover
     open={sheet === 'tags'}
     onOpenChange={opener('tags')}
     appearance="panel"
     title="Tags"
+    subtitle={photos}
     sheetPicker
-    sheetClass="px-4 pb-3"
+    sheetClose="icon"
+    sheetClass="flex min-h-full flex-col px-4"
   >
     {#snippet trigger(props)}
       <BarAction
@@ -158,7 +162,7 @@
         disabled={busy}
       />
     {/snippet}
-    <BulkTagBand />
+    <BulkTagBand onDone={() => (sheet = null)} />
   </Popover>
   <BarAction
     icon={mdiExportVariant}

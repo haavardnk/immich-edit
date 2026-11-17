@@ -24,6 +24,7 @@
     contentClass = '',
     sheetClass = '',
     sheetPicker = false,
+    sheetClose = 'done',
     title,
     subtitle,
     tooltip,
@@ -39,6 +40,7 @@
     contentClass?: string;
     sheetClass?: string;
     sheetPicker?: boolean;
+    sheetClose?: 'done' | 'icon';
     title?: string;
     subtitle?: string;
     tooltip?: string;
@@ -107,7 +109,8 @@
       title={title ?? 'Options'}
       {subtitle}
       titleHidden={title === undefined}
-      close="done"
+      close={sheetClose}
+      closeLabel="Close"
       detents={sheetPicker ? [{ fraction: 1 }] : undefined}
       bodyClass={sheetClass || 'px-4 py-3'}
       data-popover-content

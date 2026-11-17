@@ -1,23 +1,40 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { page } from '$app/state';
-  import { Button } from '@immich/ui';
   import { listAlbums } from '#lib/api/albums.ts';
-  import SearchableSelect from '#lib/components/SearchableSelect.svelte';
-  import ChosenChips from './ChosenChips.svelte';
+  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { albumMembership } from '#lib/browse/bulk/albumMembership.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
-  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { nextStage, type Stage } from '#lib/browse/bulk/pickStage.ts';
+  import { sourceId } from '#lib/browse/assetKey.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
   import { countOf } from '#lib/utils/plural.ts';
+  import BulkPickList, { type PickItem } from './BulkPickList.svelte';
+
+  let { onDone }: { onDone?: () => void } = $props();
 
   let albums = $state<AlbumSummary[]>([]);
-  let chosen = $state<string[]>([]);
+  let membership = $state<Map<string, number> | null>(null);
+  const stages = new SvelteMap<string, Stage>();
 
-  const currentAlbum = $derived(
-    page.route.id === '/albums/[id]' ? (albums.find((a) => a.id === page.params.id) ?? null) : null
+  const ids = $derived([...selection.selected]);
+  const total = $derived(new Set(ids.map(sourceId)).size);
+  const viewing = $derived(page.route.id === '/albums/[id]' ? (page.params.id ?? null) : null);
+  const items = $derived<PickItem[]>(
+    albums.map((album) => ({
+      id: album.id,
+      label: album.albumName,
+      detail: countOf(album.assetCount, 'photo'),
+      thumb: album.albumThumbnailAssetId ? assetThumbUrl({ id: album.albumThumbnailAssetId }) : null
+    }))
   );
-  const photos = $derived(countOf(bulkScope.count, 'selected photo'));
+
+  function holding(id: string): number {
+    return membership?.get(id) ?? 0;
+  }
 
   onMount(() => {
     listAlbums()
@@ -25,55 +42,39 @@
         albums = items.sort((a, b) => a.albumName.localeCompare(b.albumName));
       })
       .catch((e: unknown) => toasts.fail('Failed to load albums', e));
+    albumMembership(ids)
+      .then((counts) => (membership = counts))
+      .catch(() => (membership = null));
   });
 
-  async function add(): Promise<void> {
-    if (await bulkActions.addToAlbums(chosen)) chosen = [];
+  function toggle(id: string): void {
+    const next = nextStage(holding(id), total, stages.get(id));
+    if (next) stages.set(id, next);
+    else stages.delete(id);
+  }
+
+  async function apply(): Promise<void> {
+    const staged = [...stages];
+    const add = staged.filter(([, stage]) => stage === 'add').map(([id]) => id);
+    const remove = staged.filter(([, stage]) => stage === 'remove').map(([id]) => id);
+    if (!(await bulkActions.changeAlbums(add, remove, viewing))) return;
+    stages.clear();
+    onDone?.();
   }
 </script>
 
-<div class="flex flex-col gap-2 border-t px-4 py-3 touch:border-t-0 touch:px-0">
-  <span class="px-1 text-xs text-dark/60">Pick albums, then add the {photos} to them</span>
-  <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-    <div class="min-w-0 flex-1 sm:min-w-55">
-      <SearchableSelect
-        options={albums}
-        bind:selected={chosen}
-        getId={(a) => a.id}
-        getLabel={(a) => a.albumName}
-        placeholder="Choose albums…"
-        color="neutral"
-        side="top"
-      />
-      <ChosenChips
-        items={albums
-          .filter((a) => chosen.includes(a.id))
-          .map((a) => ({ id: a.id, label: a.albumName }))}
-        onRemove={(id) => (chosen = chosen.filter((albumId) => albumId !== id))}
-      />
-    </div>
-    <div class="flex gap-2">
-      <Button
-        size="tiny"
-        color="primary"
-        class="h-7 whitespace-nowrap touch:h-11"
-        disabled={bulkActions.metaBusy || chosen.length === 0}
-        onclick={() => void add()}
-      >
-        Add to albums
-      </Button>
-      {#if currentAlbum}
-        <Button
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          class="h-7 whitespace-nowrap touch:h-11"
-          disabled={bulkActions.metaBusy}
-          onclick={() => currentAlbum && void bulkActions.removeFromAlbum(currentAlbum)}
-        >
-          Remove from {currentAlbum.albumName}
-        </Button>
-      {/if}
-    </div>
-  </div>
+<div
+  class="max-h-96 overflow-y-auto border-t border-hairline touch:flex touch:max-h-none touch:flex-1 touch:flex-col touch:overflow-visible touch:border-t-0"
+>
+  <BulkPickList
+    {items}
+    {total}
+    {holding}
+    {stages}
+    searchLabel="Search albums"
+    allTitle="All albums"
+    busy={bulkActions.metaBusy}
+    onToggle={toggle}
+    onApply={() => void apply()}
+  />
 </div>

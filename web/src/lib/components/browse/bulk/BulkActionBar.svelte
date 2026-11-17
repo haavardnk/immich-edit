@@ -184,9 +184,9 @@
     </div>
 
     {#if band === 'tags' && scope.allOwned}
-      <BulkTagBand />
+      <BulkTagBand onDone={() => (band = null)} />
     {:else if band === 'albums'}
-      <BulkAlbumBand />
+      <BulkAlbumBand onDone={() => (band = null)} />
     {/if}
   </div>
 </div>
