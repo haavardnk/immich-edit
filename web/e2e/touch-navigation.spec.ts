@@ -143,7 +143,9 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(page.getByText(/not in this view/)).toHaveCount(0);
   });
 
-  test('a recent edit opens in the loupe, and the editor goes back to it', async ({ page }) => {
+  test('a recent edit opens in the loupe, and its Back returns to the library', async ({
+    page
+  }) => {
     await open(page, '/library');
     await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
     await expect(page).toHaveURL('/edited');
@@ -156,6 +158,12 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/edited');
     await expect(edit).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Loupe toolbar' })
+      .getByRole('button', { name: /^Back/ })
+      .tap();
+    await expect(page).toHaveURL('/library');
+    await expect(edit).toHaveCount(0);
   });
 
   test('editor Back returns after an in-app asset change without looping', async ({ page }) => {

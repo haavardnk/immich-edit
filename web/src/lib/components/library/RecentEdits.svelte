@@ -5,7 +5,7 @@
   import { recentEdits } from '#lib/browse/recentEdits.ts';
   import TooltipLink from '#lib/components/TooltipLink.svelte';
   import { editorHref } from '#lib/editor/navigation.ts';
-  import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { openLoupeFrom } from '#lib/browse/loupeActions.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 
   let { returnPath }: { returnPath: string } = $props();
@@ -16,7 +16,7 @@
   function openLoupe(event: MouseEvent, id: string): void {
     if (opens() !== 'loupe') return;
     event.preventDefault();
-    void goto('/edited').then(() => browseView.openLoupe(id));
+    void goto('/edited').then(() => openLoupeFrom('/edited', '/library', id));
   }
 </script>
 

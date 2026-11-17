@@ -43,6 +43,7 @@ class BrowseViewStore {
   filterSections = $state<FilterSectionId[]>([]);
   filterPage = $state<FilterSectionId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
+  loupeReturn: { on: string; to: string } | null = null;
   lastGridPath = $state<string | null>(null);
   private gridAnchors = new Map<string, TileAnchor>();
 
