@@ -27,7 +27,7 @@
 
 <div
   data-setting-anchor={anchor}
-  class="flex min-h-14 items-center gap-4 px-4 py-2.5 touch:min-h-13 {stack
+  class="relative flex min-h-14 items-center gap-4 px-4 py-2.5 touch:min-h-13 {stack
     ? 'touch:flex-col touch:items-stretch touch:gap-2.5'
     : ''}"
 >

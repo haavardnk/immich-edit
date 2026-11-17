@@ -47,7 +47,7 @@
         size="small"
         variant="ghost"
         color="secondary"
-        class="shrink-0 gap-2 bg-light-200/60 ps-1.5 pe-2 font-normal touch:bg-transparent touch:px-0"
+        class="shrink-0 gap-2 bg-light-200/60 ps-1.5 pe-2 font-normal touch:static touch:bg-transparent touch:px-0 touch:after:absolute touch:after:inset-0"
         aria-label="{label}: {entry.theme.name}"
       >
         <ThemeSwatch palette={resolved.palette} accent={resolved.accentColor} size="chip" />
