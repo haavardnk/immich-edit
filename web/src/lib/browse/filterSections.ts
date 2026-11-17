@@ -19,12 +19,12 @@ export const FILTER_SECTIONS: FilterSection[] = [
     title: 'Library',
     keys: ['visibility', 'rejected', 'favoriteOnly']
   },
+  { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   ...ID_LIST_ORDER.map((key) => ({
     id: key,
     title: ID_LABELS[key],
     keys: [key, ID_EXCLUSIONS[key].key] satisfies FilterKey[]
   })),
-  { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore', 'addedAfter', 'addedBefore'] },
   { id: 'camera', title: 'Camera', keys: CAMERA_FILTERS },
   { id: 'place', title: 'Place', keys: PLACE_FILTERS },
