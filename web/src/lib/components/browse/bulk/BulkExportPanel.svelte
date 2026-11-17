@@ -56,7 +56,7 @@
   {@attach closeOnEscape}
 >
   <header class="flex h-14 flex-none items-center gap-2 border-b border-hairline ps-4 pe-2">
-    <h2 id="bulk-export-title" class="text-[15px] font-semibold text-light-950">Export</h2>
+    <h2 id="bulk-export-title" class="text-body font-semibold text-light-950">Export</h2>
     <span class="text-xs whitespace-nowrap text-dark/65">{countOf(bulkScope.count, 'photo')}</span>
     <div class="ms-auto flex items-center gap-1">
       <div class="flex">

@@ -21,7 +21,7 @@
     {href}
     {icon}
     {active}
-    class="wide:h-11 wide:rounded-xl wide:py-0 wide:ps-3 wide:[&_span]:text-[15px] {showCount
+    class="wide:h-11 wide:rounded-xl wide:py-0 wide:ps-3 wide:[&_span]:text-body {showCount
       ? 'pe-24'
       : ''}"
   />

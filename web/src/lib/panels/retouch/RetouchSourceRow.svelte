@@ -11,9 +11,9 @@
 </script>
 
 <div class="flex h-7 items-center gap-1.5 touch:h-12 touch:gap-2.5">
-  <span class="editor-compact-label select-none touch:text-[14px] touch:text-dark">Source</span>
+  <span class="editor-compact-label select-none touch:text-sm touch:text-dark">Source</span>
   <span
-    class="rounded-full px-1.5 text-[10px] leading-4 touch:px-2 touch:py-0.5 touch:text-[12px] {editor.retouchAnchor
+    class="rounded-full px-1.5 text-micro leading-4 touch:px-2 touch:py-0.5 touch:text-xs {editor.retouchAnchor
       ? 'bg-success-500/15 text-success-800'
       : 'bg-danger-500/15 text-danger-800'}"
   >
@@ -25,7 +25,7 @@
       size="medium"
       variant={editor.retouchSampling ? 'outline' : 'ghost'}
       color={editor.retouchSampling ? 'success' : 'secondary'}
-      class="ml-auto h-10 rounded-xl px-3.5 text-[14px] font-normal {editor.retouchSampling
+      class="ml-auto h-10 rounded-xl px-3.5 text-sm font-normal {editor.retouchSampling
         ? ''
         : 'bg-ghost'}"
       leadingIcon={mdiCrosshairsGps}
@@ -65,7 +65,7 @@
   <div
     role="status"
     aria-live="polite"
-    class={missed ? 'animate-pulse text-[10px] text-danger-800' : 'sr-only'}
+    class={missed ? 'animate-pulse text-micro text-danger-800' : 'sr-only'}
   >
     {missed ? SOURCE_MISSING_TEXT : ''}
   </div>

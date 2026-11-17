@@ -42,7 +42,7 @@
   {@attach closeOnEscape}
 >
   <header class="flex h-14 flex-none items-center gap-2 border-b border-hairline ps-4 pe-2">
-    <h2 id="jobs-panel-title" class="text-[15px] font-semibold text-light-950">Jobs</h2>
+    <h2 id="jobs-panel-title" class="text-body font-semibold text-light-950">Jobs</h2>
     <div class="ms-auto flex items-center gap-1">
       <JobNotifyToggle />
       <IconButton

@@ -67,13 +67,13 @@
         grow
         aria-label="Description"
         placeholder="Add a description"
-        class="max-h-40 bg-light-950/6! text-[13px] ring-hairline! touch:text-[15px]"
+        class="max-h-40 bg-light-950/6! text-label ring-hairline! touch:text-body"
         {oninput}
         onblur={() => void commit(edit)}
         {onkeydown}
       />
     {:else}
-      <p class="text-[13px] whitespace-pre-line text-light-950/90 touch:text-[15px]">{saved}</p>
+      <p class="text-label whitespace-pre-line text-light-950/90 touch:text-body">{saved}</p>
     {/if}
   </InfoSection>
 {/if}

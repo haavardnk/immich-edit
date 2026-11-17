@@ -102,7 +102,7 @@
             <span class="truncate text-sm font-semibold">{scope.targetCount} selected</span>
           {/if}
           {#if scope.scope}
-            <span class="truncate text-[11px] text-dark/65">{scope.scope}</span>
+            <span class="truncate text-caption text-dark/65">{scope.scope}</span>
           {/if}
         </div>
         {#if scope.canSelectAll}

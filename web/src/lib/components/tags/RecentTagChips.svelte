@@ -30,7 +30,7 @@
 </script>
 
 {#snippet keys()}
-  <span class="text-[11px] text-dark/65">{keysFor('recentTag')}</span>
+  <span class="text-caption text-dark/65">{keysFor('recentTag')}</span>
 {/snippet}
 
 <section aria-labelledby={id}>
@@ -43,7 +43,7 @@
         variant="ghost"
         color="secondary"
         shape="round"
-        class="h-6 max-w-full gap-1.5 px-2 text-[11px] font-normal touch:h-9 touch:px-3 touch:text-sm {on
+        class="h-6 max-w-full gap-1.5 px-2 text-caption font-normal touch:h-9 touch:px-3 touch:text-sm {on
           ? 'bg-primary/15 hover:bg-primary/25'
           : 'bg-light-200'}"
         aria-label={tag.value}
@@ -54,7 +54,7 @@
       >
         {#if numbered}
           <span
-            class="grid size-4 shrink-0 place-items-center rounded-sm text-[10px] tabular-nums {on
+            class="grid size-4 shrink-0 place-items-center rounded-sm text-micro tabular-nums {on
               ? 'bg-primary text-light'
               : 'bg-current/15'}"
             aria-hidden="true"

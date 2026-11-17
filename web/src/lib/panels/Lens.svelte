@@ -85,7 +85,7 @@
       resetTitle="Reset {sectionLabel(LENS)}"
     />
     {#if profileLoading}
-      <div class="text-[11px] text-dark/65">Loading…</div>
+      <div class="text-caption text-dark/65">Loading…</div>
     {:else if profileError}
       <Notice message={profileError}>
         <Button size="tiny" variant="ghost" color="secondary" onclick={editor.retryLensProfile}>
@@ -93,7 +93,7 @@
         </Button>
       </Notice>
     {:else if profile?.matched && profile.lens}
-      <div class="text-[11px] leading-tight text-dark/65">
+      <div class="text-caption leading-tight text-dark/65">
         {profile.lens}
         {#if profile.focal_length}
           <span class="text-dark/65">
@@ -103,7 +103,7 @@
         {/if}
       </div>
     {:else}
-      <div class="text-[11px] text-dark/65">No matching lens profile</div>
+      <div class="text-caption text-dark/65">No matching lens profile</div>
     {/if}
   </div>
 

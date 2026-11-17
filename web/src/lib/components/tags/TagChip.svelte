@@ -21,7 +21,7 @@
 </script>
 
 <span
-  class="inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-full bg-primary-200 pl-2 text-[11px] whitespace-nowrap touch:h-9 touch:pl-3 touch:text-sm"
+  class="inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-full bg-primary-200 pl-2 text-caption whitespace-nowrap touch:h-9 touch:pl-3 touch:text-sm"
 >
   {#if tag.color}
     <span class="size-2 shrink-0 rounded-full" style:background-color={tag.color}></span>

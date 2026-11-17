@@ -97,7 +97,7 @@
     resetTitle="Reset {sectionLabel(LENS_BLUR)}"
   />
   <div class="flex h-7 items-center justify-between gap-2">
-    <span class="truncate text-[11px] text-dark/65" role="status">
+    <span class="truncate text-caption text-dark/65" role="status">
       {#if busy}
         Generating depth…
       {:else if hasDepth}
@@ -141,7 +141,7 @@
       onCommit={() => void editor.onCommit('Lens Blur Focal Range')}
     />
     <div class="panel-row h-7 items-center {active ? '' : 'pointer-events-none opacity-50'}">
-      <span class="truncate text-[11px] font-medium text-dark/65 select-none">Bokeh</span>
+      <span class="truncate text-caption font-medium text-dark/65 select-none">Bokeh</span>
       <RadioGroup.Root
         value={blur.shape}
         disabled={!active}

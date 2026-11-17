@@ -61,7 +61,7 @@
         bind:ref={nameInput}
         bind:value={name}
         autocomplete="off"
-        class="touch:[&_input]:h-11 touch:[&_input]:text-[15px]"
+        class="touch:[&_input]:h-11 touch:[&_input]:text-body"
       />
       <div class="flex justify-end gap-2">
         <Button

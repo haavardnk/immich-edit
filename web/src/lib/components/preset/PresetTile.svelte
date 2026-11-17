@@ -133,7 +133,7 @@
         {@attach guard.attachment}
       >
         <span
-          class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-lg text-dark/45 touch:h-22 touch:flex-none touch:rounded-lg {applied
+          class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-title text-dark/45 touch:h-22 touch:flex-none touch:rounded-lg {applied
             ? 'border-primary ring-1 ring-primary'
             : 'border-hairline group-hover/tile:border-light-950/40'}"
         >
@@ -160,7 +160,7 @@
           {/if}
         </span>
         <span
-          class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-[11px] text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-[12px] touch:text-dark/80"
+          class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-caption text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-xs touch:text-dark/80"
           >{preset.name}</span
         >
       </button>

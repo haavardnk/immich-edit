@@ -8,7 +8,7 @@
 {#snippet summary()}
   <span class="truncate text-xs text-dark touch:text-sm">{exporter.summary}</span>
   {#if exporter.note}
-    <span class="text-[10px] text-dark/65 touch:text-xs">{exporter.note}</span>
+    <span class="text-micro text-dark/65 touch:text-xs">{exporter.note}</span>
   {/if}
 {/snippet}
 

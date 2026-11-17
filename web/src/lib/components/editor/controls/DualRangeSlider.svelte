@@ -26,7 +26,7 @@
     ? 'pointer-events-none opacity-50'
     : ''}"
 >
-  <span class="truncate text-[11px] font-medium text-dark/65 select-none">{label}</span>
+  <span class="truncate text-caption font-medium text-dark/65 select-none">{label}</span>
   <DualRange
     {value}
     {thumbLabels}
@@ -36,7 +36,7 @@
     {onCommit}
     valueText={(v) => `${percent(v)}% of the photo is nearer`}
   />
-  <span class="px-1 text-right font-mono text-[10px] text-dark/65 tabular-nums">
+  <span class="px-1 text-right font-mono text-micro text-dark/65 tabular-nums">
     {percentRange(value[0], value[1])}
   </span>
 </div>

@@ -19,6 +19,6 @@
   disabled={!isEnabled(virtualCopy)}
   {...pressHandlers(virtualCopy, onrun)}
 >
-  <span class="hidden shrink-0 text-[13px] font-normal text-dark/65 touch:inline">from Current</span
+  <span class="hidden shrink-0 text-label font-normal text-dark/65 touch:inline">from Current</span
   >
 </MenuRow>

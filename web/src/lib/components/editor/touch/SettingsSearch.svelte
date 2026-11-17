@@ -28,7 +28,7 @@
       : settingSearch.matches
   );
   const chip =
-    'flex h-8 items-center rounded-full px-3.5 text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=checked]:bg-primary/22 data-[state=checked]:text-light-950 data-[state=unchecked]:bg-ghost data-[state=unchecked]:text-dark';
+    'flex h-8 items-center rounded-full px-3.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=checked]:bg-primary/22 data-[state=checked]:text-light-950 data-[state=unchecked]:bg-ghost data-[state=unchecked]:text-dark';
 
   $effect(() => {
     input?.focus();
@@ -72,7 +72,7 @@
   {#if live}
     {#each byTouchHome(modified) as group (group.home.path)}
       <section aria-label={group.home.path} class="flex flex-col px-3 pb-1">
-        <h3 class="px-1 pt-2 pb-0.5 text-[11px] font-semibold tracking-wide text-dark/65 uppercase">
+        <h3 class="px-1 pt-2 pb-0.5 text-caption font-semibold tracking-wide text-dark/65 uppercase">
           {group.home.path}
         </h3>
         {#each group.settings as setting (setting.id)}
@@ -101,7 +101,7 @@
             onclick={() => jump(setting)}
           >
             <span class="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-              <span class="max-w-full truncate text-[15px] leading-5 text-light-950">
+              <span class="max-w-full truncate text-body leading-5 text-light-950">
                 <HighlightText text={setting.label} range={highlight} />
               </span>
               <span class="max-w-full truncate text-xs leading-4 text-dark/65"

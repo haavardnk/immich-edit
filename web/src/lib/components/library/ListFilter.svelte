@@ -52,7 +52,7 @@
 {#if available}
   <p
     role="status"
-    class="text-[11.5px] text-dark/65 touch:text-[13px] {needle
+    class="text-xs text-dark/65 touch:text-label {needle
       ? 'py-1 touch:py-2'
       : ''} {className}"
   >

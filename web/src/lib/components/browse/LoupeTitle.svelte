@@ -20,7 +20,7 @@
     <div
       role="status"
       aria-label="Virtual copy"
-      class="inline-flex max-w-full min-w-0 items-center gap-1 align-top font-mono text-[9px] font-medium opacity-70 touch:text-[11px]"
+      class="inline-flex max-w-full min-w-0 items-center gap-1 align-top font-mono text-nano font-medium opacity-70 touch:text-caption"
     >
       <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
       <span class="truncate">{copyBadge}</span>

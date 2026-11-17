@@ -10,6 +10,12 @@
 @theme {
   --font-sans: 'Google Sans', sans-serif;
   --font-mono: 'Google Sans Code', monospace;
+  --text-nano: 9px;
+  --text-micro: 10px;
+  --text-caption: 11px;
+  --text-label: 13px;
+  --text-body: 15px;
+  --text-title: 17px;
   --color-auth-stage: #101010;
   --color-editor-chrome: #0b0b0d;
   --color-editor-panel: #0d0d0f;

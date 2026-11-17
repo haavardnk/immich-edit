@@ -178,7 +178,7 @@
     <div class="pointer-events-none absolute top-2 left-2 z-10 flex items-center gap-1">
       {#if badge !== undefined}
         <span
-          class="min-w-6 rounded-full border px-1.5 text-center text-[11px] leading-5 font-semibold shadow-md backdrop-blur-sm {focused
+          class="min-w-6 rounded-full border px-1.5 text-center text-caption leading-5 font-semibold shadow-md backdrop-blur-sm {focused
             ? 'border-primary bg-primary text-neutral-950'
             : 'border-white/20 bg-neutral-950/85 text-white/90'}"
         >
@@ -187,7 +187,7 @@
       {/if}
       {#if caption}
         <span
-          class="rounded-md border border-white/20 bg-neutral-950/85 px-1.5 text-[11px] leading-5 font-semibold text-white/90 shadow-md backdrop-blur-sm"
+          class="rounded-md border border-white/20 bg-neutral-950/85 px-1.5 text-caption leading-5 font-semibold text-white/90 shadow-md backdrop-blur-sm"
         >
           {caption}
         </span>

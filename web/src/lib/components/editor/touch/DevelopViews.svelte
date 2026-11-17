@@ -49,7 +49,7 @@
       {#each views as view (view.id)}
         <Tabs.Trigger
           value={view.id}
-          class="flex shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65"
+          class="flex shrink-0 items-center gap-1.5 border-b-2 text-sm whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65"
         >
           {view.label}
           {#if modified.has(view.id)}

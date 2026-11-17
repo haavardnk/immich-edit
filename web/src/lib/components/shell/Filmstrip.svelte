@@ -187,7 +187,7 @@
                             />
                             {#if paneNumber > 0}
                               <span
-                                class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
+                                class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-micro leading-4 font-semibold shadow-sm {isCurrent
                                   ? 'border-primary bg-primary text-light-50'
                                   : 'border-primary/70 bg-light-50/90 text-primary'}"
                               >

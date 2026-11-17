@@ -24,7 +24,7 @@
     {#each renderers as group (group.renderer)}
       <table class="w-full text-xs" aria-label="{group.renderer.toUpperCase()} render stages">
         <thead>
-          <tr class="text-[10px] uppercase text-dark/65">
+          <tr class="text-micro uppercase text-dark/65">
             <th class="py-1 text-left font-normal">{group.renderer.toUpperCase()} stage</th>
             <th class="py-1 text-right font-normal">p50</th>
             <th class="py-1 text-right font-normal">p95</th>

@@ -31,7 +31,7 @@
 
   let panel: HTMLElement | null = null;
 
-  const DRAWER_ROW = 'touch:rounded-xl touch:border-b-0 touch:text-[15.5px]';
+  const DRAWER_ROW = 'touch:rounded-xl touch:border-b-0 touch:text-body';
 
   const user = $derived(session.user);
 
@@ -194,7 +194,7 @@
           <Button
             variant="ghost"
             color="danger"
-            class="min-h-13 w-full justify-start gap-3.5 rounded-xl px-4 text-[15.5px] font-normal"
+            class="min-h-13 w-full justify-start gap-3.5 rounded-xl px-4 text-body font-normal"
             leadingIcon={mdiLogoutVariant}
             loading={signOutFlow.signingOut}
             disabled={signOutFlow.signingOut}

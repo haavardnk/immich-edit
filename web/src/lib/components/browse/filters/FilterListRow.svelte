@@ -29,7 +29,7 @@
 
 <div
   data-filter-row
-  class="flex h-7 shrink-0 items-center gap-2 rounded-md px-1 text-[13px] text-dark/80 hover:bg-light-950/4 touch:h-12 touch:gap-3 touch:rounded-none touch:border-b touch:border-hairline touch:px-0.5 touch:text-[15px] touch:last:border-b-0 touch:hover:bg-transparent"
+  class="flex h-7 shrink-0 items-center gap-2 rounded-md px-1 text-label text-dark/80 hover:bg-light-950/4 touch:h-12 touch:gap-3 touch:rounded-none touch:border-b touch:border-hairline touch:px-0.5 touch:text-body touch:last:border-b-0 touch:hover:bg-transparent"
 >
   <Checkbox
     {id}
@@ -56,7 +56,7 @@
       {/snippet}
     </TruncationTooltip>
     {#if count != null}
-      <span class="shrink-0 text-[11.5px] text-dark/65 tabular-nums touch:text-[13px]">{count}</span
+      <span class="shrink-0 text-xs text-dark/65 tabular-nums touch:text-label">{count}</span
       >
     {/if}
   </label>

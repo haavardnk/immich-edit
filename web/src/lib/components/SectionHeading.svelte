@@ -13,7 +13,7 @@
   <svelte:element
     this={`h${level}`}
     {id}
-    class="text-[11px] font-medium tracking-[.06em] text-dark/65 uppercase"
+    class="text-caption font-medium tracking-[.06em] text-dark/65 uppercase"
   >
     {title}
   </svelte:element>

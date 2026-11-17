@@ -20,7 +20,7 @@
     aria-expanded={accountDrawer.open}
     onclick={accountDrawer.show}
   >
-    <Avatar size="small" class="size-8 text-[13px] font-bold" {name} />
+    <Avatar size="small" class="size-8 text-label font-bold" {name} />
   </Button>
   {#if jobs.attention}
     <AttentionDot class="absolute top-1 right-1 ring-2 ring-light" />

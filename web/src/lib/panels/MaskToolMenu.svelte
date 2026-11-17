@@ -32,7 +32,7 @@
 <Popover {open} {align} {onOpenChange} {trigger}>
   {#if heading}
     <div
-      class="px-3 pt-2 text-[10px] uppercase tracking-wider text-dark/65 border-b border-hairline pb-2"
+      class="px-3 pt-2 text-micro uppercase tracking-wider text-dark/65 border-b border-hairline pb-2"
     >
       {modeVerb(target.mode)} with
     </div>

@@ -45,7 +45,7 @@
       }}
     />
     {#if error}
-      <p class="px-1 text-[10px] leading-snug text-danger-800 touch:text-xs">{error}</p>
+      <p class="px-1 text-micro leading-snug text-danger-800 touch:text-xs">{error}</p>
     {/if}
   {/if}
 {/if}

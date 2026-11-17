@@ -87,7 +87,7 @@
         {@render row(item)}
       {/each}
       {#if term && rows.rest.length === 0 && rows.pinned.length === 0}
-        <p class="px-1 py-1.5 text-xs text-dark/65 touch:py-3 touch:text-[14px]">
+        <p class="px-1 py-1.5 text-xs text-dark/65 touch:py-3 touch:text-sm">
           No matching {noun.many}
         </p>
       {/if}
@@ -99,7 +99,7 @@
       size="tiny"
       variant="ghost"
       color="primary"
-      class="h-7 justify-start gap-1 px-1 text-[12.5px] font-normal touch:h-12 touch:justify-between touch:px-0.5 touch:text-[15px]"
+      class="h-7 justify-start gap-1 px-1 text-label font-normal touch:h-12 touch:justify-between touch:px-0.5 touch:text-body"
       onclick={showAll}
     >
       {allLabel}

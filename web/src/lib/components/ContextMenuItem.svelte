@@ -25,7 +25,7 @@
 
 {#snippet trailing()}
   {#if detail}
-    <span class="ml-auto shrink-0 pl-4 text-[10px] text-dark/65 touch:pl-0 touch:text-[13px]">
+    <span class="ml-auto shrink-0 pl-4 text-micro text-dark/65 touch:pl-0 touch:text-label">
       {detail}
     </span>
   {/if}

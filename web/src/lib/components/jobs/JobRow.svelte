@@ -42,7 +42,7 @@
       </span>
       <div class="min-w-0 flex-1">
         <p
-          class="truncate text-[13px] font-medium touch:text-[15px] {muted
+          class="truncate text-label font-medium touch:text-body {muted
             ? 'text-dark/65'
             : 'text-light-950'}"
         >
@@ -60,7 +60,7 @@
             aria-label="{label} progress"
           />
         {/if}
-        <p class="mt-0.5 text-[11px] text-dark/65 touch:text-[13px]">
+        <p class="mt-0.5 text-caption text-dark/65 touch:text-label">
           {#each jobDetail(job) as part, i (i)}
             {#if i > 0}{SEPARATOR}{/if}
             <span class={part.danger ? 'text-danger-800' : ''}>{part.text}</span>

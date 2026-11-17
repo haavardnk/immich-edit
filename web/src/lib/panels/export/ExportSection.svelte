@@ -39,7 +39,7 @@
         >
           <span
             {id}
-            class="w-20 shrink-0 text-[10px] font-medium tracking-wider text-dark/65 uppercase touch:w-24 touch:text-[11px]"
+            class="w-20 shrink-0 text-micro font-medium tracking-wider text-dark/65 uppercase touch:w-24 touch:text-caption"
           >
             {title}
           </span>
@@ -72,7 +72,7 @@
   >
     <h3
       {id}
-      class="text-[10px] font-medium tracking-wider text-dark/65 uppercase select-none touch:text-[11px]"
+      class="text-micro font-medium tracking-wider text-dark/65 uppercase select-none touch:text-caption"
     >
       {title}
     </h3>

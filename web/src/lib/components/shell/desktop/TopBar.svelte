@@ -78,7 +78,7 @@
       />
       {#if jobs.activeCount > 0}
         <span
-          class="pointer-events-none absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 text-light"
+          class="pointer-events-none absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-micro leading-4 text-light"
         >
           {jobs.activeCount}
         </span>

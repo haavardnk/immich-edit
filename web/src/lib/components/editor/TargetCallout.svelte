@@ -67,7 +67,7 @@
 
 <span
   data-testid="target-callout"
-  class="pointer-events-none absolute flex flex-col gap-0.5 rounded bg-black/75 px-2.5 py-1.5 text-left text-[11px] whitespace-nowrap text-white shadow-lg tabular-nums touch:text-[13px]"
+  class="pointer-events-none absolute flex flex-col gap-0.5 rounded bg-black/75 px-2.5 py-1.5 text-left text-caption whitespace-nowrap text-white shadow-lg tabular-nums touch:text-label"
   style="left: {u * 100}%; top: {v * 100}%; transform: translate({shift});"
 >
   {#if title}

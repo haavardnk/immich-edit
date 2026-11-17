@@ -40,7 +40,7 @@
           aria-hidden="true"
         />
         <Icon icon={mdiFolderOutline} size="14px" class="opacity-40 flex-none" aria-hidden="true" />
-        <span class="truncate text-[13px] leading-tight pr-2">{node.name}</span>
+        <span class="truncate text-label leading-tight pr-2">{node.name}</span>
       </Button>
       {#if expanded.has(node.path)}
         <FolderBranch nodes={node.children} depth={depth + 1} {expanded} {onToggle} />
@@ -52,7 +52,7 @@
         class="gap-1.5 ps-7 {folderLinkClass(node.path === activePath)}"
       >
         <Icon icon={mdiFolderOutline} size="14px" class="opacity-40 flex-none" aria-hidden="true" />
-        <span class="truncate text-[13px] leading-tight pr-2">{node.name}</span>
+        <span class="truncate text-label leading-tight pr-2">{node.name}</span>
       </a>
     {/if}
   {/each}

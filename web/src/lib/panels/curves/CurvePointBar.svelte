@@ -38,7 +38,7 @@
   }
 </script>
 
-<div class="flex h-7 items-center gap-1 text-[11px] text-dark/65 touch:h-11 touch:text-[13px]">
+<div class="flex h-7 items-center gap-1 text-caption text-dark/65 touch:h-11 touch:text-label">
   {#if point}
     <span>In</span>
     <div class="w-9 touch:w-11">
@@ -72,7 +72,7 @@
     variant="ghost"
     color="secondary"
     leadingIcon={mdiClose}
-    class="ml-auto h-6 rounded-full px-2 text-[11px] touch:h-9 touch:bg-ghost touch:px-3.5 touch:text-[13px]"
+    class="ml-auto h-6 rounded-full px-2 text-caption touch:h-9 touch:bg-ghost touch:px-3.5 touch:text-label"
     disabled={!interior}
     onclick={remove}
   >

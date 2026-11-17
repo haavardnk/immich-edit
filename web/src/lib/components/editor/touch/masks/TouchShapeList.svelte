@@ -66,18 +66,18 @@
           aria-hidden="true"
         />
         <span class="flex min-w-0 flex-1 flex-col text-left">
-          <span class="truncate text-[14px] text-dark">{label}</span>
-          <span class="truncate text-[11px] text-dark/65">{shapeSubtitle(comp)}</span>
+          <span class="truncate text-sm text-dark">{label}</span>
+          <span class="truncate text-caption text-dark/65">{shapeSubtitle(comp)}</span>
         </span>
       </Button>
       {#if index === 0}
         <span
-          class="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-[10.5px] tracking-wider text-dark/65 uppercase"
+          class="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-caption tracking-wider text-dark/65 uppercase"
         >
           Base
         </span>
       {:else}
-        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11.5px] {BADGE_TONES[comp.mode]}">
+        <span class="shrink-0 rounded-full px-2 py-0.5 text-xs {BADGE_TONES[comp.mode]}">
           {modeVerb(comp.mode)}
         </span>
       {/if}

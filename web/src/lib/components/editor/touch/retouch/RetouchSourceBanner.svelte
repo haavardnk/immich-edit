@@ -21,10 +21,10 @@
       aria-hidden="true"
     />
     <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate text-[14px] font-medium">
+      <span class="truncate text-sm font-medium">
         {sampling ? 'Tap the photo to set the source' : SOURCE_MISSING_TEXT}
       </span>
-      <span class="truncate text-[12px] text-white/70">
+      <span class="truncate text-xs text-white/70">
         {sampling ? 'Pick clean texture, then paint over the spot' : 'Tap Set source first'}
       </span>
     </div>

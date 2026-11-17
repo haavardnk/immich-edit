@@ -11,7 +11,7 @@
 </script>
 
 <InfoSection title="File">
-  <p class="font-mono text-[11px] break-all text-light-950/80 touch:text-[13px]">{path}</p>
+  <p class="font-mono text-caption break-all text-light-950/80 touch:text-label">{path}</p>
   {#if asset.originalPath}
     <Button
       size="tiny"

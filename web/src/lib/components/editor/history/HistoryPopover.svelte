@@ -49,7 +49,7 @@
     />
   </div>
   <div class="px-3 pt-2 pb-1 touch:hidden">
-    <span class="text-[11px] uppercase tracking-wider text-dark/65">History</span>
+    <span class="text-caption uppercase tracking-wider text-dark/65">History</span>
   </div>
   <HistoryList />
 </Popover>

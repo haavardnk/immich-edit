@@ -62,7 +62,7 @@
           class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-3 touch:h-13 touch:pl-4"
         >
           <h2
-            class="flex flex-1 items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap text-light-950/90 touch:text-base"
+            class="flex flex-1 items-center gap-1.5 text-label font-semibold whitespace-nowrap text-light-950/90 touch:text-base"
           >
             {heading}
             {#if !touch}

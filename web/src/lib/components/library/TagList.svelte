@@ -42,11 +42,11 @@
                 class="opacity-40 flex-none"
                 aria-hidden="true"
               />
-              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-[13px] leading-tight"
+              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-label leading-tight"
                 ><HighlightedText text={t.name} {query} /></span
               >
               {#if t.assetCount != null}
-                <span class="flex-none text-[11px] text-muted tabular-nums">{t.assetCount}</span>
+                <span class="flex-none text-caption text-muted tabular-nums">{t.assetCount}</span>
               {/if}
             </TooltipLink>
           {/each}

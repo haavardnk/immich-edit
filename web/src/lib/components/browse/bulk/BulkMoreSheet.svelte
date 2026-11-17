@@ -41,7 +41,7 @@
 
 {#snippet detail(text: string | null)}
   {#if text}
-    <span class="shrink-0 text-[13px] text-dark/65">{text}</span>
+    <span class="shrink-0 text-label text-dark/65">{text}</span>
   {/if}
 {/snippet}
 

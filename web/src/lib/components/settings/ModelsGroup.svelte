@@ -185,7 +185,7 @@
       {@const inKind = models.models.filter((model) => model.kind === kind)}
       {@const installed = inKind.filter((model) => model.installed)}
       <div
-        class="flex min-h-10 items-center gap-3 bg-light-50/60 px-4 text-[11px] font-medium tracking-wide text-dark/80 uppercase touch:text-xs"
+        class="flex min-h-10 items-center gap-3 bg-light-50/60 px-4 text-caption font-medium tracking-wide text-dark/80 uppercase touch:text-xs"
       >
         <h3 class="min-w-0 flex-1 truncate">{kindLabel(kind)}</h3>
         {#if installed.length > 0}

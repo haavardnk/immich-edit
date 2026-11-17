@@ -135,5 +135,5 @@
   </div>
 {/if}
 {#if support.reason}
-  <p class="text-[11px] leading-snug text-dark/65 touch:text-xs">{support.reason}</p>
+  <p class="text-caption leading-snug text-dark/65 touch:text-xs">{support.reason}</p>
 {/if}

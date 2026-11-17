@@ -78,13 +78,13 @@
               class: 'min-w-0 flex-1 cursor-pointer py-1.5 select-none'
             })}
           >
-            <span data-truncate class="block truncate text-xs text-dark touch:text-[15px]">
+            <span data-truncate class="block truncate text-xs text-dark touch:text-body">
               {preset.name}
             </span>
             <span
               id={summaryId}
               data-truncate
-              class="block truncate text-[10px] text-dark/65 touch:text-xs"
+              class="block truncate text-micro text-dark/65 touch:text-xs"
             >
               {summary}
             </span>
@@ -131,7 +131,7 @@
     maxlength={80}
     placeholder="Save current as…"
     aria-label="Export preset name"
-    class="min-w-0 flex-1 rounded border border-dark/15 bg-transparent px-2 py-1 text-xs touch:h-11 touch:text-[15px]"
+    class="min-w-0 flex-1 rounded border border-dark/15 bg-transparent px-2 py-1 text-xs touch:h-11 touch:text-body"
   />
   <IconButton
     type="submit"

@@ -272,7 +272,7 @@
                             {title}
                           </Dialog.Title>
                           {#if subtitle}
-                            <span class="shrink-0 text-[13px] text-dark/65">{subtitle}</span>
+                            <span class="shrink-0 text-label text-dark/65">{subtitle}</span>
                           {/if}
                         </div>
                         <div class="ms-auto flex shrink-0 items-center justify-end gap-1.5">

@@ -112,13 +112,13 @@
             {#snippet child({ props })}
               <span
                 {...props}
-                class="min-w-0 flex-1 truncate text-xs font-medium text-light-950/90 touch:text-[15px]"
+                class="min-w-0 flex-1 truncate text-xs font-medium text-light-950/90 touch:text-body"
               >
                 {album.albumName}
               </span>
             {/snippet}
           </TruncationTooltip>
-          <span class="shrink-0 text-[11px] text-light-950/65 tabular-nums touch:text-sm">
+          <span class="shrink-0 text-caption text-light-950/65 tabular-nums touch:text-sm">
             <span aria-hidden="true">{album.assetCount}</span>
             <span class="sr-only">{countOf(album.assetCount, 'photo')}</span>
           </span>

@@ -33,7 +33,7 @@
           : 'h-14 flex-1'}"
       >
         <span
-          class="relative flex h-12 w-17 max-w-full flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium group-focus-visible:ring-2 group-focus-visible:ring-primary group-data-[state=active]:bg-primary/12 group-data-[state=active]:text-light-950 group-data-[state=inactive]:text-dark/65"
+          class="relative flex h-12 w-17 max-w-full flex-col items-center justify-center gap-0.5 rounded-xl text-caption font-medium group-focus-visible:ring-2 group-focus-visible:ring-primary group-data-[state=active]:bg-primary/12 group-data-[state=active]:text-light-950 group-data-[state=inactive]:text-dark/65"
         >
           <Icon
             icon={mode.icon}

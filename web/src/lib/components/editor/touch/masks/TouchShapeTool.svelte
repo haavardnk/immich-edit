@@ -80,8 +80,8 @@
   <header class="flex h-14 shrink-0 items-center gap-3 border-b border-hairline ps-4 pe-3">
     <Icon {icon} size="20px" class="shrink-0 text-primary" aria-hidden="true" />
     <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate text-[15px] font-medium text-dark">{title}</span>
-      <span class="truncate text-[12px] text-dark/65">{subtitle}</span>
+      <span class="truncate text-body font-medium text-dark">{title}</span>
+      <span class="truncate text-xs text-dark/65">{subtitle}</span>
     </div>
     {#if tool.kind === 'shape'}
       <IconButton
@@ -131,8 +131,8 @@
         clickRefine={editor.clickTool.active || !!tool.comp.generated}
       />
       {#if gradient}
-        <label class="flex h-11 items-center justify-between gap-3 text-[14px] text-dark">
-          <span>Invert <span class="text-[12px] text-dark/65">use the outside</span></span>
+        <label class="flex h-11 items-center justify-between gap-3 text-sm text-dark">
+          <span>Invert <span class="text-xs text-dark/65">use the outside</span></span>
           <Switch
             aria-label="Invert"
             checked={gradient.invert}

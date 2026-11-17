@@ -40,7 +40,7 @@
   });
   const tools = $derived(aiTools(maskModels.kinds));
   const sceneClasses = $derived(visibleSceneClasses(maskModels.semanticClasses, maskModels.kinds));
-  const heading = 'px-4 pt-3 pb-1.5 text-[11px] font-medium tracking-wider text-dark/65 uppercase';
+  const heading = 'px-4 pt-3 pb-1.5 text-caption font-medium tracking-wider text-dark/65 uppercase';
   const cell =
     'h-auto w-full rounded-none border-hairline px-3.5 py-3 font-normal text-dark not-disabled:hover:bg-dark/5';
 
@@ -76,11 +76,11 @@
         >
           <Icon icon={entry.icon} size="20px" class="shrink-0 opacity-80" aria-hidden="true" />
           <span class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate text-[14px] {entry.installed ? '' : 'text-dark/65'}">
+            <span class="truncate text-sm {entry.installed ? '' : 'text-dark/65'}">
               {entry.label}
             </span>
             {#if !entry.installed}
-              <span class="line-clamp-2 text-[11.5px] leading-tight text-warning">
+              <span class="line-clamp-2 text-xs leading-tight text-warning">
                 {MISSING_MODEL}
               </span>
             {/if}
@@ -100,7 +100,7 @@
     </div>
   {:else if maskModels.unavailable}
     <span class={heading}>AI</span>
-    <p class="px-4 pb-3 text-[12.5px] leading-snug text-dark/65">{maskModels.unavailable}</p>
+    <p class="px-4 pb-3 text-label leading-snug text-dark/65">{maskModels.unavailable}</p>
   {/if}
 {/snippet}
 
@@ -120,7 +120,7 @@
         onclick={() => pick({ kind: 'manual', tool: item.tool })}
       >
         <Icon icon={item.icon} size="20px" class="opacity-80" aria-hidden="true" />
-        <span class="text-[12.5px] leading-tight">{item.label}</span>
+        <span class="text-label leading-tight">{item.label}</span>
       </Button>
     {/each}
   </div>
@@ -137,8 +137,8 @@
   <div
     class="flex flex-col items-center gap-0.5 border-b border-hairline px-4 pt-3.5 pb-3 text-center"
   >
-    <span class="text-[15px] font-semibold" aria-hidden="true">{title}</span>
-    <span class="text-[12.5px] text-dark/65">{subtitle}</span>
+    <span class="text-body font-semibold" aria-hidden="true">{title}</span>
+    <span class="text-label text-dark/65">{subtitle}</span>
   </div>
   {#if scene}
     <MenuRow icon={mdiChevronLeft} label="Scene" data-menu-stay onclick={() => (scene = false)} />

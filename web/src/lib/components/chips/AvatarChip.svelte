@@ -30,7 +30,7 @@
       {...props}
       bind:pressed={() => pressed, onPressedChange}
       aria-label={name}
-      class="group flex w-14 shrink-0 flex-col items-center gap-1 rounded-lg text-center text-[11px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-primary touch:w-16.5 touch:text-xs {dashed
+      class="group flex w-14 shrink-0 flex-col items-center gap-1 rounded-lg text-center text-caption leading-tight outline-none focus-visible:ring-2 focus-visible:ring-primary touch:w-16.5 touch:text-xs {dashed
         ? 'text-dark/65'
         : 'text-dark/80'}"
     >

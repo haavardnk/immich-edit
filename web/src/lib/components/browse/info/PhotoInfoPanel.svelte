@@ -13,7 +13,7 @@
   class="flex w-90 shrink-0 flex-col border-l border-hairline bg-editor-chrome text-light-950/90"
 >
   <div class="flex h-11 shrink-0 items-center gap-2 border-b border-hairline pr-1.5 pl-4">
-    <h2 class="min-w-0 flex-1 truncate text-[13px] font-semibold">Info</h2>
+    <h2 class="min-w-0 flex-1 truncate text-label font-semibold">Info</h2>
     <IconButton
       size="small"
       variant="ghost"

@@ -67,7 +67,7 @@
     onclick={() => pick(action)}
   >
     {#if action.detail}
-      <span class="max-w-32 shrink-0 truncate text-[11px] text-dark/65">{action.detail}</span>
+      <span class="max-w-32 shrink-0 truncate text-caption text-dark/65">{action.detail}</span>
     {/if}
   </MenuRow>
 {/snippet}

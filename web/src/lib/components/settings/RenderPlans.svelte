@@ -13,7 +13,7 @@
   {:else}
     <table class="w-full text-xs" aria-label="Render plans">
       <thead>
-        <tr class="text-[10px] uppercase text-dark/65">
+        <tr class="text-micro uppercase text-dark/65">
           <th class="py-1 text-left font-normal">Renderer</th>
           <th class="py-1 text-left font-normal">Plan</th>
           <th class="py-1 text-right font-normal">Renders</th>

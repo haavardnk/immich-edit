@@ -91,7 +91,7 @@
       variant="ghost"
       color="secondary"
       fullWidth
-      class="h-7 justify-start rounded-lg bg-light-200 px-2 text-[11px] hover:bg-light-300 touch:h-11 touch:px-3 touch:text-sm"
+      class="h-7 justify-start rounded-lg bg-light-200 px-2 text-caption hover:bg-light-300 touch:h-11 touch:px-3 touch:text-sm"
       {...popoverProps}
     >
       <span class="flex-1 truncate text-left">{label}</span>
@@ -119,7 +119,7 @@
       {@render check(mode === 'auto')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Auto match</span>
-        <span class="block truncate text-[10px] text-light-950/65">{autoDetail}</span>
+        <span class="block truncate text-micro text-light-950/65">{autoDetail}</span>
       </span>
     </Button>
     <Button
@@ -136,7 +136,7 @@
       {@render check(mode === 'off')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Default Color</span>
-        <span class="block truncate text-[10px] text-light-950/65">General-purpose rendering</span>
+        <span class="block truncate text-micro text-light-950/65">General-purpose rendering</span>
       </span>
     </Button>
     <Button
@@ -153,7 +153,7 @@
       {@render check(mode === 'flat')}
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate">Flat</span>
-        <span class="block truncate text-[10px] text-light-950/65">
+        <span class="block truncate text-micro text-light-950/65">
           No tone curve, bare sensor colour
         </span>
       </span>

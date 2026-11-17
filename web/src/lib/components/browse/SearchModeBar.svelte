@@ -19,6 +19,6 @@
   class="flex flex-none items-center gap-2 border-b border-hairline px-3 py-1.5 touch:border-b-0 touch:py-0"
   data-testid="search-modes"
 >
-  <span class="shrink-0 text-[11px] text-dark/65 touch:hidden">Search by</span>
+  <span class="shrink-0 text-caption text-dark/65 touch:hidden">Search by</span>
   <ChoiceChips {options} value={mode} label="Search by" {onSelect} />
 </div>

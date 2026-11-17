@@ -33,7 +33,7 @@
 </script>
 
 <section aria-label="Snapshots" class="flex flex-col" bind:this={list}>
-  <span class="px-3 pt-2 pb-1 text-[11px] uppercase tracking-wider text-dark/65 touch:hidden">
+  <span class="px-3 pt-2 pb-1 text-caption uppercase tracking-wider text-dark/65 touch:hidden">
     Snapshots
   </span>
   {#if store.items.length > 0}

@@ -30,7 +30,7 @@
     {value}
     oninput={(event) => onvalue((event.currentTarget as HTMLInputElement).valueAsNumber)}
   />
-  <span class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:text-xs"
+  <span class="px-1 text-right font-mono text-micro tabular-nums text-dark/65 touch:text-xs"
     >{value}{unit}</span
   >
 </div>

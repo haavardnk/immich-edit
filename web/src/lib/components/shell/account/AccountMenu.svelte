@@ -65,7 +65,7 @@
       title=""
       aria-label="Account"
     >
-      <Avatar size="small" class="size-8 text-[13px] font-bold" {name} />
+      <Avatar size="small" class="size-8 text-label font-bold" {name} />
     </Button>
   {/snippet}
   {#if user}
@@ -94,7 +94,7 @@
       onclick={() => go(settingsHref('account', 'sessions'))}
     >
       {#if signedInDevices.count !== null}
-        <span class="shrink-0 text-[11px] text-dark/65">{signedInDevices.count}</span>
+        <span class="shrink-0 text-caption text-dark/65">{signedInDevices.count}</span>
       {/if}
     </MenuRow>
   </div>

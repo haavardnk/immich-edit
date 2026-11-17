@@ -14,7 +14,7 @@
     size="tiny"
     variant="ghost"
     color="primary"
-    class="-me-2 touch:min-h-11 touch:text-[12.5px]"
+    class="-me-2 touch:min-h-11 touch:text-label"
     onclick={recentSearches.clear}
   >
     Clear
@@ -34,7 +34,7 @@
                 size="small"
                 variant="ghost"
                 color="secondary"
-                class="min-w-0 flex-1 justify-start gap-3.5 font-normal touch:min-h-11 touch:text-[15px] [&_svg]:text-dark/65"
+                class="min-w-0 flex-1 justify-start gap-3.5 font-normal touch:min-h-11 touch:text-body [&_svg]:text-dark/65"
                 leadingIcon={mdiHistory}
                 title=""
               >

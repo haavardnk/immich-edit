@@ -99,7 +99,7 @@
             class="shrink-0"
             aria-hidden
           />
-          <span data-truncate class="min-w-0 flex-1 truncate text-sm font-medium wide:text-[15px]">
+          <span data-truncate class="min-w-0 flex-1 truncate text-sm font-medium wide:text-body">
             <HighlightedText text={view.name} {query} />
           </span>
         </TooltipLink>

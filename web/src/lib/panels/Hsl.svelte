@@ -65,7 +65,7 @@
     {/each}
   </RadioGroup.Root>
   <div class="flex h-6 items-center justify-between">
-    <div class="text-[11px] font-medium tracking-wide text-dark/65 uppercase touch:text-[12px]">
+    <div class="text-caption font-medium tracking-wide text-dark/65 uppercase touch:text-xs">
       {bandName}
     </div>
     <div class="flex items-center gap-0.5">

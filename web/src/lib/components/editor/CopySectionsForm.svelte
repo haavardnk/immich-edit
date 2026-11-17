@@ -64,7 +64,7 @@
       {/each}
       {#if photo.length > 0}
         <div
-          class="mt-2 flex items-center border-t border-hairline pt-3 pb-1 text-[10px] font-semibold tracking-wider text-dark/65 uppercase touch:mt-4 touch:border-t-0 touch:pt-2 touch:text-[11px]"
+          class="mt-2 flex items-center border-t border-hairline pt-3 pb-1 text-micro font-semibold tracking-wider text-dark/65 uppercase touch:mt-4 touch:border-t-0 touch:pt-2 touch:text-caption"
         >
           <span>Off by default</span>
           <span class="ms-auto font-normal tracking-normal normal-case">Photo-specific</span>

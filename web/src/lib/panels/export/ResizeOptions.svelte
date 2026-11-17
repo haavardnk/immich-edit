@@ -74,7 +74,7 @@
         aria-invalid={error ? 'true' : undefined}
         oninput={(event: Event) => setWidth(readNumber(event))}
       />
-      <span class="text-[11px] text-dark/65 select-none touch:text-[13px]" aria-hidden="true"
+      <span class="text-caption text-dark/65 select-none touch:text-label" aria-hidden="true"
         >×</span
       >
       <TextInput
@@ -127,7 +127,7 @@
 {/if}
 
 {#if error}
-  <p class="px-1 text-[10px] leading-snug text-danger-800 touch:text-xs">{error}</p>
+  <p class="px-1 text-micro leading-snug text-danger-800 touch:text-xs">{error}</p>
 {/if}
 
 {#if form.resizeMode === 'dimensions' || form.resizeMode === 'megapixels'}
@@ -142,7 +142,7 @@
   <div class="panel-row h-7 items-center touch:hidden">
     <span class="editor-compact-label select-none">Size</span>
     <span
-      class="col-span-2 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:text-xs"
+      class="col-span-2 text-right font-mono text-micro tabular-nums text-dark/65 touch:text-xs"
       >{fmtDim(outputSize.w, outputSize.h)} px</span
     >
   </div>

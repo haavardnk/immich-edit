@@ -210,7 +210,7 @@
     {#if hover && !editor.clickTool.box && !editor.maskGenerating}
       <div
         data-testid="click-cursor-tag"
-        class="pointer-events-none absolute rounded bg-black/70 px-2 py-0.5 text-[11px] whitespace-nowrap text-white shadow"
+        class="pointer-events-none absolute rounded bg-black/70 px-2 py-0.5 text-caption whitespace-nowrap text-white shadow"
         style="left: {hover[0] + 14}px; top: {hover[1] + 14}px;"
       >
         {tag}

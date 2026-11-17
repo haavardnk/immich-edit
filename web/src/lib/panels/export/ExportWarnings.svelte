@@ -7,7 +7,7 @@
 
 {#if warnings.length > 0}
   <ul
-    class="space-y-0.5 rounded-sm border border-warning-500/25 bg-warning-500/10 px-2 py-1.5 text-[10px] leading-snug text-warning-800 touch:text-xs"
+    class="space-y-0.5 rounded-sm border border-warning-500/25 bg-warning-500/10 px-2 py-1.5 text-micro leading-snug text-warning-800 touch:text-xs"
   >
     {#each warnings as w (w)}
       <li class="flex items-start gap-1.5">

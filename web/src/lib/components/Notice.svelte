@@ -39,7 +39,7 @@
 
 <div
   role={color === 'danger' ? 'alert' : 'status'}
-  class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] leading-snug {tones[
+  class="flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-caption leading-snug {tones[
     color
   ]} {className ?? ''}"
 >

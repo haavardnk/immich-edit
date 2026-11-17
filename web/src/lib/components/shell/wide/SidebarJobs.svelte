@@ -7,7 +7,7 @@
   <Button
     variant="ghost"
     color="secondary"
-    class="h-auto w-full flex-col items-stretch gap-2 rounded-xl bg-light-100 px-3 py-2.5 text-start text-[13px] font-normal text-light-950"
+    class="h-auto w-full flex-col items-stretch gap-2 rounded-xl bg-light-100 px-3 py-2.5 text-start text-label font-normal text-light-950"
     title={jobsProgress.text}
     aria-label={jobsProgress.ariaLabel}
     onclick={jobsProgress.toggle}

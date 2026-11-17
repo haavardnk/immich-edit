@@ -32,7 +32,7 @@
     size={touch ? 'large' : 'small'}
     color="primary"
     shape={touch ? 'round' : 'semi-round'}
-    class="shrink-0 touch:h-12 touch:px-4 touch:text-[15px]"
+    class="shrink-0 touch:h-12 touch:px-4 touch:text-body"
     fullWidth={stacked}
     loading={busy}
     leadingIcon={icon}

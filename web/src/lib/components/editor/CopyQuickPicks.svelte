@@ -25,7 +25,7 @@
     shape="round"
     variant="ghost"
     color={pressed ? 'primary' : 'secondary'}
-    class="h-7 shrink-0 gap-1 px-2.5 text-[11px] touch:h-9 touch:px-3 touch:text-[13px] {pressed
+    class="h-7 shrink-0 gap-1 px-2.5 text-caption touch:h-9 touch:px-3 touch:text-label {pressed
       ? 'bg-primary/15'
       : 'bg-ghost'}"
     leadingIcon={icon}
@@ -45,7 +45,7 @@
   aria-label="Quick pick"
   class="scrollbar-hidden flex flex-nowrap items-center gap-1.5 overflow-x-auto border-b border-hairline pb-3 touch:pb-2"
 >
-  <span class="me-1 shrink-0 text-[11px] text-dark/65 @max-[480px]:hidden touch:text-[13px]"
+  <span class="me-1 shrink-0 text-caption text-dark/65 @max-[480px]:hidden touch:text-label"
     >Quick pick</span
   >
   {@render chip(

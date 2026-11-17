@@ -44,14 +44,14 @@
 
 <div {id} class="px-4 pb-3 touch:pb-4">
   {#if items === undefined}
-    <p class="text-[11px] text-dark/65">Loading…</p>
+    <p class="text-caption text-dark/65">Loading…</p>
   {:else}
     <ul class="flex flex-col gap-1 touch:gap-1.5">
       {#each items as item (item.id)}
         {@const preset = jobItemPreset(job, item)}
         {@const state = jobItemState(item)}
         <li class="min-w-0">
-          <div class="flex items-baseline gap-2 text-[11px] touch:text-xs">
+          <div class="flex items-baseline gap-2 text-caption touch:text-xs">
             <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
             {#if preset}
               <TruncationTooltip text={preset}>

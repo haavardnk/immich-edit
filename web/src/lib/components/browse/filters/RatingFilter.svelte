@@ -53,7 +53,7 @@
   <div
     role="group"
     aria-label="Rating"
-    class="-ml-1 flex text-[17px] touch:-ml-2.5 touch:text-[26px]"
+    class="-ml-1 flex text-title touch:-ml-2.5 touch:text-2xl"
   >
     {#each STARS as n (n)}
       <IconToggle

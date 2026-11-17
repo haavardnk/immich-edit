@@ -23,7 +23,7 @@
       href={settingsHref(entry.id)}
       underline={false}
       aria-current={current === entry.id ? 'page' : undefined}
-      class="flex h-10 items-center gap-3 rounded-e-full ps-3.5 pe-3 text-sm text-dark transition-colors hover:bg-light-950/6 aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary touch:h-12 touch:rounded-xl touch:text-[15px] {pushes
+      class="flex h-10 items-center gap-3 rounded-e-full ps-3.5 pe-3 text-sm text-dark transition-colors hover:bg-light-950/6 aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary touch:h-12 touch:rounded-xl touch:text-body {pushes
         ? 'touch:h-13 touch:rounded-none touch:px-4'
         : ''}"
     >

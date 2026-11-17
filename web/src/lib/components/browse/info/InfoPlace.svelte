@@ -18,7 +18,7 @@
         {#snippet child({ props })}
           <span
             {...props}
-            class="truncate text-[13px] font-semibold text-light-950/90 touch:text-base"
+            class="truncate text-label font-semibold text-light-950/90 touch:text-base"
           >
             {place.name}
           </span>

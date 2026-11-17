@@ -5,7 +5,7 @@
 </script>
 
 <div
-  class="px-5 pb-2 pt-5 text-[10px] font-semibold uppercase text-dark/65 dark:text-light-950/45 {className}"
+  class="px-5 pb-2 pt-5 text-micro font-semibold uppercase text-dark/65 dark:text-light-950/45 {className}"
 >
   {@render children()}
 </div>

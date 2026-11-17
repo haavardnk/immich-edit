@@ -9,7 +9,7 @@
 </script>
 
 <div class="flex h-7 items-center justify-between gap-2">
-  <span class="text-[10px] font-medium text-dark/65 uppercase">
+  <span class="text-micro font-medium text-dark/65 uppercase">
     Strokes <span class="tabular-nums">({strokeCount(strokes.length)})</span>
   </span>
   {#if strokes.length > 0}
@@ -45,7 +45,7 @@
           size="tiny"
           variant="ghost"
           color="secondary"
-          class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark hover:bg-transparent {stroke.enabled
+          class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-caption text-dark hover:bg-transparent {stroke.enabled
             ? ''
             : 'opacity-50'}"
           aria-pressed={editor.activeRetouchId === stroke.id}

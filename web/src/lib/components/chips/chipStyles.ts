@@ -1,5 +1,5 @@
 const base =
-  'inline-flex h-6.5 shrink-0 items-center justify-center gap-1 rounded-full text-[12.5px] whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-35 touch:h-10 touch:gap-1.5 touch:px-3.5 touch:text-sm';
+  'inline-flex h-6.5 shrink-0 items-center justify-center gap-1 rounded-full text-label whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-35 touch:h-10 touch:gap-1.5 touch:px-3.5 touch:text-sm';
 
 const shape = `${base} px-2`;
 

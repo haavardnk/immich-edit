@@ -13,7 +13,7 @@
 
   const groupClass = 'flex gap-0.5';
   const itemClass =
-    'flex h-5 items-center justify-center rounded-sm px-1.5 text-[10px] font-medium text-dark/65 transition-colors hover:text-dark aria-checked:bg-light-950/8 aria-checked:text-dark';
+    'flex h-5 items-center justify-center rounded-sm px-1.5 text-micro font-medium text-dark/65 transition-colors hover:text-dark aria-checked:bg-light-950/8 aria-checked:text-dark';
 
   function selectChannels(value: string): void {
     scopes.setChannels(value as WaveformChannels);

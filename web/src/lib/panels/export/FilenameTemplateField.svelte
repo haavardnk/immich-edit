@@ -82,7 +82,7 @@
             variant="ghost"
             color="secondary"
             shape="round"
-            class="h-9 shrink-0 gap-1.5 bg-ghost px-3 text-[13px] font-normal text-dark/80 hover:text-dark"
+            class="h-9 shrink-0 gap-1.5 bg-ghost px-3 text-label font-normal text-dark/80 hover:text-dark"
             aria-label="Insert {token}, {label}"
             onclick={() => insert(token)}
           >
@@ -96,7 +96,7 @@
                 variant="ghost"
                 color="secondary"
                 shape="round"
-                class="h-6 shrink-0 bg-ghost px-1.5 font-mono text-[11px] font-normal text-primary hover:bg-primary/15"
+                class="h-6 shrink-0 bg-ghost px-1.5 font-mono text-caption font-normal text-primary hover:bg-primary/15"
                 aria-label="Insert {token}, {label}"
                 {...mergeProps(props, { onmousedown: holdFocus, onclick: () => insert(token) })}
               >

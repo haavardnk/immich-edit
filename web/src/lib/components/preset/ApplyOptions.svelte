@@ -49,7 +49,7 @@
 {/snippet}
 
 <div
-  class="flex flex-col text-[11px] text-dark/65 {inline ? 'touch:gap-1' : 'gap-1'} {bordered
+  class="flex flex-col text-caption text-dark/65 {inline ? 'touch:gap-1' : 'gap-1'} {bordered
     ? 'border-t border-hairline pt-3'
     : ''}"
 >
@@ -77,12 +77,12 @@
       }}
     />
     <span
-      class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
+      class="px-1 text-right font-mono text-micro tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
       >{value}%</span
     >
   </div>
   {#if note}
-    <p class="truncate text-[11px] text-dark/65 touch:text-[13px]">{note}</p>
+    <p class="truncate text-caption text-dark/65 touch:text-label">{note}</p>
   {/if}
   {#if inline}
     <div class="flex items-center gap-3 touch:gap-2">
@@ -90,7 +90,7 @@
       {@render includes()}
     </div>
   {:else}
-    <span class="uppercase tracking-wider text-[10px] text-dark/65">Apply includes</span>
+    <span class="uppercase tracking-wider text-micro text-dark/65">Apply includes</span>
     {@render includes()}
   {/if}
 </div>

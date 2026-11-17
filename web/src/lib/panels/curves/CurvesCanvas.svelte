@@ -290,7 +290,7 @@
   {#if shown}
     <span
       data-curve-readout
-      class="pointer-events-none absolute top-2 left-2 rounded-md bg-editor-chrome/85 px-1.5 py-0.5 font-mono text-[11px] text-light-950 tabular-nums"
+      class="pointer-events-none absolute top-2 left-2 rounded-md bg-editor-chrome/85 px-1.5 py-0.5 font-mono text-caption text-light-950 tabular-nums"
     >
       In {levelOf(shown.x)} · Out {levelOf(shown.y)}
     </span>

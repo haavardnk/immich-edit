@@ -40,10 +40,10 @@
   </span>
   <span
     data-truncate
-    class="block min-w-0 truncate text-sm font-medium text-light-950 touch:text-[14.5px]"
+    class="block min-w-0 truncate text-sm font-medium text-light-950 touch:text-body"
     ><HighlightedText text={album.albumName} {query} /></span
   >
-  <span class="block text-xs text-dark/65 touch:text-[12.5px]">
+  <span class="block text-xs text-dark/65 touch:text-label">
     {countOf(album.assetCount, 'photo')}
   </span>
 </TooltipLink>

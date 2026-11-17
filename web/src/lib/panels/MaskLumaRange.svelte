@@ -68,7 +68,7 @@
     {onLive}
     {onCommit}
   />
-  <div class="flex items-center justify-between text-[10px] text-dark/65">
+  <div class="flex items-center justify-between text-micro text-dark/65">
     <span>Min <span class="font-mono text-dark">{LUMA_MIN.format(min)}</span></span>
     <span>Luminance range</span>
     <span>Max <span class="font-mono text-dark">{LUMA_MAX.format(max)}</span></span>

@@ -70,13 +70,13 @@
   });
   const inline = $derived(activeComp && (stacked || !onPhotoShape(activeComp)) ? activeComp : null);
   const tabClass =
-    'flex shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65';
+    'flex shrink-0 items-center gap-1.5 border-b-2 text-sm whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65';
 </script>
 
 {#snippet limit(text: string, testid: string)}
   <p
     data-testid={testid}
-    class="mx-3 my-1.5 flex items-start gap-2 rounded-xl border border-hairline bg-ghost px-3 py-2.5 text-[13px] text-dark/80"
+    class="mx-3 my-1.5 flex items-start gap-2 rounded-xl border border-hairline bg-ghost px-3 py-2.5 text-label text-dark/80"
   >
     <Icon icon={mdiInformationOutline} size="16px" class="mt-px shrink-0" aria-hidden="true" />
     {text}
@@ -86,7 +86,7 @@
 {#snippet shapes()}
   {#if active}
     {#if active.components.length === 0}
-      <p class="px-4 py-3 text-[13px] text-dark/65">No shapes</p>
+      <p class="px-4 py-3 text-label text-dark/65">No shapes</p>
     {:else}
       <TouchShapeList layer={active} {labels} onmenu={(id) => (shapeMenu = id)} />
     {/if}
@@ -111,7 +111,7 @@
           size="medium"
           variant="ghost"
           color="secondary"
-          class="h-10 min-w-0 gap-1 rounded-xl bg-ghost px-1.5 text-[13px] font-normal"
+          class="h-10 min-w-0 gap-1 rounded-xl bg-ghost px-1.5 text-label font-normal"
           leadingIcon={entry.icon}
           disabled={addModeBlocked(entry.mode, active.id, active.components.length)}
           onclick={() => (adding = { layerId: active.id, mode: entry.mode })}
@@ -156,8 +156,8 @@
     {@render empty()}
     {#if active && stacked}
       <div class="flex h-9 items-center justify-between border-y border-hairline px-4">
-        <span class="text-[11px] font-medium tracking-wider text-dark/65 uppercase">Shapes</span>
-        <span class="text-[12px] text-dark/65 tabular-nums">
+        <span class="text-caption font-medium tracking-wider text-dark/65 uppercase">Shapes</span>
+        <span class="text-xs text-dark/65 tabular-nums">
           {active.components.length} of {N_MAX_COMPONENTS_PER_LAYER}
         </span>
       </div>
@@ -183,7 +183,7 @@
               {/if}
             </Tabs.Trigger>
           </Tabs.List>
-          <span class="shrink-0 text-[12px] text-dark/65 tabular-nums">
+          <span class="shrink-0 text-xs text-dark/65 tabular-nums">
             {active.components.length} of {N_MAX_COMPONENTS_PER_LAYER}
           </span>
         </div>

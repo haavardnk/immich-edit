@@ -14,7 +14,7 @@
 {#if zoom !== null}
   <span
     data-testid="viewer-zoom"
-    class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums"
+    class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-full bg-black/70 px-2 py-0.5 text-caption font-medium text-white tabular-nums"
     >{zoom}%</span
   >
 {/if}

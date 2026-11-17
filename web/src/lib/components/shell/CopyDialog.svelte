@@ -11,7 +11,7 @@
 </script>
 
 {#snippet kbd(keys: string)}
-  <kbd class="rounded border border-hairline px-1 font-mono text-[10px] text-dark/65">{keys}</kbd>
+  <kbd class="rounded border border-hairline px-1 font-mono text-micro text-dark/65">{keys}</kbd>
 {/snippet}
 
 {#if copyDialog.open}
@@ -28,7 +28,7 @@
     {#snippet footer()}
       <div class="flex w-full items-center gap-2">
         {#if !pasting}
-          <p class="flex min-w-0 items-center gap-1.5 text-[11px] text-dark/65 touch:hidden">
+          <p class="flex min-w-0 items-center gap-1.5 text-caption text-dark/65 touch:hidden">
             <Icon icon={mdiContentPaste} size="14px" class="shrink-0" aria-hidden="true" />
             {@render kbd(keysFor('pasteEdits'))}
             <span>pastes these ·</span>

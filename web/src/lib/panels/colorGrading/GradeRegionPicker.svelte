@@ -43,7 +43,7 @@
     {#each REGIONS as key (key)}
       <RadioGroup.Item
         value={key}
-        class="relative flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13.5px] whitespace-nowrap outline-none before:absolute before:inset-x-0 before:-inset-y-1.5 focus-visible:ring-2 focus-visible:ring-primary aria-checked:bg-primary/22 aria-checked:text-light-950 aria-[checked=false]:bg-ghost aria-[checked=false]:text-dark"
+        class="relative flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm whitespace-nowrap outline-none before:absolute before:inset-x-0 before:-inset-y-1.5 focus-visible:ring-2 focus-visible:ring-primary aria-checked:bg-primary/22 aria-checked:text-light-950 aria-[checked=false]:bg-ghost aria-[checked=false]:text-dark"
       >
         {GRADE_REGION_LABELS[key]}
         {#if modified.has(key)}
@@ -63,7 +63,7 @@
       onCommit={editor.onCommit}
       commitAction="{label} Color"
     />
-    <div class="flex min-w-0 flex-col gap-1.5 text-[13px] text-dark/65">
+    <div class="flex min-w-0 flex-col gap-1.5 text-label text-dark/65">
       <div>
         Hue <span class="font-mono text-light-950 tabular-nums">{Math.round(data.hue)}°</span>
       </div>
@@ -75,7 +75,7 @@
         variant="ghost"
         color="secondary"
         leadingIcon={mdiRestore}
-        class="mt-1 h-9 self-start rounded-full bg-ghost px-3.5 text-[13px]"
+        class="mt-1 h-9 self-start rounded-full bg-ghost px-3.5 text-label"
         aria-label="Reset {label}"
         disabled={!modified.has(region)}
         onclick={() => commitParamReset(params, `Reset ${label}`)}

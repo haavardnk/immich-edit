@@ -74,7 +74,7 @@
   {#if scrub.dragging}
     {#each years as year (year.label)}
       <span
-        class="absolute right-4 -translate-y-1/2 rounded-lg bg-light-50 px-1.5 py-px text-[10.5px] text-light-950 ring-1 ring-hairline"
+        class="absolute right-4 -translate-y-1/2 rounded-lg bg-light-50 px-1.5 py-px text-caption text-light-950 ring-1 ring-hairline"
         style:top="{year.at * 100}%"
         aria-hidden="true"
       >

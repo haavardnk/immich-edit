@@ -64,7 +64,7 @@
 {#snippet recentChips()}
   {#if recent.length > 0}
     <div
-      class="px-3 pt-3 pb-1 text-[10px] font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-[11px]"
+      class="px-3 pt-3 pb-1 text-micro font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-caption"
     >
       Recent
     </div>

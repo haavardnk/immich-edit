@@ -11,8 +11,8 @@
 
 <div class="@container flex min-h-0 flex-1 flex-col">
   <div class="flex h-10 shrink-0 items-center gap-3 border-b border-hairline pr-2 pl-4">
-    <span class="shrink-0 text-[13.5px] font-medium text-light-950">{params.length} pinned</span>
-    <span class="hidden min-w-0 flex-1 truncate text-right text-[12px] text-dark/65 @sm:block">
+    <span class="shrink-0 text-sm font-medium text-light-950">{params.length} pinned</span>
+    <span class="hidden min-w-0 flex-1 truncate text-right text-xs text-dark/65 @sm:block">
       {HINT}
     </span>
     <span class="flex-1 @sm:hidden"></span>
@@ -25,9 +25,9 @@
   >
     {#if params.length > 0}
       <QuickRows {params} />
-      <p class="px-1 pt-3 pb-1 text-center text-[12px] text-dark/65 @sm:hidden">{HINT}</p>
+      <p class="px-1 pt-3 pb-1 text-center text-xs text-dark/65 @sm:hidden">{HINT}</p>
     {:else}
-      <p class="px-1 py-6 text-center text-[13px] text-dark/65">
+      <p class="px-1 py-6 text-center text-label text-dark/65">
         Nothing pinned yet. Hold a setting's label in any group and choose Pin to Quick.
       </p>
     {/if}

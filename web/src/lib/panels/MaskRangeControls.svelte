@@ -70,7 +70,7 @@
       size="tiny"
       variant={picker ? 'filled' : 'ghost'}
       color={picker ? 'primary' : 'secondary'}
-      class="gap-1 px-2 touch:h-10 touch:px-3 touch:text-[13px]"
+      class="gap-1 px-2 touch:h-10 touch:px-3 touch:text-label"
       aria-label="Sample {noun} from the photo"
       aria-pressed={picker !== null}
       onclick={toggleSample}
@@ -86,7 +86,7 @@
       {/if}
     {/if}
     {#if picker && samples > 0}
-      <span class="ms-auto text-[11px] text-dark/65 tabular-nums">{countOf(samples, 'sample')}</span
+      <span class="ms-auto text-caption text-dark/65 tabular-nums">{countOf(samples, 'sample')}</span
       >
       <Button
         type="button"
@@ -101,7 +101,7 @@
     {/if}
   </div>
   {#if picker}
-    <p class="text-[10px] text-dark/65 touch:text-[12px]">{help}</p>
+    <p class="text-micro text-dark/65 touch:text-xs">{help}</p>
   {/if}
 
   {#if luma}

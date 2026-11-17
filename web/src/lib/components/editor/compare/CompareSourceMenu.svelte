@@ -7,7 +7,7 @@
   import { mdiContentDuplicate, mdiEyeOutline, mdiMenuDown, mdiStarOutline } from '@mdi/js';
   import { hasCompareSources, leftName, otherVersions } from './compareText.ts';
 
-  const heading = 'px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase touch:px-4';
+  const heading = 'px-3 pt-1.5 pb-1 text-micro tracking-wider text-dark/65 uppercase touch:px-4';
 
   let open = $state(false);
   const name = $derived(leftName());

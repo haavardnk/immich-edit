@@ -70,7 +70,7 @@
   </svg>
   {#if !mini}
     <div
-      class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-[8px] font-mono text-plot-ink/45"
+      class="pointer-events-none absolute inset-y-0 left-0.5 flex flex-col justify-between py-px text-nano font-mono text-plot-ink/45"
     >
       {#each [...levels].reverse() as level (level)}
         <span>{level}</span>

@@ -34,7 +34,7 @@
 <div class="flex flex-col gap-2 px-3 py-2">
   <div class="flex items-baseline gap-2 touch:hidden">
     <span class="text-xs font-medium text-dark">Apply preset</span>
-    <span class="text-[11px] text-dark/65">{countOf(selection.count, 'photo')}</span>
+    <span class="text-caption text-dark/65">{countOf(selection.count, 'photo')}</span>
   </div>
 
   {#if presets.presets.length === 0}
@@ -58,7 +58,7 @@
         Apply {selected.name} to {selection.count}
       </Button>
 
-      <p class="text-[10px] leading-snug text-dark/65">
+      <p class="text-micro leading-snug text-dark/65">
         Runs as a background job. Track progress in Jobs.
       </p>
     {/if}

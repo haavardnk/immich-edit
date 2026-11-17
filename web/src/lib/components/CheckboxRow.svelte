@@ -24,13 +24,13 @@
 
   const id = $props.id();
   const looks = {
-    row: 'touch:h-11 touch:gap-2.5 touch:text-[13px]',
-    chip: 'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-[13px] touch:text-dark'
+    row: 'touch:h-11 touch:gap-2.5 touch:text-label',
+    chip: 'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-label touch:text-dark'
   };
 </script>
 
 <div
-  class="flex h-6 items-center gap-1.5 text-[11px] text-dark/80 {looks[look]} {className ?? ''}"
+  class="flex h-6 items-center gap-1.5 text-caption text-dark/80 {looks[look]} {className ?? ''}"
   class:opacity-50={disabled}
   {...rest}
 >

@@ -18,13 +18,13 @@
   >
     {#if scopes.pinned}
       <div
-        class="flex h-8 min-w-0 flex-1 items-center px-3 text-[11px] font-semibold text-dark select-none"
+        class="flex h-8 min-w-0 flex-1 items-center px-3 text-caption font-semibold text-dark select-none"
       >
         Scopes
       </div>
     {:else}
       <Collapsible.Trigger
-        class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none {open
+        class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-caption font-semibold transition-colors select-none {open
           ? 'text-dark'
           : 'text-dark/65 hover:text-dark'}"
       >

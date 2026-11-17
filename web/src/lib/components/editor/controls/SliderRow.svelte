@@ -251,7 +251,7 @@
       variant="ghost"
       color="secondary"
       size="tiny"
-      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px] {touch
+      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-caption font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-label {touch
         ? ''
         : 'cursor-ew-resize'}"
       title={touch ? '' : 'Drag to adjust, double-click to reset'}

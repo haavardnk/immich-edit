@@ -17,14 +17,14 @@
     <Avatar size="large" class="size-10 touch:size-13" {name} />
     <div class="min-w-0 flex-1">
       <div class="truncate text-sm font-semibold text-light-950 touch:text-base">{name}</div>
-      <div class="truncate text-xs text-dark/65 touch:text-[13px]">{user.email}</div>
+      <div class="truncate text-xs text-dark/65 touch:text-label">{user.email}</div>
       {#if user.is_admin}
         <Badge size="tiny" color="primary" class="mt-1.5">admin</Badge>
       {/if}
     </div>
   </div>
   <ImmichServerLine
-    class="truncate text-xs text-dark/65 touch:text-[12.5px] {inset ? 'touch:px-3.5' : ''}"
+    class="truncate text-xs text-dark/65 touch:text-label {inset ? 'touch:px-3.5' : ''}"
     dot
   />
 </div>

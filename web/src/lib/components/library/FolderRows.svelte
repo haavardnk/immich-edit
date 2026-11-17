@@ -32,17 +32,17 @@
               : ''}"
           >
             <span class="min-w-0 flex-1">
-              <span data-truncate class="block truncate text-sm text-light-950 touch:text-[15.5px]">
+              <span data-truncate class="block truncate text-sm text-light-950 touch:text-body">
                 <HighlightedText text={folder.name} {query} />
               </span>
               {#if query}
                 {#if parentFolder(folder.path)}
-                  <span class="block truncate text-xs text-dark/65 touch:text-[12.5px]">
+                  <span class="block truncate text-xs text-dark/65 touch:text-label">
                     {parentFolder(folder.path)}
                   </span>
                 {/if}
               {:else if folder.children.length > 0}
-                <span class="block text-xs text-dark/65 touch:text-[12.5px]">
+                <span class="block text-xs text-dark/65 touch:text-label">
                   {countOf(folder.children.length, 'folder')}
                 </span>
               {/if}

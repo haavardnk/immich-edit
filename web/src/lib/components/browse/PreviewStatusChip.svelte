@@ -25,7 +25,7 @@
   {#if pending && late}
     <span
       data-testid="preview-status"
-      class="flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white/85 shadow-lg backdrop-blur-sm"
+      class="flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-caption text-white/85 shadow-lg backdrop-blur-sm"
     >
       <Icon icon={mdiLoading} size="12px" class="animate-spin" aria-hidden="true" />
       {previewStatusLabel(edited)}

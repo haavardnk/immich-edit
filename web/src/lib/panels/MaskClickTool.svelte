@@ -25,7 +25,7 @@
     color={on ? 'primary' : 'secondary'}
     leadingIcon={negative ? mdiMinusCircleOutline : mdiPlusCircleOutline}
     class={touch
-      ? `h-11 min-w-0 gap-1.5 rounded-xl px-2 text-[14px] font-normal ${on ? '' : 'bg-ghost'}`
+      ? `h-11 min-w-0 gap-1.5 rounded-xl px-2 text-sm font-normal ${on ? '' : 'bg-ghost'}`
       : ''}
     title={negative
       ? `Tap an object to cut it out of the mask${invertHint}`
@@ -41,7 +41,7 @@
 {/snippet}
 
 <div class="mt-1 flex h-7 items-center justify-between gap-1.5 touch:h-auto">
-  <div class={touch ? 'grid w-full grid-cols-2 gap-2' : `${segmented.tool.group} flex text-[10px]`}>
+  <div class={touch ? 'grid w-full grid-cols-2 gap-2' : `${segmented.tool.group} flex text-micro`}>
     {@render toggle(false, including)}
     {@render toggle(true, excluding)}
   </div>
@@ -58,10 +58,10 @@
   {/if}
 </div>
 {#if pending}
-  <div class="text-[10px] text-dark/65 touch:text-[13px]">
+  <div class="text-micro text-dark/65 touch:text-label">
     {touch ? 'Tap the photo to select an object.' : 'Click the photo to select an object.'}
   </div>
 {/if}
 {#if editor.maskGenerating}
-  <div class="text-[10px] text-dark/65 touch:text-[13px]">Working…</div>
+  <div class="text-micro text-dark/65 touch:text-label">Working…</div>
 {/if}

@@ -24,7 +24,7 @@
   data-testid="brush-size-rail"
   class="absolute top-1/2 left-3 z-20 flex h-52 w-11 -translate-y-1/2 flex-col items-center gap-2 rounded-full bg-black/55 py-3 text-white shadow-lg backdrop-blur-sm [[data-arrangement=side]_&]:top-[calc(50%+1.5rem)]"
 >
-  <span class="text-[10px] font-medium text-white/70" aria-hidden="true">Size</span>
+  <span class="text-micro font-medium text-white/70" aria-hidden="true">Size</span>
   <Slider.Root
     type="single"
     orientation="vertical"
@@ -46,5 +46,5 @@
       class="block size-6 rounded-full bg-white shadow-md outline-none before:absolute before:-inset-2.5 focus-visible:ring-2 focus-visible:ring-primary"
     />
   </Slider.Root>
-  <span class="font-mono text-[11px] tabular-nums">{readout}</span>
+  <span class="font-mono text-caption tabular-nums">{readout}</span>
 </div>

@@ -69,13 +69,13 @@
   <div class="grid items-center gap-3 py-3 sm:grid-cols-[5rem_7rem_minmax(0,1fr)]">
     <div>
       <div class="text-xs font-medium">{name}</div>
-      <div class="text-[10px] text-dark/65">{stats.count} renders</div>
+      <div class="text-micro text-dark/65">{stats.count} renders</div>
     </div>
     <div>
-      <div class="text-[10px] uppercase text-dark/65">Typical</div>
-      <div class="font-mono text-lg tabular-nums text-light-950/90">{formatUs(stats.p50_us)}</div>
+      <div class="text-micro uppercase text-dark/65">Typical</div>
+      <div class="font-mono text-title tabular-nums text-light-950/90">{formatUs(stats.p50_us)}</div>
     </div>
-    <dl class="grid grid-cols-3 gap-3 text-right text-[10px]">
+    <dl class="grid grid-cols-3 gap-3 text-right text-micro">
       <div>
         <dt class="text-dark/65">p95</dt>
         <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p95_us)}</dd>
@@ -322,7 +322,7 @@
   <section class="space-y-2 pt-5">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Configuration</Heading>
     <pre
-      class="overflow-x-auto rounded border border-hairline bg-light-100 p-3 font-mono text-[11px]">{JSON.stringify(
+      class="overflow-x-auto rounded border border-hairline bg-light-100 p-3 font-mono text-caption">{JSON.stringify(
         health.config,
         null,
         2

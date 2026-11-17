@@ -98,7 +98,7 @@
 >
   <main class="mx-auto my-auto flex w-full max-w-sm flex-col gap-5 touch:my-0 touch:flex-1">
     <Wordmark bright class="touch:hidden" />
-    <h1 class="text-xl font-semibold text-light-950 touch:text-lg">Set up immich-edit</h1>
+    <h1 class="text-xl font-semibold text-light-950 touch:text-title">Set up immich-edit</h1>
     <SetupSteps current={step} />
     {#if providers}
       <AdminStep

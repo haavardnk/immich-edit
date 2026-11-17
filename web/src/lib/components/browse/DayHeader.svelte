@@ -27,7 +27,7 @@
 
 <div
   data-testid="day-header"
-  class="group/day flex h-full min-w-0 items-center gap-2 px-1 pt-1.5 text-sm font-semibold text-light-950 touch:items-end touch:gap-0 touch:pt-0 touch:pb-1.5 touch:text-[13px]"
+  class="group/day flex h-full min-w-0 items-center gap-2 px-1 pt-1.5 text-sm font-semibold text-light-950 touch:items-end touch:gap-0 touch:pt-0 touch:pb-1.5 touch:text-label"
 >
   <Tooltip text={label}>
     {#snippet child({ props })}
@@ -57,7 +57,7 @@
       <span
         {...props}
         data-truncate
-        class="min-w-0 truncate text-[13px] font-normal text-dark/65 touch:ms-auto touch:ps-3 touch:text-xs"
+        class="min-w-0 truncate text-label font-normal text-dark/65 touch:ms-auto touch:ps-3 touch:text-xs"
       >
         {subtitle}
       </span>

@@ -16,13 +16,13 @@
   <div class="flex items-center gap-3">
     <Icon icon={mdiRulerSquare} size="24px" class="shrink-0 text-primary" aria-hidden="true" />
     <div class="min-w-0">
-      <p class="text-[15px] font-semibold text-light-950">Guided upright</p>
-      <p class="text-[12.5px] text-dark/80"><GuideCounts guides={sess.guides} /></p>
+      <p class="text-body font-semibold text-light-950">Guided upright</p>
+      <p class="text-label text-dark/80"><GuideCounts guides={sess.guides} /></p>
     </div>
   </div>
   {#each status as line (line.text)}
     <p
-      class="text-[13px] leading-snug {line.tone === 'warn' ? 'text-warning-800' : 'text-dark/80'}"
+      class="text-label leading-snug {line.tone === 'warn' ? 'text-warning-800' : 'text-dark/80'}"
       role="status"
     >
       {line.text}

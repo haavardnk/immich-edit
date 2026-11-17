@@ -15,7 +15,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline">
-    <div class="text-[9px] font-semibold uppercase text-dark/65">Tool</div>
+    <div class="text-nano font-semibold uppercase text-dark/65">Tool</div>
     <RetouchModeChoice />
   </div>
 
@@ -26,7 +26,7 @@
     onChange={retouchView.toggleVisualize}
   />
 
-  <div class="flex h-6 items-center text-[10px] font-medium text-dark/65">
+  <div class="flex h-6 items-center text-micro font-medium text-dark/65">
     {selected ? strokeTitle(selected.stroke.mode, selected.index) : 'Brush'}
   </div>
   <RetouchSliders />

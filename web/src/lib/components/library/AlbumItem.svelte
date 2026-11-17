@@ -30,9 +30,9 @@
     {/if}
   </div>
   <div class="min-w-0 flex-1 pe-2">
-    <div data-truncate class="truncate text-[13px] leading-tight">
+    <div data-truncate class="truncate text-label leading-tight">
       <HighlightedText text={album.albumName} {query} />
     </div>
-    <div class="text-[10px] text-muted">{album.assetCount}</div>
+    <div class="text-micro text-muted">{album.assetCount}</div>
   </div>
 </TooltipLink>

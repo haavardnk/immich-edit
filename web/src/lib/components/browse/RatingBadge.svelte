@@ -9,7 +9,7 @@
 <span
   role="img"
   aria-label={countOf(rating, 'star')}
-  class="flex shrink-0 items-center gap-0.5 text-[10px] {className}"
+  class="flex shrink-0 items-center gap-0.5 text-micro {className}"
 >
   <Icon icon={mdiStar} size="12px" aria-hidden="true" />
   {rating}

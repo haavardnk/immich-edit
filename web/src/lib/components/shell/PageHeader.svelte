@@ -40,7 +40,7 @@
       <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
       {#if count}
         <span class="shrink-0 text-light-950/45">·</span>
-        <p class="shrink-0 text-[10px] text-dark/65">{count}</p>
+        <p class="shrink-0 text-micro text-dark/65">{count}</p>
       {/if}
     </div>
     {#if headerActions}

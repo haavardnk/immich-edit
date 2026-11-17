@@ -127,7 +127,7 @@
         <p class="text-xs text-dark/65">No shortcuts match “{query}”.</p>
       {:else}
         {#if sections.here.length > 0}
-          <h3 class="text-[11px] uppercase tracking-wider text-primary mb-2">
+          <h3 class="text-caption uppercase tracking-wider text-primary mb-2">
             Available in {hereLabel}
           </h3>
           {@render groupList(sections.here)}
@@ -135,7 +135,7 @@
 
         {#if sections.elsewhere.length > 0}
           <h3
-            class="text-[11px] uppercase tracking-wider text-dark/65 mb-2 {sections.here.length > 0
+            class="text-caption uppercase tracking-wider text-dark/65 mb-2 {sections.here.length > 0
               ? 'mt-3 pt-3 border-t border-hairline'
               : ''}"
           >
@@ -156,7 +156,7 @@
   <div class="columns-1 sm:columns-2 gap-8">
     {#each groups as group (group.title)}
       <div class="break-inside-avoid mb-5">
-        <h4 class="text-[11px] uppercase tracking-wider text-dark/65 mb-1.5">
+        <h4 class="text-caption uppercase tracking-wider text-dark/65 mb-1.5">
           {group.title}
         </h4>
         <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 text-xs">

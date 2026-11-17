@@ -40,8 +40,8 @@
   {#if filterCount > 0}
     <span
       class="pointer-events-none absolute rounded-full bg-primary text-center font-bold text-light ring-2 ring-light {large
-        ? 'top-1.25 right-0.75 h-4.25 min-w-4.25 px-1 text-[11px] leading-4.25'
-        : '-top-1 -right-1 h-3.5 min-w-3.5 px-0.5 text-[9px] leading-3.5'}"
+        ? 'top-1.25 right-0.75 h-4.25 min-w-4.25 px-1 text-caption leading-4.25'
+        : '-top-1 -right-1 h-3.5 min-w-3.5 px-0.5 text-nano leading-3.5'}"
       aria-hidden="true"
     >
       {filterCount}

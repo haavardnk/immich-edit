@@ -116,7 +116,7 @@
     autocomplete="off"
     spellcheck="false"
     size="tiny"
-    class="h-5 bg-hairline ring-1 ring-primary [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-[10px] [&_input]:tabular-nums"
+    class="h-5 bg-hairline ring-1 ring-primary [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-micro [&_input]:tabular-nums"
     aria-label="{label} value"
     value={draft}
     oninput={onDraftInput}
@@ -129,7 +129,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums touch:h-8 touch:text-xs {editing
+    class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-micro tabular-nums touch:h-8 touch:text-xs {editing
       ? 'bg-primary/10 text-primary outline-2 outline-primary'
       : modified
         ? 'bg-primary/10 text-primary'

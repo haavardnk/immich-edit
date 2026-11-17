@@ -130,7 +130,7 @@
           <div class="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-light-100 text-dark">
             <Dialog.Title
               class={caption
-                ? 'flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-[12.5px] font-normal text-dark/65'
+                ? 'flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-label font-normal text-dark/65'
                 : 'sr-only'}
             >
               {title}

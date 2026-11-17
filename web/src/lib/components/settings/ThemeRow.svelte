@@ -51,7 +51,7 @@
         aria-label="{label}: {entry.theme.name}"
       >
         <ThemeSwatch palette={resolved.palette} accent={resolved.accentColor} size="chip" />
-        <span class="text-[13px] text-light-950 touch:hidden">{entry.theme.name}</span>
+        <span class="text-label text-light-950 touch:hidden">{entry.theme.name}</span>
         <Icon
           icon={mdiChevronDown}
           size="14px"

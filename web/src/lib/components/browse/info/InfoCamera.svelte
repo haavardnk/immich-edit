@@ -18,12 +18,12 @@
       {#each cells as cell (cell.label)}
         <div class="flex min-w-0 flex-col-reverse items-center gap-0.5 px-1 py-2 touch:py-2.5">
           <dt
-            class="text-[9px] font-medium tracking-[.06em] text-light-950/65 uppercase touch:text-[10px]"
+            class="text-nano font-medium tracking-[.06em] text-light-950/65 uppercase touch:text-micro"
           >
             {cell.label}
           </dt>
           <dd
-            class="max-w-full truncate text-[13px] font-semibold text-light-950/90 tabular-nums touch:text-base"
+            class="max-w-full truncate text-label font-semibold text-light-950/90 tabular-nums touch:text-base"
           >
             {cell.value}
           </dd>
@@ -35,12 +35,12 @@
     <dl class="flex flex-col gap-1.5 touch:gap-0">
       {#each rows as row (row.key)}
         <div class="flex min-w-0 items-center justify-between gap-4 touch:min-h-9">
-          <dt class="shrink-0 text-xs text-light-950/65 touch:text-[15px]">{row.key}</dt>
+          <dt class="shrink-0 text-xs text-light-950/65 touch:text-body">{row.key}</dt>
           <TruncationTooltip text={row.value}>
             {#snippet child({ props })}
               <dd
                 {...props}
-                class="min-w-0 truncate text-right text-xs font-medium text-light-950/90 tabular-nums touch:text-[15px]"
+                class="min-w-0 truncate text-right text-xs font-medium text-light-950/90 tabular-nums touch:text-body"
               >
                 {row.value}
               </dd>
@@ -50,6 +50,6 @@
       {/each}
     </dl>
   {:else if cells.length === 0}
-    <p class="text-xs text-light-950/65 italic touch:text-[15px]">No EXIF data</p>
+    <p class="text-xs text-light-950/65 italic touch:text-body">No EXIF data</p>
   {/if}
 </InfoSection>

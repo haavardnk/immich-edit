@@ -17,7 +17,7 @@
 </script>
 
 <nav aria-label="Versions" class="flex flex-col">
-  <span class="px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase touch:hidden"
+  <span class="px-3 pt-1.5 pb-1 text-micro tracking-wider text-dark/65 uppercase touch:hidden"
     >Versions</span
   >
   {#each store.items as version (version.id)}

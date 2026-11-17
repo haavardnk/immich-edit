@@ -23,8 +23,8 @@
 
   const inputSize = $derived(
     compact
-      ? '[&_input]:h-6 [&_input]:text-[11px]'
-      : '[&_input]:h-7.5 [&_input]:text-[13px] touch:[&_input]:h-11 touch:[&_input]:text-[15px]'
+      ? '[&_input]:h-6 [&_input]:text-caption'
+      : '[&_input]:h-7.5 [&_input]:text-label touch:[&_input]:h-11 touch:[&_input]:text-body'
   );
 
   function set(next: string): void {

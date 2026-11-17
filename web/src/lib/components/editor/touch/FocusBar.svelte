@@ -47,7 +47,7 @@
   aria-label="Focus {param.label}"
   class="shrink-0 border-t border-hairline bg-editor-panel pb-(--tab-bar-pad)"
 >
-  <div class="flex items-baseline justify-center gap-2 pt-3 text-[15px] font-medium text-light-950">
+  <div class="flex items-baseline justify-center gap-2 pt-3 text-body font-medium text-light-950">
     {param.label}
     <span class="font-mono text-sm text-primary tabular-nums" data-testid="focus-value"
       >{param.format(value)}</span

@@ -15,7 +15,7 @@
 {#snippet placeholder(pending: boolean)}
   <div
     role="status"
-    class="flex items-center justify-center text-[10px] {mini
+    class="flex items-center justify-center text-micro {mini
       ? 'text-current opacity-60'
       : 'bg-plot-surface text-plot-ink/65'}"
     style:height="{height}px"

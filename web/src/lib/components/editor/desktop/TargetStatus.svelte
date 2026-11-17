@@ -9,7 +9,7 @@
 </script>
 
 {#if def}
-  <div role="status" class="flex h-7 min-w-0 flex-1 items-center gap-2 text-[11px]">
+  <div role="status" class="flex h-7 min-w-0 flex-1 items-center gap-2 text-caption">
     <Icon icon={mdiCrosshairsGps} size="14px" class="shrink-0 text-primary" aria-hidden="true" />
     <span class="shrink-0 font-medium text-light-950">Targeted adjustment: {def.label}</span>
     <span class="min-w-0 truncate text-dark/65">

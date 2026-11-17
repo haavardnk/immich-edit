@@ -33,7 +33,7 @@
       <Icon icon={mdiFileImageOutline} size="24px" class="text-dark/45" aria-hidden="true" />
     {/if}
   </div>
-  <div class="flex min-w-0 flex-col gap-0.5 text-[11px] leading-snug text-dark/65 touch:text-xs">
+  <div class="flex min-w-0 flex-col gap-0.5 text-caption leading-snug text-dark/65 touch:text-xs">
     <p class="font-mono text-xs break-all text-dark touch:text-sm">{file.name}</p>
     <p>{fileMeasure(file)}</p>
     <p>{fileSpec(file)}</p>

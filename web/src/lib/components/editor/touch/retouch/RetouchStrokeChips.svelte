@@ -50,7 +50,7 @@
             size="medium"
             variant="ghost"
             color="secondary"
-            class="h-full gap-2 rounded-xl ps-3 pe-1.5 text-[14px] font-normal text-dark hover:bg-transparent {stroke.enabled
+            class="h-full gap-2 rounded-xl ps-3 pe-1.5 text-sm font-normal text-dark hover:bg-transparent {stroke.enabled
               ? ''
               : 'opacity-50'}"
             leadingIcon={RETOUCH_MODE_ICON[stroke.mode]}
@@ -81,7 +81,7 @@
       {/each}
     </div>
   {:else}
-    <p class="flex h-14 min-w-0 flex-1 items-center px-4 text-[13px] text-dark/65">
+    <p class="flex h-14 min-w-0 flex-1 items-center px-4 text-label text-dark/65">
       {NO_STROKES_TEXT}
     </p>
   {/if}

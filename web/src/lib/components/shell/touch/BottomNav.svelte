@@ -26,7 +26,7 @@
       class="group flex h-15 min-w-0 flex-1 items-center justify-center outline-none"
     >
       <span
-        class="flex h-13 w-20 max-w-full flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium group-focus-visible:ring-2 group-focus-visible:ring-primary {active
+        class="flex h-13 w-20 max-w-full flex-col items-center justify-center gap-0.5 rounded-xl text-caption font-medium group-focus-visible:ring-2 group-focus-visible:ring-primary {active
           ? 'bg-primary/12 text-light-950'
           : 'text-dark/65'}"
       >

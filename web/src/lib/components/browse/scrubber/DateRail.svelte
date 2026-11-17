@@ -52,7 +52,7 @@
   >
     {#each marks.years as year (year.label)}
       <span
-        class="absolute right-2.5 -translate-y-full pb-1 text-[11px] leading-none font-semibold text-dark/65 tabular-nums"
+        class="absolute right-2.5 -translate-y-full pb-1 text-caption leading-none font-semibold text-dark/65 tabular-nums"
         style:top="{year.at * 100}%"
       >
         {year.label}
@@ -78,7 +78,7 @@
       ></span>
       <span
         data-testid="date-rail-bubble"
-        class="pointer-events-none absolute right-14.5 -translate-y-1/2 rounded-lg bg-light-50 px-3 py-1.5 text-[13px] font-medium whitespace-nowrap text-light-950 shadow-popover ring-1 ring-hairline"
+        class="pointer-events-none absolute right-14.5 -translate-y-1/2 rounded-lg bg-light-50 px-3 py-1.5 text-label font-medium whitespace-nowrap text-light-950 shadow-popover ring-1 ring-hairline"
         style:top="{scrub.previewAt * 100}%"
       >
         {monthLabel(hovered.month)}<small class="ms-1.5 text-xs font-normal text-dark/65"

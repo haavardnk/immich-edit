@@ -38,9 +38,9 @@
 
   const SETTING_LIMIT = 8;
   const LIBRARY_LIMIT = 5;
-  const HEADING = 'px-3 pt-2.5 pb-1 text-[10px] font-semibold tracking-wide text-dark/65 uppercase';
+  const HEADING = 'px-3 pt-2.5 pb-1 text-micro font-semibold tracking-wide text-dark/65 uppercase';
   const ROW =
-    'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-[13px] text-dark outline-none data-selected:bg-primary/12';
+    'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-label text-dark outline-none data-selected:bg-primary/12';
 
   const SETTING_VALUE = 'setting:';
 
@@ -198,7 +198,7 @@
                         aria-label="Pinned"
                       />
                     {/if}
-                    <span class="shrink-0 font-mono text-[11px] text-dark/65 tabular-nums">
+                    <span class="shrink-0 font-mono text-caption text-dark/65 tabular-nums">
                       {settingValue(setting, editor.edits, editor.isRaw)}
                     </span>
                   </Command.Item>
@@ -264,7 +264,7 @@
           {/if}
         </Command.List>
         <div
-          class="flex shrink-0 items-center gap-4 border-t border-hairline px-3 py-1.5 text-[11px] text-dark/65"
+          class="flex shrink-0 items-center gap-4 border-t border-hairline px-3 py-1.5 text-caption text-dark/65"
           aria-hidden="true"
         >
           <span><kbd class="font-mono">↑↓</kbd> move</span>

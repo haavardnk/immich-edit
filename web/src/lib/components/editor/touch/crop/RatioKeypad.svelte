@@ -142,7 +142,7 @@
       : ''}"
   >
     <span
-      class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-[13px] text-dark/65"
+      class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-label text-dark/65"
       aria-hidden="true">{label}</span
     >
     <TextInput
@@ -176,9 +176,9 @@
   <div class="flex items-center gap-3 px-1">
     <Icon icon={mdiCropLandscape} size="20px" class="shrink-0 text-primary" aria-hidden="true" />
     <div class="min-w-0 flex-1">
-      <p class="text-[15px] font-semibold text-light-950">Aspect ratio</p>
+      <p class="text-body font-semibold text-light-950">Aspect ratio</p>
       {#if readout}
-        <p class="truncate text-[12px] text-dark/65 tabular-nums">
+        <p class="truncate text-xs text-dark/65 tabular-nums">
           {readout.label} at {readout.lead}
         </p>
       {/if}
@@ -240,7 +240,7 @@
         {@render key(':', () => (side = 'height'))}
       {:else if index === 8}
         <span
-          class="flex items-center justify-center text-center text-[11px] text-dark/65 tabular-nums"
+          class="flex items-center justify-center text-center text-caption text-dark/65 tabular-nums"
           >1 … 9999</span
         >
       {/if}

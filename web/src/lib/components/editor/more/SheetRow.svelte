@@ -19,6 +19,6 @@
 </script>
 
 <MenuRow {icon} {label} class="hidden touch:flex" aria-label={label} {disabled} {onclick}>
-  <span class="shrink-0 text-[13px] text-dark/65">{detail}</span>
+  <span class="shrink-0 text-label text-dark/65">{detail}</span>
   <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
 </MenuRow>

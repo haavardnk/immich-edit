@@ -74,7 +74,7 @@
       >
     </span>
     <kbd
-      class="shrink-0 rounded border border-dark/15 px-1 font-mono text-[10px] text-dark/65 touch:hidden"
+      class="shrink-0 rounded border border-dark/15 px-1 font-mono text-micro text-dark/65 touch:hidden"
       aria-hidden="true">{keysFor('newSnapshot')}</kbd
     >
   </Button>

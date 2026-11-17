@@ -36,7 +36,7 @@
   {/if}
   <div class="min-w-0 flex-1">
     <div
-      class="flex min-w-0 items-center gap-2 text-[13px] touch:text-[15px] {muted
+      class="flex min-w-0 items-center gap-2 text-label touch:text-body {muted
         ? 'text-dark/80'
         : 'text-light-950'}"
     >
@@ -44,10 +44,10 @@
       {@render badge?.()}
     </div>
     {#if hint}
-      <div class="mt-0.5 text-xs text-dark/80 touch:text-[13px]">{hint}</div>
+      <div class="mt-0.5 text-xs text-dark/80 touch:text-label">{hint}</div>
     {/if}
     {#if detail}
-      <div class="mt-0.5 truncate text-xs text-dark/80 touch:text-[13px]">{@render detail()}</div>
+      <div class="mt-0.5 truncate text-xs text-dark/80 touch:text-label">{@render detail()}</div>
     {/if}
   </div>
   {@render children?.()}

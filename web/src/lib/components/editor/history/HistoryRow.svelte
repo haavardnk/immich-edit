@@ -127,7 +127,7 @@
           >
             {#if tag}
               <span
-                class="text-[9px] tracking-wider uppercase touch:text-[11px] touch:font-semibold {tag ===
+                class="text-nano tracking-wider uppercase touch:text-caption touch:font-semibold {tag ===
                 'previewing'
                   ? 'font-semibold text-primary'
                   : step.current
@@ -140,7 +140,7 @@
             {/if}
           </span>
         </span>
-        <span class="text-[10px] text-dark/65 touch:hidden {faded ? 'opacity-50' : ''}"
+        <span class="text-micro text-dark/65 touch:hidden {faded ? 'opacity-50' : ''}"
           >{formatWhen(entry.created_at)}</span
         >
       </span>

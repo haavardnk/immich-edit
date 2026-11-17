@@ -154,7 +154,7 @@
     {#snippet child({ props })}
       <span
         {...mergeProps(props, { tabindex: -1 })}
-        class="shrink-0 text-[10px] tabular-nums text-dark/65"
+        class="shrink-0 text-micro tabular-nums text-dark/65"
       >
         {countOf(layer.components.length, 'shape')}
       </span>

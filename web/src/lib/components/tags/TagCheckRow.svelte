@@ -23,7 +23,7 @@
 </script>
 
 <li
-  class="flex min-h-7 items-center gap-1 pe-3 text-xs touch:min-h-11 touch:border-b touch:border-hairline touch:pe-4 touch:text-[15px]"
+  class="flex min-h-7 items-center gap-1 pe-3 text-xs touch:min-h-11 touch:border-b touch:border-hairline touch:pe-4 touch:text-body"
   style:padding-inline-start="{12 + depth * 16}px"
 >
   {@render lead?.()}

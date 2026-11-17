@@ -34,7 +34,7 @@
               <button
                 {...props}
                 type="button"
-                class="flex flex-none items-center gap-1 rounded-sm px-1.5 py-0.5 text-left text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-primary {pressed
+                class="flex flex-none items-center gap-1 rounded-sm px-1.5 py-0.5 text-left text-caption outline-none focus-visible:ring-2 focus-visible:ring-primary {pressed
                   ? 'bg-light-950/10 text-dark'
                   : 'text-dark/65 hover:text-dark'}"
                 aria-pressed={pressed}

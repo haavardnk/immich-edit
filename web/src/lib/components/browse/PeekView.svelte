@@ -52,7 +52,7 @@
       {/if}
     {/key}
   </div>
-  <figcaption class="mb-4 flex h-12 max-w-full items-center gap-4 px-4 text-[13.5px] text-white/85">
+  <figcaption class="mb-4 flex h-12 max-w-full items-center gap-4 px-4 text-sm text-white/85">
     <span class="truncate font-semibold text-white">{asset.originalFileName}</span>
     {#if taken}
       <span class="shrink-0">{taken}</span>

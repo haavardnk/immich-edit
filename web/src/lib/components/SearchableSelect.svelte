@@ -226,11 +226,11 @@
       {/snippet}
     </TruncationTooltip>
     {#if description}
-      <span class="block truncate text-[10px] text-dark/65">{description}</span>
+      <span class="block truncate text-micro text-dark/65">{description}</span>
     {/if}
   </span>
   {#if previewing !== null && previewing === getId(item)}
-    <span class="flex shrink-0 items-center gap-1 text-[10px] text-primary touch:text-xs">
+    <span class="flex shrink-0 items-center gap-1 text-micro text-primary touch:text-xs">
       <Icon icon={mdiEyeOutline} size="12px" aria-hidden="true" />
       previewing
     </span>
@@ -271,7 +271,7 @@
     {@const previous = suggestions[index - 1]}
     {@const previousGroup = previous ? getGroup?.(previous) : null}
     {#if group && group !== previousGroup}
-      <div class="px-3 pt-2 pb-1 text-[9px] font-semibold text-dark/65 uppercase">
+      <div class="px-3 pt-2 pb-1 text-nano font-semibold text-dark/65 uppercase">
         {group}
       </div>
     {/if}

@@ -24,7 +24,7 @@
       onclick={editor.clearUprightGuides}>Clear guides</Button
     >
   </div>
-  <div class="text-[11px] text-dark/80"><GuideCounts guides={sess.guides} /></div>
+  <div class="text-caption text-dark/80"><GuideCounts guides={sess.guides} /></div>
   {#each status as line (line.text)}
     <Notice color={line.tone === 'warn' ? 'warning' : 'info'} message={line.text} />
   {/each}

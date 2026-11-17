@@ -33,8 +33,8 @@
   const resetShown = $derived(modified && onReset !== undefined);
   const triggerClass = $derived(
     variant === 'section'
-      ? `group relative flex w-full items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none touch:h-14 touch:gap-3 touch:px-4 touch:text-[15.5px] touch:font-medium touch:text-light-950 h-8 ${resetShown ? 'pr-8 touch:pr-14' : ''} ${open ? 'bg-light-950/4 text-dark' : 'text-dark/65 hover:bg-light-950/3 hover:text-dark'}`
-      : 'flex h-6 items-center gap-1 rounded px-1 text-[10px] font-medium text-dark/65 transition-colors select-none hover:bg-ghost hover:text-dark'
+      ? `group relative flex w-full items-center gap-2 px-3 text-caption font-semibold transition-colors select-none touch:h-14 touch:gap-3 touch:px-4 touch:text-body touch:font-medium touch:text-light-950 h-8 ${resetShown ? 'pr-8 touch:pr-14' : ''} ${open ? 'bg-light-950/4 text-dark' : 'text-dark/65 hover:bg-light-950/3 hover:text-dark'}`
+      : 'flex h-6 items-center gap-1 rounded px-1 text-micro font-medium text-dark/65 transition-colors select-none hover:bg-ghost hover:text-dark'
   );
   const iconSize = $derived(variant === 'section' ? 14 : 12);
 </script>

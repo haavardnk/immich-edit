@@ -25,7 +25,7 @@
   });
 
   const sheet = $derived(variant === 'sheet');
-  const rowClass = $derived(sheet ? 'h-11 px-2 text-[15px]' : 'h-8 px-1.5 text-[13px]');
+  const rowClass = $derived(sheet ? 'h-11 px-2 text-body' : 'h-8 px-1.5 text-label');
 
   function idsOf(group: SectionGroup): string[] {
     return group.rows.map((row) => row.id);
@@ -37,12 +37,12 @@
     <div class="flex items-center gap-2.5 text-dark/65 {rowClass}">
       <Icon icon={mdiLockOutline} size="16px" class="ms-1.5 shrink-0" aria-hidden="true" />
       <span class="min-w-0 flex-1 truncate">{section.label}</span>
-      <span class="shrink-0 text-[11px] text-dark/65">{section.note}</span>
+      <span class="shrink-0 text-caption text-dark/65">{section.note}</span>
     </div>
   {/each}
   {#each groups as group (group.id)}
     {#if group.label}
-      <h3 class="px-2 pt-3 pb-1 text-[11px] font-medium tracking-wider text-dark/65 uppercase">
+      <h3 class="px-2 pt-3 pb-1 text-caption font-medium tracking-wider text-dark/65 uppercase">
         {group.label}
       </h3>
     {/if}
@@ -83,7 +83,7 @@
             />
           {:else}
             {#if row.hidden}
-              <span class="shrink-0 text-[11px] text-dark/65">hidden</span>
+              <span class="shrink-0 text-caption text-dark/65">hidden</span>
             {/if}
             <IconButton
               size="tiny"

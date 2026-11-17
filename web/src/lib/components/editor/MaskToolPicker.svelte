@@ -33,7 +33,7 @@
 
 <div class="w-56 py-1">
   {#if tools.length > 0}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">AI</div>
+    <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">AI</div>
     {#each tools as entry (entry.id)}
       <Button
         type="button"
@@ -54,7 +54,7 @@
         <span class="flex-1 min-w-0">
           <span class="block text-xs truncate">{entry.label}</span>
           {#if !entry.installed}
-            <span class="block text-[10px] text-dark/65 truncate">{MISSING_MODEL}</span>
+            <span class="block text-micro text-dark/65 truncate">{MISSING_MODEL}</span>
           {/if}
         </span>
         {#if !entry.installed}
@@ -87,13 +87,13 @@
     {/each}
     <div class="my-1 border-t border-hairline"></div>
   {:else if aiUnavailable}
-    <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">AI</div>
-    <div class="px-3 pb-2 text-[10px] text-dark/65 leading-snug">
+    <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">AI</div>
+    <div class="px-3 pb-2 text-micro text-dark/65 leading-snug">
       {aiUnavailable}
     </div>
     <div class="my-1 border-t border-hairline"></div>
   {/if}
-  <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">Manual</div>
+  <div class="px-3 pt-1 pb-1 text-micro uppercase tracking-wider text-dark/65">Manual</div>
   {#each MANUAL_TOOLS as item (item.tool)}
     <Button
       type="button"
@@ -107,7 +107,7 @@
       <Icon icon={item.icon} size="14px" class="mt-0.5 shrink-0 opacity-70" aria-hidden="true" />
       <span class="flex-1 min-w-0 truncate text-xs">{item.label}</span>
       {#if item.bind}
-        <span class="mt-0.5 shrink-0 font-mono text-[10px] text-dark/65">{keysFor(item.bind)}</span>
+        <span class="mt-0.5 shrink-0 font-mono text-micro text-dark/65">{keysFor(item.bind)}</span>
       {/if}
     </Button>
   {/each}

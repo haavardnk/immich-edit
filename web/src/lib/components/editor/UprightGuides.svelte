@@ -223,7 +223,7 @@
   >
   {#each lines as line, i (i)}
     <span
-      class="pointer-events-none absolute -translate-1/2 font-mono text-[11px] font-semibold text-shadow-sm {line.kind ===
+      class="pointer-events-none absolute -translate-1/2 font-mono text-caption font-semibold text-shadow-sm {line.kind ===
       'vertical'
         ? 'text-guide-vertical'
         : 'text-guide-horizontal'}"

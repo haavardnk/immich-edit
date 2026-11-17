@@ -179,7 +179,7 @@
   {#if dcp.mode !== 'off' && dcp.mode !== 'flat'}
     <Collapsible.Root bind:open={optionsOpen} class="flex flex-col gap-1">
       <Collapsible.Trigger
-        class="flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark"
+        class="flex h-7 items-center gap-1.5 rounded-md px-2 text-caption font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark"
       >
         <Icon icon={mdiTuneVariant} size="14px" aria-hidden="true" />
         <span class="flex-1 text-left">Profile options</span>
@@ -193,7 +193,7 @@
 
       <RevealContent class="flex flex-col gap-1 border-t border-hairline pt-1">
         <div class="flex flex-col gap-1">
-          <span class="text-[10px] font-medium text-dark/65">Illuminant</span>
+          <span class="text-micro font-medium text-dark/65">Illuminant</span>
           <RadioGroup.Root
             bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
             orientation="horizontal"

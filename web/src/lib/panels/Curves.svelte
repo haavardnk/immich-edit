@@ -55,7 +55,7 @@
           {#snippet child({ props })}
             <RadioGroup.Item
               value={ch}
-              class="flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2 text-[11px] font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary aria-checked:bg-primary/22 aria-checked:text-light-950 aria-[checked=false]:bg-ghost aria-[checked=false]:text-dark/80 touch:h-8 touch:px-3 touch:text-[13.5px] touch:font-normal"
+              class="flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2 text-caption font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary aria-checked:bg-primary/22 aria-checked:text-light-950 aria-[checked=false]:bg-ghost aria-[checked=false]:text-dark/80 touch:h-8 touch:px-3 touch:text-sm touch:font-normal"
               aria-label="Edit {CHANNEL_LABELS[ch]} curve"
               {...props}
             >

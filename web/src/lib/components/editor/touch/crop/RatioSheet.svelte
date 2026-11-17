@@ -63,7 +63,7 @@
 
 <ActionSheet {open} {onOpenChange} title="Aspect ratio" caption>
   {#if readout}
-    <p class="-mt-1 pb-2 text-center text-[12px] text-dark/65 tabular-nums">
+    <p class="-mt-1 pb-2 text-center text-xs text-dark/65 tabular-nums">
       {readout.label} at {readout.lead}
     </p>
   {/if}
@@ -96,7 +96,7 @@
     pressed={isPicked('original')}
     onclick={() => pickKind('original')}
   >
-    <span class="shrink-0 text-[13px] text-dark/65">{asShot}</span>
+    <span class="shrink-0 text-label text-dark/65">{asShot}</span>
     {@render picked(isPicked('original'))}
   </MenuRow>
   <MenuRow
@@ -118,6 +118,6 @@
     </MenuRow>
   {/each}
   <MenuRow icon={mdiFormTextbox} label="Custom…" onclick={oncustom}>
-    <span class="shrink-0 text-[13px] text-dark/65">width : height</span>
+    <span class="shrink-0 text-label text-dark/65">width : height</span>
   </MenuRow>
 </ActionSheet>

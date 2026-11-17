@@ -252,7 +252,7 @@
       </Button>
       {@render key('0')}
       <span
-        class="flex items-center justify-center text-center text-[11px] leading-tight text-dark/65 tabular-nums"
+        class="flex items-center justify-center text-center text-caption leading-tight text-dark/65 tabular-nums"
       >
         {hint}
       </span>

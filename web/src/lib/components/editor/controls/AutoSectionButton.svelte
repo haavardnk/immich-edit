@@ -12,7 +12,7 @@
 </script>
 
 {#if running}
-  <span class="px-1 text-[10px] text-dark/65 touch:text-[12px] {className}" role="status">
+  <span class="px-1 text-micro text-dark/65 touch:text-xs {className}" role="status">
     Analyzing…
   </span>
 {/if}

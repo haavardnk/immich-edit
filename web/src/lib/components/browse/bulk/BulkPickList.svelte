@@ -53,7 +53,7 @@
   const rest = $derived(shown.filter((item) => holding(item.id) <= 0));
   const summary = $derived(stageSummary(stages));
   const heading =
-    'px-3 pt-3 pb-1 text-[10px] font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-[11px]';
+    'px-3 pt-3 pb-1 text-micro font-medium tracking-wider text-dark/65 uppercase touch:px-4 touch:text-caption';
 
   function ariaChecked(check: PickCheck): 'true' | 'false' | 'mixed' {
     return check === 'mixed' ? 'mixed' : check ? 'true' : 'false';
@@ -84,10 +84,10 @@
       <Icon icon={item.icon} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
     {/if}
     <span class="flex min-w-0 flex-1 flex-col leading-tight">
-      <span class="truncate text-[13px] text-light-950 touch:text-[15px]">{item.label}</span>
+      <span class="truncate text-label text-light-950 touch:text-body">{item.label}</span>
       {#if note}
         <span
-          class="truncate text-[11px] touch:text-[12.5px] {stage ? 'text-primary' : 'text-dark/65'}"
+          class="truncate text-caption touch:text-label {stage ? 'text-primary' : 'text-dark/65'}"
           >{note}</span
         >
       {/if}
@@ -131,7 +131,7 @@
     class="sticky bottom-0 z-10 mt-auto flex items-center gap-3 border-t border-hairline bg-light-100 touch:bg-light-50 px-3 py-2 touch:px-0 touch:py-3"
   >
     <span class="flex min-w-0 flex-1 flex-col leading-tight">
-      <span class="text-[12.5px] text-light-950 touch:text-sm">
+      <span class="text-label text-light-950 touch:text-sm">
         {summary.count === 0
           ? 'No changes'
           : summary.count === 1
@@ -139,7 +139,7 @@
             : `${summary.count} changes`}
       </span>
       {#if summary.detail}
-        <span class="truncate text-[11px] text-dark/65 touch:text-[12.5px]">{summary.detail}</span>
+        <span class="truncate text-caption text-dark/65 touch:text-label">{summary.detail}</span>
       {/if}
     </span>
     <Button

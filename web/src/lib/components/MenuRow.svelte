@@ -44,6 +44,6 @@
   {/if}
   {@render children?.()}
   {#if showKeys}
-    <span class="shrink-0 font-mono text-[10px] text-dark/65" aria-hidden="true">{keys}</span>
+    <span class="shrink-0 font-mono text-micro text-dark/65" aria-hidden="true">{keys}</span>
   {/if}
 </Button>

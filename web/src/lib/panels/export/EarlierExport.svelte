@@ -49,7 +49,7 @@
       <p class="min-w-0 text-xs leading-snug text-dark touch:text-sm">
         <span id={titleId}>{earlierTitle(run)}</span>
         {#if files}
-          <span class="block font-mono text-[11px] break-all text-dark/65 touch:text-xs">
+          <span class="block font-mono text-caption break-all text-dark/65 touch:text-xs">
             {files}
           </span>
         {/if}
@@ -72,7 +72,7 @@
         </RadioGroup.Item>
       {/each}
     </RadioGroup.Root>
-    <p class="text-[10px] leading-snug text-dark/65 touch:text-xs">
+    <p class="text-micro leading-snug text-dark/65 touch:text-xs">
       {earlierHint(run, policy)}
       {#if replaceReason}
         <span class="block">{replaceReason}</span>

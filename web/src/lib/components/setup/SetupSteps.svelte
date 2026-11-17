@@ -29,7 +29,7 @@
       <span class="flex items-center gap-1.5">
         <span
           aria-hidden="true"
-          class="grid size-4.5 shrink-0 place-items-center rounded-full text-[10px] font-semibold touch:hidden {active
+          class="grid size-4.5 shrink-0 place-items-center rounded-full text-micro font-semibold touch:hidden {active
             ? 'bg-primary text-light'
             : 'bg-light-200 text-dark/80'}"
         >

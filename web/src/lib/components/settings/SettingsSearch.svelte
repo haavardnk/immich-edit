@@ -131,7 +131,7 @@
         {@render list()}
         {#if layout.mode === 'desktop'}
           <p
-            class="border-t border-hairline px-3 py-1.5 text-[10.5px] text-dark/80"
+            class="border-t border-hairline px-3 py-1.5 text-caption text-dark/80"
             aria-hidden="true"
           >
             ↑↓ move · ↵ open · esc close · {keysFor('settingsSearch')} search

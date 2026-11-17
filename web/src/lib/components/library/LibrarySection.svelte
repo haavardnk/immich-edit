@@ -23,7 +23,7 @@
       tooltip={more.name}
       href={more.href}
       aria-label={more.name}
-      class="flex min-h-8 items-center rounded-md text-xs font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary touch:min-h-11 touch:text-[12.5px]"
+      class="flex min-h-8 items-center rounded-md text-xs font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary touch:min-h-11 touch:text-label"
     >
       {more.label}
     </TooltipLink>

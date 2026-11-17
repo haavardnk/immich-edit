@@ -26,7 +26,7 @@
   onclick={actions.clear}
 />
 <p
-  class="min-w-0 flex-1 ps-1 text-lg font-semibold whitespace-nowrap text-light-950"
+  class="min-w-0 flex-1 ps-1 text-title font-semibold whitespace-nowrap text-light-950"
   aria-live="polite"
 >
   {scope.targetCount} selected
@@ -36,7 +36,7 @@
     size="small"
     variant="ghost"
     color="primary"
-    class="h-11 shrink-0 px-3 text-[15px] font-semibold"
+    class="h-11 shrink-0 px-3 text-body font-semibold"
     loading={scope.selectingAll}
     disabled={actions.busy || scope.loadingMore}
     onclick={() => void actions.selectAll()}

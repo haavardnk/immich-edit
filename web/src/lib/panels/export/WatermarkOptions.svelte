@@ -30,7 +30,7 @@
     [...watermarkLibrary.items].sort((a, b) => b.created_at.localeCompare(a.created_at))
   );
   const tile =
-    'flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-[10px] text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary touch:w-20 touch:text-xs';
+    'flex w-16 shrink-0 flex-col items-center gap-1 rounded-lg p-1 text-micro text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary touch:w-20 touch:text-xs';
   const face =
     'flex h-11 w-full items-center justify-center overflow-hidden rounded-md bg-light-200 touch:h-14';
   const selected = $derived(watermarkLibrary.items.find((w) => w.id === form.watermarkId) ?? null);
@@ -205,7 +205,7 @@
 {#if importError}
   <div
     role="alert"
-    class="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-2.5 py-2 text-[11px] leading-snug text-danger-800 touch:text-sm"
+    class="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-2.5 py-2 text-caption leading-snug text-danger-800 touch:text-sm"
   >
     <div class="min-w-0 flex-1">
       <p class="font-mono break-all">{importError.file}</p>

@@ -19,7 +19,7 @@
     },
     mini: {
       group: 'grid gap-0.5 rounded-md bg-ghost p-0.5 touch:rounded-lg',
-      item: 'relative flex h-5.5 items-center justify-center rounded px-2 text-[11.5px] whitespace-nowrap text-dark/65 transition-colors hover:text-dark aria-checked:bg-light-200 aria-checked:font-medium aria-checked:text-light-950 touch:h-7 touch:rounded-md touch:px-2.75 touch:text-[12.5px] touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-2',
+      item: 'relative flex h-5.5 items-center justify-center rounded px-2 text-xs whitespace-nowrap text-dark/65 transition-colors hover:text-dark aria-checked:bg-light-200 aria-checked:font-medium aria-checked:text-light-950 touch:h-7 touch:rounded-md touch:px-2.75 touch:text-label touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-2',
       icon: 'shrink-0'
     },
     photo: {

@@ -98,7 +98,7 @@
       {/each}
     </svg>
     <div
-      class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-[8px] font-mono text-plot-ink/45"
+      class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-0.5 text-nano font-mono text-plot-ink/45"
     >
       {#each levels as level (level)}
         <span>{level}</span>
@@ -110,7 +110,7 @@
         {#snippet child({ props })}
           <div
             {...mergeProps(props, { tabindex: -1 })}
-            class="absolute left-1 top-0.5 text-[9px] font-mono text-blue-400"
+            class="absolute left-1 top-0.5 text-nano font-mono text-blue-400"
           >
             ▼
           </div>
@@ -122,7 +122,7 @@
         {#snippet child({ props })}
           <div
             {...mergeProps(props, { tabindex: -1 })}
-            class="absolute right-1 top-0.5 text-[9px] font-mono text-red-400"
+            class="absolute right-1 top-0.5 text-nano font-mono text-red-400"
           >
             ▲
           </div>

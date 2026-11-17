@@ -76,7 +76,7 @@
     <div
       class="flex items-baseline justify-between border-t border-hairline px-3 pt-3 pb-1 sm:px-5 touch:px-4"
     >
-      <h2 class="text-xs font-semibold text-light-950 touch:text-[13px]">In this folder</h2>
+      <h2 class="text-xs font-semibold text-light-950 touch:text-label">In this folder</h2>
       <span class="text-xs text-dark/65">{countOf(assets.length, 'photo')}</span>
     </div>
   {/if}

@@ -10,7 +10,7 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { mdiBrush, mdiEraser } from '@mdi/js';
 
-  const TOUCH_SEGMENT = 'touch:h-full touch:flex-1 touch:rounded-xl touch:text-[13px]';
+  const TOUCH_SEGMENT = 'touch:h-full touch:flex-1 touch:rounded-xl touch:text-label';
 
   let { showSize = true }: { showSize?: boolean } = $props();
 
@@ -22,15 +22,15 @@
 
 <div class="mt-1 flex flex-col gap-1">
   <div class="flex h-7 items-center gap-2 touch:h-auto">
-    <div class="me-auto text-[10px] font-medium text-dark/65 touch:hidden">Brush</div>
+    <div class="me-auto text-micro font-medium text-dark/65 touch:hidden">Brush</div>
     {#if heldErase}
-      <kbd class="rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-dark/65">
+      <kbd class="rounded border border-hairline px-1.5 py-0.5 font-mono text-micro text-dark/65">
         {keysFor('brushEraseHold')}
       </kbd>
     {/if}
     <div
       class="{segmented.tool
-        .group} flex text-[10px] touch:h-12 touch:flex-1 touch:gap-0.5 touch:rounded-xl touch:bg-ghost touch:p-0.5 touch:ring-0"
+        .group} flex text-micro touch:h-12 touch:flex-1 touch:gap-0.5 touch:rounded-xl touch:bg-ghost touch:p-0.5 touch:ring-0"
     >
       <Button
         type="button"

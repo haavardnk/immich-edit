@@ -84,7 +84,7 @@
     {#if pointer}
       <span
         data-testid="wb-picker-readout"
-        class="pointer-events-none absolute grid grid-cols-[auto_auto] gap-x-3 whitespace-nowrap rounded bg-black/75 px-2.5 py-1.5 text-left text-[11px] tabular-nums text-white shadow-lg"
+        class="pointer-events-none absolute grid grid-cols-[auto_auto] gap-x-3 whitespace-nowrap rounded bg-black/75 px-2.5 py-1.5 text-left text-caption tabular-nums text-white shadow-lg"
         style="left: {pointer.u * 100}%; top: {pointer.v *
           100}%; transform: translate({cardShift});"
       >

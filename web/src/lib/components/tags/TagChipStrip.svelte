@@ -61,7 +61,7 @@
         variant="ghost"
         color="secondary"
         shape="round"
-        class="h-6 shrink-0 bg-light-200 px-2 text-[11px] font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
+        class="h-6 shrink-0 bg-light-200 px-2 text-caption font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
         title={countOf(hidden, 'more tag')}
         aria-label={countOf(hidden, 'more tag')}
         {disabled}
@@ -80,7 +80,7 @@
         <TagChip {tag} ruler onRemove={() => {}} />
       {/each}
       <span
-        class="inline-flex h-6 items-center px-2 text-[11px] font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
+        class="inline-flex h-6 items-center px-2 text-caption font-medium tabular-nums touch:h-9 touch:px-3 touch:text-sm"
       >
         +{tags.length}
       </span>

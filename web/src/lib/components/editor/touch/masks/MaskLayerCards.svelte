@@ -70,13 +70,13 @@
             </span>
           {/if}
           <span class="flex min-w-0 flex-col text-left">
-            <span class="flex items-center gap-1.5 text-[13.5px] font-medium text-dark">
+            <span class="flex items-center gap-1.5 text-sm font-medium text-dark">
               <span class="truncate">{layer.name}</span>
               {#if !maskedEditsIsZero(layer.edits)}
                 <span class="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
               {/if}
             </span>
-            <span class="truncate text-[11px] text-dark/65">
+            <span class="truncate text-caption text-dark/65">
               {countOf(layer.components.length, 'shape')}
             </span>
           </span>

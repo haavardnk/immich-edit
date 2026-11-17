@@ -66,10 +66,10 @@
     aria-invalid={error !== null}
     aria-describedby={error ? errorId : undefined}
     {onkeydown}
-    class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! [&_input]:h-8 [&_input]:text-[13px] touch:[&_input]:h-11 touch:[&_input]:text-[15px]"
+    class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! [&_input]:h-8 [&_input]:text-label touch:[&_input]:h-11 touch:[&_input]:text-body"
   />
   {#if error}
-    <p id={errorId} class="text-[11.5px] text-danger-800 touch:text-[13px]">{error}</p>
+    <p id={errorId} class="text-xs text-danger-800 touch:text-label">{error}</p>
   {/if}
   <div class="flex justify-end gap-2">
     <Button

@@ -9,7 +9,7 @@
   let { oncreate }: { oncreate: () => void } = $props();
 
   const buttonClass =
-    'flex w-full items-center justify-center gap-1 rounded-sm border border-dashed border-light-950/20 text-[11px] text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary enabled:hover:border-light-950/40 enabled:hover:text-dark disabled:cursor-not-allowed disabled:opacity-50 touch:rounded-lg touch:text-[13px]';
+    'flex w-full items-center justify-center gap-1 rounded-sm border border-dashed border-light-950/20 text-caption text-dark/65 outline-none focus-visible:ring-2 focus-visible:ring-primary enabled:hover:border-light-950/40 enabled:hover:text-dark disabled:cursor-not-allowed disabled:opacity-50 touch:rounded-lg touch:text-label';
 </script>
 
 <li class="flex w-24 flex-none flex-col gap-0.5 touch:min-h-28 touch:w-22 touch:gap-2">

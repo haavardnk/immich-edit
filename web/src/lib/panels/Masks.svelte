@@ -68,7 +68,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline px-1">
-    <div class="text-[9px] font-semibold uppercase text-dark/65">
+    <div class="text-nano font-semibold uppercase text-dark/65">
       Masks ({layers.length}/{N_MAX_MASK_LAYERS})
     </div>
     <div class="flex items-center gap-1">
@@ -202,7 +202,7 @@
             class="opacity-40 shrink-0"
             aria-hidden="true"
           />
-          <span class="truncate text-[10px] font-medium text-dark/65">
+          <span class="truncate text-micro font-medium text-dark/65">
             Refine ({active.components.length}/{N_MAX_COMPONENTS_PER_LAYER})
           </span>
         </Button>
@@ -255,11 +255,11 @@
         </div>
 
         {#if shapeLimit}
-          <div class="px-1 text-[10px] text-dark/65">{shapeLimit}</div>
+          <div class="px-1 text-micro text-dark/65">{shapeLimit}</div>
         {/if}
 
         {#if active.components.length === 0}
-          <div class="px-1 py-1 text-[10px] italic text-dark/65">
+          <div class="px-1 py-1 text-micro italic text-dark/65">
             Empty mask. Use Add to pick a tool.
           </div>
         {:else}

@@ -25,7 +25,7 @@
 </script>
 
 <div
-  class="flex h-7 items-center gap-2.5 text-xs text-dark/80 touch:h-11 touch:gap-3 touch:border-b touch:border-hairline touch:text-[15px] {depth ===
+  class="flex h-7 items-center gap-2.5 text-xs text-dark/80 touch:h-11 touch:gap-3 touch:border-b touch:border-hairline touch:text-body {depth ===
   1
     ? 'ps-6 touch:ps-9'
     : depth === 2
@@ -56,7 +56,7 @@
       >
     {/if}
     {#if note}
-      <span class="ms-auto shrink-0 text-[11px] text-dark/45 touch:text-[13px]">{note}</span>
+      <span class="ms-auto shrink-0 text-caption text-dark/45 touch:text-label">{note}</span>
     {/if}
   </label>
 </div>

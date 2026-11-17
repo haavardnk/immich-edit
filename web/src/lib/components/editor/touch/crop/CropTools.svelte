@@ -61,7 +61,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="group h-auto min-w-0 flex-col gap-1 rounded-xl bg-transparent px-0 py-1 text-[11px] font-medium text-dark/80 hover:bg-transparent aria-pressed:text-light-950"
+    class="group h-auto min-w-0 flex-col gap-1 rounded-xl bg-transparent px-0 py-1 text-caption font-medium text-dark/80 hover:bg-transparent aria-pressed:text-light-950"
     aria-label={name}
     aria-pressed={pressed}
     {disabled}

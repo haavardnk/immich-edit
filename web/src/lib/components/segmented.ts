@@ -1,5 +1,5 @@
 const textItem =
-  'flex h-6 items-center justify-center rounded-sm text-[10px] font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark touch:h-11 touch:rounded-md touch:text-[13px]';
+  'flex h-6 items-center justify-center rounded-sm text-micro font-medium text-dark/65 transition-colors hover:bg-ghost hover:text-dark touch:h-11 touch:rounded-md touch:text-label';
 
 export const segmented = {
   text: {
@@ -15,7 +15,7 @@ export const segmented = {
   photo: {
     group: '@container grid h-12 gap-0.5 rounded-xl bg-current/10 p-0.5',
     radio:
-      'flex h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-[13px] font-medium whitespace-nowrap opacity-70 transition-colors hover:opacity-100 aria-checked:bg-current/15 aria-checked:font-semibold aria-checked:opacity-100',
+      'flex h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-label font-medium whitespace-nowrap opacity-70 transition-colors hover:opacity-100 aria-checked:bg-current/15 aria-checked:font-semibold aria-checked:opacity-100',
     icon: 'hidden shrink-0 @[17rem]:block'
   },
   row: {

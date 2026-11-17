@@ -40,8 +40,8 @@
         aria-hidden="true"
       />
       <div class="flex min-w-0 flex-1 flex-col">
-        <span class="truncate text-[15px] font-medium text-dark">{title}</span>
-        <span class="truncate text-[12px] text-dark/65">
+        <span class="truncate text-body font-medium text-dark">{title}</span>
+        <span class="truncate text-xs text-dark/65">
           {modeName(selected.stroke.mode)} · drag the ring to move it
         </span>
       </div>
@@ -83,8 +83,8 @@
           aria-hidden="true"
         />
         <div class="flex min-w-0 flex-col gap-0.5">
-          <span class="text-[13.5px] font-medium text-warning-800">{RETOUCH_LIMIT_TEXT}</span>
-          <span class="text-[12.5px] text-dark/80">{RETOUCH_LIMIT_HINT}</span>
+          <span class="text-sm font-medium text-warning-800">{RETOUCH_LIMIT_TEXT}</span>
+          <span class="text-label text-dark/80">{RETOUCH_LIMIT_HINT}</span>
         </div>
       </div>
     {/if}

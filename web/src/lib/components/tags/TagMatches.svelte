@@ -51,7 +51,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-8 w-full justify-start rounded-none px-3 text-left text-xs font-normal touch:h-11 touch:px-4 touch:text-[15px]"
+    class="h-8 w-full justify-start rounded-none px-3 text-left text-xs font-normal touch:h-11 touch:px-4 touch:text-body"
     leadingIcon={mdiPlus}
     {disabled}
     onclick={onCreate}

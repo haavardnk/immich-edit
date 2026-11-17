@@ -101,13 +101,13 @@
           <span class="truncate touch:text-base touch:font-medium">{version.name}</span>
           {#if current}
             <span
-              class="hidden shrink-0 text-[11px] font-semibold tracking-wider text-primary uppercase touch:inline"
+              class="hidden shrink-0 text-caption font-semibold tracking-wider text-primary uppercase touch:inline"
               >Current</span
             >
           {/if}
         </span>
         {#if summary}
-          <span class="hidden truncate text-[13px] text-dark/65 touch:block">{summary}</span>
+          <span class="hidden truncate text-label text-dark/65 touch:block">{summary}</span>
         {/if}
       </span>
     </a>

@@ -15,7 +15,7 @@
   color="secondary"
   shape="round"
   leadingIcon={mdiPlus}
-  class="h-6 shrink-0 border border-dashed border-light-950/25 px-2 text-[11px] touch:h-9 touch:px-3 touch:text-sm"
+  class="h-6 shrink-0 border border-dashed border-light-950/25 px-2 text-caption touch:h-9 touch:px-3 touch:text-sm"
   {disabled}
   {...rest}
 >

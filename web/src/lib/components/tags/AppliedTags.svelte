@@ -22,7 +22,7 @@
     size="tiny"
     variant="ghost"
     color="primary"
-    class="-me-2 touch:min-h-11 touch:text-[12.5px]"
+    class="-me-2 touch:min-h-11 touch:text-label"
     {disabled}
     onclick={clearAll}
   >

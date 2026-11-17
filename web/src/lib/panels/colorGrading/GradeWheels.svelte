@@ -94,7 +94,7 @@
               </div>
               <RadioGroup.Item
                 value={wheel.key}
-                class="h-5 px-1.5 text-[10px] font-medium text-dark/65 transition-colors duration-fast hover:text-dark aria-checked:text-primary"
+                class="h-5 px-1.5 text-micro font-medium text-dark/65 transition-colors duration-fast hover:text-dark aria-checked:text-primary"
               >
                 {GRADE_REGION_LABELS[wheel.key]}
               </RadioGroup.Item>
@@ -114,7 +114,7 @@
             onCommit={editor.onCommit}
             commitAction="Global Color"
           />
-          <div class="text-[10px] font-medium text-dark/65">Global</div>
+          <div class="text-micro font-medium text-dark/65">Global</div>
         </div>
       {/if}
     </Tabs.Content>
@@ -129,7 +129,7 @@
     >
       <div class="flex flex-col gap-1 pt-1">
         <div
-          class="flex items-center justify-between text-[10px] font-mono tabular-nums text-dark/65 px-1"
+          class="flex items-center justify-between text-micro font-mono tabular-nums text-dark/65 px-1"
         >
           <span>H: {Math.round(activeRegionData.hue)}</span>
           <span>S: {Math.round(activeRegionData.sat)}</span>

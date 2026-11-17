@@ -25,11 +25,11 @@
       >
         <Icon icon={mdiFolderOutline} size="14px" class="opacity-40 flex-none" aria-hidden="true" />
         <span class="flex min-w-0 flex-1 flex-col pe-2 leading-tight">
-          <span data-truncate class="truncate text-[13px]">
+          <span data-truncate class="truncate text-label">
             <HighlightedText text={node.name} {query} />
           </span>
           {#if parent}
-            <span data-truncate class="truncate text-[10px] text-muted">{parent}</span>
+            <span data-truncate class="truncate text-micro text-muted">{parent}</span>
           {/if}
         </span>
       </TooltipLink>

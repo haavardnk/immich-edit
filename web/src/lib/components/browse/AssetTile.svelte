@@ -287,13 +287,13 @@
         data-testid="tile-name"
         class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
       >
-        <span class="truncate text-[10px] font-medium">{asset.originalFileName}</span>
+        <span class="truncate text-micro font-medium">{asset.originalFileName}</span>
         {#if taken}
-          <span class="truncate text-[9px] text-white/70">{taken}</span>
+          <span class="truncate text-nano text-white/70">{taken}</span>
         {/if}
       </span>
       {#if copyBadge}
-        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
+        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-nano text-white/75">
           <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
           <span class="truncate">{copyBadge}</span>
         </span>

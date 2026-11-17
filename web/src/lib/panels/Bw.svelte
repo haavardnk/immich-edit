@@ -40,7 +40,7 @@
               onCommit={editor.onCommit}
               commitAction="{tint.label} Tint"
             />
-            <span class="text-[10px] font-medium text-dark/65">{tint.label}</span>
+            <span class="text-micro font-medium text-dark/65">{tint.label}</span>
           </div>
         {/each}
       </div>

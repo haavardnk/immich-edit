@@ -49,7 +49,7 @@
 >
   <CommandIconButton command={editorBack} size="medium" variant="ghost" shape="round" />
   {#if filename && editor.asset}
-    <span class="min-w-0 truncate px-1 text-[13px] font-semibold text-light-950/90">
+    <span class="min-w-0 truncate px-1 text-label font-semibold text-light-950/90">
       {editor.asset.originalFileName}
     </span>
   {/if}

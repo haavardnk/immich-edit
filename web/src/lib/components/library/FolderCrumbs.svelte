@@ -22,7 +22,7 @@
     class="group flex h-8 shrink-0 items-center outline-none touch:h-11"
   >
     <span
-      class="flex h-8 max-w-48 items-center gap-1.5 rounded-lg px-2 text-xs whitespace-nowrap group-focus-visible:ring-2 group-focus-visible:ring-primary touch:text-[13.5px] {current
+      class="flex h-8 max-w-48 items-center gap-1.5 rounded-lg px-2 text-xs whitespace-nowrap group-focus-visible:ring-2 group-focus-visible:ring-primary touch:text-sm {current
         ? 'bg-light-100 font-medium text-light-950'
         : 'text-dark/65 group-hover:bg-subtle'}"
     >

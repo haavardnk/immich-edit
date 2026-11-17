@@ -36,7 +36,7 @@
     {#each chips as chip (chip.key)}
       <span
         role="listitem"
-        class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2.5 text-[11px] whitespace-nowrap touch:h-8 touch:pl-3 touch:text-xs"
+        class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2.5 text-caption whitespace-nowrap touch:h-8 touch:pl-3 touch:text-xs"
       >
         {#if chip.color}
           <Icon icon={mdiCircle} size="12px" class={LABEL_TEXT[chip.color]} aria-hidden="true" />

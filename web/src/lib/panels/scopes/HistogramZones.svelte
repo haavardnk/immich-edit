@@ -68,7 +68,7 @@
     ></span>
     <span
       data-testid="histogram-zone"
-      class="pointer-events-none absolute bottom-3 rounded bg-editor-chrome/85 px-1.5 py-px text-[10px] font-medium whitespace-nowrap text-light-950 tabular-nums"
+      class="pointer-events-none absolute bottom-3 rounded bg-editor-chrome/85 px-1.5 py-px text-micro font-medium whitespace-nowrap text-light-950 tabular-nums"
       style={labelStyle}
     >
       {zone.param.label}
