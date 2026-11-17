@@ -43,7 +43,7 @@
       <Icon
         icon={mdiHistory}
         size="16px"
-        class="mt-px shrink-0 text-dark/60 touch:size-5"
+        class="mt-px shrink-0 text-dark/65 touch:size-5"
         aria-hidden="true"
       />
       <p class="min-w-0 text-xs leading-snug text-dark touch:text-sm">
@@ -72,7 +72,7 @@
         </RadioGroup.Item>
       {/each}
     </RadioGroup.Root>
-    <p class="text-[10px] leading-snug text-dark/60 touch:text-xs">
+    <p class="text-[10px] leading-snug text-dark/65 touch:text-xs">
       {earlierHint(run, policy)}
       {#if replaceReason}
         <span class="block">{replaceReason}</span>

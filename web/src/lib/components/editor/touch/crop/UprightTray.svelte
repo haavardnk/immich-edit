@@ -17,7 +17,7 @@
     <Icon icon={mdiRulerSquare} size="24px" class="shrink-0 text-primary" aria-hidden="true" />
     <div class="min-w-0">
       <p class="text-[15px] font-semibold text-light-950">Guided upright</p>
-      <p class="text-[12.5px] text-dark/70"><GuideCounts guides={sess.guides} /></p>
+      <p class="text-[12.5px] text-dark/80"><GuideCounts guides={sess.guides} /></p>
     </div>
   </div>
   {#each status as line (line.text)}

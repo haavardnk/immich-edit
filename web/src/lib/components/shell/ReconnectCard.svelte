@@ -17,7 +17,7 @@
     <Wordmark bright class="mb-6" />
     <h1 class="text-xl font-semibold text-light-950">{title}</h1>
     {#if cause}
-      <p class="mt-1.5 text-sm text-dark/75">{cause}</p>
+      <p class="mt-1.5 text-sm text-dark/80">{cause}</p>
     {/if}
     <div class="mt-5 flex gap-2 [&>*]:flex-1">
       <Button
@@ -34,7 +34,7 @@
     </div>
     {#if !reconnect.offline}
       <p
-        class="mt-3 text-center text-xs text-dark/75 tabular-nums"
+        class="mt-3 text-center text-xs text-dark/80 tabular-nums"
         data-testid="reconnect-countdown"
       >
         {reconnect.probing ? 'Retrying…' : `Retrying in ${reconnect.secondsLeft} s`}

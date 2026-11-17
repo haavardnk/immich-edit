@@ -26,7 +26,7 @@
   <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop}>
     {#snippet actions()}
       {#if outputSize}
-        <span class="text-[11px] tabular-nums text-dark/55" data-testid="crop-output-size"
+        <span class="text-[11px] tabular-nums text-dark/65" data-testid="crop-output-size"
           >{outputSize.w} × {outputSize.h} px</span
         >
       {/if}
@@ -52,7 +52,7 @@
       {/if}
     {/snippet}
   </SectionHeader>
-  <span class="text-[10px] font-medium tracking-wider text-dark/55 uppercase select-none"
+  <span class="text-[10px] font-medium tracking-wider text-dark/65 uppercase select-none"
     >Aspect ratio</span
   >
   <RatioChips />

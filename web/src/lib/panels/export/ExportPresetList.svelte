@@ -84,7 +84,7 @@
             <span
               id={summaryId}
               data-truncate
-              class="block truncate text-[10px] text-dark/60 touch:text-xs"
+              class="block truncate text-[10px] text-dark/65 touch:text-xs"
             >
               {summary}
             </span>
@@ -109,7 +109,7 @@
         variant="ghost"
         color="secondary"
         shape="round"
-        class="shrink-0 text-dark/50 hover:text-red-400 touch:size-11"
+        class="shrink-0 text-dark/45 hover:text-red-400 touch:size-11"
         icon={mdiDeleteOutline}
         title="Delete"
         aria-label="Delete export preset {preset.name}"
@@ -117,7 +117,7 @@
       />
     </li>
   {:else}
-    <li class="px-3 py-1.5 text-xs text-dark/50 touch:px-4 touch:py-3 touch:text-sm">
+    <li class="px-3 py-1.5 text-xs text-dark/45 touch:px-4 touch:py-3 touch:text-sm">
       {exportPresets.loaded ? 'No saved presets' : 'Loading…'}
     </li>
   {/each}

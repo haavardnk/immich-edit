@@ -84,7 +84,7 @@
         />
         <div class="flex min-w-0 flex-col gap-0.5">
           <span class="text-[13.5px] font-medium text-warning-800">{RETOUCH_LIMIT_TEXT}</span>
-          <span class="text-[12.5px] text-dark/75">{RETOUCH_LIMIT_HINT}</span>
+          <span class="text-[12.5px] text-dark/80">{RETOUCH_LIMIT_HINT}</span>
         </div>
       </div>
     {/if}

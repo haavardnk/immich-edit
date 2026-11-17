@@ -41,7 +41,7 @@
 >
   {@render crumb('Folders', folderHref(''), crumbs.length === 0, mdiFolderOutline)}
   {#each crumbs as entry, index (entry.path)}
-    <Icon icon={mdiChevronRight} size="14px" class="shrink-0 text-dark/40" aria-hidden="true" />
+    <Icon icon={mdiChevronRight} size="14px" class="shrink-0 text-dark/45" aria-hidden="true" />
     {@render crumb(entry.name, folderHref(entry.path), index === crumbs.length - 1)}
   {/each}
 </nav>

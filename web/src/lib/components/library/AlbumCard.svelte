@@ -16,7 +16,7 @@
   class="group flex min-w-0 flex-col gap-0.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 >
   <span
-    class="no-callout relative mb-1.5 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-light-200 text-dark/40"
+    class="no-callout relative mb-1.5 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-light-200 text-dark/45"
   >
     {#if album.albumThumbnailAssetId}
       <img

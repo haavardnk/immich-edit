@@ -87,7 +87,7 @@
               ? 'mt-auto'
               : ''} {active
               ? 'bg-primary/10 text-primary'
-              : 'text-light-950/50 hover:bg-subtle hover:text-primary'}"
+              : 'text-light-950/65 hover:bg-subtle hover:text-primary'}"
             aria-label={tool.label}
             aria-selected={active}
             aria-controls="editor-panel-{tool.id}"

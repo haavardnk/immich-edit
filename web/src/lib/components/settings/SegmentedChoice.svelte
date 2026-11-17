@@ -14,7 +14,7 @@
     },
     view: {
       group: 'grid gap-0.5 rounded-lg bg-ghost p-0.5 touch:rounded-xl touch:p-[3px]',
-      item: 'flex h-6 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-xs whitespace-nowrap text-dark/75 transition-colors hover:text-dark aria-checked:bg-light-200 aria-checked:font-medium aria-checked:text-light-950 touch:h-9.5 touch:rounded-lg touch:px-3 touch:text-sm',
+      item: 'flex h-6 min-w-0 items-center justify-center gap-1 rounded-md px-2.5 text-xs whitespace-nowrap text-dark/80 transition-colors hover:text-dark aria-checked:bg-light-200 aria-checked:font-medium aria-checked:text-light-950 touch:h-9.5 touch:rounded-lg touch:px-3 touch:text-sm',
       icon: 'shrink-0'
     },
     mini: {

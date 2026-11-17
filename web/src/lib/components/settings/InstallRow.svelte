@@ -33,7 +33,7 @@
 {:else if current.kind !== 'hidden'}
   <SettingsRow label="Install app" anchor="install">
     {#if current.kind === 'installed'}
-      <span class="shrink-0 text-xs text-dark/75 touch:text-sm">Installed</span>
+      <span class="shrink-0 text-xs text-dark/80 touch:text-sm">Installed</span>
     {:else}
       <Button
         size="small"

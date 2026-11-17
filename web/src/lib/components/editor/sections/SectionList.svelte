@@ -37,7 +37,7 @@
     <div class="flex items-center gap-2.5 text-dark/65 {rowClass}">
       <Icon icon={mdiLockOutline} size="16px" class="ms-1.5 shrink-0" aria-hidden="true" />
       <span class="min-w-0 flex-1 truncate">{section.label}</span>
-      <span class="shrink-0 text-[11px] text-dark/55">{section.note}</span>
+      <span class="shrink-0 text-[11px] text-dark/65">{section.note}</span>
     </div>
   {/each}
   {#each groups as group (group.id)}
@@ -83,7 +83,7 @@
             />
           {:else}
             {#if row.hidden}
-              <span class="shrink-0 text-[11px] text-dark/55">hidden</span>
+              <span class="shrink-0 text-[11px] text-dark/65">hidden</span>
             {/if}
             <IconButton
               size="tiny"

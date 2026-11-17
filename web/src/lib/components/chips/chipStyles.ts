@@ -6,10 +6,10 @@ const shape = `${base} px-2`;
 const picked =
   'aria-checked:bg-primary/20 aria-checked:text-light-950 aria-checked:ring-primary/50 aria-pressed:bg-primary/20 aria-pressed:text-light-950 aria-pressed:ring-primary/50';
 
-const valueLook = `bg-ghost text-dark/85 ring-1 ring-hairline ring-inset hover:bg-light-950/8 hover:text-dark ${picked}`;
+const valueLook = `bg-ghost text-dark/80 ring-1 ring-hairline ring-inset hover:bg-light-950/8 hover:text-dark ${picked}`;
 
 const denseLook =
-  'bg-ghost text-dark/85 hover:text-dark hover:not-aria-checked:not-aria-pressed:bg-light-950/8 aria-checked:bg-primary aria-checked:text-light aria-pressed:bg-primary aria-pressed:text-light';
+  'bg-ghost text-dark/80 hover:text-dark hover:not-aria-checked:not-aria-pressed:bg-light-950/8 aria-checked:bg-primary aria-checked:text-light aria-pressed:bg-primary aria-pressed:text-light';
 
 export const chipTone = {
   value: `${shape} ${valueLook}`,

@@ -35,7 +35,7 @@
   >
     {label}
     {#if detail}
-      <span class="text-dark/55">· {detail}</span>
+      <span class="text-dark/65">· {detail}</span>
     {/if}
   </Button>
 {/snippet}
@@ -45,7 +45,7 @@
   aria-label="Quick pick"
   class="scrollbar-hidden flex flex-nowrap items-center gap-1.5 overflow-x-auto border-b border-hairline pb-3 touch:pb-2"
 >
-  <span class="me-1 shrink-0 text-[11px] text-dark/55 @max-[480px]:hidden touch:text-[13px]"
+  <span class="me-1 shrink-0 text-[11px] text-dark/65 @max-[480px]:hidden touch:text-[13px]"
     >Quick pick</span
   >
   {@render chip(

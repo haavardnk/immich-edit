@@ -51,7 +51,7 @@
   bind:this={ruler}
   aria-hidden="true"
   data-testid={testid}
-  class="relative h-12 overflow-hidden text-dark/40"
+  class="relative h-12 overflow-hidden text-dark/45"
   {@attach drag}
 >
   <div

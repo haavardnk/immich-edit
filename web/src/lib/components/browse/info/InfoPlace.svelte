@@ -27,7 +27,7 @@
       {#if place.region}
         <TruncationTooltip text={place.region}>
           {#snippet child({ props })}
-            <span {...props} class="truncate text-xs text-light-950/60 touch:text-sm">
+            <span {...props} class="truncate text-xs text-light-950/65 touch:text-sm">
               {place.region}
             </span>
           {/snippet}

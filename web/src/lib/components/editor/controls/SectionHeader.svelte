@@ -58,7 +58,7 @@
       variant="ghost"
       color="secondary"
       class="-ms-1 h-5 min-h-0 rounded px-1 py-0 text-[9px] font-semibold uppercase select-none {bypassing
-        ? 'text-dark/30'
+        ? 'text-dark/45'
         : 'text-dark/65'} hover:bg-hairline hover:text-dark"
       title="hold to bypass {title}"
       aria-label="Bypass {title}"

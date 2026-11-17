@@ -39,7 +39,7 @@
     <div class="flex min-w-0 flex-1 items-baseline gap-2">
       <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
       {#if count}
-        <span class="shrink-0 text-light-950/20">·</span>
+        <span class="shrink-0 text-light-950/45">·</span>
         <p class="shrink-0 text-[10px] text-dark/65">{count}</p>
       {/if}
     </div>

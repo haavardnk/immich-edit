@@ -28,7 +28,7 @@
     <div class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
         <p class="truncate text-xs font-medium">{label}</p>
-        <p class="mt-0.5 text-[11px] text-dark/70" data-testid="job-toast-outcome">
+        <p class="mt-0.5 text-[11px] text-dark/80" data-testid="job-toast-outcome">
           {jobOutcome(job)}
         </p>
       </div>

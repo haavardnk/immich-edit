@@ -31,7 +31,7 @@
         bind:value={url}
       />
     </Field>
-    <p class="text-xs text-dark/75">
+    <p class="text-xs text-dark/80">
       A Docker address such as <span class="font-mono">http://immich-server:2283</span> works too.
     </p>
   </div>

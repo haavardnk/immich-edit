@@ -31,7 +31,7 @@
         <Icon
           icon={open ? mdiChevronDown : mdiChevronRight}
           size="14px"
-          class="text-dark/35 transition-colors group-hover:text-dark/60"
+          class="text-dark/45 transition-colors group-hover:text-dark/65"
           aria-hidden="true"
         />
         Scopes

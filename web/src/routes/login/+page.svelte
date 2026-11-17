@@ -168,7 +168,7 @@
             {providers.button_text}
           </Button>
           {#if showPasswordForm}
-            <div class="flex items-center gap-3 text-xs text-light-950/35">
+            <div class="flex items-center gap-3 text-xs text-light-950/45">
               <span class="h-px flex-1 bg-light-950/15"></span>
               or
               <span class="h-px flex-1 bg-light-950/15"></span>

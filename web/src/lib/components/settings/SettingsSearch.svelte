@@ -83,7 +83,7 @@
 {#snippet list()}
   <div bind:this={results} data-sveltekit-replacestate={inline ? undefined : ''}>
     {#if hits.length === 0}
-      <p class="px-3 py-2 text-xs text-dark/75 touch:px-4 touch:text-sm">
+      <p class="px-3 py-2 text-xs text-dark/80 touch:px-4 touch:text-sm">
         No settings match “{query.trim()}”.
       </p>
     {:else}
@@ -131,7 +131,7 @@
         {@render list()}
         {#if layout.mode === 'desktop'}
           <p
-            class="border-t border-hairline px-3 py-1.5 text-[10.5px] text-dark/75"
+            class="border-t border-hairline px-3 py-1.5 text-[10.5px] text-dark/80"
             aria-hidden="true"
           >
             ↑↓ move · ↵ open · esc close · {keysFor('settingsSearch')} search

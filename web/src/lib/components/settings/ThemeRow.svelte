@@ -55,7 +55,7 @@
         <Icon
           icon={mdiChevronDown}
           size="14px"
-          class="text-dark/75 touch:hidden"
+          class="text-dark/80 touch:hidden"
           aria-hidden="true"
         />
         <Icon

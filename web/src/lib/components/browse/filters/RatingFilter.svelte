@@ -66,7 +66,7 @@
         <Icon
           icon={n <= lit ? mdiStar : mdiStarOutline}
           size="1em"
-          class={n <= lit ? 'text-primary' : 'text-dark/40'}
+          class={n <= lit ? 'text-primary' : 'text-dark/45'}
           aria-hidden="true"
         />
       </IconToggle>

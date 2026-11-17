@@ -63,7 +63,7 @@
             />
           {:else}
             <span
-              class="flex size-9 shrink-0 items-center justify-center rounded-md text-dark/40 ring-1 ring-hairline"
+              class="flex size-9 shrink-0 items-center justify-center rounded-md text-dark/45 ring-1 ring-hairline"
               data-testid="mask-thumb-pending"
             >
               <Icon icon={mdiLayersOutline} size="20px" aria-hidden="true" />

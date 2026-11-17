@@ -37,7 +37,7 @@
   {#each groups as group (group.page.id)}
     <section class="flex flex-col" aria-label="{group.page.title} results">
       <div
-        class="flex items-baseline justify-between px-3 pt-1 pb-0.5 text-[10.5px] font-semibold tracking-wide text-dark/75 uppercase touch:px-4 touch:text-[11px]"
+        class="flex items-baseline justify-between px-3 pt-1 pb-0.5 text-[10.5px] font-semibold tracking-wide text-dark/80 uppercase touch:px-4 touch:text-[11px]"
       >
         <h2>{group.page.title}</h2>
         <span class="tabular-nums">{group.hits.length}</span>
@@ -54,14 +54,14 @@
           <Icon
             icon={hit.page.icon}
             size="16px"
-            class="mt-0.5 shrink-0 text-dark/75"
+            class="mt-0.5 shrink-0 text-dark/80"
             aria-hidden="true"
           />
           <span class="flex min-w-0 flex-col">
             <span class="text-[13px] touch:text-[15px]">
               <HighlightedText text={hit.entry.title} {query} />
             </span>
-            <span class="truncate text-[11.5px] text-dark/75 touch:text-[13px]">
+            <span class="truncate text-[11.5px] text-dark/80 touch:text-[13px]">
               <HighlightedText text={hit.entry.detail} {query} />
             </span>
           </span>

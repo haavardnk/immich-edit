@@ -74,7 +74,7 @@
     </Popover>
   {/snippet}
   {#if failure}
-    <div class="flex items-center justify-between gap-2 text-xs text-light-950/60 touch:text-sm">
+    <div class="flex items-center justify-between gap-2 text-xs text-light-950/65 touch:text-sm">
       <span>Albums did not load</span>
       <Button
         size="tiny"
@@ -87,9 +87,9 @@
       </Button>
     </div>
   {:else if albums === null}
-    <span class="text-xs text-light-950/60 touch:text-sm" role="status">Loading albums…</span>
+    <span class="text-xs text-light-950/65 touch:text-sm" role="status">Loading albums…</span>
   {:else if albums.length === 0}
-    <span class="text-xs text-light-950/60 touch:text-sm">Not in any album</span>
+    <span class="text-xs text-light-950/65 touch:text-sm">Not in any album</span>
   {:else}
     <ul class="flex flex-col gap-1.5" aria-label="Albums with this photo">
       {#each albums as album (album.id)}
@@ -103,7 +103,7 @@
             />
           {:else}
             <span
-              class="grid size-7 shrink-0 place-items-center rounded bg-light-950/8 text-light-950/60 touch:size-9"
+              class="grid size-7 shrink-0 place-items-center rounded bg-light-950/8 text-light-950/65 touch:size-9"
             >
               <Icon icon={mdiImageAlbum} size="16px" aria-hidden="true" />
             </span>
@@ -118,7 +118,7 @@
               </span>
             {/snippet}
           </TruncationTooltip>
-          <span class="shrink-0 text-[11px] text-light-950/60 tabular-nums touch:text-sm">
+          <span class="shrink-0 text-[11px] text-light-950/65 tabular-nums touch:text-sm">
             <span aria-hidden="true">{album.assetCount}</span>
             <span class="sr-only">{countOf(album.assetCount, 'photo')}</span>
           </span>

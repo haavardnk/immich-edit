@@ -166,7 +166,7 @@
             bind:value={query}
             aria-label="Search settings and actions"
             placeholder="Search settings, presets and actions"
-            class="h-11 min-w-0 flex-1 bg-transparent text-sm text-light-950 caret-primary outline-none placeholder:text-dark/50"
+            class="h-11 min-w-0 flex-1 bg-transparent text-sm text-light-950 caret-primary outline-none placeholder:text-dark/45"
           />
         </div>
         <Command.List class="min-h-0 flex-1 overflow-y-auto pb-1.5 scrollbar-hidden">

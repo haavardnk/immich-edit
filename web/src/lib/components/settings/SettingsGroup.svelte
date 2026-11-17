@@ -22,12 +22,12 @@
   <div class="flex min-h-6 items-baseline gap-2.5 px-0.5 touch:px-1">
     <h2
       id="{id}-title"
-      class="text-[13px] font-semibold text-light-950 touch:text-xs touch:font-medium touch:tracking-wide touch:text-dark/75 touch:uppercase"
+      class="text-[13px] font-semibold text-light-950 touch:text-xs touch:font-medium touch:tracking-wide touch:text-dark/80 touch:uppercase"
     >
       {title}
     </h2>
     {#if note}
-      <span class="text-xs text-dark/75">{note}</span>
+      <span class="text-xs text-dark/80">{note}</span>
     {/if}
     {#if action}
       <div class="ms-auto flex items-center">{@render action()}</div>

@@ -44,7 +44,7 @@
     <Icon
       icon={open ? mdiChevronDown : mdiChevronRight}
       size={`${iconSize}px`}
-      class="text-dark/35 transition-colors group-hover:text-dark/60"
+      class="text-dark/45 transition-colors group-hover:text-dark/65"
       aria-hidden="true"
     />
     {#if icon}

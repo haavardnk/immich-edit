@@ -18,7 +18,7 @@
       {#each cells as cell (cell.label)}
         <div class="flex min-w-0 flex-col-reverse items-center gap-0.5 px-1 py-2 touch:py-2.5">
           <dt
-            class="text-[9px] font-medium tracking-[.06em] text-light-950/60 uppercase touch:text-[10px]"
+            class="text-[9px] font-medium tracking-[.06em] text-light-950/65 uppercase touch:text-[10px]"
           >
             {cell.label}
           </dt>
@@ -35,7 +35,7 @@
     <dl class="flex flex-col gap-1.5 touch:gap-0">
       {#each rows as row (row.key)}
         <div class="flex min-w-0 items-center justify-between gap-4 touch:min-h-9">
-          <dt class="shrink-0 text-xs text-light-950/60 touch:text-[15px]">{row.key}</dt>
+          <dt class="shrink-0 text-xs text-light-950/65 touch:text-[15px]">{row.key}</dt>
           <TruncationTooltip text={row.value}>
             {#snippet child({ props })}
               <dd
@@ -50,6 +50,6 @@
       {/each}
     </dl>
   {:else if cells.length === 0}
-    <p class="text-xs text-light-950/60 italic touch:text-[15px]">No EXIF data</p>
+    <p class="text-xs text-light-950/65 italic touch:text-[15px]">No EXIF data</p>
   {/if}
 </InfoSection>

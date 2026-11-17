@@ -52,18 +52,18 @@
         ? 'border-primary text-primary ring-2 ring-primary/40'
         : custom
           ? 'border-primary/60 bg-primary/10 text-primary'
-          : 'text-dark/90 hover:border-dark/40'}"
+          : 'text-dark hover:border-dark/40'}"
     >
       {recording ? 'Press keys…' : keys || 'None'}
     </Kbd>
   </Button>
 {:else}
-  <span class="font-mono whitespace-nowrap text-dark/90">{keys}</span>
+  <span class="font-mono whitespace-nowrap text-dark">{keys}</span>
 {/if}
-<span class="text-dark/70">
+<span class="text-dark/80">
   {bind.label}
   {#if custom}
-    <span class="text-dark/50">· default {defaultKeysFor(bind.id)}</span>
+    <span class="text-dark/45">· default {defaultKeysFor(bind.id)}</span>
   {/if}
 </span>
 <span class="flex size-6 items-center justify-center">

@@ -133,7 +133,7 @@
         {@attach guard.attachment}
       >
         <span
-          class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-lg text-dark/40 touch:h-22 touch:flex-none touch:rounded-lg {applied
+          class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-lg text-dark/45 touch:h-22 touch:flex-none touch:rounded-lg {applied
             ? 'border-primary ring-1 ring-primary'
             : 'border-hairline group-hover/tile:border-light-950/40'}"
         >

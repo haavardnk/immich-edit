@@ -40,7 +40,7 @@
           class="-my-1 -ms-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-1 ps-1"
         >
           <div
-            class="flex h-7 shrink-0 items-center gap-1 [&_button:not([data-label])]:text-light-950/55 [&_button:not([data-label]):hover]:text-light-950/90"
+            class="flex h-7 shrink-0 items-center gap-1 [&_button:not([data-label])]:text-light-950/65 [&_button:not([data-label]):hover]:text-light-950/90"
           >
             <CullControls {...cull} starSize={14} actions={editorCullActions} />
           </div>

@@ -41,7 +41,7 @@
           </span>
           {#if copyBadge}
             <span
-              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-[9px] font-medium text-light-950/60"
+              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-[9px] font-medium text-light-950/65"
               >{copyBadge}</span
             >
           {/if}

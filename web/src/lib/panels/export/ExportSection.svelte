@@ -45,7 +45,7 @@
           </span>
           <span
             data-truncate
-            class="min-w-0 flex-1 truncate text-dark/85 group-hover:text-dark {mono
+            class="min-w-0 flex-1 truncate text-dark/80 group-hover:text-dark {mono
               ? 'font-mono'
               : ''}"
             class:invisible={open}
@@ -55,7 +55,7 @@
           <Icon
             icon={open ? mdiChevronDown : mdiChevronRight}
             size="14px"
-            class="shrink-0 text-dark/45 group-hover:text-dark/70"
+            class="shrink-0 text-dark/45 group-hover:text-dark/80"
             aria-hidden="true"
           />
         </Collapsible.Trigger>

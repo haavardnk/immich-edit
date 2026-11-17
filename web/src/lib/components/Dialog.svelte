@@ -53,7 +53,7 @@
             {title}
           </Dialog.Title>
           {#if subtitle}
-            <p class="text-xs text-dark/55">{subtitle}</p>
+            <p class="text-xs text-dark/65">{subtitle}</p>
           {/if}
         </div>
         <div class="flex flex-1 items-center justify-end gap-1.5">

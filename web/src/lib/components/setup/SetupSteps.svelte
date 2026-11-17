@@ -31,11 +31,11 @@
           aria-hidden="true"
           class="grid size-4.5 shrink-0 place-items-center rounded-full text-[10px] font-semibold touch:hidden {active
             ? 'bg-primary text-light'
-            : 'bg-light-200 text-dark/75'}"
+            : 'bg-light-200 text-dark/80'}"
         >
           {#if done}<Icon icon={mdiCheck} size="12px" />{:else}{index + 1}{/if}
         </span>
-        <span class={active ? 'font-medium text-light-950' : 'text-dark/75'}>
+        <span class={active ? 'font-medium text-light-950' : 'text-dark/80'}>
           {step.label}{#if done}<span class="sr-only"> (done)</span>{/if}
         </span>
       </span>

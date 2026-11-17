@@ -46,7 +46,7 @@
     class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 select-none {strong
       ? 'font-semibold text-dark'
       : muted
-        ? 'text-dark/55'
+        ? 'text-dark/65'
         : ''}"
   >
     <span>{label}</span>
@@ -56,7 +56,7 @@
       >
     {/if}
     {#if note}
-      <span class="ms-auto shrink-0 text-[11px] text-dark/50 touch:text-[13px]">{note}</span>
+      <span class="ms-auto shrink-0 text-[11px] text-dark/45 touch:text-[13px]">{note}</span>
     {/if}
   </label>
 </div>
