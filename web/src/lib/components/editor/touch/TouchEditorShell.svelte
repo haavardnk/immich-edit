@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Notice from '#lib/components/Notice.svelte';
   import Viewer from '#lib/components/editor/Viewer.svelte';
   import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
@@ -21,6 +22,7 @@
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
+  import ExifSummary from '#lib/components/editor/ExifSummary.svelte';
   import { paintSize } from '#lib/editor/paintSize.ts';
   import BrushSizeRail from './BrushSizeRail.svelte';
   import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
@@ -52,6 +54,10 @@
   $effect(() => {
     void bottom;
     if (region) available = region.clientHeight;
+  });
+
+  $effect(() => {
+    if (ui.metaPopover === 'exif' && layout.phone) untrack(ui.collapsePanels);
   });
 
   function adjust(): ViewerAdjust | null {
@@ -156,3 +162,5 @@
     <div class="shrink-0" style:height="{keyboard.bottom}px"></div>
   {/if}
 </div>
+
+<ExifSummary anchor={null} />
