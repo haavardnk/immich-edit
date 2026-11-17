@@ -165,7 +165,7 @@
   subtitle={photos}
   sheetClass="pb-3"
 >
-  <BulkApplyPreset />
+  <BulkApplyPreset onApplied={() => (sheet = null)} />
 </Popover>
 
 {#if exportSheet.mounted}

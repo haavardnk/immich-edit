@@ -49,6 +49,7 @@
         size="tiny"
         color="primary"
         fullWidth
+        class="touch:h-11"
         loading={bulkActions.busy}
         leadingIcon={mdiAutoFix}
         disabled={bulkActions.metaBusy || selection.count === 0}
