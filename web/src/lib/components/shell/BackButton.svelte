@@ -9,12 +9,15 @@
   let { labelled = false, onBack }: { labelled?: boolean; onBack?: () => void } = $props();
 
   function back(): void {
-    if (onBack) onBack();
-    else
-      navHistory.back(
-        backParent(page.url),
-        (previous) => !crossesTabs(new URL(previous, page.url.origin).pathname, page.url.pathname)
-      );
+    if (onBack) return onBack();
+    const parent = backParent(page.url);
+    const upOnly = page.url.pathname === '/folders';
+    navHistory.back(
+      parent,
+      (previous) =>
+        !crossesTabs(new URL(previous, page.url.origin).pathname, page.url.pathname) &&
+        (!upOnly || navHistory.previousIs(parent))
+    );
   }
 </script>
 

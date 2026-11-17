@@ -106,7 +106,7 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
       .getByRole('link', { name: 'Folders' })
       .tap();
     await expect(page).toHaveURL('/folders');
-    await back(page, '/folders?path=%2Fphotos');
+    await back(page, '/library');
   });
 
   test('Back leaves settings for Photos', async ({ page }) => {
