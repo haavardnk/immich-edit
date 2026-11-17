@@ -4,6 +4,7 @@ import { formatBrushSize } from '#lib/utils/brushSize.ts';
 import { retouchValue } from '#lib/editor/retouch/settings.ts';
 import { modeName } from '#lib/editor/retouch/text.ts';
 import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
+import { paintsWithBrush } from '#lib/types/masks.ts';
 
 export const SECOND_FINGER_MS = 120;
 
@@ -15,7 +16,8 @@ class PaintInput {
   sizing = $state(false);
 
   get brushActive(): boolean {
-    return toolOpen('masks') && editor.activeMaskComponent()?.kind.kind === 'brush';
+    const component = editor.activeMaskComponent();
+    return toolOpen('masks') && !!component && paintsWithBrush(component);
   }
 
   get retouchActive(): boolean {

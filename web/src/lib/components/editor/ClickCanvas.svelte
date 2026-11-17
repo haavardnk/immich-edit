@@ -69,8 +69,8 @@
   const including = $derived(!refining || editor.clickTool.negative === inverting);
   const tag = $derived(
     !refining
-      ? 'Include'
-      : `${including ? 'Include' : 'Exclude'} · ${keyLabel('Shift')} or right-click ${including ? 'excludes' : 'includes'}`
+      ? 'Add object'
+      : `${including ? 'Add object' : 'Remove object'} · ${keyLabel('Shift')} or right-click ${including ? 'removes' : 'adds'}`
   );
   const dragRect = $derived(
     boxStart && boxNow

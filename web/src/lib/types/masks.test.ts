@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generatedLabel, kindLabel, manualKind, numberRepeats, visibleSceneClasses } from './masks';
+import {
+  defaultBrush,
+  generatedLabel,
+  kindLabel,
+  makeGeneratedLayer,
+  makeLayer,
+  manualKind,
+  numberRepeats,
+  paintsWithBrush,
+  visibleSceneClasses
+} from './masks';
 import type { MaskKind } from '#lib/api/masks.ts';
 import type { ManualTool } from './masks';
 
@@ -61,5 +71,24 @@ describe('labels', () => {
     { kind: 'unknown', expected: 'unknown' }
   ])('names the $kind model', ({ kind, expected }) => {
     expect(generatedLabel(kind)).toBe(expected);
+  });
+});
+
+describe('paintsWithBrush', () => {
+  it('paints only on hand-drawn brush shapes', () => {
+    const [brush] = makeLayer('Brush', defaultBrush('r1')).components;
+    const [linear] = makeLayer('Linear').components;
+    const [subject] = makeGeneratedLayer('Subject', 'r2', {
+      model_id: 'ormbg',
+      kind: 'subject',
+      prob_raster_id: 'p2',
+      grow: 0,
+      feather: 0
+    }).components;
+    expect([brush, linear, subject].map((c) => (c ? paintsWithBrush(c) : null))).toEqual([
+      true,
+      false,
+      false
+    ]);
   });
 });

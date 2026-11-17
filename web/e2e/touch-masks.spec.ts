@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { json } from './helpers';
 import { addFromSheet, cards, modes, openMasks, savedLayers, shapes, sheet } from './touchMasks';
 
 test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () => {
@@ -30,6 +31,50 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     );
     await dialog.getByRole('button', { name: 'Cancel' }).tap();
     await expect(dialog).toHaveCount(0);
+  });
+
+  test('an AI shape does not paint, fixes objects on demand and adds a brush through Subtract', async ({
+    page
+  }) => {
+    await page.route('**/masks/generate', (route) =>
+      route.fulfill(
+        json({
+          raster_id: 'r1',
+          prob_raster_id: 'p1',
+          width: 60,
+          height: 40,
+          model_id: 'ormbg',
+          backend: 'cpu',
+          elapsed_ms: 5
+        })
+      )
+    );
+    await openMasks(page);
+    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Subject');
+    const tool = page.getByRole('region', { name: 'Adjustments' });
+    await expect(shapes(page)).toHaveCount(1);
+    await expect(page.getByRole('slider', { name: 'Brush size' })).toHaveCount(0);
+    for (const name of ['Add object', 'Remove object']) {
+      await expect(tool.getByRole('button', { name, exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    }
+    const add = tool.getByRole('button', { name: 'Add object', exact: true });
+    await add.tap();
+    await expect(add).toHaveAttribute('aria-pressed', 'true');
+    await add.tap();
+    await expect(add).toHaveAttribute('aria-pressed', 'false');
+
+    await page.getByRole('button', { name: 'Subtract', exact: true }).tap();
+    const picker = sheet(page);
+    await expect(picker.getByText(/^Subtract from/).first()).toBeVisible();
+    const names = await picker
+      .locator('[data-menu-row]')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('aria-label')));
+    expect(names.slice(0, 2)).toEqual(['Brush', 'Linear gradient']);
+    await picker.getByRole('button', { name: 'Brush', exact: true }).tap();
+    await expect(page.getByRole('slider', { name: 'Brush size' })).toBeVisible();
   });
 
   test('layers, shapes and adjustments are edited from the tray', async ({ page }) => {

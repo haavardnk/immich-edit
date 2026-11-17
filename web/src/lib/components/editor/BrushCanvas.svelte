@@ -2,6 +2,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { type MaskComponent, type MaskLayer } from '#lib/types/edits.ts';
+  import { paintsWithBrush } from '#lib/types/masks.ts';
   import {
     bufferToImageData,
     maskOverlayRgb,
@@ -60,6 +61,7 @@
       : null
   );
   const isBrush = $derived(!!activeComp && activeComp.kind.kind === 'brush');
+  const paints = $derived(!!activeComp && paintsWithBrush(activeComp));
   const ringRadius = $derived(editor.brushTool.size * 0.5 * Math.min(rect.w, rect.h));
   const show = $derived(isBrush && rect.w > 0 && rect.h > 0);
 
@@ -229,7 +231,8 @@
 
   const stroke = pointerDrag<true>({
     start(e) {
-      if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return null;
+      if (!activeComp || !paints || activeComp.kind.kind !== 'brush' || !active || e.button !== 0)
+        return null;
       if (!paintInput.paints(e.pointerType)) return null;
       e.preventDefault();
       e.stopPropagation();
@@ -335,10 +338,11 @@
     bind:this={canvasEl}
     class="absolute"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
+    class:pointer-events-none={!paints}
     {...handlers}
     onpointerdown={onPointerDown}
     onpointerleave={() => (hover = null)}
-    onwheel={onWheel}
+    onwheel={paints ? onWheel : undefined}
     data-testid="brush-canvas"
     data-photo-layer
   ></canvas>
@@ -358,7 +362,7 @@
       />
     </div>
   {/if}
-  {#if hover}
+  {#if hover && paints}
     <div
       class="pointer-events-none absolute rounded-full border border-white/90 shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
       style="left: {rect.x + hover.x - ringRadius}px; top: {rect.y +

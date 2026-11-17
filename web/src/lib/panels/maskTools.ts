@@ -171,7 +171,8 @@ export function runPick(target: MaskTarget, pick: ToolPick): void {
 export function refineWith(layerId: string | null, negative: boolean): void {
   const tool = editor.clickTool;
   if (tool.active && !tool.box && tool.layerId === layerId) {
-    tool.negative = negative;
+    if (tool.negative === negative) editor.stopClickTool();
+    else tool.negative = negative;
     return;
   }
   editor.clickTool = { active: true, negative, box: false, layerId, mode: 'add' };

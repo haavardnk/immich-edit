@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { ClickPoint } from '#lib/api/masks.ts';
   import { segmented } from '#lib/components/segmented.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
@@ -8,60 +7,43 @@
   import { mdiCheck, mdiMinusCircleOutline, mdiPlusCircleOutline } from '@mdi/js';
   import { refineWith } from './maskTools';
 
-  let {
-    layerId,
-    points = [],
-    pending = false
-  }: { layerId: string | null; points?: ClickPoint[]; pending?: boolean } = $props();
+  let { layerId, pending = false }: { layerId: string | null; pending?: boolean } = $props();
 
   const tool = $derived(editor.clickTool);
   const armed = $derived(tool.active && !tool.box && tool.layerId === layerId);
   const including = $derived(armed && !tool.negative);
   const excluding = $derived(armed && tool.negative);
-  const included = $derived(points.filter((p) => p.positive).length);
-  const help = $derived.by(() => {
-    if (pending)
-      return layout.mode === 'touch'
-        ? 'Tap the photo to select an area.'
-        : 'Click the photo to select an area.';
-    const lead =
-      layout.mode === 'touch'
-        ? 'Tap a dot to delete it.'
-        : `${keyLabel('Shift')}-click or right-click inverts one click. Click a dot to delete it.`;
-    if (points.length === 0) return lead;
-    return `${lead} ${included} included, ${points.length - included} excluded.`;
-  });
+  const touch = $derived(layout.mode === 'touch');
+  const invertHint = $derived(touch ? '' : ` · ${keyLabel('Shift')}-click inverts one click`);
 </script>
 
-<div class="mt-1 flex h-7 items-center justify-between gap-1.5">
-  <div class="{segmented.tool.group} flex text-[10px]">
-    <Button
-      type="button"
-      size="tiny"
-      variant={including ? 'filled' : 'ghost'}
-      color={including ? 'primary' : 'secondary'}
-      leadingIcon={mdiPlusCircleOutline}
-      title="Clicks add that area to the mask"
-      aria-pressed={including}
-      onclick={() => refineWith(layerId, false)}
-    >
-      Include
-    </Button>
-    <Button
-      type="button"
-      size="tiny"
-      variant={excluding ? 'filled' : 'ghost'}
-      color={excluding ? 'primary' : 'secondary'}
-      leadingIcon={mdiMinusCircleOutline}
-      title={pending ? 'Include an area first' : 'Clicks cut that area out of the mask'}
-      aria-pressed={excluding}
-      disabled={pending}
-      onclick={() => refineWith(layerId, true)}
-    >
-      Exclude
-    </Button>
+{#snippet toggle(negative: boolean, on: boolean)}
+  <Button
+    type="button"
+    size="tiny"
+    variant={on ? 'filled' : 'ghost'}
+    color={on ? 'primary' : 'secondary'}
+    leadingIcon={negative ? mdiMinusCircleOutline : mdiPlusCircleOutline}
+    class="touch:h-11 touch:flex-1 touch:text-sm"
+    title={negative
+      ? `Tap an object to cut it out of the mask${invertHint}`
+      : `Tap an object to add it to the mask${invertHint}`}
+    aria-pressed={on}
+    disabled={negative && pending}
+    onclick={() => {
+      if (!(pending && on)) refineWith(layerId, negative);
+    }}
+  >
+    {negative ? 'Remove object' : 'Add object'}
+  </Button>
+{/snippet}
+
+<div class="mt-1 flex h-7 items-center justify-between gap-1.5 touch:h-auto">
+  <div class="{segmented.tool.group} flex text-[10px] touch:gap-2 touch:bg-transparent touch:p-0">
+    {@render toggle(false, including)}
+    {@render toggle(true, excluding)}
   </div>
-  {#if armed}
+  {#if armed && !touch}
     <Button
       type="button"
       size="tiny"
@@ -73,7 +55,11 @@
     </Button>
   {/if}
 </div>
-<div class="text-[10px] text-dark/65">{help}</div>
+{#if pending}
+  <div class="text-[10px] text-dark/65 touch:text-[13px]">
+    {touch ? 'Tap the photo to select an object.' : 'Click the photo to select an object.'}
+  </div>
+{/if}
 {#if editor.maskGenerating}
-  <div class="text-[10px] text-dark/65">Working…</div>
+  <div class="text-[10px] text-dark/65 touch:text-[13px]">Working…</div>
 {/if}

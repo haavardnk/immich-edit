@@ -24,9 +24,6 @@
   } = $props();
 
   const kind = $derived(component.kind);
-  const clickPoints = $derived(
-    component.generated?.kind === 'click' ? (component.generated.points ?? []) : []
-  );
 
   function onFeatherLive(v: number): void {
     editor.setMaskComponentFeather(layerId, component.id, v);
@@ -46,7 +43,7 @@
 {/if}
 
 {#if kind.kind === 'brush' && clickRefine && maskModels.installed('click')}
-  <MaskClickTool {layerId} points={clickPoints} />
+  <MaskClickTool {layerId} />
 {/if}
 
 {#if component.generated}
