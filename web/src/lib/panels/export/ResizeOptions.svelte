@@ -21,8 +21,7 @@
 
   const error = $derived(resizeError(formResize(form)));
   const outputSize = $derived(crop ? resizedSize(crop, formResize(form)) : null);
-  const edgeInputClass =
-    'ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 [&_input]:px-2 touch:[&_input]:h-11 touch:[&_input]:px-2.5';
+  const edgeInputClass = '[&_input]:h-7 [&_input]:px-2 touch:[&_input]:h-11 touch:[&_input]:px-2.5';
 
   function readNumber(event: Event): number | null {
     const value = (event.currentTarget as HTMLInputElement).valueAsNumber;
@@ -101,7 +100,6 @@
     type="number"
     compact
     color="neutral"
-    class="ring-0 focus-within:ring-1 focus-within:ring-primary"
     min={0.1}
     max={MAX_RESIZE_MEGAPIXELS}
     step={0.1}
@@ -117,7 +115,6 @@
     type="number"
     compact
     color="neutral"
-    class="ring-0 focus-within:ring-1 focus-within:ring-primary"
     min={1}
     max={MAX_RESIZE_PERCENT}
     step={1}

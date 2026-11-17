@@ -35,7 +35,6 @@
       type="number"
       compact
       color="neutral"
-      class="ring-0 focus-within:ring-1 focus-within:ring-primary"
       min={SHARPEN_PPI.min}
       max={SHARPEN_PPI.max}
       step={1}

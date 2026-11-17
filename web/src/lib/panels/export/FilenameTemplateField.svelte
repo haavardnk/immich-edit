@@ -62,7 +62,6 @@
     label="Filename"
     compact
     color="neutral"
-    class="ring-0 focus-within:ring-1 focus-within:ring-primary"
     bind:ref={input}
     bind:value
     onblur={remember}

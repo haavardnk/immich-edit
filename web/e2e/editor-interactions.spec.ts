@@ -1143,6 +1143,9 @@ async function cropRatio(page: import('@playwright/test').Page): Promise<number>
 test('ratio chips, the orientation button and a typed ratio drive the output size', async ({
   page
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
   const patches: Record<string, unknown>[] = [];
   await installMocks(page, {
     previewBody: makePng(60, 40),
@@ -1193,6 +1196,37 @@ test('ratio chips, the orientation button and a typed ratio drive the output siz
   await expect(page.getByRole('button', { name: '2.39:1', exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
   expect(patches.at(-1)).toEqual({ crop_ratios: [] });
+});
+
+test('a wide inspector shows every ratio as a chip and keeps the ratio field its size', async ({
+  page
+}) => {
+  const fieldWidth = async (inspectorWidth: number): Promise<number> => {
+    await page.evaluate(
+      (width) =>
+        localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: width })),
+      inspectorWidth
+    );
+    await gotoAsset(page);
+    await page.keyboard.press('Shift+R');
+    return (await page.getByRole('textbox', { name: 'Ratio' }).boundingBox())?.width ?? 0;
+  };
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+
+  const narrow = await fieldWidth(320);
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  await expect(page.getByRole('button', { name: 'More ratios' })).toBeVisible();
+  await expect(chips.getByRole('radio', { name: '7:5', exact: true })).toHaveCount(0);
+
+  const wide = await fieldWidth(520);
+  await expect(chips.getByRole('radio', { name: '5:4', exact: true })).toBeVisible();
+  await expect(chips.getByRole('radio', { name: '7:5', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More ratios' })).toHaveCount(0);
+  expect(wide).toBe(narrow);
+
+  await chips.getByRole('radio', { name: '7:5', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(7 / 5, 2);
 });
 
 test('the ratio chips and the ratio row fit the narrowest inspector', async ({ page }) => {

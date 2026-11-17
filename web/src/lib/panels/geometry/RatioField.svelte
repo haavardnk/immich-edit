@@ -47,20 +47,22 @@
 </script>
 
 <div class="flex items-center gap-1.5">
-  <TextInput
-    compact
-    color="neutral"
-    class="min-w-0 flex-1 [&_input]:h-7 [&_input]:px-2"
-    aria-label="Ratio"
-    aria-invalid={invalid}
-    placeholder="21:9 or 2.39"
-    inputmode="decimal"
-    trailingText={parsed ? `= ${ratioReadout(parsed)}` : undefined}
-    value={text}
-    oninput={(e) => (typed = e.currentTarget.value)}
-    onkeydown={onKeydown}
-    onblur={commit}
-  />
+  <div class="w-36 min-w-0 shrink">
+    <TextInput
+      compact
+      color="neutral"
+      class="[&_input]:h-7 [&_input]:px-2"
+      aria-label="Ratio"
+      aria-invalid={invalid}
+      placeholder="21:9 or 2.39"
+      inputmode="decimal"
+      trailingText={parsed ? `= ${ratioReadout(parsed)}` : undefined}
+      value={text}
+      oninput={(e) => (typed = e.currentTarget.value)}
+      onkeydown={onKeydown}
+      onblur={commit}
+    />
+  </div>
   <IconButton
     size="tiny"
     variant="ghost"
