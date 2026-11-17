@@ -1,9 +1,9 @@
 <script lang="ts">
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import { library } from '#lib/stores/library.svelte.ts';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
-  import { segmented } from '#lib/components/segmented.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
   import type { TagSummary } from '#lib/api/tags.ts';
   import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
@@ -15,7 +15,6 @@
   import type { StackPrimary } from '#lib/api/export.ts';
   import { IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
-  import { RadioGroup } from 'bits-ui';
 
   let {
     form = $bindable<ExportFormValues>(),
@@ -143,18 +142,16 @@
   {/if}
 
   {#if canStack && form.stackWithOriginal}
-    <RadioGroup.Root
-      bind:value={() => form.stackPrimary, (v) => (form.stackPrimary = v as StackPrimary)}
-      orientation="horizontal"
-      aria-label="Stack primary"
-      class="{segmented.text.group} ml-5 self-start"
-    >
-      <RadioGroup.Item value="edited" class="{segmented.text.radio} px-2">
-        Edit primary
-      </RadioGroup.Item>
-      <RadioGroup.Item value="original" class="{segmented.text.radio} px-2">
-        Original primary
-      </RadioGroup.Item>
-    </RadioGroup.Root>
+    <div class="ml-5 self-start">
+      <SegmentedChoice
+        label="Stack primary"
+        value={form.stackPrimary}
+        options={[
+          { value: 'edited', label: 'Edit primary' },
+          { value: 'original', label: 'Original primary' }
+        ]}
+        onChange={(v) => (form.stackPrimary = v as StackPrimary)}
+      />
+    </div>
   {/if}
 </div>

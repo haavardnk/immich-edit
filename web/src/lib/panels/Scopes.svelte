@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RadioGroup } from 'bits-ui';
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import ScopePlot from './scopes/ScopePlot.svelte';
   import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
   import {
@@ -10,10 +10,6 @@
   } from '#lib/stores/scopes.svelte.ts';
 
   const GAINS = [1, 2, 4, 8];
-
-  const groupClass = 'flex gap-0.5';
-  const itemClass =
-    'flex h-5 items-center justify-center rounded-sm px-1.5 text-micro font-medium text-dark/65 transition-colors hover:text-dark aria-checked:bg-light-950/8 aria-checked:text-dark';
 
   function selectChannels(value: string): void {
     scopes.setChannels(value as WaveformChannels);
@@ -41,43 +37,39 @@
 
   <div class="flex items-center gap-2">
     {#if scopes.mode === 'waveform'}
-      <RadioGroup.Root
+      <SegmentedChoice
+        appearance="mini"
+        label="Waveform channels"
         value={scopes.channels}
-        onValueChange={selectChannels}
-        orientation="horizontal"
-        aria-label="Waveform channels"
-        class={groupClass}
-      >
-        <RadioGroup.Item value="luma" class={itemClass}>Luma</RadioGroup.Item>
-        <RadioGroup.Item value="rgb" class={itemClass}>RGB</RadioGroup.Item>
-      </RadioGroup.Root>
+        options={[
+          { value: 'luma', label: 'Luma' },
+          { value: 'rgb', label: 'RGB' }
+        ]}
+        onChange={selectChannels}
+      />
     {/if}
 
-    <RadioGroup.Root
-      value={String(scopes.gain)}
-      onValueChange={(v) => scopes.setGain(Number(v))}
-      orientation="horizontal"
-      aria-label="Scope gain"
-      class="{groupClass} ml-auto"
-    >
-      {#each GAINS as gain (gain)}
-        <RadioGroup.Item value={String(gain)} class={itemClass}>
-          {gain}×
-        </RadioGroup.Item>
-      {/each}
-    </RadioGroup.Root>
+    <div class="ml-auto">
+      <SegmentedChoice
+        appearance="mini"
+        label="Scope gain"
+        value={String(scopes.gain)}
+        options={GAINS.map((gain) => ({ value: String(gain), label: `${gain}×` }))}
+        onChange={(v) => scopes.setGain(Number(v))}
+      />
+    </div>
 
     {#if scopes.mode === 'vectorscope'}
-      <RadioGroup.Root
+      <SegmentedChoice
+        appearance="mini"
+        label="Vectorscope zoom"
         value={String(scopes.zoom)}
-        onValueChange={(v) => scopes.setZoom(Number(v))}
-        orientation="horizontal"
-        aria-label="Vectorscope zoom"
-        class={groupClass}
-      >
-        <RadioGroup.Item value="1" class={itemClass}>1:1</RadioGroup.Item>
-        <RadioGroup.Item value="2" class={itemClass}>2:1</RadioGroup.Item>
-      </RadioGroup.Root>
+        options={[
+          { value: '1', label: '1:1' },
+          { value: '2', label: '2:1' }
+        ]}
+        onChange={(v) => scopes.setZoom(Number(v))}
+      />
     {/if}
   </div>
 </div>

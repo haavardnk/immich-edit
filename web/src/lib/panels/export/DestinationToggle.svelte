@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { segmented } from '#lib/components/segmented.ts';
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import type { Destination } from './settings';
-  import { Icon } from '@immich/ui';
   import { mdiCellphone, mdiCloudOutline } from '@mdi/js';
-  import { RadioGroup } from 'bits-ui';
 
   let { value = $bindable<Destination>() }: { value: Destination } = $props();
 
@@ -15,18 +13,10 @@
   ]);
 </script>
 
-<RadioGroup.Root
-  bind:value={() => value, (v) => (value = v as Destination)}
-  orientation="horizontal"
-  aria-label="Export destination"
-  class={segmented.text.group}
->
-  {#each options as option (option.value)}
-    <RadioGroup.Item value={option.value} class="{segmented.text.radio} flex-1 gap-1.5">
-      {#if touch}
-        <Icon icon={option.icon} size="1.15em" aria-hidden="true" />
-      {/if}
-      {option.label}
-    </RadioGroup.Item>
-  {/each}
-</RadioGroup.Root>
+<SegmentedChoice
+  label="Export destination"
+  fill
+  {value}
+  options={options.map((option) => ({ ...option, icon: touch ? option.icon : undefined }))}
+  onChange={(v) => (value = v)}
+/>

@@ -1,11 +1,11 @@
 <script lang="ts">
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import RevealContent from '#lib/components/RevealContent.svelte';
   import DcpPicker from './dcp/DcpPicker.svelte';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import FileImportButton from '#lib/components/FileImportButton.svelte';
   import Notice from '#lib/components/Notice.svelte';
-  import { segmented } from '#lib/components/segmented.ts';
   import { mdiChevronDown, mdiClose, mdiTuneVariant } from '@mdi/js';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
@@ -14,7 +14,7 @@
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { DcpIlluminant, DcpMode } from '#lib/types/edits.ts';
   import { Icon, IconButton } from '@immich/ui';
-  import { Collapsible, RadioGroup } from 'bits-ui';
+  import { Collapsible } from 'bits-ui';
 
   let dcps = $state<DcpMeta[]>([]);
   let loaded = $state(false);
@@ -194,18 +194,13 @@
       <RevealContent class="flex flex-col gap-1 border-t border-hairline pt-1">
         <div class="flex flex-col gap-1">
           <span class="text-micro font-medium text-dark/65">Illuminant</span>
-          <RadioGroup.Root
-            bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
-            orientation="horizontal"
-            aria-label="Illuminant"
-            class={segmented.text.group}
-          >
-            {#each illuminants as illuminant (illuminant.value)}
-              <RadioGroup.Item value={illuminant.value} class="{segmented.text.radio} flex-1">
-                {illuminant.label}
-              </RadioGroup.Item>
-            {/each}
-          </RadioGroup.Root>
+          <SegmentedChoice
+            label="Illuminant"
+            fill
+            value={dcp.illuminant}
+            options={illuminants}
+            onChange={setIlluminant}
+          />
         </div>
 
         <div class="flex flex-col gap-0.5">

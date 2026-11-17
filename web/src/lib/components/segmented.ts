@@ -17,10 +17,5 @@ export const segmented = {
     radio:
       'flex h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-label font-medium whitespace-nowrap opacity-70 transition-colors hover:opacity-100 aria-checked:bg-current/15 aria-checked:font-semibold aria-checked:opacity-100',
     icon: 'hidden shrink-0 @[17rem]:block'
-  },
-  row: {
-    group: 'flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800 h-10',
-    radio:
-      'flex h-full flex-1 items-center justify-center rounded-md px-1.5 text-xs font-medium whitespace-nowrap text-dark/65 transition-colors hover:bg-ghost hover:text-dark aria-checked:bg-primary aria-checked:text-light'
   }
 } as const;

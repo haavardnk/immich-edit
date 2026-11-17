@@ -1,9 +1,9 @@
 <script lang="ts">
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import DualRangeSlider from '#lib/components/editor/controls/DualRangeSlider.svelte';
   import ParamSlider from '#lib/components/editor/controls/ParamSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
-  import { segmented } from '#lib/components/segmented.ts';
   import ModelMissingNotice from '#lib/components/ModelMissingNotice.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { sectionLabel } from '#lib/editor/params/define.ts';
@@ -19,7 +19,6 @@
     type BokehShape
   } from '#lib/types/edits.ts';
   import { Button } from '@immich/ui';
-  import { RadioGroup } from 'bits-ui';
 
   const SHAPE_LABELS: Record<BokehShape, string> = {
     circle: 'Circle',
@@ -142,20 +141,19 @@
     />
     <div class="panel-row h-7 items-center {active ? '' : 'pointer-events-none opacity-50'}">
       <span class="truncate text-caption font-medium text-dark/65 select-none">Bokeh</span>
-      <RadioGroup.Root
-        value={blur.shape}
-        disabled={!active}
-        onValueChange={(v: string) => setShape(v as BokehShape)}
-        orientation="horizontal"
-        aria-label="Bokeh shape"
-        class="{segmented.text.group} col-span-2"
-      >
-        {#each BOKEH_SHAPES as shape (shape)}
-          <RadioGroup.Item value={shape} class="{segmented.text.radio} flex-1 px-2">
-            {SHAPE_LABELS[shape]}
-          </RadioGroup.Item>
-        {/each}
-      </RadioGroup.Root>
+      <div class="col-span-2">
+        <SegmentedChoice
+          label="Bokeh shape"
+          fill
+          value={blur.shape}
+          options={BOKEH_SHAPES.map((shape) => ({
+            value: shape,
+            label: SHAPE_LABELS[shape],
+            disabled: !active
+          }))}
+          onChange={setShape}
+        />
+      </div>
     </div>
     <ParamSlider param={lensBlurBoost} />
   {/if}

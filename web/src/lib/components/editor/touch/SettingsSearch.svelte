@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChipChoice from '#lib/components/chips/ChipChoice.svelte';
   import HighlightText from '#lib/components/HighlightText.svelte';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import SearchField from '#lib/components/SearchField.svelte';
@@ -15,7 +16,6 @@
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { Button } from '@immich/ui';
-  import { RadioGroup } from 'bits-ui';
 
   let input = $state<HTMLInputElement | null>(null);
 
@@ -27,8 +27,6 @@
       ? settingSearch.matches.filter((match) => modifiedIds.has(match.setting.id))
       : settingSearch.matches
   );
-  const chip =
-    'flex h-8 items-center rounded-full px-3.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=checked]:bg-primary/22 data-[state=checked]:text-light-950 data-[state=unchecked]:bg-ghost data-[state=unchecked]:text-dark';
 
   $effect(() => {
     input?.focus();
@@ -56,18 +54,17 @@
     {settingSearch.filtering ? 'Cancel' : 'Done'}
   </Button>
 </div>
-<RadioGroup.Root
-  bind:value={
-    () => (ui.developModifiedOnly ? 'modified' : 'all'),
-    (value) => (ui.developModifiedOnly = value === 'modified')
-  }
-  orientation="horizontal"
-  aria-label="Settings shown"
-  class="flex shrink-0 gap-1.5 px-3 py-2"
->
-  <RadioGroup.Item value="all" class={chip}>All</RadioGroup.Item>
-  <RadioGroup.Item value="modified" class={chip}>Modified · {modified.length}</RadioGroup.Item>
-</RadioGroup.Root>
+<div class="shrink-0 px-3 py-2">
+  <ChipChoice
+    label="Settings shown"
+    value={ui.developModifiedOnly ? 'modified' : 'all'}
+    options={[
+      { value: 'all', label: 'All' },
+      { value: 'modified', label: `Modified · ${modified.length}` }
+    ]}
+    onChange={(v) => (ui.developModifiedOnly = v === 'modified')}
+  />
+</div>
 <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2 scrollbar-hidden">
   {#if live}
     {#each byTouchHome(modified) as group (group.home.path)}

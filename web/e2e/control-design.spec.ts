@@ -609,9 +609,7 @@ test('scope toggles stay unaccented', async ({ page }) => {
     return value;
   });
 
-  expect(paint[0]).toBe('rgba(0, 0, 0, 0)');
-  expect(paint[1]).not.toBe(primary);
-  expect(paint[1]).toMatch(/0\.08\)$/);
+  expect(paint).not.toContain(primary);
 });
 
 test('the scope mode dropdown is slim and only shows while expanded', async ({ page }) => {

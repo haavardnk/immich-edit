@@ -1,10 +1,9 @@
 <script lang="ts">
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import type { OnConflict } from '#lib/api/export.ts';
-  import { segmented } from '#lib/components/segmented.ts';
   import { reveal } from '#lib/motion/reveal.ts';
   import { Icon } from '@immich/ui';
   import { mdiHistory } from '@mdi/js';
-  import { RadioGroup } from 'bits-ui';
   import { earlierChoices, earlierFiles, earlierHint, earlierTitle } from './earlierExport';
   import type { EarlierExports, EarlierQuery } from './earlierExports.svelte';
 
@@ -55,23 +54,16 @@
         {/if}
       </p>
     </div>
-    <RadioGroup.Root
-      bind:value={() => policy, (v) => (earlier.policy = v as OnConflict)}
-      orientation="horizontal"
-      aria-labelledby={titleId}
-      class={segmented.text.group}
-    >
-      {#each earlierChoices(run) as choice (choice.value)}
-        <RadioGroup.Item
-          value={choice.value}
-          disabled={choice.value === 'replace' && replaceReason !== null}
-          class="{segmented.text
-            .radio} flex-1 px-1 disabled:pointer-events-none disabled:opacity-40"
-        >
-          {choice.label}
-        </RadioGroup.Item>
-      {/each}
-    </RadioGroup.Root>
+    <SegmentedChoice
+      label={earlierTitle(run)}
+      fill
+      value={policy}
+      options={earlierChoices(run).map((choice) => ({
+        ...choice,
+        disabled: choice.value === 'replace' && replaceReason !== null
+      }))}
+      onChange={(v) => (earlier.policy = v)}
+    />
     <p class="text-micro leading-snug text-dark/65 touch:text-xs">
       {earlierHint(run, policy)}
       {#if replaceReason}
