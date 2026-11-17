@@ -1,7 +1,5 @@
 mod fake;
 
-use std::collections::{HashMap, HashSet};
-
 use chrono::{DateTime, TimeZone, Utc};
 use uuid::Uuid;
 
@@ -9,7 +7,7 @@ use super::*;
 use crate::services::search::filter::Visibility;
 use crate::services::search::query::{Sort, SortField};
 use crate::services::search::window;
-use fake::{Asset, HIDDEN_PARTNER, PARTNER, Pick, library, requests, serve};
+use fake::{Asset, Pick, library, requests, serve};
 use timeline::SCAN_CHUNKS;
 
 fn images() -> BrowseFilter {
@@ -111,7 +109,7 @@ async fn the_added_feed_walks_the_timeline_through_the_filter() {
     ];
     for (pick, size, sparse) in cases {
         let assets = library(40, pick);
-        let (_server, searcher) = serve(&assets, true).await;
+        let (_server, searcher) = serve(&assets).await;
         for direction in [Direction::Asc, Direction::Desc] {
             let wanted = picked_in_order(&assets, direction);
             let (ids, empty) = feed(&searcher, &images(), direction, size).await;
@@ -128,7 +126,7 @@ async fn the_added_feed_walks_the_timeline_through_the_filter() {
 #[tokio::test]
 async fn an_added_range_walks_only_the_months_it_covers() {
     let assets = library(40, |_| true);
-    let (server, searcher) = serve(&assets, true).await;
+    let (server, searcher) = serve(&assets).await;
     let after = Utc.with_ymd_and_hms(2024, 2, 10, 0, 0, 0).unwrap();
     let before = Utc.with_ymd_and_hms(2024, 3, 5, 0, 0, 0).unwrap();
     let mut expected: Vec<(DateTime<Utc>, Uuid)> = assets
@@ -168,7 +166,7 @@ async fn an_added_range_walks_only_the_months_it_covers() {
 #[tokio::test]
 async fn the_added_window_matches_the_feed_around_the_anchor() {
     let assets = library(40, |i| i % 2 == 0);
-    let (_server, searcher) = serve(&assets, true).await;
+    let (_server, searcher) = serve(&assets).await;
     for filter in [images(), favorites()] {
         for direction in [Direction::Desc, Direction::Asc] {
             let (feed, _) = feed(&searcher, &filter, direction, 50).await;
@@ -195,7 +193,7 @@ async fn the_added_window_matches_the_feed_around_the_anchor() {
 async fn a_sparse_added_window_scans_on_until_it_knows_what_lies_beyond() {
     let count = SIDE_CHUNK * SCAN_CHUNKS + 40;
     let assets = library(count, |i| i < 2 || i == 1063);
-    let (server, searcher) = serve(&assets, true).await;
+    let (server, searcher) = serve(&assets).await;
     let id = |index: usize| assets[index].id;
     let cases = [
         (0, 0, (vec![id(1)], true, true)),
@@ -221,76 +219,27 @@ async fn a_sparse_added_window_scans_on_until_it_knows_what_lies_beyond() {
 }
 
 #[tokio::test]
-async fn favorites_walk_each_owner_timeline_narrowed_to_favorites() {
+async fn favorites_read_only_the_own_timeline() {
     let assets = shared_with_partner(48, |i| i % 3 != 1);
-    let (server, searcher) = serve(&assets, true).await;
-    let wanted: HashSet<Uuid> = assets
-        .iter()
-        .filter(|asset| asset.picked)
-        .map(|asset| asset.id)
-        .collect();
-    let at: HashMap<Uuid, DateTime<Utc>> =
-        assets.iter().map(|asset| (asset.id, asset.at)).collect();
+    let (server, searcher) = serve(&assets).await;
     for direction in [Direction::Desc, Direction::Asc] {
+        let own: Vec<Asset> = assets.iter().filter(|a| !a.partner).copied().collect();
+        let wanted = picked_in_order(&own, direction);
         let (ids, _) = feed(&searcher, &favorites(), direction, 7).await;
-        let found: HashSet<Uuid> = ids.iter().copied().collect();
-        let ordered = ids.windows(2).all(|pair| {
-            let (a, b) = (at[&pair[0]], at[&pair[1]]);
-            if direction == Direction::Desc {
-                a >= b
-            } else {
-                a <= b
-            }
-        });
-        if found != wanted || ids.len() != wanted.len() || !ordered {
-            panic!("{direction:?} favorites feed was {ids:?}");
+        if ids != wanted {
+            panic!("{direction:?} favorites feed was {ids:?}, expected {wanted:?}");
         }
     }
     let (desc, _) = feed(&searcher, &favorites(), Direction::Desc, 50).await;
     check_windows(&searcher, &favorites(), &desc, 5).await;
     let queries = requests(&server, "/api/timeline/buckets").await;
-    let narrowed =
-        |query: &fake::Query| query.get("isFavorite").map(String::as_str) == Some("true");
-    let owner = |query: &fake::Query| query.get("userId").cloned();
-    let own = queries
-        .iter()
-        .any(|query| narrowed(query) && owner(query).is_none());
-    let partner = queries
-        .iter()
-        .any(|query| narrowed(query) && owner(query) == Some(PARTNER.to_string()));
-    let unnarrowed = queries.iter().any(|query| !narrowed(query));
-    let hidden = queries
-        .iter()
-        .any(|query| owner(query) == Some(HIDDEN_PARTNER.to_string()));
-    let shared = queries
-        .iter()
-        .any(|query| query.contains_key("withPartners"));
-    if !own || !partner || unnarrowed || hidden || shared {
-        panic!("favorites asked the timeline for {queries:?}");
-    }
-}
-
-#[tokio::test]
-async fn a_key_without_partner_access_keeps_the_shared_timeline() {
-    let assets = shared_with_partner(24, |i| i % 3 != 1);
-    let (server, searcher) = serve(&assets, false).await;
-    let (ids, _) = feed(&searcher, &favorites(), Direction::Desc, 5).await;
-    let found: HashSet<Uuid> = ids.iter().copied().collect();
-    let wanted: HashSet<Uuid> = assets
-        .iter()
-        .filter(|asset| asset.picked)
-        .map(|asset| asset.id)
-        .collect();
-    if found != wanted {
-        panic!("favorites without partner access gave {ids:?}");
-    }
-    let queries = requests(&server, "/api/timeline/buckets").await;
-    let shared = queries.iter().all(|query| {
-        query.get("withPartners").map(String::as_str) == Some("true")
-            && !query.contains_key("isFavorite")
+    let own_favorites = queries.iter().all(|query| {
+        query.get("isFavorite").map(String::as_str) == Some("true")
+            && !query.contains_key("withPartners")
+            && !query.contains_key("userId")
     });
-    if queries.is_empty() || !shared {
-        panic!("without partner access the timeline was asked for {queries:?}");
+    if queries.is_empty() || !own_favorites {
+        panic!("favorites asked the timeline for {queries:?}");
     }
 }
 
@@ -298,7 +247,7 @@ async fn a_key_without_partner_access_keeps_the_shared_timeline() {
 async fn a_sparse_favorites_window_reads_only_favorites() {
     let count = 2000;
     let assets = library(count, |i| i < 2 || i == 1999);
-    let (server, searcher) = serve(&assets, true).await;
+    let (server, searcher) = serve(&assets).await;
     let reach = Reach {
         before: 100,
         after: 100,
@@ -322,7 +271,7 @@ async fn a_sparse_favorites_window_reads_only_favorites() {
     }
     let searches = requests(&server, "/api/search/metadata").await.len();
     let lists = requests(&server, "/api/timeline/buckets").await.len();
-    if searches > 3 || lists != 2 {
+    if searches > 3 || lists != 1 {
         panic!("sparse favorites window made {searches} searches and {lists} bucket lists");
     }
 }

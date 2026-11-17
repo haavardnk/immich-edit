@@ -40,12 +40,12 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 ..BrowseFilter::default()
             },
             Ids::default(),
-            Plan::Single(params(&[
+            params(&[
                 ("orderBy", "createdAt"),
                 ("order", "desc"),
                 ("visibility", "timeline"),
                 ("withPartners", "true"),
-            ])),
+            ]),
         ),
         (
             BrowseFilter {
@@ -54,12 +54,12 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 ..BrowseFilter::default()
             },
             Ids::default(),
-            Plan::Single(params(&[
+            params(&[
                 ("orderBy", "createdAt"),
                 ("order", "desc"),
                 ("visibility", "archive"),
                 ("isFavorite", "true"),
-            ])),
+            ]),
         ),
         (
             BrowseFilter {
@@ -68,22 +68,13 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 ..BrowseFilter::default()
             },
             ids(IdSet::default(), all(person), IdSet::default()),
-            Plan::PerOwner {
-                shared: params(&[
-                    ("orderBy", "createdAt"),
-                    ("order", "desc"),
-                    ("personId", &person.to_string()),
-                    ("visibility", "timeline"),
-                    ("withPartners", "true"),
-                ]),
-                narrowed: params(&[
-                    ("orderBy", "createdAt"),
-                    ("order", "desc"),
-                    ("personId", &person.to_string()),
-                    ("visibility", "timeline"),
-                    ("isFavorite", "true"),
-                ]),
-            },
+            params(&[
+                ("orderBy", "createdAt"),
+                ("order", "desc"),
+                ("personId", &person.to_string()),
+                ("visibility", "timeline"),
+                ("isFavorite", "true"),
+            ]),
         ),
         (
             BrowseFilter {
@@ -92,14 +83,14 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 ..BrowseFilter::default()
             },
             ids(all(album), IdSet::default(), all(tag)),
-            Plan::Single(params(&[
+            params(&[
                 ("orderBy", "createdAt"),
                 ("order", "desc"),
                 ("albumId", &album.to_string()),
                 ("tagId", &tag.to_string()),
                 ("visibility", "timeline"),
                 ("isFavorite", "true"),
-            ])),
+            ]),
         ),
         (
             BrowseFilter {
@@ -115,13 +106,13 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 },
                 either,
             ),
-            Plan::Single(params(&[
+            params(&[
                 ("orderBy", "createdAt"),
                 ("order", "desc"),
                 ("personId", &person.to_string()),
                 ("visibility", "timeline"),
                 ("withPartners", "true"),
-            ])),
+            ]),
         ),
         (
             BrowseFilter::default(),
@@ -134,15 +125,15 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
                 IdSet::default(),
                 IdSet::default(),
             ),
-            Plan::Single(params(&[
+            params(&[
                 ("orderBy", "createdAt"),
                 ("order", "desc"),
                 ("albumId", &album.to_string()),
-            ])),
+            ]),
         ),
     ];
     for (filter, ids, expected) in cases {
-        let planned = plan(&filter, &ids, Direction::Desc);
+        let planned = super::params(&filter, &ids, Direction::Desc);
         if planned != expected {
             panic!("{filter:?} with {ids:?} planned {planned:?}, expected {expected:?}");
         }
@@ -151,8 +142,8 @@ fn the_timeline_is_narrowed_by_everything_it_can_filter() {
 
 #[test]
 fn the_order_follows_the_direction() {
-    let planned = plan(&BrowseFilter::default(), &Ids::default(), Direction::Asc);
-    let expected = Plan::Single(params(&[("orderBy", "createdAt"), ("order", "asc")]));
+    let planned = super::params(&BrowseFilter::default(), &Ids::default(), Direction::Asc);
+    let expected = params(&[("orderBy", "createdAt"), ("order", "asc")]);
     if planned != expected {
         panic!("ascending planned {planned:?}");
     }

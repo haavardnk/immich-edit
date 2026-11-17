@@ -12,9 +12,6 @@ use crate::immich::ImmichClient;
 use crate::immich::client::ImmichAuth;
 use crate::services::search::{SearchShape, Searcher};
 
-pub const PARTNER: Uuid = Uuid::from_u128(0x5a);
-pub const HIDDEN_PARTNER: Uuid = Uuid::from_u128(0x5b);
-
 pub type Pick = fn(usize) -> bool;
 pub type Query = HashMap<String, String>;
 
@@ -28,7 +25,6 @@ pub struct Asset {
 
 struct FakeImmich {
     assets: Vec<Asset>,
-    partners_readable: bool,
 }
 
 fn month(at: DateTime<Utc>) -> String {
@@ -36,40 +32,21 @@ fn month(at: DateTime<Utc>) -> String {
 }
 
 impl FakeImmich {
-    fn partners(&self) -> ResponseTemplate {
-        if !self.partners_readable {
-            return ResponseTemplate::new(403).set_body_json(json!({
-                "message": "Missing required permission: partner.read",
-                "statusCode": 403,
-            }));
-        }
-        ResponseTemplate::new(200).set_body_json(json!([
-            { "id": PARTNER, "name": "partner", "inTimeline": true },
-            { "id": HIDDEN_PARTNER, "name": "hidden", "inTimeline": false },
-        ]))
-    }
-
     fn timeline(&self, request: &Request) -> ResponseTemplate {
         let query: Query = request.url.query_pairs().into_owned().collect();
         let get = |name: &str| query.get(name).map(String::as_str);
         let with_partners = get("withPartners") == Some("true");
+        let others = with_partners || get("userId").is_some();
         if get("orderBy") != Some("createdAt")
-            || (with_partners
-                && (get("isFavorite").is_some() || get("visibility") != Some("timeline")))
+            || (others && (get("isFavorite").is_some() || get("visibility") != Some("timeline")))
         {
             return ResponseTemplate::new(400);
         }
-        let partner = match get("userId") {
-            Some(id) if id == PARTNER.to_string() => Some(true),
-            Some(_) => return ResponseTemplate::new(400),
-            None if with_partners => None,
-            None => Some(false),
-        };
         let favorite = get("isFavorite").map(|value| value == "true");
         let mut assets: Vec<Asset> = self
             .assets
             .iter()
-            .filter(|asset| partner.is_none_or(|partner| asset.partner == partner))
+            .filter(|asset| with_partners || !asset.partner)
             .filter(|asset| favorite.is_none_or(|favorite| asset.picked == favorite))
             .copied()
             .collect();
@@ -141,7 +118,6 @@ impl Respond for FakeImmich {
     fn respond(&self, request: &Request) -> ResponseTemplate {
         match request.url.path() {
             "/api/search/metadata" => self.search(request),
-            "/api/partners" => self.partners(),
             _ => self.timeline(request),
         }
     }
@@ -161,12 +137,11 @@ pub fn library(count: usize, pick: Pick) -> Vec<Asset> {
         .collect()
 }
 
-pub async fn serve(assets: &[Asset], partners_readable: bool) -> (MockServer, Searcher) {
+pub async fn serve(assets: &[Asset]) -> (MockServer, Searcher) {
     let server = MockServer::start().await;
     Mock::given(any())
         .respond_with(FakeImmich {
             assets: assets.to_vec(),
-            partners_readable,
         })
         .mount(&server)
         .await;

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{DateTime, Months, NaiveDate, NaiveTime, TimeDelta, Utc};
@@ -38,7 +38,7 @@ pub(super) struct Scan {
 
 pub(super) struct Timeline<'a> {
     searcher: &'a Searcher,
-    sources: Arc<[Source]>,
+    source: Arc<Source>,
     buckets: Vec<String>,
     order: Direction,
     direction: Direction,
@@ -51,32 +51,22 @@ impl<'a> Timeline<'a> {
         ids: &Ids,
         direction: Direction,
     ) -> Result<Self, AppError> {
-        let plans = sources::sources(searcher, filter, ids, direction).await?;
-        let lists = try_join_all(
-            plans
-                .iter()
-                .map(|params| searcher.immich.timeline_buckets(params)),
-        )
-        .await?;
+        let params = sources::params(filter, ids, direction);
+        let list = searcher.immich.timeline_buckets(&params).await?;
         let (after, before) = filter.added_bounds();
-        let mut months = BTreeSet::new();
-        let mut sources = Vec::new();
-        for (params, list) in plans.into_iter().zip(lists) {
-            let counts: HashMap<String, u64> = list
-                .into_iter()
-                .filter(|bucket| overlaps(&bucket.time_bucket, after, before))
-                .map(|bucket| (bucket.time_bucket, bucket.count))
-                .collect();
-            months.extend(counts.keys().cloned());
-            sources.push(Source { params, counts });
-        }
-        let mut buckets: Vec<String> = months.into_iter().collect();
+        let counts: HashMap<String, u64> = list
+            .into_iter()
+            .filter(|bucket| overlaps(&bucket.time_bucket, after, before))
+            .map(|bucket| (bucket.time_bucket, bucket.count))
+            .collect();
+        let mut buckets: Vec<String> = counts.keys().cloned().collect();
+        buckets.sort();
         if direction == Direction::Desc {
             buckets.reverse();
         }
         Ok(Self {
             searcher,
-            sources: sources.into(),
+            source: Arc::new(Source { params, counts }),
             buckets,
             order: direction,
             direction,
@@ -86,7 +76,7 @@ impl<'a> Timeline<'a> {
     pub fn reversed(&self) -> Self {
         Self {
             searcher: self.searcher,
-            sources: self.sources.clone(),
+            source: self.source.clone(),
             buckets: self.buckets.iter().rev().cloned().collect(),
             order: self.order,
             direction: match self.direction {
@@ -100,27 +90,14 @@ impl<'a> Timeline<'a> {
         let Some(bucket) = self.buckets.get(index) else {
             return Ok(Arc::from([]));
         };
-        let lists = try_join_all(self.sources.iter().filter_map(|source| {
-            let count = *source.counts.get(bucket)?;
-            Some(buckets::entries(
-                self.searcher,
-                &source.params,
-                bucket,
-                count,
-            ))
-        }))
-        .await?;
-        if let [only] = lists.as_slice()
-            && self.direction == self.order
-        {
-            return Ok(only.clone());
+        let Some(&count) = self.source.counts.get(bucket) else {
+            return Ok(Arc::from([]));
+        };
+        let entries = buckets::entries(self.searcher, &self.source.params, bucket, count).await?;
+        if self.direction == self.order {
+            return Ok(entries);
         }
-        let mut merged: Vec<Entry> = lists.iter().flat_map(|list| list.iter().copied()).collect();
-        merged.sort_by(|a, b| rank(self.order, a.at, b.at));
-        if self.direction != self.order {
-            merged.reverse();
-        }
-        Ok(merged.into())
+        Ok(entries.iter().rev().copied().collect())
     }
 
     pub async fn resume(
