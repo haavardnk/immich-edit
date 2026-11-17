@@ -22,7 +22,7 @@
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
-  import ExifSummary from '#lib/components/editor/ExifSummary.svelte';
+  import PhotoInfoSheet from '#lib/components/browse/info/PhotoInfoSheet.svelte';
   import { paintSize } from '#lib/editor/paintSize.ts';
   import BrushSizeRail from './BrushSizeRail.svelte';
   import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
@@ -57,7 +57,7 @@
   });
 
   $effect(() => {
-    if (ui.metaPopover === 'exif' && layout.phone) untrack(ui.collapsePanels);
+    if (ui.editorInfoOpen && layout.phone) untrack(ui.collapsePanels);
   });
 
   function adjust(): ViewerAdjust | null {
@@ -163,4 +163,6 @@
   {/if}
 </div>
 
-<ExifSummary anchor={null} />
+{#if ui.editorInfoOpen && editor.asset}
+  <PhotoInfoSheet asset={editor.asset} onclose={() => (ui.editorInfoOpen = false)} />
+{/if}

@@ -1,12 +1,11 @@
 <script lang="ts">
-  import LoupeInfoBody from '#lib/components/browse/info/LoupeInfoBody.svelte';
+  import PhotoInfoBody from '#lib/components/browse/info/PhotoInfoBody.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { browseView } from '#lib/stores/browseView.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import { IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
 
-  let { asset }: { asset: AssetSummary } = $props();
+  let { asset, onclose }: { asset: AssetSummary; onclose: () => void } = $props();
 </script>
 
 <aside
@@ -23,10 +22,10 @@
       icon={mdiClose}
       title={hint('Close', 'toggleInfo')}
       aria-label="Close info"
-      onclick={() => browseView.setLoupeInfoOpen(false)}
+      onclick={onclose}
     />
   </div>
   <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
-    <LoupeInfoBody {asset} />
+    <PhotoInfoBody {asset} />
   </div>
 </aside>

@@ -121,7 +121,7 @@ type PersistedEditorUi = {
   cropGuideTurn?: number;
 };
 
-export type MetaPopover = 'exif' | 'tags' | 'zoom';
+export type MetaPopover = 'tags' | 'zoom';
 
 class UiStore {
   rightCollapsed = $state(false);
@@ -143,6 +143,7 @@ class UiStore {
   cy = $state(0.5);
   keybindsHelpOpen = $state(false);
   metaPopover = $state<MetaPopover | null>(null);
+  editorInfoOpen = $state(false);
   editorTab = $state<EditorTab>('develop');
   geometryTool = $state<GeometryTool | null>(null);
   cropGrid = $state<CropGrid>('thirds');
@@ -278,6 +279,10 @@ class UiStore {
     this.editorFilmstripCollapsed = !hidden;
     this.presetStrip = false;
     this.persistEditorUi();
+  };
+
+  toggleEditorInfo = (): void => {
+    this.editorInfoOpen = !this.editorInfoOpen;
   };
 
   collapsePanels = (): void => {

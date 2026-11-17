@@ -1,15 +1,12 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import ExifSummary from './ExifSummary.svelte';
   import EditorMoreMenu from './EditorMoreMenu.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { redo, undo } from '#lib/commands/editor/edits.ts';
   import { editorBack } from '#lib/commands/editor/navigation.ts';
   import { beforeAfter, holdOriginal } from '#lib/commands/editor/view.ts';
-
-  let moreAnchor = $state<HTMLElement | null>(null);
 
   const assetId = $derived(editor.assetId);
   const copyBadge = $derived(
@@ -66,10 +63,7 @@
       <CommandIconButton command={beforeAfter} size="small" variant="ghost" />
     </div>
 
-    {#if editor.assetId}
-      <ExifSummary anchor={moreAnchor} />
-    {/if}
-    <div class="flex shrink-0" bind:this={moreAnchor}>
+    <div class="flex shrink-0">
       <EditorMoreMenu />
     </div>
   </div>

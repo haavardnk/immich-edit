@@ -10,7 +10,7 @@ export interface MetadataCtx {
   error: string | null;
 }
 
-function editorTarget(ctx: MetadataCtx): assetMeta.MetaTarget | null {
+export function editorTarget(ctx: MetadataCtx): assetMeta.MetaTarget | null {
   const id = ctx.assetId;
   if (!id) return null;
   const open = (): boolean => ctx.assetId === id;

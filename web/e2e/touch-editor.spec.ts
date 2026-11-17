@@ -41,6 +41,18 @@ async function doubleTap(page: Page, point: TouchPoint): Promise<void> {
 }
 
 test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
+  test('Info opens the photo info sheet of the loupe and closes the tray', async ({ page }) => {
+    await openEditor(page);
+    await toolbar(page).getByRole('button', { name: 'More editor actions' }).tap();
+    await page.getByRole('button', { name: 'Info', exact: true }).tap();
+    const sheet = page.getByRole('dialog', { name: 'Info' });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByText('Tags', { exact: true })).toBeVisible();
+    await expect(tray(page)).toHaveCount(0);
+    await sheet.getByRole('button', { name: 'Close info' }).tap();
+    await expect(sheet).toHaveCount(0);
+  });
+
   test('modes, groups and views switch and each group keeps its view', async ({ page }) => {
     await openEditor(page);
     await groups(page).getByRole('tab', { name: 'Color' }).tap();

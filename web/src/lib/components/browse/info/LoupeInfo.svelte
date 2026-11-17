@@ -1,7 +1,7 @@
 <script lang="ts">
   import { reveal } from '#lib/motion/reveal.ts';
-  import LoupeInfoPanel from '#lib/components/browse/info/LoupeInfoPanel.svelte';
-  import LoupeInfoSheet from '#lib/components/browse/info/LoupeInfoSheet.svelte';
+  import PhotoInfoPanel from '#lib/components/browse/info/PhotoInfoPanel.svelte';
+  import PhotoInfoSheet from '#lib/components/browse/info/PhotoInfoSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
@@ -11,10 +11,10 @@
 
 {#if browseView.loupeInfoOpen}
   {#if layout.compact}
-    <LoupeInfoSheet {asset} />
+    <PhotoInfoSheet {asset} onclose={() => browseView.setLoupeInfoOpen(false)} />
   {:else}
     <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
-      <LoupeInfoPanel {asset} />
+      <PhotoInfoPanel {asset} onclose={() => browseView.setLoupeInfoOpen(false)} />
     </div>
   {/if}
 {/if}

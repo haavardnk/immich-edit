@@ -25,9 +25,9 @@ export const editorInfo = {
   id: 'editor.info',
   contexts: ['editor'],
   ...infoView,
-  pressed: () => ui.metaPopover === 'exif',
-  enabled: () => !!editor.asset?.exifInfo,
-  run: () => ui.togglePopover('exif')
+  pressed: () => ui.editorInfoOpen,
+  enabled: () => !!editor.asset,
+  run: ui.toggleEditorInfo
 } satisfies Command;
 
 export const editorClipWarn = {

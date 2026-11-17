@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { browseTarget, setDescription } from '#lib/browse/assetMeta.ts';
+  import { setDescription } from '#lib/browse/assetMeta.ts';
+  import { infoSource } from '#lib/browse/info/infoSource.ts';
   import { keyHeld } from '#lib/input/modifiers.svelte.ts';
   import { ownsAsset } from '#lib/browse/ownership.ts';
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
@@ -9,6 +10,7 @@
 
   type Draft = { id: string; text: string };
 
+  const source = infoSource();
   let { asset }: { asset: AssetSummary } = $props();
 
   const saved = $derived(asset.exifInfo?.description ?? '');
@@ -23,7 +25,8 @@
   async function commit(pending: Draft | null): Promise<void> {
     if (!pending || pending === sent) return;
     sent = pending;
-    await setDescription(browseTarget(pending.id), pending.text.trim());
+    const target = source.target(pending.id);
+    if (target) await setDescription(target, pending.text.trim());
     if (edit === pending) edit = null;
   }
 
