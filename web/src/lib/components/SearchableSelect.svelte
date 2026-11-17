@@ -449,7 +449,7 @@
         collisionPadding={8}
         customAnchor={anchor}
         onpointerleave={unhover}
-        class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-light-950/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
+        class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-hairline py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
         'neutral'
           ? 'bg-light-200'
           : 'bg-gray-100 dark:bg-gray-800'}"

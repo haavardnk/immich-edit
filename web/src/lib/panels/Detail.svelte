@@ -3,7 +3,7 @@
   import SharpeningSection from './detail/SharpeningSection.svelte';
 </script>
 
-<div class="flex flex-col divide-y divide-dark/10">
+<div class="flex flex-col divide-y divide-hairline">
   <SharpeningSection />
   <NoiseReductionSection />
 </div>

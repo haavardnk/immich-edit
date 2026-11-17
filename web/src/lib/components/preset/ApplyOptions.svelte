@@ -50,7 +50,7 @@
 
 <div
   class="flex flex-col text-[11px] text-dark/65 {inline ? 'touch:gap-1' : 'gap-1'} {bordered
-    ? 'border-t border-dark/10 pt-3'
+    ? 'border-t border-hairline pt-3'
     : ''}"
 >
   <div class="panel-row h-7 items-center touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem]">

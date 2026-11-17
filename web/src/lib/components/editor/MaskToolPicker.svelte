@@ -85,13 +85,13 @@
         {/each}
       {/if}
     {/each}
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
   {:else if aiUnavailable}
     <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">AI</div>
     <div class="px-3 pb-2 text-[10px] text-dark/65 leading-snug">
       {aiUnavailable}
     </div>
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
   {/if}
   <div class="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider text-dark/65">Manual</div>
   {#each MANUAL_TOOLS as item (item.tool)}

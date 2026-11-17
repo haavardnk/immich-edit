@@ -50,7 +50,7 @@
   </ul>
   {#if keepsNewer}
     <p
-      class="sticky bottom-0 border-t border-dark/5 bg-light-100 px-3 py-2 text-[11px] leading-snug text-dark/65"
+      class="sticky bottom-0 border-t border-hairline bg-light-100 px-3 py-2 text-[11px] leading-snug text-dark/65"
     >
       <b class="font-semibold text-warning">Newer steps are kept</b> until your next edit.
     </p>

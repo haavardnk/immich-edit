@@ -4,7 +4,7 @@
   import WhiteBalanceSection from './basic/WhiteBalanceSection.svelte';
 </script>
 
-<div class="flex flex-col divide-y divide-dark/10">
+<div class="flex flex-col divide-y divide-hairline">
   <div class="flex flex-col gap-1 pb-1.5">
     <WhiteBalanceSection />
   </div>

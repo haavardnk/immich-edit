@@ -108,7 +108,7 @@
     {@render row(bulkEdits.paste)}
     {@render row(bulkEdits.pasteOnly)}
     {@render row(bulkEdits.copy)}
-    <div class="my-1 h-px bg-dark/10" role="separator"></div>
+    <div class="my-1 h-px bg-hairline" role="separator"></div>
     {@render row(bulkEdits.reset)}
   </div>
 </Popover>

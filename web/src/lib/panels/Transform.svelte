@@ -7,7 +7,7 @@
   useGeometrySession();
 </script>
 
-<div class="flex flex-col divide-y divide-dark/10">
+<div class="flex flex-col divide-y divide-hairline">
   {#if editor.geometrySession}
     <CropSection sess={editor.geometrySession} />
     <TransformSection sess={editor.geometrySession} />

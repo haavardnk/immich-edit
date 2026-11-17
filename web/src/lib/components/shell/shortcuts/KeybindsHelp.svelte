@@ -136,7 +136,7 @@
         {#if sections.elsewhere.length > 0}
           <h3
             class="text-[11px] uppercase tracking-wider text-dark/65 mb-2 {sections.here.length > 0
-              ? 'mt-3 pt-3 border-t border-dark/10'
+              ? 'mt-3 pt-3 border-t border-hairline'
               : ''}"
           >
             Elsewhere in the app

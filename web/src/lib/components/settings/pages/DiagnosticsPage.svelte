@@ -322,7 +322,7 @@
   <section class="space-y-2 pt-5">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Configuration</Heading>
     <pre
-      class="overflow-x-auto rounded border border-dark/10 bg-light-100 p-3 font-mono text-[11px]">{JSON.stringify(
+      class="overflow-x-auto rounded border border-hairline bg-light-100 p-3 font-mono text-[11px]">{JSON.stringify(
         health.config,
         null,
         2

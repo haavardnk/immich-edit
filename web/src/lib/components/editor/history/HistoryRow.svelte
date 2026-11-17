@@ -58,7 +58,7 @@
 </script>
 
 <li
-  class="border-b border-dark/5 last:border-b-0 touch:border-hairline"
+  class="border-b border-hairline last:border-b-0 touch:border-hairline"
   data-history-step={entry.id}
   data-undone={step.undone || undefined}
   data-superseded={step.superseded || undefined}

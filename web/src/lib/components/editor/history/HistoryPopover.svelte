@@ -36,7 +36,7 @@
       {...popoverProps}
     />
   {/snippet}
-  <div class="relative border-b border-dark/5 pb-1">
+  <div class="relative border-b border-hairline pb-1">
     <SnapshotList />
     <IconButton
       size="tiny"

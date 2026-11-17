@@ -31,7 +31,7 @@
 
 {#each groups as group, index (index)}
   {#if index > 0}
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
   {/if}
   {#each group as command (command.id)}
     {@const cls = rowClass?.(command)}

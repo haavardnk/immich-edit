@@ -69,7 +69,7 @@
       <section
         id={anchorOf(view.id)}
         aria-label={view.label}
-        class="flex scroll-mt-2 flex-col divide-y divide-dark/10 px-3 py-1.5"
+        class="flex scroll-mt-2 flex-col divide-y divide-hairline px-3 py-1.5"
       >
         {#each touchViewParts(group.id, view.id) as part, index (index)}
           <div class="flex flex-col gap-1 py-1.5">

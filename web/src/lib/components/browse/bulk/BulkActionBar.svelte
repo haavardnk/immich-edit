@@ -55,7 +55,7 @@
 </script>
 
 {#snippet divider()}
-  <span class="mx-1 h-5 w-px shrink-0 bg-dark/10 {ONE_ROW.divider}" aria-hidden="true"></span>
+  <span class="mx-1 h-5 w-px shrink-0 bg-hairline {ONE_ROW.divider}" aria-hidden="true"></span>
 {/snippet}
 
 {#snippet multiButton(mode: MultiMode)}

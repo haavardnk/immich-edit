@@ -18,7 +18,7 @@
       <Card
         color="secondary"
         shape="rectangle"
-        class="mx-auto max-w-md rounded-lg border border-dark/10"
+        class="mx-auto max-w-md rounded-lg border border-hairline"
       >
         <CardBody class="p-6">
           <div class="flex flex-col gap-4">

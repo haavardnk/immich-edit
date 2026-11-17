@@ -112,18 +112,18 @@
     {#if !touch}
       <VersionsList onnavigate={() => (open = false)} />
     {/if}
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
     <EditRows {then} />
-    <div class="my-1 hidden border-t border-dark/10 touch:block"></div>
+    <div class="my-1 hidden border-t border-hairline touch:block"></div>
     <span class="px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase">View</span>
     <CommandList
       menu={EDITOR_VIEW_MENU}
       onrun={() => (open = false)}
       rowClass={(command) => (command === holdOriginal ? 'xl:hidden touch:hidden' : undefined)}
     />
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
     <SoftProofControl />
-    <div class="my-1 border-t border-dark/10"></div>
+    <div class="my-1 border-t border-hairline"></div>
     <CommandList menu={EDITOR_MORE_MENU} onrun={() => (open = false)} />
     <SheetRow
       icon={mdiViewSequentialOutline}

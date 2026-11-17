@@ -216,7 +216,7 @@
         label="Export all presets"
         onclick={() => act(presets.exportAll)}
       />
-      <div class="my-1 border-t border-dark/10"></div>
+      <div class="my-1 border-t border-hairline"></div>
       {#if confirmingDelete}
         <MenuItem
           icon={mdiCheck}

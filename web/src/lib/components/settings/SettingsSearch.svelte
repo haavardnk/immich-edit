@@ -126,7 +126,7 @@
         onInteractOutside={(event) => {
           if (field?.contains(event.target as Node)) event.preventDefault();
         }}
-        class="z-50 max-h-(--bits-popover-content-available-height) w-[26rem] overflow-y-auto rounded-xl border border-light-950/10 bg-light-100 shadow-popover"
+        class="z-50 max-h-(--bits-popover-content-available-height) w-[26rem] overflow-y-auto rounded-xl border border-hairline bg-light-100 shadow-popover"
       >
         {@render list()}
         {#if layout.mode === 'desktop'}

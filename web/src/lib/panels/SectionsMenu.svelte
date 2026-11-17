@@ -56,7 +56,7 @@
     onreorder={(ids) => void desktopSections.reorder(ids)}
     ontoggle={(id) => void desktopSections.toggle(id)}
   />
-  <div class="mt-1 flex items-center gap-2 border-t border-dark/10 px-1.5 pt-1.5">
+  <div class="mt-1 flex items-center gap-2 border-t border-hairline px-1.5 pt-1.5">
     <span class="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-dark/55">
       <Icon icon={mdiAccountOutline} size="13px" class="shrink-0" aria-hidden="true" />
       Saved to your account

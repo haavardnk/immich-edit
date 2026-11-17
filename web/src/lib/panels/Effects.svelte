@@ -18,7 +18,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
 </script>
 
-<div class="flex flex-col divide-y divide-dark/10">
+<div class="flex flex-col divide-y divide-hairline">
   <div class="flex flex-col gap-1 pb-1.5">
     <SectionHeader
       title="Vignette"

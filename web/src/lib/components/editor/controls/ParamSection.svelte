@@ -35,7 +35,7 @@
   </SectionHeader>
   {#each rows as row, index (index)}
     {#if index > 0}
-      <div class="border-t border-dark/10"></div>
+      <div class="border-t border-hairline"></div>
     {/if}
     {#each row as param (param.id)}
       <ParamSlider {param} />

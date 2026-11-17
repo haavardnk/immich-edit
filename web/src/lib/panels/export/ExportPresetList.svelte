@@ -125,7 +125,7 @@
 {#if anySaveOnly}
   <Notice color="info" message={SAVE_ONLY_REASON} class="mx-3 mb-2" />
 {/if}
-<form class="flex items-center gap-1 border-t border-dark/10 p-2" onsubmit={save}>
+<form class="flex items-center gap-1 border-t border-hairline p-2" onsubmit={save}>
   <input
     bind:value={name}
     maxlength={80}
