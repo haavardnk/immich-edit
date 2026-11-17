@@ -8,7 +8,6 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { paintInput, SECOND_FINGER_MS } from '#lib/stores/editor/paintInput.svelte.ts';
   import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
-  import { ui } from '#lib/stores/ui.svelte.ts';
   import { MAX_RETOUCH_POINTS, type RetouchStroke, type Vec2f } from '#lib/types/edits.ts';
   import { brushWheel } from '#lib/utils/brushSize.ts';
   import {
@@ -24,6 +23,7 @@
   import TouchMagnifier from '../TouchMagnifier.svelte';
   import { distToPolyline, type Px } from './retouchDraw';
   import { drawRetouch } from './retouchScene';
+  import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
 
   let {
     img
@@ -59,7 +59,7 @@
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
-  const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
+  const show = $derived(toolOpen('retouch') && rect.w > 0 && rect.h > 0);
   const sampleHeld = $derived(sampleKey || latched('sample'));
   const picking = $derived(sampleHeld || !anchor || editor.retouchSampling);
   const canPick = $derived(!!anchor || sampleHeld || editor.retouchSampling);

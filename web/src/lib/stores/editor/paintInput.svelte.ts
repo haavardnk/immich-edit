@@ -1,9 +1,9 @@
 import type { PillText } from '#lib/editor/pill.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
-import { ui } from '#lib/stores/ui.svelte.ts';
 import { formatBrushSize } from '#lib/utils/brushSize.ts';
 import { retouchValue } from '#lib/editor/retouch/settings.ts';
 import { modeName } from '#lib/editor/retouch/text.ts';
+import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
 
 export const SECOND_FINGER_MS = 120;
 
@@ -15,11 +15,11 @@ class PaintInput {
   sizing = $state(false);
 
   get brushActive(): boolean {
-    return ui.editorTab === 'masks' && editor.activeMaskComponent()?.kind.kind === 'brush';
+    return toolOpen('masks') && editor.activeMaskComponent()?.kind.kind === 'brush';
   }
 
   get retouchActive(): boolean {
-    return ui.editorTab === 'retouch';
+    return toolOpen('retouch');
   }
 
   get fingersPaint(): boolean {

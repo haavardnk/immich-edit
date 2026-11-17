@@ -24,6 +24,7 @@
   import { paintSize } from '#lib/editor/paintSize.ts';
   import BrushSizeRail from './BrushSizeRail.svelte';
   import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
+  import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -93,7 +94,7 @@
       {#if railSize}
         <BrushSizeRail size={railSize} />
       {/if}
-      {#if chrome && ui.editorTab === 'retouch'}
+      {#if chrome && toolOpen('retouch')}
         <RetouchSourceBanner />
       {/if}
       {#if chrome && editor.compare.mode !== 'off'}

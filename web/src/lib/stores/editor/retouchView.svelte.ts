@@ -2,8 +2,8 @@ import { layout } from '#lib/device/layout.svelte.ts';
 import type { PillText } from '#lib/editor/pill.ts';
 import { RETOUCH_LIMIT_TEXT } from '#lib/editor/retouch/text.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
-import { ui } from '#lib/stores/ui.svelte.ts';
 import { mdiAlertOutline } from '@mdi/js';
+import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
 
 const FLASH_MS = 1800;
 
@@ -13,11 +13,11 @@ class RetouchView {
   #timer: ReturnType<typeof setTimeout> | null = null;
 
   get visualize(): boolean {
-    return this.#visualize && ui.editorTab === 'retouch';
+    return this.#visualize && toolOpen('retouch');
   }
 
   get pill(): PillText | null {
-    if (ui.editorTab !== 'retouch') return null;
+    if (!toolOpen('retouch')) return null;
     if (this.#limit) {
       return { lead: RETOUCH_LIMIT_TEXT, label: '', tail: '', mono: false, icon: mdiAlertOutline };
     }
