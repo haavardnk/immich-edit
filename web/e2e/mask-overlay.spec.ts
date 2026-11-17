@@ -52,14 +52,15 @@ test('shift O cycles the mask overlay modes with a pill', async ({ page }) => {
   await page.reload();
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'Mask overlay options' }).click();
-  await expect(page.getByRole('button', { name: 'White on black', exact: true })).toHaveAttribute(
+  const menu = page.locator('[data-popover-content]');
+  await expect(menu.getByRole('button', { name: 'White on black', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
   await page.keyboard.press('Escape');
   await page.keyboard.press('Shift+O');
   await page.getByRole('button', { name: 'Mask overlay options' }).click();
-  await expect(page.getByRole('button', { name: 'Color', exact: true })).toHaveAttribute(
+  await expect(menu.getByRole('button', { name: 'Color', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );

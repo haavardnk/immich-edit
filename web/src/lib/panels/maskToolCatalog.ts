@@ -139,3 +139,37 @@ export function aiTools(kinds: readonly { kind: MaskKind; installed: boolean }[]
     return [entry];
   });
 }
+
+export type QuickTool = { id: string; label: string; icon: string; pick: ToolPick };
+
+const QUICK_AI: readonly string[] = ['subject', 'sky', 'background'];
+const QUICK_MANUAL: readonly ManualTool[] = [
+  'brush',
+  'linear',
+  'radial',
+  'polygon',
+  'luma_range',
+  'color_range'
+];
+const SHORT_LABELS: Partial<Record<ManualTool, string>> = {
+  linear: 'Linear',
+  radial: 'Radial',
+  luma_range: 'Luminance',
+  color_range: 'Color'
+};
+const QUICK_COUNT = 6;
+
+export function quickTools(kinds: readonly { kind: MaskKind; installed: boolean }[]): QuickTool[] {
+  const ai = aiTools(kinds).filter((tool) => tool.installed && QUICK_AI.includes(tool.id));
+  ai.sort((a, b) => QUICK_AI.indexOf(a.id) - QUICK_AI.indexOf(b.id));
+  const manual = QUICK_MANUAL.flatMap((tool) => {
+    const entry = MANUAL_TOOLS.find((item) => item.tool === tool);
+    if (!entry) return [];
+    const pick: ToolPick = { kind: 'manual', tool };
+    return [{ id: tool, label: SHORT_LABELS[tool] ?? entry.label, icon: entry.icon, pick }];
+  });
+  return [...ai.map(({ id, label, icon, pick }) => ({ id, label, icon, pick })), ...manual].slice(
+    0,
+    QUICK_COUNT
+  );
+}

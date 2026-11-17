@@ -2,6 +2,7 @@
   import Notice from '#lib/components/Notice.svelte';
   import MaskAdjustments from './MaskAdjustments.svelte';
   import MaskClickTool from './MaskClickTool.svelte';
+  import MaskQuickStart from './MaskQuickStart.svelte';
   import MaskShapeControls from './MaskShapeControls.svelte';
   import MaskComponentRow from './MaskComponentRow.svelte';
   import MaskLayerRow from './MaskLayerRow.svelte';
@@ -145,7 +146,10 @@
   {/if}
 
   {#if layers.length === 0}
-    <div class="flex justify-center px-2 py-2">
+    {#if layerMenu === null}
+      <MaskQuickStart />
+    {/if}
+    <div class="flex justify-center px-2 pb-2">
       <MaskToolMenu
         open={layerMenu === 'empty'}
         align="start"

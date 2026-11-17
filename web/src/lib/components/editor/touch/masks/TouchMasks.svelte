@@ -15,6 +15,7 @@
   import { Button, Icon } from '@immich/ui';
   import { Tabs } from 'bits-ui';
   import MaskAddSheet from './MaskAddSheet.svelte';
+  import MaskQuickStart from '#lib/panels/MaskQuickStart.svelte';
   import MaskLayerCards from './MaskLayerCards.svelte';
   import MaskLayerSheet from './MaskLayerSheet.svelte';
   import MaskShapeSheet from './MaskShapeSheet.svelte';
@@ -130,8 +131,6 @@
     <div class="px-4 py-2"><MaskClickTool layerId={null} pending /></div>
   {:else if stacked && draft && draft.layerId === null}
     <div class="px-4 py-2"><MaskPolygonDraftControls /></div>
-  {:else if editor.edits.masks.length === 0}
-    <p class="px-4 py-3 text-[13px] text-dark/65">No masks</p>
   {/if}
 {/snippet}
 
@@ -143,10 +142,14 @@
       ? 'overflow-y-auto overscroll-contain scrollbar-hidden'
       : ''}"
   >
-    <MaskLayerCards
-      onadd={() => (adding = { layerId: null, mode: 'add' })}
-      onmenu={(id) => (layerMenu = id)}
-    />
+    {#if editor.edits.masks.length === 0 && !pending && !draft}
+      <MaskQuickStart onall={() => (adding = { layerId: null, mode: 'add' })} />
+    {:else}
+      <MaskLayerCards
+        onadd={() => (adding = { layerId: null, mode: 'add' })}
+        onmenu={(id) => (layerMenu = id)}
+      />
+    {/if}
     {#if layerLimit}
       {@render limit(layerLimit, 'mask-layer-limit')}
     {/if}

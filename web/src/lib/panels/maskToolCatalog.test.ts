@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiTools } from './maskToolCatalog';
+import { aiTools, quickTools } from './maskToolCatalog';
 
 describe('aiTools', () => {
   it('follows the picker order with Background and Box select beside their models', () => {
@@ -26,6 +26,27 @@ describe('aiTools', () => {
   it('hides the helpers of missing models', () => {
     expect(aiTools([{ kind: 'subject', installed: false }]).map((tool) => tool.id)).toEqual([
       'subject'
+    ]);
+  });
+});
+
+describe('quickTools', () => {
+  it('leads with installed AI tools and fills six slots with drawing tools', () => {
+    const labels = (kinds: Parameters<typeof quickTools>[0]) =>
+      quickTools(kinds).map((tool) => tool.label);
+    expect(
+      labels([
+        { kind: 'sky', installed: true },
+        { kind: 'subject', installed: true }
+      ])
+    ).toEqual(['Subject', 'Sky', 'Background', 'Brush', 'Linear', 'Radial']);
+    expect(labels([{ kind: 'subject', installed: false }])).toEqual([
+      'Brush',
+      'Linear',
+      'Radial',
+      'Polygon',
+      'Luminance',
+      'Color'
     ]);
   });
 });

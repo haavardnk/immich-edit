@@ -52,7 +52,7 @@ const tool = (page: Page) => page.getByTestId('touch-shape-tool');
 test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () => {
   test('the brush tray has paint and erase with size on the photo edge', async ({ page }) => {
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Brush');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Brush');
     await expect(tool(page)).toContainText('Brush');
     await expect(tool(page).getByRole('button', { name: 'Paint', exact: true })).toBeVisible();
     await expect(tool(page).getByRole('slider', { name: 'Hardness' })).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
   test('one finger paints and a second finger within 120 ms drops the stroke', async ({ page }) => {
     await openMasks(page);
     const rasters = await countRasters(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Brush');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Brush');
     const canvas = await boxOf(page, 'brush-canvas');
     await expect.poll(rasters).toBeGreaterThan(0);
     const added = rasters();
@@ -121,7 +121,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
   test('a radial opens its tool tray with mode, feather and invert', async ({ page }) => {
     const saves: Array<Record<string, unknown>> = [];
     await openMasks(page, { onSave: (body) => saves.push(body) });
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Radial gradient');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Radial gradient');
     await expect(tool(page)).toContainText('Mask 1 · base shape');
     await expect(tool(page).getByRole('radiogroup', { name: 'Shape mode' })).toHaveCount(0);
     await expect(tool(page).getByRole('slider', { name: 'Feather' })).toBeVisible();
@@ -146,7 +146,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
     page
   }) => {
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Polygon');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Polygon');
     await expect(tool(page)).toContainText('Polygon');
     const undo = tool(page).getByRole('button', { name: 'Undo point' });
     const done = tool(page).getByRole('button', { name: 'Done', exact: true });
@@ -183,7 +183,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
           [40, 40, 200]
         ])
     });
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Color range');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Color range');
     await expect(tool(page)).toHaveCount(0);
     const sample = page.getByRole('button', { name: 'Sample color from the photo' });
     await sample.tap();
@@ -213,7 +213,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
 
   test('the luminance range thumbs have touch targets', async ({ page }) => {
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Luminance range');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Luminance range');
     const thumb = page.getByRole('slider', { name: 'Darkest' });
     await expect(thumb).toBeVisible();
     expect((await thumb.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(22);
@@ -243,7 +243,7 @@ test.describe('touch mask tools on a phone', { tag: ['@touch', '@phone'] }, () =
 test.describe('touch mask tools on a tablet', { tag: ['@touch', '@tablet'] }, () => {
   test('the inspector keeps the brush size row and no edge rail', async ({ page }) => {
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Brush');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Brush');
     await expect(page.getByRole('slider', { name: 'Size' })).toBeVisible();
     await expect(page.getByTestId('brush-size-rail')).toHaveCount(0);
     await expect(tool(page)).toHaveCount(0);
@@ -252,7 +252,7 @@ test.describe('touch mask tools on a tablet', { tag: ['@touch', '@tablet'] }, ()
   test('a stroke on the tablet paints with one finger', async ({ page }) => {
     await openMasks(page);
     const rasters = await countRasters(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Brush');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Brush');
     await expect.poll(rasters).toBeGreaterThan(0);
     const added = rasters();
     const canvas = await boxOf(page, 'brush-canvas');

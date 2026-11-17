@@ -3,9 +3,26 @@ import { json } from './helpers';
 import { addFromSheet, cards, modes, openMasks, savedLayers, shapes, sheet } from './touchMasks';
 
 test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () => {
+  test('an empty tray starts a mask from one tap on a quick tool', async ({ page }) => {
+    await openMasks(page);
+    const quick = page.getByRole('region', { name: 'New mask' });
+    await expect(quick.getByRole('button')).toHaveText([
+      'Subject',
+      'Sky',
+      'Background',
+      'Brush',
+      'Linear',
+      'Radial',
+      'All tools'
+    ]);
+    await quick.getByRole('button', { name: 'Brush', exact: true }).tap();
+    await expect(quick).toHaveCount(0);
+    await expect(page.getByRole('slider', { name: 'Brush size' })).toBeVisible();
+  });
+
   test('the add sheet lists AI tools then shapes in the desktop order', async ({ page }) => {
     await openMasks(page);
-    await page.getByRole('button', { name: 'New mask' }).tap();
+    await page.getByRole('button', { name: 'All tools' }).tap();
     const dialog = sheet(page);
     await expect(dialog.getByText('Pick a tool to start a mask.')).toBeVisible();
     const tools = dialog.locator('[data-menu-row]');
@@ -50,7 +67,7 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
       )
     );
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Subject');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Subject');
     const tool = page.getByRole('region', { name: 'Adjustments' });
     await expect(shapes(page)).toHaveCount(1);
     await expect(page.getByRole('slider', { name: 'Brush size' })).toHaveCount(0);
@@ -86,7 +103,7 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     const saves: Array<Record<string, unknown>> = [];
     await openMasks(page, { onSave: (body) => saves.push(body) });
 
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Radial gradient');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Radial gradient');
     const tool = page.getByTestId('touch-shape-tool');
     await expect(tool).toContainText('Mask 1 · base shape');
     await tool.getByRole('button', { name: 'Done', exact: true }).tap();
@@ -139,7 +156,7 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
 test.describe('touch mask layers on a tablet', { tag: ['@touch', '@tablet'] }, () => {
   test('the inspector stacks layers, shapes and adjustments in one scroll', async ({ page }) => {
     await openMasks(page);
-    await addFromSheet(page, page.getByRole('button', { name: 'New mask' }), 'Radial gradient');
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Radial gradient');
     await expect(shapes(page)).toHaveCount(1);
     await expect(page.getByRole('tablist', { name: 'Mask views' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Intersect', exact: true })).toBeVisible();
