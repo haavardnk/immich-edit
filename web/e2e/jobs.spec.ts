@@ -120,7 +120,11 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   };
   const finished = { ...queued, status: 'completed', completed: 1, failed: 1 };
   let deliver: (() => void) | null = null;
-  await installMocks(page, { assets: numberedAssets(2) });
+  const assets = numberedAssets(2);
+  await installMocks(page, {
+    assets,
+    edits: assets.map((asset) => ({ id: asset.id, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' }))
+  });
   await page.route('**/api/jobs', (route) =>
     route.request().method() === 'POST'
       ? route.fulfill(json(queued))

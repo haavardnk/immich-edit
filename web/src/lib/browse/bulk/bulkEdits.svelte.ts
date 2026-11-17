@@ -5,6 +5,7 @@ import { copyEditsFrom } from '#lib/browse/copyPaste.ts';
 import type { KeybindId } from '#lib/shortcuts/table.ts';
 import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+import { selection } from '#lib/stores/selection.svelte.ts';
 import {
   mdiClipboardCheckOutline,
   mdiContentCopy,
@@ -37,6 +38,7 @@ class BulkEdits {
   readonly #source = $derived(clipboard.source ? `from ${fileStem(clipboard.source)}` : null);
   readonly #copyId = $derived(bulkScope.single?.id ?? null);
   readonly #copyReason = $derived(copyReason(this.#copyId));
+  readonly #edited = $derived([...selection.selected].some((id) => editedThumbs.has(id)));
 
   readonly applyPreset: BulkEditRow = $derived({
     label: 'Apply preset',
@@ -80,7 +82,7 @@ class BulkEdits {
     icon: mdiRestore,
     bind: null,
     detail: null,
-    disabled: this.#blocked,
+    disabled: this.#blocked || !this.#edited,
     run: () => void bulkActions.resetEdits()
   });
 }

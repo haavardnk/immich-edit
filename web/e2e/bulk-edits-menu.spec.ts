@@ -41,10 +41,9 @@ test('the edits menu lists the bulk edit actions with their reasons and keys', a
     'Copy edits Select one photo',
     'Reset edits'
   ]);
-  for (const name of ['Paste edits', 'Paste only…', 'Copy edits']) {
+  for (const name of ['Paste edits', 'Paste only…', 'Copy edits', 'Reset edits']) {
     await expect(menu.getByRole('button', { name, exact: true })).toBeDisabled();
   }
-  await expect(menu.getByRole('button', { name: 'Reset edits' })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
 });
@@ -109,7 +108,7 @@ test('a tight bar opens the same edits menu from More actions', async ({ page })
   await page.setViewportSize({ width: 1024, height: 900 });
   await openPhotos(page);
   await openFilters(page);
-  await pick(page, SECOND.originalFileName);
+  await pick(page, SOURCE.originalFileName);
   await pick(page, THIRD.originalFileName);
   const bar = bulkBar(page);
   await expect(bar.getByRole('button', { name: 'Edits', exact: true })).toBeHidden();

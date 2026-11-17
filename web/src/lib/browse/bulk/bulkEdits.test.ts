@@ -75,6 +75,14 @@ describe('bulkEdits', () => {
     expect(copyPaste.copyEditsFrom).toHaveBeenCalledWith('a');
   });
 
+  it('resets only a selection that has edits', () => {
+    selection.replace(['a', 'b']);
+    expect(bulkEdits.reset.disabled).toBe(true);
+
+    editedThumbs.upsert('a', 'h1', '2024-05-01T00:00:00Z');
+    expect(bulkEdits.reset.disabled).toBe(false);
+  });
+
   it('pastes onto the whole selection', async () => {
     selection.replace(['a', 'c']);
     clipboard.copy(neutralEdits(), DEFAULT_COPY_SELECTION);
