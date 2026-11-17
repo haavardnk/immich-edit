@@ -14,11 +14,13 @@ const ui = vi.hoisted(() => ({
 
 vi.mock('#lib/api/appearance.ts', () => api);
 
+const doc = vi.hoisted(() => ({ writeThemeColor: vi.fn<(color: string) => void>() }));
+
 vi.mock('#lib/theme/document.ts', () => ({
   pageThemeRevision: () => 'test',
   readThemeCache: () => null,
   writeTheme: vi.fn(),
-  writeThemeColor: vi.fn(),
+  writeThemeColor: doc.writeThemeColor,
   writeFavicon: vi.fn()
 }));
 
@@ -52,6 +54,22 @@ describe('appearance store', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.putAppearance.mockImplementation((appearance) => Promise.resolve(appearance));
+  });
+
+  it('tints the browser chrome with the editor colour while editing', async () => {
+    api.getAppearance.mockResolvedValue(REMOTE);
+    const store = await freshStore();
+    await store.load();
+    const base = doc.writeThemeColor.mock.lastCall?.[0];
+
+    store.useEditorChrome(true);
+    const editor = doc.writeThemeColor.mock.lastCall?.[0];
+    expect(editor).not.toBe(base);
+    store.apply();
+    expect(doc.writeThemeColor.mock.lastCall?.[0]).toBe(editor);
+
+    store.useEditorChrome(false);
+    expect(doc.writeThemeColor.mock.lastCall?.[0]).toBe(base);
   });
 
   it('replays edits made during the boot load onto the server value', async () => {

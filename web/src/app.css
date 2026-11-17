@@ -312,6 +312,10 @@
   --color-image-canvas: #767676;
 }
 
+:root.editor-chrome body {
+  background-color: var(--color-editor-chrome);
+}
+
 .auth-stage {
   background-color: var(--color-auth-stage);
   background-image:

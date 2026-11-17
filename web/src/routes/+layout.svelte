@@ -13,7 +13,7 @@
   import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
-  import { isViewerPath } from '#lib/utils/route.ts';
+  import { isViewerPath, onEditorRoute } from '#lib/utils/route.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
@@ -80,6 +80,11 @@
   afterNavigate(navHistory.record);
 
   $effect(() => appearance.showScheme(appearance.scheme));
+  $effect(() => {
+    const editing = onEditorRoute();
+    appearance.useEditorChrome(editing);
+    document.documentElement.classList.toggle('editor-chrome', editing);
+  });
   $effect(() => showLayout(layout.mode, layout.wide));
 
   $effect(() => {

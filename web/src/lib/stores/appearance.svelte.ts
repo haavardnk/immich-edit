@@ -29,6 +29,7 @@ class AppearanceStore {
   #loading: Promise<void> | null = null;
   #queued: AppearanceEdit[] = [];
   #saving: Promise<void> = Promise.resolve();
+  #editorChrome = false;
 
   get scheme(): Scheme {
     return themeManager.value === Theme.Dark ? 'dark' : 'light';
@@ -69,9 +70,18 @@ class AppearanceStore {
     }));
   }
 
+  useEditorChrome(on: boolean): void {
+    this.#editorChrome = on;
+    this.showScheme(this.scheme);
+  }
+
   showScheme(scheme: Scheme): void {
     if (!this.#cache || !this.#themes) return;
-    writeThemeColor(this.#cache.chrome[scheme].themeColor);
+    writeThemeColor(
+      this.#editorChrome
+        ? this.#themes[scheme].palette.crust
+        : this.#cache.chrome[scheme].themeColor
+    );
     showFaviconAccent(this.#themes[scheme].accentColor);
   }
 
