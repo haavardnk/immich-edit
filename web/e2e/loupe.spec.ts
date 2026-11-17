@@ -378,3 +378,14 @@ test('j toggles the clipping overlay', async ({ page }) => {
   await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=false/);
 });
+
+test('the loupe actions menu shows every label in full beside its shortcut', async ({ page }) => {
+  await openLoupe(page);
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  const labels = page.locator('[data-popover-content] [data-menu-row] span.truncate');
+  await expect(labels.filter({ hasText: 'Move to Immich trash' })).toBeVisible();
+  const clipped = await labels.evaluateAll((spans) =>
+    spans.filter((span) => span.scrollWidth > span.clientWidth).map((span) => span.textContent)
+  );
+  expect(clipped).toEqual([]);
+});

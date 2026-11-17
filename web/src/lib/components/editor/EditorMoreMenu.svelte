@@ -68,7 +68,7 @@
   anchor="bottom"
   align="end"
   onOpenChange={setOpen}
-  contentClass="w-64 py-1"
+  contentClass="w-max min-w-64 max-w-[calc(100vw-1rem)] py-1"
   tooltip="More editor actions"
 >
   {#snippet trigger(props)}
