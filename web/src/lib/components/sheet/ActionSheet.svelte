@@ -127,7 +127,7 @@
           class="fixed right-[calc(var(--safe-right)+8px)] bottom-[calc(var(--safe-bottom)+8px)] left-[calc(var(--safe-left)+8px)] z-50 mx-auto flex max-h-[calc(var(--app-height)-var(--safe-top)-var(--safe-bottom)-16px)] max-w-lg flex-col gap-2 outline-none starting:[translate:0_150%] data-leaving:translate-y-[150%] motion-safe:transition-transform motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit"
           {@attach frameRef}
         >
-          <div class="flex min-h-0 flex-col overflow-hidden rounded-[14px] bg-light-100 text-dark">
+          <div class="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-light-100 text-dark">
             <Dialog.Title
               class={caption
                 ? 'flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-[12.5px] font-normal text-dark/65'
@@ -147,7 +147,7 @@
             variant="ghost"
             color="primary"
             fullWidth
-            class="h-13 flex-none rounded-[14px] bg-light-100 text-base font-semibold"
+            class="h-13 flex-none rounded-2xl bg-light-100 text-base font-semibold"
             onclick={() => void requestClose()}
           >
             Cancel

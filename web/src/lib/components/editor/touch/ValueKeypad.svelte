@@ -154,7 +154,7 @@
         size="large"
         variant="ghost"
         color={pinned ? 'primary' : 'secondary'}
-        class="size-10 shrink-0 rounded-[10px] {pinned ? 'bg-primary/15' : 'bg-light-200'}"
+        class="size-10 shrink-0 rounded-xl {pinned ? 'bg-primary/15' : 'bg-light-200'}"
         icon={pinned ? mdiPinOffOutline : mdiPinOutline}
         title={pinned ? `Unpin ${label}` : `Pin ${label} to Quick`}
         aria-label={pinned ? `Unpin ${label}` : `Pin ${label} to Quick`}
@@ -166,7 +166,7 @@
       size="large"
       variant="ghost"
       color="secondary"
-      class="size-10 shrink-0 rounded-[10px] bg-light-200"
+      class="size-10 shrink-0 rounded-xl bg-light-200"
       icon={mdiMinus}
       title="Decrease {label}"
       aria-label="Decrease {label}"
@@ -178,7 +178,7 @@
       inputmode="none"
       autocomplete="off"
       spellcheck="false"
-      class="h-10 flex-1 rounded-[10px] bg-light-100! outline-2 outline-primary [&_input]:px-3 [&_input]:selection:bg-primary/30 [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
+      class="h-10 flex-1 rounded-xl bg-light-100! outline-2 outline-primary [&_input]:px-3 [&_input]:selection:bg-primary/30 [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
       aria-label="{label} value"
       value={entry.text}
       oninput={onFieldInput}
@@ -188,7 +188,7 @@
       size="large"
       variant="ghost"
       color="secondary"
-      class="size-10 shrink-0 rounded-[10px] bg-light-200"
+      class="size-10 shrink-0 rounded-xl bg-light-200"
       icon={mdiPlus}
       title="Increase {label}"
       aria-label="Increase {label}"

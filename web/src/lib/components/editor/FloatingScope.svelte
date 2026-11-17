@@ -92,7 +92,7 @@
     data-testid="floating-scope"
     data-corner={scopes.corner}
     aria-label="{label} overlay"
-    class="absolute z-10 h-30 w-70 touch-none overflow-hidden rounded-lg bg-black/60 text-left text-white shadow-lg ring-1 ring-white/14 backdrop-blur-sm transition-opacity select-none touch:h-19 touch:w-34 touch:rounded-[10px] touch:bg-black/45 {offset
+    class="absolute z-10 h-30 w-70 touch-none overflow-hidden rounded-lg bg-black/60 text-left text-white shadow-lg ring-1 ring-white/14 backdrop-blur-sm transition-opacity select-none touch:h-19 touch:w-34 touch:rounded-xl touch:bg-black/45 {offset
       ? 'cursor-grabbing'
       : 'cursor-grab'} {POSITIONS[scopes.corner]} {hidden ? 'pointer-events-none opacity-0' : ''}"
     style:translate={offset ? `${offset.x}px ${offset.y}px` : undefined}

@@ -89,7 +89,7 @@
         <TooltipLink
           {...linkProps(props)}
           tooltip={view.name}
-          class="no-callout flex w-full items-center gap-4 rounded-e-full py-3 ps-5 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary wide:h-11 wide:rounded-[10px] wide:py-0 wide:ps-3 {active
+          class="no-callout flex w-full items-center gap-4 rounded-e-full py-3 ps-5 pe-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary wide:h-11 wide:rounded-xl wide:py-0 wide:ps-3 {active
             ? 'bg-primary/10 text-primary'
             : 'hover:bg-subtle hover:text-primary'}"
         >

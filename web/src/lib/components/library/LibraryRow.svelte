@@ -27,7 +27,7 @@
   class="no-callout flex min-h-11 items-center gap-3.5 ps-4 pe-2.5 outline-none hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:ps-5 touch:min-h-14.5"
 >
   <span
-    class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-light-200 text-primary touch:size-9.5 touch:rounded-[10px]"
+    class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-light-200 text-primary touch:size-9.5 touch:rounded-xl"
   >
     <Icon {icon} size="18px" class="touch:size-5.5" aria-hidden="true" />
   </span>

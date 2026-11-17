@@ -20,7 +20,7 @@
 
 <Collapsible.Root bind:open={() => expanded, () => onToggle()}>
   <Collapsible.Trigger
-    class="hover:bg-subtle hover:text-primary flex w-full place-items-center gap-4 rounded-e-full py-3 ps-5 transition-[padding] delay-100 duration-fast wide:h-11 wide:rounded-[10px] wide:py-0 wide:ps-3"
+    class="hover:bg-subtle hover:text-primary flex w-full place-items-center gap-4 rounded-e-full py-3 ps-5 transition-[padding] delay-100 duration-fast wide:h-11 wide:rounded-xl wide:py-0 wide:ps-3"
   >
     <Icon {icon} size="1.375em" class="shrink-0" aria-hidden="true" />
     <span class="flex-1 truncate text-left text-sm font-medium wide:text-[15px]">{label}</span>

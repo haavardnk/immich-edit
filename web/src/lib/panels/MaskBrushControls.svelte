@@ -10,7 +10,7 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { mdiBrush, mdiEraser } from '@mdi/js';
 
-  const TOUCH_SEGMENT = 'touch:h-full touch:flex-1 touch:rounded-[10px] touch:text-[13px]';
+  const TOUCH_SEGMENT = 'touch:h-full touch:flex-1 touch:rounded-xl touch:text-[13px]';
 
   let { showSize = true }: { showSize?: boolean } = $props();
 

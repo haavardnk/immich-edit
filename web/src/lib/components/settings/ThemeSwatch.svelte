@@ -12,7 +12,7 @@
   aria-hidden="true"
   class="relative block shrink-0 overflow-hidden ring-1 ring-hairline {size === 'tile'
     ? 'h-16 w-full rounded-lg transition-shadow group-hover:ring-light-950/35 group-focus-visible:ring-2 group-focus-visible:ring-primary group-aria-checked:ring-2 group-aria-checked:ring-primary'
-    : 'h-6 w-9 rounded-[5px] touch:h-7 touch:w-11'}"
+    : 'h-6 w-9 rounded-md touch:h-7 touch:w-11'}"
   style:background-color={palette.base}
 >
   {#if size === 'tile'}

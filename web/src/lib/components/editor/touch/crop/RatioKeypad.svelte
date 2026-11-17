@@ -137,7 +137,7 @@
 
 {#snippet field(which: Side, label: string)}
   <div
-    class="relative min-w-0 flex-1 rounded-[10px] {side === which
+    class="relative min-w-0 flex-1 rounded-xl {side === which
       ? 'outline-2 outline-primary'
       : ''}"
   >
@@ -148,7 +148,7 @@
     <TextInput
       inputmode="none"
       autocomplete="off"
-      class="h-11 w-full rounded-[10px] bg-light-100! [&_input]:ps-16 [&_input]:pe-3 [&_input]:text-right [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
+      class="h-11 w-full rounded-xl bg-light-100! [&_input]:ps-16 [&_input]:pe-3 [&_input]:text-right [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
       aria-label="Ratio {label.toLowerCase()}"
       value={sides[which]}
       onfocus={() => (side = which)}
@@ -212,7 +212,7 @@
       size="large"
       variant="ghost"
       color="secondary"
-      class="size-11 shrink-0 rounded-[10px] bg-light-200"
+      class="size-11 shrink-0 rounded-xl bg-light-200"
       icon={mdiSwapHorizontal}
       title="Swap width and height"
       aria-label="Swap width and height"
