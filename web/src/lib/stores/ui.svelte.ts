@@ -280,6 +280,12 @@ class UiStore {
     this.persistEditorUi();
   };
 
+  collapsePanels = (): void => {
+    if (this.rightCollapsed) return;
+    this.rightCollapsed = true;
+    this.persistEditorUi();
+  };
+
   togglePanels = (): void => {
     this.rightCollapsed = !this.rightCollapsed;
     this.persistEditorUi();

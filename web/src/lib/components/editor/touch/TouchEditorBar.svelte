@@ -10,7 +10,9 @@
   import { gestures } from '#lib/gestures/gestures.ts';
   import { longPressRecognizer } from '#lib/gestures/longPress.ts';
   import TouchExportSheet from '#lib/components/editor/touch/TouchExportSheet.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiDotsHorizontal, mdiExportVariant } from '@mdi/js';
 
@@ -18,6 +20,11 @@
 
   let sharing = $state(false);
   const guard = clickGuard();
+
+  function share(): void {
+    sharing = true;
+    if (layout.phone) ui.collapsePanels();
+  }
 
   const compareHold = gestures({
     recognizers: [
@@ -61,7 +68,7 @@
     title="Share"
     aria-label="Share"
     disabled={!editor.assetId}
-    onclick={() => (sharing = true)}
+    onclick={share}
   />
   <EditorMoreMenu icon={mdiDotsHorizontal} />
 </nav>

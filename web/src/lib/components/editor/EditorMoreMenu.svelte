@@ -54,7 +54,10 @@
   }
 
   function show(name: Sheet): void {
-    then(() => (sheet = name));
+    then(() => {
+      sheet = name;
+      if (name !== 'sections' && layout.phone) ui.collapsePanels();
+    });
   }
 
   function sheetChange(name: Sheet, next: boolean): void {
