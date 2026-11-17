@@ -80,7 +80,7 @@
                 class="rounded-full border p-0.5 transition-[border-color,box-shadow] duration-fast {activeRegion ===
                 wheel.key
                   ? 'border-primary shadow-[0_0_0_1px_var(--color-primary)]'
-                  : 'border-transparent hover:border-dark/10'}"
+                  : 'border-transparent hover:border-hairline'}"
                 onpointerdowncapture={() => (activeRegion = wheel.key)}
               >
                 <HueWheel

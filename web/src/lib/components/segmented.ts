@@ -8,9 +8,9 @@ export const segmented = {
     tab: `${textItem} aria-selected:bg-primary aria-selected:text-light`
   },
   tool: {
-    group: 'h-5 overflow-hidden rounded-sm ring-1 ring-light-950/10',
+    group: 'h-5 overflow-hidden rounded-sm ring-1 ring-hairline',
     swatch:
-      'h-5 rounded-sm ring-1 ring-light-950/10 transition-shadow hover:ring-light-950/35 aria-checked:ring-2 aria-checked:ring-primary'
+      'h-5 rounded-sm ring-1 ring-hairline transition-shadow hover:ring-light-950/35 aria-checked:ring-2 aria-checked:ring-primary'
   },
   photo: {
     group: '@container grid h-12 gap-0.5 rounded-xl bg-current/10 p-0.5',

@@ -58,7 +58,7 @@
 {#snippet swatch(rgb: readonly [number, number, number], testid: string)}
   <span
     data-testid={testid}
-    class="size-4 shrink-0 rounded-sm ring-1 ring-light-950/10 touch:size-6"
+    class="size-4 shrink-0 rounded-sm ring-1 ring-hairline touch:size-6"
     style="background-color: {colorCss(rgb)}"
   ></span>
 {/snippet}

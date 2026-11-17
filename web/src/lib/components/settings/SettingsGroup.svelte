@@ -22,7 +22,7 @@
   <div class="flex min-h-6 items-baseline gap-2.5 px-0.5 touch:px-1">
     <h2
       id="{id}-title"
-      class="text-label font-semibold text-light-950 touch:text-xs touch:font-medium touch:tracking-wide touch:text-dark/80 touch:uppercase"
+      class="text-label font-semibold text-light-950 touch:section-label touch:text-dark/80"
     >
       {title}
     </h2>
