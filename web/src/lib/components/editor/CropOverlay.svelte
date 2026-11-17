@@ -180,7 +180,7 @@
     e.preventDefault();
     e.stopPropagation();
     if (!sess) return null;
-    const panning = kind === 'move' && held('pan', e);
+    const panning = kind === 'move' && (touch || held('pan', e));
     const startCrop = { ...sess.draftCrop };
     panStartCrop = panning ? { ...sess.draftCrop } : null;
     active = panning ? 'pan' : kind;
@@ -228,6 +228,8 @@
       endLine();
       return;
     }
+    if (touch && drag.kind === 'pan')
+      void view.set(framedView(crop, bbox, fit, box), { duration: 0 });
     panStartCrop = null;
     active = null;
     void editor.commitGeometry('Crop');
