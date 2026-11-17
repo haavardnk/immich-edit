@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   downloadWhenDone: vi.fn(),
   downloadStoredExport: vi.fn(),
   downloadBlob: vi.fn(),
-  submitPresetExport: vi.fn()
+  submitPresetExport: vi.fn(),
+  getEdits: vi.fn(),
+  uploadToImmich: vi.fn()
 }));
 
 vi.mock('#lib/api/jobs.ts', async (original) => ({
@@ -19,8 +21,10 @@ vi.mock('#lib/api/jobs.ts', async (original) => ({
 vi.mock('#lib/api/bulkJob.ts', () => ({ runBulkJob: mocks.runBulkJob }));
 vi.mock('#lib/api/export.ts', async (original) => ({
   ...(await original<typeof import('#lib/api/export.ts')>()),
-  downloadStoredExport: mocks.downloadStoredExport
+  downloadStoredExport: mocks.downloadStoredExport,
+  uploadToImmich: mocks.uploadToImmich
 }));
+vi.mock('#lib/api/edits.ts', () => ({ getEdits: mocks.getEdits }));
 vi.mock('#lib/panels/export/presetExport.ts', () => ({
   submitPresetExport: mocks.submitPresetExport
 }));
@@ -173,7 +177,7 @@ describe('BulkExporter', () => {
   });
 
   it('submits once, passes replace original and resets it', async () => {
-    selection.toggle('a');
+    selection.replace(['a', 'b']);
     exportSettings.destination = 'immich';
     immichCapabilities.trash = true;
     let finish: (job: Job | null) => void = () => {};
@@ -191,9 +195,9 @@ describe('BulkExporter', () => {
     expect(exporter.replaceOriginal).toBe(false);
     await exporter.submit();
     expect(mocks.runBulkJob).toHaveBeenCalledTimes(1);
-    await queue(['a']);
+    await queue(['a', 'b']);
     expect(mocks.createImmichExportJob).toHaveBeenCalledWith(
-      ['a'],
+      ['a', 'b'],
       expect.objectContaining({ replaceOriginal: true })
     );
 
@@ -215,6 +219,31 @@ describe('BulkExporter', () => {
     await exporter.submit();
     expect(started).toHaveBeenCalledOnce();
     expect(mocks.showJob).toHaveBeenCalledOnce();
+  });
+
+  it('uploads a single photo to Immich directly with its stored edits', async () => {
+    selection.replace(['a']);
+    exportSettings.destination = 'immich';
+    mocks.getEdits.mockResolvedValue({ manifest: { version: 5, ops: {} } });
+    mocks.uploadToImmich.mockResolvedValue({
+      status: 'uploaded',
+      filename: 'IMG_1_edit.jpg',
+      warnings: []
+    });
+    const started = vi.fn();
+
+    await new BulkExporter(started).submit();
+    expect(mocks.uploadToImmich).toHaveBeenCalledWith(
+      'a',
+      expect.any(Object),
+      expect.objectContaining({ onConflict: 'keep_both' })
+    );
+    expect(mocks.runBulkJob).not.toHaveBeenCalled();
+    expect(started).toHaveBeenCalledOnce();
+    expect(mocks.showJob).not.toHaveBeenCalled();
+    expect(toasts.items.map((toast) => toast.message)).toEqual([
+      'Uploaded IMG_1_edit.jpg to Immich'
+    ]);
   });
 
   it('downloads a single photo directly with the form settings', async () => {

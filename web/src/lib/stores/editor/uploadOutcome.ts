@@ -1,4 +1,7 @@
 import type { ImmichExportResult } from '#lib/api/export.ts';
+import { sourceId } from '#lib/browse/assetKey.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { trash } from '#lib/stores/trash.svelte.ts';
 
 const NOT_UPLOADED: Record<string, string> = {
   skipped: 'Not uploaded: this photo is already in Immich from an earlier export',
@@ -21,4 +24,24 @@ export function uploadOutcome(result: ImmichExportResult): {
       ? `${outcome}; the original moved to the Immich trash`
       : outcome
   };
+}
+
+export function reportUpload(
+  assetId: string,
+  result: ImmichExportResult
+): { kind: 'success' | 'warning'; message: string } {
+  const outcome = uploadOutcome(result);
+  const trashed = [
+    ...(result.original_trashed ? [sourceId(assetId)] : []),
+    ...(result.replaced_asset_id ? [result.replaced_asset_id] : [])
+  ];
+  if (trashed.length > 0) {
+    trash.removeTrashed(trashed, outcome.message);
+    return outcome;
+  }
+  const warned = outcome.kind === 'warning' || result.warnings.length > 0;
+  toasts.push(warned ? 'warn' : 'success', outcome.message, {
+    description: result.warnings.length > 0 ? result.warnings.join('\n') : undefined
+  });
+  return outcome;
 }

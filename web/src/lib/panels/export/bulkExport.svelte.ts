@@ -1,5 +1,15 @@
 import { runBulkJob } from '#lib/api/bulkJob.ts';
-import { downloadName, downloadStoredExport, type OnConflict } from '#lib/api/export.ts';
+import { getEdits } from '#lib/api/edits.ts';
+import {
+  downloadName,
+  downloadStoredExport,
+  uploadToImmich,
+  type ImmichExportOptions,
+  type OnConflict
+} from '#lib/api/export.ts';
+import { manifestToEdits } from '#lib/edits/manifest.ts';
+import { reportUpload } from '#lib/stores/editor/uploadOutcome.ts';
+import { errorMessage } from '#lib/utils/errors.ts';
 import { createImmichExportJob, createZipExportJob, type Job } from '#lib/api/jobs.ts';
 import { EarlierExports, type EarlierQuery } from '#lib/panels/export/earlierExports.svelte.ts';
 import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
@@ -69,6 +79,17 @@ async function downloadPhoto(assetId: string, form: ExportFormValues): Promise<b
     return true;
   } catch (e) {
     toasts.fail('Export failed', e);
+    return false;
+  }
+}
+
+async function uploadPhoto(assetId: string, options: ImmichExportOptions): Promise<boolean> {
+  try {
+    const edits = manifestToEdits((await getEdits(assetId)).manifest);
+    reportUpload(assetId, await uploadToImmich(assetId, edits, options));
+    return true;
+  } catch (e) {
+    toasts.push('error', `Upload failed: ${errorMessage(e)}`);
     return false;
   }
 }
@@ -156,11 +177,18 @@ export class BulkExporter implements PresetExporter {
 
   private async submitCurrent(): Promise<Job | false | null> {
     const [picked] = selection.selected;
-    if (runDirect(this.run) && picked) {
-      return (await downloadPhoto(picked, exportSettings.form)) ? false : null;
-    }
     const replaceOriginal = this.replaceOriginal;
     this.replaceOriginal = false;
+    if (runDirect(this.run) && picked) {
+      const done =
+        exportSettings.destination === 'immich'
+          ? await uploadPhoto(
+              picked,
+              uploadOptions(exportSettings.form, this.scope, replaceOriginal, this.earlier.take())
+            )
+          : await downloadPhoto(picked, exportSettings.form);
+      return done ? false : null;
+    }
     return submitBulkExport({
       form: exportSettings.form,
       destination: exportSettings.destination,

@@ -29,8 +29,9 @@ describe('export run', () => {
     expect(runSummary(run({ photos: 1 }))).toBe('1 photo · download');
   });
 
-  it('says it runs as a job, except for a direct download', () => {
+  it('says it runs as a job, except for a single photo', () => {
     expect(runNote(run({ photos: 1 }))).toBeNull();
+    expect(runNote(run({ photos: 1, destination: 'immich' }))).toBeNull();
     expect(runNote(run())).toBe('Runs as a background job. Track progress in Jobs.');
   });
 

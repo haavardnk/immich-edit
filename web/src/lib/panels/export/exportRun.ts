@@ -9,7 +9,7 @@ export interface ExportRun {
 }
 
 export function runDirect(run: ExportRun): boolean {
-  return run.destination === 'download' && run.photos === 1;
+  return run.photos === 1;
 }
 
 export function runZips(run: ExportRun): boolean {

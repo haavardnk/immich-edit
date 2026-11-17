@@ -6,11 +6,9 @@ import {
   type ExportOptions,
   type ImmichExportOptions
 } from '#lib/api/export.ts';
-import { sourceId } from '#lib/browse/assetKey.ts';
 import { resizedSize, type PixelSize } from '#lib/panels/export/resize.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
-import { trash } from '#lib/stores/trash.svelte.ts';
-import { uploadOutcome } from '#lib/stores/editor/uploadOutcome.ts';
+import { reportUpload } from '#lib/stores/editor/uploadOutcome.ts';
 import type { AssetDetail } from '#lib/types/asset.ts';
 import type { Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta } from '#lib/types/preview.ts';
@@ -124,18 +122,7 @@ export class EditorExports {
     this.lastUpload = null;
     try {
       const result = await uploadToImmich(assetId, $state.snapshot(this.ctx.edits), options);
-      const { kind, message } = uploadOutcome(result);
-      const warned = kind === 'warning' || result.warnings.length > 0;
-      const trashed = [
-        ...(result.original_trashed ? [sourceId(assetId)] : []),
-        ...(result.replaced_asset_id ? [result.replaced_asset_id] : [])
-      ];
-      if (trashed.length > 0) trash.removeTrashed(trashed, message);
-      else {
-        toasts.push(warned ? 'warn' : 'success', message, {
-          description: result.warnings.length > 0 ? result.warnings.join('\n') : undefined
-        });
-      }
+      const { kind, message } = reportUpload(assetId, result);
       if (session !== this.session) return false;
       this.lastUpload = { kind, message, warnings: result.warnings };
       if (result.original_trashed) return true;
