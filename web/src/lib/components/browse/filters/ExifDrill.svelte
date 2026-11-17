@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Chip from '#lib/components/chips/Chip.svelte';
-  import ChipList from '#lib/components/chips/ChipList.svelte';
+  import FilterList from '#lib/components/browse/filters/FilterList.svelte';
+  import FilterListRow from '#lib/components/browse/filters/FilterListRow.svelte';
   import { searchSuggestions } from '#lib/api/search.ts';
   import { EXIF_PLURALS, drillCrumbs, drillLevel, pickExif } from '#lib/browse/exifDrill.ts';
   import {
@@ -14,7 +14,12 @@
   import { Button, Icon } from '@immich/ui';
   import { mdiChevronRight } from '@mdi/js';
 
-  let { keys, label }: { keys: Readonly<ExifPath>; label: string } = $props();
+  let {
+    keys,
+    label,
+    full = false,
+    onAll
+  }: { keys: Readonly<ExifPath>; label: string; full?: boolean; onAll?: () => void } = $props();
 
   let pinned = $state<number | null>(null);
   let suggestions = $state<string[]>([]);
@@ -34,6 +39,11 @@
     ...selected.filter((value) => value !== UNKNOWN_EXIF && !suggestions.includes(value))
   ]);
   const unknown = $derived(suggestions.includes(UNKNOWN_EXIF) || selected.includes(UNKNOWN_EXIF));
+  const items = $derived(values.map((value) => ({ id: value, label: value })));
+  const noun = $derived({
+    one: EXIF_LABELS[key].toLowerCase(),
+    many: EXIF_PLURALS[key].toLowerCase()
+  });
 
   $effect(() => {
     const id = ++request;
@@ -113,25 +123,26 @@
     {/each}
   </nav>
 {/if}
+{#snippet unknownRow()}
+  {#if unknown}
+    <FilterListRow
+      label="Unknown {EXIF_LABELS[key].toLowerCase()}"
+      muted
+      checked={selected.includes(UNKNOWN_EXIF)}
+      onChange={() => pick(UNKNOWN_EXIF)}
+    />
+  {/if}
+{/snippet}
+
 {#key key}
-  <ChipList
-    items={values}
-    key={(value) => value}
-    selected={(value) => selected.includes(value)}
+  <FilterList
+    {items}
     label={EXIF_PLURALS[key]}
-  >
-    {#snippet chip(value)}
-      <Chip pressed={selected.includes(value)} onPressedChange={() => pick(value)}>{value}</Chip>
-    {/snippet}
-    {#if unknown}
-      <Chip
-        tone="exclusion"
-        pressed={selected.includes(UNKNOWN_EXIF)}
-        label="Unknown {EXIF_LABELS[key].toLowerCase()}"
-        onPressedChange={() => pick(UNKNOWN_EXIF)}
-      >
-        Unknown
-      </Chip>
-    {/if}
-  </ChipList>
+    {noun}
+    isSelected={(value) => selected.includes(value)}
+    onToggle={(value) => pick(value)}
+    {full}
+    {onAll}
+    footer={unknownRow}
+  />
 {/key}

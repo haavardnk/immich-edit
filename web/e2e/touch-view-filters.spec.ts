@@ -118,3 +118,35 @@ test.describe('view options in the filter surface', { tag: '@touch' }, () => {
     });
   }
 });
+
+test.describe('filter lists on touch', { tag: '@touch' }, () => {
+  test('All people opens the whole list as a page and Back returns to the open section', async ({
+    page
+  }) => {
+    const people = Array.from({ length: 9 }, (_, index) => ({
+      id: `person-${index}`,
+      name: `Person ${String(index + 1).padStart(2, '0')}`,
+      assetIds: [ASSETS[0]!.id]
+    }));
+    await open(page, '/photos', { assets: ASSETS, people });
+    const panel = await openSurface(page);
+    await panel.getByRole('button', { name: 'People', exact: true }).tap();
+    const rows = panel.getByRole('group', { name: 'People' }).getByRole('checkbox');
+    await expect(rows).toHaveCount(5);
+
+    await panel.getByRole('button', { name: 'All 9 people' }).tap();
+    const list = panel.getByRole('region', { name: 'People' });
+    await expect(list.getByRole('heading', { name: 'People' })).toBeInViewport();
+    await expect(list.getByRole('checkbox')).toHaveCount(9);
+    await expect(panel.getByRole('radiogroup', { name: 'Thumbnail size' })).toHaveCount(0);
+    await list.getByRole('checkbox', { name: 'Person 09' }).tap();
+    await expect(page).toHaveURL(/person=person-8/);
+
+    await list.getByRole('button', { name: 'Back to filters' }).tap();
+    await expect(list).toHaveCount(0);
+    const section = panel.getByRole('button', { name: 'People', exact: true });
+    await expect(section).toHaveAttribute('aria-expanded', 'true');
+    await expect(section).toBeInViewport();
+    await expect(rows.first()).toHaveAccessibleName('Person 09');
+  });
+});

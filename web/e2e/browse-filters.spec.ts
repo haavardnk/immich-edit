@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { filterGroup, filterRow } from './filterLists';
 import { installMocks, numberedAssets, openFilters } from './helpers';
 
 test('active filters stay visible as removable chips', async ({ page }) => {
@@ -31,8 +32,8 @@ test('the not-in-album filter is offered outside albums only', async ({ page }) 
   await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Library', 'Albums, people & tags');
-  await panel.getByRole('button', { name: 'Not in any album' }).click();
+  const panel = await openFilters(page, 'Library', 'Albums');
+  await filterRow(filterGroup(panel, 'Albums'), 'Not in any album').click();
   await expect.poll(() => filterAt(-1)?.notInAlbum).toBe(true);
   await expect(page).toHaveURL(/[?&]noalbum=1/);
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
@@ -44,7 +45,7 @@ test('the not-in-album filter is offered outside albums only', async ({ page }) 
   expect(filterAt(-1)?.notInAlbum).toBeUndefined();
   await expect(page).not.toHaveURL(/noalbum/);
   await expect(panel.getByRole('button', { name: 'Favorites only' })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Not in any album' })).toHaveCount(0);
+  await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toHaveCount(0);
 });
 
 for (const structuredSearch of [false, true]) {
@@ -57,10 +58,10 @@ for (const structuredSearch of [false, true]) {
     await installMocks(page, { structuredSearch, onMetadata: (body) => void bodies.push(body) });
     await page.goto('/photos');
 
-    const panel = await openFilters(page, 'Albums, people & tags');
-    const untagged = panel.getByRole('button', { name: 'Untagged' });
-    const noPeople = panel.getByRole('button', { name: 'No people' });
-    await expect(panel.getByRole('button', { name: 'Not in any album' })).toBeVisible();
+    const panel = await openFilters(page, 'People', 'Albums', 'Tags');
+    const untagged = panel.getByRole('checkbox', { name: 'Untagged' });
+    const noPeople = panel.getByRole('checkbox', { name: 'No people' });
+    await expect(panel.getByRole('checkbox', { name: 'Not in any album' })).toBeVisible();
     await untagged.click();
     await expect.poll(() => filterAt(-1)).toMatchObject({ untagged: true });
     if (!structuredSearch) {
@@ -72,7 +73,7 @@ for (const structuredSearch of [false, true]) {
     await expect(page).toHaveURL(/untagged=1&nopeople=1/);
 
     await page.goto('/tags/tag-1?untagged=1&nopeople=1');
-    await expect(noPeople).toHaveAttribute('aria-pressed', 'true');
+    await expect(noPeople).toBeChecked();
     await expect(untagged).toHaveCount(0);
     await expect(page).not.toHaveURL(/untagged/);
     expect(filterAt(-1)?.untagged).toBeUndefined();
@@ -150,9 +151,11 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
   await expect(chips).toHaveText(['≥ 3 stars', 'Name: DSC']);
   await expect(panel.getByRole('heading', { name: 'Filters' })).toContainText('2');
-  await expect(
-    panel.getByRole('button', { name: 'Rating & label', exact: true })
-  ).toHaveAccessibleDescription('≥ 3 stars');
+  const rating = panel.getByRole('button', { name: 'Rating & label', exact: true });
+  await expect(rating).toHaveAccessibleDescription('');
+  await rating.click();
+  await expect(rating).toHaveAccessibleDescription('≥ 3 stars');
+  await rating.click();
   await expect(
     panel.getByRole('button', { name: 'Library', exact: true })
   ).toHaveAccessibleDescription('');
@@ -205,7 +208,9 @@ test('the date chips pick a year, a month, the added basis and a custom range', 
   await expect(months.getByRole('button', { name: 'Apr 2025' })).toBeDisabled();
   await months.getByRole('button', { name: 'Oct 2025' }).click();
   await expect(page).toHaveURL(/after=2025-10-01&before=2025-10-31/);
+  await trigger.click();
   await expect(trigger).toHaveAccessibleDescription('Oct 2025');
+  await trigger.click();
   await months.getByRole('button', { name: 'Oct 2025' }).click();
   await expect(chips).toHaveText(['2025']);
 

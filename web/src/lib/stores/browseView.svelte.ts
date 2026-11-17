@@ -41,6 +41,7 @@ class BrowseViewStore {
   #filtersSheet = $state(false);
   #compact = $state(false);
   filterSections = $state<FilterSectionId[]>([]);
+  filterPage = $state<FilterSectionId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
   lastGridPath = $state<string | null>(null);
   private gridAnchors = new Map<string, TileAnchor>();
@@ -141,6 +142,7 @@ class BrowseViewStore {
   }
 
   setFiltersOpen(open: boolean): void {
+    if (!open) this.filterPage = null;
     if (this.#compact) {
       this.#filtersSheet = open;
       return;

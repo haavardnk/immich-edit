@@ -90,9 +90,9 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(sheet.getByRole('button', { name: /^Reset .* panel$/ })).toHaveCount(0);
     await expectTargets(camera, 44);
     await camera.tap();
-    const models = sheet.getByRole('group', { name: 'Models' }).getByRole('button');
+    const models = sheet.getByRole('group', { name: 'Models' }).locator('[data-filter-row]');
     await expect(models).toHaveText(['ILCE-7M3']);
-    await expectTargets(models, 40);
+    await expectTargets(models, 44);
     await expect(
       sheet.getByRole('radiogroup', { name: 'Sort by' }).getByRole('radio', { checked: true })
     ).toHaveText('Taken');

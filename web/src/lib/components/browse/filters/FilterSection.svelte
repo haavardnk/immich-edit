@@ -6,12 +6,14 @@
   import type { Snippet } from 'svelte';
 
   let {
+    id,
     open,
     title,
     summary,
     onOpenChange,
     children
   }: {
+    id: string;
     open: boolean;
     title: string;
     summary?: string;
@@ -20,27 +22,32 @@
   } = $props();
 
   const summaryId = $props.id();
+  const folded = $derived(open ? undefined : summary);
 </script>
 
-<Collapsible.Root bind:open={() => open, onOpenChange} class="border-b border-hairline">
-  <TruncationTooltip text={summary ?? ''}>
+<Collapsible.Root
+  bind:open={() => open, onOpenChange}
+  data-filter-section={id}
+  class="border-b border-hairline"
+>
+  <TruncationTooltip text={folded ?? ''}>
     {#snippet child({ props })}
       <Collapsible.Trigger
         {...mergeProps(props, {
           'aria-label': title,
-          'aria-describedby': summary === undefined ? undefined : summaryId
+          'aria-describedby': folded === undefined ? undefined : summaryId
         })}
         class="group flex min-h-10 w-full items-center gap-2 py-1 pr-2.5 pl-4 text-left transition-colors outline-none select-none hover:bg-light-950/3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset data-[state=open]:bg-light-950/3 touch:min-h-13 touch:pr-1"
       >
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="text-[13.5px] font-medium text-light-950 touch:text-[15.5px]">{title}</span>
-          {#if summary !== undefined}
+          {#if folded !== undefined}
             <span
               id={summaryId}
               data-truncate
               class="truncate text-xs leading-snug text-primary touch:text-[13px]"
             >
-              {summary}
+              {folded}
             </span>
           {/if}
         </span>

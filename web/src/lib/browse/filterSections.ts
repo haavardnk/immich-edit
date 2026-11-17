@@ -1,9 +1,11 @@
 import type { FilterKey } from '#lib/stores/browseControls.svelte.ts';
 import { CAMERA_FILTERS, PLACE_FILTERS } from '#lib/browse/exifFilters.ts';
-import { ID_EXCLUSIONS, ID_FILTERS } from '#lib/browse/idFilters.ts';
+import { ID_EXCLUSIONS, ID_LABELS, type IdFilterKey } from '#lib/browse/idFilters.ts';
+
+const ID_LIST_ORDER: readonly IdFilterKey[] = ['people', 'albums', 'tags'];
 
 export type FilterSectionId =
-  'library' | 'collections' | 'rating' | 'date' | 'camera' | 'place' | 'file';
+  'library' | 'people' | 'albums' | 'tags' | 'rating' | 'date' | 'camera' | 'place' | 'file';
 
 export interface FilterSection {
   id: FilterSectionId;
@@ -17,11 +19,11 @@ export const FILTER_SECTIONS: FilterSection[] = [
     title: 'Library',
     keys: ['visibility', 'rejected', 'favoriteOnly']
   },
-  {
-    id: 'collections',
-    title: 'Albums, people & tags',
-    keys: ID_FILTERS.flatMap((key) => [key, ID_EXCLUSIONS[key].key])
-  },
+  ...ID_LIST_ORDER.map((key) => ({
+    id: key,
+    title: ID_LABELS[key],
+    keys: [key, ID_EXCLUSIONS[key].key] satisfies FilterKey[]
+  })),
   { id: 'rating', title: 'Rating & label', keys: ['rating', 'label'] },
   { id: 'date', title: 'Date', keys: ['takenAfter', 'takenBefore', 'addedAfter', 'addedBefore'] },
   { id: 'camera', title: 'Camera', keys: CAMERA_FILTERS },

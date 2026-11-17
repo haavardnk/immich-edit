@@ -23,8 +23,8 @@ describe('filter section summaries', () => {
   it.each<[FilterSectionId, Partial<BrowseFilters>, string]>([
     ['library', { visibility: 'archive' }, 'Archived'],
     ['library', { rejected: 'hide', favoriteOnly: true }, 'No rejected · Favorites'],
-    ['collections', { albums: { ids: ['a1'], match: 'all' } }, 'Summer'],
-    ['collections', { noPeople: true }, 'No people'],
+    ['albums', { albums: { ids: ['a1'], match: 'all' } }, 'Summer'],
+    ['people', { noPeople: true }, 'No people'],
     ['rating', { rating: '3+' }, '≥ 3 stars'],
     ['rating', { label: 'none' }, 'No label'],
     ['date', { takenAfter: '2024-10-01', takenBefore: '2024-10-31' }, 'Oct 2024'],
@@ -38,14 +38,9 @@ describe('filter section summaries', () => {
   });
 
   it('joins several values of one section in panel order', () => {
-    expect(
-      summaryOf('collections', {
-        tags: { ids: ['t1'], match: 'any' },
-        people: { ids: ['p1', 'p2'], match: 'none' },
-        albums: { ids: ['a1'], match: 'all' },
-        untagged: true
-      })
-    ).toBe('Summer · Without people: Ann +1 · Any of tags: Unknown · Untagged');
+    expect(summaryOf('tags', { tags: { ids: ['t1'], match: 'any' }, untagged: true })).toBe(
+      'Any of tags: Unknown · Untagged'
+    );
     expect(summaryOf('rating', { rating: 4, label: 'red' })).toBe('4 stars · Red label');
     expect(summaryOf('camera', { make: ['FUJIFILM'], lensModel: ['XF35', 'XF56'] })).toBe(
       'FUJIFILM · XF35 +1'

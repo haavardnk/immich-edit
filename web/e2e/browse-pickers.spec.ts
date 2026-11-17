@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { filterGroup, filterRow, rowNames } from './filterLists';
 import { installMocks, numberedAssets, openFilters } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
@@ -25,27 +26,26 @@ test('one camera pick drills into its models and lenses on flat search', async (
   await page.goto('/photos');
 
   const panel = await openFilters(page, 'Camera');
-  const makes = panel.getByRole('group', { name: 'Makes' });
-  await expect(makes.getByRole('button')).toHaveText(['FUJIFILM', 'SONY']);
-  await makes.getByRole('button', { name: 'SONY' }).click();
+  const makes = filterGroup(panel, 'Makes');
+  await expect.poll(() => rowNames(makes)).toEqual(['FUJIFILM', 'SONY']);
+  await filterRow(makes, 'SONY').click();
 
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).make).toEqual(['SONY']);
   await expect(page.locator('[data-name="IMG_0002.ARW"]')).toHaveCount(0);
   const path = panel.getByRole('navigation', { name: 'Camera path' });
   await expect(path).toHaveText(/Makes.*SONY/);
-  const models = panel.getByRole('group', { name: 'Models' });
-  await expect(models.getByRole('button')).toHaveText(['ILCE-7M3', 'ILCE-7M4']);
-  await models.getByRole('button', { name: 'ILCE-7M3' }).click();
+  const models = filterGroup(panel, 'Models');
+  await expect.poll(() => rowNames(models)).toEqual(['ILCE-7M3', 'ILCE-7M4']);
+  await filterRow(models, 'ILCE-7M3').click();
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).model).toEqual(['ILCE-7M3']);
-  await expect(panel.getByRole('group', { name: 'Lenses' }).getByRole('button')).toHaveText([
-    'FE 35mm F1.8'
-  ]);
-  await expect(
-    panel.getByRole('button', { name: 'Camera', exact: true })
-  ).toHaveAccessibleDescription('SONY · ILCE-7M3');
+  await expect.poll(() => rowNames(filterGroup(panel, 'Lenses'))).toEqual(['FE 35mm F1.8']);
+  const camera = panel.getByRole('button', { name: 'Camera', exact: true });
+  await camera.click();
+  await expect(camera).toHaveAccessibleDescription('SONY · ILCE-7M3');
+  await camera.click();
 
   await path.getByRole('button', { name: 'Makes' }).click();
-  await makes.getByRole('button', { name: 'FUJIFILM' }).click();
+  await filterRow(makes, 'FUJIFILM').click();
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).make).toEqual(['FUJIFILM']);
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).model).toBeUndefined();
 });
@@ -61,29 +61,26 @@ test('several cameras match together and a removed make clears its models', asyn
   await page.goto('/photos');
 
   const panel = await openFilters(page, 'Camera');
-  const makes = panel.getByRole('group', { name: 'Makes' });
-  await makes.getByRole('button', { name: 'SONY' }).click();
+  const makes = filterGroup(panel, 'Makes');
+  await filterRow(makes, 'SONY').click();
   await panel
     .getByRole('navigation', { name: 'Camera path' })
     .getByRole('button', { name: 'Makes' })
     .click();
-  await makes.getByRole('button', { name: 'FUJIFILM' }).click();
+  await filterRow(makes, 'FUJIFILM').click();
   await expect.poll(() => filter().make).toEqual(['SONY', 'FUJIFILM']);
-  await expect(makes.getByRole('button', { name: 'SONY' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(filterRow(makes, 'SONY')).toBeChecked();
   await expect(panel.getByRole('navigation', { name: 'Camera path' })).toHaveCount(0);
 
   await page.goto('/photos?make=SONY&make=FUJIFILM&model=ILCE-7M3');
-  const models = panel.getByRole('group', { name: 'Models' });
-  await expect(models.getByRole('button')).toHaveText(['ILCE-7M3', 'ILCE-7M4', 'X-T5']);
-  await expect(models.getByRole('button', { name: 'ILCE-7M3' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  const models = filterGroup(panel, 'Models');
+  await expect.poll(() => rowNames(models)).toEqual(['ILCE-7M3', 'ILCE-7M4', 'X-T5']);
+  await expect(filterRow(models, 'ILCE-7M3')).toBeChecked();
   await panel
     .getByRole('navigation', { name: 'Camera path' })
     .getByRole('button', { name: 'Makes' })
     .click();
-  await makes.getByRole('button', { name: 'SONY' }).click();
+  await filterRow(makes, 'SONY').click();
   await expect.poll(() => filter().make).toEqual(['FUJIFILM']);
   await expect.poll(() => filter().model).toBeUndefined();
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
@@ -103,15 +100,15 @@ test('an unknown lens matches photos without one and excludes named lenses', asy
   await page.goto('/photos?make=SONY&model=ILCE-7M3');
 
   const panel = await openFilters(page, 'Camera');
-  const lenses = panel.getByRole('group', { name: 'Lenses' });
-  await expect(lenses.getByRole('button')).toHaveText(['FE 35mm F1.8', 'Unknown']);
-  await lenses.getByRole('button', { name: 'FE 35mm F1.8' }).click();
-  await lenses.getByRole('button', { name: 'Unknown lens' }).click();
+  const lenses = filterGroup(panel, 'Lenses');
+  await expect.poll(() => rowNames(lenses)).toEqual(['FE 35mm F1.8', 'Unknown lens']);
+  await filterRow(lenses, 'FE 35mm F1.8').click();
+  await filterRow(lenses, 'Unknown lens').click();
   await expect.poll(() => filter().lensModel).toEqual([null]);
   await expect(page).toHaveURL(/[?&]lens=(&|$)/);
   await expect(page.locator(`[data-name="${bare.originalFileName}"]`)).toHaveCount(1);
   await expect(page.locator('[data-name="IMG_0001.ARW"]')).toHaveCount(0);
-  await lenses.getByRole('button', { name: 'FE 35mm F1.8' }).click();
+  await filterRow(lenses, 'FE 35mm F1.8').click();
   await expect.poll(() => filter().lensModel).toEqual(['FE 35mm F1.8']);
   await expect(page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')).toHaveText(
     ['Make: SONY', 'Model: ILCE-7M3', 'Lens: FE 35mm F1.8']
@@ -138,12 +135,12 @@ test('people match all, any or none of the picked people', async ({ page }) => {
   });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Albums, people & tags');
-  const group = panel.getByRole('group', { name: 'People' });
-  await expect(group.getByRole('button')).toHaveText(['Ann', 'Bo', 'No people']);
+  const panel = await openFilters(page, 'People');
+  const group = filterGroup(panel, 'People');
+  await expect.poll(() => rowNames(group)).toEqual(['Ann', 'Bo', 'No people']);
   await expect(panel.getByRole('radiogroup', { name: 'People match' })).toHaveCount(0);
-  await group.getByRole('button', { name: 'Ann' }).click();
-  await group.getByRole('button', { name: 'Bo' }).click();
+  await filterRow(group, 'Ann').click();
+  await filterRow(group, 'Bo').click();
   await expect.poll(people).toEqual({ all: ['person-ann', 'person-bo'] });
   await expect(page).toHaveURL(/person=person-ann&person=person-bo$/);
   await expect(tile(1)).toHaveCount(1);
@@ -182,10 +179,10 @@ test('flat search matches all of the picked people and leaves out the page perso
   await expect.poll(() => bodies.length).toBeGreaterThan(0);
   await expect.poll(people).toBeUndefined();
 
-  const panel = await openFilters(page, 'Albums, people & tags');
-  const group = panel.getByRole('group', { name: 'People' });
-  await expect(group.getByRole('button')).toHaveText(['Bo']);
-  await group.getByRole('button', { name: 'Bo' }).click();
+  const panel = await openFilters(page, 'People');
+  const group = filterGroup(panel, 'People');
+  await expect.poll(() => rowNames(group)).toEqual(['Bo']);
+  await filterRow(group, 'Bo').click();
   await expect.poll(people).toEqual({ all: ['person-bo'] });
   await expect(panel.getByRole('radiogroup', { name: 'People match' })).toHaveCount(0);
 });
@@ -206,17 +203,17 @@ test('albums filter leaves out the page album', async ({ page }) => {
   });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Albums, people & tags');
-  const group = panel.getByRole('group', { name: 'Albums' });
-  await expect(group.getByRole('button')).toHaveText(['Bergen', 'Summer', 'Not in any album']);
-  await group.getByRole('button', { name: 'Summer' }).click();
+  const panel = await openFilters(page, 'Albums');
+  const group = filterGroup(panel, 'Albums');
+  await expect.poll(() => rowNames(group)).toEqual(['Bergen', 'Summer', 'Not in any album']);
+  await filterRow(group, 'Summer').click();
   await expect.poll(albums).toEqual({ all: ['album-1'] });
   await expect(page).toHaveURL(/album=album-1$/);
   await expect(tile(0)).toHaveCount(1);
   await expect(tile(1)).toHaveCount(0);
 
   await page.goto('/albums/album-1');
-  await expect(group.getByRole('button')).toHaveText(['Bergen']);
+  await expect.poll(() => rowNames(group)).toEqual(['Bergen']);
 });
 
 test('tags filter offers user tags and leaves out the page tag', async ({ page }) => {
@@ -238,10 +235,10 @@ test('tags filter offers user tags and leaves out the page tag', async ({ page }
   });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Albums, people & tags');
-  const group = panel.getByRole('group', { name: 'Tags' });
-  await expect(group.getByRole('button')).toHaveText(['Trips/Oslo', 'Trips/Rome', 'Untagged']);
-  await group.getByRole('button', { name: 'Trips/Rome' }).click();
+  const panel = await openFilters(page, 'Tags');
+  const group = filterGroup(panel, 'Tags');
+  await expect.poll(() => rowNames(group)).toEqual(['Trips/Oslo', 'Trips/Rome', 'Untagged']);
+  await filterRow(group, 'Trips/Rome').click();
   await expect.poll(tags).toEqual({ all: ['tag-rome'] });
   await expect(tile(0)).toHaveCount(1);
   await expect(tile(1)).toHaveCount(0);
@@ -259,55 +256,37 @@ test('tags filter offers user tags and leaves out the page tag', async ({ page }
   );
 
   await page.goto('/tags/tag-rome');
-  await expect(group.getByRole('button')).toHaveText(['Trips/Oslo']);
+  await expect.poll(() => rowNames(group)).toEqual(['Trips/Oslo']);
 });
 
-test('one search narrows albums, people and tags and keeps the exclusions', async ({ page }) => {
+test('each list searches its own rows and keeps its exclusion', async ({ page }) => {
   await installMocks(page, {
     structuredSearch: true,
     assets: PAGED_ASSETS,
-    people: PEOPLE,
     albums: [
       { id: 'album-1', albumName: 'Norway 2026', assetIds: [] },
       { id: 'album-2', albumName: 'Summer', assetIds: [] }
-    ],
-    tags: [
-      { id: 'tag-nordic', name: 'Nordic', value: 'Light/Nordic' },
-      { id: 'tag-rome', name: 'Rome', value: 'Trips/Rome' }
     ]
   });
   await page.goto('/photos');
 
-  const panel = await openFilters(page, 'Albums, people & tags');
-  const search = panel.getByRole('textbox', { name: 'Search albums, people and tags' });
+  const panel = await openFilters(page, 'Albums');
+  const group = filterGroup(panel, 'Albums');
+  const search = panel.getByRole('textbox', { name: 'Search albums' });
   await search.fill('nor');
-  await expect(panel.getByRole('group', { name: 'People' }).getByRole('button')).toHaveText([
-    'No people'
-  ]);
-  await expect(panel.getByRole('group', { name: 'Albums' }).getByRole('button')).toHaveText([
-    'Norway 2026',
-    'Not in any album'
-  ]);
-  await expect(panel.getByRole('group', { name: 'Tags' }).getByRole('button')).toHaveText([
-    'Light/Nordic',
-    'Untagged'
-  ]);
-  await expect(panel.getByRole('status').filter({ hasText: 'albums' })).toHaveText('1 of 2 albums');
-  await expect(panel.getByRole('status').filter({ hasText: 'people' })).toHaveText(
-    'No matching people'
-  );
-  await expect(panel.locator('mark', { hasText: /^Nor$/ })).toHaveCount(2);
+  await expect.poll(() => rowNames(group)).toEqual(['Norway 2026', 'Not in any album']);
+  await expect(group.locator('mark', { hasText: /^Nor$/ })).toHaveCount(1);
+  await search.fill('zzz');
+  await expect(panel.getByText('No matching albums')).toBeVisible();
 
   await search.press('Escape');
   await expect(search).toHaveValue('');
-  await expect(panel.getByRole('group', { name: 'People' }).getByRole('button')).toHaveText([
-    'Ann',
-    'Bo',
-    'No people'
-  ]);
+  await expect.poll(() => rowNames(group)).toEqual(['Norway 2026', 'Summer', 'Not in any album']);
 });
 
-test('a long camera list folds behind a more chip', async ({ page }) => {
+test('a long camera list pins the picks, previews five and lists all on demand', async ({
+  page
+}) => {
   const assets = numberedAssets(12).map((asset, index) => ({
     ...asset,
     exifInfo: { make: `Make ${String(index + 1).padStart(2, '0')}` }
@@ -316,13 +295,11 @@ test('a long camera list folds behind a more chip', async ({ page }) => {
   await page.goto('/photos?make=Make%2012&make=Make%2011');
 
   const panel = await openFilters(page, 'Camera');
-  const makes = panel.getByRole('group', { name: 'Makes' });
-  await expect(makes.getByRole('button')).toHaveText([
-    ...Array.from({ length: 8 }, (_, index) => `Make 0${index + 1}`),
-    'Make 11',
-    'Make 12',
-    '+2 more'
-  ]);
-  await makes.getByRole('button', { name: '+2 more' }).click();
-  await expect(makes.getByRole('button')).toHaveCount(12);
+  const makes = filterGroup(panel, 'Makes');
+  await expect
+    .poll(() => rowNames(makes))
+    .toEqual(['Make 11', 'Make 12', 'Make 01', 'Make 02', 'Make 03', 'Make 04', 'Make 05']);
+  await panel.getByRole('button', { name: 'All 12 makes' }).click();
+  await expect(makes.getByRole('checkbox')).toHaveCount(12);
+  await expect(panel.getByRole('button', { name: 'All 12 makes' })).toHaveCount(0);
 });

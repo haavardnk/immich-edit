@@ -40,9 +40,11 @@
         {#snippet header()}
           {@render saveButton(true)}
         {/snippet}
-        {@render saveEntry()}
-        <ViewBlock {sortBasis} />
-        <FiltersHeading />
+        {#if !browseView.filterPage}
+          {@render saveEntry()}
+          <ViewBlock {sortBasis} />
+          <FiltersHeading />
+        {/if}
         <FilterSections {favoriteLocked} />
         {#snippet footer()}
           <Button
