@@ -29,6 +29,7 @@
     type Point
   } from '#lib/utils/geom.ts';
   import { neutralPerspective, perspectiveCssMatrix } from '#lib/utils/perspective.ts';
+  import { tokenMs } from '#lib/motion/tokens.ts';
   import { untrack } from 'svelte';
   import { cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
@@ -45,7 +46,10 @@
   let line = $state<{ from: Point; to: Point } | null>(null);
 
   const MIN_LINE_PX = 10;
-  const view = new Tween(IDENTITY_VIEW, { duration: 250, easing: cubicOut });
+  const view = new Tween(IDENTITY_VIEW, {
+    duration: () => tokenMs('--transition-duration-slow'),
+    easing: cubicOut
+  });
 
   function measure(): void {
     if (!container) return;

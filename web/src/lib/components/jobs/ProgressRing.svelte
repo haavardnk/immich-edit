@@ -15,6 +15,6 @@
     stroke-width="3"
     stroke-linecap="round"
     stroke-dasharray={`${Math.max(0.5, value * CIRCUMFERENCE)} ${CIRCUMFERENCE}`}
-    class="stroke-primary motion-safe:transition-[stroke-dasharray] motion-safe:duration-300"
+    class="stroke-primary motion-safe:transition-[stroke-dasharray] motion-safe:duration-slow"
   />
 </svg>

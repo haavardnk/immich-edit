@@ -20,7 +20,7 @@
 </script>
 
 <header
-  class="sticky flex shrink-0 flex-col bg-light motion-safe:transition-[margin] motion-safe:duration-200 {touchBars.hidden
+  class="sticky flex shrink-0 flex-col bg-light motion-safe:transition-[margin] motion-safe:duration-base {touchBars.hidden
     ? '-mt-13'
     : ''}"
   inert={touchBars.hidden}

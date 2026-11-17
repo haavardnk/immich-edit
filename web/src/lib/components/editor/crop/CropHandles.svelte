@@ -64,7 +64,7 @@
     aria-label="resize {h}"
   >
     <span
-      class="pointer-events-none absolute transition-[scale,opacity,background-color,border-color] duration-150 group-hover:scale-125 group-data-active:scale-125 {corner
+      class="pointer-events-none absolute transition-[scale,opacity,background-color,border-color] duration-fast group-hover:scale-125 group-data-active:scale-125 {corner
         ? 'border-0 border-white group-hover:border-image-accent group-data-active:border-image-accent'
         : 'bg-white group-hover:bg-image-accent group-data-active:bg-image-accent'} {corner || touch
         ? ''

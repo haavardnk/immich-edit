@@ -143,7 +143,7 @@
   role="group"
   onpointerenter={onPreview}
   onpointerleave={onPreviewEnd}
-  class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-200"
+  class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-base"
   class:bg-light-100={!selected}
   class:bg-light-400={selected}
   class:rounded-md={selected}
@@ -156,7 +156,7 @@
     {href}
     onclick={onClick}
     aria-label={asset.originalFileName}
-    class="block h-full w-full outline-none transition-[padding] duration-200 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+    class="block h-full w-full outline-none transition-[padding] duration-base focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
     class:p-2={selected}
     draggable="false"
   >
@@ -166,7 +166,7 @@
         alt=""
         loading="lazy"
         draggable="false"
-        class="h-full w-full bg-cover bg-center object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
+        class="h-full w-full bg-cover bg-center object-cover transition-[filter,transform] duration-base group-hover:scale-[1.01]"
         style:transform={selected ? 'none' : undefined}
         style:background-image={placeholder}
         class:opacity-40={rejected}
@@ -182,7 +182,7 @@
     onclick={onCheckbox}
     aria-label={selected ? 'Deselect' : 'Select'}
     aria-pressed={selected}
-    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-150 hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checkClass}"
+    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-fast hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checkClass}"
     class:border-primary={marked}
     class:bg-primary={marked}
   >

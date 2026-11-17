@@ -95,7 +95,7 @@
   <div
     {...scrub.slider}
     data-testid="date-thumb"
-    class="absolute right-0 flex h-11 w-11 -translate-y-1/2 touch-none items-center justify-end pe-1.25 outline-none transition-opacity duration-200 select-none focus-visible:opacity-100 {scrolling ||
+    class="absolute right-0 flex h-11 w-11 -translate-y-1/2 touch-none items-center justify-end pe-1.25 outline-none transition-opacity duration-base select-none focus-visible:opacity-100 {scrolling ||
     scrub.dragging
       ? 'pointer-events-auto opacity-100'
       : 'opacity-0'}"

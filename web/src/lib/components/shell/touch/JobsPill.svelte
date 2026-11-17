@@ -7,7 +7,7 @@
 
 {#if jobsProgress.visible}
   <div
-    class="pointer-events-none fixed inset-x-0 bottom-[calc(12px+var(--chrome-bottom,var(--safe-bottom)))] z-30 flex justify-center px-4 motion-safe:transition-[bottom] motion-safe:duration-200"
+    class="pointer-events-none fixed inset-x-0 bottom-[calc(12px+var(--chrome-bottom,var(--safe-bottom)))] z-30 flex justify-center px-4 motion-safe:transition-[bottom] motion-safe:duration-base"
   >
     <Button
       size="small"

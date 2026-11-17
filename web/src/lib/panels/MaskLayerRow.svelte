@@ -77,7 +77,7 @@
       : 'border-transparent hover:border-hairline hover:bg-light-950/4'} {reorder.active(
     'layers'
   ) && !lifted
-    ? 'transition-[translate] duration-150'
+    ? 'transition-[translate] duration-fast'
     : 'transition-colors'}"
   onpointerenter={hover}
   onpointerleave={() => maskHover.leave(layer.id, null)}

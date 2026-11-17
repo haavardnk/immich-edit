@@ -15,7 +15,7 @@
   aria-label="Main"
   inert={touchBars.hidden}
   data-tab-bar
-  class="flex shrink-0 justify-around border-t border-hairline bg-light-50 pb-(--tab-bar-pad) motion-safe:transition-[margin] motion-safe:duration-200"
+  class="flex shrink-0 justify-around border-t border-hairline bg-light-50 pb-(--tab-bar-pad) motion-safe:transition-[margin] motion-safe:duration-base"
   style:margin-bottom={touchBars.hidden ? `calc(-1 * ${TAB_BAR_BOTTOM})` : null}
 >
   {#each NAV_TABS as tab (tab.id)}

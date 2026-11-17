@@ -1,8 +1,12 @@
 import { cubicOut } from 'svelte/easing';
 import { Tween } from 'svelte/motion';
+import { tokenMs } from '#lib/motion/tokens.ts';
 
 class CropExit {
-  #scale = new Tween(1, { duration: 250, easing: cubicOut });
+  #scale = new Tween(1, {
+    duration: () => tokenMs('--transition-duration-slow'),
+    easing: cubicOut
+  });
 
   get transform(): string {
     const scale = this.#scale.current;

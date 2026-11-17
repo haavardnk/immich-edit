@@ -1,4 +1,4 @@
-import { tokenMs } from '#lib/motion/tokens.ts';
+import { cssToken, tokenMs } from '#lib/motion/tokens.ts';
 import { prefersReducedMotion } from 'svelte/motion';
 import type { Attachment } from 'svelte/attachments';
 
@@ -26,7 +26,7 @@ export function collapseX(collapsed: boolean): Attachment<HTMLElement> {
         ];
     const animation = node.animate(frames, {
       duration: tokenMs('--transition-duration-base'),
-      easing: 'cubic-bezier(0.33, 1, 0.68, 1)'
+      easing: cssToken('--ease-standard')
     });
     if (collapsed) animation.onfinish = () => (node.style.display = 'none');
   };

@@ -39,7 +39,7 @@
           'aria-busy': busy || undefined,
           onclick: (event: MouseEvent) => onSelect(held('extend', event)),
           class: [
-            'flex h-5 shrink-0 items-center justify-center overflow-hidden rounded-full outline-none transition-[opacity,margin,width] duration-150 focus-visible:ring-2 focus-visible:ring-primary touch:order-last touch:-my-3 touch:-me-3 touch:ms-0.5 touch:size-11',
+            'flex h-5 shrink-0 items-center justify-center overflow-hidden rounded-full outline-none transition-[opacity,margin,width] duration-fast focus-visible:ring-2 focus-visible:ring-primary touch:order-last touch:-my-3 touch:-me-3 touch:ms-0.5 touch:size-11',
             selected ? 'text-primary' : 'text-muted hover:text-light-950',
             shown
               ? 'w-5 opacity-100'

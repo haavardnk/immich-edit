@@ -9,6 +9,7 @@ import {
 import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
 import type { Axis } from '#lib/gestures/axis.ts';
 import type { SwipeEnd, SwipeProgress } from '#lib/gestures/swipe.ts';
+import { cssToken, tokenMs } from '#lib/motion/tokens.ts';
 
 export type StageSurface = {
   readonly clientWidth: number;
@@ -30,9 +31,13 @@ export type LoupeStageSpec = {
 
 type Settle = { timer: ReturnType<typeof setTimeout>; done: () => void };
 
-const SETTLE_MS = 200;
+function settleMs(): number {
+  return tokenMs('--transition-duration-base');
+}
 
-const EASE = `${SETTLE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+function ease(): string {
+  return `${settleMs()}ms ${cssToken('--ease-emphasized')}`;
+}
 
 export class LoupeStage {
   #axis: Axis | null = null;
@@ -118,13 +123,13 @@ export class LoupeStage {
       done();
       return;
     }
-    this.#transition(`transform ${EASE}`, `opacity ${EASE}`);
+    this.#transition(`transform ${ease()}`, `opacity ${ease()}`);
     this.#paint(transform, '');
     this.#settle = {
       timer: setTimeout(() => {
         this.#settle = null;
         done();
-      }, SETTLE_MS),
+      }, settleMs()),
       done
     };
   }

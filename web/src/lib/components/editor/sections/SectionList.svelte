@@ -58,7 +58,7 @@
           class="flex items-center gap-1.5 rounded-lg {rowClass} {reorder.dragging?.id === row.id
             ? 'relative z-10 bg-light-200 shadow-popover'
             : reorder.active(group.id)
-              ? 'transition-[translate] duration-150'
+              ? 'transition-[translate] duration-fast'
               : ''}"
         >
           <IconButton

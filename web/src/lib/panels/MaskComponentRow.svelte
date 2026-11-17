@@ -64,7 +64,7 @@
   class="flex flex-col gap-1 rounded-md {lifted
     ? 'relative z-10 bg-light-200 shadow-popover'
     : reorder.active(layerId)
-      ? 'transition-[translate] duration-150'
+      ? 'transition-[translate] duration-fast'
       : ''}"
   onpointerenter={hover}
   onpointerleave={() => maskHover.leave(layerId, comp.id)}

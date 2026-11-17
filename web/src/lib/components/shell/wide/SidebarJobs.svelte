@@ -21,7 +21,7 @@
     </span>
     <span class="block h-1 overflow-hidden rounded-full bg-dark/15" aria-hidden="true">
       <span
-        class="block h-full rounded-full bg-primary motion-safe:transition-[width] motion-safe:duration-300"
+        class="block h-full rounded-full bg-primary motion-safe:transition-[width] motion-safe:duration-slow"
         style:width="{jobsProgress.fraction * 100}%"
       ></span>
     </span>

@@ -77,7 +77,7 @@
             <div class="flex flex-col items-center gap-0.5 {wheel.cell}">
               <div
                 role="presentation"
-                class="rounded-full border p-0.5 transition-[border-color,box-shadow] duration-150 {activeRegion ===
+                class="rounded-full border p-0.5 transition-[border-color,box-shadow] duration-fast {activeRegion ===
                 wheel.key
                   ? 'border-primary shadow-[0_0_0_1px_var(--color-primary)]'
                   : 'border-transparent hover:border-dark/10'}"
@@ -94,7 +94,7 @@
               </div>
               <RadioGroup.Item
                 value={wheel.key}
-                class="h-5 px-1.5 text-[10px] font-medium text-dark/65 transition-colors duration-150 hover:text-dark aria-checked:text-primary"
+                class="h-5 px-1.5 text-[10px] font-medium text-dark/65 transition-colors duration-fast hover:text-dark aria-checked:text-primary"
               >
                 {GRADE_REGION_LABELS[wheel.key]}
               </RadioGroup.Item>
