@@ -1,14 +1,8 @@
 <script lang="ts">
   import SearchField from '#lib/components/SearchField.svelte';
-  import {
-    shownCheck,
-    stageNote,
-    stageSummary,
-    type PickCheck,
-    type Stage
-  } from '#lib/browse/bulk/pickStage.ts';
-  import { Button, Icon } from '@immich/ui';
-  import { mdiCheck, mdiMinus } from '@mdi/js';
+  import { shownCheck, stageNote, stageSummary, type Stage } from '#lib/browse/bulk/pickStage.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { Button, Checkbox, Icon } from '@immich/ui';
   import type { Snippet } from 'svelte';
 
   export type PickItem = {
@@ -43,6 +37,7 @@
     onApply: () => void;
   } = $props();
 
+  const uid = $props.id();
   let query = $state('');
 
   const shown = $derived.by(() => {
@@ -53,10 +48,6 @@
   const rest = $derived(shown.filter((item) => holding(item.id) <= 0));
   const summary = $derived(stageSummary(stages));
   const heading = 'section-label px-3 pt-3 pb-1 text-dark/65 touch:px-4';
-
-  function ariaChecked(check: PickCheck): 'true' | 'false' | 'mixed' {
-    return check === 'mixed' ? 'mixed' : check ? 'true' : 'false';
-  }
 
   function applyOnEnter(event: KeyboardEvent): void {
     if (event.key !== 'Enter' || summary.count === 0 || busy) return;
@@ -70,43 +61,38 @@
   {@const stage = stages.get(item.id)}
   {@const check = shownCheck(count, total, stage)}
   {@const note = stageNote(count, total, stage) ?? item.detail ?? null}
-  <button
-    type="button"
-    role="checkbox"
-    aria-checked={ariaChecked(check)}
-    class="flex h-10 w-full items-center gap-2.5 border-b border-hairline px-3 text-left outline-none hover:bg-subtle focus-visible:bg-subtle touch:h-14 touch:gap-3 touch:px-4"
-    onclick={() => onToggle(item.id)}
+  {@const id = `${uid}-${item.id}`}
+  <div
+    class="flex h-10 w-full items-center gap-2.5 border-b border-hairline px-3 hover:bg-subtle touch:h-14 touch:gap-3 touch:px-4"
   >
-    {#if item.thumb}
-      <img src={item.thumb} alt="" class="size-7 shrink-0 rounded-md object-cover touch:size-10" />
-    {:else if item.icon}
-      <Icon icon={item.icon} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
-    {/if}
-    <span class="flex min-w-0 flex-1 flex-col leading-tight">
-      <span class="truncate text-label text-light-950 touch:text-body">{item.label}</span>
-      {#if note}
-        <span
-          class="truncate text-caption touch:text-label {stage ? 'text-primary' : 'text-dark/65'}"
-          >{note}</span
-        >
+    <label for={id} class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 touch:gap-3">
+      {#if item.thumb}
+        <img
+          src={item.thumb}
+          alt=""
+          class="size-7 shrink-0 rounded-md object-cover touch:size-10"
+        />
+      {:else if item.icon}
+        <Icon icon={item.icon} size="16px" class="shrink-0 text-dark/65" aria-hidden="true" />
       {/if}
-    </span>
-    <span
-      class="grid size-4 shrink-0 place-items-center rounded touch:size-5.5 touch:rounded-md {check ===
-      true
-        ? 'bg-primary text-light'
-        : check === 'mixed'
-          ? 'bg-primary/20 text-primary ring-2 ring-primary ring-inset'
-          : 'ring-2 ring-dark/30 ring-inset'}"
-      aria-hidden="true"
-    >
-      {#if check === true}
-        <Icon icon={mdiCheck} size="14px" />
-      {:else if check === 'mixed'}
-        <Icon icon={mdiMinus} size="14px" />
-      {/if}
-    </span>
-  </button>
+      <span class="flex min-w-0 flex-1 flex-col leading-tight">
+        <span class="truncate text-label text-light-950 touch:text-body">{item.label}</span>
+        {#if note}
+          <span
+            class="truncate text-caption touch:text-label {stage ? 'text-primary' : 'text-dark/65'}"
+            >{note}</span
+          >
+        {/if}
+      </span>
+    </label>
+    <Checkbox
+      {id}
+      size={layout.mode === 'touch' ? 'small' : 'tiny'}
+      aria-label={item.label}
+      bind:checked={() => check === true, () => onToggle(item.id)}
+      indeterminate={check === 'mixed'}
+    />
+  </div>
 {/snippet}
 
 <div class="flex flex-1 flex-col" data-bulk-pick>

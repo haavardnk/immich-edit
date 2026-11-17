@@ -19,6 +19,12 @@ function row(page: Page, name: string) {
   return page.locator('[data-bulk-pick]').getByRole('checkbox', { name: new RegExp(`^${name}`) });
 }
 
+function note(page: Page, name: string) {
+  return page
+    .locator('[data-bulk-pick] label')
+    .filter({ has: page.getByText(name, { exact: true }) });
+}
+
 test('the album checklist stages adds and removals and applies them together', async ({ page }) => {
   const calls: Array<{ album: string; method: string; ids: string[] }> = [];
   await installMocks(page, {
@@ -41,16 +47,16 @@ test('the album checklist stages adds and removals and applies them together', a
   const review = row(page, 'Review');
   const trips = row(page, 'Trips');
   await expect(review).toHaveAttribute('aria-checked', 'mixed');
-  await expect(review).toContainText('In 1 of 2');
+  await expect(note(page, 'Review')).toContainText('In 1 of 2');
   await expect(trips).toHaveAttribute('aria-checked', 'false');
 
   await trips.click();
-  await expect(trips).toContainText('Add 2 photos');
+  await expect(note(page, 'Trips')).toContainText('Add 2 photos');
   await review.click();
   await expect(review).toHaveAttribute('aria-checked', 'true');
   await review.click();
   await expect(review).toHaveAttribute('aria-checked', 'false');
-  await expect(review).toContainText('Remove from 1 photo');
+  await expect(note(page, 'Review')).toContainText('Remove from 1 photo');
 
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
   await expect(page.getByText('Updated albums for 2 photos')).toBeVisible();
