@@ -73,6 +73,15 @@ async function openTouch(page: Page): Promise<void> {
 }
 
 test.describe('compare on desktop', () => {
+  test('with nothing else to compare the left side is a label, not a menu', async ({ page }) => {
+    await installMocks(page);
+    await gotoAsset(page);
+
+    await page.keyboard.press('y');
+    await expect(bar(page).getByText('Left: Original')).toBeVisible();
+    await expect(bar(page).getByRole('button', { name: /^Left:/ })).toHaveCount(0);
+  });
+
   test('y cycles the split, side by side and off', async ({ page }) => {
     await openDesktop(page);
 
