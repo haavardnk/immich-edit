@@ -75,6 +75,11 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     expect(names.slice(0, 2)).toEqual(['Brush', 'Linear gradient']);
     await picker.getByRole('button', { name: 'Brush', exact: true }).tap();
     await expect(page.getByRole('slider', { name: 'Brush size' })).toBeVisible();
+    await expect(page.getByTestId('mask-weight-backdrop')).toBeVisible();
+
+    await modes(page).getByRole('tab', { name: 'Presets' }).tap();
+    await expect(page.getByTestId('mask-weight-backdrop')).toHaveCount(0);
+    await expect(page.getByRole('slider', { name: 'Brush size' })).toHaveCount(0);
   });
 
   test('layers, shapes and adjustments are edited from the tray', async ({ page }) => {
