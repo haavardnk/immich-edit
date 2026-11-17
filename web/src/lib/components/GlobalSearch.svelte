@@ -51,6 +51,7 @@
         icon={mdiClose}
         title="Clear search"
         aria-label="Clear search"
+        onmousedown={(event: MouseEvent) => event.preventDefault()}
         onclick={onClear}
       />
     </div>

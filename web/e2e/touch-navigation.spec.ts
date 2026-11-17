@@ -204,11 +204,6 @@ test.describe('touch search field on a small phone', { tag: ['@touch', '@phone']
     const [fieldBox, cancelBox] = await Promise.all([field.boundingBox(), cancel.boundingBox()]);
     expect((fieldBox?.x ?? 0) + (fieldBox?.width ?? 0)).toBeLessThanOrEqual(cancelBox?.x ?? 0);
     expect((cancelBox?.x ?? 0) + (cancelBox?.width ?? 0)).toBeLessThanOrEqual(360);
-    const options = await page
-      .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'Select photos' })
-      .boundingBox();
-    expect((options?.x ?? 0) + (options?.width ?? 0)).toBeLessThanOrEqual(360);
     const room = await field.evaluate((input) => {
       if (!(input instanceof HTMLInputElement)) return -1;
       const style = getComputedStyle(input);

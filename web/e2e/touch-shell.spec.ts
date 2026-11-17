@@ -316,7 +316,14 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
       'true'
     );
 
-    await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+    const clear = page.getByRole('button', { name: 'Clear search', exact: true });
+    await cancel.tap();
+    await expect(field).not.toBeFocused();
+    await expect(cancel).toHaveCount(0);
+    await expect(page).toHaveURL(/\/search\?q=IMG_0001/);
+    await expect(page.locator('header[data-app-bar] h1')).toHaveText('Search');
+    await clear.tap();
     await expect(page).toHaveURL('/search');
     await expect(field).toHaveValue('');
     const recent = page.getByRole('region', { name: 'Recent' });
@@ -330,8 +337,9 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await page.reload();
     await expect(field).toHaveValue('IMG_0001');
     await expect(field).not.toBeFocused();
+    await expect(cancel).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    await clear.tap();
     await recent
       .getByRole('button', { name: 'Remove IMG_0001 from recent searches', exact: true })
       .tap();
@@ -345,7 +353,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await field.pressSequentially('car');
     await expect(page).toHaveURL(/\/search\?q=red(\+|%20)car$/);
     await expect(field).toHaveValue('red car');
-    await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
+    await clear.tap();
     await expect(page.getByRole('region', { name: 'Recent' }).getByRole('listitem')).toHaveText([
       /^\s*red car\s*$/
     ]);

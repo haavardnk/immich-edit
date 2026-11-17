@@ -11,6 +11,7 @@
   const search = new SearchInput('/search');
 
   let field: HTMLElement | null = null;
+  let active = $state(false);
 
   const bindField: Attachment<HTMLElement> = (element) => {
     field = element;
@@ -28,14 +29,18 @@
     search.submitEvent(event);
     blur();
   }
-
-  function cancel(): void {
-    search.clear();
-    blur();
-  }
 </script>
 
-<div class="flex min-w-0 flex-1 items-center" {@attach bindField}>
+<div
+  class="flex min-w-0 flex-1 items-center"
+  onfocusin={(event) => {
+    if (event.target instanceof HTMLInputElement) active = true;
+  }}
+  onfocusout={(event) => {
+    if (event.target instanceof HTMLInputElement) active = false;
+  }}
+  {@attach bindField}
+>
   <GlobalSearch
     value={ui.searchQuery}
     placeholder={SEARCH_FIELD_SHORT_PLACEHOLDER}
@@ -45,12 +50,15 @@
     onFocus={search.focus}
   />
 </div>
-<Button
-  size="small"
-  variant="ghost"
-  color="primary"
-  class="min-h-11 shrink-0 px-2.5"
-  onclick={cancel}
->
-  Cancel
-</Button>
+{#if active}
+  <Button
+    size="small"
+    variant="ghost"
+    color="primary"
+    class="min-h-11 shrink-0 px-2.5"
+    onmousedown={(event: MouseEvent) => event.preventDefault()}
+    onclick={blur}
+  >
+    Cancel
+  </Button>
+{/if}

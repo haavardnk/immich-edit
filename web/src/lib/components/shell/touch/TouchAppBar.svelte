@@ -20,16 +20,13 @@
 </script>
 
 <header
-  class="sticky flex h-13 shrink-0 items-center gap-1 bg-light px-1.5 motion-safe:transition-[margin] motion-safe:duration-200 {touchBars.hidden
+  class="sticky flex shrink-0 flex-col bg-light motion-safe:transition-[margin] motion-safe:duration-200 {touchBars.hidden
     ? '-mt-13'
     : ''}"
   inert={touchBars.hidden}
   data-app-bar
 >
-  {#if bar}
-    <h1 class="sr-only">{title}</h1>
-    {@render bar()}
-  {:else}
+  <div class="flex h-13 items-center gap-1 px-1.5">
     {#if isTabRoot(page.url.pathname)}
       <AvatarButton />
     {:else}
@@ -41,6 +38,11 @@
         <p class="truncate text-xs text-dark/65">{count}</p>
       {/if}
     </div>
+    {@render actions?.()}
+  </div>
+  {#if bar}
+    <div class="flex items-center gap-2 px-3 pb-2">
+      {@render bar()}
+    </div>
   {/if}
-  {@render actions?.()}
 </header>
