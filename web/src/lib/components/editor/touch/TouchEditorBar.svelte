@@ -45,7 +45,7 @@
   aria-label="Editor toolbar"
   class="flex h-12 shrink-0 items-center gap-0.5 px-1.5 {floating
     ? 'absolute inset-x-0 top-0 z-30 bg-editor-chrome/70 backdrop-blur-sm'
-    : 'bg-editor-chrome'}"
+    : 'sticky top-0 z-10 bg-editor-chrome'}"
 >
   <CommandIconButton command={editorBack} size="medium" variant="ghost" shape="round" />
   {#if filename && editor.asset}
