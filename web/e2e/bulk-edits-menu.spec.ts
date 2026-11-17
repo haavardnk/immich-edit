@@ -59,6 +59,7 @@ test('copy from one edited photo, then paste from the menu onto a selection', as
   await expect(copy).toBeHidden();
 
   await bulkBar(page).getByRole('button', { name: 'Clear selection' }).click();
+  await expect(bulkBar(page)).toBeHidden();
   await pick(page, SECOND.originalFileName);
   await pick(page, THIRD.originalFileName);
   menu = await openBulkEdits(page);
