@@ -15,7 +15,13 @@ import { editorHref } from '#lib/editor/navigation.ts';
 import { defaultLinear, defaultRadial } from '#lib/types/masks.ts';
 import { nudgeable } from '#lib/utils/maskDrag.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { BRUSH_SIZE, HARDNESS, RETOUCH_SIZE, stepBrush } from '#lib/utils/brushSize.ts';
+import {
+  BRUSH_HARDNESS,
+  BRUSH_SIZE,
+  RETOUCH_HARDNESS,
+  RETOUCH_SIZE
+} from '#lib/editor/params/brush.ts';
+import { stepBrush } from '#lib/utils/brushSize.ts';
 
 let heldOriginalCode: string | null = null;
 
@@ -244,10 +250,12 @@ export function editorKeydown(e: KeyboardEvent, id: string): void {
     case 'brushHardness':
       if (ui.editorTab === 'retouch') {
         editor.setRetouchTool({
-          hardness: stepBrush(editor.retouchTool.hardness, e.key, HARDNESS)
+          hardness: stepBrush(editor.retouchTool.hardness, e.key, RETOUCH_HARDNESS)
         });
       } else {
-        editor.setBrushTool({ hardness: stepBrush(editor.brushTool.hardness, e.key, HARDNESS) });
+        editor.setBrushTool({
+          hardness: stepBrush(editor.brushTool.hardness, e.key, BRUSH_HARDNESS)
+        });
       }
       return;
   }

@@ -1,3 +1,12 @@
+import {
+  BRUSH_FLOW,
+  BRUSH_HARDNESS,
+  BRUSH_SIZE,
+  RETOUCH_HARDNESS,
+  RETOUCH_OPACITY,
+  RETOUCH_SIZE
+} from '#lib/editor/params/brush.ts';
+import type { ToolRange } from '#lib/editor/params/types.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import {
   clampZoom,
@@ -43,22 +52,31 @@ export interface RetouchTool {
   opacity: number;
 }
 
-const DEFAULT_BRUSH_TOOL: BrushTool = { size: 0.08, hardness: 0.5, flow: 0.8, mode: 'paint' };
-const DEFAULT_RETOUCH_TOOL: RetouchTool = { mode: 'heal', size: 0.05, hardness: 0.5, opacity: 1 };
+const DEFAULT_BRUSH_TOOL: BrushTool = {
+  size: BRUSH_SIZE.defaultValue,
+  hardness: BRUSH_HARDNESS.defaultValue,
+  flow: BRUSH_FLOW.defaultValue,
+  mode: 'paint'
+};
+const DEFAULT_RETOUCH_TOOL: RetouchTool = {
+  mode: 'heal',
+  size: RETOUCH_SIZE.defaultValue,
+  hardness: RETOUCH_HARDNESS.defaultValue,
+  opacity: RETOUCH_OPACITY.defaultValue
+};
 
-function clampStored(value: unknown, min: number, max: number, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+function clampStored(value: unknown, { min, max, defaultValue }: ToolRange): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return defaultValue;
   return Math.min(max, Math.max(min, value));
 }
 
 function restoreBrushTool(
   stored: Partial<Record<keyof BrushTool, unknown>> | undefined
 ): BrushTool {
-  const d = DEFAULT_BRUSH_TOOL;
   return {
-    size: clampStored(stored?.size, 0.005, 0.5, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    flow: clampStored(stored?.flow, 0.01, 1, d.flow),
+    size: clampStored(stored?.size, BRUSH_SIZE),
+    hardness: clampStored(stored?.hardness, BRUSH_HARDNESS),
+    flow: clampStored(stored?.flow, BRUSH_FLOW),
     mode: stored?.mode === 'erase' ? 'erase' : 'paint'
   };
 }
@@ -66,12 +84,11 @@ function restoreBrushTool(
 function restoreRetouchTool(
   stored: Partial<Record<keyof RetouchTool, unknown>> | undefined
 ): RetouchTool {
-  const d = DEFAULT_RETOUCH_TOOL;
   return {
     mode: stored?.mode === 'clone' ? 'clone' : 'heal',
-    size: clampStored(stored?.size, 0.005, 0.3, d.size),
-    hardness: clampStored(stored?.hardness, 0, 1, d.hardness),
-    opacity: clampStored(stored?.opacity, 0.05, 1, d.opacity)
+    size: clampStored(stored?.size, RETOUCH_SIZE),
+    hardness: clampStored(stored?.hardness, RETOUCH_HARDNESS),
+    opacity: clampStored(stored?.opacity, RETOUCH_OPACITY)
   };
 }
 

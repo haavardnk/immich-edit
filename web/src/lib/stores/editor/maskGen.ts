@@ -11,6 +11,8 @@ import { fetchRaster, uploadRaster } from '#lib/api/rasters.ts';
 import { blankBuffer, type BrushBuffer } from '#lib/utils/brush.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 import {
+  DEFAULT_GENERATED_FEATHER,
+  DEFAULT_GENERATED_GROW,
   defaultBrush,
   makeComponent,
   makeGeneratedLayer,
@@ -388,8 +390,8 @@ export async function clickRefineRaster(
   const comp = componentOf(layerOf(ctx, layerId), componentId);
   if (!assetId || !comp || comp.kind.kind !== 'brush' || ctx.maskGenerating) return;
   const base = comp.generated?.prob_raster_id ?? comp.kind.raster_id;
-  const grow = comp.generated?.grow ?? 0;
-  const feather = comp.generated?.feather ?? 0;
+  const grow = comp.generated?.grow ?? DEFAULT_GENERATED_GROW;
+  const feather = comp.generated?.feather ?? DEFAULT_GENERATED_FEATHER;
   ctx.maskGenerating = true;
   ctx.maskError = null;
   try {
