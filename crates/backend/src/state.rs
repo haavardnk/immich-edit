@@ -33,7 +33,7 @@ use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
 use crate::services::render::{DenoiseInputs, RenderCacheOptions, RenderService};
 use crate::services::render_queue::RenderQueue;
-use crate::services::search::TimelineCache;
+use crate::services::search::SearchCaches;
 use crate::services::search::filter::Scope;
 #[cfg(feature = "ml")]
 use crate::services::segment::SegmentService;
@@ -70,7 +70,7 @@ pub struct AppState {
     pub denoise: DenoiseService,
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
-    pub timelines: TimelineCache,
+    pub search_caches: SearchCaches,
     pub stack_locks: KeyedLocks<(Uuid, Uuid)>,
     pub export_output_locks: KeyedLocks<(Uuid, String, String)>,
 }
@@ -206,7 +206,7 @@ impl AppState {
             denoise,
             tag_counts: AssetCountCache::new(Scope::Tag),
             people_counts: AssetCountCache::new(Scope::Person),
-            timelines: TimelineCache::default(),
+            search_caches: SearchCaches::default(),
             stack_locks: KeyedLocks::default(),
             export_output_locks: KeyedLocks::default(),
         })

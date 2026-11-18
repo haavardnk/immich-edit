@@ -15,7 +15,7 @@ tokio::task_local! {
     pub static REQUEST_ID: String;
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum AppError {
     #[error("not found")]
     NotFound,

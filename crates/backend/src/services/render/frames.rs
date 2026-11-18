@@ -1,18 +1,17 @@
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex as SyncMutex;
 use std::time::Instant;
 
 use bytes::Bytes;
 use raw_pipeline::PipelineError;
 use raw_pipeline::decode::Develop;
 use raw_pipeline::frame::RawFrame;
-use tokio::sync::{Mutex, watch};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::immich::ImmichClient;
 use crate::services::raw_frame_cache::{FrameCacheKey, RawFrameCache};
 use crate::services::render_telemetry::RenderTelemetry;
+use crate::services::single_flight::SingleFlight;
 
 use super::{RenderError, RenderIdentity};
 
@@ -42,7 +41,7 @@ impl FrameDecoder {
 #[derive(Clone)]
 pub struct FrameStore {
     cache: Arc<Mutex<RawFrameCache>>,
-    inflight: Arc<SyncMutex<HashMap<FrameCacheKey, watch::Receiver<Option<FrameResult>>>>>,
+    inflight: SingleFlight<FrameCacheKey, FrameResult>,
     decoder: FrameDecoder,
     telemetry: RenderTelemetry,
 }
@@ -51,7 +50,7 @@ impl FrameStore {
     pub fn new(max_bytes: u64, decoder: FrameDecoder, telemetry: RenderTelemetry) -> Self {
         Self {
             cache: Arc::new(Mutex::new(RawFrameCache::new(max_bytes))),
-            inflight: Arc::new(SyncMutex::new(HashMap::new())),
+            inflight: SingleFlight::default(),
             decoder,
             telemetry,
         }
@@ -89,46 +88,25 @@ impl FrameStore {
             return Ok(frame);
         }
         self.telemetry.record_frame_miss();
-        let mut rx = self.leader_or_follower(key, immich, source);
-        loop {
-            let current = rx.borrow_and_update().clone();
-            if let Some(result) = current {
-                return result;
-            }
-            if rx.changed().await.is_err() {
-                return Err(RenderError::Pipeline(PipelineError::Decode(
-                    "frame loader stopped".into(),
-                )));
-            }
-        }
-    }
-
-    fn leader_or_follower(
-        &self,
-        key: FrameCacheKey,
-        immich: &ImmichClient,
-        source: Uuid,
-    ) -> watch::Receiver<Option<FrameResult>> {
-        let mut inflight = self.inflight.lock().unwrap();
-        if let Some(rx) = inflight.get(&key) {
-            return rx.clone();
-        }
-        let (tx, rx) = watch::channel(None);
-        inflight.insert(key, rx.clone());
         let cache = self.cache.clone();
-        let pending = self.inflight.clone();
         let immich = immich.clone();
         let telemetry = self.telemetry.clone();
         let decoder = self.decoder;
-        tokio::spawn(async move {
-            let result = load(&immich, source, decoder, &telemetry).await;
-            if let Ok(frame) = &result {
-                cache.lock().await.put(key, frame.clone());
-            }
-            pending.lock().unwrap().remove(&key);
-            let _ = tx.send(Some(result));
-        });
-        rx
+        let loaded = self
+            .inflight
+            .run(key, move || async move {
+                let result = load(&immich, source, decoder, &telemetry).await;
+                if let Ok(frame) = &result {
+                    cache.lock().await.put(key, frame.clone());
+                }
+                result
+            })
+            .await;
+        loaded.unwrap_or_else(|| {
+            Err(RenderError::Pipeline(PipelineError::Decode(
+                "frame loader stopped".into(),
+            )))
+        })
     }
 }
 

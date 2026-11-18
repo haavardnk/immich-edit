@@ -24,6 +24,8 @@ pub struct BrowseFilter {
     pub ocr: Option<String>,
     pub taken_after: Option<DateTime<Utc>>,
     pub taken_before: Option<DateTime<Utc>>,
+    #[serde(skip)]
+    pub taken_until: Option<DateTime<Utc>>,
     pub rejected: Option<Rejected>,
     pub label: Option<Label>,
     pub make: ExifMatch,
@@ -38,6 +40,8 @@ pub struct BrowseFilter {
     pub added_before: Option<DateTime<Utc>>,
     #[serde(skip)]
     pub added_between: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    #[serde(skip)]
+    pub updated_after: Option<DateTime<Utc>>,
 }
 
 impl BrowseFilter {

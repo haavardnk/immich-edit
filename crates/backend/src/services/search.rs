@@ -1,8 +1,10 @@
 mod added;
+mod caches;
 pub mod cursor;
 pub mod filter;
 mod flat;
 mod ids;
+pub mod months;
 pub mod query;
 mod rating;
 mod structured;
@@ -13,6 +15,7 @@ pub mod window;
 use std::sync::Arc;
 
 use serde::Serialize;
+use serde_json::Value;
 use tokio::sync::OnceCell;
 use uuid::Uuid;
 
@@ -20,7 +23,7 @@ use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetSummary, SearchAssets, TagSummary};
 use crate::services::immich_capabilities::CapabilityCache;
-pub use added::TimelineCache;
+pub use caches::SearchCaches;
 use cursor::Cursor;
 use filter::BrowseFilter;
 use ids::Ids;
@@ -53,7 +56,7 @@ pub struct Searcher {
     immich: ImmichClient,
     shape: SearchShape,
     library: Arc<OnceCell<Vec<TagSummary>>>,
-    timelines: TimelineCache,
+    caches: SearchCaches,
     owner: Uuid,
     server_epoch: i64,
 }
@@ -64,7 +67,7 @@ impl Searcher {
             immich,
             shape,
             library: Arc::new(OnceCell::new()),
-            timelines: TimelineCache::default(),
+            caches: SearchCaches::default(),
             owner: Uuid::nil(),
             server_epoch: 0,
         }
@@ -72,7 +75,7 @@ impl Searcher {
 
     pub async fn connect(
         capabilities: &CapabilityCache,
-        timelines: &TimelineCache,
+        caches: &SearchCaches,
         owner: Uuid,
         server_epoch: i64,
         immich: &ImmichClient,
@@ -87,7 +90,7 @@ impl Searcher {
             SearchShape::Flat
         };
         Self {
-            timelines: timelines.clone(),
+            caches: caches.clone(),
             owner,
             server_epoch,
             ..Self::new(immich.clone(), shape)
@@ -152,14 +155,21 @@ impl Searcher {
     }
 
     pub async fn count(&self, filter: &BrowseFilter) -> Result<u64, AppError> {
-        let Some(ids) = self.ids(filter).await? else {
+        let Some(body) = self.count_body(filter).await? else {
             return Ok(0);
+        };
+        Ok(self.immich.search_statistics(&body).await?.total)
+    }
+
+    async fn count_body(&self, filter: &BrowseFilter) -> Result<Option<Value>, AppError> {
+        let Some(ids) = self.ids(filter).await? else {
+            return Ok(None);
         };
         let body = match self.shape {
             SearchShape::Flat => flat::count(filter, &ids)?,
             SearchShape::Structured => structured::count(filter, &ids),
         };
-        Ok(self.immich.search_statistics(&body).await?.total)
+        Ok(Some(body))
     }
 
     pub async fn find(

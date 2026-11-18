@@ -53,6 +53,7 @@ pub async fn tag_asset(
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
         .await;
+    state.search_caches.membership_changed();
     Ok(Json(resp))
 }
 
@@ -70,6 +71,7 @@ pub async fn untag_asset(
         .tag_counts
         .invalidate(ctx.owner, ctx.server_epoch, tag_id)
         .await;
+    state.search_caches.membership_changed();
     Ok(Json(resp))
 }
 
