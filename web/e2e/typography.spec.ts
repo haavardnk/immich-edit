@@ -2,11 +2,13 @@ import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { installMocks } from './helpers';
 
-const SANS_PATH = '/fonts/GoogleSans%5BGRAD,opsz,wght%5D.ttf';
-const MONO_PATH = '/fonts/GoogleSansCode%5BMONO,wght%5D.ttf';
+const SANS_PATH = '/fonts/google-sans-core.woff2';
+const SANS_EXTENDED_PATH = '/fonts/google-sans-extended.woff2';
+const MONO_PATH = '/fonts/google-sans-code.woff2';
 const ASSETS = new Map([
-  [SANS_PATH, 'd0a87d835a944b8b40d0e82a5651bb59ab97b936a2aeed5946eb57e7b2a3a90a'],
-  [MONO_PATH, '74642762fae66d5883077794a763e1086394b8cb72f2623e456e06359dc5c64b'],
+  [SANS_PATH, 'de1da8adc074aad245718a4907829037fb7b36bbeb315842c7a5522c5d04cecf'],
+  [SANS_EXTENDED_PATH, 'c7802654737f809fd05dee24da4026cd5c1dab08c8346cae9900bd1356aed17f'],
+  [MONO_PATH, 'c61126459f48e702bf6eed15f8741d03e40ae566c520c7b72fc4f45b5255471a'],
   [
     '/licenses/GoogleSans/COPYRIGHT.txt',
     '44b50e396c70727aa4dc16e9bb967ff74e5086edfebfe4c3935a948aafb130a0'
@@ -81,6 +83,24 @@ test('uses the bundled Google Sans families', async ({ page }) => {
     .locator('link[rel="preload"][as="font"]')
     .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
   expect(preloads).toEqual([SANS_PATH]);
+});
+
+test('loads the extended face only for scripts outside the core ranges', async ({ page }) => {
+  const requested = new Set<string>();
+  page.on('request', (request) => requested.add(new URL(request.url()).pathname));
+  await installMocks(page);
+  await page.goto('/photos');
+  await expect(page.getByRole('link').first()).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  expect(requested).toContain(SANS_PATH);
+  expect(requested).not.toContain(SANS_EXTENDED_PATH);
+
+  const faces = await page.evaluate(async () => {
+    const loaded = await document.fonts.load('400 16px "Google Sans"', 'नमस्ते');
+    return loaded.map((face) => face.status);
+  });
+  expect(faces).toEqual(['loaded']);
+  expect(requested).toContain(SANS_EXTENDED_PATH);
 });
 
 test('keeps generic fallbacks when font requests fail', async ({ page }) => {

@@ -62,7 +62,35 @@ picks the touch layout below 768 px wide, or on a touch-first screen whose short
 1100 px. It re-evaluates live when you rotate or resize. **Desktop** and **Touch** force one layout
 for this browser. In the touch layout, menus, dialogs and pickers open as sheets from the bottom of
 the screen, and dragging a sheet's handle down closes it.
-**Preview rendering** is covered in [rendering](rendering.md#the-browser).
+**Preview rendering** is covered in [rendering](rendering.md#the-browser). **Install app** adds
+immich-edit to the Home Screen, Dock or app list; see below.
+
+### Install the app
+
+The installed app opens in its own window without browser bars, and uses the same layouts as the
+browser. Installing needs an HTTPS address with a trusted certificate; on plain `http://`,
+**Install app** says it is unavailable and links to
+[HTTPS for the installed app](deploy.md#https-for-the-installed-app). The entry is hidden while
+immich-edit already runs as an installed app.
+
+- **Chrome and Edge** (desktop and Android): open **Settings** > **This device** > **Install app**
+  and select **Install app**. The browser asks to confirm. The install icon in the address bar or
+  the browser menu does the same.
+- **iPhone and iPad**: there is no one-tap install, so **Install app** shows the steps: tap
+  **Share** in the browser toolbar, choose **Add to Home Screen**, keep **Open as Web App** on and
+  tap **Add**.
+- **Safari on a Mac**: choose **File** > **Add to Dock**.
+- **Other browsers**: use **Install app** or **Add to Home screen** in the browser menu, where the
+  browser offers it.
+
+Apps installed from Safari on iPhone, iPad and Mac keep their own cookies, so you sign in once more
+inside the installed app.
+
+When a new version of immich-edit is deployed, the app shows **immich-edit was updated** with a
+**Reload** button. It never reloads by itself. If an edit is still saving or a save failed,
+**Reload** waits until the save finishes or you retry it. If you close the message, it comes back
+the next time the app checks for a new version: when you move between pages and when its window or
+tab becomes visible again.
 
 ## Editing defaults
 

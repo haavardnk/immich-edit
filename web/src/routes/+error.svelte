@@ -12,13 +12,13 @@
   }
 </script>
 
-<div class="safe-frame flex min-h-dvh bg-light text-dark">
+<div class="safe-frame flex min-h-(--app-height) bg-light text-dark">
   <div class="flex flex-1 items-center p-6">
     <Container size="small" center>
       <Card
         color="secondary"
         shape="rectangle"
-        class="mx-auto max-w-md rounded-lg border border-dark/10"
+        class="mx-auto max-w-md rounded-lg border border-hairline"
       >
         <CardBody class="p-6">
           <div class="flex flex-col gap-4">

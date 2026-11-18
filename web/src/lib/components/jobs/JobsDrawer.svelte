@@ -13,7 +13,7 @@
     <Dialog.Portal>
       <Dialog.Overlay class="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" />
       <Dialog.Content
-        class="fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh w-105 max-w-[92vw] flex-col border-l border-light-950/10 bg-light-50 pt-(--safe-top) pr-(--safe-right) pb-(--safe-bottom) shadow-2xl"
+        class="fixed top-0 right-0 bottom-0 z-50 flex h-(--app-height) max-h-(--app-height) w-105 max-w-[92vw] flex-col border-l border-light-950/10 bg-light-50 pt-(--safe-top) pr-(--safe-right) pb-(--safe-bottom) shadow-2xl"
       >
         <header
           class="flex h-16 flex-none items-center justify-between border-b border-hairline px-4"

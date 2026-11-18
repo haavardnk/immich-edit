@@ -1,27 +1,10 @@
 @import '@immich/ui/theme/default.css';
+@import './fonts.css';
 
 @source '../node_modules/@immich/ui/dist';
 
 @custom-variant touch (&:where([data-layout="touch"], [data-layout="touch"] *));
 @custom-variant wide (&:where([data-wide], [data-wide] *));
-
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans%5BGRAD,opsz,wght%5D.ttf') format('truetype-variations');
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 106.25%;
-  size-adjust: 106.25%;
-}
-
-@font-face {
-  font-family: 'Google Sans Code';
-  src: url('/fonts/GoogleSansCode%5BMONO,wght%5D.ttf') format('truetype-variations');
-  font-weight: 300 800;
-  font-style: normal;
-  font-display: swap;
-}
 
 @theme {
   --font-sans: 'Google Sans', sans-serif;
@@ -81,6 +64,7 @@
 }
 
 :root {
+  --app-height: min(100vh, calc(100dvh + env(safe-area-inset-top, 0px)));
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -290,7 +274,7 @@
 
   html,
   body {
-    height: 100%;
+    height: var(--app-height);
     width: 100%;
     overflow: hidden;
     margin: 0;
@@ -329,6 +313,10 @@
   --color-image-canvas: #767676;
 }
 
+:root.editor-chrome body {
+  background-color: var(--color-editor-chrome);
+}
+
 .auth-stage {
   background-color: var(--color-auth-stage);
   background-image:
@@ -364,7 +352,7 @@
 }
 
 @utility app-frame {
-  @apply safe-frame h-dvh w-screen bg-light text-dark;
+  @apply safe-frame h-(--app-height) w-screen bg-light text-dark;
 }
 
 @utility no-callout {
