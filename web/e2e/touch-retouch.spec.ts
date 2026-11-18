@@ -1,7 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ASSET_ID, NEUTRAL_RECORD, type InstallOpts } from './helpers';
 import { FULL_RETOUCH_RECORD } from './retouchRecords';
-import { drag, fingersDown, fingersMove, tapAt, touchDown, touchMoveTo, touchUp } from './touch';
+import {
+  drag,
+  fingersDown,
+  fingersMove,
+  tapAt,
+  touchDown,
+  touchMoveTo,
+  touchUp,
+  twoFingerTap
+} from './touch';
 import { modes } from './touchMasks';
 import { mockLibrary } from './touchShell';
 
@@ -105,6 +114,43 @@ test.describe('touch retouch on a phone', { tag: ['@touch', '@phone'] }, () => {
     );
     await expect(tray(page).getByRole('button', { name: 'Retouch actions' })).toBeVisible();
     await expect(tray(page).getByRole('button', { name: 'Done', exact: true })).toHaveCount(0);
+  });
+
+  test('closing the tray keeps the tool strip, and fullscreen keeps painting', async ({ page }) => {
+    const saves: Array<Record<string, unknown>> = [];
+    await openRetouch(page, { onSave: (body) => saves.push(body) });
+    const box = await canvasBox(page);
+    await setSource(page, box);
+
+    await modes(page).getByRole('tab', { name: 'Retouch' }).tap();
+    await expect(tray(page)).toHaveCount(0);
+    const strip = page.getByRole('region', { name: 'Tool' });
+    await expect(strip).toContainText('Retouch');
+    await expect(strip.getByRole('radiogroup', { name: 'Retouch tool' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: /size/i }).first()).toBeVisible();
+
+    const centre = at(await canvasBox(page), 0.5, 0.5);
+    await twoFingerTap(page, centre);
+    await expect(strip).toHaveCount(0);
+    const exit = page.getByRole('button', { name: /^Exit fullscreen/ });
+    await expect(exit).toBeVisible();
+
+    await expect(page.locator('html')).not.toHaveAttribute('data-view-swap');
+    const full = await canvasBox(page);
+    const from = at(full, 0.3, 0.5);
+    await touchDown(page, from);
+    for (let step = 1; step <= 6; step += 1) {
+      await page.waitForTimeout(16);
+      await touchMoveTo(page, { x: from.x + step * 6, y: from.y });
+    }
+    await page.waitForTimeout(150);
+    await touchUp(page);
+    await expect.poll(() => strokesOf(saves).length).toBe(1);
+
+    await exit.tap();
+    await expect(strip).toBeVisible();
+    await strip.getByRole('button', { name: 'Show tool settings' }).tap();
+    await expect(tray(page)).toBeVisible();
   });
 
   test('a second finger within 120 ms drops the stroke', async ({ page }) => {

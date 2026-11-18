@@ -53,9 +53,15 @@
 
   let {
     ontap = () => {},
+    ontwofingertap,
     adjust = () => null,
     children
-  }: { ontap?: () => void; adjust?: () => ViewerAdjust | null; children?: Snippet } = $props();
+  }: {
+    ontap?: () => void;
+    ontwofingertap?: () => void;
+    adjust?: () => ViewerAdjust | null;
+    children?: Snippet;
+  } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
@@ -137,6 +143,7 @@
     enabled: () => !editor.geometrySession,
     paints: () => paintInput.fingersPaint,
     tap: () => ontap(),
+    twoFingerTap: () => ontwofingertap?.(),
     hold: { start: () => runCommand(holdOriginal), end: () => holdOriginal.release() },
     adjust: () => adjust()
   });

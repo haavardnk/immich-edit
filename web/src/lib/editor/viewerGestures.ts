@@ -4,6 +4,7 @@ import { panRecognizer } from '#lib/gestures/pan.ts';
 import { pinchRecognizer, type PinchUpdate } from '#lib/gestures/pinch.ts';
 import { centredPoint, type Box, type ClientPoint, type Point } from '#lib/gestures/point.ts';
 import { tapRecognizer } from '#lib/gestures/tap.ts';
+import { twoFingerTapRecognizer } from '#lib/gestures/twoFingerTap.ts';
 import {
   FIT_VIEW,
   isZoomed,
@@ -35,6 +36,7 @@ export type ViewerGestureSpec = {
   enabled: () => boolean;
   paints?: () => boolean;
   tap: () => void;
+  twoFingerTap?: () => void;
   hold: { start: () => void; end: () => void };
   adjust: () => ViewerAdjust | null;
 };
@@ -110,6 +112,7 @@ export function viewerGestures(spec: ViewerGestureSpec): Attachment<HTMLElement>
         end: endAdjust,
         cancel: endAdjust
       }),
+      twoFingerTapRecognizer({ tap: () => spec.twoFingerTap?.() }),
       pinchRecognizer({
         enabled: spec.enabled,
         start: (pinch) => {

@@ -120,6 +120,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'text-white',
     'text-white/70'
   ],
+  '/src/lib/components/editor/touch/TouchEditorShell.svelte': ['bg-black/50', 'text-white'],
   '/src/lib/components/editor/touch/retouch/RetouchSourceBanner.svelte': [
     'bg-black/70',
     'text-white',
