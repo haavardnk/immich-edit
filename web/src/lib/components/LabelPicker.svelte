@@ -41,6 +41,7 @@
   onOpenChange={(v) => (open = v)}
   appearance="control"
   anchor="top"
+  title="Colour label"
   tooltip={hint(label ? `${LABEL_NAMES[label]} label` : 'Colour label', 'label')}
 >
   {#snippet trigger(popoverProps)}

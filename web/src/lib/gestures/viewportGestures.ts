@@ -1,5 +1,6 @@
 import { pointerDrag, type DragHandlers } from '#lib/gestures/drag.ts';
 import { centredPoint, type ClientPoint, type Point } from '#lib/gestures/point.ts';
+import { DEFAULT_THRESHOLDS } from '#lib/gestures/thresholds.ts';
 import { held } from '#lib/input/modifiers.svelte.ts';
 import {
   isZoomed,
@@ -31,8 +32,6 @@ export type ViewportGestures = {
   handlers: ViewportHandlers;
   zoomAt: (point: ClientPoint, zoom: number, e?: MouseEvent) => void;
 };
-
-const TAP_TRAVEL = 5;
 
 type Press = { pointerId: number; x: number; y: number; travel: number };
 
@@ -82,7 +81,7 @@ export function viewportGestures(spec: ViewportGestureSpec): ViewportGestures {
     if (!current) return;
     press = null;
     drag.follow.onpointerup(e);
-    if (current.travel <= TAP_TRAVEL) spec.tap?.(e);
+    if (current.travel <= DEFAULT_THRESHOLDS.clickTravel) spec.tap?.(e);
   }
 
   function onpointercancel(e: PointerEvent): void {

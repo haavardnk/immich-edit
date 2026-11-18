@@ -2,10 +2,15 @@
   import { Tooltip } from '@immich/ui';
   import { Popover as Bits, mergeProps } from 'bits-ui';
   import type { Snippet } from 'svelte';
+  import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
+  import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import { providePickerHost } from '#lib/components/sheet/pickerHost.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { createAttachmentKey, type Attachment } from 'svelte/attachments';
 
   type Anchor = 'top' | 'bottom';
   type Align = 'start' | 'end' | 'center';
-  type Appearance = 'menu' | 'control';
+  type Appearance = 'menu' | 'panel' | 'control';
 
   let {
     open,
@@ -16,6 +21,9 @@
     children,
     appearance = 'menu',
     contentClass = '',
+    sheetClass = '',
+    sheetPicker = false,
+    title,
     tooltip,
     customAnchor
   }: {
@@ -27,6 +35,9 @@
     children: Snippet;
     appearance?: Appearance;
     contentClass?: string;
+    sheetClass?: string;
+    sheetPicker?: boolean;
+    title?: string;
     tooltip?: string;
     customAnchor?: HTMLElement | null;
   } = $props();
@@ -38,38 +49,102 @@
   );
 
   let tooltipOpen = $state(false);
+  let triggerElement = $state<HTMLElement | null>(null);
+
+  const triggerRef: Attachment<HTMLElement> = (element) => {
+    triggerElement = element;
+    return () => {
+      if (triggerElement === element) triggerElement = null;
+    };
+  };
+  const triggerKey = createAttachmentKey();
+
+  const sheetTriggerProps = $derived({
+    'aria-haspopup': 'dialog',
+    'aria-expanded': open,
+    onclick: () => onOpenChange(!open),
+    [triggerKey]: triggerRef
+  });
+
+  providePickerHost({
+    get inline() {
+      return sheetPicker;
+    }
+  });
 
   $effect(() => {
     if (open) tooltipOpen = false;
   });
 </script>
 
-<Bits.Root bind:open={() => open, onOpenChange}>
-  {#if trigger}
-    <Bits.Trigger>
-      {#snippet child({ props })}
-        <Tooltip
-          text={tooltip}
-          bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
-        >
-          {#snippet child({ props: tooltipProps })}
-            {@render trigger(mergeProps(tooltipProps, props))}
-          {/snippet}
-        </Tooltip>
-      {/snippet}
-    </Bits.Trigger>
-  {/if}
-  <Bits.Portal>
-    <Bits.Content
+{#if layout.mode === 'touch'}
+  {@render trigger?.(sheetTriggerProps)}
+  {#if open && appearance === 'menu'}
+    <ActionSheet
+      {open}
+      {onOpenChange}
+      title={title ?? 'Menu'}
+      caption={title !== undefined}
       data-popover-content
-      side={anchor}
-      {customAnchor}
-      {align}
-      sideOffset={4}
-      collisionPadding={8}
-      class="z-50 {appearanceClass} {contentClass}"
     >
       {@render children()}
-    </Bits.Content>
-  </Bits.Portal>
-</Bits.Root>
+    </ActionSheet>
+  {:else if open && appearance === 'panel'}
+    <BottomSheet
+      {open}
+      {onOpenChange}
+      title={title ?? 'Options'}
+      titleHidden={title === undefined}
+      close="done"
+      detents={sheetPicker ? [{ fraction: 1 }] : undefined}
+      bodyClass={sheetClass || 'px-4 py-3'}
+      data-popover-content
+    >
+      {@render children()}
+    </BottomSheet>
+  {:else if open}
+    <BottomSheet
+      {open}
+      {onOpenChange}
+      title={title ?? 'Options'}
+      titleHidden
+      modal={false}
+      dismissOnOutside
+      outsideExempt={triggerElement}
+      bodyClass="flex flex-wrap items-center justify-center gap-1 px-4 py-3 {sheetClass}"
+      data-popover-content
+    >
+      {@render children()}
+    </BottomSheet>
+  {/if}
+{:else}
+  <Bits.Root bind:open={() => open, onOpenChange}>
+    {#if trigger}
+      <Bits.Trigger>
+        {#snippet child({ props })}
+          <Tooltip
+            text={tooltip}
+            bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
+          >
+            {#snippet child({ props: tooltipProps })}
+              {@render trigger(mergeProps(tooltipProps, props))}
+            {/snippet}
+          </Tooltip>
+        {/snippet}
+      </Bits.Trigger>
+    {/if}
+    <Bits.Portal>
+      <Bits.Content
+        data-popover-content
+        side={anchor}
+        {customAnchor}
+        {align}
+        sideOffset={4}
+        collisionPadding={8}
+        class="z-50 {appearanceClass} {contentClass}"
+      >
+        {@render children()}
+      </Bits.Content>
+    </Bits.Portal>
+  </Bits.Root>
+{/if}

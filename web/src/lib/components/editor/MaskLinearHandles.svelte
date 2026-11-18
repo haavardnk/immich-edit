@@ -5,7 +5,8 @@
   import MaskHandle from './MaskHandle.svelte';
   import { elementPoint } from '#lib/gestures/point.ts';
   import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
-  import type { ComponentProps } from 'svelte';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import type { MaskHandleSpec } from '#lib/types/maskHandle.ts';
 
   let {
     comp,
@@ -58,11 +59,7 @@
     });
   }
 
-  function end(
-    at: { x: number; y: number },
-    label: string,
-    drag: DragKind
-  ): ComponentProps<typeof MaskHandle> {
+  function end(at: { x: number; y: number }, label: string, drag: DragKind): MaskHandleSpec {
     return {
       cx: at.x,
       cy: at.y,
@@ -76,7 +73,7 @@
     };
   }
 
-  function feather(at: { x: number; y: number }): ComponentProps<typeof MaskHandle> {
+  function feather(at: { x: number; y: number }): MaskHandleSpec {
     return {
       cx: at.x,
       cy: at.y,
@@ -92,7 +89,7 @@
   }
 
   const handles = $derived(
-    spacedHandles<ComponentProps<typeof MaskHandle>>([
+    spacedHandles<MaskHandleSpec>(handleHit(), [
       end(a, 'Linear start', { kind: 'linear-p0' }),
       end(b, 'Linear end', { kind: 'linear-p1' }),
       feather(hi),

@@ -181,7 +181,7 @@ well. In compare and survey, the bar under the photos has buttons for the same p
 **Sync zoom and pan**, **Make select** in compare or **Keep only this photo** in survey,
 and **Drop this photo**. `Shift+S` hides or shows the filmstrip, and `F` goes full screen.
 Right-click a filmstrip thumbnail for **Open in editor** and **Add to compare**, which adds or
-removes a pane in compare and survey.
+removes a pane in compare and survey. On a touch screen, press and hold the thumbnail instead.
 
 ## A culling pass
 

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { RadioGroup } from 'bits-ui';
-  import { segmented } from '#lib/components/segmented.ts';
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import { renderer, type RendererChoice } from '#lib/stores/renderer.svelte.ts';
   import { rendererStatus } from '#lib/stores/rendererStatus.ts';
 
@@ -14,29 +13,20 @@
 </script>
 
 <section class="space-y-2 py-2">
-  <RadioGroup.Root
+  <SegmentedChoice
+    options={OPTIONS}
     value={renderer.choice}
-    onValueChange={(value) => {
-      const picked = OPTIONS.find((option) => option.value === value);
-      if (picked) renderer.setChoice(picked.value);
-    }}
-    orientation="horizontal"
-    aria-label="Preview renderer"
-    class="{segmented.text.group} grid w-fit grid-cols-3"
+    label="Preview renderer"
+    onChange={(choice) => renderer.setChoice(choice)}
+    {status}
   >
-    {#each OPTIONS as option (option.value)}
-      <RadioGroup.Item value={option.value} class="{segmented.text.radio} px-3">
-        {option.label}
-      </RadioGroup.Item>
-    {/each}
-  </RadioGroup.Root>
-  <p class="text-xs text-dark/65">{status}</p>
-  {#if renderer.choice !== 'server' && !isSecureContext}
-    <a
-      class="text-xs text-primary hover:underline"
-      href="https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network"
-      target="_blank"
-      rel="noopener">Enable browser previews on a local network</a
-    >
-  {/if}
+    {#if renderer.choice !== 'server' && !isSecureContext}
+      <a
+        class="text-xs text-primary hover:underline"
+        href="https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network"
+        target="_blank"
+        rel="noopener">Enable browser previews on a local network</a
+      >
+    {/if}
+  </SegmentedChoice>
 </section>

@@ -1,6 +1,7 @@
+import type { LayoutMode } from '#lib/device/layoutRules.ts';
 import type { CropHandle } from '#lib/utils/geom.ts';
 
-export const HANDLE_HIT = 12;
+export const HANDLE_HIT = { desktop: 12, touch: 22 } as const satisfies Record<LayoutMode, number>;
 
 export const HANDLE_DOT = {
   crop: 6,
@@ -21,8 +22,8 @@ export const RETOUCH_SOURCE_HIT = 8;
 
 export const CROP_HANDLES: readonly CropHandle[] = ['n', 'e', 's', 'w', 'nw', 'ne', 'se', 'sw'];
 
-export function boxHandleHit(w: number, h: number): number {
-  return Math.min(HANDLE_HIT, Math.max(HANDLE_DOT.crop, Math.min(w, h) / 4));
+export function boxHandleHit(radius: number, w: number, h: number): number {
+  return Math.min(radius, Math.max(HANDLE_DOT.crop, Math.min(w, h) / 4));
 }
 
 export type SpacedHandle = { cx: number; cy: number; r: number; hit?: number };
@@ -38,10 +39,11 @@ function nearest(handles: readonly SpacedHandle[], index: number): number {
 }
 
 export function spacedHandles<T extends SpacedHandle>(
+  radius: number,
   handles: readonly T[]
 ): (T & { hit: number })[] {
   return handles.map((handle, i) => ({
     ...handle,
-    hit: handle.hit ?? Math.max(handle.r, Math.min(HANDLE_HIT, nearest(handles, i) / 2))
+    hit: handle.hit ?? Math.max(handle.r, Math.min(radius, nearest(handles, i) / 2))
   }));
 }

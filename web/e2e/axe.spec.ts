@@ -27,6 +27,7 @@ test('the photo grid has no serious accessibility violations', async ({ page }) 
 for (const [theme, path] of [
   ['immich-edit-light', '/photos'],
   ['immich-edit-light', '/settings#appearance'],
+  ['immich-edit-light', '/settings#layout'],
   ['catppuccin-latte', '/photos'],
   ['catppuccin-latte', '/settings#appearance'],
   ['one-light', '/photos'],
@@ -52,7 +53,7 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await page.goto('/photos');
 
   await openFilters(page, 'Date', 'File', 'Camera', 'Place');
-  await expect(page.getByRole('combobox', { name: 'City' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'City', exact: true })).toBeVisible();
   expect(await audit(page)).toEqual([]);
 });
 
