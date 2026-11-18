@@ -1,3 +1,4 @@
+import { releaseLoupe } from '#lib/browse/loupeRelease.ts';
 import { isEditorPath } from '#lib/utils/route.ts';
 import { boxFrame, containBox, onScreen, type Box } from '#lib/browse/zoomGeometry.ts';
 import {
@@ -109,6 +110,7 @@ function glide(ghost: HTMLElement, from: Box, to: Box, duration: string): Animat
 async function land(shot: PhotoShot, stage: HTMLElement): Promise<void> {
   clearGhosts();
   const ghost = placeGhost(shot.picture, shot.box);
+  releaseLoupe();
   await frames(2);
   const target = containBox(boxOf(stage), shot.ratio);
   const [, photo] = await Promise.all([

@@ -4,6 +4,7 @@ import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { navHistory } from '#lib/stores/navHistory.ts';
 import { validReturnPath } from '#lib/editor/navigation.ts';
 import { zoomOut } from '#lib/browse/loupeZoom.ts';
+import { holdPhoto } from '#lib/browse/photoHandoff.ts';
 
 export type GridExit = 'push' | 'return';
 
@@ -19,7 +20,10 @@ export async function backToGrid(
   const target = validReturnPath(returnPath) ? returnPath : (browseView.lastGridPath ?? '/photos');
   const reopen = returnToLoupe && inList;
   if (behind && !reopen) browseView.closeLoupe();
-  if (reopen && assetId) browseView.openLoupe(assetId);
+  if (reopen && assetId) {
+    holdPhoto(assetId);
+    browseView.openLoupe(assetId);
+  }
   await (exit === 'return' ? navHistory.returnTo(target) : goto(target));
   if (!assetId || !inList) return;
   if (!reopen) zoomOut(assetId);

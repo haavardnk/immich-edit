@@ -42,7 +42,7 @@
 
   onNavigate((navigation) => {
     peek.hide();
-    if (!browseView.loupeId) holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
+    holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
     if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
     if (enteringEditor(navigation.from?.url, navigation.to?.url)) {
       ui.startEditing(layout.mode === 'touch');
