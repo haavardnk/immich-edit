@@ -7,7 +7,6 @@ export interface SettingsEntry {
   detail: string;
   keywords?: readonly string[];
   anchor?: string;
-  desktopOnly?: boolean;
   installable?: boolean;
 }
 
@@ -87,15 +86,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
       'everforest'
     ],
     anchor: 'light-theme'
-  },
-  {
-    id: 'appearance.click',
-    page: 'preferences',
-    title: 'Click a photo',
-    detail: 'Open editor or open loupe',
-    keywords: ['click target', 'loupe', 'editor'],
-    anchor: 'click-target',
-    desktopOnly: true
   },
   {
     id: 'export-presets',

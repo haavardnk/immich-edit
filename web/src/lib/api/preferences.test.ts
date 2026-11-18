@@ -22,10 +22,9 @@ afterEach(() => {
 });
 
 describe('preferences api', () => {
-  it('reads the click target and the pins', async () => {
-    stubFetch({ click_target: 'loupe', pinned_settings: ['exposure', 3], shortcuts: {} });
+  it('reads the pins and drops stray entries', async () => {
+    stubFetch({ pinned_settings: ['exposure', 3], shortcuts: {} });
     await expect(getPreferences()).resolves.toEqual({
-      clickTarget: 'loupe',
       pinnedSettings: ['exposure'],
       shortcuts: {},
       desktopSections: null,
@@ -35,32 +34,19 @@ describe('preferences api', () => {
     });
   });
 
-  it('treats an unknown click target as the editor and missing pins as the default', async () => {
-    stubFetch({ click_target: 'grid', pinned_settings: null });
-    await expect(getPreferences()).resolves.toMatchObject({
-      clickTarget: 'editor',
-      pinnedSettings: null
-    });
-  });
-
-  it('patches only the click target', async () => {
-    const fetch = stubFetch({ click_target: 'loupe', pinned_settings: null });
-    await expect(patchPreferences({ clickTarget: 'loupe' })).resolves.toMatchObject({
-      clickTarget: 'loupe',
-      pinnedSettings: null
-    });
-    expect(fetch.sent()).toEqual({ method: 'PATCH', body: { click_target: 'loupe' } });
+  it('treats missing pins as the default', async () => {
+    stubFetch({ pinned_settings: null });
+    await expect(getPreferences()).resolves.toMatchObject({ pinnedSettings: null });
   });
 
   it('patches only the pins, an empty list included', async () => {
-    const fetch = stubFetch({ click_target: 'editor', pinned_settings: [] });
+    const fetch = stubFetch({ pinned_settings: [] });
     await patchPreferences({ pinnedSettings: [] });
     expect(fetch.sent()).toEqual({ method: 'PATCH', body: { pinned_settings: [] } });
   });
 
   it('reads shortcuts and section lists, dropping malformed entries', async () => {
     stubFetch({
-      click_target: 'editor',
       pinned_settings: null,
       shortcuts: { undo: ['Mod+y', 4], redo: 'Mod+Shift+y' },
       desktop_sections: [{ id: 'lut', hidden: true }, { hidden: true }, 'basic'],
@@ -74,7 +60,7 @@ describe('preferences api', () => {
   });
 
   it('patches shortcuts and section lists under their wire names', async () => {
-    const fetch = stubFetch({ click_target: 'editor' });
+    const fetch = stubFetch({});
     await patchPreferences({
       shortcuts: { undo: [] },
       desktopSections: null,
@@ -89,7 +75,6 @@ describe('preferences api', () => {
 
   it('reads crop ratios, keeping only positive integer sides', async () => {
     stubFetch({
-      click_target: 'editor',
       crop_ratios: [
         { num: 3, den: 2 },
         { num: 0, den: 1 },
@@ -109,12 +94,12 @@ describe('preferences api', () => {
   });
 
   it('reads missing crop ratios as none saved', async () => {
-    stubFetch({ click_target: 'editor', crop_ratios: 'none' });
+    stubFetch({ crop_ratios: 'none' });
     await expect(getPreferences()).resolves.toMatchObject({ cropRatios: null });
   });
 
   it('patches crop ratios under their wire name', async () => {
-    const fetch = stubFetch({ click_target: 'editor' });
+    const fetch = stubFetch({});
     await patchPreferences({ cropRatios: [{ num: 5, den: 4 }] });
     expect(fetch.sent().body).toEqual({ crop_ratios: [{ num: 5, den: 4 }] });
     await patchPreferences({ cropRatios: null });
@@ -122,14 +107,14 @@ describe('preferences api', () => {
   });
 
   it('reads a mask overlay colour only in the stored hex form', async () => {
-    stubFetch({ click_target: 'editor', mask_overlay_color: '#34c759' });
+    stubFetch({ mask_overlay_color: '#34c759' });
     await expect(getPreferences()).resolves.toMatchObject({ maskOverlayColor: '#34c759' });
-    stubFetch({ click_target: 'editor', mask_overlay_color: 'red' });
+    stubFetch({ mask_overlay_color: 'red' });
     await expect(getPreferences()).resolves.toMatchObject({ maskOverlayColor: null });
   });
 
   it('patches the mask overlay colour under its wire name', async () => {
-    const fetch = stubFetch({ click_target: 'editor' });
+    const fetch = stubFetch({});
     await patchPreferences({ maskOverlayColor: '#0a84ff' });
     expect(fetch.sent().body).toEqual({ mask_overlay_color: '#0a84ff' });
     await patchPreferences({ maskOverlayColor: null });

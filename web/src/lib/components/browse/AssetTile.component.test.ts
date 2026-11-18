@@ -53,28 +53,18 @@ afterEach(() => {
 });
 
 describe('AssetTile', () => {
-  it('opens the editor on a click and offers Quick review on hover', () => {
-    const onLoupe = vi.fn();
-    render({ onLoupe });
-    expect(tileLink().getAttribute('href')).toBe('/assets/a1?from=%2Fphotos%3Frating%3D3');
-    expect(target.querySelector('a[aria-label="Edit"]')).toBeNull();
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Quick review"]')?.click();
-    expect(onLoupe).toHaveBeenCalledOnce();
-  });
-
   it('opens the loupe on a click and offers Edit on hover', () => {
-    const onOpen = vi.fn();
+    const onLoupe = vi.fn();
     const onActivate = vi.fn();
-    render({ onOpen, onActivate });
-    expect(target.querySelector('button[aria-label="Quick review"]')).toBeNull();
+    render({ onLoupe, onActivate });
+    expect(tileLink().getAttribute('href')).toBe('/assets/a1?from=%2Fphotos%3Frating%3D3');
     const edit = target.querySelector<HTMLAnchorElement>('a[aria-label="Edit"]');
     expect(edit?.getAttribute('href')).toBe(tileLink().getAttribute('href'));
 
     const click = new MouseEvent('click', { bubbles: true, cancelable: true });
     tileLink().dispatchEvent(click);
     expect(click.defaultPrevented).toBe(true);
-    expect(onOpen).toHaveBeenCalledOnce();
+    expect(onLoupe).toHaveBeenCalledOnce();
     expect(onActivate).toHaveBeenCalledOnce();
   });
 });

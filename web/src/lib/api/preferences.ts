@@ -2,15 +2,12 @@ import { getJson, sendJson } from './client';
 import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 
-export type ClickTarget = 'editor' | 'loupe';
-
 export interface CropRatio {
   num: number;
   den: number;
 }
 
 export interface Preferences {
-  clickTarget: ClickTarget;
   pinnedSettings: readonly string[] | null;
   shortcuts: ShortcutMap;
   desktopSections: readonly SectionEntry[] | null;
@@ -20,7 +17,6 @@ export interface Preferences {
 }
 
 interface PreferencesBody {
-  click_target: unknown;
   pinned_settings: unknown;
   shortcuts: unknown;
   desktop_sections: unknown;
@@ -72,7 +68,6 @@ function colorFrom(value: unknown): string | null {
 
 function fromBody(body: PreferencesBody): Preferences {
   return {
-    clickTarget: body.click_target === 'loupe' ? 'loupe' : 'editor',
     pinnedSettings: strings(body.pinned_settings),
     shortcuts: shortcutsFrom(body.shortcuts),
     desktopSections: sectionsFrom(body.desktop_sections),
@@ -88,7 +83,6 @@ export async function getPreferences(): Promise<Preferences> {
 
 export async function patchPreferences(patch: Partial<Preferences>): Promise<Preferences> {
   const body: Record<string, unknown> = {};
-  if (patch.clickTarget !== undefined) body.click_target = patch.clickTarget;
   if (patch.pinnedSettings !== undefined) body.pinned_settings = patch.pinnedSettings;
   if (patch.shortcuts !== undefined) body.shortcuts = patch.shortcuts;
   if (patch.desktopSections !== undefined) body.desktop_sections = patch.desktopSections;

@@ -7,7 +7,8 @@ import {
   json,
   numberedAssets,
   openAccountMenu,
-  openFilters
+  openFilters,
+  openLoupeFromGrid
 } from './helpers';
 import { unfoldExport } from './exportSections';
 import { openBulkExport } from './browse';
@@ -122,7 +123,7 @@ test('editor and loupe use the same black image canvas', async ({ page }) => {
 
   await page.goto('/search?q=IMG');
   await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
 
   const loupeCanvases = page.locator('.bg-image-canvas');
   await expect(loupeCanvases).toHaveCount(2);
@@ -941,7 +942,7 @@ test('browse and loupe controls name their shortcuts', async ({ page }) => {
   await expect(page.getByText('Reject (X)')).toBeVisible();
   await page.getByRole('button', { name: 'Clear selection' }).click();
 
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await page.getByRole('button', { name: 'Next', exact: true }).hover();
   await expect(page.getByText('Next (← / →)')).toBeVisible();
   await page.getByRole('button', { name: 'More loupe actions' }).click();

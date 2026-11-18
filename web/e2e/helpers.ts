@@ -259,7 +259,6 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
-  clickTarget?: 'editor' | 'loupe';
   pinnedSettings?: string[] | null;
   shortcuts?: Record<string, string[]>;
   desktopSections?: { id: string; hidden: boolean }[] | null;
@@ -311,7 +310,6 @@ export async function installMocks(
   let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
   let preferences: Record<string, unknown> = {
-    click_target: opts.clickTarget ?? 'editor',
     pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
     mask_overlay_color: null,
     shortcuts: opts.shortcuts ?? {},
@@ -1048,4 +1046,12 @@ export async function focusRingClipped(target: Locator): Promise<string> {
       ? 'clipped'
       : '';
   });
+}
+
+export function gridTileLink(page: Page, index = 0): Locator {
+  return page.locator('[role="group"][data-name] > a').nth(index);
+}
+
+export async function openLoupeFromGrid(page: Page, index = 0): Promise<void> {
+  await gridTileLink(page, index).click({ position: { x: 8, y: 8 } });
 }

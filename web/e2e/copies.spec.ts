@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, installMocks } from './helpers';
+import { ASSET_ID, installMocks, openLoupeFromGrid } from './helpers';
 
 async function createCopy(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'More editor actions' }).click();
@@ -78,7 +78,7 @@ test('the loupe header marks a virtual copy', async ({ page }) => {
   const copy = page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}_1?"]`).first();
   await expect(copy).toBeVisible();
 
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Virtual copy', exact: true })).toHaveCount(0);
 

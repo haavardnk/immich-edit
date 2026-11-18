@@ -121,8 +121,8 @@ test('the editor resize handles persist once per committed gesture', async ({ pa
   await installMocks(page);
   await page.goto('/photos');
   await page
-    .getByRole('link', { name: ASSET_SUMMARY.originalFileName })
-    .evaluate((element) => element.click());
+    .locator(`[data-name="${ASSET_SUMMARY.originalFileName}"] a[aria-label="Edit"]`)
+    .evaluate((element) => (element as HTMLAnchorElement).click());
   await expect(page.getByText(ASSET_SUMMARY.originalFileName)).toBeVisible();
 
   const cases = [

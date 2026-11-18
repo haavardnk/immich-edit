@@ -294,7 +294,7 @@ async fn a_rebind_keeps_the_admins_account_settings() {
         (
             "PATCH",
             "/api/preferences",
-            serde_json::json!({ "click_target": "loupe", "shortcuts": { "help": ["F1"] } }),
+            serde_json::json!({ "mask_overlay_color": "#112233", "shortcuts": { "help": ["F1"] } }),
         ),
     ] {
         let res = app

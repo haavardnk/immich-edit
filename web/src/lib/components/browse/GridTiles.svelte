@@ -4,7 +4,6 @@
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { browseTarget, setRating } from '#lib/browse/assetMeta.ts';
   import { peek } from '#lib/browse/peek.svelte.ts';
-  import { tileOpen } from '#lib/browse/tileOpen.ts';
   import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
@@ -24,9 +23,6 @@
     selectingAll: boolean;
     dragPreview?: ReadonlySet<string> | null;
   } = $props();
-
-  const opens = tileOpen();
-  const opensLoupe = $derived(opens() === 'loupe');
 
   let extendKey = $state(false);
   let hoveredId = $state<string | null>(null);
@@ -92,7 +88,6 @@
       }}
       onActivate={() => browseView.setActive(item.asset.id)}
       onLoupe={() => browseView.openLoupe(item.asset.id)}
-      onOpen={opensLoupe ? () => browseView.openLoupe(item.asset.id) : undefined}
       onRate={(rating) => void setRating(browseTarget(item.asset.id), rating)}
       onDeleteCopy={isCopy(item.asset.id) ? () => void trash.removeCopy(item.asset.id) : undefined}
     />

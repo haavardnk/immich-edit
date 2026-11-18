@@ -28,7 +28,6 @@
   const hits = $derived(
     searchSettings(query, SETTINGS_INDEX, {
       pages,
-      desktop: layout.mode === 'desktop',
       installable: install.state.kind !== 'hidden'
     })
   );

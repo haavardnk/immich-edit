@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { ClickTarget } from '#lib/api/preferences.ts';
   import InstallRow from '#lib/components/settings/InstallRow.svelte';
   import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import SettingsGroup from '#lib/components/settings/SettingsGroup.svelte';
@@ -11,7 +10,6 @@
   import { layoutHint } from '#lib/device/status.ts';
   import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
-  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import {
     RENDERER_CHOICE_LABELS,
     renderer,
@@ -25,11 +23,6 @@
     'https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network';
 
   const SCHEME_LABELS: Readonly<Record<Scheme, string>> = { light: 'Light', dark: 'Dark' };
-
-  const CLICK_OPTIONS: { value: ClickTarget; label: string }[] = [
-    { value: 'editor', label: 'Open editor' },
-    { value: 'loupe', label: 'Open loupe' }
-  ];
 
   const LAYOUT_OPTIONS = LAYOUT_CHOICES.map((value) => ({
     value,
@@ -64,17 +57,6 @@
     {#each schemes as scheme (scheme)}
       <ThemeRow {scheme} />
     {/each}
-    {#if layout.mode === 'desktop'}
-      <SettingsRow label="Click a photo" anchor="click-target">
-        <SegmentedChoice
-          options={CLICK_OPTIONS}
-          value={preferences.clickTarget}
-          label="Click a photo"
-          appearance="view"
-          onChange={(target) => void preferences.setClickTarget(target)}
-        />
-      </SettingsRow>
-    {/if}
   </SettingsGroup>
 
   <SettingsGroup title="This device" anchor="device">

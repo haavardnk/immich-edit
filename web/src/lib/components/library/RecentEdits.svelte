@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { assetThumbUrl } from '#lib/api/assets.ts';
-  import { tileOpen } from '#lib/browse/tileOpen.ts';
   import { recentEdits } from '#lib/browse/recentEdits.ts';
   import TooltipLink from '#lib/components/TooltipLink.svelte';
   import { editorHref } from '#lib/editor/navigation.ts';
@@ -11,10 +10,8 @@
   let { returnPath }: { returnPath: string } = $props();
 
   const entries = $derived(recentEdits(editedThumbs.entries));
-  const opens = tileOpen();
 
   function openLoupe(event: MouseEvent, id: string): void {
-    if (opens() !== 'loupe') return;
     event.preventDefault();
     void goto('/edited').then(() => openLoupeFrom('/edited', '/library', id));
   }

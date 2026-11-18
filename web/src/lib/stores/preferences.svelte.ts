@@ -1,7 +1,6 @@
 import {
   getPreferences,
   patchPreferences,
-  type ClickTarget,
   type CropRatio,
   type Preferences
 } from '#lib/api/preferences.ts';
@@ -9,7 +8,6 @@ import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
-const DEFAULT_CLICK_TARGET: ClickTarget = 'editor';
 export const DEFAULT_PINNED_SETTINGS: readonly string[] = [
   'exposure',
   'contrast',
@@ -32,7 +30,6 @@ function sameRatio(a: CropRatio, b: CropRatio): boolean {
 }
 
 class PreferencesStore implements Preferences {
-  clickTarget = $state<ClickTarget>(DEFAULT_CLICK_TARGET);
   pinnedSettings = $state.raw<readonly string[] | null>(null);
   shortcuts = $state.raw<ShortcutMap>({});
   desktopSections = $state.raw<readonly SectionEntry[] | null>(null);
@@ -56,7 +53,6 @@ class PreferencesStore implements Preferences {
     const remote = await getPreferences().catch(() => null);
     this.pinsKnown = true;
     if (!remote) return;
-    if (!this.#chosen.has('clickTarget')) this.clickTarget = remote.clickTarget;
     if (!this.#chosen.has('pinnedSettings')) this.pinnedSettings = remote.pinnedSettings;
     if (!this.#chosen.has('shortcuts')) this.shortcuts = remote.shortcuts;
     if (!this.#chosen.has('desktopSections')) this.desktopSections = remote.desktopSections;
@@ -67,7 +63,6 @@ class PreferencesStore implements Preferences {
 
   reset(): void {
     this.#chosen.clear();
-    this.clickTarget = DEFAULT_CLICK_TARGET;
     this.pinnedSettings = null;
     this.shortcuts = {};
     this.desktopSections = null;
@@ -75,10 +70,6 @@ class PreferencesStore implements Preferences {
     this.cropRatios = null;
     this.maskOverlayColor = null;
     this.pinsKnown = false;
-  }
-
-  setClickTarget(target: ClickTarget): Promise<void> {
-    return this.#write('clickTarget', target);
   }
 
   setShortcuts = (next: ShortcutMap): Promise<void> => this.#write('shortcuts', next);

@@ -6,7 +6,6 @@ use wiremock::MockServer;
 
 fn defaults() -> Value {
     json!({
-        "click_target": "editor",
         "pinned_settings": null,
         "mask_overlay_color": null,
         "shortcuts": {},
@@ -59,7 +58,6 @@ async fn preferences_round_trip_every_field() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
     let all = json!({
-        "click_target": "loupe",
         "pinned_settings": ["exposure", "white_balance", "color-grading"],
         "mask_overlay_color": "#ff8800",
         "shortcuts": {
@@ -82,12 +80,12 @@ async fn preferences_patches_merge_without_clobbering() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
 
-    let first = patch_ok(&app, json!({ "click_target": "loupe" })).await;
-    assert_eq!(first, with(json!({ "click_target": "loupe" })));
+    let first = patch_ok(&app, json!({ "mask_overlay_color": "#112233" })).await;
+    assert_eq!(first, with(json!({ "mask_overlay_color": "#112233" })));
 
     let second = patch_ok(&app, json!({ "shortcuts": { "help": ["F1"] } })).await;
     let both = with(json!({
-        "click_target": "loupe",
+        "mask_overlay_color": "#112233",
         "shortcuts": { "help": ["F1"] }
     }));
     assert_eq!(second, both);
@@ -137,11 +135,11 @@ async fn preferences_null_clears_crop_ratios() {
     let app = test_app(&server).await;
     patch_ok(
         &app,
-        json!({ "click_target": "loupe", "crop_ratios": [{ "num": 5, "den": 4 }] }),
+        json!({ "pinned_settings": ["exposure"], "crop_ratios": [{ "num": 5, "den": 4 }] }),
     )
     .await;
 
-    let kept = patch_ok(&app, json!({ "click_target": "editor" })).await;
+    let kept = patch_ok(&app, json!({ "pinned_settings": null })).await;
     assert_eq!(kept["crop_ratios"], json!([{ "num": 5, "den": 4 }]));
 
     let cleared = patch_ok(&app, json!({ "crop_ratios": null })).await;
@@ -191,11 +189,11 @@ async fn preferences_validation_failures_are_bad_requests() {
 async fn preferences_a_rejected_patch_keeps_the_stored_record() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
-    let stored = patch_ok(&app, json!({ "click_target": "loupe" })).await;
+    let stored = patch_ok(&app, json!({ "mask_overlay_color": "#112233" })).await;
 
     let resp = patch(
         &app,
-        json!({ "click_target": "editor", "mask_overlay_color": "#XYZ" }),
+        json!({ "pinned_settings": ["exposure"], "mask_overlay_color": "#XYZ" }),
     )
     .await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
@@ -232,7 +230,6 @@ async fn preferences_accept_the_limits() {
     keys.extend(function_keys(12));
     shortcuts.insert("a0".into(), json!(keys));
     let body = json!({
-        "click_target": "editor",
         "pinned_settings": ids,
         "mask_overlay_color": "#000000",
         "shortcuts": shortcuts,

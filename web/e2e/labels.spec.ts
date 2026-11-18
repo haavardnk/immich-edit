@@ -6,6 +6,7 @@ import {
   installMocks,
   numberedAssets,
   openFilters,
+  openLoupeFromGrid,
   type InstallOpts
 } from './helpers';
 
@@ -72,7 +73,7 @@ test('the label filter asks the server for one color', async ({ page }) => {
 
 test('the loupe picker sets purple, which has no key', async ({ page }) => {
   await openGrid(page);
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   const rail = page.getByRole('navigation', { name: 'Photo actions' });
 
   await rail.getByRole('button', { name: 'Colour label' }).click();

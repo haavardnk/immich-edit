@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::de::{Error as _, Unexpected};
 use serde::{Deserialize, Deserializer};
 
-use super::{ClickTarget, CropRatio, Preferences, SectionEntry};
+use super::{CropRatio, Preferences, SectionEntry};
 
 fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
@@ -23,8 +23,6 @@ fn non_null<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PreferencesPatch {
-    #[serde(default, deserialize_with = "non_null")]
-    pub click_target: Option<ClickTarget>,
     #[serde(default, deserialize_with = "present")]
     pub pinned_settings: Option<Option<Vec<String>>>,
     #[serde(default, deserialize_with = "present")]
@@ -42,7 +40,6 @@ pub struct PreferencesPatch {
 impl PreferencesPatch {
     pub fn apply(self, current: Preferences) -> Preferences {
         Preferences {
-            click_target: self.click_target.unwrap_or(current.click_target),
             pinned_settings: self.pinned_settings.unwrap_or(current.pinned_settings),
             mask_overlay_color: self
                 .mask_overlay_color
@@ -72,7 +69,6 @@ mod tests {
 
     fn current() -> Preferences {
         Preferences {
-            click_target: ClickTarget::Loupe,
             pinned_settings: Some(vec!["exposure".into()]),
             mask_overlay_color: Some("#112233".into()),
             shortcuts: BTreeMap::from([("help".into(), vec!["?".into()])]),
@@ -92,13 +88,13 @@ mod tests {
 
     #[test]
     fn absent_fields_keep_and_present_fields_replace() {
-        let merged = parse(json!({ "click_target": "editor", "shortcuts": {} }))
+        let merged = parse(json!({ "mask_overlay_color": "#445566", "shortcuts": {} }))
             .unwrap()
             .apply(current());
         assert_eq!(
             merged,
             Preferences {
-                click_target: ClickTarget::Editor,
+                mask_overlay_color: Some("#445566".into()),
                 shortcuts: BTreeMap::new(),
                 ..current()
             }
@@ -119,7 +115,6 @@ mod tests {
         assert_eq!(
             merged,
             Preferences {
-                click_target: ClickTarget::Loupe,
                 shortcuts: current().shortcuts,
                 ..Preferences::default()
             }
@@ -128,20 +123,15 @@ mod tests {
 
     #[test]
     fn null_is_a_data_error_for_fields_that_are_not_nullable() {
-        for body in [
-            json!({ "click_target": null }),
-            json!({ "shortcuts": null }),
-        ] {
-            let error = parse(body.clone()).unwrap_err();
-            assert!(error.is_data(), "{body}: {error}");
-            assert!(error.to_string().contains("expected a value"), "{error}");
-        }
+        let body = json!({ "shortcuts": null });
+        let error = parse(body.clone()).unwrap_err();
+        assert!(error.is_data(), "{body}: {error}");
+        assert!(error.to_string().contains("expected a value"), "{error}");
     }
 
     #[test]
     fn unknown_fields_and_bad_shapes_are_refused() {
         assert!(parse(json!({ "theme": "dark" })).is_err());
-        assert!(parse(json!({ "click_target": "Loupe" })).is_err());
         assert!(parse(json!({ "desktop_sections": [{ "id": "basic" }] })).is_err());
         assert!(
             parse(json!({ "desktop_sections": [{ "id": "basic", "hidden": false, "x": 1 }] }))

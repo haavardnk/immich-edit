@@ -750,7 +750,6 @@ async fn preferences_are_scoped_to_the_owner() {
                 "PATCH",
                 "/api/preferences",
                 serde_json::json!({
-                    "click_target": "loupe",
                     "mask_overlay_color": "#ff0000",
                     "shortcuts": { "help": ["F1"] },
                     "crop_ratios": [{ "num": 3, "den": 2 }]
@@ -773,8 +772,7 @@ async fn preferences_are_scoped_to_the_owner() {
         .await,
     )
     .await;
-    if seen["click_target"] != "editor"
-        || !seen["mask_overlay_color"].is_null()
+    if !seen["mask_overlay_color"].is_null()
         || seen["shortcuts"] != serde_json::json!({})
         || !seen["crop_ratios"].is_null()
     {
@@ -798,7 +796,7 @@ async fn preferences_are_scoped_to_the_owner() {
         .await,
     )
     .await;
-    if member_saved["click_target"] != "editor"
+    if !member_saved["mask_overlay_color"].is_null()
         || member_saved["shortcuts"] != serde_json::json!({})
         || member_saved["crop_ratios"] != serde_json::json!([{ "num": 7, "den": 5 }])
     {

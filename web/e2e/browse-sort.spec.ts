@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pickSort } from './browse';
-import { ASSET_SUMMARY, installMocks, json, openFilters } from './helpers';
+import { ASSET_SUMMARY, installMocks, json, openFilters, openLoupeFromGrid } from './helpers';
 
 const OLD_ID = '00000000-0000-0000-0000-000000000001';
 const MID_ID = '00000000-0000-0000-0000-000000000002';
@@ -86,7 +86,7 @@ test('loupe moves forward in time when culling a collection', async ({ page }) =
   await page.goto('/tags/tag-1');
   await expectOrder(page, OLDEST_FIRST);
 
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
 
   await page.keyboard.press('ArrowRight');
@@ -269,7 +269,7 @@ test('edited view counts and steps through only the photos a filter keeps', asyn
   await expectOrder(page, [NEW_ID, MID_ID]);
   await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();

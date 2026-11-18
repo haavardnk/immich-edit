@@ -4,11 +4,12 @@ import { neutralEdits } from '../src/lib/types/edits';
 import {
   ASSET_ID,
   ASSET_SUMMARY,
-  NEUTRAL_RECORD,
   gotoAsset,
   installMocks,
   json,
+  NEUTRAL_RECORD,
   numberedAssets,
+  openLoupeFromGrid,
   openPresetMenu,
   openPresetStrip,
   presetAction
@@ -118,7 +119,7 @@ test('editor and loupe keep independent filmstrip visibility', async ({ page }) 
   await installMocks(page);
   await page.goto('/search?q=IMG');
   await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
     'aria-pressed',
     'true'
@@ -163,11 +164,11 @@ test('the filmstrip keeps a manual scroll away from the current photo', async ({
 test('editor and loupe layout choices survive reload', async ({ page }) => {
   await installMocks(page);
   await page.goto('/search?q=IMG');
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
 
   await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
   await page.reload();
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 
   await page.getByRole('button', { name: /^Edit/ }).click();

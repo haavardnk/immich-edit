@@ -33,7 +33,7 @@ pub use export_output_lookup::{ExportOutputQuery, RecordedExport};
 pub use export_outputs::{ExportOutput, ExportOutputKey};
 pub use export_presets::{ExportDestination, ExportPresetRecord, ExportPresetWrite};
 pub use history::{EditHistoryEntry, RestoreOutcome};
-pub use preferences::{ClickTarget, CropRatio, Preferences, PreferencesPatch, SectionEntry};
+pub use preferences::{CropRatio, Preferences, PreferencesPatch, SectionEntry};
 pub use saved_views::SavedViewRecord;
 pub use snapshots::EditSnapshot;
 

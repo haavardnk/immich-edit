@@ -10,7 +10,6 @@ export interface SettingsHit {
 
 export interface SettingsSearchScope {
   pages: readonly SettingsPage[];
-  desktop: boolean;
   installable: boolean;
 }
 
@@ -28,7 +27,6 @@ export function searchSettings(
   return entries.flatMap((entry) => {
     const page = scope.pages.find((candidate) => candidate.id === entry.page);
     if (!page) return [];
-    if (entry.desktopOnly && !scope.desktop) return [];
     if (entry.installable && !scope.installable) return [];
     if (!words.every((word) => haystack(entry, page).includes(word))) return [];
     return [{ entry, page, href: settingsHref(page.id, entry.anchor) }];

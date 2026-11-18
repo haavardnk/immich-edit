@@ -12,15 +12,6 @@ mod patch;
 
 pub use patch::PreferencesPatch;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[serde(rename_all = "lowercase")]
-#[sqlx(rename_all = "lowercase")]
-pub enum ClickTarget {
-    #[default]
-    Editor,
-    Loupe,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SectionEntry {
@@ -50,7 +41,6 @@ impl CropRatio {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, sqlx::FromRow)]
 pub struct Preferences {
-    pub click_target: ClickTarget,
     #[sqlx(rename = "pinned_settings_json", json(nullable))]
     pub pinned_settings: Option<Vec<String>>,
     pub mask_overlay_color: Option<String>,
@@ -69,7 +59,7 @@ async fn fetch_preferences<'e, E: SqliteExecutor<'e>>(
     owner: Uuid,
 ) -> Result<Option<Preferences>, EditsStoreError> {
     Ok(sqlx::query_as::<_, Preferences>(
-        "SELECT click_target, mask_overlay_color, pinned_settings_json, shortcuts_json, \
+        "SELECT mask_overlay_color, pinned_settings_json, shortcuts_json, \
          desktop_sections_json, touch_subviews_json, crop_ratios_json \
          FROM user_preferences WHERE user_id = ?1",
     )
@@ -85,11 +75,10 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
 ) -> Result<(), EditsStoreError> {
     sqlx::query(
         "INSERT INTO user_preferences \
-         (user_id, click_target, mask_overlay_color, pinned_settings_json, shortcuts_json, \
+         (user_id, mask_overlay_color, pinned_settings_json, shortcuts_json, \
           desktop_sections_json, touch_subviews_json, crop_ratios_json, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
          ON CONFLICT(user_id) DO UPDATE SET \
-           click_target = excluded.click_target, \
            mask_overlay_color = excluded.mask_overlay_color, \
            pinned_settings_json = excluded.pinned_settings_json, \
            shortcuts_json = excluded.shortcuts_json, \
@@ -99,7 +88,6 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
            updated_at = excluded.updated_at",
     )
     .bind(owner.to_string())
-    .bind(preferences.click_target)
     .bind(&preferences.mask_overlay_color)
     .bind(preferences.pinned_settings.as_ref().map(Json))
     .bind(Json(&preferences.shortcuts))
@@ -152,7 +140,6 @@ mod tests {
 
     fn everything() -> Preferences {
         Preferences {
-            click_target: ClickTarget::Loupe,
             pinned_settings: Some(vec!["exposure".into(), "white_balance".into()]),
             mask_overlay_color: Some("#ff8800".into()),
             shortcuts: BTreeMap::from([
@@ -170,7 +157,6 @@ mod tests {
 
     fn everything_patch() -> serde_json::Value {
         json!({
-            "click_target": "loupe",
             "pinned_settings": ["exposure", "white_balance"],
             "mask_overlay_color": "#ff8800",
             "shortcuts": { "help": ["?", "Shift+/"], "editor.copy": [] },
@@ -230,7 +216,7 @@ mod tests {
     async fn owners_do_not_share_preferences() {
         let s = store().await;
         let other = Uuid::new_v4();
-        patch(&s, O, json!({ "click_target": "loupe" })).await;
+        patch(&s, O, json!({ "mask_overlay_color": "#112233" })).await;
         assert_eq!(s.get_preferences(other).await.unwrap(), None);
     }
 
@@ -240,14 +226,13 @@ mod tests {
         let url = format!("sqlite://{}/edits.db", dir.path().display());
         let s = EditsStore::connect(&url).await.unwrap();
         let bodies = [
-            json!({ "click_target": "loupe" }),
             json!({ "pinned_settings": ["exposure"] }),
             json!({ "mask_overlay_color": "#123456" }),
             json!({ "shortcuts": { "help": ["F1"] } }),
             json!({ "desktop_sections": [{ "id": "basic", "hidden": true }] }),
             json!({ "touch_subviews": [{ "id": "light", "hidden": false }] }),
             json!({ "crop_ratios": [{ "num": 5, "den": 4 }] }),
-            json!({ "pinned_settings": ["exposure"], "click_target": "loupe" }),
+            json!({ "pinned_settings": ["exposure"], "crop_ratios": [{ "num": 5, "den": 4 }] }),
             json!({ "shortcuts": { "help": ["F1"] }, "mask_overlay_color": "#123456" }),
         ];
 
@@ -267,7 +252,6 @@ mod tests {
         assert_eq!(
             s.get_preferences(O).await.unwrap(),
             Some(Preferences {
-                click_target: ClickTarget::Loupe,
                 pinned_settings: Some(vec!["exposure".into()]),
                 mask_overlay_color: Some("#123456".into()),
                 shortcuts: BTreeMap::from([("help".into(), vec!["F1".into()])]),

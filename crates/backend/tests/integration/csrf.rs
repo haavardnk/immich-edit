@@ -156,7 +156,7 @@ async fn a_cookie_patch_is_guarded_like_any_mutation() {
             .header("origin", origin)
             .header("cookie", format!("immich_edit_auth={token}"))
             .header("content-type", "application/json")
-            .body(Body::from(r#"{"click_target":"loupe"}"#))
+            .body(Body::from(r##"{"mask_overlay_color":"#112233"}"##))
             .unwrap()
     };
     let foreign = app

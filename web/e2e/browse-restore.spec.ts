@@ -84,7 +84,9 @@ test('a restored grid keeps the filters that were active when the editor opened'
   await expect(page).toHaveURL(/\/photos\?filename=IMG_0001$/);
   await expect.poll(() => names).toContain('IMG_0001');
 
-  await page.getByRole('link', { name: 'IMG_0002.ARW' }).click({ position: { x: 8, y: 8 } });
+  await page
+    .locator('[data-name="IMG_0002.ARW"] a[aria-label="Edit"]')
+    .evaluate((el) => (el as HTMLAnchorElement).click());
   await expect(page).toHaveURL(new RegExp(`/assets/${B}\\?from=%2Fphotos%3Ffilename%3DIMG_0001$`));
   names.splice(0);
   await page.reload();

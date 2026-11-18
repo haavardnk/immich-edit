@@ -16,12 +16,11 @@
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
   import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-  import { Icon, IconButton } from '@immich/ui';
+  import { Icon } from '@immich/ui';
   import {
     mdiHeart,
     mdiCircle,
     mdiCheck,
-    mdiEyeOutline,
     mdiCloseCircle,
     mdiContentDuplicate,
     mdiPencilOutline,
@@ -42,7 +41,6 @@
     onPreviewEnd,
     onActivate,
     onLoupe,
-    onOpen,
     onDeleteCopy,
     onRate
   }: {
@@ -58,7 +56,6 @@
     onPreviewEnd?: () => void;
     onActivate?: () => void;
     onLoupe?: () => void;
-    onOpen?: () => void;
     onDeleteCopy?: () => void;
     onRate?: (rating: number | null) => void;
   } = $props();
@@ -115,15 +112,7 @@
       onToggle?.();
       return;
     }
-    onActivate?.();
-    if (!onOpen) return;
     e.preventDefault();
-    onOpen();
-  }
-
-  function onLoupeClick(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
     onActivate?.();
     onLoupe?.();
   }
@@ -228,25 +217,14 @@
     <div
       class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100 touch:hidden"
     >
-      {#if onOpen}
-        <IconLink
-          {...hoverButton}
-          icon={mdiPencilOutline}
-          {href}
-          tooltip={hint('Edit', 'openEditor')}
-          aria-label="Edit"
-          onclick={() => onActivate?.()}
-        />
-      {:else}
-        <IconButton
-          {...hoverButton}
-          type="button"
-          icon={mdiEyeOutline}
-          title={hint('Quick review', 'openLoupe')}
-          aria-label="Quick review"
-          onclick={onLoupeClick}
-        />
-      {/if}
+      <IconLink
+        {...hoverButton}
+        icon={mdiPencilOutline}
+        {href}
+        tooltip={hint('Edit', 'openEditor')}
+        aria-label="Edit"
+        onclick={() => onActivate?.()}
+      />
       {#if copyBadge && onDeleteCopy}
         <DeleteConfirmation
           bind:pending={pendingDelete}

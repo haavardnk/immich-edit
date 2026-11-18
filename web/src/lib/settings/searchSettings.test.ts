@@ -3,7 +3,7 @@ import { searchSettings } from './searchSettings';
 import { SETTINGS_INDEX } from './settingsIndex';
 import { SETTINGS_PAGES, visiblePages } from './pages';
 
-const ADMIN = { pages: SETTINGS_PAGES, desktop: true, installable: true };
+const ADMIN = { pages: SETTINGS_PAGES, installable: true };
 
 function titles(query: string, scope = ADMIN): string[] {
   return searchSettings(query, SETTINGS_INDEX, scope).map((hit) => hit.entry.title);
@@ -23,12 +23,10 @@ describe('searchSettings', () => {
     expect(titles('   ')).toEqual([]);
   });
 
-  it('leaves out admin pages, desktop-only rows on touch and install when unavailable', () => {
-    const user = { pages: visiblePages(false), desktop: false, installable: false };
+  it('leaves out admin pages and install when unavailable', () => {
+    const user = { pages: visiblePages(false), installable: false };
     expect(titles('users', user)).toEqual([]);
     expect(titles('install', user)).toEqual([]);
-    expect(titles('loupe', user)).toEqual([]);
-    expect(titles('loupe')).toEqual(['Click a photo']);
   });
 
   it('points every entry at a known page', () => {

@@ -6,6 +6,7 @@ import {
   installMocks,
   makePng,
   numberedAssets,
+  openLoupeFromGrid,
   type InstallOpts
 } from './helpers';
 
@@ -30,7 +31,7 @@ async function openLoupe(
   });
   await page.goto('/search?q=IMG');
   await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
 
@@ -71,7 +72,7 @@ test('the loupe zooms out of its tile and back into it', async ({ page }) => {
   await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   const ghosts = await countGhosts(page);
 
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
   await expect.poll(ghosts).toBe(1);
 

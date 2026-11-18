@@ -10,12 +10,9 @@
   import SidebarFoot from '#lib/components/shell/wide/SidebarFoot.svelte';
   import JobsDock from '#lib/components/jobs/JobsDock.svelte';
   import { SearchInput } from '#lib/browse/searchInput.svelte.ts';
-  import { provideTileOpen } from '#lib/browse/tileOpen.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
 
   let { children }: { children: Snippet } = $props();
-
-  provideTileOpen('loupe');
 
   const settingsRoute = $derived(page.url.pathname.startsWith('/settings'));
 

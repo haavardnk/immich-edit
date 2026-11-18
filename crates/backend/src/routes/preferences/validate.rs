@@ -193,7 +193,6 @@ mod tests {
         assert!(check(json!({})).is_ok());
         assert!(
             check(json!({
-                "click_target": "loupe",
                 "pinned_settings": null,
                 "mask_overlay_color": null,
                 "desktop_sections": null,

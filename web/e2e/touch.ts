@@ -48,8 +48,7 @@ export async function openTileLoupe(page: Page, tile: Locator): Promise<void> {
     await (coarse ? tapCentre(page, tile) : tile.click());
     return;
   }
-  await tile.hover();
-  await tile.getByRole('button', { name: 'Quick review' }).click();
+  await tile.locator('> a').click({ position: { x: 8, y: 8 } });
 }
 
 export async function longPress(page: Page, x: number, y: number, ms = 700): Promise<void> {
