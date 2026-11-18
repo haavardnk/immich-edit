@@ -163,6 +163,7 @@ test('settings deep links and close returns to the previous page', async ({ page
   );
 
   await page.goto('/favorites');
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
   await page.evaluate(() => {
     history.replaceState({ ...history.state, settingsReturnMarker: 'favorites' }, '');
   });

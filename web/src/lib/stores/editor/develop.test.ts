@@ -57,7 +57,7 @@ describe('develop feedback', () => {
     ]
   ])('%s toasts', async (_name, run, message) => {
     await run();
-    expect(push).toHaveBeenCalledWith(expect.any(String), message, 3000);
+    expect(push).toHaveBeenCalledWith(expect.any(String), message, { ttlMs: 3000 });
   });
 
   it('confirms a copy only after the dialog copies', () => {
@@ -66,7 +66,7 @@ describe('develop feedback', () => {
 
     copyDialog.confirm();
 
-    expect(push).toHaveBeenCalledWith('success', 'Copied settings', 3000);
+    expect(push).toHaveBeenCalledWith('success', 'Copied settings', { ttlMs: 3000 });
   });
 
   it('pastes as one history step and offers undo', async () => {
@@ -77,11 +77,9 @@ describe('develop feedback', () => {
 
     expect(ctx.edits.basic.exposure_ev).toBe(1);
     expect(ctx.onCommit).toHaveBeenCalledWith('Paste');
-    expect(push).toHaveBeenCalledWith(
-      'success',
-      `Pasted settings. Undo with ${keysFor('undo')}.`,
-      3000
-    );
+    expect(push).toHaveBeenCalledWith('success', `Pasted settings. Undo with ${keysFor('undo')}.`, {
+      ttlMs: 3000
+    });
   });
 });
 

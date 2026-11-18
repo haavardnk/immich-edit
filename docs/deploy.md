@@ -71,6 +71,34 @@ server {
 
 Keep `client_max_body_size` above `MAX_BODY_MB` when large originals pass through the proxy.
 
+## HTTPS for the installed app
+
+immich-edit can be [installed as an app](administration.md#install-the-app) on phones, tablets and
+computers. Browsers only install web apps, and only run the service worker that keeps the app
+loading offline, on an HTTPS address with a trusted certificate:
+
+- A plain `http://` address on your network, such as `http://192.168.1.20:3000`, cannot install.
+  Editing still works there; **Settings** > **This device** > **Install app** explains why install
+  is unavailable.
+- A certificate warning you clicked through is not enough. The browser still treats the page as
+  untrusted.
+- `http://localhost` counts as secure, but only on the computer running the server.
+
+Two setups give every device a trusted address:
+
+- [Tailscale Serve](https://tailscale.com/kb/1312/serve) gives the server an HTTPS address with a
+  publicly trusted certificate inside your tailnet. Run `tailscale serve --bg 3000` on the host and
+  open the `https://<host>.<tailnet>.ts.net` address on each device.
+- Caddy with `tls internal` issues its own certificate for a LAN address, as in
+  [browser previews on a local network](rendering.md#browser-previews-on-a-local-network). Install
+  Caddy's root certificate on every device you install from, and on iPhone and iPad also turn it on
+  under **Settings** > **General** > **About** > **Certificate Trust Settings**.
+
+Behind any proxy, keep the proxy's address in `TRUSTED_PROXIES` so `X-Forwarded-Proto: https` is
+believed and the session cookie gets the `Secure` flag. See
+[trusted proxies](configuration.md#trusted-proxies). If you sign in with OAuth, also
+[register the HTTPS address](oauth.md#which-addresses-to-register).
+
 ## GPU
 
 The container renders on the CPU until a GPU is passed through. See

@@ -126,7 +126,7 @@ describe('key dispatcher', () => {
 
     expect(paste.run).not.toHaveBeenCalled();
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(h.toast).toHaveBeenCalledWith('info', 'Nothing copied', 3000);
+    expect(h.toast).toHaveBeenCalledWith('info', 'Nothing copied', { ttlMs: 3000 });
   });
 
   it('leaves a yielded key to the browser', () => {

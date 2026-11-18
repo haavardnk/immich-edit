@@ -1,11 +1,12 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
   import { setupStatus } from '#lib/api/auth.ts';
   import { isBackendDown } from '#lib/api/client.ts';
   import { session } from '#lib/stores/session.svelte.ts';
+  import { editor } from '#lib/stores/editor.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
@@ -13,6 +14,9 @@
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
   import { showLayout } from '#lib/device/document.ts';
+  import { lockPageZoom } from '#lib/device/pageZoom.ts';
+  import '#lib/pwa/install.svelte.ts';
+  import { checkForUpdate, installServiceWorker } from '#lib/pwa/serviceWorker.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
@@ -47,6 +51,9 @@
   onMount(installFocusPolicy);
   onMount(listenForCommands);
   onMount(installLayout);
+  onMount(lockPageZoom);
+  onMount(() => installServiceWorker(() => editor.saving || editor.saveError !== null));
+  afterNavigate(checkForUpdate);
 
   $effect(() => appearance.showScheme(appearance.scheme));
   $effect(() => showLayout(layout.mode, layout.wide));
@@ -72,6 +79,11 @@
 </script>
 
 <TooltipProvider>
+  <div
+    aria-hidden="true"
+    data-status-bar-backing
+    class="pointer-events-none fixed inset-x-0 top-0 z-30 h-(--safe-top) bg-light"
+  ></div>
   {#if bootState === 'loading'}
     <div class="app-frame flex items-center justify-center">
       <div

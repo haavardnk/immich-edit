@@ -34,7 +34,7 @@ describe('createVirtualCopy', () => {
     await createVirtualCopy('asset-1', { navigate });
 
     expect(mocks.goto).toHaveBeenCalledTimes(navigate ? 1 : 0);
-    if (message) expect(push).toHaveBeenCalledWith('success', message, 3000);
+    if (message) expect(push).toHaveBeenCalledWith('success', message, { ttlMs: 3000 });
     else expect(push).not.toHaveBeenCalled();
   });
 });
@@ -56,7 +56,7 @@ describe('createVirtualCopies', () => {
 
     expect(mocks.createCopy).toHaveBeenCalledTimes(2);
     expect(mocks.goto).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('success', 'Created 2 virtual copies', 4000);
+    expect(push).toHaveBeenCalledWith('success', 'Created 2 virtual copies', { ttlMs: 4000 });
   });
 
   it('counts the copies Immich refused', async () => {
@@ -69,6 +69,6 @@ describe('createVirtualCopies', () => {
 
     await createVirtualCopies(['a', 'b', 'c']);
 
-    expect(push).toHaveBeenCalledWith('warn', '1 of 3 failed', 6000);
+    expect(push).toHaveBeenCalledWith('warn', '1 of 3 failed', { ttlMs: 6000 });
   });
 });

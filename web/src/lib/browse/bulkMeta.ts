@@ -81,7 +81,7 @@ async function tagReady(
   tagFor: () => Promise<TagRef | null | undefined>
 ): Promise<boolean> {
   const tag = await assetMeta.resolveTag(kind, tagFor, (failedKind, error) =>
-    toasts.push('error', assetMeta.metaFailure(failedKind, error), 6000)
+    toasts.push('error', assetMeta.metaFailure(failedKind, error), { ttlMs: 6000 })
   );
   return tag !== undefined;
 }

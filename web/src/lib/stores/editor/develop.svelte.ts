@@ -43,16 +43,16 @@ export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
   if (!canResetDevelop(ctx)) return;
   ctx.edits = resetDevelopEdits(ctx.edits);
   await ctx.onCommit('Reset Develop');
-  toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, 3000);
+  toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
 }
 
 export function copyEdits(ctx: DevelopCtx): void {
   if (isIdentity(ctx.edits)) {
-    toasts.push('info', NO_EDITS_TO_COPY, 3000);
+    toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
     return;
   }
   copyDialog.show($state.snapshot(ctx.edits) as Edits, () =>
-    toasts.push('success', 'Copied settings', 3000)
+    toasts.push('success', 'Copied settings', { ttlMs: 3000 })
   );
 }
 
@@ -60,13 +60,13 @@ export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
   if (!editable(ctx)) return;
   const snap = clipboard.snapshot();
   if (!snap) {
-    toasts.push('info', NOTHING_COPIED, 3000);
+    toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
     return;
   }
   ctx.edits = applyCopySections(ctx.edits, snap.edits, snap.sections);
   ctx.onLive();
   await ctx.onCommit('Paste');
-  toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, 3000);
+  toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
 }
 
 export async function applyPreset(
