@@ -10,6 +10,7 @@
   import { CURVE_CHANNELS, identityCurve, type CurveChannel } from '#lib/types/edits.ts';
   import CurvesCanvas from './curves/CurvesCanvas.svelte';
   import { CHANNEL_LABELS } from './curves/curves';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let activeChannel: CurveChannel = $state('composite');
   let canvas = $state<ReturnType<typeof CurvesCanvas>>();
@@ -69,7 +70,7 @@
         'Shift'
       )}-click to reset all channels"
       label="Reset {CHANNEL_LABELS[activeChannel]} curve"
-      onclick={(e) => (e.shiftKey ? resetAll() : resetActive())}
+      onclick={(e) => (held('resetAll', e) ? resetAll() : resetActive())}
     />
   </div>
 

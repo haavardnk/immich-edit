@@ -4,7 +4,7 @@ import { applyCopySections } from '#lib/editor/copyPaste.ts';
 import { presetEdits } from '#lib/edits/applyPreset.ts';
 import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
-import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
@@ -48,7 +48,7 @@ export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
 
 export function copyEdits(ctx: DevelopCtx): void {
   if (isIdentity(ctx.edits)) {
-    toasts.push('info', 'This photo has no edits to copy', 3000);
+    toasts.push('info', NO_EDITS_TO_COPY, 3000);
     return;
   }
   copyDialog.show($state.snapshot(ctx.edits) as Edits, () =>
@@ -60,7 +60,7 @@ export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
   if (!editable(ctx)) return;
   const snap = clipboard.snapshot();
   if (!snap) {
-    toasts.push('info', 'Nothing copied', 3000);
+    toasts.push('info', NOTHING_COPIED, 3000);
     return;
   }
   ctx.edits = applyCopySections(ctx.edits, snap.edits, snap.sections);

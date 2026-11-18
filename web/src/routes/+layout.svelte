@@ -10,6 +10,7 @@
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
+  import { listenForCommands } from '#lib/commands/listen.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
@@ -42,6 +43,7 @@
 
   onMount(boot);
   onMount(installFocusPolicy);
+  onMount(listenForCommands);
 
   $effect(() => appearance.showScheme(appearance.scheme));
 

@@ -19,12 +19,11 @@
     type FilterKey
   } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { filterPanelHost } from '#lib/commands/grid/filterPanelHost.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { matchKeybind } from '#lib/shortcuts/match.ts';
-  import { isTypingTarget } from '#lib/shortcuts/targets.ts';
-  import { Button, IconButton, isModalOpen } from '@immich/ui';
+  import { Button, IconButton } from '@immich/ui';
   import { mdiClose, mdiRestore } from '@mdi/js';
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
 
   let { favoriteLocked = false }: { favoriteLocked?: boolean } = $props();
 
@@ -48,16 +47,8 @@
     document.getElementById('browse-filters-toggle')?.focus();
   }
 
-  function onKeydown(e: KeyboardEvent): void {
-    if (browseView.loupeId || isModalOpen() || isTypingTarget(e)) return;
-    if (matchKeybind(e, ['grid']) !== 'toggleFilters') return;
-    e.preventDefault();
-    if (browseView.filtersOpen) void close();
-    else browseView.setFiltersOpen(true);
-  }
+  onMount(() => filterPanelHost.attach({ close }));
 </script>
-
-<svelte:window onkeydown={onKeydown} />
 
 {#if browseView.filtersOpen}
   <aside

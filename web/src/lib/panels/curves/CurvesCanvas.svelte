@@ -22,6 +22,7 @@
     removePoint,
     toSvg
   } from './curves';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let { channel }: { channel: CurveChannel } = $props();
 
@@ -132,7 +133,7 @@
 
   function onKeyDown(e: KeyboardEvent): void {
     if (selected === null) return;
-    const step = e.shiftKey ? 0.05 : 0.01;
+    const step = held('coarse', e) ? 0.05 : 0.01;
     if (e.key === 'ArrowUp') {
       nudge(selected, 0, step);
     } else if (e.key === 'ArrowDown') {

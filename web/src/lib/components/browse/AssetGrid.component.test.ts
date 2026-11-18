@@ -1,6 +1,7 @@
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
+import FilterPanel from './filters/FilterPanel.svelte';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -8,6 +9,9 @@ import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
+import { listenForCommands } from '#lib/commands/listen.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
+import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -25,6 +29,13 @@ const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.f
 
 vi.mock('#lib/browse/copyPaste.ts', () => clipboard);
 
+const copies = vi.hoisted(() => ({ createVirtualCopies: vi.fn() }));
+
+vi.mock('#lib/editor/copies.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/editor/copies.ts')>()),
+  createVirtualCopies: copies.createVirtualCopies
+}));
+
 vi.mock('#lib/browse/assetMeta.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#lib/browse/assetMeta.ts')>()),
   setRating
@@ -33,6 +44,10 @@ vi.mock('#lib/browse/assetMeta.ts', async (importOriginal) => ({
 type GridProps = ComponentProps<typeof AssetGrid>;
 
 const Host: Component<{ component: Component<GridProps>; props: GridProps }> = ComponentHost;
+
+type PanelProps = ComponentProps<typeof FilterPanel>;
+
+const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
 
 function asset(id: string): AssetSummary {
   return {
@@ -86,11 +101,17 @@ function press(key: string, init: KeyboardEventInit = {}): void {
   flushSync();
 }
 
+let stopCommands = (): void => {};
+
 beforeEach(() => {
+  stopCommands = listenForCommands();
   setRating.mockClear();
   setRating.mockResolvedValue('saved');
   clipboard.copyEditsFrom.mockClear();
   clipboard.pasteEditsTo.mockClear();
+  copies.createVirtualCopies.mockReset();
+  ui.closeKeybindsHelp();
+  browseView.setFiltersOpen(false);
   selection.clear();
   browseView.setActive(null);
   browseControls.filters.rejected = 'any';
@@ -102,6 +123,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopCommands();
   if (component) void unmount(component);
   component = null;
   scroller.remove();
@@ -175,6 +197,58 @@ describe('AssetGrid', () => {
     render();
     click(selectButton(1));
     expect(browseView.activeId).toBe('b');
+  });
+
+  it("creates one virtual copy per Mod+' press, ignoring key repeat and presses while copying", async () => {
+    copies.createVirtualCopies.mockResolvedValue(undefined);
+    render();
+    click(selectButton(0));
+    press("'", { ctrlKey: true });
+    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
+    press("'", { ctrlKey: true, repeat: true });
+    expect(copies.createVirtualCopies).toHaveBeenCalledExactlyOnceWith(['a']);
+
+    let finish = (): void => {};
+    copies.createVirtualCopies.mockReturnValue(new Promise<void>((done) => (finish = done)));
+    press("'", { ctrlKey: true });
+    press("'", { ctrlKey: true });
+    finish();
+    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
+    expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
+  });
+
+  it('toggles the filter panel with Shift+F', async () => {
+    const panel = mount(PanelHost, { target, props: { component: FilterPanel, props: {} } });
+    render();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(true);
+    expect(document.querySelector('aside[aria-label="Filters"]')).not.toBeNull();
+    press('F', { shiftKey: true });
+    expect(browseView.filtersOpen).toBe(false);
+    await unmount(panel);
+  });
+
+  it('swallows the help key while selecting all', async () => {
+    let loaded = (_: boolean): void => {};
+    render({ onLoadAll: () => new Promise<boolean>((done) => (loaded = done)) });
+    press('?', { shiftKey: true });
+    expect(ui.keybindsHelpOpen).toBe(true);
+    ui.closeKeybindsHelp();
+
+    press('a', { ctrlKey: true });
+    const help = new KeyboardEvent('keydown', {
+      key: '?',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.body.dispatchEvent(help);
+    flushSync();
+    expect(help.defaultPrevented).toBe(true);
+    expect(ui.keybindsHelpOpen).toBe(false);
+
+    loaded(true);
+    await vi.waitFor(() => expect(selection.count).toBe(3));
   });
 
   it.each([

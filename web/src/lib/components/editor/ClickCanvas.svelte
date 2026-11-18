@@ -13,6 +13,7 @@
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { Tooltip } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
     img
@@ -117,7 +118,7 @@
     }
     const [x, y] = sceneUvAt(e);
     if (x < 0 || y < 0 || x > 1 || y > 1) return;
-    const positive = !(e.button === 2 || e.shiftKey || editor.clickTool.negative);
+    const positive = !(e.button === 2 || held('exclude', e) || editor.clickTool.negative);
     await editor.addClickPoint(x, y, positive);
   }
 

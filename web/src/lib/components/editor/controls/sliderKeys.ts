@@ -1,10 +1,6 @@
-type ArrowKeyEvent = {
-  key: string;
-  shiftKey: boolean;
-  altKey: boolean;
-  ctrlKey: boolean;
-  metaKey: boolean;
-};
+import { heldAlone, type ModifierKeys } from '#lib/input/modifiers.svelte.ts';
+
+type ArrowKeyEvent = ModifierKeys & { key: string };
 
 type StepOptions = {
   value: number;
@@ -29,7 +25,7 @@ function decimalsOf(step: number): number {
 
 export function arrowStepValue(event: ArrowKeyEvent, options: StepOptions): number | null {
   const direction = DIRECTIONS[event.key];
-  if (!direction || !event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return null;
+  if (!direction || !heldAlone('coarse', event)) return null;
   const raw = options.value + direction * options.coarseStep;
   const next = Math.min(options.max, Math.max(options.min, raw));
   return Number(next.toFixed(decimalsOf(options.step)));

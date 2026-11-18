@@ -8,6 +8,7 @@ vi.mock('#lib/api/preview.ts', () => ({
 }));
 
 import {
+  canReset,
   endSession,
   flipStep,
   reset,
@@ -100,6 +101,19 @@ describe('guided upright', () => {
     await addGuide(c, TOP);
     expect(c.edits.geometry.perspective?.corners).not.toBeNull();
     expect(c.actions).toHaveLength(2);
+  });
+
+  it('lets reset clear a guide that has not applied yet', async () => {
+    const c = session();
+    expect(canReset(c)).toBe(false);
+    await addGuide(c, LEFT);
+    expect(canReset(c)).toBe(true);
+
+    await reset(c);
+
+    expect(guides(c)).toEqual([]);
+    expect(canReset(c)).toBe(false);
+    expect(c.actions).toEqual([]);
   });
 
   it('keeps the applied correction when guides drop below two', async () => {

@@ -12,7 +12,8 @@
   } from '#lib/utils/canvasCoords.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { RETOUCH_HARDNESS, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
-  import { wheelHardness, wheelNotches, wheelSize } from '#lib/utils/brushSize.ts';
+  import { brushWheel } from '#lib/utils/brushSize.ts';
+  import { held, keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { v4 as uuidv4 } from 'uuid';
 
   let {
@@ -37,14 +38,15 @@
   } | null>(null);
   let hoverMovable = $state(false);
   let hover = $state<[number, number] | null>(null);
-  let hoverAlt = $state(false);
+  let sampleKey = $state(false);
   let strokeOffset: [number, number] | null = null;
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
   const strokes = $derived(editor.edits.retouch);
   const anchor = $derived(editor.retouchAnchor);
   const show = $derived(ui.editorTab === 'retouch' && rect.w > 0 && rect.h > 0);
-  const canPick = $derived(!!anchor || hoverAlt || editor.retouchSampling);
+  const sampleHeld = $derived(sampleKey || latched('sample'));
+  const canPick = $derived(!!anchor || sampleHeld || editor.retouchSampling);
 
   function minSide(): number {
     return Math.max(1, Math.min(rect.w, rect.h));
@@ -136,7 +138,7 @@
     e.preventDefault();
     e.stopPropagation();
     const [nx, ny] = normalise(e);
-    if (e.altKey || editor.retouchSampling) {
+    if (held('sample', e) || editor.retouchSampling) {
       const s = displayUvToSceneUv(view, nx, ny);
       editor.setRetouchAnchor({ x: s[0], y: s[1] });
       return;
@@ -183,7 +185,7 @@
   function onPointerMove(e: PointerEvent): void {
     const [nx, ny] = normalise(e);
     hover = [nx, ny];
-    hoverAlt = e.altKey;
+    sampleKey = keyHeld('sample', e);
     if (dragSourceId) {
       const s = displayUvToSceneUv(view, nx, ny);
       void editor.setRetouchStroke(dragSourceId, { source: { x: s[0], y: s[1] } }, false);
@@ -245,17 +247,12 @@
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!e.altKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const notches = wheelNotches(e);
-    if (e.shiftKey) {
-      editor.setRetouchTool({
-        hardness: wheelHardness(editor.retouchTool.hardness, notches, RETOUCH_HARDNESS)
-      });
-      return;
-    }
-    editor.setRetouchTool({ size: wheelSize(editor.retouchTool.size, notches, RETOUCH_SIZE) });
+    brushWheel(
+      e,
+      editor.retouchTool,
+      { size: RETOUCH_SIZE, hardness: RETOUCH_HARDNESS },
+      editor.setRetouchTool
+    );
   }
 
   function ring(
@@ -413,7 +410,7 @@
 
     if (!hover) return;
     const rPx = displayRadius(editor.retouchTool.size, hover[0], hover[1]);
-    const picking = hoverAlt || !anchor || editor.retouchSampling;
+    const picking = sampleHeld || !anchor || editor.retouchSampling;
     ring(
       ctx,
       hover[0] * w,
@@ -450,7 +447,7 @@
     void strokes;
     void drawPts;
     void hover;
-    void hoverAlt;
+    void sampleHeld;
     void anchor;
     void view;
     void rect.w;

@@ -1,14 +1,9 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { hint } from '#lib/shortcuts/labels.ts';
+  import { commandLabel, commandTitle, isEnabled, runCommand } from '#lib/commands/command.ts';
+  import { resetGeometry } from '#lib/commands/editor/edits.ts';
   import { Button, IconButton } from '@immich/ui';
-  import {
-    mdiFlipHorizontal,
-    mdiFlipVertical,
-    mdiRestore,
-    mdiRotateLeft,
-    mdiRotateRight
-  } from '@mdi/js';
+  import { mdiFlipHorizontal, mdiFlipVertical, mdiRotateLeft, mdiRotateRight } from '@mdi/js';
 
   const flipH = $derived(editor.geometrySession?.draftFlipH ?? editor.edits.geometry.flip_h);
   const flipV = $derived(editor.geometrySession?.draftFlipV ?? editor.edits.geometry.flip_v);
@@ -21,11 +16,11 @@
     variant="ghost"
     color="secondary"
     class="h-8 min-w-0 flex-1 justify-center bg-transparent hover:bg-light-950/6"
-    leadingIcon={mdiRestore}
-    title={hint('Reset geometry', 'resetEdits')}
-    aria-label="Reset geometry"
-    disabled={!editor.canResetGeometry}
-    onclick={() => void editor.resetGeometry()}
+    leadingIcon={resetGeometry.icon}
+    title={commandTitle(resetGeometry)}
+    aria-label={commandLabel(resetGeometry)}
+    disabled={!isEnabled(resetGeometry)}
+    onclick={() => runCommand(resetGeometry)}
   >
     Reset
   </Button>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { held } from '#lib/input/modifiers.svelte.ts';
   type Orientation = 'horizontal' | 'vertical';
   type Grow = 'start' | 'end';
 
@@ -62,7 +63,7 @@
   }
 
   function resizeWithKeyboard(event: KeyboardEvent): void {
-    const amount = event.shiftKey ? shiftStep : step;
+    const amount = held('coarse', event) ? shiftStep : step;
     const towardStart = orientation === 'horizontal' ? 'ArrowLeft' : 'ArrowUp';
     const towardEnd = orientation === 'horizontal' ? 'ArrowRight' : 'ArrowDown';
     const increaseKey = grow === 'start' ? towardStart : towardEnd;

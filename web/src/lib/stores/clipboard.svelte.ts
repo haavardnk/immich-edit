@@ -1,6 +1,10 @@
 import type { Edits } from '#lib/types/edits.ts';
 import { ALL_COPY_SECTIONS, type CopySections } from '#lib/editor/copyPaste.ts';
 
+export const NOTHING_COPIED = 'Nothing copied';
+
+export const NO_EDITS_TO_COPY = 'This photo has no edits to copy';
+
 export interface ClipboardPayload {
   edits: Edits;
   sections: CopySections;

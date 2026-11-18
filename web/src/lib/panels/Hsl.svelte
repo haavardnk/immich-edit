@@ -11,6 +11,7 @@
   import { HSL_BAND_NAMES, HSL_BAND_COLORS } from '#lib/types/edits.ts';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let activeBand = $state(0);
 
@@ -45,7 +46,9 @@
       title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
       label="Reset {bandName}"
       onclick={(e) =>
-        e.shiftKey ? commitSectionReset(HSL) : commitParamReset(bandParams, `Reset ${bandName}`)}
+        held('resetAll', e)
+          ? commitSectionReset(HSL)
+          : commitParamReset(bandParams, `Reset ${bandName}`)}
     />
   </div>
   {#each bandParams as param (param.id)}

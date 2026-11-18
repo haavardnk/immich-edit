@@ -4,7 +4,6 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { restoreBrowse } from '#lib/browse/restore.ts';
-  import { editorKeydown, editorKeyup } from '#lib/shortcuts/editorKeymap.ts';
   import { warmNeighbours } from '#lib/editor/neighbours.ts';
   import Viewer from '#lib/components/editor/Viewer.svelte';
   import ImageToolbar from '#lib/components/editor/ImageToolbar.svelte';
@@ -50,11 +49,7 @@
   const tooNarrow = $derived((innerWidth.current ?? 1920) < 768);
 </script>
 
-<svelte:window
-  onbeforeunload={guardPendingSave}
-  onkeydown={(e) => editorKeydown(e, id)}
-  onkeyup={editorKeyup}
-/>
+<svelte:window onbeforeunload={guardPendingSave} />
 
 {#if tooNarrow}
   <div class="flex-1 flex items-center justify-center p-6 text-center">

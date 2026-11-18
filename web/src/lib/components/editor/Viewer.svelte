@@ -17,6 +17,7 @@
   import { splitPosition, viewportTransform, zoomAtAnchor } from '#lib/utils/imageViewport.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   const WHEEL_STEP = 1.1;
 
@@ -101,7 +102,7 @@
   }
 
   function onSplitKeyDown(e: KeyboardEvent): void {
-    const step = e.shiftKey ? 0.1 : 0.02;
+    const step = held('coarse', e) ? 0.1 : 0.02;
     if (e.key === 'ArrowLeft') editor.setSplitPos(editor.splitPos - step);
     else if (e.key === 'ArrowRight') editor.setSplitPos(editor.splitPos + step);
     else if (e.key === 'Home') editor.setSplitPos(0);
@@ -130,7 +131,7 @@
   }
 
   function onWheel(e: WheelEvent): void {
-    if (e.ctrlKey || e.metaKey) {
+    if (held('zoom', e)) {
       e.preventDefault();
       zoomAt(ui.zoom * (e.deltaY > 0 ? 1 / WHEEL_STEP : WHEEL_STEP), e.clientX, e.clientY);
       return;

@@ -7,6 +7,7 @@
   import { fitScale, nativeScale } from '#lib/utils/viewGeometry.ts';
   import { clampZoom } from '#lib/utils/zoomLevel.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   const DRAG_THRESHOLD = 5;
   const WHEEL_STEP = 1.1;
@@ -158,7 +159,7 @@
     totalDrag += Math.abs(dx) + Math.abs(dy);
     onView(
       clampCenter({ zoom: view.zoom, cx: view.cx - dx / zoomBox.w, cy: view.cy - dy / zoomBox.h }),
-      e.altKey
+      held('solo', e)
     );
   }
 
@@ -170,7 +171,7 @@
     );
     const nextBox = imageBoxAt(next);
     if (next <= fitZoom || !current || !nextBox || !container) {
-      onView(CENTERED, e.altKey);
+      onView(CENTERED, held('solo', e));
       return;
     }
     const rect = container.getBoundingClientRect();
@@ -178,11 +179,14 @@
     const dy = e.clientY - (rect.top + rect.height / 2);
     const u = boundedView.cx + dx / current.w;
     const v = boundedView.cy + dy / current.h;
-    onView(clampCenter({ zoom: next, cx: u - dx / nextBox.w, cy: v - dy / nextBox.h }), e.altKey);
+    onView(
+      clampCenter({ zoom: next, cx: u - dx / nextBox.w, cy: v - dy / nextBox.h }),
+      held('solo', e)
+    );
   }
 
   function onWheel(e: WheelEvent): void {
-    if (e.ctrlKey || e.metaKey) {
+    if (held('zoom', e)) {
       e.preventDefault();
       zoomAtPointer(e);
       return;
@@ -195,7 +199,7 @@
         cx: boundedView.cx + e.deltaX / zoomBox.w,
         cy: boundedView.cy + e.deltaY / zoomBox.h
       }),
-      e.altKey
+      held('solo', e)
     );
   }
 
@@ -204,8 +208,8 @@
     dragging = false;
     if (wasDragging && totalDrag > DRAG_THRESHOLD) return;
     if (!wasFocused) return;
-    if (zoomed) onView(CENTERED, e.altKey);
-    else zoomInAt(e.clientX, e.clientY, e.altKey);
+    if (zoomed) onView(CENTERED, held('solo', e));
+    else zoomInAt(e.clientX, e.clientY, held('solo', e));
   }
 
   $effect(() => {

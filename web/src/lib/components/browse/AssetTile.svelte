@@ -24,6 +24,7 @@
     mdiCloseCircle,
     mdiContentDuplicate
   } from '@mdi/js';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
     asset,
@@ -75,12 +76,12 @@
   const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
 
   function onClick(e: MouseEvent): void {
-    if (e.shiftKey) {
+    if (held('extend', e)) {
       e.preventDefault();
       onRange?.();
       return;
     }
-    if (e.metaKey || e.ctrlKey) {
+    if (held('toggle', e)) {
       e.preventDefault();
       onToggle?.();
       return;
@@ -103,7 +104,7 @@
   function onCheckbox(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    if (e.shiftKey) {
+    if (held('extend', e)) {
       onRange?.();
       return;
     }

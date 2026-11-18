@@ -1,7 +1,7 @@
-import { page } from '$app/state';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { onEditorRoute } from '#lib/utils/route.ts';
 import type { KeybindContext } from './table';
 
 export const CONTEXT_STACKS = {
@@ -16,7 +16,7 @@ export const CONTEXT_STACKS = {
 } as const satisfies Record<string, readonly KeybindContext[]>;
 
 export function activeContexts(): readonly KeybindContext[] {
-  if (page.url.pathname.startsWith('/assets/')) {
+  if (onEditorRoute()) {
     const tab = ui.editorTab;
     if (tab === 'masks' || tab === 'retouch' || tab === 'geometry') return CONTEXT_STACKS[tab];
     return CONTEXT_STACKS.editor;

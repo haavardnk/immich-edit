@@ -16,6 +16,7 @@
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
   import type { CropRect } from '#lib/types/edits.ts';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);
@@ -133,14 +134,14 @@
   }
 
   function startDrag(e: PointerEvent, kind: 'move' | CropHandle): void {
-    if (kind === 'move' && e.shiftKey) {
+    if (kind === 'move' && held('straighten', e)) {
       startLine(e);
       return;
     }
     e.preventDefault();
     e.stopPropagation();
     if (!sess) return;
-    const panning = kind === 'move' && (e.ctrlKey || e.metaKey);
+    const panning = kind === 'move' && held('pan', e);
     dragKind = panning ? 'pan' : kind;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
@@ -149,7 +150,9 @@
     const aspectRatio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
     dragLockedRatio =
       aspectRatio ??
-      (e.shiftKey ? (dragStartCrop.w * bboxW) / Math.max(dragStartCrop.h * bboxH, 1) : null);
+      (held('constrain', e)
+        ? (dragStartCrop.w * bboxW) / Math.max(dragStartCrop.h * bboxH, 1)
+        : null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -173,14 +176,14 @@
     editor.updateGeometryDraftCrop(
       resizeCrop(dragStartCrop, dragKind, dx, dy, {
         ratio: dragLockedRatio,
-        fromCentre: e.altKey,
+        fromCentre: held('fromCentre', e),
         stageAspect: bboxW / Math.max(bboxH, 1)
       })
     );
   }
 
   function onWheel(e: WheelEvent): void {
-    if (!(e.ctrlKey || e.metaKey) || !sess) return;
+    if (!held('zoom', e) || !sess) return;
     e.preventDefault();
     editor.updateGeometryDraftCrop(
       scaleCropAboutCentre(sess.draftCrop, Math.exp(e.deltaY * 0.002))
