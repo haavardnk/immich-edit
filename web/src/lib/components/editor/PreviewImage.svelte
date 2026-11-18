@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { reportDrawFailure } from '#lib/api/clientLog.ts';
   import type { PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
@@ -29,7 +30,13 @@
     const { bitmap, colorSpace } = frame;
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
-    canvas.getContext('2d', { alpha: false, colorSpace })?.drawImage(bitmap, 0, 0);
+    const context = canvas.getContext('2d', { alpha: false, colorSpace });
+    if (!context) reportDrawFailure('photo context', 'no 2d context');
+    try {
+      context?.drawImage(bitmap, 0, 0);
+    } catch (err) {
+      reportDrawFailure('photo draw', err);
+    }
     untrack(() => onsize?.({ w: bitmap.width, h: bitmap.height }));
   });
 </script>

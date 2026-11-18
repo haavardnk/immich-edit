@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reportDrawFailure } from '#lib/api/clientLog.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { maskOverlay, type MaskOverlayMode } from '#lib/stores/maskOverlay.svelte.ts';
   import { maskOverlayRgb } from '#lib/utils/brush.ts';
@@ -36,20 +37,33 @@
     void draw(canvasEl, frame.blob, mode, maskOverlayRgb(canvasEl));
   });
 
+  async function decode(blob: Blob): Promise<ImageBitmap | null> {
+    try {
+      return await createImageBitmap(blob, { colorSpaceConversion: 'none' });
+    } catch {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    try {
+      return await createImageBitmap(blob, { colorSpaceConversion: 'none' });
+    } catch (err) {
+      reportDrawFailure('mask overlay decode', err);
+      return null;
+    }
+  }
+
   async function draw(
     canvas: HTMLCanvasElement,
     blob: Blob,
     look: MaskOverlayMode,
     [r, g, b]: [number, number, number]
   ): Promise<void> {
-    let bitmap: ImageBitmap;
-    try {
-      bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none' });
-    } catch {
+    const bitmap = await decode(blob);
+    if (frame?.blob !== blob) {
+      bitmap?.close();
       return;
     }
-    if (frame?.blob !== blob) {
-      bitmap.close();
+    if (!bitmap) {
+      canvas.width = 0;
       return;
     }
     canvas.width = bitmap.width;
@@ -57,6 +71,8 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
       bitmap.close();
+      canvas.width = 0;
+      reportDrawFailure('mask overlay context', 'no 2d context');
       return;
     }
     ctx.drawImage(bitmap, 0, 0);
