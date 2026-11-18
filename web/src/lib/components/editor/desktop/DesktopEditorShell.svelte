@@ -48,7 +48,9 @@
       </main>
       {#if editor.assetId && !ui.fullscreen}
         {#if ui.presetStrip}
-          <PresetStrip />
+          <div class="flex-none" transition:reveal>
+            <PresetStrip />
+          </div>
         {:else}
           <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
         {/if}
