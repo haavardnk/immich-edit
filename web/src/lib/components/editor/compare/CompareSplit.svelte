@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Icon } from '@immich/ui';
+  import { mdiArrowLeftRight } from '@mdi/js';
   import PreviewImage from '#lib/components/editor/PreviewImage.svelte';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { clampedPoint } from '#lib/gestures/point.ts';
@@ -85,12 +87,12 @@
     aria-valuenow={Math.round(editor.compare.splitPos * 100)}
     aria-valuemin="0"
     aria-valuemax="100"
-    class="absolute top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full border-2 border-black/40 bg-white text-xs font-bold text-black/70 shadow-lg"
+    class="absolute top-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-white text-black/70 shadow-lg ring-2 ring-black/30 touch:size-11"
     style="left: {editor.compare.splitPos * 100}%;"
     {...split.on()}
     {onkeydown}
   >
-    ↔
+    <Icon icon={mdiArrowLeftRight} size="16px" aria-hidden="true" />
   </div>
   <CompareLabel text={labels.left} class="left-2.5" />
   <CompareLabel text={labels.right} class="right-2.5" />

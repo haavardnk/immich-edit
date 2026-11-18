@@ -110,7 +110,7 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/components/editor/compare/CompareSplit.svelte': [
     'bg-white',
     'bg-white/90',
-    'border-black/40',
+    'ring-black/30',
     'text-black/70'
   ],
   '/src/lib/components/editor/touch/BrushSizeRail.svelte': [
