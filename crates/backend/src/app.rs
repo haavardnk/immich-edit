@@ -118,6 +118,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
     let api = Router::new()
         .route("/health", get(routes::health::health))
         .route("/health/live", get(routes::health::live))
+        .route("/immich/ping", get(routes::health::immich_ping))
         .route(
             "/immich/capabilities",
             get(routes::health::immich_capabilities),

@@ -89,3 +89,46 @@ async fn live_endpoint_works_without_auth() {
     let json = body_json(resp).await;
     assert_eq!(json["status"], "ok");
 }
+
+#[tokio::test]
+async fn immich_ping_answers_no_content_while_immich_is_up() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let resp = test_app(&server)
+        .await
+        .oneshot(get("/api/immich/ping"))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NO_CONTENT {
+        panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn immich_ping_reports_an_unreachable_immich() {
+    let server = MockServer::start().await;
+    mock_ping_status(&server, 503).await;
+    let resp = test_app(&server)
+        .await
+        .oneshot(get("/api/immich/ping"))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::BAD_GATEWAY {
+        panic!("status {}", resp.status());
+    }
+    let json = body_json(resp).await;
+    if json["code"] != "upstream_unavailable" {
+        panic!("code: {json}");
+    }
+}
+
+#[tokio::test]
+async fn immich_ping_needs_a_session() {
+    let server = MockServer::start().await;
+    mock_ping_ok(&server).await;
+    let app = router(test_state(&server).await);
+    let resp = app.oneshot(get("/api/immich/ping")).await.unwrap();
+    if resp.status() != StatusCode::UNAUTHORIZED {
+        panic!("status {}", resp.status());
+    }
+}
