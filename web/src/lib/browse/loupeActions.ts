@@ -1,3 +1,4 @@
+import { holdPhoto } from '#lib/browse/photoHandoff.ts';
 import {
   clearFlags,
   setLabel,
@@ -152,6 +153,7 @@ export function leaveLoupeOnEditorPath(pathname: string): void {
 
 export function openInEditor(id: string | null = loupeFocusedId()): void {
   if (!id) return;
+  holdPhoto(id);
   browseView.leaveLoupeForEditor(id);
   void goto(editorHref(id, currentPath()));
 }

@@ -20,6 +20,7 @@
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
   import { zoomOut } from '#lib/browse/loupeZoom.ts';
+  import { handoffId, holdPhoto } from '#lib/browse/photoHandoff.ts';
   import { onEditorRoute } from '#lib/utils/route.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
@@ -40,6 +41,7 @@
 
   onNavigate((navigation) => {
     peek.hide();
+    holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
     if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
     return animatePageChange(navigation, layout.compact);
   });

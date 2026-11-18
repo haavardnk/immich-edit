@@ -37,7 +37,10 @@
   import { maskClickPill } from '#lib/panels/maskClickPill.ts';
   import { maskHoverPill } from '#lib/panels/maskHoverPill.ts';
   import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { page } from '$app/state';
+  import { landInEditor } from '#lib/browse/photoHandoff.ts';
   import { shapeWheel } from '#lib/editor/shapeWheel.svelte.ts';
   import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
   import { rangeSamplePill } from '#lib/panels/rangeSamplePill.ts';
@@ -176,6 +179,9 @@
   $effect(() => {
     ui.setFitZoom(metrics.fitZoom);
   });
+
+  const landing: Attachment<HTMLElement> = (stage) =>
+    untrack(() => landInEditor(page.params.id ?? null, stage));
 </script>
 
 <div
@@ -189,6 +195,7 @@
   {...editor.geometrySession ? {} : gestures.handlers}
   {onwheel}
   {@attach touchGestures}
+  {@attach landing}
 >
   {#if editor.geometrySession?.frameUrl}
     <CropOverlay />
