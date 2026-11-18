@@ -7,6 +7,7 @@ import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
+import type { MetaOutcome, MetaTarget } from '#lib/browse/assetMeta.ts';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -17,14 +18,16 @@ vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/albums/a1'), params: {} }
 }));
 
-const rateAsset = vi.hoisted(() => vi.fn(async (): Promise<boolean> => true));
+const setRating = vi.hoisted(() =>
+  vi.fn(async (_target: MetaTarget, _rating: number | null): Promise<MetaOutcome> => 'saved')
+);
 const clipboard = vi.hoisted(() => ({ copyEditsFrom: vi.fn(), pasteEditsTo: vi.fn() }));
 
 vi.mock('#lib/browse/copyPaste.ts', () => clipboard);
 
-vi.mock('#lib/browse/cull.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#lib/browse/cull.ts')>()),
-  rateAsset
+vi.mock('#lib/browse/assetMeta.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/browse/assetMeta.ts')>()),
+  setRating
 }));
 
 type GridProps = ComponentProps<typeof AssetGrid>;
@@ -59,6 +62,10 @@ function render(props: Partial<GridProps> = {}): void {
   flushSync();
 }
 
+function ratedIds(): [string, number | null][] {
+  return setRating.mock.calls.map(([target, rating]) => [target.id, rating]);
+}
+
 function tiles(): HTMLElement[] {
   return [...scroller.querySelectorAll<HTMLElement>('[role="group"]')];
 }
@@ -80,8 +87,8 @@ function press(key: string, init: KeyboardEventInit = {}): void {
 }
 
 beforeEach(() => {
-  rateAsset.mockClear();
-  rateAsset.mockResolvedValue(true);
+  setRating.mockClear();
+  setRating.mockResolvedValue('saved');
   clipboard.copyEditsFrom.mockClear();
   clipboard.pasteEditsTo.mockClear();
   selection.clear();
@@ -161,7 +168,7 @@ describe('AssetGrid', () => {
     browseView.setActive('a');
     render();
     press('3');
-    expect(rateAsset).not.toHaveBeenCalled();
+    expect(setRating).not.toHaveBeenCalled();
   });
 
   it('makes a ticked photo the active one', () => {
@@ -196,14 +203,15 @@ describe('AssetGrid', () => {
   });
 
   it.each([
-    ['moves the tick to the next photo', true, ['b'], 'b'],
-    ['stays when the rating fails to save', false, ['a'], 'a']
-  ])('Shift+3 on one ticked photo %s', async (_name, ok, selected, active) => {
-    rateAsset.mockResolvedValue(ok);
+    ['moves the tick to the next photo', 'saved', ['b'], 'b'],
+    ['moves on even when Immich refuses the rating', 'failed', ['b'], 'b'],
+    ['stays when the rating is not written', 'skipped', ['a'], 'a']
+  ] as const)('Shift+3 on one ticked photo %s', async (_name, outcome, selected, active) => {
+    setRating.mockResolvedValue(outcome);
     render();
     click(selectButton(0));
     press('#', { code: 'Digit3', shiftKey: true });
-    await vi.waitFor(() => expect(rateAsset).toHaveBeenCalledWith('a', 3));
+    await vi.waitFor(() => expect(ratedIds()).toEqual([['a', 3]]));
     await Promise.resolve();
     flushSync();
     expect([...selection.selected]).toEqual(selected);
@@ -215,7 +223,7 @@ describe('AssetGrid', () => {
     click(selectButton(0));
     click(selectButton(1));
     press('#', { code: 'Digit3', shiftKey: true });
-    expect(rateAsset.mock.calls).toEqual([
+    expect(ratedIds()).toEqual([
       ['a', 3],
       ['b', 3]
     ]);

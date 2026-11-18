@@ -61,6 +61,20 @@ describe('browsing store', () => {
     expect(feed.map((a) => a.id)).toEqual([A, B]);
   });
 
+  it('patches the listed photo in place', () => {
+    const photo = feed[0];
+    browsing.patch(A, { isFavorite: true });
+    expect(browsing.assets[0]).toBe(photo);
+    expect(photo?.isFavorite).toBe(true);
+  });
+
+  it('finds photos by id as the list changes', () => {
+    browsing.insertCopy(`${A}_1`, A, null);
+    expect(browsing.find(`${A}_1`)?.copyOf).toBe(A);
+    browsing.remove(B);
+    expect(browsing.find(B)).toBeNull();
+  });
+
   it('steps, places and counts only the photos the filter shows', () => {
     const shot = (id: string, make: string): AssetSummary => ({
       ...summary(id),

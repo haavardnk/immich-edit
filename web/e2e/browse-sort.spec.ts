@@ -294,3 +294,29 @@ test('folder view counts only the photos a filter keeps', async ({ page }) => {
   await expectOrder(page, [MID_ID, NEW_ID]);
   await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
 });
+
+test('rating a photo in a folder sorted by rating keeps it in place', async ({ page }) => {
+  const assets = [
+    { ...ASSETS[0], exifInfo: { rating: 5 } },
+    { ...ASSETS[1], exifInfo: { rating: 3 } },
+    { ...ASSETS[2], exifInfo: { rating: 1 } }
+  ];
+  await installMocks(page, { assets, structuredSearch: true });
+  await page.route('**/api/folders/assets?*', (route) => route.fulfill(json(assets)));
+  await page.addInitScript(() => {
+    localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
+    localStorage.setItem(
+      'immich-edit:browseSort',
+      JSON.stringify({ collection: { field: 'rating', direction: 'desc' } })
+    );
+  });
+
+  await page.goto('/folders?path=%2Fphotos');
+  await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
+
+  const tile = page.locator('div[title="IMG_0003.ARW"]');
+  await tile.hover();
+  await tile.getByRole('radio', { name: '5 stars' }).click();
+  await expect(tile.getByRole('radio', { name: '5 stars' })).toBeChecked();
+  await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
+});
