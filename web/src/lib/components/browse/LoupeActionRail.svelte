@@ -5,13 +5,10 @@
   import type { TagRef } from '#lib/types/asset.ts';
   import TagPicker from '#lib/components/TagPicker.svelte';
   import ZoomPopover from '#lib/components/ZoomPopover.svelte';
-  import StarRating from '#lib/components/StarRating.svelte';
-  import FavoriteButton from '#lib/components/FavoriteButton.svelte';
-  import RejectButton from '#lib/components/RejectButton.svelte';
-  import LabelPicker from '#lib/components/LabelPicker.svelte';
+  import CullControls from '#lib/components/CullControls.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import { NOT_OWNER } from '#lib/browse/ownership.ts';
-  import type { LabelColor } from '#lib/stores/labels.ts';
+  import type { CullActions, CullState } from '#lib/browse/cullState.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
@@ -26,12 +23,9 @@
   } from '@mdi/js';
 
   type Props = {
-    rating: number;
-    isFavorite: boolean;
-    rejected: boolean;
-    label: LabelColor | null;
+    cull: CullState;
+    actions: CullActions;
     tags: TagRef[];
-    owned: boolean;
     multi: boolean;
     position: number;
     count: number;
@@ -39,10 +33,6 @@
     zoom: number;
     fitZoom: number;
     fitMode: boolean;
-    onRate: (value: number | null) => void;
-    onFavorite: () => void;
-    onReject: () => void;
-    onLabel: (color: LabelColor | null) => void;
     onAddTag: (tag: TagRef) => Promise<void>;
     onRemoveTag: (tagId: string) => Promise<void>;
     onCreateTag: (value: string) => Promise<TagRef | null>;
@@ -52,12 +42,9 @@
   };
 
   let {
-    rating,
-    isFavorite,
-    rejected,
-    label,
+    cull,
+    actions,
     tags,
-    owned,
     multi,
     position,
     count,
@@ -65,10 +52,6 @@
     zoom,
     fitZoom,
     fitMode,
-    onRate,
-    onFavorite,
-    onReject,
-    onLabel,
     onAddTag,
     onRemoveTag,
     onCreateTag,
@@ -83,17 +66,12 @@
   class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
 >
   <div class="min-w-0 overflow-hidden">
-    <DisabledReason locked={!owned} reason={NOT_OWNER} class="flex min-w-0 items-center gap-2">
-      <div class="shrink-0">
-        <StarRating {rating} size={16} disabled={!owned} onchange={onRate} />
-      </div>
-      <FavoriteButton {isFavorite} disabled={!owned} ontoggle={onFavorite} />
-      <RejectButton isRejected={rejected} disabled={!owned} ontoggle={onReject} />
-      <LabelPicker {label} disabled={!owned} onchange={onLabel} />
+    <DisabledReason locked={!cull.owned} reason={NOT_OWNER} class="flex min-w-0 items-center gap-2">
+      <CullControls {...cull} starSize={16} {actions} />
       <div class="min-w-0">
         <TagPicker
           {tags}
-          disabled={!owned}
+          disabled={!cull.owned}
           open={browseView.loupeTagsOpen}
           onToggle={() => (browseView.loupeTagsOpen = !browseView.loupeTagsOpen)}
           onClose={() => (browseView.loupeTagsOpen = false)}

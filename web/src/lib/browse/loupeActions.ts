@@ -7,6 +7,7 @@ import {
   type MetaOutcome,
   type MetaTarget
 } from '#lib/browse/assetMeta.ts';
+import type { CullActions } from '#lib/browse/cullState.ts';
 import { advanceFocused, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -79,6 +80,13 @@ export function unflagFocused(): void {
 export function labelFocused(color: LabelColor | null): void {
   cull((target) => setLabel(target, color), autoAdvance);
 }
+
+export const loupeCullActions: CullActions = {
+  rate: rateFocused,
+  favorite: favoriteFocused,
+  reject: rejectFocused,
+  label: labelFocused
+};
 
 export function trashFocused(): void {
   const asset = loupeAsset();

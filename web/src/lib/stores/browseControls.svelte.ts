@@ -201,7 +201,7 @@ export class BrowseControlsStore {
     this.filters = { ...filters };
   }
 
-  private resetFilters(): void {
+  resetFilters(): void {
     this.applyFilters(FILTER_DEFAULTS);
   }
 

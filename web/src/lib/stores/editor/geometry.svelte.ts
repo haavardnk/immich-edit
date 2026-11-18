@@ -64,6 +64,7 @@ const CROP_EPS = 1e-3;
 let frameKey: string | null = null;
 let frameAbort: AbortController | null = null;
 let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+let flushing: Promise<void> | null = null;
 
 export function ready(ctx: GeometryCtx): GeometrySession | null {
   const sess = ctx.geometrySession;
@@ -257,9 +258,9 @@ export function scheduleCropCommit(ctx: GeometryCtx): void {
   }, WHEEL_COMMIT_MS);
 }
 
-export async function endSession(ctx: GeometryCtx): Promise<void> {
+export function endSession(ctx: GeometryCtx): Promise<void> {
   const sess = ctx.geometrySession;
-  if (!sess) return;
+  if (!sess) return flushing ?? Promise.resolve();
   const pending = wheelTimer !== null;
   if (wheelTimer) clearTimeout(wheelTimer);
   wheelTimer = null;
@@ -268,7 +269,12 @@ export async function endSession(ctx: GeometryCtx): Promise<void> {
   frameKey = null;
   if (sess.frameUrl) revoke(sess.frameUrl);
   ctx.geometrySession = null;
-  if (pending) await commit(ctx, 'Crop', sess);
+  if (!pending) return flushing ?? Promise.resolve();
+  const flush = commit(ctx, 'Crop', sess).finally(() => {
+    if (flushing === flush) flushing = null;
+  });
+  flushing = flush;
+  return flush;
 }
 
 function turnedAspect(aspect: AspectLock): AspectLock {

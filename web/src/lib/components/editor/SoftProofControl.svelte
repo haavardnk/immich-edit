@@ -1,9 +1,6 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { ColorSpaceOpt } from '#lib/api/export.ts';
   import { RadioGroup } from 'bits-ui';
@@ -19,15 +16,14 @@
       bind:value={() => editor.proofSpace, (v) => editor.setProofSpace(v as ColorSpaceOpt)}
       orientation="horizontal"
       aria-label="Proof space"
-      class="{segmentedControlClass} w-36"
+      class="{segmented.text.group} w-36"
     >
-      <RadioGroup.Item value="srgb" class="{segmentedRadioItemClass} flex-1">sRGB</RadioGroup.Item>
+      <RadioGroup.Item value="srgb" class="{segmented.text.radio} flex-1">sRGB</RadioGroup.Item>
       <RadioGroup.Item
         value="displayp3"
         disabled={!wideGamut.current}
         title={wideGamut.current ? undefined : 'Needs a wide-gamut display'}
-        class="{segmentedRadioItemClass} flex-1 data-disabled:opacity-40"
-        >Display P3</RadioGroup.Item
+        class="{segmented.text.radio} flex-1 data-disabled:opacity-40">Display P3</RadioGroup.Item
       >
     </RadioGroup.Root>
   </div>

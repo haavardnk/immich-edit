@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button } from '@immich/ui';
   import { refineWith, stopClickTool } from './maskTools';
@@ -12,7 +12,7 @@
 <div class="mt-1 flex h-7 items-center justify-between gap-1.5">
   <div class="text-[10px] font-medium text-dark/65">Click refine</div>
   <div class="flex items-center gap-1">
-    <div class="{compactSegmentedControlClass} flex text-[10px]">
+    <div class="{segmented.tool.group} flex text-[10px]">
       <Button
         type="button"
         size="tiny"

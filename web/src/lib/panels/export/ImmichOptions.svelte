@@ -3,10 +3,7 @@
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
   import type { TagSummary } from '#lib/api/tags.ts';
   import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
@@ -14,20 +11,20 @@
   import Notice from '#lib/components/Notice.svelte';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { REPLACE_STACKS, replaceWarning } from './replace';
-  import type { ExportForm } from './settings';
+  import type { ExportFormValues } from './settings';
   import type { StackPrimary } from '#lib/api/export.ts';
   import { IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { RadioGroup } from 'bits-ui';
 
   let {
-    form = $bindable<ExportForm>(),
+    form = $bindable<ExportFormValues>(),
     replaceOriginal = $bindable(false),
     stackable = true,
     stackReason = NOT_OWNER_STACK,
     replaceReason = null
   }: {
-    form: ExportForm;
+    form: ExportFormValues;
     replaceOriginal?: boolean;
     stackable?: boolean;
     stackReason?: string;
@@ -150,12 +147,12 @@
       bind:value={() => form.stackPrimary, (v) => (form.stackPrimary = v as StackPrimary)}
       orientation="horizontal"
       aria-label="Stack primary"
-      class="{segmentedControlClass} ml-5 self-start"
+      class="{segmented.text.group} ml-5 self-start"
     >
-      <RadioGroup.Item value="edited" class="{segmentedRadioItemClass} px-2">
+      <RadioGroup.Item value="edited" class="{segmented.text.radio} px-2">
         Edit primary
       </RadioGroup.Item>
-      <RadioGroup.Item value="original" class="{segmentedRadioItemClass} px-2">
+      <RadioGroup.Item value="original" class="{segmented.text.radio} px-2">
         Original primary
       </RadioGroup.Item>
     </RadioGroup.Root>

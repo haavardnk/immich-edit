@@ -2,9 +2,9 @@
   import TextInput from '#lib/components/TextInput.svelte';
   import { Field, Select } from '@immich/ui';
   import { SHARPEN_PPI, isPrintMedia, sharpenError } from './sharpen';
-  import { SHARPEN_AMOUNTS, SHARPEN_MEDIA, formSharpen, type ExportForm } from './settings';
+  import { SHARPEN_AMOUNTS, SHARPEN_MEDIA, formSharpen, type ExportFormValues } from './settings';
 
-  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
+  let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
   const error = $derived(sharpenError(formSharpen(form)));
 </script>

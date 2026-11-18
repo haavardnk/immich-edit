@@ -8,7 +8,7 @@
   import { loadEditedAssets } from '#lib/browse/sources.ts';
   import { timeOf } from '#lib/browse/sortAssets.ts';
   import { arrangeLoaded } from '#lib/browse/loadedFilter.ts';
-  import BrowseShell from '#lib/components/browse/BrowseShell.svelte';
+  import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
   import type { AssetSummary } from '#lib/types/album.ts';
 
   let loading = $state(true);
@@ -28,7 +28,7 @@
   });
 </script>
 
-<BrowseShell
+<BrowsePage
   title="Edited"
   {assets}
   {loading}

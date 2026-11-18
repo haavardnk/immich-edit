@@ -2,8 +2,11 @@ import type { Edits } from '#lib/types/edits.ts';
 import { clipboard } from '#lib/stores/clipboard.svelte.ts';
 import {
   DEFAULT_COPY_SECTIONS,
+  DEVELOP_KEYS,
+  allSections,
   hasSelectedSections,
-  type CopySections
+  type CopySections,
+  type SectionKey
 } from '#lib/editor/copyPaste.ts';
 
 class CopyDialogStore {
@@ -16,6 +19,20 @@ class CopyDialogStore {
     this.source = structuredClone(edits) as Edits;
     this.onCopied = onCopied ?? null;
     this.open = true;
+  };
+
+  setSection = (key: SectionKey, value: boolean): void => {
+    this.sections = { ...this.sections, [key]: value };
+  };
+
+  setDevelop = (value: boolean): void => {
+    const next = { ...this.sections };
+    for (const k of DEVELOP_KEYS) next[k] = value;
+    this.sections = next;
+  };
+
+  setAll = (value: boolean): void => {
+    this.sections = allSections(value);
   };
 
   confirm = (): void => {

@@ -7,11 +7,12 @@ import {
   formInvalid,
   immichOptions,
   restoreExportForm,
-  type ExportForm
+  spaceLabel,
+  type ExportFormValues
 } from './settings';
 import type { ExportFormat } from '#lib/api/export.ts';
 
-function form(patch: Partial<ExportForm> = {}): ExportForm {
+function form(patch: Partial<ExportFormValues> = {}): ExportFormValues {
   return { ...defaultExportForm(), ...patch };
 }
 
@@ -39,7 +40,7 @@ describe('restoreExportForm', () => {
     expect(restoreExportForm(JSON.parse(JSON.stringify(saved)))).toEqual(saved);
   });
 
-  it.each<[Record<string, unknown>, Partial<ExportForm>]>([
+  it.each<[Record<string, unknown>, Partial<ExportFormValues>]>([
     [
       { resizeMode: 'percent', resizePercent: -3 },
       { resizeMode: 'percent', resizePercent: 50 }
@@ -107,7 +108,7 @@ describe('restoreExportForm', () => {
 });
 
 describe('baseOptions', () => {
-  it.each<[string, Partial<ExportForm>, boolean]>([
+  it.each<[string, Partial<ExportFormValues>, boolean]>([
     ['lossy webp keeping metadata', { format: 'webp', metadata: 'all', lossless: false }, false],
     ['webp asked for lossless', { format: 'webp', metadata: 'none', lossless: true }, true]
   ])('resolves lossless for %s', (_name, patch, expected) => {
@@ -126,7 +127,7 @@ describe('baseOptions', () => {
     });
   });
 
-  it.each<[Partial<ExportForm>, unknown]>([
+  it.each<[Partial<ExportFormValues>, unknown]>([
     [{ resizeMode: 'none', resizeWidth: 900 }, null],
     [
       { resizeMode: 'dimensions', resizeWidth: 1600, resizeHeight: null, resizeEnlarge: true },
@@ -144,7 +145,7 @@ describe('baseOptions', () => {
     expect(baseOptions(form(patch)).resize).toEqual(resize);
   });
 
-  it.each<[Partial<ExportForm>, unknown]>([
+  it.each<[Partial<ExportFormValues>, unknown]>([
     [{ sharpenMedia: 'none', sharpenAmount: 'high' }, null],
     [
       { sharpenMedia: 'glossy', sharpenAmount: 'low', sharpenPpi: 600 },
@@ -154,7 +155,7 @@ describe('baseOptions', () => {
     expect(baseOptions(form(patch)).sharpen).toEqual(sharpen);
   });
 
-  it.each<[Partial<ExportForm>, unknown]>([
+  it.each<[Partial<ExportFormValues>, unknown]>([
     [{ watermarkId: null, watermarkSize: 40 }, null],
     [
       { watermarkId: 'wm', watermarkAnchor: 'left' },
@@ -166,7 +167,7 @@ describe('baseOptions', () => {
 });
 
 describe('formInvalid', () => {
-  it.each<[Partial<ExportForm>, boolean]>([
+  it.each<[Partial<ExportFormValues>, boolean]>([
     [{}, false],
     [{ sharpenMedia: 'matte', sharpenPpi: 50 }, true],
     [{ sharpenMedia: 'glossy', sharpenPpi: 300.5 }, true],
@@ -216,6 +217,15 @@ describe('formatLabel', () => {
     ['jxl', 'JPEG XL']
   ] as const)('labels %s as %s', (format, label) => {
     expect(formatLabel(format)).toBe(label);
+  });
+});
+
+describe('spaceLabel', () => {
+  it.each([
+    ['srgb', 'sRGB'],
+    ['displayp3', 'Display P3']
+  ] as const)('labels %s as %s', (space, label) => {
+    expect(spaceLabel(space)).toBe(label);
   });
 });
 

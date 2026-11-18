@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { structuredRoute } from '#lib/browse/browseRoutes.ts';
   import { page } from '$app/state';
@@ -42,7 +39,7 @@
 
 <div class="flex flex-col gap-1">
   <span class="editor-compact-label select-none">Rating</span>
-  <div class={segmentedControlClass}>
+  <div class={segmented.text.group}>
     <RadioGroup.Root
       bind:value={
         () => (stars === 0 ? String(browseControls.filters.rating) : ''),
@@ -52,14 +49,14 @@
       aria-label="Rating presets"
       class="flex shrink-0 gap-0.5"
     >
-      <RadioGroup.Item value="any" class="{segmentedRadioItemClass} px-2">Any</RadioGroup.Item>
+      <RadioGroup.Item value="any" class="{segmented.text.radio} px-2">Any</RadioGroup.Item>
       <Tooltip text="Unrated">
         {#snippet child({ props })}
           <RadioGroup.Item
             {...props}
             value="unrated"
             aria-label="Unrated"
-            class="{segmentedRadioItemClass} px-2"
+            class="{segmented.text.radio} px-2"
           >
             <Icon icon={mdiStarOffOutline} size="14px" aria-hidden="true" />
           </RadioGroup.Item>

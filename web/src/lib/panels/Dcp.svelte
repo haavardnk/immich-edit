@@ -4,10 +4,7 @@
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import FileImportButton from '#lib/components/FileImportButton.svelte';
   import Notice from '#lib/components/Notice.svelte';
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { mdiChevronDown, mdiClose, mdiTuneVariant } from '@mdi/js';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
@@ -202,13 +199,10 @@
                 bind:value={() => dcp.illuminant, (v) => setIlluminant(v as DcpIlluminant)}
                 orientation="horizontal"
                 aria-label="Illuminant"
-                class={segmentedControlClass}
+                class={segmented.text.group}
               >
                 {#each illuminants as illuminant (illuminant.value)}
-                  <RadioGroup.Item
-                    value={illuminant.value}
-                    class="{segmentedRadioItemClass} flex-1"
-                  >
+                  <RadioGroup.Item value={illuminant.value} class="{segmented.text.radio} flex-1">
                     {illuminant.label}
                   </RadioGroup.Item>
                 {/each}

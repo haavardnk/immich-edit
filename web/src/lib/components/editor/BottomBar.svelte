@@ -4,16 +4,17 @@
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
-  import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
+  import { NOT_OWNER } from '#lib/browse/ownership.ts';
+  import { cullState } from '#lib/browse/cullState.ts';
+  import { editorCullActions } from '#lib/commands/editor/culling.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
-  import RatingControl from './RatingControl.svelte';
-  import TagsStrip from './TagsStrip.svelte';
-  import SaveStatus from './SaveStatus.svelte';
+  import CullControls from '#lib/components/CullControls.svelte';
+  import TagsStrip from '#lib/components/editor/TagsStrip.svelte';
+  import SaveStatus from '#lib/components/editor/SaveStatus.svelte';
   import { Button } from '@immich/ui';
   import { mdiFilmstrip, mdiPaletteSwatchOutline } from '@mdi/js';
 
-  const hasAsset = $derived(editor.asset != null);
-  const owned = $derived(editor.asset ? ownsAsset(editor.asset) : false);
+  const cull = $derived(editor.asset ? cullState(editor.asset) : null);
   const hasFilmstrip = $derived(browsing.visible.length > 0);
   const filmstripShown = $derived(!ui.editorFilmstripCollapsed && !ui.presetStrip);
 </script>
@@ -23,15 +24,19 @@
   class="relative grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-t border-hairline bg-editor-chrome px-2"
 >
   <div class="-my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1">
-    {#if hasAsset}
+    {#if cull}
       <DisabledReason
-        locked={!owned}
+        locked={!cull.owned}
         reason={NOT_OWNER}
         class="-my-1 -ms-1 flex min-w-0 items-center gap-2 overflow-hidden py-1 ps-1"
       >
-        <RatingControl />
+        <div
+          class="flex h-7 shrink-0 items-center gap-1 [&_button:not([data-label])]:text-light-950/55 [&_button:not([data-label]):hover]:text-light-950/90"
+        >
+          <CullControls {...cull} starSize={14} actions={editorCullActions} />
+        </div>
         <div class="min-w-0 overflow-hidden">
-          <TagsStrip disabled={!owned} />
+          <TagsStrip disabled={!cull.owned} />
         </div>
       </DisabledReason>
     {/if}

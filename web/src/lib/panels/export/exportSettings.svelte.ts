@@ -1,15 +1,19 @@
+import {
+  restoreExportForm,
+  type Destination,
+  type ExportFormValues
+} from '#lib/panels/export/settings.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import { restoreExportForm, type Destination, type ExportForm } from './settings';
 
 const STORAGE_KEY = 'immich-edit:exportSettings';
 
 interface PersistedExportSettings {
-  form: Partial<Record<keyof ExportForm, unknown>>;
+  form: Partial<Record<keyof ExportFormValues, unknown>>;
   destination: Destination;
 }
 
 class ExportSettingsStore {
-  form = $state<ExportForm>(restoreExportForm(undefined));
+  form = $state<ExportFormValues>(restoreExportForm(undefined));
   destination = $state<Destination>('download');
 
   constructor() {

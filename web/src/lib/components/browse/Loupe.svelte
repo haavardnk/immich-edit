@@ -7,19 +7,14 @@
   import {
     canDropPane,
     dropFocusedPane,
-    favoriteFocused,
-    labelFocused,
     loupeAsset,
+    loupeCullActions,
     loupeFocusedId,
-    openInEditor,
-    rateFocused,
-    rejectFocused
+    openInEditor
   } from '#lib/browse/loupeActions.ts';
   import { loupeHost } from '#lib/commands/loupe/loupeHost.ts';
-  import { labelOf } from '#lib/stores/labels.ts';
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
-  import { isRejected } from '#lib/browse/reject.ts';
-  import { ownsAsset } from '#lib/browse/ownership.ts';
+  import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { paneGridStyle } from '#lib/browse/loupeLayout.ts';
   import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
@@ -48,9 +43,6 @@
   const panes = $derived(multi ? compare.members : currentId ? [currentId] : []);
   const focusedId = $derived(loupeFocusedId());
   const asset = $derived(loupeAsset());
-  const rating = $derived(asset?.exifInfo?.rating ?? 0);
-  const rejected = $derived(asset ? isRejected(asset) : false);
-  const label = $derived(asset ? labelOf(asset) : null);
   const copyBadge = $derived(
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
@@ -271,22 +263,15 @@
 
     {#if !ui.fullscreen}
       <LoupeActionRail
-        {rating}
-        isFavorite={asset.isFavorite}
-        {rejected}
-        {label}
+        cull={cullState(asset)}
         tags={currentTags}
-        owned={ownsAsset(asset)}
         {multi}
         {position}
         {count}
         {zoom}
         fitZoom={focusedFitZoom}
         fitMode={paneView.zoom === null}
-        onRate={rateFocused}
-        onFavorite={favoriteFocused}
-        onReject={rejectFocused}
-        onLabel={labelFocused}
+        actions={loupeCullActions}
         onAddTag={addTag}
         onRemoveTag={removeTag}
         onCreateTag={createAndAddTag}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { compactSegmentedControlClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { BRUSH_FLOW, BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
@@ -14,7 +14,7 @@
 <div class="mt-1 flex flex-col gap-1">
   <div class="flex h-7 items-center justify-between">
     <div class="text-[10px] font-medium text-dark/65">Brush</div>
-    <div class="{compactSegmentedControlClass} flex text-[10px]">
+    <div class="{segmented.tool.group} flex text-[10px]">
       <Button
         type="button"
         size="tiny"

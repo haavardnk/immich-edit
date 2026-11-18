@@ -14,9 +14,9 @@
   import { mergeProps } from 'bits-ui';
   import { mdiUpload } from '@mdi/js';
   import { WATERMARK_ANCHORS, WATERMARK_PERCENT } from './watermark';
-  import type { ExportForm } from './settings';
+  import type { ExportFormValues } from './settings';
 
-  let { form = $bindable<ExportForm>() }: { form: ExportForm } = $props();
+  let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
   let watermarks = $state<WatermarkMeta[]>([]);
   let loaded = $state(false);
