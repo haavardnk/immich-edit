@@ -1,4 +1,5 @@
 <script lang="ts" generics="T">
+  import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import TextInput from '#lib/components/TextInput.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mdiCheck, mdiChevronDown, mdiClose, mdiMagnify, mdiPlus } from '@mdi/js';
@@ -6,6 +7,7 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { pickerHost } from '#lib/components/sheet/pickerHost.ts';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { flushSync, untrack, type Snippet } from 'svelte';
 
   let {
@@ -63,6 +65,7 @@
 
   let input = $state('');
   let open = $state(false);
+  const sheet = presence(() => open);
   let anchor = $state<HTMLElement | null>(null);
   let inputElement = $state<HTMLInputElement | null>(null);
   let sheetInput = $state<HTMLInputElement | null>(null);
@@ -178,7 +181,11 @@
     <span class="size-2 shrink-0 rounded-full" style:background-color={itemColor}></span>
   {/if}
   <span class="min-w-0 flex-1 text-left">
-    <span class="block truncate" title={getLabel(item)}>{getLabel(item)}</span>
+    <TruncationTooltip text={getLabel(item)}>
+      {#snippet child({ props })}
+        <span {...props} class="block truncate">{getLabel(item)}</span>
+      {/snippet}
+    </TruncationTooltip>
     {#if description}
       <span class="block truncate text-[10px] text-dark/65">{description}</span>
     {/if}
@@ -316,10 +323,11 @@
       />
     {/if}
   </div>
-  {#if open}
+  {#if sheet.mounted}
     <BottomSheet
       {open}
       onOpenChange={sheetOpenChange}
+      onExited={sheet.exited}
       title={label}
       close="icon"
       detents={[{ fraction: 1 }]}

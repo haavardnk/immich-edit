@@ -2,6 +2,7 @@
   import { ContextMenu as Bits } from 'bits-ui';
   import type { Snippet } from 'svelte';
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { clickGuard } from '#lib/gestures/clickGuard.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
@@ -11,11 +12,13 @@
   let {
     trigger,
     children,
-    disabled = false
+    disabled = false,
+    title
   }: {
     trigger: Snippet<[Record<string, unknown>]>;
     children: Snippet;
     disabled?: boolean;
+    title?: string;
   } = $props();
 
   function nativeFocus(props: Record<string, unknown>): Record<string, unknown> {
@@ -24,6 +27,7 @@
   }
 
   let open = $state(false);
+  const sheet = presence(() => open);
 
   const touch = $derived(layout.mode === 'touch');
   const guard = clickGuard();
@@ -49,8 +53,14 @@
 
 {#if touch}
   {@render trigger(touchTriggerProps)}
-  {#if open}
-    <ActionSheet {open} onOpenChange={(next) => (open = next)} title="Actions">
+  {#if sheet.mounted}
+    <ActionSheet
+      {open}
+      onOpenChange={(next) => (open = next)}
+      onExited={sheet.exited}
+      title={title ?? 'Actions'}
+      caption={title !== undefined}
+    >
       {@render children()}
     </ActionSheet>
   {/if}
@@ -64,7 +74,7 @@
     <Bits.Portal>
       <Bits.Content
         collisionPadding={8}
-        class="z-50 min-w-44 rounded-md border border-light-950/10 bg-light-100 py-1 text-dark shadow-popover dark:ring-1 dark:ring-black/20"
+        class="z-50 min-w-44 rounded-md border border-hairline bg-light-100 py-1 text-dark shadow-popover dark:ring-1 dark:ring-black/20"
       >
         {@render children()}
       </Bits.Content>

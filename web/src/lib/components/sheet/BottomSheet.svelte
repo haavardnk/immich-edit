@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SheetHandle from '#lib/components/sheet/SheetHandle.svelte';
   import SheetScrim from '#lib/components/sheet/SheetScrim.svelte';
   import { sheetMotion } from '#lib/components/sheet/sheetMotion.ts';
   import { nextDetent, resolveDetents, type Detent } from '#lib/components/sheet/sheetSnap.ts';
@@ -10,7 +11,7 @@
   import { Button, IconButton } from '@immich/ui';
   import { mdiClose } from '@mdi/js';
   import { Dialog } from 'bits-ui';
-  import { tick, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import type { HTMLAttributes } from 'svelte/elements';
 
@@ -18,41 +19,45 @@
     open,
     onOpenChange,
     title,
+    subtitle,
     titleHidden = false,
     modal = true,
+    scrim = 'dim',
     dismissable = true,
-    dismissOnOutside,
-    outsideExempt = null,
     detents = ['content'],
     detent = $bindable(0),
     detentLabels,
     close,
+    closeLabel = 'close',
     header,
     footer,
     bodyClass = '',
+    peek = false,
+    onExited,
     children,
     ...rest
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onExited?: () => void;
     title: string;
+    subtitle?: string;
     titleHidden?: boolean;
     modal?: boolean;
+    scrim?: 'dim' | 'light';
     dismissable?: boolean;
-    dismissOnOutside?: boolean;
-    outsideExempt?: HTMLElement | null;
     detents?: readonly Detent[];
     detent?: number;
     detentLabels?: readonly string[];
     close?: 'icon' | 'done';
+    closeLabel?: string;
     header?: Snippet;
     footer?: Snippet;
     bodyClass?: string;
+    peek?: boolean;
     children: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'title'> = $props();
 
-  const uid = $props.id();
-  const valueId = `${uid}-detent`;
   const guard = clickGuard();
   const inset = viewportInset();
 
@@ -62,9 +67,14 @@
   let bodyHeight = $state(0);
   let bottomHeight = $state(0);
   let focusInside = $state(false);
+  let present = $state(untrack(() => open));
+  let leaving = $state(false);
   let closing = false;
+  let slidOut = false;
+  let exits = 0;
+  let opened = 0;
 
-  const outsideCloses = $derived(dismissOnOutside ?? (modal && dismissable));
+  const outsideCloses = $derived(modal && dismissable);
   const escapeCloses = $derived(dismissable && (modal || focusInside));
   const headerRow = $derived(!titleHidden || header !== undefined || close !== undefined);
   const steppable = $derived(detents.length > 1);
@@ -124,11 +134,37 @@
   async function requestClose(): Promise<void> {
     if (closing || !open) return;
     closing = true;
+    leaving = true;
+    const session = opened;
     await motion.slideOut();
+    if (session !== opened) return;
+    slidOut = true;
     onOpenChange(false);
     await tick();
     closing = false;
-    if (open) await motion.settle(restHeight);
+    if (open) reopen();
+  }
+
+  function reopen(): void {
+    opened += 1;
+    exits += 1;
+    closing = false;
+    slidOut = false;
+    present = true;
+    if (!leaving) return;
+    leaving = false;
+    void motion.settle(restHeight);
+  }
+
+  async function exit(): Promise<void> {
+    const mine = ++exits;
+    leaving = true;
+    if (!slidOut) await motion.slideOut();
+    if (mine !== exits || open) return;
+    present = false;
+    leaving = false;
+    slidOut = false;
+    onExited?.();
   }
 
   function escape(event: KeyboardEvent): void {
@@ -138,7 +174,6 @@
 
   function outside(event: Event): void {
     event.preventDefault();
-    if (event.target instanceof Node && outsideExempt?.contains(event.target)) return;
     void requestClose();
   }
 
@@ -157,7 +192,12 @@
 
   $effect(() => {
     const height = restHeight;
-    if (!motion.dragging() && !closing) motion.rest(height);
+    if (!motion.dragging() && !closing && !untrack(() => leaving)) motion.rest(height);
+  });
+
+  $effect(() => {
+    if (open) untrack(reopen);
+    else if (untrack(() => present)) untrack(() => void exit());
   });
 
   $effect(() => {
@@ -174,16 +214,17 @@
 <Dialog.Root bind:open={() => open, () => undefined}>
   <Dialog.Portal>
     {#if modal}
-      <SheetScrim />
+      <SheetScrim tone={scrim} leaving={leaving || peek} />
     {/if}
-    {#if open}
+    {#if present}
       <div
-        class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+8px)]"
+        class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+var(--sheet-gap))]"
         style:top="{inset.top}px"
         style:bottom="{inset.bottom}px"
       >
         <div class="flex min-h-0 flex-1 flex-col justify-end" bind:clientHeight={available}>
           <Dialog.Content
+            forceMount
             bind:ref={content}
             trapFocus={modal}
             preventScroll={modal}
@@ -199,11 +240,14 @@
                 {...props}
                 aria-modal={modal ? 'true' : 'false'}
                 tabindex="-1"
-                class="flex max-h-full min-h-0 w-full flex-col outline-none"
+                class="flex max-h-full min-h-0 w-full flex-col outline-none motion-safe:transition-opacity motion-safe:duration-base {peek
+                  ? 'opacity-0'
+                  : ''}"
+                style:pointer-events={leaving && !open ? 'none' : 'auto'}
                 {@attach trackFocus}
               >
                 <div
-                  class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl bg-light-50 pr-(--safe-right) pl-(--safe-left) text-dark shadow-popover starting:translate-y-full motion-safe:transition-[translate,transform] motion-safe:duration-300 motion-safe:ease-out motion-safe:data-snapping:transition-[translate,transform,height]"
+                  class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl bg-light-50 pr-(--safe-right) pl-(--safe-left) text-dark shadow-popover starting:[translate:0_100%] motion-safe:transition-[translate,transform] motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-snapping:transition-[translate,transform,height] motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit"
                   {@attach motion.panel}
                 >
                   <div
@@ -211,28 +255,15 @@
                     bind:offsetHeight={topHeight}
                     {@attach guard.attachment}
                   >
-                    <div class="flex justify-center pt-1" {@attach handleDrag}>
-                      <button
-                        type="button"
-                        data-sheet-handle
-                        aria-label="Resize sheet"
-                        aria-describedby={steppable ? valueId : undefined}
-                        aria-hidden={steppable ? undefined : 'true'}
-                        tabindex={steppable ? 0 : -1}
-                        class="relative flex h-5 w-24 cursor-grab items-center justify-center rounded-full outline-none before:absolute before:inset-x-0 before:-inset-y-3 focus-visible:ring-2 focus-visible:ring-primary"
-                        onclick={step}
-                      >
-                        <span class="h-1 w-9 rounded-full bg-light-950/25"></span>
-                      </button>
-                      {#if steppable}
-                        <span id={valueId} class="sr-only">{detentText}</span>
-                      {/if}
-                    </div>
+                    <SheetHandle {steppable} {detentText} drag={handleDrag} onstep={step} />
                     {#if headerRow}
                       <div
                         class="flex min-h-12 items-center gap-1 border-b border-hairline pr-1.5 pl-4"
                       >
-                        <div class="flex min-h-11 min-w-0 shrink items-center" {@attach titleDrag}>
+                        <div
+                          class="flex min-h-11 min-w-0 shrink flex-wrap items-center gap-x-2"
+                          {@attach titleDrag}
+                        >
                           <Dialog.Title
                             class={titleHidden
                               ? 'sr-only'
@@ -240,8 +271,11 @@
                           >
                             {title}
                           </Dialog.Title>
+                          {#if subtitle}
+                            <span class="shrink-0 text-label text-dark/65">{subtitle}</span>
+                          {/if}
                         </div>
-                        <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                        <div class="ms-auto flex shrink-0 items-center justify-end gap-1.5">
                           {@render header?.()}
                         </div>
                         {#if close === 'icon'}
@@ -250,7 +284,7 @@
                             variant="ghost"
                             color="secondary"
                             icon={mdiClose}
-                            aria-label="close"
+                            aria-label={closeLabel}
                             class="min-h-11 min-w-11 flex-none"
                             onclick={() => void requestClose()}
                           />
@@ -280,7 +314,7 @@
                     bind:offsetHeight={bottomHeight}
                   >
                     {#if footer}
-                      <div class="flex items-center border-t border-hairline px-5 py-3">
+                      <div class="flex items-center border-t border-hairline px-3 py-2.5">
                         {@render footer()}
                       </div>
                     {/if}

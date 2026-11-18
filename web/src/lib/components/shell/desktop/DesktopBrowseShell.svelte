@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reveal } from '#lib/motion/reveal.ts';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
   import TopBar from '#lib/components/shell/desktop/TopBar.svelte';
@@ -22,14 +23,16 @@
   </AppShellBar>
   <AppShellSidebar bind:open={navSidebar.open} border={false} class="bg-light-50">
     {#if navSidebar.open}
-      {#if settingsRoute}
-        <SettingsSidebar />
-      {:else}
-        <LeftSidebar />
-      {/if}
+      <div class="h-full" transition:reveal={{ axis: 'x' }}>
+        {#if settingsRoute}
+          <SettingsSidebar />
+        {:else}
+          <LeftSidebar />
+        {/if}
+      </div>
     {/if}
   </AppShellSidebar>
-  <main class="flex h-full min-w-0 flex-col bg-light">
+  <main data-page class="flex h-full min-w-0 flex-col bg-light">
     {@render children()}
   </main>
 </AppShell>

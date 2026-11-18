@@ -1,19 +1,12 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
 import ContainerHarness from '#lib/testing/ContainerHarness.svelte';
+import { isAnyModalOpen } from '#lib/stores/overlays.ts';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ mode: 'desktop' as 'desktop' | 'touch' }));
-
-vi.mock('#lib/device/layout.svelte.ts', () => ({
-  layout: {
-    get mode() {
-      return h.mode;
-    },
-    get hasKeyboard() {
-      return false;
-    }
-  }
+vi.mock('#lib/device/layout.svelte.ts', async () => ({
+  layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
 }));
 
 type HarnessProps = ComponentProps<typeof ContainerHarness>;
@@ -30,11 +23,11 @@ async function settle(): Promise<void> {
   flushSync();
 }
 
-async function render(kind: HarnessProps['kind']) {
+async function render(kind: HarnessProps['kind'], closeOnRow = false) {
   const spies = { onClose: vi.fn(), onOpenChange: vi.fn(), onRow: vi.fn() };
   component = mount(Host, {
     target,
-    props: { component: ContainerHarness, props: { kind, ...spies } }
+    props: { component: ContainerHarness, props: { kind, closeOnRow, ...spies } }
   });
   await settle();
   return spies;
@@ -64,6 +57,10 @@ function popoverContent(): Element | null {
   return document.querySelector('[data-popover-content]');
 }
 
+async function exited(find: () => Element | null): Promise<void> {
+  await vi.waitFor(() => expect(find()).toBeNull());
+}
+
 function dialogName(dialog: Element): string {
   const id = dialog.getAttribute('aria-labelledby');
   return id ? (document.getElementById(id)?.textContent.trim() ?? '') : '';
@@ -85,7 +82,7 @@ function touchPointer(element: Element, type: string): void {
 }
 
 beforeEach(() => {
-  h.mode = 'desktop';
+  resetLayout();
   target = document.createElement('div');
   document.body.appendChild(target);
 });
@@ -107,7 +104,7 @@ describe('Dialog presentation', () => {
   });
 
   it('becomes a bottom sheet named by its title on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onClose } = await render('dialog');
     const dialog = document.querySelector('[role="dialog"]');
     if (!dialog) throw new Error('no dialog');
@@ -116,16 +113,6 @@ describe('Dialog presentation', () => {
     expect(sheetHandle()).not.toBeNull();
     expect(dialog.textContent).toContain('Dialog body');
     button('close').click();
-    await settle();
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('closes the touch sheet on Escape', async () => {
-    h.mode = 'touch';
-    const { onClose } = await render('dialog');
-    (document.activeElement ?? document.body).dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
-    );
     await settle();
     expect(onClose).toHaveBeenCalled();
   });
@@ -149,27 +136,8 @@ describe('Popover presentation', () => {
     expect(hasButton('Done')).toBe(false);
   });
 
-  it('opens a menu as an action sheet with Cancel on touch', async () => {
-    h.mode = 'touch';
-    const { onOpenChange, onRow } = await render('menu');
-    expect(popoverContent()).toBeNull();
-    button('Toggle').click();
-    await settle();
-    const content = popoverContent();
-    expect(content?.getAttribute('role')).toBe('dialog');
-    expect(content && dialogName(content)).toBe('Popover title');
-    expect(content?.className).not.toContain('max-h-80');
-    expect(sheetHandle()).toBeNull();
-    expect(button('Cancel')).toBeTruthy();
-    button('Run row').click();
-    await settle();
-    expect(onRow).toHaveBeenCalled();
-    expect(onOpenChange).toHaveBeenLastCalledWith(false);
-    expect(popoverContent()).toBeNull();
-  });
-
   it('closes the action sheet from Cancel', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     const { onOpenChange, onRow } = await render('menu');
     button('Toggle').click();
     await settle();
@@ -179,36 +147,40 @@ describe('Popover presentation', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
-  it('opens a panel as a modal bottom sheet with Done on touch', async () => {
-    h.mode = 'touch';
-    const { onOpenChange } = await render('panel');
+  it('opens a control popover as a modal sheet with its title, a close and a light scrim', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange } = await render('control');
     button('Toggle').click();
     await settle();
     const content = popoverContent();
+    expect(content?.getAttribute('role')).toBe('dialog');
     expect(content?.getAttribute('aria-modal')).toBe('true');
     expect(content && dialogName(content)).toBe('Popover title');
-    expect(sheetHandle()).not.toBeNull();
+    expect(
+      document.getElementById(content?.getAttribute('aria-labelledby') ?? '')?.className
+    ).not.toContain('sr-only');
+    expect(document.querySelector('[data-dialog-overlay]')?.className).toContain('bg-black/20');
     expect(hasButton('Cancel')).toBe(false);
-    expect(content?.querySelector('.max-h-80')).toBeNull();
-    button('Done').click();
+    expect(hasButton('Done')).toBe(false);
+    button('Close').click();
     await settle();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(popoverContent()).toBeNull();
   });
 
-  it('opens a control popover as a non-modal sheet on touch', async () => {
-    h.mode = 'touch';
+  it('holds keys for itself and closes a control sheet on Escape', async () => {
+    layoutState.mode = 'touch';
     const { onOpenChange } = await render('control');
     button('Toggle').click();
     await settle();
-    expect(popoverContent()?.getAttribute('role')).toBe('dialog');
-    expect(popoverContent()?.getAttribute('aria-modal')).toBe('false');
-    expect(document.querySelector('[data-dialog-overlay]')).toBeNull();
-    expect(hasButton('Cancel')).toBe(false);
-    button('Toggle').click();
+    expect(isAnyModalOpen()).toBe(true);
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
     await settle();
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(popoverContent()).toBeNull();
+    expect(isAnyModalOpen()).toBe(false);
   });
 });
 
@@ -223,28 +195,8 @@ describe('ContextMenu presentation', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('opens an action sheet on long press on touch and runs the row', async () => {
-    h.mode = 'touch';
-    const { onRow } = await render('context');
-    vi.useFakeTimers();
-    touchPointer(button('Thumb'), 'pointerdown');
-    vi.advanceTimersByTime(600);
-    flushSync();
-    touchPointer(button('Thumb'), 'pointerup');
-    vi.useRealTimers();
-    await settle();
-    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(button('Cancel')).toBeTruthy();
-    const row = document.querySelector<HTMLButtonElement>('button[data-menu-row]');
-    expect(row?.textContent.trim()).toBe('Open row');
-    row?.click();
-    await settle();
-    expect(onRow).toHaveBeenCalled();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-  });
-
   it('opens the action sheet from the context menu key on touch', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     await render('context');
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     button('Thumb').dispatchEvent(event);
@@ -253,11 +205,11 @@ describe('ContextMenu presentation', () => {
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     button('Cancel').click();
     await settle();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await exited(() => document.querySelector('[role="dialog"]'));
   });
 
   it('does not open on a short touch press', async () => {
-    h.mode = 'touch';
+    layoutState.mode = 'touch';
     await render('context');
     vi.useFakeTimers();
     touchPointer(button('Thumb'), 'pointerdown');

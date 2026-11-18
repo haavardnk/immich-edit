@@ -14,6 +14,10 @@ export function tagHasValue(tag: TagRef, value: string): boolean {
   return !!tag.value && tag.value.toLowerCase() === value.toLowerCase();
 }
 
+export function userTags(tags: readonly TagSummary[]): TagSummary[] {
+  return tags.filter((tag) => !isManagedTag(toTagRef(tag)));
+}
+
 export function toTagRef(tag: TagSummary): TagRef {
   return {
     id: tag.id,

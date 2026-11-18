@@ -26,6 +26,12 @@
 @theme {
   --font-sans: 'Google Sans', sans-serif;
   --font-mono: 'Google Sans Code', monospace;
+  --text-nano: 9px;
+  --text-micro: 10px;
+  --text-caption: 11px;
+  --text-label: 13px;
+  --text-body: 15px;
+  --text-title: 17px;
   --color-auth-stage: #101010;
   --color-editor-chrome: #0b0b0d;
   --color-editor-panel: #0d0d0f;
@@ -66,6 +72,12 @@
   --shadow-popover: 0 18px 48px var(--color-popover-shadow);
   --shadow-filmstrip: 0 -8px 24px color-mix(in srgb, var(--color-black) 18%, transparent);
   --shadow-split: 0 0 4px color-mix(in srgb, var(--color-black) 60%, transparent);
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 :root {
@@ -327,6 +339,17 @@
       transparent 1px
     );
   background-size: 48px 48px;
+}
+
+@utility section-label {
+  font-size: var(--text-micro);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+
+  [data-layout='touch'] & {
+    font-size: var(--text-caption);
+  }
 }
 
 @utility scrollbar-hidden {
