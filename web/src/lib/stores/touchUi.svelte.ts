@@ -71,6 +71,15 @@ export class TouchUiStore {
     this.persist();
   };
 
+  startDevelop = (): void => {
+    this.group = 'light';
+    const { light: _light, ...views } = this.views;
+    this.views = views;
+    this.searching = false;
+    this.focused = null;
+    this.persist();
+  };
+
   setView = (id: string): void => {
     if (this.group === QUICK_GROUP) return;
     this.views = { ...this.views, [this.group]: id };

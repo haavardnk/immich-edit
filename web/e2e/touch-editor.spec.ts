@@ -1,6 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ASSET_ID } from './helpers';
-import { drag, longPressUntil, tapAt, touchDown, touchUp, type TouchPoint } from './touch';
+import {
+  drag,
+  longPressUntil,
+  tapAt,
+  tapCentre,
+  touchDown,
+  touchUp,
+  type TouchPoint
+} from './touch';
 import { open } from './touchShell';
 
 async function openEditor(page: Page): Promise<void> {
@@ -154,6 +162,34 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await page.clock.runFor(400);
     await expect(toolbar(page)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4300 K');
+  });
+
+  test('entering from the loupe starts on the photo, and Develop opens on Light Tone', async ({
+    page
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'immich-edit:touchEditor',
+        JSON.stringify({ group: 'color', views: { light: 'curve' }, detent: 'compact' })
+      );
+      localStorage.setItem('immich-edit:editorUi', JSON.stringify({ tab: 'retouch' }));
+    });
+    await open(page, '/photos');
+    await tapCentre(page, page.locator('[role="group"][data-name]').first());
+    await page.getByRole('button', { name: 'Edit', exact: true }).tap();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
+    await expect(tray(page)).toHaveCount(0);
+    await page
+      .getByRole('tablist', { name: 'Editor modes' })
+      .getByRole('tab', { name: 'Develop' })
+      .tap();
+    await expect(groups(page).getByRole('tab', { name: 'Light' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(
+      page.getByRole('tablist', { name: 'Light views' }).getByRole('tab', { name: 'Tone' })
+    ).toHaveAttribute('aria-selected', 'true');
   });
 
   test('the tray steps from its handle or active chip, and closes by drag or its mode', async ({

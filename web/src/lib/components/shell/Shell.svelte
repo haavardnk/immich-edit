@@ -20,7 +20,8 @@
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
   import { zoomOut } from '#lib/browse/loupeZoom.ts';
-  import { handoffId, holdPhoto } from '#lib/browse/photoHandoff.ts';
+  import { enteringEditor, handoffId, holdPhoto } from '#lib/browse/photoHandoff.ts';
+  import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { onEditorRoute } from '#lib/utils/route.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
@@ -43,6 +44,10 @@
     peek.hide();
     if (!browseView.loupeId) holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
     if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
+    if (enteringEditor(navigation.from?.url, navigation.to?.url)) {
+      ui.startEditing(layout.mode === 'touch');
+      touchUi.startDevelop();
+    }
     return animatePageChange(navigation, layout.compact);
   });
 

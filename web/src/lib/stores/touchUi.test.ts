@@ -73,4 +73,12 @@ describe('touch editor ui', () => {
     touchUi.setView('tone');
     expect(touchUi.views).toEqual({});
   });
+
+  it('starts every editor visit on Light Tone', async () => {
+    stubStorage({ group: 'color', views: { light: 'curve', color: 'mix' }, detent: 'expanded' });
+    const { touchUi } = await import('./touchUi.svelte');
+    touchUi.startDevelop();
+    expect([touchUi.group, touchUi.view, touchUi.detent]).toEqual(['light', 'tone', 'expanded']);
+    expect(touchUi.viewOf('color')).toBe('mix');
+  });
 });

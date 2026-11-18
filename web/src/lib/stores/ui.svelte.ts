@@ -266,6 +266,12 @@ class UiStore {
     this.persistEditorUi();
   };
 
+  startEditing = (touch: boolean): void => {
+    this.presetStrip = false;
+    this.openTab('develop');
+    if (touch) this.collapsePanels();
+  };
+
   openTab = (tab: EditorTab): void => {
     this.fullscreen = false;
     this.rightCollapsed = false;
