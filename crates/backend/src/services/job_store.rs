@@ -8,7 +8,9 @@ use uuid::fmt::Hyphenated;
 
 mod cancel;
 mod credentials;
+mod eta;
 mod finalize;
+mod retry;
 
 use crate::services::auth_store::AuthKind;
 use crate::services::crypto::{InstanceCrypto, SecretBytes};
@@ -65,6 +67,16 @@ pub struct JobRecord {
     pub cancelled_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(skip)]
+    pub started_at: Option<String>,
+    #[serde(skip)]
+    pub started_done: i64,
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub eta_secs: Option<u64>,
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub item_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -189,13 +201,14 @@ impl JobStore {
     }
 
     pub async fn get_job(&self, id: Uuid) -> Result<Option<JobRecord>, JobStoreError> {
-        Ok(sqlx::query_as::<_, JobRecord>(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
+        let job = sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, started_at, started_done, user_id, server_epoch \
              FROM jobs WHERE id = ?1",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
-        .await?)
+        .await?;
+        Ok(job.map(|job| job.with_eta(Utc::now())))
     }
 
     pub async fn list_jobs(
@@ -203,14 +216,16 @@ impl JobStore {
         owner: Uuid,
         limit: i64,
     ) -> Result<Vec<JobRecord>, JobStoreError> {
-        Ok(sqlx::query_as::<_, JobRecord>(
-            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, user_id, server_epoch \
+        let jobs = sqlx::query_as::<_, JobRecord>(
+            "SELECT id, kind, status, target_json, params_json, total, completed, failed, cancelled_at, created_at, updated_at, started_at, started_done, user_id, server_epoch \
              FROM jobs WHERE user_id = ?2 ORDER BY created_at DESC LIMIT ?1",
         )
         .bind(limit)
         .bind(owner.to_string())
         .fetch_all(&self.pool)
-        .await?)
+        .await?;
+        let now = Utc::now();
+        Ok(jobs.into_iter().map(|job| job.with_eta(now)).collect())
     }
 
     pub async fn list_items(&self, job_id: Uuid) -> Result<Vec<JobItemRecord>, JobStoreError> {
@@ -244,7 +259,8 @@ impl JobStore {
 
         if let Some(item) = &item {
             let changed = sqlx::query(
-                "UPDATE jobs SET status = 'running', updated_at = ? WHERE id = ? AND status = 'pending'",
+                "UPDATE jobs SET status = 'running', updated_at = ?1, started_at = ?1, started_done = completed + failed \
+                 WHERE id = ?2 AND status = 'pending'",
             )
             .bind(&now)
             .bind(item.job_id.to_string())
@@ -261,28 +277,25 @@ impl JobStore {
 
     pub async fn clear_finished(&self, owner: Uuid) -> Result<Vec<(Uuid, String)>, JobStoreError> {
         let owner_str = owner.to_string();
-        let cleared: Vec<(Uuid, String)> = sqlx::query_as::<_, (Hyphenated, String)>(
-            "SELECT id, kind FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running')",
-        )
-        .bind(&owner_str)
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(|(id, kind)| (id.into_uuid(), kind))
-        .collect();
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         sqlx::query(
             "DELETE FROM job_items WHERE job_id IN (SELECT id FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running'))",
         )
         .bind(&owner_str)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running')")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
+        let cleared = sqlx::query_as::<_, (Hyphenated, String)>(
+            "DELETE FROM jobs WHERE user_id = ?1 AND status NOT IN ('pending', 'running') \
+             RETURNING id, kind",
+        )
+        .bind(&owner_str)
+        .fetch_all(&mut *tx)
+        .await?;
         tx.commit().await?;
-        Ok(cleared)
+        Ok(cleared
+            .into_iter()
+            .map(|(id, kind)| (id.into_uuid(), kind))
+            .collect())
     }
 
     pub async fn requeue_running(&self) -> Result<u64, JobStoreError> {
@@ -308,7 +321,7 @@ mod tests {
     use crate::services::edits_store::EditsStore;
     use serde_json::json;
 
-    async fn store() -> JobStore {
+    pub(super) async fn store() -> JobStore {
         let edits = EditsStore::migrated_memory().await.expect("memory store");
         let dir = tempfile::tempdir().unwrap();
         let crypto = std::sync::Arc::new(
@@ -318,32 +331,23 @@ mod tests {
         JobStore::new(edits.pool(), crypto)
     }
 
-    fn items(ids: &[&str]) -> Vec<NewJobItem> {
-        ids.iter()
+    pub(super) async fn create(store: &JobStore, ids: &[&str]) -> JobRecord {
+        let items: Vec<NewJobItem> = ids
+            .iter()
             .map(|id| NewJobItem {
                 asset_id: (*id).to_string(),
                 idempotency_key: None,
             })
-            .collect()
-    }
-
-    async fn create(
-        store: &JobStore,
-        owner: Uuid,
-        kind: &str,
-        target: &serde_json::Value,
-        params: &serde_json::Value,
-        items: &[NewJobItem],
-    ) -> JobRecord {
+            .collect();
         store
             .create_job(NewJob {
-                owner,
+                owner: Uuid::nil(),
                 server_epoch: 1,
                 auth_session_id: Uuid::nil(),
-                kind,
-                target,
-                params,
-                items,
+                kind: "test",
+                target: &json!(null),
+                params: &json!(null),
+                items: &items,
                 cred: b"test-key",
                 auth_kind: AuthKind::ApiKey,
             })
@@ -354,15 +358,7 @@ mod tests {
     #[tokio::test]
     async fn create_and_claim_drains_items() {
         let store = store().await;
-        let job = create(
-            &store,
-            Uuid::nil(),
-            "test",
-            &json!(null),
-            &json!(null),
-            &items(&["a", "b"]),
-        )
-        .await;
+        let job = create(&store, &["a", "b"]).await;
         assert_eq!(job.total, 2);
         assert_eq!(job.status, JobStatus::Pending);
 
@@ -388,15 +384,7 @@ mod tests {
     #[tokio::test]
     async fn items_keep_their_selection_order() {
         let store = store().await;
-        let job = create(
-            &store,
-            Uuid::nil(),
-            "test",
-            &json!(null),
-            &json!(null),
-            &items(&["c", "a", "b"]),
-        )
-        .await;
+        let job = create(&store, &["c", "a", "b"]).await;
         let listed: Vec<(String, i64)> = store
             .list_items(job.id)
             .await
@@ -412,15 +400,7 @@ mod tests {
     #[tokio::test]
     async fn cancel_blocks_further_claims() {
         let store = store().await;
-        let job = create(
-            &store,
-            Uuid::nil(),
-            "test",
-            &json!(null),
-            &json!(null),
-            &items(&["a", "b"]),
-        )
-        .await;
+        let job = create(&store, &["a", "b"]).await;
         assert!(store.cancel_job(job.id).await.unwrap());
         assert!(store.claim_next_item().await.unwrap().is_none());
 
@@ -433,15 +413,7 @@ mod tests {
     #[tokio::test]
     async fn requeue_resets_running_state() {
         let store = store().await;
-        let job = create(
-            &store,
-            Uuid::nil(),
-            "test",
-            &json!(null),
-            &json!(null),
-            &items(&["a"]),
-        )
-        .await;
+        let job = create(&store, &["a"]).await;
         let claimed = store.claim_next_item().await.unwrap().unwrap();
         assert_eq!(claimed.status, JobItemStatus::Running);
 
@@ -458,15 +430,7 @@ mod tests {
     async fn credentials_are_dropped_when_a_job_settles() {
         for cancel in [false, true] {
             let store = store().await;
-            let job = create(
-                &store,
-                Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &items(&["a"]),
-            )
-            .await;
+            let job = create(&store, &["a"]).await;
             assert!(store.job_credential(job.id).await.unwrap().is_some());
 
             if cancel {
@@ -501,15 +465,7 @@ mod tests {
         ];
         for (sql, expected) in cases {
             let store = store().await;
-            let job = create(
-                &store,
-                Uuid::nil(),
-                "test",
-                &json!(null),
-                &json!(null),
-                &items(&["a"]),
-            )
-            .await;
+            let job = create(&store, &["a"]).await;
             sqlx::query(sql)
                 .bind(job.id.to_string())
                 .execute(&store.pool)
