@@ -82,6 +82,8 @@ The container renders on the CPU until a GPU is passed through. See
   is running.
 - `GET /api/health` requires a session and reports renderer, Immich, database, codec, and redacted
   configuration state.
+- `GET /api/immich/ping` requires a session and returns 204 while Immich answers, or 502
+  `upstream_unavailable` or 504 `upstream_timeout` when it does not.
 
 The official image includes a Docker health check against `/api/health/live`.
 
