@@ -12,12 +12,12 @@
     resizedSize,
     type PixelSize
   } from './resize';
-  import { RESIZE_MODES, formResize, type ExportForm } from './settings';
+  import { RESIZE_MODES, formResize, type ExportFormValues } from './settings';
 
   let {
-    form = $bindable<ExportForm>(),
+    form = $bindable<ExportFormValues>(),
     crop = null
-  }: { form: ExportForm; crop?: PixelSize | null } = $props();
+  }: { form: ExportFormValues; crop?: PixelSize | null } = $props();
 
   const error = $derived(resizeError(formResize(form)));
   const outputSize = $derived(crop ? resizedSize(crop, formResize(form)) : null);

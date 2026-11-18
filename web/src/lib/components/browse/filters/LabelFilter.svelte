@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    segmentedControlClass,
-    segmentedRadioItemClass
-  } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { segmented } from '#lib/components/segmented.ts';
   import { browseControls, type LabelFilter } from '#lib/stores/browseControls.svelte.ts';
   import { LABEL_COLORS, LABEL_NAMES, LABEL_TEXT } from '#lib/stores/labels.ts';
   import { Icon, Tooltip } from '@immich/ui';
@@ -18,17 +15,17 @@
     }
     orientation="horizontal"
     aria-label="Label"
-    class={segmentedControlClass}
+    class={segmented.text.group}
   >
     <div class="flex shrink-0 gap-0.5">
-      <RadioGroup.Item value="any" class="{segmentedRadioItemClass} px-2">Any</RadioGroup.Item>
+      <RadioGroup.Item value="any" class="{segmented.text.radio} px-2">Any</RadioGroup.Item>
       <Tooltip text="No label">
         {#snippet child({ props })}
           <RadioGroup.Item
             {...props}
             value="none"
             aria-label="No label"
-            class="{segmentedRadioItemClass} px-2"
+            class="{segmented.text.radio} px-2"
           >
             <Icon icon={mdiCircleOffOutline} size="14px" aria-hidden="true" />
           </RadioGroup.Item>
@@ -43,7 +40,7 @@
             {...props}
             value={color}
             aria-label={`${LABEL_NAMES[color]} label`}
-            class="{segmentedRadioItemClass} flex-1"
+            class="{segmented.text.radio} flex-1"
           >
             <Icon icon={mdiCircle} size="14px" class={LABEL_TEXT[color]} aria-hidden="true" />
           </RadioGroup.Item>

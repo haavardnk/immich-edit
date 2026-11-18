@@ -22,15 +22,13 @@
     title,
     totalCount,
     hiddenCount = 0,
-    hideSort = false,
     sortBasis = 'capture',
     onTrashRejected
   }: {
     title: string;
     totalCount?: number;
     hiddenCount?: number;
-    hideSort?: boolean;
-    sortBasis?: 'capture' | 'edit';
+    sortBasis?: 'capture' | 'edit' | null;
     onTrashRejected?: () => Promise<void>;
   } = $props();
 
@@ -136,9 +134,9 @@
       />
     {/if}
 
-    {#if !hideSort && sortBasis === 'capture'}
+    {#if sortBasis === 'capture'}
       <SortMenu />
-    {:else if !hideSort}
+    {:else if sortBasis === 'edit'}
       <IconButton
         size="small"
         variant="ghost"
