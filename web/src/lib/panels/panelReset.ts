@@ -1,32 +1,13 @@
-import { neutralEdits, resetLensBlur, type Edits } from '#lib/types/edits.ts';
+import { DESKTOP_PANELS } from '#lib/editor/params/catalog.ts';
+import { neutraliseSection } from '#lib/editor/params/neutralise.ts';
+import type { DesktopPanelId } from '#lib/editor/params/types.ts';
+import type { Edits } from '#lib/types/edits.ts';
 
-type PanelReset = (edits: Edits, neutral: Edits) => Edits;
-
-const PANEL_RESETS: Record<string, PanelReset> = {
-  dcp: (edits, neutral) => ({ ...edits, color: { ...edits.color, dcp: neutral.color.dcp } }),
-  basic: (edits, neutral) => ({
-    ...edits,
-    basic: { ...neutral.basic, curves: edits.basic.curves },
-    tone: neutral.tone
-  }),
-  curves: (edits, neutral) => ({
-    ...edits,
-    basic: { ...edits.basic, curves: neutral.basic.curves }
-  }),
-  hsl: (edits, neutral) => ({ ...edits, color: { ...edits.color, hsl: neutral.color.hsl } }),
-  'color-grading': (edits, neutral) => ({
-    ...edits,
-    color: { ...edits.color, color_grade: neutral.color.color_grade }
-  }),
-  bw: (edits, neutral) => ({ ...edits, color: { ...edits.color, bw: neutral.color.bw } }),
-  lut: (edits, neutral) => ({ ...edits, color: { ...edits.color, lut_3d: neutral.color.lut_3d } }),
-  detail: (edits, neutral) => ({ ...edits, detail: neutral.detail }),
-  lens: (edits, neutral) => ({ ...edits, lens: neutral.lens }),
-  'lens-blur': (edits) => ({ ...edits, lens_blur: resetLensBlur(edits.lens_blur) }),
-  effects: (edits, neutral) => ({ ...edits, effects: neutral.effects })
-};
-
-export function resetDevelopPanel(edits: Edits, panelId: string): Edits {
-  const reset = PANEL_RESETS[panelId];
-  return reset ? reset(edits, neutralEdits()) : edits;
+export function resetDevelopPanel(edits: Edits, panelId: DesktopPanelId, isRaw: boolean): Edits {
+  const panel = DESKTOP_PANELS.find(({ id }) => id === panelId);
+  if (!panel) return edits;
+  return panel.sections.reduce(
+    (next, section) => neutraliseSection(next, section.id, isRaw),
+    edits
+  );
 }

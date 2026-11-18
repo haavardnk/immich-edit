@@ -6,6 +6,7 @@
   } from '#lib/components/editor/controls/segmentedControl.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import SliderRow from '#lib/components/editor/controls/SliderRow.svelte';
+  import { RETOUCH_HARDNESS, RETOUCH_OPACITY, RETOUCH_SIZE } from '#lib/editor/params/brush.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { MAX_RETOUCH_STROKES, type RetouchMode, type RetouchStroke } from '#lib/types/edits.ts';
   import { formatBrushSize } from '#lib/utils/brushSize.ts';
@@ -128,10 +129,7 @@
   <SliderRow
     label="Size"
     value={size}
-    min={0.005}
-    max={0.3}
-    step={0.005}
-    defaultValue={0.05}
+    range={RETOUCH_SIZE}
     onLive={(v: number) => live({ radius: v }, { size: v })}
     onCommit={commit}
     format={(v: number) => formatBrushSize(v, editor.meta)}
@@ -139,24 +137,16 @@
   <SliderRow
     label="Hardness"
     value={hardness}
-    min={0}
-    max={1}
-    step={0.01}
-    defaultValue={0.5}
+    range={RETOUCH_HARDNESS}
     onLive={(v: number) => live({ hardness: v }, { hardness: v })}
     onCommit={commit}
-    format={(v: number) => v.toFixed(2)}
   />
   <SliderRow
     label="Opacity"
     value={opacity}
-    min={0.05}
-    max={1}
-    step={0.01}
-    defaultValue={1}
+    range={RETOUCH_OPACITY}
     onLive={(v: number) => live({ opacity: v }, { opacity: v })}
     onCommit={commit}
-    format={(v: number) => v.toFixed(2)}
   />
 
   {#if strokes.length > 0}

@@ -1,53 +1,22 @@
 import type { EditHistoryEntry } from '#lib/api/edits.ts';
-import type {
-  CurveChannel,
-  Edits,
-  GeometryEdits,
-  LensBlurEdits,
-  LensEdits,
-  MaskLayer,
-  WhiteBalance
-} from '#lib/types/edits.ts';
+import { neutralEdits, type DevelopSection, type Edits } from '#lib/types/edits.ts';
 import {
-  BW_CHANNELS,
-  CURVE_CHANNELS,
-  HSL_BAND_NAMES,
-  isFullCrop,
-  neutralEdits,
-  neutralSharpenAmount,
-  whiteBalanceIsAsShot
-} from '#lib/types/edits.ts';
-import { percentRange } from '#lib/utils/percent.ts';
-import { neutralPerspective } from '#lib/utils/perspective.ts';
-
-type NumberFieldDef = {
-  kind: 'number';
-  section: string;
-  label: string;
-  get: (edits: Edits, isRaw: boolean) => number;
-  precision?: number;
-  signed?: boolean;
-};
-
-type BooleanFieldDef = {
-  kind: 'boolean';
-  section: string;
-  label: string;
-  get: (edits: Edits) => boolean;
-};
-
-type TriFieldDef = {
-  kind: 'tri';
-  section: string;
-  label: string;
-  get: (edits: Edits) => boolean | null;
-};
-
-type FieldDef = NumberFieldDef | BooleanFieldDef | TriFieldDef;
-
-export type HistoryDetailItem =
-  | { kind: 'value'; label: string; before: string; after: string }
-  | { kind: 'summary'; text: string };
+  fieldChanged,
+  fieldDelta,
+  formatField,
+  HISTORY_FIELDS,
+  historyGroupLabel
+} from '#lib/utils/historyFields.ts';
+import {
+  curveItems,
+  dcpLabel,
+  geometryItems,
+  lensBlurItems,
+  maskItems,
+  profileChanged,
+  whiteBalanceLabel,
+  type HistoryDetailItem
+} from '#lib/utils/historySummaries.ts';
 
 export type HistoryDetailGroup = {
   key: string;
@@ -55,370 +24,10 @@ export type HistoryDetailGroup = {
   items: HistoryDetailItem[];
 };
 
-const FIELDS: FieldDef[] = [
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Exposure',
-    get: (e) => e.basic.exposure_ev,
-    precision: 2,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Brightness',
-    get: (e) => e.basic.brightness,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Contrast',
-    get: (e) => e.basic.contrast,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Vibrance',
-    get: (e) => e.basic.vibrance,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'basic',
-    label: 'Saturation',
-    get: (e) => e.basic.saturation,
-    signed: true
-  },
-  { kind: 'number', section: 'basic', label: 'Texture', get: (e) => e.basic.texture, signed: true },
-  { kind: 'number', section: 'basic', label: 'Clarity', get: (e) => e.basic.clarity, signed: true },
-  { kind: 'number', section: 'basic', label: 'Dehaze', get: (e) => e.basic.dehaze, signed: true },
-  {
-    kind: 'number',
-    section: 'tone',
-    label: 'Highlights',
-    get: (e) => e.tone.highlights,
-    signed: true
-  },
-  { kind: 'number', section: 'tone', label: 'Shadows', get: (e) => e.tone.shadows, signed: true },
-  { kind: 'number', section: 'tone', label: 'Whites', get: (e) => e.tone.whites, signed: true },
-  { kind: 'number', section: 'tone', label: 'Blacks', get: (e) => e.tone.blacks, signed: true },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Sharpen Amount',
-    get: (e, isRaw) => e.detail.sharpen_amount ?? neutralSharpenAmount(isRaw)
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Sharpen Radius',
-    get: (e) => e.detail.sharpen_radius,
-    precision: 1
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Sharpen Detail',
-    get: (e) => e.detail.sharpen_detail
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Sharpen Masking',
-    get: (e) => e.detail.sharpen_masking
-  },
-  { kind: 'boolean', section: 'detail', label: 'AI Denoise', get: (e) => e.detail.ai_denoise },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'AI Denoise Strength',
-    get: (e) => e.detail.ai_denoise_strength
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'AI Denoise Detail',
-    get: (e) => e.detail.ai_denoise_detail
-  },
-  { kind: 'number', section: 'detail', label: 'Luminance NR', get: (e) => e.detail.luma_nr_amount },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Luminance NR Detail',
-    get: (e) => e.detail.luma_nr_detail
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Luminance NR Contrast',
-    get: (e) => e.detail.luma_nr_contrast
-  },
-  { kind: 'number', section: 'detail', label: 'Color NR', get: (e) => e.detail.color_nr_amount },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Color NR Detail',
-    get: (e) => e.detail.color_nr_detail
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Color NR Smoothness',
-    get: (e) => e.detail.color_nr_smoothness
-  },
-  {
-    kind: 'number',
-    section: 'effects',
-    label: 'Vignette Amount',
-    get: (e) => e.effects.vignette_amount,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'effects',
-    label: 'Vignette Midpoint',
-    get: (e) => e.effects.vignette_midpoint
-  },
-  {
-    kind: 'number',
-    section: 'effects',
-    label: 'Vignette Feather',
-    get: (e) => e.effects.vignette_feather
-  },
-  {
-    kind: 'number',
-    section: 'effects',
-    label: 'Vignette Roundness',
-    get: (e) => e.effects.vignette_roundness,
-    signed: true
-  },
-  { kind: 'number', section: 'effects', label: 'Grain Amount', get: (e) => e.effects.grain_amount },
-  { kind: 'number', section: 'effects', label: 'Grain Size', get: (e) => e.effects.grain_size },
-  {
-    kind: 'number',
-    section: 'effects',
-    label: 'Grain Roughness',
-    get: (e) => e.effects.grain_roughness
-  },
-  {
-    kind: 'boolean',
-    section: 'detail',
-    label: 'Capture Sharpening',
-    get: (e) => e.detail.capture_sharpen
-  },
-  {
-    kind: 'number',
-    section: 'detail',
-    label: 'Capture Corner Boost',
-    get: (e) => e.detail.capture_corner_boost
-  },
-  {
-    kind: 'tri',
-    section: 'lens',
-    label: 'Profile Corrections',
-    get: (e) => e.lens.profile_enabled
-  },
-  {
-    kind: 'boolean',
-    section: 'lens',
-    label: 'Chromatic Aberration',
-    get: (e) => e.lens.ca_enabled
-  },
-  { kind: 'boolean', section: 'lens', label: 'Constrain Crop', get: (e) => e.lens.constrain_crop },
-  {
-    kind: 'number',
-    section: 'lens',
-    label: 'Lens Distortion',
-    get: (e) => e.lens.distortion_amount
-  },
-  { kind: 'number', section: 'lens', label: 'Lens Vignetting', get: (e) => e.lens.vignette_amount },
-  {
-    kind: 'number',
-    section: 'lens_blur',
-    label: 'Lens Blur Amount',
-    get: (e) => e.lens_blur.amount
-  },
-  { kind: 'number', section: 'lens_blur', label: 'Lens Blur Boost', get: (e) => e.lens_blur.boost },
-  {
-    kind: 'number',
-    section: 'color',
-    label: 'Color Balance',
-    get: (e) => e.color.color_grade.balance,
-    signed: true
-  },
-  {
-    kind: 'number',
-    section: 'color',
-    label: 'Color Blending',
-    get: (e) => e.color.color_grade.blend
-  },
-  { kind: 'number', section: 'color', label: 'LUT Amount', get: (e) => e.color.lut_3d.amount },
-  {
-    kind: 'boolean',
-    section: 'color',
-    label: 'DCP Base Table',
-    get: (e) => e.color.dcp.use_base_table
-  },
-  {
-    kind: 'boolean',
-    section: 'color',
-    label: 'DCP Tone Curve',
-    get: (e) => e.color.dcp.use_tone_curve
-  },
-  {
-    kind: 'boolean',
-    section: 'color',
-    label: 'DCP Look Table',
-    get: (e) => e.color.dcp.use_look_table
-  },
-  {
-    kind: 'boolean',
-    section: 'color',
-    label: 'DCP Baseline Exposure',
-    get: (e) => e.color.dcp.use_baseline_exposure
-  },
-  { kind: 'boolean', section: 'color', label: 'Black & White', get: (e) => e.color.bw.enabled },
-  {
-    kind: 'number',
-    section: 'color',
-    label: 'B&W Tint Balance',
-    get: (e) => e.color.bw.balance,
-    signed: true
-  }
-];
-
-const SECTION_LABELS: Record<string, string> = {
-  basic: 'Basic',
-  tone: 'Tone',
-  color: 'Color',
-  detail: 'Detail',
-  effects: 'Effects',
-  lens: 'Lens',
-  lens_blur: 'Lens Blur'
-};
-
-const CURVE_LABELS: Record<CurveChannel, string> = {
-  composite: 'RGB',
-  r: 'Red',
-  g: 'Green',
-  b: 'Blue',
-  luma: 'Luma'
-};
-
-for (const region of ['Shadows', 'Highlights'] as const) {
-  const key = region.toLowerCase() as 'shadows' | 'highlights';
-  FIELDS.push(
-    {
-      kind: 'number',
-      section: 'color',
-      label: `B&W ${region} Hue`,
-      get: (e) => e.color.bw[key].hue
-    },
-    {
-      kind: 'number',
-      section: 'color',
-      label: `B&W ${region} Saturation`,
-      get: (e) => e.color.bw[key].sat
-    }
-  );
-}
-
-for (const channel of BW_CHANNELS) {
-  FIELDS.push({
-    kind: 'number',
-    section: 'color',
-    label: `B&W ${channel[0]?.toUpperCase()}${channel.slice(1)}`,
-    get: (e) => e.color.bw.mix[channel],
-    signed: true
-  });
-}
-
-for (const region of ['Shadows', 'Midtones', 'Highlights', 'Global'] as const) {
-  const key = region.toLowerCase() as 'shadows' | 'midtones' | 'highlights' | 'global';
-  FIELDS.push(
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${region} Hue`,
-      get: (e) => e.color.color_grade[key].hue,
-      signed: true
-    },
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${region} Saturation`,
-      get: (e) => e.color.color_grade[key].sat,
-      signed: true
-    },
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${region} Luminance`,
-      get: (e) => e.color.color_grade[key].lum,
-      signed: true
-    }
-  );
-}
-
-for (let i = 0; i < HSL_BAND_NAMES.length; i++) {
-  const name = HSL_BAND_NAMES[i];
-  FIELDS.push(
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${name} Hue`,
-      get: (e) => e.color.hsl.bands[i]?.hue ?? 0,
-      signed: true
-    },
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${name} Saturation`,
-      get: (e) => e.color.hsl.bands[i]?.sat ?? 0,
-      signed: true
-    },
-    {
-      kind: 'number',
-      section: 'color',
-      label: `${name} Luminance`,
-      get: (e) => e.color.hsl.bands[i]?.lum ?? 0,
-      signed: true
-    }
-  );
-}
-
 export type HistoryLabel = {
   label: string;
   delta?: string;
 };
-
-function fmtNumber(value: number, field: NumberFieldDef): string {
-  const formatted = value.toFixed(field.precision ?? 0);
-  return field.signed && value > 0 ? `+${formatted}` : formatted;
-}
-
-function fmtDelta(delta: number, precision: number): string {
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta.toFixed(precision)}`;
-}
-
-function fieldChanged(field: FieldDef, prev: Edits, curr: Edits, isRaw: boolean): boolean {
-  if (field.kind === 'boolean' || field.kind === 'tri') return field.get(prev) !== field.get(curr);
-  return Math.abs(field.get(prev, isRaw) - field.get(curr, isRaw)) > 1e-4;
-}
-
-function fmtField(field: FieldDef, edits: Edits, isRaw: boolean): string {
-  if (field.kind === 'boolean') return field.get(edits) ? 'On' : 'Off';
-  if (field.kind === 'tri') {
-    const v = field.get(edits);
-    if (v === null) return 'Auto';
-    return v ? 'On' : 'Off';
-  }
-  return fmtNumber(field.get(edits, isRaw), field);
-}
 
 function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): [Edits, Edits] {
   const prev = previous && !previous.deleted && previous.edits ? previous.edits : neutralEdits();
@@ -426,161 +35,13 @@ function snapshots(entry: EditHistoryEntry, previous: EditHistoryEntry | null): 
   return [prev, curr];
 }
 
-function curvesEqual(a: { x: number; y: number }[], b: { x: number; y: number }[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((point, i) => {
-      const other = b[i];
-      return !!other && Math.abs(point.x - other.x) <= 1e-4 && Math.abs(point.y - other.y) <= 1e-4;
-    })
-  );
-}
-
-function curveItems(prev: Edits, curr: Edits): HistoryDetailItem[] {
-  return CURVE_CHANNELS.flatMap((channel) => {
-    const before = prev.basic.curves[channel];
-    const after = curr.basic.curves[channel];
-    if (curvesEqual(before, after)) return [];
-    const suffix =
-      before.length === after.length ? 'adjusted' : `${before.length} → ${after.length} points`;
-    return [{ kind: 'summary' as const, text: `${CURVE_LABELS[channel]}: ${suffix}` }];
-  });
-}
-
-function maskItems(prev: MaskLayer[], curr: MaskLayer[]): HistoryDetailItem[] {
-  const prevById = new Map(prev.map((layer) => [layer.id, layer]));
-  const currById = new Map(curr.map((layer) => [layer.id, layer]));
-  const added = curr.filter((layer) => !prevById.has(layer.id)).length;
-  const removed = prev.filter((layer) => !currById.has(layer.id)).length;
-  const modified = curr.filter((layer) => {
-    const before = prevById.get(layer.id);
-    return before !== undefined && JSON.stringify(before) !== JSON.stringify(layer);
-  }).length;
-  const sameIds = added === 0 && removed === 0;
-  const reordered = sameIds && prev.some((layer, i) => layer.id !== curr[i]?.id);
-  const changes = [
-    added > 0 ? `${added} added` : '',
-    removed > 0 ? `${removed} removed` : '',
-    modified > 0 ? `${modified} modified` : '',
-    reordered ? 'reordered' : ''
-  ].filter(Boolean);
-  return changes.length > 0 ? [{ kind: 'summary', text: changes.join(', ') }] : [];
-}
-
-function aspectLabel(aspect: GeometryEdits['aspect']): string {
-  if (aspect.kind === 'ratio') return `${aspect.num}:${aspect.den}`;
-  return aspect.kind === 'original' ? 'Original' : 'Free';
-}
-
-function lensBlurItems(prev: LensBlurEdits, curr: LensBlurEdits): HistoryDetailItem[] {
-  const items: HistoryDetailItem[] = [];
-  if (prev.depth_raster_id !== curr.depth_raster_id)
-    items.push({
-      kind: 'summary',
-      text: curr.depth_raster_id ? 'Depth map generated' : 'Depth map removed'
-    });
-  const focusBefore = percentRange(prev.focus_min, prev.focus_max);
-  const focusAfter = percentRange(curr.focus_min, curr.focus_max);
-  if (focusBefore !== focusAfter)
-    items.push({ kind: 'value', label: 'Focal Range', before: focusBefore, after: focusAfter });
-  if (prev.shape !== curr.shape)
-    items.push({ kind: 'value', label: 'Bokeh', before: prev.shape, after: curr.shape });
-  return items;
-}
-
-function geometryItems(prev: GeometryEdits, curr: GeometryEdits): HistoryDetailItem[] {
-  const items: HistoryDetailItem[] = [];
-  if (prev.rotate !== curr.rotate)
-    items.push({ kind: 'summary', text: `Rotation: ${prev.rotate}° → ${curr.rotate}°` });
-  if (Math.abs(prev.rotate_angle - curr.rotate_angle) > 1e-4) {
-    items.push({
-      kind: 'summary',
-      text: `Angle: ${prev.rotate_angle.toFixed(1)}° → ${curr.rotate_angle.toFixed(1)}°`
-    });
-  }
-  if (prev.flip_h !== curr.flip_h)
-    items.push({
-      kind: 'summary',
-      text: `Horizontal flip: ${prev.flip_h ? 'On' : 'Off'} → ${curr.flip_h ? 'On' : 'Off'}`
-    });
-  if (prev.flip_v !== curr.flip_v)
-    items.push({
-      kind: 'summary',
-      text: `Vertical flip: ${prev.flip_v ? 'On' : 'Off'} → ${curr.flip_v ? 'On' : 'Off'}`
-    });
-  if (JSON.stringify(prev.aspect) !== JSON.stringify(curr.aspect)) {
-    items.push({
-      kind: 'summary',
-      text: `Aspect: ${aspectLabel(prev.aspect)} → ${aspectLabel(curr.aspect)}`
-    });
-  }
-  if (JSON.stringify(prev.crop) !== JSON.stringify(curr.crop)) {
-    const beforeFull = isFullCrop(prev.crop);
-    const afterFull = isFullCrop(curr.crop);
-    const text = beforeFull ? 'Crop added' : afterFull ? 'Crop removed' : 'Crop adjusted';
-    items.push({ kind: 'summary', text });
-  }
-  const prevP = prev.perspective ?? neutralPerspective();
-  const currP = curr.perspective ?? neutralPerspective();
-  for (const key of PERSPECTIVE_KEYS) {
-    if (Math.abs(prevP[key] - currP[key]) > 1e-4) {
-      items.push({
-        kind: 'summary',
-        text: `${PERSPECTIVE_LABELS[key]}: ${Math.round(prevP[key])} → ${Math.round(currP[key])}`
-      });
-    }
-  }
-  if (JSON.stringify(prevP.corners) !== JSON.stringify(currP.corners)) {
-    items.push({ kind: 'summary', text: 'Perspective corners adjusted' });
-  }
-  return items;
-}
-
-const PERSPECTIVE_LABELS = {
-  vertical: 'Perspective vertical',
-  horizontal: 'Perspective horizontal',
-  aspect: 'Perspective aspect'
-} as const;
-
-const PERSPECTIVE_KEYS = Object.keys(PERSPECTIVE_LABELS) as (keyof typeof PERSPECTIVE_LABELS)[];
-
-const LENS_PROFILE_KEYS = [
-  'k1',
-  'k2',
-  'k3',
-  'vk1',
-  'vk2',
-  'vk3',
-  'ca_red_scale_x10000',
-  'ca_blue_scale_x10000'
-] as const satisfies readonly (keyof LensEdits)[];
-
-function profileChanged(prev: LensEdits, curr: LensEdits): boolean {
-  return LENS_PROFILE_KEYS.some((key) => Math.abs(prev[key] - curr[key]) > 1e-4);
-}
-
-function signedInt(value: number): string {
-  const rounded = Math.round(value);
-  return rounded > 0 ? `+${rounded}` : String(rounded);
-}
-
-function whiteBalanceLabel(wb: WhiteBalance): string {
-  if (whiteBalanceIsAsShot(wb)) return 'As Shot';
-  if (wb.mode === 'absolute') return `${Math.round(wb.kelvin)} K, Tint ${signedInt(wb.tint)}`;
-  return `Temp ${signedInt(wb.temp)}, Tint ${signedInt(wb.tint)}`;
-}
-
-function dcpLabel(edits: Edits): string {
-  if (edits.color.dcp.mode === 'off') return 'Default Color';
-  if (edits.color.dcp.mode === 'flat') return 'Flat';
-  if (edits.color.dcp.mode === 'auto') return 'Auto';
-  return edits.color.dcp.profile_id ? 'Imported profile' : 'Unavailable profile';
-}
-
-function groupFor(groups: Map<string, HistoryDetailGroup>, key: string): HistoryDetailGroup {
+function groupFor(
+  groups: Map<DevelopSection, HistoryDetailGroup>,
+  key: DevelopSection
+): HistoryDetailGroup {
   const existing = groups.get(key);
   if (existing) return existing;
-  const group: HistoryDetailGroup = { key, label: SECTION_LABELS[key] ?? key, items: [] };
+  const group: HistoryDetailGroup = { key, label: historyGroupLabel(key), items: [] };
   groups.set(key, group);
   return group;
 }
@@ -591,32 +52,24 @@ export function historyDetails(
   isRaw = true
 ): HistoryDetailGroup[] {
   const [prev, curr] = snapshots(entry, previous);
-  const groups = new Map<string, HistoryDetailGroup>();
-  for (const field of FIELDS) {
-    if (!fieldChanged(field, prev, curr, isRaw)) continue;
-    const before = fmtField(field, prev, isRaw);
-    const after = fmtField(field, curr, isRaw);
-    groupFor(groups, field.section).items.push({
-      kind: 'value',
-      label: field.label,
-      before,
-      after
-    });
-  }
-
-  const nested: HistoryDetailGroup[] = [
-    { key: 'curves', label: 'Curves', items: curveItems(prev, curr) },
-    { key: 'masks', label: 'Masks', items: maskItems(prev.masks, curr.masks) },
-    { key: 'geometry', label: 'Geometry', items: geometryItems(prev.geometry, curr.geometry) }
-  ];
+  const groups = new Map<DevelopSection, HistoryDetailGroup>();
   const wbBefore = whiteBalanceLabel(prev.basic.white_balance);
   const wbAfter = whiteBalanceLabel(curr.basic.white_balance);
   if (wbBefore !== wbAfter) {
-    groupFor(groups, 'basic').items.push({
+    groupFor(groups, 'white_balance').items.push({
       kind: 'value',
       label: 'White Balance',
       before: wbBefore,
       after: wbAfter
+    });
+  }
+  for (const field of HISTORY_FIELDS) {
+    if (!fieldChanged(field, prev, curr, isRaw)) continue;
+    groupFor(groups, field.section).items.push({
+      kind: 'value',
+      label: field.label,
+      before: formatField(field, prev, isRaw),
+      after: formatField(field, curr, isRaw)
     });
   }
   const blurItems = lensBlurItems(prev.lens_blur, curr.lens_blur);
@@ -629,14 +82,20 @@ export function historyDetails(
     prev.color.dcp.profile_id !== curr.color.dcp.profile_id ||
     prev.color.dcp.illuminant !== curr.color.dcp.illuminant
   ) {
-    groupFor(groups, 'color').items.push({
+    groupFor(groups, 'dcp').items.push({
       kind: 'summary',
       text: `Camera profile: ${dcpLabel(prev)} → ${dcpLabel(curr)}`
     });
   }
   if (prev.color.lut_3d.lut_id !== curr.color.lut_3d.lut_id) {
-    groupFor(groups, 'color').items.push({ kind: 'summary', text: 'LUT selection changed' });
+    groupFor(groups, 'lut').items.push({ kind: 'summary', text: 'LUT selection changed' });
   }
+  const curves = curveItems(prev, curr);
+  if (curves.length > 0) groupFor(groups, 'curves').items.push(...curves);
+  const nested: HistoryDetailGroup[] = [
+    { key: 'masks', label: 'Masks', items: maskItems(prev.masks, curr.masks) },
+    { key: 'geometry', label: 'Geometry', items: geometryItems(prev.geometry, curr.geometry) }
+  ];
   return [...groups.values(), ...nested.filter((group) => group.items.length > 0)];
 }
 
@@ -650,18 +109,13 @@ export function historyLabel(
   if (!curr) return { label: entry.action ?? entry.manifest_hash.slice(0, 8) };
 
   const [prev] = snapshots(entry, previous);
-  const scalarDiffs = FIELDS.filter((field) => fieldChanged(field, prev, curr, isRaw));
+  const scalarDiffs = HISTORY_FIELDS.filter((field) => fieldChanged(field, prev, curr, isRaw));
   const details = historyDetails(entry, previous, isRaw);
   const detailCount = details.reduce((count, group) => count + group.items.length, 0);
   const only = scalarDiffs.length === 1 ? scalarDiffs[0] : null;
   if (only && detailCount === 1) {
-    if (only.kind === 'number') {
-      return {
-        label: only.label,
-        delta: fmtDelta(only.get(curr, isRaw) - only.get(prev, isRaw), only.precision ?? 0)
-      };
-    }
-    return { label: only.label };
+    const delta = fieldDelta(only, prev, curr, isRaw);
+    return delta === undefined ? { label: only.label } : { label: only.label, delta };
   }
   if (entry.action) return { label: entry.action };
   if (detailCount === 0) return { label: entry.manifest_hash.slice(0, 8) };

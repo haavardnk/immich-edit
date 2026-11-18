@@ -10,6 +10,7 @@ import {
   type MaskLayer,
   type MaskedEditKey,
   type MaskedEdits,
+  type RangeMeta,
   type Vec2f
 } from './edits';
 import type { MaskKind } from '#lib/api/masks.ts';
@@ -47,12 +48,26 @@ function nextId(): string {
   return uuidv4();
 }
 
+export const DEFAULT_GRADIENT_FEATHER = 0.5;
+
+export const DEFAULT_POLYGON_FEATHER = 0.05;
+
+export const DEFAULT_LUMA_RANGE: Readonly<RangeMeta> = { min: 0.25, max: 0.75, softness: 0.1 };
+
+export const DEFAULT_COLOR_RANGE = { tolerance: 0.1, softness: 0.05 } as const;
+
+export const DEFAULT_DEPTH_RANGE: Readonly<RangeMeta> = { min: 0, max: 1, softness: 0.1 };
+
+export const DEFAULT_GENERATED_GROW = 0;
+
+export const DEFAULT_GENERATED_FEATHER = 0;
+
 export function defaultLinear(): MaskComponentKind {
   return {
     kind: 'linear',
     p0: { x: 0.5, y: 0.1 },
     p1: { x: 0.5, y: 0.9 },
-    feather: 0.5
+    feather: DEFAULT_GRADIENT_FEATHER
   };
 }
 
@@ -61,7 +76,7 @@ export function defaultRadial(): MaskComponentKind {
     kind: 'radial',
     center: { x: 0.5, y: 0.5 },
     radius_xy: { x: 0.25, y: 0.25 },
-    feather: 0.5
+    feather: DEFAULT_GRADIENT_FEATHER
   };
 }
 
@@ -70,7 +85,7 @@ export function defaultBrush(rasterId: string): MaskComponentKind {
 }
 
 export function defaultLumaRange(): MaskComponentKind {
-  return { kind: 'luma_range', min: 0.25, max: 0.75, softness: 0.1 };
+  return { kind: 'luma_range', ...DEFAULT_LUMA_RANGE };
 }
 
 export const MAX_POLYGON_POINTS = 64;
@@ -79,8 +94,7 @@ export function defaultColorRange(): MaskComponentKind {
   return {
     kind: 'color_range',
     sample_rgb: [0.5, 0.5, 0.5],
-    tolerance: 0.1,
-    softness: 0.05
+    ...DEFAULT_COLOR_RANGE
   };
 }
 

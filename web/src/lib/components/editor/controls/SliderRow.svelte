@@ -4,49 +4,46 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { Button } from '@immich/ui';
   import RangeSlider from './RangeSlider.svelte';
-  import { SCALE_POSITIONS, type SliderScale } from './sliderScale';
+  import { SCALE_POSITIONS } from './sliderScale';
+  import type { SliderRange } from '#lib/editor/params/types.ts';
 
   let {
     label,
     value = $bindable(),
-    min,
-    max,
-    step = 0.1,
-    scale,
+    range,
+    defaultValue,
+    gradient,
+    format,
     onLive,
     onCommit,
     onPreviewStart,
     onPreviewEnd,
     onDragStart,
     onDragEnd,
-    format = (v: number): string => v.toFixed(2),
-    gradient,
-    defaultValue = 0,
     disabled = false,
     commitAction
   }: {
     label: string;
     value: number;
-    min: number;
-    max: number;
-    step?: number;
-    scale?: SliderScale;
+    range: SliderRange;
+    defaultValue?: number;
+    gradient?: string;
+    format?: (value: number) => string;
     onLive: (value: number) => void;
     onCommit: (action?: string) => void;
     onPreviewStart?: () => void;
     onPreviewEnd?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
-    format?: (v: number) => string;
-    gradient?: string;
-    defaultValue?: number;
     disabled?: boolean;
     commitAction?: string;
   } = $props();
 
-  const isDefault = $derived(value === defaultValue);
+  const { min, max, step, scale } = $derived(range);
+  const resetValue = $derived(defaultValue ?? range.defaultValue ?? 0);
+  const isDefault = $derived(value === resetValue);
   const supportsPreview = $derived(!!onPreviewStart && !!onPreviewEnd);
-  const displayValue = $derived(format(Object.is(value, -0) ? 0 : value));
+  const displayValue = $derived((format ?? range.format)(Object.is(value, -0) ? 0 : value));
   const position = $derived(scale ? scale.toPosition(value) : value);
   let dragging = $state(false);
   let altDown = $state(false);
@@ -69,8 +66,8 @@
 
   function reset(): void {
     if (isDefault) return;
-    value = defaultValue;
-    onLive(defaultValue);
+    value = resetValue;
+    onLive(resetValue);
     onCommit(commitAction);
   }
 
@@ -181,11 +178,11 @@
     min={scale ? 0 : min}
     max={scale ? SCALE_POSITIONS : max}
     step={scale ? 1 : step}
-    defaultValue={scale ? scale.toPosition(defaultValue) : defaultValue}
+    defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
     {disabled}
     value={position}
     valueText={scale ? displayValue : undefined}
-    {gradient}
+    gradient={gradient ?? range.gradient}
     title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
     onpointerdown={onPointerDown}
     oninput={onInput}

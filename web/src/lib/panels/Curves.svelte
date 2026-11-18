@@ -1,16 +1,13 @@
 <script lang="ts">
   import ResetButton from '#lib/components/editor/controls/ResetButton.svelte';
+  import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
   import { compactSegmentedSwatchItemClass } from '#lib/components/editor/controls/segmentedControl.ts';
+  import { CURVES } from '#lib/editor/params/basic.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { keyLabel } from '#lib/shortcuts/chord.ts';
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
-  import {
-    CURVE_CHANNELS,
-    identityCurve,
-    neutralCurves,
-    type CurveChannel
-  } from '#lib/types/edits.ts';
+  import { CURVE_CHANNELS, identityCurve, type CurveChannel } from '#lib/types/edits.ts';
   import CurvesCanvas from './curves/CurvesCanvas.svelte';
   import { CHANNEL_LABELS } from './curves/curves';
 
@@ -38,9 +35,8 @@
   }
 
   function resetAll(): void {
-    editor.edits.basic.curves = neutralCurves();
     canvas?.clearSelection();
-    void editor.onCommit('Reset Curves');
+    commitSectionReset(CURVES);
   }
 </script>
 
