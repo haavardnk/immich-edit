@@ -339,11 +339,20 @@ export function updateDraftPerspective(ctx: GeometryCtx, patch: Partial<Perspect
   refitDraftCrop(sess);
 }
 
-export function updateDraftCrop(ctx: GeometryCtx, crop: CropRect): void {
+export function updateDraftCrop(ctx: GeometryCtx, crop: CropRect, keepRatio?: boolean): void {
   const sess = ready(ctx);
   if (!sess) return;
   const { sw, sh } = sourceDims(sess);
-  sess.draftCrop = constrainCropRect(crop, sess.draftCrop, sw, sh, sess.draftAngle, perspInv(sess));
+  const locked = keepRatio ?? aspectRatioFor(sess.draftAspect, sw, sh) !== null;
+  sess.draftCrop = constrainCropRect(
+    crop,
+    sess.draftCrop,
+    sw,
+    sh,
+    sess.draftAngle,
+    perspInv(sess),
+    locked
+  );
   sess.userEditedCrop = !cropIsDefault(sess);
 }
 

@@ -22,6 +22,7 @@
   import {
     angleFromLine,
     aspectRatioFor,
+    moveCropWithin,
     resizeCrop,
     rotatedBbox,
     scaleCropAboutCentre,
@@ -211,11 +212,7 @@
     const dy = (e.clientY - drag.startY) / Math.max(bboxH, 1);
     if (drag.kind === 'move' || drag.kind === 'pan') {
       const sign = drag.kind === 'pan' ? -1 : 1;
-      editor.updateGeometryDraftCrop({
-        ...drag.startCrop,
-        x: drag.startCrop.x + sign * dx,
-        y: drag.startCrop.y + sign * dy
-      });
+      editor.updateGeometryDraftCrop(moveCropWithin(drag.startCrop, sign * dx, sign * dy), true);
       return;
     }
     editor.updateGeometryDraftCrop(
@@ -223,7 +220,8 @@
         ratio: drag.ratio,
         fromCentre: held('fromCentre', e),
         stageAspect: bboxW / Math.max(bboxH, 1)
-      })
+      }),
+      drag.ratio !== null
     );
   }
 

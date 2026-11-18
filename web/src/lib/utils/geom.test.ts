@@ -11,6 +11,7 @@ import {
   largestInscribedRect,
   refitCropAtAspect,
   constrainCropRect,
+  moveCropWithin,
   croppedOutputSize
 } from './geom';
 import type { CropRect } from '../types/edits';
@@ -216,6 +217,27 @@ describe('constrainCropRect', () => {
     const candidate: CropRect = { x: 0, y: 0, w: 1, h: 1 };
     const out = constrainCropRect(candidate, null, 100, 60, 20);
     expect(cropRectInsideWarpedSource(out, 100, 60, 20)).toBe(true);
+  });
+
+  it.each<[string, CropRect, number]>([
+    ['past the right edge', { x: 0.5, y: 0.3, w: 0.7, h: 0.35 }, 0],
+    ['past the left edge', { x: -0.2, y: 0.3, w: 0.6, h: 0.3 }, 0],
+    ['past the corner while straightened', { x: 0.4, y: 0.4, w: 0.8, h: 0.4 }, 8]
+  ])('keeps a locked ratio %s', (_name, candidate, angle) => {
+    const previous = { x: 0.3, y: 0.3, w: 0.4, h: (0.4 * candidate.h) / candidate.w };
+    const out = constrainCropRect(candidate, previous, 100, 60, angle, undefined, true);
+    expect(out.w / out.h).toBeCloseTo(candidate.w / candidate.h, 6);
+    expect(out.x).toBeGreaterThanOrEqual(-1e-9);
+    expect(out.x + out.w).toBeLessThanOrEqual(1 + 1e-9);
+    expect(cropRectInsideWarpedSource(out, 100, 60, angle)).toBe(true);
+  });
+});
+
+describe('moveCropWithin', () => {
+  it('stops at the edges without shrinking', () => {
+    const start: CropRect = { x: 0.2, y: 0.3, w: 0.5, h: 0.4 };
+    expect(moveCropWithin(start, 0.6, -0.5)).toEqual({ x: 0.5, y: 0, w: 0.5, h: 0.4 });
+    expect(moveCropWithin(start, -0.4, 0.1)).toEqual({ x: 0, y: 0.4, w: 0.5, h: 0.4 });
   });
 });
 

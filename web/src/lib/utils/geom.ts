@@ -242,14 +242,18 @@ export function quarterTurnCrop(crop: CropRect, clockwise: boolean): CropRect {
     : { x: crop.y, y: 1 - crop.x - crop.w, w: crop.h, h: crop.w };
 }
 
-export function constrainCropRect(
-  candidate: CropRect,
-  previous: CropRect | null,
-  sw: number,
-  sh: number,
-  angleDeg: number,
-  perspInv: Mat3 = IDENTITY_MAT3
-): CropRect {
+const UNIT_SLACK = 1e-9;
+
+function withinUnit(rect: CropRect): boolean {
+  return (
+    rect.x >= -UNIT_SLACK &&
+    rect.y >= -UNIT_SLACK &&
+    rect.x + rect.w <= 1 + UNIT_SLACK &&
+    rect.y + rect.h <= 1 + UNIT_SLACK
+  );
+}
+
+function clipToUnit(candidate: CropRect): CropRect {
   const clipped: CropRect = {
     x: clamp01(candidate.x),
     y: clamp01(candidate.y),
@@ -258,9 +262,32 @@ export function constrainCropRect(
   };
   if (clipped.x + clipped.w > 1) clipped.w = 1 - clipped.x;
   if (clipped.y + clipped.h > 1) clipped.h = 1 - clipped.y;
-  if (cropRectInsideWarpedSource(clipped, sw, sh, angleDeg, perspInv)) return clipped;
+  return clipped;
+}
+
+export function moveCropWithin(start: CropRect, dx: number, dy: number): CropRect {
+  return {
+    ...start,
+    x: Math.min(Math.max(start.x + dx, 0), Math.max(0, 1 - start.w)),
+    y: Math.min(Math.max(start.y + dy, 0), Math.max(0, 1 - start.h))
+  };
+}
+
+export function constrainCropRect(
+  candidate: CropRect,
+  previous: CropRect | null,
+  sw: number,
+  sh: number,
+  angleDeg: number,
+  perspInv: Mat3 = IDENTITY_MAT3,
+  keepRatio = false
+): CropRect {
+  const fits = (rect: CropRect): boolean =>
+    withinUnit(rect) && cropRectInsideWarpedSource(rect, sw, sh, angleDeg, perspInv);
+  const clipped = keepRatio ? candidate : clipToUnit(candidate);
+  if (fits(clipped)) return clipped;
   const base = previous ?? FULL_CROP;
-  if (!cropRectInsideWarpedSource(base, sw, sh, angleDeg, perspInv)) {
+  if (!fits(base)) {
     return largestInscribedRect(sw, sh, angleDeg, clipped.w / Math.max(clipped.h, 1e-6), perspInv);
   }
   let lo = 0;
@@ -274,7 +301,7 @@ export function constrainCropRect(
       w: base.w + (clipped.w - base.w) * t,
       h: base.h + (clipped.h - base.h) * t
     };
-    if (cropRectInsideWarpedSource(r, sw, sh, angleDeg, perspInv)) {
+    if (fits(r)) {
       best = r;
       lo = t;
     } else {

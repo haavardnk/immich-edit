@@ -187,6 +187,26 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     expect(await photo()).toBeGreaterThan(before + 20);
   });
 
+  test('panning the photo into an edge keeps a locked ratio', async ({ page }) => {
+    await openCrop(page);
+    await pickRatio(page, '1:1');
+    const side = async () => {
+      const nw = await centreOf(page.getByRole('button', { name: 'resize nw' }));
+      const se = await centreOf(page.getByRole('button', { name: 'resize se' }));
+      return Math.round(((se.x - nw.x) / (se.y - nw.y)) * 100) / 100;
+    };
+    await expect.poll(side).toBe(1);
+    const start = await centreOf(page.getByRole('button', { name: 'resize se' }));
+    const from = { x: start.x - 30, y: start.y - 30 };
+    await touchDown(page, from);
+    for (const step of [80, 160, 240, 320]) {
+      await touchMoveTo(page, { x: from.x + step, y: from.y + step / 2 });
+    }
+    expect(await side()).toBe(1);
+    await touchUp(page);
+    await expect.poll(side).toBe(1);
+  });
+
   test('entering and leaving crop ease the photo by the fill margin only', async ({ page }) => {
     await openCrop(page);
     await pickRatio(page, '1:1');

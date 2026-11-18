@@ -741,7 +741,8 @@ class EditorStore {
   updateGeometryDraftPerspective = (patch: Partial<PerspectiveEdits>): void =>
     geometry.updateDraftPerspective(this, patch);
 
-  updateGeometryDraftCrop = (crop: CropRect): void => geometry.updateDraftCrop(this, crop);
+  updateGeometryDraftCrop = (crop: CropRect, keepRatio?: boolean): void =>
+    geometry.updateDraftCrop(this, crop, keepRatio);
 
   setGeometryAspect = (aspect: AspectLock, action?: string): Promise<void> =>
     geometry.setAspect(this, aspect, action);
