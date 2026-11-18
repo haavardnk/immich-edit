@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BarToggle from './BarToggle.svelte';
   import ZoomPopover from '#lib/components/ZoomPopover.svelte';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -11,7 +12,6 @@
   import CullControls from '#lib/components/CullControls.svelte';
   import TagsStrip from '#lib/components/editor/TagsStrip.svelte';
   import SaveStatus from '#lib/components/editor/SaveStatus.svelte';
-  import { Button } from '@immich/ui';
   import { mdiFilmstrip, mdiPaletteSwatchOutline } from '@mdi/js';
   import TargetStatus from '#lib/components/editor/desktop/TargetStatus.svelte';
   import { targetAdjust } from '#lib/stores/targetAdjust.svelte.ts';
@@ -64,34 +64,26 @@
         onZoom={ui.userZoom}
         onFit={ui.zoomFit}
       />
-      <Button
-        size="tiny"
-        variant="ghost"
-        color={ui.presetStrip ? 'primary' : 'secondary'}
-        class={ui.presetStrip ? 'bg-primary/10' : undefined}
-        leadingIcon={mdiPaletteSwatchOutline}
+      <BarToggle
+        icon={mdiPaletteSwatchOutline}
+        pressed={ui.presetStrip}
+        label={ui.presetStrip ? 'Hide presets' : 'Show presets'}
         title={hint(ui.presetStrip ? 'Hide presets' : 'Show presets', 'presetStrip')}
-        aria-label={ui.presetStrip ? 'Hide presets' : 'Show presets'}
-        aria-pressed={ui.presetStrip}
-        onclick={ui.togglePresetStrip}>Presets</Button
+        onclick={ui.togglePresetStrip}>Presets</BarToggle
       >
-      <Button
-        size="tiny"
-        variant="ghost"
-        color={hasFilmstrip && filmstripShown ? 'primary' : 'secondary'}
-        class={hasFilmstrip && filmstripShown ? 'bg-primary/10' : undefined}
-        leadingIcon={mdiFilmstrip}
-        title={!hasFilmstrip
-          ? 'No filmstrip available'
-          : hint(filmstripShown ? 'Hide filmstrip' : 'Show filmstrip', 'filmstrip')}
-        aria-label={!hasFilmstrip
+      <BarToggle
+        icon={mdiFilmstrip}
+        pressed={hasFilmstrip && filmstripShown}
+        label={!hasFilmstrip
           ? 'No filmstrip available'
           : filmstripShown
             ? 'Hide filmstrip'
             : 'Show filmstrip'}
-        aria-pressed={filmstripShown}
+        title={!hasFilmstrip
+          ? 'No filmstrip available'
+          : hint(filmstripShown ? 'Hide filmstrip' : 'Show filmstrip', 'filmstrip')}
         disabled={!hasFilmstrip}
-        onclick={ui.toggleEditorFilmstrip}>Filmstrip</Button
+        onclick={ui.toggleEditorFilmstrip}>Filmstrip</BarToggle
       >
     </div>
   </div>
