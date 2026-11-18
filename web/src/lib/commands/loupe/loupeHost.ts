@@ -1,7 +1,7 @@
 import { createHost } from '#lib/commands/host.ts';
 
 export interface LoupeHost {
-  toggleZoom: () => void;
+  cycleZoom: () => void;
   panBy: (dx: number, dy: number) => void;
 }
 

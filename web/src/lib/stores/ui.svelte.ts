@@ -7,6 +7,8 @@ import {
   RETOUCH_SIZE
 } from '#lib/editor/params/brush.ts';
 import type { ToolRange } from '#lib/editor/params/types.ts';
+import type { RetouchMode } from '#lib/types/edits.ts';
+import { withZoom, type View, type ViewChange, type ZoomedView } from '#lib/utils/imageViewport.ts';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
 import {
   clampZoom,
@@ -15,7 +17,6 @@ import {
   readZoomLevel,
   writeZoomLevel
 } from '#lib/utils/zoomLevel.ts';
-import type { RetouchMode } from '#lib/types/edits.ts';
 
 export type EditorTab = 'develop' | 'masks' | 'retouch' | 'geometry' | 'export';
 
@@ -122,8 +123,8 @@ class UiStore {
   fitZoom = $state(100);
   fitMode = $state(true);
   zoomLevel = $state(readZoomLevel());
-  panX = $state(0);
-  panY = $state(0);
+  cx = $state(0.5);
+  cy = $state(0.5);
   keybindsHelpOpen = $state(false);
   metaPopover = $state<MetaPopover | null>(null);
   editorTab = $state<EditorTab>('develop');
@@ -290,8 +291,7 @@ class UiStore {
   zoomFit = (): void => {
     this.fitMode = true;
     this.zoom = this.fitZoom;
-    this.panX = 0;
-    this.panY = 0;
+    this.centre();
   };
 
   toggleKeybindsHelp = (): void => {
@@ -318,6 +318,10 @@ class UiStore {
     return this.zoom > this.fitZoom;
   }
 
+  get view(): View {
+    return { zoom: this.fitMode ? null : this.zoom, cx: this.cx, cy: this.cy };
+  }
+
   setFitZoom = (value: number): void => {
     const next = Number.isFinite(value) && value > 0 ? value : 100;
     if (this.fitZoom === next) return;
@@ -330,27 +334,44 @@ class UiStore {
   };
 
   setZoom = (value: number): void => {
-    this.fitMode = false;
-    this.zoom = clampZoom(value, this.fitZoom);
-    if (!this.zoomed) {
-      this.panX = 0;
-      this.panY = 0;
-    }
+    this.show(withZoom(this.view, value, this.fitZoom));
   };
 
   userZoom = (value: number): void => {
     this.setZoom(value);
-    if (!this.zoomed) return;
-    this.zoomLevel = this.zoom;
-    writeZoomLevel(this.zoom);
+    this.rememberZoomLevel(this.zoom);
   };
 
-  setView = (zoom: number, panX: number, panY: number): void => {
-    this.setZoom(zoom);
-    if (!this.zoomed) return;
-    this.panX = panX;
-    this.panY = panY;
+  setView = (view: View): void => {
+    if (view.zoom === null) {
+      this.zoomFit();
+      return;
+    }
+    this.show(withZoom(view, view.zoom, this.fitZoom));
   };
+
+  applyView = (view: View, change: ViewChange): void => {
+    this.setView(view);
+    if (change === 'zoom') this.rememberZoomLevel(this.zoom);
+  };
+
+  rememberZoomLevel = (zoom: number, fitZoom: number = this.fitZoom): void => {
+    if (zoom <= fitZoom) return;
+    this.zoomLevel = zoom;
+    writeZoomLevel(zoom);
+  };
+
+  private show(view: ZoomedView): void {
+    this.fitMode = false;
+    this.zoom = view.zoom;
+    this.cx = view.cx;
+    this.cy = view.cy;
+  }
+
+  private centre(): void {
+    this.cx = 0.5;
+    this.cy = 0.5;
+  }
 
   zoomNative = (): void => {
     this.userZoom(100);

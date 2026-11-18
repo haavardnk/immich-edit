@@ -247,9 +247,9 @@ test('an accent recolours primary, the logo and the favicon but not on-photo str
   await page.getByRole('button', { name: 'Corner handles' }).click();
   const handle = page.getByRole('button', { name: 'perspective corner 1' });
   await expect(handle).toBeVisible();
-  expect(await handle.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
-    VIOLET
-  );
+  expect(
+    await handle.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor)
+  ).toBe(VIOLET);
   expect(
     await page
       .locator('polygon[stroke="var(--color-image-accent)"]')

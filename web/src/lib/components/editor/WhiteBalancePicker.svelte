@@ -4,8 +4,9 @@
   import { WhiteBalanceProbe } from '#lib/stores/editor/whiteBalanceProbe.svelte.ts';
   import type { Edits } from '#lib/types/edits.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
-  import { clamp01 } from '#lib/utils/geom.ts';
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { clampedPoint } from '#lib/gestures/point.ts';
 
   type Spot = { u: number; v: number; x: number; y: number; id: number };
 
@@ -60,14 +61,8 @@
   }
 
   function spotAt(e: PointerEvent): Spot {
-    const b = (e.currentTarget as Element).getBoundingClientRect();
-    return {
-      u: clamp01((e.clientX - b.left) / Math.max(b.width, 1)),
-      v: clamp01((e.clientY - b.top) / Math.max(b.height, 1)),
-      x: e.clientX,
-      y: e.clientY,
-      id: e.pointerId
-    };
+    const at = clampedPoint(e, e.currentTarget as Element);
+    return { u: at.x, v: at.y, x: e.clientX, y: e.clientY, id: e.pointerId };
   }
 
   function onKeyDown(e: KeyboardEvent): void {
@@ -76,33 +71,33 @@
     editor.cancelWbPicker();
   }
 
-  function onPointerDown(e: PointerEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (editor.wbBusy || start || e.button !== 0) return;
-    start = spotAt(e);
-    pointer = start;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (start && e.pointerId !== start.id) return;
+  function track(e: PointerEvent): void {
     pointer = spotAt(e);
     if (sample && !editor.wbBusy) probe.probe(sample);
   }
 
-  function onPointerUp(e: PointerEvent): void {
-    if (!start || e.pointerId !== start.id) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    const picked = dragging && pointer ? boxSample(start, pointer) : boxSample(start, start);
-    start = null;
-    void editor.pickWhiteBalance(picked);
-  }
-
-  function onPointerCancel(e: PointerEvent): void {
-    if (start?.id === e.pointerId) start = null;
-  }
+  const pick = pointerDrag<true>({
+    start(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (editor.wbBusy || start || e.button !== 0) return null;
+      start = spotAt(e);
+      pointer = start;
+      return true;
+    },
+    hover: track,
+    move: track,
+    end(e) {
+      if (!start) return;
+      e.stopPropagation();
+      const picked = dragging && pointer ? boxSample(start, pointer) : boxSample(start, start);
+      start = null;
+      void editor.pickWhiteBalance(picked);
+    },
+    cancel() {
+      start = null;
+    }
+  });
 
   function onPointerLeave(): void {
     if (start) return;
@@ -120,10 +115,7 @@
     class="absolute z-30 cursor-crosshair bg-transparent"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none;"
     aria-label="Sample neutral color"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerCancel}
+    {...pick.on()}
     onpointerleave={onPointerLeave}
   >
     {#if dragging && sample}

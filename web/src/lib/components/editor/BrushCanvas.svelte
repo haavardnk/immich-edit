@@ -18,6 +18,8 @@
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
   import { brushWheel } from '#lib/utils/brushSize.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
 
   let {
     img
@@ -136,8 +138,7 @@
     const buf = editor.brushBuffers[activeComp.id];
     if (!buf) return;
     const rect = canvasEl.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const { x: px, y: py } = elementPoint(e, rect);
     const color = maskOverlayRgb(canvasEl);
     if (lastPx !== null && lastPy !== null) {
       const radiusPx = editor.brushTool.size * 0.5 * Math.min(rect.width, rect.height);
@@ -198,25 +199,39 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  async function onPointerDown(e: PointerEvent): Promise<void> {
-    if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    strokeActive = true;
-    lastPx = null;
-    lastPy = null;
-    editor.beginMaskStroke();
-    await editor.ensureBrushBuffer(activeComp.id, activeComp.kind.raster_id);
+  async function stampWhenLoaded(
+    e: PointerEvent,
+    id: string,
+    rasterId: string | null
+  ): Promise<void> {
+    await editor.ensureBrushBuffer(id, rasterId);
     stampAt(e);
   }
 
-  function onPointerMove(e: PointerEvent): void {
-    const bounds = (e.currentTarget as Element).getBoundingClientRect();
-    hover = { x: e.clientX - bounds.left, y: e.clientY - bounds.top };
-    if (!strokeActive) return;
-    stampAt(e);
+  function trackHover(e: PointerEvent): void {
+    hover = elementPoint(e, e.currentTarget as Element);
   }
+
+  const stroke = pointerDrag<true>({
+    start(e) {
+      if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return null;
+      e.preventDefault();
+      e.stopPropagation();
+      strokeActive = true;
+      lastPx = null;
+      lastPy = null;
+      editor.beginMaskStroke();
+      void stampWhenLoaded(e, activeComp.id, activeComp.kind.raster_id);
+      return true;
+    },
+    hover: trackHover,
+    move(e) {
+      trackHover(e);
+      if (!strokeActive) return;
+      stampAt(e);
+    },
+    end: () => void finishStroke()
+  });
 
   function onWheel(e: WheelEvent): void {
     brushWheel(
@@ -227,12 +242,11 @@
     );
   }
 
-  async function onPointerUp(e: PointerEvent): Promise<void> {
+  async function finishStroke(): Promise<void> {
     if (!strokeActive) return;
     strokeActive = false;
     lastPx = null;
     lastPy = null;
-    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
     if (!active || !activeComp) {
       editor.endMaskStroke();
       return;
@@ -247,10 +261,7 @@
     bind:this={canvasEl}
     class="absolute"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
-    onpointerdown={onPointerDown}
-    onpointermove={onPointerMove}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    {...stroke.on()}
     onpointerleave={() => (hover = null)}
     onwheel={onWheel}
     data-testid="brush-canvas"

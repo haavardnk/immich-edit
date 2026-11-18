@@ -2,6 +2,9 @@
   import type { MaskComponent, MaskComponentKind, Vec2f } from '#lib/types/edits.ts';
   import { radialAxes, type DragKind } from '#lib/utils/maskDrag.ts';
   import { smoothRamp } from '#lib/utils/maskRamp.ts';
+  import MaskHandle from './MaskHandle.svelte';
+  import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
+  import type { ComponentProps } from 'svelte';
 
   const MIN_FEATHER_HANDLE_SCALE = 0.08;
   const ROTATE_GRIP_GAP = 22;
@@ -46,6 +49,66 @@
     x: c.x + (rxDx / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP),
     y: c.y + (rxDy / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP)
   });
+
+  function edge(sign: 1 | -1, axis: 'x' | 'y'): ComponentProps<typeof MaskHandle> {
+    const dx = axis === 'x' ? rxDx : ryDx;
+    const dy = axis === 'x' ? rxDy : ryDy;
+    return {
+      cx: c.x + sign * dx,
+      cy: c.y + sign * dy,
+      r: HANDLE_DOT.maskEdge,
+      fill: 'var(--color-mask-overlay)',
+      stroke: 'var(--color-image-light)',
+      strokeWidth: 2,
+      cursor: axis === 'x' ? 'ew-resize' : 'ns-resize',
+      label: `Radial radius ${axis}`,
+      onpointerdown: (e) =>
+        onDrag(e, axis === 'x' ? { kind: 'radial-rx', sign } : { kind: 'radial-ry', sign })
+    };
+  }
+
+  const handles = $derived(
+    spacedHandles<ComponentProps<typeof MaskHandle>>([
+      edge(1, 'x'),
+      edge(-1, 'x'),
+      edge(1, 'y'),
+      edge(-1, 'y'),
+      {
+        cx: grip.x,
+        cy: grip.y,
+        r: HANDLE_DOT.maskGrip,
+        fill: 'var(--color-image-light)',
+        stroke: 'var(--color-mask-overlay)',
+        strokeWidth: 2,
+        cursor: 'grab',
+        label: 'Radial rotation',
+        onpointerdown: (e) => onDrag(e, { kind: 'radial-rotate' })
+      },
+      {
+        cx: c.x + rxDx * featherHandleScale,
+        cy: c.y + rxDy * featherHandleScale,
+        r: HANDLE_DOT.maskFeather,
+        fill: 'var(--color-mask-overlay)',
+        fillOpacity: 0.3,
+        stroke: 'var(--color-mask-overlay)',
+        strokeWidth: 1.5,
+        cursor: 'move',
+        label: 'Radial feather',
+        onpointerdown: (e) => onDrag(e, { kind: 'radial-feather' })
+      },
+      {
+        cx: c.x,
+        cy: c.y,
+        r: HANDLE_DOT.maskCentre,
+        fill: 'var(--color-image-light)',
+        stroke: 'var(--color-mask-overlay)',
+        strokeWidth: 2,
+        cursor: 'move',
+        label: 'Radial center',
+        onpointerdown: (e) => onDrag(e, { kind: 'radial-center' })
+      }
+    ])
+  );
 </script>
 
 <g style="pointer-events: auto;">
@@ -103,71 +166,6 @@
     stroke-width="0.5"
     opacity="0.5"
   />
-  <circle
-    cx={c.x}
-    cy={c.y}
-    r="6"
-    fill="var(--color-image-light)"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="2"
-    style="cursor: move;"
-    role="button"
-    aria-label="Radial center"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-center' })}
-  />
-  <circle
-    cx={c.x + rxDx}
-    cy={c.y + rxDy}
-    r="6"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: ew-resize;"
-    role="button"
-    aria-label="Radial radius x"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-rx', sign: 1 })}
-  />
-  <circle
-    cx={c.x - rxDx}
-    cy={c.y - rxDy}
-    r="6"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: ew-resize;"
-    role="button"
-    aria-label="Radial radius x"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-rx', sign: -1 })}
-  />
-  <circle
-    cx={c.x + ryDx}
-    cy={c.y + ryDy}
-    r="6"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: ns-resize;"
-    role="button"
-    aria-label="Radial radius y"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-ry', sign: 1 })}
-  />
-  <circle
-    cx={c.x - ryDx}
-    cy={c.y - ryDy}
-    r="6"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: ns-resize;"
-    role="button"
-    aria-label="Radial radius y"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-ry', sign: -1 })}
-  />
   {#if innerScale > 0.001}
     <ellipse
       cx={c.x}
@@ -192,31 +190,7 @@
     opacity="0.7"
     style="pointer-events: none;"
   />
-  <circle
-    cx={grip.x}
-    cy={grip.y}
-    r="5"
-    fill="var(--color-image-light)"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="2"
-    style="cursor: grab;"
-    role="button"
-    aria-label="Radial rotation"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-rotate' })}
-  />
-  <circle
-    cx={c.x + rxDx * featherHandleScale}
-    cy={c.y + rxDy * featherHandleScale}
-    r="5"
-    fill="var(--color-mask-overlay)"
-    fill-opacity="0.3"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="1.5"
-    style="cursor: move;"
-    role="button"
-    aria-label="Radial feather"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'radial-feather' })}
-  />
+  {#each handles as handle, i (i)}
+    <MaskHandle {...handle} />
+  {/each}
 </g>

@@ -1,10 +1,10 @@
 import { loupeCommand, VIEWING } from '#lib/commands/loupe/context.ts';
 import { loupeHost } from '#lib/commands/loupe/loupeHost.ts';
 import type { Command } from '#lib/commands/types.ts';
+import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
 import { mdiSkipNextOutline } from '@mdi/js';
 
 export const loupeInfo = loupeCommand({
@@ -44,7 +44,7 @@ export const LOUPE_VIEW_COMMANDS: readonly Command[] = [
     id: 'loupe.zoom',
     contexts: VIEWING,
     bind: 'zoomToggle',
-    run: () => loupeHost.get()?.toggleZoom()
+    run: () => loupeHost.get()?.cycleZoom()
   }),
   loupeCommand({
     id: 'loupe.pan',

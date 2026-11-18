@@ -3,7 +3,7 @@ import type { FaceBox } from '#lib/api/faces.ts';
 import type { Edits, GeometryEdits } from '#lib/types/edits.ts';
 import { neutralEdits } from '#lib/types/edits.ts';
 import { viewTransform } from './canvasCoords';
-import { faceTargets, nextTargetIndex, panForTarget, sharpestCell } from './zoomTarget';
+import { faceTargets, nextTargetIndex, sharpestCell } from './zoomTarget';
 
 const dims = { source_w: 1000, source_h: 800 };
 
@@ -55,27 +55,6 @@ describe('nextTargetIndex', () => {
     [1, 2, null]
   ])('steps %s of %i targets', (index, count, expected) => {
     expect(nextTargetIndex(index, count)).toBe(expected);
-  });
-});
-
-describe('panForTarget', () => {
-  const frame = { width: 400, height: 300 };
-
-  it('centres the target in the viewport', () => {
-    expect(panForTarget({ u: 0.25, v: 0.75 }, frame, 400, 300, 2)).toEqual({
-      panX: 200,
-      panY: -150
-    });
-  });
-
-  it('clamps so the zoomed frame never leaves the viewport', () => {
-    expect(panForTarget({ u: 0, v: 1 }, frame, 400, 300, 2)).toEqual({ panX: 200, panY: -150 });
-  });
-
-  it('holds the centre when the frame still fits', () => {
-    const pan = panForTarget({ u: 0.1, v: 0.9 }, frame, 400, 300, 1);
-    expect(pan.panX).toBeCloseTo(0);
-    expect(pan.panY).toBeCloseTo(0);
   });
 });
 

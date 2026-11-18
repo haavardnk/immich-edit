@@ -17,6 +17,9 @@
   import UprightGuides from './UprightGuides.svelte';
   import type { CropRect } from '#lib/types/edits.ts';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { CROP_HANDLES, HANDLE_DOT, boxHandleHit } from '#lib/editor/handles.ts';
 
   let container = $state<HTMLDivElement | null>(null);
   let stage = $state<HTMLDivElement | null>(null);
@@ -91,11 +94,17 @@
 
   type DragKind = 'move' | 'pan' | CropHandle;
 
-  let dragKind = $state<DragKind | null>(null);
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragStartCrop: CropRect | null = null;
-  let dragLockedRatio: number | null = null;
+  type CropDrag =
+    | { kind: 'line' }
+    | {
+        kind: DragKind;
+        startX: number;
+        startY: number;
+        startCrop: CropRect;
+        ratio: number | null;
+      };
+
+  const hit = $derived(boxHandleHit(cropPx.w, cropPx.h));
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop
@@ -104,27 +113,20 @@
   );
 
   function stagePoint(e: PointerEvent): Point {
-    const rect = stage?.getBoundingClientRect();
-    return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
+    return stage ? elementPoint(e, stage) : { x: e.clientX, y: e.clientY };
   }
 
-  function startLine(e: PointerEvent): void {
+  function startLine(e: PointerEvent): CropDrag {
     e.preventDefault();
     e.stopPropagation();
     const at = stagePoint(e);
     line = { from: at, to: at };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    return { kind: 'line' };
   }
 
-  function onLineMove(e: PointerEvent): void {
-    if (!line) return;
-    line = { from: line.from, to: stagePoint(e) };
-  }
-
-  function onLineUp(e: PointerEvent): void {
+  function endLine(): void {
     const drawn = line;
     line = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
     if (!drawn || !sess) return;
     const length = Math.hypot(drawn.to.x - drawn.from.x, drawn.to.y - drawn.from.y);
     if (length < MIN_LINE_PX) return;
@@ -133,54 +135,67 @@
     void editor.commitGeometry('Straighten');
   }
 
-  function startDrag(e: PointerEvent, kind: 'move' | CropHandle): void {
-    if (kind === 'move' && held('straighten', e)) {
-      startLine(e);
-      return;
-    }
+  function startCrop(e: PointerEvent, kind: 'line' | 'move' | CropHandle): CropDrag | null {
+    if (kind === 'line' || (kind === 'move' && held('straighten', e))) return startLine(e);
     e.preventDefault();
     e.stopPropagation();
-    if (!sess) return;
+    if (!sess) return null;
     const panning = kind === 'move' && held('pan', e);
-    dragKind = panning ? 'pan' : kind;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragStartCrop = { ...sess.draftCrop };
+    const startCrop = { ...sess.draftCrop };
     panStartCrop = panning ? { ...sess.draftCrop } : null;
     const aspectRatio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
-    dragLockedRatio =
+    const ratio =
       aspectRatio ??
-      (held('constrain', e)
-        ? (dragStartCrop.w * bboxW) / Math.max(dragStartCrop.h * bboxH, 1)
-        : null);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      (held('constrain', e) ? (startCrop.w * bboxW) / Math.max(startCrop.h * bboxH, 1) : null);
+    return {
+      kind: panning ? 'pan' : kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      startCrop,
+      ratio
+    };
   }
 
-  function onMove(e: PointerEvent): void {
-    if (line) {
-      onLineMove(e);
+  function moveCrop(e: PointerEvent, drag: CropDrag): void {
+    if (drag.kind === 'line') {
+      if (line) line = { from: line.from, to: stagePoint(e) };
       return;
     }
-    if (!dragKind || !dragStartCrop || !sess) return;
-    const dx = (e.clientX - dragStartX) / Math.max(bboxW, 1);
-    const dy = (e.clientY - dragStartY) / Math.max(bboxH, 1);
-    if (dragKind === 'move' || dragKind === 'pan') {
-      const sign = dragKind === 'pan' ? -1 : 1;
+    if (!sess) return;
+    const dx = (e.clientX - drag.startX) / Math.max(bboxW, 1);
+    const dy = (e.clientY - drag.startY) / Math.max(bboxH, 1);
+    if (drag.kind === 'move' || drag.kind === 'pan') {
+      const sign = drag.kind === 'pan' ? -1 : 1;
       editor.updateGeometryDraftCrop({
-        ...dragStartCrop,
-        x: dragStartCrop.x + sign * dx,
-        y: dragStartCrop.y + sign * dy
+        ...drag.startCrop,
+        x: drag.startCrop.x + sign * dx,
+        y: drag.startCrop.y + sign * dy
       });
       return;
     }
     editor.updateGeometryDraftCrop(
-      resizeCrop(dragStartCrop, dragKind, dx, dy, {
-        ratio: dragLockedRatio,
+      resizeCrop(drag.startCrop, drag.kind, dx, dy, {
+        ratio: drag.ratio,
         fromCentre: held('fromCentre', e),
         stageAspect: bboxW / Math.max(bboxH, 1)
       })
     );
   }
+
+  function endCrop(_: PointerEvent, drag: CropDrag): void {
+    if (drag.kind === 'line') {
+      endLine();
+      return;
+    }
+    panStartCrop = null;
+    void editor.commitGeometry('Crop');
+  }
+
+  const cropDrag = pointerDrag<CropDrag, 'line' | 'move' | CropHandle>({
+    start: startCrop,
+    move: moveCrop,
+    end: endCrop
+  });
 
   function onWheel(e: WheelEvent): void {
     if (!held('zoom', e) || !sess) return;
@@ -189,20 +204,6 @@
       scaleCropAboutCentre(sess.draftCrop, Math.exp(e.deltaY * 0.002))
     );
     editor.scheduleCropCommit();
-  }
-
-  function onUp(e: PointerEvent): void {
-    if (line) {
-      onLineUp(e);
-      return;
-    }
-    const dragged = dragKind !== null;
-    dragKind = null;
-    dragStartCrop = null;
-    dragLockedRatio = null;
-    panStartCrop = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-    if (dragged) void editor.commitGeometry('Crop');
   }
 </script>
 
@@ -246,10 +247,7 @@
       <div
         class="absolute border border-white/90 cursor-move touch-none"
         style="left: {cropPx.x}px; top: {cropPx.y}px; width: {cropPx.w}px; height: {cropPx.h}px;"
-        onpointerdown={(e) => startDrag(e, 'move')}
-        onpointermove={onMove}
-        onpointerup={onUp}
-        onpointercancel={onUp}
+        {...cropDrag.on('move')}
         role="presentation"
       >
         <svg
@@ -272,17 +270,17 @@
             />
           {/each}
         </svg>
-        {#each ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const as h (h)}
+        {#each CROP_HANDLES as h (h)}
           <button
-            class="absolute touch-none before:absolute before:inset-0.5 before:rounded-sm before:border before:border-black/60 before:bg-white"
+            class="absolute touch-none"
             style="
-              width: 16px; height: 16px;
-              {h.includes('n') ? 'top: -8px;' : ''}
-              {h.includes('s') ? 'bottom: -8px;' : ''}
-              {h.includes('w') ? 'left: -8px;' : ''}
-              {h.includes('e') ? 'right: -8px;' : ''}
-              {h === 'n' || h === 's' ? 'left: calc(50% - 8px);' : ''}
-              {h === 'w' || h === 'e' ? 'top: calc(50% - 8px);' : ''}
+              width: {hit * 2}px; height: {hit * 2}px;
+              {h.includes('n') ? `top: -${hit}px;` : ''}
+              {h.includes('s') ? `bottom: -${hit}px;` : ''}
+              {h.includes('w') ? `left: -${hit}px;` : ''}
+              {h.includes('e') ? `right: -${hit}px;` : ''}
+              {h === 'n' || h === 's' ? `left: calc(50% - ${hit}px);` : ''}
+              {h === 'w' || h === 'e' ? `top: calc(50% - ${hit}px);` : ''}
               cursor: {h === 'n' || h === 's'
               ? 'ns-resize'
               : h === 'e' || h === 'w'
@@ -291,12 +289,14 @@
                   ? 'nwse-resize'
                   : 'nesw-resize'};
             "
-            onpointerdown={(e) => startDrag(e, h)}
-            onpointermove={onMove}
-            onpointerup={onUp}
-            onpointercancel={onUp}
+            onpointerdown={(e) => cropDrag.begin(e, h)}
             aria-label="resize {h}"
-          ></button>
+          >
+            <span
+              class="pointer-events-none absolute rounded-sm border border-black/60 bg-white"
+              style="inset: {hit - HANDLE_DOT.crop}px;"
+            ></span>
+          </button>
         {/each}
       </div>
 
@@ -305,10 +305,7 @@
           class="absolute inset-0 cursor-crosshair touch-none"
           data-testid="straighten-surface"
           role="presentation"
-          onpointerdown={startLine}
-          onpointermove={onLineMove}
-          onpointerup={onLineUp}
-          onpointercancel={onLineUp}
+          {...cropDrag.on('line')}
         ></div>
       {/if}
 

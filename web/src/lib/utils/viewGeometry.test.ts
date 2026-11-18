@@ -9,7 +9,6 @@ import {
   roiCovers,
   snapToDevice,
   visibleRegion,
-  zoomAnchor,
   type Rect,
   type Roi
 } from './viewGeometry';
@@ -167,17 +166,6 @@ describe('placement', () => {
     if (!rect) throw new Error('expected a placement');
     expect(Number.isInteger(rect.left * 2)).toBe(true);
     expect(Number.isInteger(rect.top * 2)).toBe(true);
-  });
-});
-
-describe('zoomAnchor', () => {
-  it('keeps the point under the cursor fixed', () => {
-    const frame = fitFrame(100);
-    const pan = zoomAnchor(1000, 800, frame, 250, 200, 2);
-    const next = frameBox(1000, 800, 4000, 3200, FIT * 2, pan.panX, pan.panY, 2);
-    if (!next) throw new Error('expected a frame');
-    const u = (250 - frame.left) / frame.width;
-    expect(next.left + u * next.width).toBeCloseTo(250, 6);
   });
 });
 
