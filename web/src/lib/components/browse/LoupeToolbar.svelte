@@ -4,10 +4,11 @@
   import CommandList from '#lib/components/CommandList.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import LoupeMoreMenu from '#lib/components/browse/LoupeMoreMenu.svelte';
+  import LoupeEditPill from '#lib/components/browse/LoupeEditPill.svelte';
   import LoupeTitle from '#lib/components/browse/LoupeTitle.svelte';
   import { commandLabel } from '#lib/commands/command.ts';
   import { loupeClose } from '#lib/commands/loupe/dismiss.ts';
-  import { loupeOpenEditor, loupeSingle } from '#lib/commands/loupe/navigation.ts';
+  import { loupeSingle } from '#lib/commands/loupe/navigation.ts';
   import { loupeInfo } from '#lib/commands/loupe/view.ts';
   import { LOUPE_MORE_MENU, LOUPE_VIEW_MODE_MENU } from '#lib/commands/menus.ts';
   import { IconButton } from '@immich/ui';
@@ -70,8 +71,9 @@
         <CommandList menu={LOUPE_VIEW_MODE_MENU} onrun={() => (viewModeOpen = false)} />
       </div>
     </Popover>
-    <CommandIconButton command={loupeOpenEditor} size="small" variant="ghost" />
     <CommandIconButton command={loupeInfo} size="small" variant="ghost" />
     <LoupeMoreMenu menu={LOUPE_MORE_MENU} active={moreActive} />
+    <span class="mx-2 h-5 border-l border-hairline" aria-hidden="true"></span>
+    <LoupeEditPill compact />
   </div>
 </nav>
