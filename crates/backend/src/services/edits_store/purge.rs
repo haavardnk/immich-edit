@@ -1,64 +1,22 @@
-use raw_pipeline::edits::Edits;
-use sqlx::{AssertSqlSafe, Row, SqliteConnection};
+use sqlx::{AssertSqlSafe, SqliteConnection};
 use uuid::Uuid;
 
 use super::*;
 
-const OWNED_TABLES: [&str; 6] = [
+pub(super) const ASSET_TABLES: [&str; 5] = [
     "edits",
     "edits_history",
-    "presets",
-    "export_jobs",
+    "edit_snapshots",
     "raster_refs",
-    "saved_views",
+    "export_jobs",
 ];
 
-impl EditsStore {
-    pub async fn rebuild_raster_refs(&self) -> Result<usize, EditsStoreError> {
-        let rows = sqlx::query(
-            "SELECT user_id, asset_id, edits_json FROM edits \
-             UNION ALL \
-             SELECT user_id, asset_id, edits_json FROM edits_history WHERE edits_json IS NOT NULL",
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        let mut triples: Vec<(String, String, String)> = Vec::new();
-        for row in rows {
-            let user_id: String = row.try_get("user_id")?;
-            let asset_id: String = row.try_get("asset_id")?;
-            let edits_json: String = row.try_get("edits_json")?;
-            let Ok(edits) = serde_json::from_str::<Edits>(&edits_json) else {
-                continue;
-            };
-            for id in edits.retained_raster_ids() {
-                let triple = (user_id.clone(), asset_id.clone(), id);
-                if !triples.contains(&triple) {
-                    triples.push(triple);
-                }
-            }
-        }
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM raster_refs")
-            .execute(&mut *tx)
-            .await?;
-        for (user_id, asset_id, raster_id) in &triples {
-            sqlx::query(
-                "INSERT OR IGNORE INTO raster_refs (user_id, asset_id, raster_id) \
-                 VALUES (?1, ?2, ?3)",
-            )
-            .bind(user_id)
-            .bind(asset_id)
-            .bind(raster_id)
-            .execute(&mut *tx)
-            .await?;
-        }
-        tx.commit().await?;
-        Ok(triples.len())
-    }
+const OWNER_TABLES: [&str; 2] = ["presets", "saved_views"];
 
+impl EditsStore {
     pub async fn purge_owner(&self, owner: Uuid) -> Result<(), EditsStoreError> {
         let mut tx = self.pool.begin().await?;
-        for table in OWNED_TABLES {
+        for table in ASSET_TABLES.iter().chain(&OWNER_TABLES) {
             sqlx::query(AssertSqlSafe(format!(
                 "DELETE FROM {table} WHERE user_id = ?1"
             )))
@@ -71,7 +29,7 @@ impl EditsStore {
     }
 
     pub async fn purge_owned_rows(conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
-        for table in OWNED_TABLES {
+        for table in ASSET_TABLES.iter().chain(&OWNER_TABLES) {
             sqlx::query(AssertSqlSafe(format!("DELETE FROM {table}")))
                 .execute(&mut *conn)
                 .await?;

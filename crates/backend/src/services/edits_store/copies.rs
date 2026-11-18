@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
+use sqlx::AssertSqlSafe;
 use uuid::Uuid;
 
+use super::purge::ASSET_TABLES;
 use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -111,26 +113,15 @@ impl EditsStore {
             return Ok(false);
         }
         let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits WHERE user_id = ?1 AND asset_id = ?2")
+        for table in ASSET_TABLES {
+            sqlx::query(AssertSqlSafe(format!(
+                "DELETE FROM {table} WHERE user_id = ?1 AND asset_id = ?2"
+            )))
             .bind(&owner_str)
             .bind(&id_str)
             .execute(&mut *tx)
             .await?;
-        sqlx::query("DELETE FROM edits_history WHERE user_id = ?1 AND asset_id = ?2")
-            .bind(&owner_str)
-            .bind(&id_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs WHERE user_id = ?1 AND asset_id = ?2")
-            .bind(&owner_str)
-            .bind(&id_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM export_jobs WHERE user_id = ?1 AND asset_id = ?2")
-            .bind(&owner_str)
-            .bind(&id_str)
-            .execute(&mut *tx)
-            .await?;
+        }
         tx.commit().await?;
         Ok(true)
     }
