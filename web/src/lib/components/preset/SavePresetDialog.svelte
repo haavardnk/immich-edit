@@ -52,7 +52,7 @@
       <TextInput
         compact
         color="neutral"
-        class="[&_input]:h-7"
+        class="touch:[&_input]:h-11"
         aria-label="Preset name"
         bind:ref={nameInput}
         bind:value={name}
