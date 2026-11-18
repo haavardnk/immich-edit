@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { json } from './helpers';
+import { json, makePng } from './helpers';
 import { addFromSheet, cards, modes, openMasks, savedLayers, shapes, sheet } from './touchMasks';
 
 test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () => {
@@ -166,6 +166,40 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
 });
 
 test.describe('touch mask layers on a tablet', { tag: ['@touch', '@tablet'] }, () => {
+  test('the mask overlay follows the photo when the panel closes and opens', async ({ page }) => {
+    await page.route('**/masks/generate', (route) =>
+      route.fulfill(
+        json({
+          raster_id: 'r1',
+          prob_raster_id: 'p1',
+          width: 40,
+          height: 80,
+          model_id: 'ormbg',
+          backend: 'cpu',
+          elapsed_ms: 5
+        })
+      )
+    );
+    await openMasks(page, { previewBody: makePng(40, 80) });
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Subject');
+    const overlay = page.getByTestId('mask-weight-backdrop');
+    const photo = page.getByTestId('preview-image');
+    await expect(overlay).toBeVisible();
+    const offset = async (): Promise<number> => {
+      const a = await overlay.boundingBox();
+      const b = await photo.boundingBox();
+      if (!a || !b) return Infinity;
+      return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.width - b.width));
+    };
+    await expect.poll(offset).toBeLessThan(1.5);
+
+    for (let round = 0; round < 2; round += 1) {
+      await modes(page).getByRole('tab', { name: 'Masks' }).tap();
+      await page.waitForTimeout(400);
+      await expect.poll(offset).toBeLessThan(1.5);
+    }
+  });
+
   test('the inspector stacks layers, shapes and adjustments in one scroll', async ({ page }) => {
     await openMasks(page);
     await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Radial gradient');
