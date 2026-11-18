@@ -75,6 +75,7 @@ export function zoomIn(id: string | null, root: HTMLElement): void {
     arrive(track, placeGhost(handed.picture, handed.box), handed.box, handed.ratio);
     return;
   }
+  if (document.querySelector('.editor-stage')) return;
   const tile = tileOf(id);
   if (!tile || !track) {
     root.animate(

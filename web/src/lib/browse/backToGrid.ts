@@ -12,12 +12,15 @@ export async function backToGrid(
   returnPath?: string | null,
   exit: GridExit = 'push'
 ): Promise<void> {
+  const behind = browseView.loupeBehindEditor;
   const returnToLoupe = browseView.consumeEditorReturnLoupe(assetId);
   const inList = assetId !== null && browsing.visible.some((a) => a.id === assetId);
   browseView.setActive(inList ? assetId : null);
   const target = validReturnPath(returnPath) ? returnPath : (browseView.lastGridPath ?? '/photos');
+  const reopen = returnToLoupe && inList;
+  if (behind && !reopen) browseView.closeLoupe();
+  if (reopen && assetId) browseView.openLoupe(assetId);
   await (exit === 'return' ? navHistory.returnTo(target) : goto(target));
   if (!assetId || !inList) return;
-  if (returnToLoupe) browseView.openLoupe(assetId);
-  else zoomOut(assetId);
+  if (!reopen) zoomOut(assetId);
 }

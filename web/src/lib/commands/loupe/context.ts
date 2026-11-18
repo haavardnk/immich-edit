@@ -8,6 +8,9 @@ export function loupeCommand<T extends Command>(spec: T): T {
   return {
     ...spec,
     gate: spec.gate ?? 'outsideWidgets',
-    active: (trigger) => browseView.loupeId !== null && (spec.active?.(trigger) ?? true)
+    active: (trigger) =>
+      browseView.loupeId !== null &&
+      !browseView.loupeBehindEditor &&
+      (spec.active?.(trigger) ?? true)
   };
 }

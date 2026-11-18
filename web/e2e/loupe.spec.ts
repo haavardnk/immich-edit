@@ -367,6 +367,30 @@ test('the filmstrip context menu opens a photo in the editor', async ({ page }) 
   await expect(page).toHaveURL(new RegExp(`/assets/${SECOND_ID}`));
 });
 
+test('the grid never shows between the loupe and the editor', async ({ page }) => {
+  await openLoupe(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { gaps: number; watching: boolean };
+    w.gaps = 0;
+    w.watching = true;
+    const tick = (): void => {
+      const loupe = document.querySelector('[data-loupe-root]');
+      const photo = document.querySelector('.editor-stage [data-testid="preview-image"]');
+      if (!loupe && !photo && document.querySelector('main[data-page]')) w.gaps += 1;
+      if (w.watching) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const gaps = () => page.evaluate(() => (window as unknown as { gaps: number }).gaps);
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByTestId('preview-image')).toBeVisible();
+  await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Back/ }).first().click();
+  await expect(page.locator('[data-loupe-root]')).toHaveCount(1);
+  expect(await gaps()).toBe(0);
+});
+
 test('j toggles the clipping overlay', async ({ page }) => {
   await openLoupe(page);
   const image = page.getByRole('img', { name: LOUPE_IMAGE });

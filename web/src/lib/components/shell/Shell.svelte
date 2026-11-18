@@ -41,7 +41,7 @@
 
   onNavigate((navigation) => {
     peek.hide();
-    holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
+    if (!browseView.loupeId) holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
     if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
     return animatePageChange(navigation, layout.compact);
   });
@@ -62,7 +62,7 @@
   });
 </script>
 
-<div class="contents" inert={browseView.loupeId !== null}>
+<div class="contents" inert={browseView.loupeId !== null && !browseView.loupeBehindEditor}>
   {#if onEditor}
     {@render children()}
   {:else if layout.compact}

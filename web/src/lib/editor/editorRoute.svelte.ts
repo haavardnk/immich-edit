@@ -1,4 +1,6 @@
+import { LOUPE_RELEASE_FALLBACK_MS, releaseLoupe } from '#lib/browse/loupeRelease.ts';
 import { restoreBrowse } from '#lib/browse/restore.ts';
+import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { warmNeighbours } from '#lib/editor/neighbours.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
@@ -18,6 +20,20 @@ export function runEditorRoute(id: () => string): void {
   $effect(() => {
     const current = id();
     void untrack(() => editor.load(current));
+  });
+
+  $effect(() => {
+    if (!browseView.loupeBehindEditor) return;
+    const timer = setTimeout(releaseLoupe, LOUPE_RELEASE_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  });
+
+  $effect(() => {
+    if (editor.previewUrl || editor.previewFrame || editor.error) untrack(releaseLoupe);
+  });
+
+  $effect(() => {
+    if (browseView.loupeBehindEditor && id() !== browseView.loupeId) untrack(releaseLoupe);
   });
 
   let warmedFor: string | null = null;

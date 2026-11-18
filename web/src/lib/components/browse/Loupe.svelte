@@ -215,6 +215,10 @@
     class="fixed inset-0 z-40 flex min-w-0 flex-col {layout.compact
       ? 'pr-(--safe-right) pl-(--safe-left)'
       : 'safe-frame'} {touch ? '[--color-editor-chrome:var(--color-light)]' : ''}"
+    data-loupe-root
+    inert={browseView.loupeBehindEditor}
+    aria-hidden={browseView.loupeBehindEditor || undefined}
+    class:pointer-events-none={browseView.loupeBehindEditor}
     {@attach enter}
   >
     <div

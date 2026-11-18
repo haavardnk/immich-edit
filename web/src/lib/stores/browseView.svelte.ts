@@ -196,7 +196,14 @@ class BrowseViewStore {
 
   leaveLoupeForEditor(id: string): void {
     this.editorReturnLoupeId = id;
-    this.closeLoupe();
+  }
+
+  get loupeBehindEditor(): boolean {
+    return this.loupeId !== null && this.loupeId === this.editorReturnLoupeId;
+  }
+
+  releaseLoupeBehindEditor(): void {
+    if (this.loupeBehindEditor) this.closeLoupe();
   }
 
   consumeEditorReturnLoupe(id: string | null): boolean {

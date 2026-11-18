@@ -181,11 +181,14 @@ describe('loupe actions', () => {
   it('opens the focused photo in the editor with the current page to return to', () => {
     openInEditor();
     expect(goto).toHaveBeenCalledWith('/assets/a?from=%2Falbums%2Fa1%3Fsort%3Dasc');
+    expect(browseView.loupeId).toBe('a');
+    expect(browseView.loupeBehindEditor).toBe(true);
+    browseView.releaseLoupeBehindEditor();
     expect(browseView.loupeId).toBeNull();
   });
 
   it.each([
-    ['the editor closes', '/assets/a', null, true],
+    ['the editor keeps until it draws', '/assets/a', 'a', true],
     ['a browse page keeps', '/albums/a1', 'a', false]
   ])('navigating to %s the loupe', (_, path, open, returnsToLoupe) => {
     browseView.consumeEditorReturnLoupe(null);
