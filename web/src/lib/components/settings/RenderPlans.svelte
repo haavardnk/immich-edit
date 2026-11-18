@@ -9,11 +9,11 @@
 <section class="space-y-2 pt-5">
   <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Render plans</Heading>
   {#if plans.length === 0}
-    <Text size="tiny" color="muted">No renders recorded yet.</Text>
+    <Text size="tiny" color="muted">No renders recorded yet</Text>
   {:else}
     <table class="w-full text-xs" aria-label="Render plans">
       <thead>
-        <tr class="text-[10px] uppercase text-dark/65">
+        <tr class="section-label text-dark/65">
           <th class="py-1 text-left font-normal">Renderer</th>
           <th class="py-1 text-left font-normal">Plan</th>
           <th class="py-1 text-right font-normal">Renders</th>

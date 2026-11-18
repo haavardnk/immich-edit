@@ -105,10 +105,14 @@ export function sheetMotion(options: SheetMotionOptions): SheetMotion {
     },
     dragging: () => dragging,
     rest: (height) => place(height, 0),
-    settle: (height) => animate(height, 0),
+    settle: (height) => {
+      if (panel) delete panel.dataset.leaving;
+      return animate(height, 0);
+    },
     slideOut: () => {
-      const height = panel?.getBoundingClientRect().height ?? 0;
-      return animate(options.rest(), Math.max(1, height));
+      if (!panel) return Promise.resolve();
+      panel.dataset.leaving = '';
+      return animate(options.rest(), Math.max(1, panel.getBoundingClientRect().height));
     },
     begin,
     follow,

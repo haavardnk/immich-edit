@@ -1,4 +1,5 @@
 <script lang="ts">
+  import RevealContent from '#lib/components/RevealContent.svelte';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiChevronDown, mdiChevronRight, mdiPin, mdiPinOutline } from '@mdi/js';
   import { Collapsible } from 'bits-ui';
@@ -17,20 +18,20 @@
   >
     {#if scopes.pinned}
       <div
-        class="flex h-8 min-w-0 flex-1 items-center px-3 text-[11px] font-semibold text-dark select-none"
+        class="flex h-8 min-w-0 flex-1 items-center px-3 text-caption font-semibold text-dark select-none"
       >
         Scopes
       </div>
     {:else}
       <Collapsible.Trigger
-        class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-[11px] font-semibold transition-colors select-none {open
+        class="group flex h-8 min-w-0 flex-1 items-center gap-2 px-3 text-caption font-semibold transition-colors select-none {open
           ? 'text-dark'
           : 'text-dark/65 hover:text-dark'}"
       >
         <Icon
           icon={open ? mdiChevronDown : mdiChevronRight}
           size="14px"
-          class="text-dark/35 transition-colors group-hover:text-dark/60"
+          class="text-dark/45 transition-colors group-hover:text-dark/65"
           aria-hidden="true"
         />
         Scopes
@@ -50,11 +51,7 @@
       />
     {/if}
   </div>
-  <Collapsible.Content>
-    {#if open}
-      <div class="bg-recess p-1">
-        <ScopesPanel />
-      </div>
-    {/if}
-  </Collapsible.Content>
+  <RevealContent class="bg-recess p-1">
+    <ScopesPanel />
+  </RevealContent>
 </Collapsible.Root>

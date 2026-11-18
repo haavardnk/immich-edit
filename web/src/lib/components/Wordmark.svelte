@@ -16,7 +16,7 @@
 
 <span
   class="inline-flex items-center gap-2 leading-none font-bold tracking-tight {className}"
-  class:text-lg={size === 'small'}
+  class:text-title={size === 'small'}
   class:text-xl={size === 'medium'}
   class:text-2xl={size === 'large'}
   role="img"

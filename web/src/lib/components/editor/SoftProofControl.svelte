@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import { segmented } from '#lib/components/segmented.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
@@ -9,7 +10,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5 px-3 pb-2">
-  <span class="pt-1.5 text-[10px] tracking-wider text-dark/65 uppercase">Soft proof</span>
+  <span class="section-label pt-1.5 text-dark/65">Soft proof</span>
   <div class="flex items-center justify-between gap-3 text-xs">
     <span>Proof space</span>
     <RadioGroup.Root
@@ -19,12 +20,18 @@
       class="{segmented.text.group} w-36"
     >
       <RadioGroup.Item value="srgb" class="{segmented.text.radio} flex-1">sRGB</RadioGroup.Item>
-      <RadioGroup.Item
-        value="displayp3"
-        disabled={!wideGamut.current}
-        title={wideGamut.current ? undefined : 'Needs a wide-gamut display'}
-        class="{segmented.text.radio} flex-1 data-disabled:opacity-40">Display P3</RadioGroup.Item
-      >
+      <ElementTooltip text={wideGamut.current ? null : 'Needs a wide-gamut display'}>
+        {#snippet child({ props })}
+          <span {...props} class="flex flex-1">
+            <RadioGroup.Item
+              value="displayp3"
+              disabled={!wideGamut.current}
+              class="{segmented.text.radio} flex-1 data-disabled:opacity-40"
+              >Display P3</RadioGroup.Item
+            >
+          </span>
+        {/snippet}
+      </ElementTooltip>
     </RadioGroup.Root>
   </div>
   <CheckboxRow

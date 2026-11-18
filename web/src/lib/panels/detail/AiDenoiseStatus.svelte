@@ -20,7 +20,7 @@
 </script>
 
 {#if status?.state === 'queued' || status?.state === 'running'}
-  <div class="flex min-h-6 flex-col justify-center gap-1 text-[11px] text-dark/65">
+  <div class="flex min-h-6 flex-col justify-center gap-1 text-caption text-dark/65">
     <div class="flex items-center justify-between gap-2">
       <span role="status">
         {status.state === 'queued' ? 'Waiting to denoise…' : 'Denoising at full resolution…'}

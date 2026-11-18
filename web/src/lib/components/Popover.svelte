@@ -5,10 +5,11 @@
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { providePickerHost } from '#lib/components/sheet/pickerHost.ts';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import { createAttachmentKey, type Attachment } from 'svelte/attachments';
+  import { holdEscape } from '#lib/stores/overlays.ts';
 
-  type Anchor = 'top' | 'bottom';
+  type Anchor = 'top' | 'bottom' | 'right';
   type Align = 'start' | 'end' | 'center';
   type Appearance = 'menu' | 'panel' | 'control';
 
@@ -23,7 +24,9 @@
     contentClass = '',
     sheetClass = '',
     sheetPicker = false,
+    sheetClose = 'done',
     title,
+    subtitle,
     tooltip,
     customAnchor
   }: {
@@ -37,7 +40,9 @@
     contentClass?: string;
     sheetClass?: string;
     sheetPicker?: boolean;
+    sheetClose?: 'done' | 'icon';
     title?: string;
+    subtitle?: string;
     tooltip?: string;
     customAnchor?: HTMLElement | null;
   } = $props();
@@ -45,25 +50,16 @@
   const appearanceClass = $derived(
     appearance === 'control'
       ? 'flex h-10 items-center gap-1 overflow-visible rounded-lg border border-hairline bg-light-100 px-1 text-dark shadow-popover'
-      : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-light-950/10 bg-light-100 text-dark shadow-popover dark:ring-1 dark:ring-black/20'
+      : 'max-h-(--bits-popover-content-available-height) overflow-y-auto rounded-md border border-hairline bg-light-100 text-dark shadow-popover dark:ring-1 dark:ring-black/20'
   );
 
   let tooltipOpen = $state(false);
-  let triggerElement = $state<HTMLElement | null>(null);
-
-  const triggerRef: Attachment<HTMLElement> = (element) => {
-    triggerElement = element;
-    return () => {
-      if (triggerElement === element) triggerElement = null;
-    };
-  };
-  const triggerKey = createAttachmentKey();
+  const sheet = presence(() => open);
 
   const sheetTriggerProps = $derived({
     'aria-haspopup': 'dialog',
     'aria-expanded': open,
-    onclick: () => onOpenChange(!open),
-    [triggerKey]: triggerRef
+    onclick: () => onOpenChange(!open)
   });
 
   providePickerHost({
@@ -75,42 +71,62 @@
   $effect(() => {
     if (open) tooltipOpen = false;
   });
+
+  $effect(() => {
+    if (open && layout.mode !== 'touch') return holdEscape();
+  });
 </script>
 
+{#snippet tooltipTrigger(props: Record<string, unknown>)}
+  <Tooltip
+    text={tooltip}
+    bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
+  >
+    {#snippet child({ props: tooltipProps })}
+      {@render trigger?.(mergeProps(tooltipProps, props))}
+    {/snippet}
+  </Tooltip>
+{/snippet}
+
 {#if layout.mode === 'touch'}
-  {@render trigger?.(sheetTriggerProps)}
-  {#if open && appearance === 'menu'}
+  {@render tooltipTrigger(sheetTriggerProps)}
+  {#if sheet.mounted && appearance === 'menu'}
     <ActionSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Menu'}
       caption={title !== undefined}
       data-popover-content
     >
       {@render children()}
     </ActionSheet>
-  {:else if open && appearance === 'panel'}
+  {:else if sheet.mounted && appearance === 'panel'}
     <BottomSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Options'}
+      {subtitle}
       titleHidden={title === undefined}
-      close="done"
+      close={sheetClose}
+      closeLabel="Close"
       detents={sheetPicker ? [{ fraction: 1 }] : undefined}
       bodyClass={sheetClass || 'px-4 py-3'}
       data-popover-content
     >
       {@render children()}
     </BottomSheet>
-  {:else if open}
+  {:else if sheet.mounted}
     <BottomSheet
       {open}
       {onOpenChange}
+      onExited={sheet.exited}
       title={title ?? 'Options'}
-      titleHidden
-      modal={false}
-      dismissOnOutside
-      outsideExempt={triggerElement}
+      titleHidden={title === undefined}
+      close="icon"
+      closeLabel="Close"
+      scrim="light"
       bodyClass="flex flex-wrap items-center justify-center gap-1 px-4 py-3 {sheetClass}"
       data-popover-content
     >
@@ -122,14 +138,7 @@
     {#if trigger}
       <Bits.Trigger>
         {#snippet child({ props })}
-          <Tooltip
-            text={tooltip}
-            bind:open={() => tooltipOpen && !open, (next) => (tooltipOpen = next && !open)}
-          >
-            {#snippet child({ props: tooltipProps })}
-              {@render trigger(mergeProps(tooltipProps, props))}
-            {/snippet}
-          </Tooltip>
+          {@render tooltipTrigger(props)}
         {/snippet}
       </Bits.Trigger>
     {/if}

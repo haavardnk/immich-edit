@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { collapseX } from '#lib/motion/collapse.ts';
   import {
     ui,
     MAX_INSPECTOR_WIDTH,
@@ -51,7 +52,7 @@
   aria-label="Editor controls"
   class="relative hidden min-h-0 shrink-0 flex-col border-l border-hairline bg-editor-panel md:flex"
   style:width={`${ui.inspectorWidth}px`}
-  style:display={ui.rightCollapsed ? 'none' : undefined}
+  {@attach collapseX(ui.rightCollapsed)}
 >
   <ResizeHandle
     label="Resize editor controls"
