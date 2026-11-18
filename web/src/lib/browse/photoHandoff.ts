@@ -23,7 +23,7 @@ type Held = PhotoShot & { at: number };
 const PREVIEW = '[data-testid="preview-image"]';
 const EDITOR_PHOTO = `.editor-stage ${PREVIEW}`;
 const LOUPE_PHOTO = '[data-testid="loupe-track"] img:not([data-testid="loupe-neighbour"])';
-const READY_WAIT_MS = 2000;
+const READY_WAIT_MS = 4000;
 const HELD_MS = 3000;
 
 let held: Held | null = null;

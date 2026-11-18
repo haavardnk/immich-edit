@@ -4,17 +4,19 @@ import {
   animated,
   boxOf,
   clearGhosts,
+  copyPicture,
   ghost,
   layer,
   loaded,
   placeGhost,
   settle,
   timing,
-  viewport
+  viewport,
+  whenShown
 } from '#lib/motion/photoGhost.ts';
 
-type Shot = { id: string; box: Box; src: string; backdrop: number };
-type Tile = { image: HTMLImageElement; box: Box; src: string; ratio: number };
+type Shot = { id: string; box: Box; picture: HTMLCanvasElement; backdrop: number };
+type Tile = { image: HTMLImageElement; box: Box; ratio: number };
 
 const TRACK = '[data-testid="loupe-track"]';
 const SOURCE = `${TRACK} img:not([data-testid="loupe-neighbour"])`;
@@ -31,7 +33,6 @@ function tileOf(id: string): Tile | null {
   return {
     image,
     box,
-    src: image.currentSrc || image.src,
     ratio: image.naturalWidth / image.naturalHeight
   };
 }
@@ -42,28 +43,38 @@ function snapshot(id: string): Shot | null {
   const box = containBox(boxOf(image), image.naturalWidth / image.naturalHeight);
   const scrim = document.querySelector(SCRIM);
   const backdrop = scrim ? Number(getComputedStyle(scrim).opacity) : 1;
-  return { id, box, src: image.currentSrc || image.src, backdrop };
+  return { id, box, picture: copyPicture(image), backdrop };
 }
 
 function hide(tile: Tile, motion: KeyframeAnimationOptions): void {
   tile.image.animate([{ opacity: 0 }, { opacity: 0 }], { ...motion, fill: 'none' });
 }
 
+const READY_MS = 1500;
+
 function arrive(track: Element, from: HTMLElement, start: Box, ratio: number): void {
-  const motion = timing('--transition-duration-slow', '--ease-emphasized');
-  const to = containBox(boxOf(track), ratio);
-  settle(
-    from.animate(
-      [
-        { ...boxFrame(start), opacity: 1 },
-        { ...boxFrame(to), opacity: 1, offset: 0.8 },
-        { ...boxFrame(to), opacity: 0 }
-      ],
-      { ...motion, fill: 'forwards' }
-    ),
-    [from]
+  const hold = track.animate([{ opacity: 0 }, { opacity: 0 }], {
+    duration: READY_MS * 2,
+    fill: 'forwards'
+  });
+  const flight = from.animate(
+    [boxFrame(start), boxFrame(containBox(boxOf(track), ratio))],
+    timing('--transition-duration-slow', '--ease-emphasized', 'forwards')
   );
-  track.animate([{ opacity: 0 }, { opacity: 0, offset: 0.8 }, { opacity: 1 }], motion);
+  const image = [...track.querySelectorAll('img:not([data-testid="loupe-neighbour"])')].at(-1);
+  void Promise.all([
+    flight.finished.catch(() => undefined),
+    whenShown(image instanceof HTMLImageElement ? image : null, READY_MS)
+  ]).then(() => {
+    hold.cancel();
+    settle(
+      from.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        timing('--transition-duration-fast', '--ease-exit', 'forwards')
+      ),
+      [from]
+    );
+  });
 }
 
 export function zoomIn(id: string | null, root: HTMLElement): void {
@@ -83,7 +94,7 @@ export function zoomIn(id: string | null, root: HTMLElement): void {
     );
     return;
   }
-  arrive(track, ghost(tile.src, tile.box), tile.box, tile.ratio);
+  arrive(track, ghost(tile.image, tile.box), tile.box, tile.ratio);
   hide(tile, timing('--transition-duration-slow', '--ease-emphasized'));
   root.animate(
     [{ opacity: 0 }, { opacity: 1 }],
@@ -104,7 +115,7 @@ function originOf(id: string, loupe: Shot | null): Origin | null {
   }
   const shot = loupe ?? snapshot(id);
   return shot
-    ? { box: shot.box, backdrop: shot.backdrop, place: () => ghost(shot.src, shot.box) }
+    ? { box: shot.box, backdrop: shot.backdrop, place: () => placeGhost(shot.picture, shot.box) }
     : null;
 }
 

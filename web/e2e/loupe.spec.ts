@@ -59,7 +59,7 @@ async function countGhosts(page: Page): Promise<() => Promise<number>> {
     Reflect.set(window, '__ghosts', count);
     new MutationObserver((records) => {
       for (const record of records)
-        for (const node of record.addedNodes) if (node instanceof HTMLImageElement) count += 1;
+        for (const node of record.addedNodes) if (node instanceof HTMLCanvasElement) count += 1;
       Reflect.set(window, '__ghosts', count);
     }).observe(document.body, { childList: true });
   });
@@ -79,7 +79,7 @@ test('the loupe zooms out of its tile and back into it', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: /^Back/ })).toBeHidden();
   await expect.poll(ghosts).toBe(2);
-  await expect(page.locator('body > img')).toHaveCount(0);
+  await expect(page.locator('body > canvas')).toHaveCount(0);
 });
 
 test('the loupe paints the Immich preview while the render is pending', async ({ page }) => {

@@ -48,19 +48,33 @@ export function pictureRatio(picture: Picture): number {
     : picture.width / picture.height;
 }
 
-export function copyPicture(source: Picture): Picture {
-  if (source instanceof HTMLImageElement) {
-    const image = document.createElement('img');
-    image.alt = '';
-    image.draggable = false;
-    image.src = source.currentSrc || source.src;
-    return image;
-  }
+const COPY_EDGE = 2048;
+
+export function copyPicture(source: Picture): HTMLCanvasElement {
+  const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+  const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+  const scale = Math.min(1, COPY_EDGE / Math.max(width, height, 1));
   const canvas = document.createElement('canvas');
-  canvas.width = source.width;
-  canvas.height = source.height;
-  canvas.getContext('2d')?.drawImage(source, 0, 0);
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.getContext('2d')?.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas;
+}
+
+function decoded(image: HTMLImageElement): Promise<void> {
+  return image.decode().catch(() => undefined);
+}
+
+export function whenShown(image: HTMLImageElement | null, limitMs: number): Promise<void> {
+  if (!image) return Promise.resolve();
+  const ready =
+    image.complete && image.naturalWidth > 0
+      ? decoded(image)
+      : new Promise<void>((resolve) => {
+          image.addEventListener('load', () => void decoded(image).then(resolve), { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        });
+  return Promise.race([ready, new Promise<void>((resolve) => setTimeout(resolve, limitMs))]);
 }
 
 export function layer<T extends HTMLElement>(element: T, className: string): T {
@@ -77,12 +91,8 @@ export function placeGhost<T extends HTMLElement>(picture: T, box: Box): T {
   return ghost;
 }
 
-export function ghost(src: string, box: Box): HTMLImageElement {
-  const image = document.createElement('img');
-  image.alt = '';
-  image.draggable = false;
-  image.src = src;
-  return placeGhost(image, box);
+export function ghost(source: Picture, box: Box): HTMLCanvasElement {
+  return placeGhost(copyPicture(source), box);
 }
 
 export function clearGhosts(): void {
