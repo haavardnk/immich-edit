@@ -8,12 +8,14 @@
   import { compare, CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
-    rateAsset,
+    clearFlags,
+    setLabel,
+    setRating,
     toggleFavorite,
     toggleReject,
-    clearFlags,
-    setLabel
-  } from '#lib/browse/cull.ts';
+    type MetaOutcome,
+    type MetaTarget
+  } from '#lib/browse/assetMeta.ts';
   import { labelOf, nextLabelFromKey, type LabelColor } from '#lib/stores/labels.ts';
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { isRejected } from '#lib/browse/reject.ts';
@@ -222,31 +224,27 @@
     if (compare.focusedId === id) advanceFocused(1);
   }
 
-  function rate(value: number | null): void {
+  function cull(
+    write: (target: MetaTarget) => Promise<MetaOutcome>,
+    after?: (id: string) => void
+  ): void {
     const id = focusedId;
     if (!id) return;
-    void rateAsset(id, value).then((ok) => {
-      if (ok) autoAdvance(id);
+    void write(loupeTags.target(id)).then((outcome) => {
+      if (outcome !== 'skipped') after?.(id);
     });
+  }
+
+  function rate(value: number | null): void {
+    cull((target) => setRating(target, value), autoAdvance);
   }
 
   function favorite(): void {
-    const id = focusedId;
-    if (!id) return;
-    void toggleFavorite(id).then((ok) => {
-      if (ok) autoAdvance(id);
-    });
+    cull(toggleFavorite, autoAdvance);
   }
 
   function reject(): void {
-    const id = focusedId;
-    if (!id) return;
-    void toggleReject(id).then((ok) => {
-      if (!ok) return;
-      const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) loupeTags.set(id, updated.tags);
-      autoAdvance(id);
-    });
+    cull(toggleReject, autoAdvance);
   }
 
   function moveToTrash(): void {
@@ -261,21 +259,11 @@
   }
 
   function unflag(): void {
-    const id = focusedId;
-    if (!id) return;
-    void clearFlags(id).then((ok) => {
-      if (!ok) return;
-      const updated = browsing.assets.find((a) => a.id === id);
-      if (updated) loupeTags.set(id, updated.tags);
-    });
+    cull(clearFlags);
   }
 
   function applyLabel(color: LabelColor | null): void {
-    const id = focusedId;
-    if (!id) return;
-    void setLabel(id, color).then((ok) => {
-      if (ok) autoAdvance(id);
-    });
+    cull((target) => setLabel(target, color), autoAdvance);
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -423,14 +411,15 @@
       }
       case 'rateAdvance': {
         const next = ratingFromCode(e.code);
-        const id = focusedId;
-        if (next === undefined || !id) return;
+        if (next === undefined || !focusedId) return;
         e.preventDefault();
-        void rateAsset(id, next).then((ok) => {
-          if (!ok) return;
-          if (!multi) stepLoupe(1);
-          else if (compare.focusedId === id) advanceFocused(1);
-        });
+        cull(
+          (target) => setRating(target, next),
+          (id) => {
+            if (!multi) stepLoupe(1);
+            else if (compare.focusedId === id) advanceFocused(1);
+          }
+        );
         return;
       }
     }

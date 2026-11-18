@@ -49,6 +49,11 @@ export class ToastStore {
   fail = (context: string, e: unknown, ttlMs?: number): void => {
     this.push('error', `${context}: ${errorMessage(e)}`, ttlMs);
   };
+
+  tally = (failed: number, failure: string, success: string): void => {
+    if (failed > 0) this.push('warn', failure, 6000);
+    else this.push('success', success, 4000);
+  };
 }
 
 export const toasts = new ToastStore();

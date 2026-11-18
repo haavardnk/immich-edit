@@ -1,21 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Button } from '@immich/ui';
-  import { addTagToAsset, listTags, removeTagFromAsset, type TagSummary } from '#lib/api/tags.ts';
+  import { listTags, type TagSummary } from '#lib/api/tags.ts';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import ChosenChips from './ChosenChips.svelte';
   import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
-  import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
-  import { toasts } from '#lib/stores/toasts.svelte.ts';
+  import * as bulkMeta from '#lib/browse/bulkMeta.ts';
   import { countOf } from '#lib/utils/plural.ts';
 
-  type RunPool = <T>(items: T[], limit: number, fn: (item: T) => Promise<void>) => Promise<void>;
-
-  let {
-    ids,
-    runPool,
-    busy = $bindable()
-  }: { ids: string[]; runPool: RunPool; busy: boolean } = $props();
+  let { ids, busy = $bindable() }: { ids: string[]; busy: boolean } = $props();
 
   let tags = $state<TagSummary[]>([]);
   let tagsLoaded = $state(false);
@@ -36,28 +29,16 @@
 
   async function applyTags(add: boolean): Promise<void> {
     if (busy || chosenTags.length === 0) return;
-    if (!(await metadataConsent.gate())) return;
     busy = true;
-    let failed = 0;
-    const pairs = ids.flatMap((id) => chosenTags.map((tagId) => ({ id, tagId })));
-    await runPool(pairs, 6, async ({ id, tagId }) => {
-      try {
-        await (add ? addTagToAsset(tagId, id) : removeTagFromAsset(tagId, id));
-      } catch {
-        failed += 1;
+    const targets = [...ids];
+    const chosen = chosenTagItems.map(toTagRef);
+    try {
+      if (await (add ? bulkMeta.addTags(targets, chosen) : bulkMeta.removeTags(targets, chosen))) {
+        chosenTags = [];
       }
-    });
-    busy = false;
-    if (failed > 0) {
-      toasts.push('warn', `${failed} tag updates failed`, 6000);
-    } else {
-      toasts.push(
-        'success',
-        `${add ? 'Added' : 'Removed'} tags on ${countOf(ids.length, 'asset')}`,
-        4000
-      );
+    } finally {
+      busy = false;
     }
-    chosenTags = [];
   }
 </script>
 

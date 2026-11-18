@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { browseControls, type BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 import { labelOf } from '#lib/stores/labels.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
@@ -63,6 +64,13 @@ export function hides(filters: BrowseFilters, asset: AssetSummary): boolean {
 
 export function arrangeLoaded(assets: AssetSummary[], key: SortKey): AssetSummary[] {
   const filter = browseControls.filter({});
-  const kept = assets.filter((asset) => keepsLoaded(filter, asset));
-  return sortAssets(kept, key, browseControls.sortDir);
+  const direction = browseControls.sortDir;
+  const members = [...assets];
+  return untrack(() =>
+    sortAssets(
+      members.filter((asset) => keepsLoaded(filter, asset)),
+      key,
+      direction
+    )
+  );
 }
