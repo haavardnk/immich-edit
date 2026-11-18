@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
-use crate::services::edits_store::ExportPresetRecord;
+use crate::services::edits_store::{ExportDestination, ExportPresetRecord, ExportPresetWrite};
 use crate::state::AppState;
 
 const MAX_NAME_LEN: usize = 80;
@@ -16,9 +16,10 @@ const MAX_FORM_BYTES: usize = 16 * 1024;
 pub struct ExportPresetBody {
     pub name: String,
     pub form: serde_json::Value,
+    pub destination: Option<ExportDestination>,
 }
 
-fn parse_body(body: ExportPresetBody) -> Result<(String, serde_json::Value), AppError> {
+fn parse_body(body: ExportPresetBody) -> Result<ExportPresetBody, AppError> {
     let name = body.name.trim().to_string();
     if name.is_empty() {
         return Err(AppError::BadRequest("export preset name required".into()));
@@ -34,7 +35,15 @@ fn parse_body(body: ExportPresetBody) -> Result<(String, serde_json::Value), App
     if body.form.to_string().len() > MAX_FORM_BYTES {
         return Err(AppError::BadRequest("export preset form too large".into()));
     }
-    Ok((name, body.form))
+    Ok(ExportPresetBody { name, ..body })
+}
+
+fn preset_write(body: &ExportPresetBody) -> ExportPresetWrite<'_> {
+    ExportPresetWrite {
+        name: &body.name,
+        form: &body.form,
+        destination: body.destination,
+    }
 }
 
 pub async fn list(
@@ -49,11 +58,11 @@ pub async fn create(
     ctx: AuthCtx,
     Json(body): Json<ExportPresetBody>,
 ) -> Result<Json<ExportPresetRecord>, AppError> {
-    let (name, form) = parse_body(body)?;
+    let body = parse_body(body)?;
     Ok(Json(
         state
             .edits
-            .create_export_preset(ctx.owner, &name, &form)
+            .create_export_preset(ctx.owner, preset_write(&body))
             .await?,
     ))
 }
@@ -64,10 +73,10 @@ pub async fn update(
     Path(id): Path<Uuid>,
     Json(body): Json<ExportPresetBody>,
 ) -> Result<Json<ExportPresetRecord>, AppError> {
-    let (name, form) = parse_body(body)?;
+    let body = parse_body(body)?;
     state
         .edits
-        .update_export_preset(ctx.owner, id, &name, &form)
+        .update_export_preset(ctx.owner, id, preset_write(&body))
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)

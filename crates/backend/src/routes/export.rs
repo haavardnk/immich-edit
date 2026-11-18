@@ -17,7 +17,8 @@ use crate::services::render_queue::RenderPriority;
 use crate::state::AppState;
 
 pub use crate::services::export::{
-    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ConflictPolicy, ExportParams, ExportToImmichBody, SingleExportToImmichBody,
+    StackPrimary, hash_request, resolve_filename,
 };
 
 pub async fn get_export(
@@ -65,6 +66,7 @@ async fn download(
         original: &asset.original_file_name,
         date: capture_date(&asset),
         seq: Seq::SINGLE,
+        preset: None,
     });
     let filename = format!("{stem}.{}", rendered.output.extension());
     download_response(&filename, rendered)
@@ -92,9 +94,10 @@ pub async fn post_export_immich(
     ctx: AuthCtx,
     Path(id): Path<AssetKey>,
     headers: HeaderMap,
-    Json(body): Json<ExportToImmichBody>,
+    Json(body): Json<SingleExportToImmichBody>,
 ) -> Result<Json<ExportToImmichResult>, AppError> {
     let idem_key = idempotency_key(&headers)?;
+    let preset = body.preset()?;
     let result = export::export_to_immich(
         &state,
         &ctx.immich,
@@ -102,10 +105,12 @@ pub async fn post_export_immich(
         ExportImmichRequest {
             asset_id: id,
             server_epoch: ctx.server_epoch,
-            body: &body,
+            body: &body.export,
             idempotency_key: idem_key,
             priority: RenderPriority::Interactive,
             seq: Seq::SINGLE,
+            preset: preset.as_deref(),
+            variant: 0,
         },
     )
     .await?;

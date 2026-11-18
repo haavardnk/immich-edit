@@ -3,7 +3,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::routes::export::{
-    ExportParams, ExportToImmichBody, StackPrimary, hash_request,
+    ConflictPolicy, ExportParams, ExportToImmichBody, StackPrimary, hash_request,
 };
 use immich_edit_backend::services::edits_store::ExportJobKey;
 use serde_json::{Value, json};
@@ -123,7 +123,7 @@ impl Replace {
             .edits
             .put_export_job_uploaded(
                 job,
-                &hash_request(asset, &body),
+                &hash_request(asset, &body, None),
                 self.uploaded,
                 "IMG_0001_edit.jpg",
                 "created",
@@ -416,8 +416,9 @@ fn hash_request_differs_by_replace_original() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original,
+        on_conflict: ConflictPolicy::default(),
     };
-    if hash_request(asset, &make(true)) == hash_request(asset, &make(false)) {
+    if hash_request(asset, &make(true), None) == hash_request(asset, &make(false), None) {
         panic!("replace_original must change the request hash");
     }
 }

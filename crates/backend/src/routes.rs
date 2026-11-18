@@ -14,6 +14,7 @@ pub mod depth;
 pub mod edited_thumb;
 pub mod edits;
 pub mod export;
+pub mod export_outputs;
 pub mod export_presets;
 pub mod faces;
 pub mod folders;

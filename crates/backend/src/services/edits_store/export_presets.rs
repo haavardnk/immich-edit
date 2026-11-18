@@ -1,8 +1,17 @@
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::*;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[serde(rename_all = "lowercase")]
+#[sqlx(rename_all = "lowercase")]
+pub enum ExportDestination {
+    #[default]
+    Download,
+    Immich,
+}
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct ExportPresetRecord {
@@ -11,8 +20,15 @@ pub struct ExportPresetRecord {
     pub name: String,
     #[sqlx(rename = "form_json", json)]
     pub form: serde_json::Value,
+    pub destination: ExportDestination,
     pub created_at: String,
     pub updated_at: String,
+}
+
+pub struct ExportPresetWrite<'a> {
+    pub name: &'a str,
+    pub form: &'a serde_json::Value,
+    pub destination: Option<ExportDestination>,
 }
 
 impl EditsStore {
@@ -21,7 +37,7 @@ impl EditsStore {
         owner: Uuid,
     ) -> Result<Vec<ExportPresetRecord>, EditsStoreError> {
         Ok(sqlx::query_as::<_, ExportPresetRecord>(
-            "SELECT id, name, form_json, created_at, updated_at \
+            "SELECT id, name, form_json, destination, created_at, updated_at \
              FROM export_presets WHERE user_id = ?1 ORDER BY name COLLATE NOCASE, created_at",
         )
         .bind(owner.to_string())
@@ -35,7 +51,7 @@ impl EditsStore {
         id: Uuid,
     ) -> Result<Option<ExportPresetRecord>, EditsStoreError> {
         Ok(sqlx::query_as::<_, ExportPresetRecord>(
-            "SELECT id, name, form_json, created_at, updated_at \
+            "SELECT id, name, form_json, destination, created_at, updated_at \
              FROM export_presets WHERE user_id = ?2 AND id = ?1",
         )
         .bind(id.to_string())
@@ -47,26 +63,28 @@ impl EditsStore {
     pub async fn create_export_preset(
         &self,
         owner: Uuid,
-        name: &str,
-        form: &serde_json::Value,
+        preset: ExportPresetWrite<'_>,
     ) -> Result<ExportPresetRecord, EditsStoreError> {
         let id = Uuid::new_v4();
         let now = Utc::now().to_rfc3339();
+        let destination = preset.destination.unwrap_or_default();
         sqlx::query(
-            "INSERT INTO export_presets (id, user_id, name, form_json, created_at, updated_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+            "INSERT INTO export_presets (id, user_id, name, form_json, destination, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
         )
         .bind(id.to_string())
         .bind(owner.to_string())
-        .bind(name)
-        .bind(serde_json::to_string(form)?)
+        .bind(preset.name)
+        .bind(serde_json::to_string(preset.form)?)
+        .bind(destination)
         .bind(&now)
         .execute(&self.pool)
         .await?;
         Ok(ExportPresetRecord {
             id,
-            name: name.to_string(),
-            form: form.clone(),
+            name: preset.name.to_string(),
+            form: preset.form.clone(),
+            destination,
             created_at: now.clone(),
             updated_at: now,
         })
@@ -76,16 +94,17 @@ impl EditsStore {
         &self,
         owner: Uuid,
         id: Uuid,
-        name: &str,
-        form: &serde_json::Value,
+        preset: ExportPresetWrite<'_>,
     ) -> Result<Option<ExportPresetRecord>, EditsStoreError> {
         let res = sqlx::query(
-            "UPDATE export_presets SET name = ?2, form_json = ?3, updated_at = ?4 \
-             WHERE user_id = ?5 AND id = ?1",
+            "UPDATE export_presets SET name = ?2, form_json = ?3, \
+             destination = COALESCE(?4, destination), updated_at = ?5 \
+             WHERE user_id = ?6 AND id = ?1",
         )
         .bind(id.to_string())
-        .bind(name)
-        .bind(serde_json::to_string(form)?)
+        .bind(preset.name)
+        .bind(serde_json::to_string(preset.form)?)
+        .bind(preset.destination)
         .bind(Utc::now().to_rfc3339())
         .bind(owner.to_string())
         .execute(&self.pool)
