@@ -78,7 +78,9 @@
 {/snippet}
 
 <div
-  class="app-frame flex flex-col overflow-hidden bg-editor-chrome {stack ? 'pb-0!' : ''}"
+  class="app-frame flex flex-col overflow-hidden bg-editor-chrome [--color-editor-chrome:var(--color-light)] [--color-editor-panel:var(--color-light-50)] {stack
+    ? 'pb-0!'
+    : ''}"
   data-arrangement={arrangement}
 >
   {#if editor.error}

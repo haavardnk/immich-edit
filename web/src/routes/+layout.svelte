@@ -81,7 +81,7 @@
 
   $effect(() => appearance.showScheme(appearance.scheme));
   $effect(() => {
-    const editing = onEditorRoute();
+    const editing = onEditorRoute() && layout.mode !== 'touch';
     appearance.useEditorChrome(editing);
     document.documentElement.classList.toggle('editor-chrome', editing);
   });
