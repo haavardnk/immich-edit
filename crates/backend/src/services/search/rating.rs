@@ -7,6 +7,7 @@ use crate::immich::dto::AssetSummary;
 use crate::services::search::Searcher;
 use crate::services::search::filter::{BrowseFilter, RatingMatch};
 use crate::services::search::query::{Direction, MAX_SIZE, PageQuery, Sort, SortField};
+use crate::services::search::window::{Reach, Side, Window};
 
 const RATINGS: [i8; 7] = [-1, 0, 1, 2, 3, 4, 5];
 
@@ -58,55 +59,63 @@ pub async fn around(
     filter: &BrowseFilter,
     direction: Direction,
     anchor: AssetSummary,
-    radius: u32,
-) -> Result<Vec<AssetSummary>, AppError> {
+    reach: Reach,
+) -> Result<Window, AppError> {
     let rating = anchor.exif_info.as_ref().and_then(|exif| exif.rating);
     let order = groups(filter.rating, direction);
     let Some(at) = order
         .iter()
         .position(|group| group.map(i32::from) == rating)
     else {
-        return Ok(vec![anchor]);
+        return Ok(Window::alone(anchor));
     };
-    let wanted = radius as usize;
+    let wanted_before = reach.before as usize;
+    let wanted_after = reach.after as usize;
+    let limits = (wanted_before + 1, wanted_after + 1);
     let query = group_query(filter, order[at], direction, MAX_SIZE);
-    let Some((mut before, mut after)) = locate(searcher, query, anchor.id.source(), wanted).await?
+    let Some((mut before, mut after)) = locate(searcher, query, anchor.id.source(), limits).await?
     else {
-        return Ok(vec![anchor]);
+        return Ok(Window::alone(anchor));
     };
     let reverse = match direction {
         Direction::Asc => Direction::Desc,
         Direction::Desc => Direction::Asc,
     };
-    for group in order[..at].iter().rev() {
-        let need = wanted - before.len();
-        if need == 0 {
-            break;
-        }
-        let query = group_query(filter, *group, reverse, need as u32);
-        before.extend(take(searcher, query, need).await?);
-    }
-    for group in &order[at + 1..] {
-        let need = wanted - after.len();
+    let earlier = order[..at].iter().rev();
+    fill(searcher, filter, earlier, reverse, &mut before, limits.0).await?;
+    let later = order[at + 1..].iter();
+    fill(searcher, filter, later, direction, &mut after, limits.1).await?;
+    Ok(Window::around(
+        Side::cut(before, wanted_before),
+        anchor,
+        Side::cut(after, wanted_after),
+    ))
+}
+
+async fn fill(
+    searcher: &Searcher,
+    filter: &BrowseFilter,
+    groups: impl Iterator<Item = &Option<i8>>,
+    direction: Direction,
+    side: &mut Vec<AssetSummary>,
+    limit: usize,
+) -> Result<(), AppError> {
+    for group in groups {
+        let need = limit.saturating_sub(side.len());
         if need == 0 {
             break;
         }
         let query = group_query(filter, *group, direction, need as u32);
-        after.extend(take(searcher, query, need).await?);
+        side.extend(take(searcher, query, need).await?);
     }
-    Ok(before
-        .into_iter()
-        .rev()
-        .chain(std::iter::once(anchor))
-        .chain(after)
-        .collect())
+    Ok(())
 }
 
 async fn locate(
     searcher: &Searcher,
     mut query: PageQuery,
     anchor: Uuid,
-    wanted: usize,
+    (before_limit, after_limit): (usize, usize),
 ) -> Result<Option<(Vec<AssetSummary>, Vec<AssetSummary>)>, AppError> {
     let mut before: VecDeque<AssetSummary> = VecDeque::new();
     let mut after: Option<Vec<AssetSummary>> = None;
@@ -118,13 +127,16 @@ async fn locate(
                 None if asset.id.source() == anchor => after = Some(Vec::new()),
                 None => {
                     before.push_back(asset);
-                    if before.len() > wanted {
+                    if before.len() > before_limit {
                         before.pop_front();
                     }
                 }
             }
         }
-        if after.as_ref().is_some_and(|after| after.len() >= wanted) {
+        if after
+            .as_ref()
+            .is_some_and(|after| after.len() >= after_limit)
+        {
             break;
         }
         let Some(cursor) = page.next_cursor else {
@@ -133,7 +145,7 @@ async fn locate(
         query.cursor = Some(cursor);
     }
     Ok(after.map(|mut after| {
-        after.truncate(wanted);
+        after.truncate(after_limit);
         (before.into_iter().rev().collect(), after)
     }))
 }
@@ -254,7 +266,9 @@ mod tests {
         let searcher = Searcher::new(immich, SearchShape::Structured);
         let cases = [
             (None, Direction::Desc, 0_usize),
+            (None, Direction::Desc, 1),
             (None, Direction::Desc, 25),
+            (None, Direction::Desc, 58),
             (None, Direction::Desc, 59),
             (None, Direction::Asc, 12),
             (None, Direction::Asc, 45),
@@ -272,24 +286,20 @@ mod tests {
                 .copied()
                 .collect();
             feed.sort_by(|a, b| feed_order(a, b, direction));
-            let radius = 8;
-            let expected: Vec<Uuid> = feed
-                [index.saturating_sub(radius)..(index + radius + 1).min(feed.len())]
-                .iter()
-                .map(|(_, id)| *id)
-                .collect();
             let sort = Sort {
                 field: SortField::Rating,
                 direction,
             };
-            let found = window::around(&searcher, &filter, sort, feed[index].1, radius as u32)
-                .await
-                .unwrap();
-            let ids: Vec<Uuid> = found.iter().map(|asset| asset.id.source()).collect();
-            if ids != expected {
-                panic!(
-                    "{rating:?} {direction:?} window around {index} was {ids:?}, expected {expected:?}"
-                );
+            for reach in window::tests::reaches() {
+                let found = window::around(&searcher, &filter, sort, feed[index].1, reach)
+                    .await
+                    .unwrap();
+                let expected = window::tests::expected_window(&feed, index, reach);
+                if window::tests::outline(&found) != expected {
+                    panic!(
+                        "{rating:?} {direction:?} window around {index} with {reach:?} was {found:?}, expected {expected:?}"
+                    );
+                }
             }
         }
     }
