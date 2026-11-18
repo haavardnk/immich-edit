@@ -341,7 +341,8 @@ export async function resetTransform(ctx: GeometryCtx): Promise<void> {
 }
 
 export function canReset(ctx: GeometryCtx): boolean {
-  return ctx.assetId !== null && !ctx.saving && !geometryIsIdentity(ctx.edits.geometry);
+  if (ctx.assetId === null || ctx.saving) return false;
+  return !geometryIsIdentity(ctx.edits.geometry) || !!ctx.geometrySession?.guides.length;
 }
 
 export async function reset(ctx: GeometryCtx): Promise<void> {

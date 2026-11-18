@@ -395,7 +395,7 @@ test('the editor fits at the desktop breakpoint', async ({ page }) => {
   await page.getByRole('button', { name: 'More editor actions' }).click();
   for (const name of [
     'Create virtual copy',
-    'View original',
+    'Hold for original',
     'Before/After split',
     'Clipping overlay'
   ]) {

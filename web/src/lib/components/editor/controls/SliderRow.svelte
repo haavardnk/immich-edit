@@ -6,6 +6,8 @@
   import RangeSlider from './RangeSlider.svelte';
   import { SCALE_POSITIONS } from './sliderScale';
   import type { SliderRange } from '#lib/editor/params/types.ts';
+  import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
+  import { untrack } from 'svelte';
 
   let {
     label,
@@ -46,7 +48,8 @@
   const displayValue = $derived((format ?? range.format)(Object.is(value, -0) ? 0 : value));
   const position = $derived(scale ? scale.toPosition(value) : value);
   let dragging = $state(false);
-  let altDown = $state(false);
+  let previewKey = $state(false);
+  const previewHeld = $derived(previewKey || latched('preview'));
   let previewing = $state(false);
   let editing = $state(false);
   let draft = $state(0);
@@ -57,6 +60,11 @@
     if (!editing || !valueInput) return;
     valueInput.focus();
     valueInput.select();
+  });
+
+  $effect(() => {
+    void previewHeld;
+    untrack(updatePreview);
   });
 
   function normalize(next: number): number {
@@ -104,7 +112,7 @@
 
   function updatePreview(): void {
     if (!supportsPreview) return;
-    const wantPreview = dragging && altDown && !disabled;
+    const wantPreview = dragging && previewHeld && !disabled;
     if (wantPreview && !previewing) {
       previewing = true;
       onPreviewStart!();
@@ -117,7 +125,7 @@
   function onPointerDown(e: PointerEvent): void {
     if (disabled) return;
     dragging = true;
-    altDown = e.altKey;
+    previewKey = keyHeld('preview', e);
     editor.beginDrag();
     onDragStart?.();
     updatePreview();
@@ -142,7 +150,7 @@
   }
 
   function onKeyChange(e: KeyboardEvent): void {
-    altDown = e.altKey;
+    previewKey = keyHeld('preview', e);
     updatePreview();
   }
 

@@ -62,6 +62,10 @@ export function trashLabel(copy: boolean): string {
   return copy ? 'Delete virtual copy' : 'Move to Immich trash';
 }
 
+export function trashLabelFor(id: string | null): string {
+  return trashLabel(id !== null && isCopy(id));
+}
+
 export function trashPeriod(trashDays: number | null): string {
   return trashDays === null ? 'when its trash period ends' : `after ${countOf(trashDays, 'day')}`;
 }

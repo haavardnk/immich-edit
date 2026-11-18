@@ -1121,7 +1121,7 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await page.keyboard.press('o');
   await expect(guide).toHaveAttribute('data-mode', 'golden');
 
-  await page.reload();
+  await gotoAsset(page);
   await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
   await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();

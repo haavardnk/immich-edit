@@ -20,6 +20,7 @@
   import MaskRadialHandles from './MaskRadialHandles.svelte';
   import MaskPolygonHandles from './MaskPolygonHandles.svelte';
   import MaskPolygonDraft from './MaskPolygonDraft.svelte';
+  import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
     img
@@ -78,7 +79,7 @@
       return false;
     const comp = active.components.find((c) => c.id === editor.activeMaskComponentId);
     if (!comp) return false;
-    const step = e.shiftKey ? 10 : 1;
+    const step = held('coarse', e) ? 10 : 1;
     const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
     const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
     const next = nudgedKind(comp.kind, dx, dy, toPx, fromPx);
@@ -112,7 +113,7 @@
     if (!comp) return;
     const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const n = fromPx(e.clientX - r.left, e.clientY - r.top);
-    const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: e.shiftKey });
+    const next = draggedKind(comp.kind, current.kind, n, { aspect, shift: held('constrain', e) });
     if (next) editor.updateMaskComponentKind(active.id, comp.id, next, true);
   }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { selection } from '#lib/stores/selection.svelte.ts';
-  import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+  import { clipboard, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { createResetEditsJob } from '#lib/api/jobs.ts';
   import { runBulkJob } from '#lib/api/bulkJob.ts';
@@ -73,7 +73,7 @@
     color="secondary"
     class="h-6 flex-1 panel-action"
     leadingIcon={mdiContentPaste}
-    title={clipboard.has ? 'Paste edits to selected assets' : 'Nothing copied'}
+    title={clipboard.has ? 'Paste edits to selected assets' : NOTHING_COPIED}
     disabled={busy || !clipboard.has || selection.count === 0}
     onclick={() => void paste()}
   >

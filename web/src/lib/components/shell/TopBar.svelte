@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import { hint } from '#lib/shortcuts/labels.ts';
+  import { help } from '#lib/commands/app.ts';
+  import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
   import ThemeToggle from '#lib/components/shell/ThemeToggle.svelte';
@@ -11,13 +12,7 @@
     ControlBarOverflow,
     IconButton
   } from '@immich/ui';
-  import {
-    mdiMenu,
-    mdiCogOutline,
-    mdiClose,
-    mdiFormatListChecks,
-    mdiKeyboardOutline
-  } from '@mdi/js';
+  import { mdiMenu, mdiCogOutline, mdiClose, mdiFormatListChecks } from '@mdi/js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
@@ -117,16 +112,7 @@
   <ControlBarOverflow class="gap-0.5">
     <ThemeToggle />
 
-    <IconButton
-      size="medium"
-      variant="ghost"
-      color="secondary"
-      shape="rectangle"
-      icon={mdiKeyboardOutline}
-      title={hint('Keyboard shortcuts', 'help')}
-      aria-label="Keyboard shortcuts"
-      onclick={() => ui.toggleKeybindsHelp()}
-    />
+    <CommandIconButton command={help} size="medium" variant="ghost" shape="rectangle" />
 
     <div class="relative">
       <IconButton

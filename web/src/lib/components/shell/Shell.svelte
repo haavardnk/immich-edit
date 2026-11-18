@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
   import TopBar from './TopBar.svelte';
@@ -18,6 +19,8 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
+  import { onEditorRoute } from '#lib/utils/route.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { AppShell, AppShellBar, AppShellSidebar } from '@immich/ui';
@@ -25,7 +28,7 @@
 
   let { children }: { children: Snippet } = $props();
 
-  const editorRoute = $derived(page.url.pathname.startsWith('/assets/'));
+  const editorRoute = $derived(onEditorRoute());
   const settingsRoute = $derived(page.url.pathname.startsWith('/settings'));
   const narrowViewport = new MediaQuery('max-width: 1023px');
   let sidebarOpen = $derived(!narrowViewport.current);
@@ -37,6 +40,10 @@
   onMount(() => {
     void editedThumbs.loadOnce();
     void jobs.load();
+  });
+
+  onNavigate(({ to }) => {
+    if (to) leaveLoupeOnEditorPath(to.url.pathname);
   });
 
   $effect(() => {
