@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { pointerDrag } from '#lib/gestures/drag.ts';
+  import { centredPoint } from '#lib/gestures/point.ts';
+
   let {
     hue = $bindable(),
     sat = $bindable(),
@@ -16,7 +19,6 @@
   } = $props();
 
   let wheel = $state<HTMLDivElement | undefined>();
-  let dragging = $state(false);
   let keyboardDirty = $state(false);
 
   const cx = $derived(size / 2);
@@ -35,8 +37,7 @@
   function updateFromEvent(ev: PointerEvent): void {
     if (!wheel) return;
     const rect = wheel.getBoundingClientRect();
-    const px = ev.clientX - rect.left - rect.width / 2;
-    const py = ev.clientY - rect.top - rect.height / 2;
+    const { x: px, y: py } = centredPoint(ev, rect);
     const dist = Math.sqrt(px * px + py * py);
     const maxR = rect.width / 2 - 4;
     const newSat = Math.min(100, Math.round((dist / Math.max(maxR, 1)) * 100));
@@ -47,24 +48,15 @@
     onLive();
   }
 
-  function pointerDown(ev: PointerEvent): void {
-    if (!wheel) return;
-    dragging = true;
-    wheel.setPointerCapture(ev.pointerId);
-    updateFromEvent(ev);
-  }
-
-  function pointerMove(ev: PointerEvent): void {
-    if (!dragging) return;
-    updateFromEvent(ev);
-  }
-
-  function pointerUp(ev: PointerEvent): void {
-    if (!dragging) return;
-    dragging = false;
-    if (wheel?.hasPointerCapture(ev.pointerId)) wheel.releasePointerCapture(ev.pointerId);
-    onCommit(commitAction);
-  }
+  const drag = pointerDrag<true>({
+    start(ev) {
+      if (!wheel) return null;
+      updateFromEvent(ev);
+      return true;
+    },
+    move: updateFromEvent,
+    end: () => onCommit(commitAction)
+  });
 
   function reset(): void {
     hue = 0;
@@ -118,10 +110,7 @@
   aria-valuemin={0}
   aria-valuemax={360}
   aria-valuetext={valueText}
-  onpointerdown={pointerDown}
-  onpointermove={pointerMove}
-  onpointerup={pointerUp}
-  onpointercancel={pointerUp}
+  {...drag.on()}
   ondblclick={reset}
   onkeydown={key}
   onkeyup={keyUp}

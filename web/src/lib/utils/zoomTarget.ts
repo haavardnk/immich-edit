@@ -1,6 +1,5 @@
 import type { FaceBox } from '#lib/api/faces.ts';
 import { sceneUvToDisplayUv, type ViewTransform } from '#lib/utils/canvasCoords.ts';
-import type { Pan } from '#lib/utils/imageViewport.ts';
 import { surfaceSize, type PreviewSurface } from '#lib/utils/previewSurface.ts';
 
 export interface ZoomTarget {
@@ -25,23 +24,6 @@ export function nextTargetIndex(index: number | null, count: number): number | n
   if (count <= 0) return null;
   if (index === null) return 0;
   return index + 1 >= count ? null : index + 1;
-}
-
-export function panForTarget(
-  target: ZoomTarget,
-  frame: { width: number; height: number },
-  viewW: number,
-  viewH: number,
-  zoomRatio: number
-): Pan {
-  const width = frame.width * zoomRatio;
-  const height = frame.height * zoomRatio;
-  const limitX = Math.max(0, (width - viewW) / 2);
-  const limitY = Math.max(0, (height - viewH) / 2);
-  return {
-    panX: Math.min(limitX, Math.max(-limitX, (0.5 - target.u) * width)),
-    panY: Math.min(limitY, Math.max(-limitY, (0.5 - target.v) * height))
-  };
 }
 
 export function sharpestCell(

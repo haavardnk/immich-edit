@@ -2,6 +2,10 @@
   import type { MaskComponent, MaskComponentKind, Vec2f } from '#lib/types/edits.ts';
   import type { DragKind } from '#lib/utils/maskDrag.ts';
   import { smoothRamp } from '#lib/utils/maskRamp.ts';
+  import MaskHandle from './MaskHandle.svelte';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
+  import type { ComponentProps } from 'svelte';
 
   let {
     comp,
@@ -45,14 +49,67 @@
   function startMove(e: PointerEvent): void {
     const svg = (e.currentTarget as SVGElement).ownerSVGElement;
     if (!svg) return;
-    const r = svg.getBoundingClientRect();
+    const at = elementPoint(e, svg);
     onDrag(e, {
       kind: 'linear-move',
       startP0: { ...kind.p0 },
       startP1: { ...kind.p1 },
-      downAtN: fromPx(e.clientX - r.left, e.clientY - r.top)
+      downAtN: fromPx(at.x, at.y)
     });
   }
+
+  function end(
+    at: { x: number; y: number },
+    label: string,
+    drag: DragKind
+  ): ComponentProps<typeof MaskHandle> {
+    return {
+      cx: at.x,
+      cy: at.y,
+      r: HANDLE_DOT.maskEnd,
+      fill: 'var(--color-mask-overlay)',
+      stroke: 'var(--color-image-light)',
+      strokeWidth: 2,
+      cursor: 'move',
+      label,
+      onpointerdown: (e) => onDrag(e, drag)
+    };
+  }
+
+  function feather(at: { x: number; y: number }): ComponentProps<typeof MaskHandle> {
+    return {
+      cx: at.x,
+      cy: at.y,
+      r: HANDLE_DOT.maskFeather,
+      fill: 'var(--color-mask-overlay)',
+      fillOpacity: 0.3,
+      stroke: 'var(--color-mask-overlay)',
+      strokeWidth: 1.5,
+      cursor: 'move',
+      label: 'Linear feather',
+      onpointerdown: (e) => onDrag(e, { kind: 'linear-feather' })
+    };
+  }
+
+  const handles = $derived(
+    spacedHandles<ComponentProps<typeof MaskHandle>>([
+      end(a, 'Linear start', { kind: 'linear-p0' }),
+      end(b, 'Linear end', { kind: 'linear-p1' }),
+      feather(hi),
+      feather(lo),
+      {
+        cx: mx,
+        cy: my,
+        r: HANDLE_DOT.maskCentre,
+        fill: 'var(--color-image-light)',
+        stroke: 'var(--color-mask-overlay)',
+        strokeWidth: 2,
+        cursor: 'move',
+        label: 'Move linear',
+        onpointerdown: startMove
+      }
+    ])
+  );
 </script>
 
 <g style="pointer-events: auto;">
@@ -100,45 +157,6 @@
     stroke-width="0.5"
     opacity="0.5"
   />
-  <circle
-    cx={a.x}
-    cy={a.y}
-    r="8"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: move;"
-    role="button"
-    aria-label="Linear start"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'linear-p0' })}
-  />
-  <circle
-    cx={b.x}
-    cy={b.y}
-    r="8"
-    fill="var(--color-mask-overlay)"
-    stroke="var(--color-image-light)"
-    stroke-width="2"
-    style="cursor: move;"
-    role="button"
-    aria-label="Linear end"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'linear-p1' })}
-  />
-  <circle
-    cx={mx}
-    cy={my}
-    r="6"
-    fill="var(--color-image-light)"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="2"
-    style="cursor: move;"
-    role="button"
-    aria-label="Move linear"
-    tabindex="-1"
-    onpointerdown={startMove}
-  />
   <line
     x1={lo.x - px * GUIDE_LEN}
     y1={lo.y - py * GUIDE_LEN}
@@ -159,32 +177,7 @@
     stroke-dasharray="4 4"
     opacity="0.7"
   />
-  <circle
-    cx={hi.x}
-    cy={hi.y}
-    r="5"
-    fill="var(--color-mask-overlay)"
-    fill-opacity="0.3"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="1.5"
-    style="cursor: move;"
-    role="button"
-    aria-label="Linear feather"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'linear-feather' })}
-  />
-  <circle
-    cx={lo.x}
-    cy={lo.y}
-    r="5"
-    fill="var(--color-mask-overlay)"
-    fill-opacity="0.3"
-    stroke="var(--color-mask-overlay)"
-    stroke-width="1.5"
-    style="cursor: move;"
-    role="button"
-    aria-label="Linear feather"
-    tabindex="-1"
-    onpointerdown={(e) => onDrag(e, { kind: 'linear-feather' })}
-  />
+  {#each handles as handle, i (i)}
+    <MaskHandle {...handle} />
+  {/each}
 </g>

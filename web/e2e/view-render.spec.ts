@@ -200,6 +200,72 @@ test.describe('view rendering', () => {
     expect(await left()).toBe(before);
   });
 
+  test('a drag far past the edge keeps the zoomed photo covering the view', async ({ page }) => {
+    await installMocks(page, {
+      previewRender: renderFor,
+      sourceSize: { w: SOURCE_W, h: SOURCE_H }
+    });
+    await gotoAsset(page);
+    await expect(page.getByTestId('view-render')).toBeVisible();
+    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    await zoom.click();
+    await page.getByRole('button', { name: '1:1', exact: true }).click();
+    await expect(zoom).toHaveText('100%');
+    await zoom.click();
+
+    const area = await page.locator('.editor-stage').boundingBox();
+    if (!area) throw new Error('missing stage');
+    const image = page.getByTestId('preview-image');
+    const near = { x: area.x + 10, y: area.y + 10 };
+    const far = { x: area.x + area.width - 10, y: area.y + area.height - 10 };
+    await expect
+      .poll(async () => (await image.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(area.width);
+    const frame = await image.boundingBox();
+    if (!frame) throw new Error('missing image');
+    const strokes =
+      Math.ceil(
+        Math.max(
+          (frame.width - area.width) / (far.x - near.x),
+          (frame.height - area.height) / (far.y - near.y)
+        )
+      ) + 1;
+    const drag = async (from: typeof near, to: typeof near): Promise<void> => {
+      for (let i = 0; i < strokes; i++) {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(to.x, to.y, { steps: 4 });
+        await page.mouse.up();
+      }
+    };
+    const edges = async () => {
+      const box = await image.boundingBox();
+      if (!box) throw new Error('missing image');
+      return {
+        left: box.x - area.x,
+        top: box.y - area.y,
+        right: area.x + area.width - (box.x + box.width),
+        bottom: area.y + area.height - (box.y + box.height)
+      };
+    };
+    const gap = (keys: ('left' | 'top' | 'right' | 'bottom')[]) => async () => {
+      const at = await edges();
+      return Math.max(...keys.map((key) => Math.abs(at[key])));
+    };
+
+    await drag(near, far);
+    await expect.poll(gap(['left', 'top'])).toBeLessThan(1.5);
+    const pinned = await edges();
+    expect(pinned.right).toBeLessThan(0);
+    expect(pinned.bottom).toBeLessThan(0);
+
+    await drag(far, near);
+    await expect.poll(gap(['right', 'bottom'])).toBeLessThan(1.5);
+    const opposite = await edges();
+    expect(opposite.left).toBeLessThan(0);
+    expect(opposite.top).toBeLessThan(0);
+  });
+
   test('a held section bypass is not replaced by the view render', async ({ page }) => {
     const requests: PreviewRequest[] = [];
     await installMocks(page, {

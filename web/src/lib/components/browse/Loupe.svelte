@@ -2,7 +2,7 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
-  import { compare, CENTERED, type PaneView } from '#lib/stores/compare.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     canDropPane,
@@ -25,13 +25,9 @@
   import { pickFromStrip, stepLoupe } from '#lib/browse/loupeNav.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { putBounded } from '#lib/utils/boundedRecord.ts';
-  import { cachedFaceData, loadFaceData } from '#lib/stores/zoomTargets.ts';
-  import {
-    faceTargets,
-    nextTargetIndex,
-    sharpestPoint,
-    type ZoomTarget
-  } from '#lib/utils/zoomTarget.ts';
+  import { loadFaceData } from '#lib/stores/zoomTargets.ts';
+  import { ZoomCycle } from '#lib/stores/zoomCycle.ts';
+  import { FIT_VIEW, withZoom, type View, type ViewportMetrics } from '#lib/utils/imageViewport.ts';
   import type { TagRef } from '#lib/types/asset.ts';
   import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
   import LoupeActionRail from '#lib/components/browse/LoupeActionRail.svelte';
@@ -39,7 +35,6 @@
   import LoupeToolbar from '#lib/components/browse/LoupeToolbar.svelte';
   import ExifRows from '#lib/components/ExifRows.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { clampZoom, writeZoomLevel } from '#lib/utils/zoomLevel.ts';
   import { IconButton } from '@immich/ui';
   import ContextMenuItem from '#lib/components/ContextMenuItem.svelte';
   import { mdiChevronLeft, mdiChevronRight, mdiClose, mdiFullscreenExit } from '@mdi/js';
@@ -59,7 +54,7 @@
   const copyBadge = $derived(
     asset && isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
-  const paneView = $derived(focusedId ? compare.viewOf(focusedId) : CENTERED);
+  const paneView = $derived(focusedId ? compare.viewOf(focusedId) : FIT_VIEW);
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
   const canDrop = $derived(canDropPane());
@@ -68,14 +63,21 @@
   );
   const count = $derived(multi ? panes.length : browsing.count);
 
-  let fitZooms = $state<Record<string, number>>({});
+  let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
   let paneImageOrder = $state<string[]>([]);
-  let targetIndex = $state<number | null>(null);
   const currentTags = $derived(loupeTags.tagsOf(focusedId));
-  const focusedFitZoom = $derived(focusedId ? (fitZooms[focusedId] ?? 100) : 100);
+  const focusedFitZoom = $derived((focusedId ? paneMetrics[focusedId]?.fitZoom : null) ?? 100);
   const zoom = $derived(paneView.zoom ?? focusedFitZoom);
-  const zoomed = $derived(paneView.zoom !== null && paneView.zoom > focusedFitZoom);
+  const zoomCycle = new ZoomCycle({
+    shown: () => focusedId,
+    transform: (data) => data.savedView,
+    image: (id) => paneImages[id] ?? null,
+    metrics: (id) => paneMetrics[id] ?? null,
+    zoomLevel: () => ui.zoomLevel,
+    view: (id) => compare.viewOf(id),
+    apply: (id, view) => compare.applyView(id, view)
+  });
 
   onDestroy(() => {
     ui.fullscreen = false;
@@ -83,7 +85,7 @@
 
   onMount(() =>
     loupeHost.attach({
-      toggleZoom,
+      cycleZoom: () => zoomCycle.next(),
       panBy: (dx, dy) => {
         if (focusedId) paneGrid?.panBy(focusedId, dx, dy);
       }
@@ -92,7 +94,7 @@
 
   $effect(() => {
     const id = focusedId;
-    targetIndex = null;
+    zoomCycle.reset();
     if (id) void loadFaceData(id);
   });
 
@@ -130,65 +132,26 @@
 
   let paneGrid = $state<ReturnType<typeof LoupePaneGrid>>();
 
-  function toggleZoom(): void {
-    const id = focusedId;
-    if (!id) return;
-    if (cachedFaceData(id) === null) {
-      void loadFaceData(id).then(() => stepZoomTarget(id));
-      return;
-    }
-    stepZoomTarget(id);
-  }
-
-  function zoomTargetsFor(id: string): ZoomTarget[] {
-    const data = cachedFaceData(id);
-    const faces = data?.savedView ? faceTargets(data.faces, data.savedView) : [];
-    if (faces.length > 0) return faces;
-    const image = paneImages[id];
-    return [(image ? sharpestPoint(image) : null) ?? { u: 0.5, v: 0.5 }];
-  }
-
-  function stepZoomTarget(id: string): void {
-    if (id !== focusedId) return;
-    const targets = zoomTargetsFor(id);
-    const next = nextTargetIndex(zoomed ? targetIndex : null, targets.length);
-    targetIndex = next;
-    const target = next === null ? null : targets[next];
-    if (!target) {
-      compare.applyView(id, CENTERED);
-      return;
-    }
-    compare.applyView(id, { zoom: ui.zoomLevel, cx: target.u, cy: target.v });
-  }
-
   function setZoom(value: number): void {
     const id = focusedId;
     if (!id) return;
-    const nextZoom = clampZoom(value, focusedFitZoom);
-    const view = compare.viewOf(id);
-    compare.applyView(
-      id,
-      nextZoom > focusedFitZoom ? { ...view, zoom: nextZoom } : { ...CENTERED, zoom: nextZoom }
-    );
-    if (nextZoom <= focusedFitZoom) return;
-    ui.zoomLevel = nextZoom;
-    writeZoomLevel(nextZoom);
+    const next = withZoom(compare.viewOf(id), value, focusedFitZoom);
+    compare.applyView(id, next);
+    ui.rememberZoomLevel(next.zoom, focusedFitZoom);
   }
 
   function fitZoom(): void {
     const id = focusedId;
     if (!id) return;
-    compare.applyView(id, CENTERED);
+    compare.applyView(id, FIT_VIEW);
   }
 
-  function applyPaneView(id: string, view: PaneView, solo?: boolean): void {
-    targetIndex = null;
+  function applyPaneView(id: string, view: View, solo?: boolean): void {
     compare.applyView(id, view, solo);
   }
 
-  function setFitZoom(id: string, value: number): void {
-    if (fitZooms[id] === value) return;
-    fitZooms = { ...fitZooms, [id]: value };
+  function setPaneMetrics(id: string, metrics: ViewportMetrics): void {
+    paneMetrics = { ...paneMetrics, [id]: metrics };
   }
 
   function setPaneImage(id: string, element: HTMLImageElement): void {
@@ -232,7 +195,7 @@
         {canDrop}
         onView={applyPaneView}
         onSize={(size) => (paneMaxEdge = size)}
-        onFitZoom={setFitZoom}
+        onMetrics={setPaneMetrics}
         onImage={setPaneImage}
       />
 

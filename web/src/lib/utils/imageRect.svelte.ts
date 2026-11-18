@@ -36,8 +36,8 @@ export function imageRect(img: () => PreviewSurface | null): ImageRect {
 
   $effect(() => {
     void ui.zoom;
-    void ui.panX;
-    void ui.panY;
+    void ui.cx;
+    void ui.cy;
     if (!img()) return;
     const id = requestAnimationFrame(recompute);
     return () => cancelAnimationFrame(id);

@@ -168,10 +168,6 @@ export class PreviewEngine {
     return this.tiles.srcLong;
   }
 
-  get snapshot(): ViewSnapshot | null {
-    return this.viewSnap;
-  }
-
   get viewScale(): number | null {
     return this.tiles.scale(this.viewSnap);
   }
