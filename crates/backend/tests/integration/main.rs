@@ -21,6 +21,7 @@ mod denoise_report;
 #[cfg(feature = "ml")]
 mod denoise_revision;
 mod edits;
+mod edits_history;
 mod export;
 mod export_immich;
 mod export_presets;
@@ -51,6 +52,7 @@ mod saved_views;
 mod search;
 mod sessions;
 mod setup_oauth;
+mod snapshots;
 mod source;
 mod static_files;
 mod tags;
