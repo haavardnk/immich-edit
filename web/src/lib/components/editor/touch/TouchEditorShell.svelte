@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
   import { untrack } from 'svelte';
   import Notice from '#lib/components/Notice.svelte';
   import Viewer from '#lib/components/editor/Viewer.svelte';
@@ -67,7 +68,7 @@
   }
 
   function tapPhoto(): void {
-    if (!focused) ui.toggleFullscreen();
+    if (!focused) toggleEditorFullscreen();
   }
 </script>
 

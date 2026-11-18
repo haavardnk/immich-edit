@@ -21,6 +21,7 @@
 
 <nav
   aria-label="Editor toolbar"
+  data-swap="top"
   class="relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] {ui.rightCollapsed
     ? 'md:w-[calc(100%+3.5rem)]'
     : ''}"

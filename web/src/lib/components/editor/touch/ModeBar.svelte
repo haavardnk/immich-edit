@@ -11,6 +11,7 @@
 </script>
 
 <Tabs.Root
+  data-swap="bottom"
   value={touchMode()}
   onValueChange={(value) => openTouchMode(value as TouchMode)}
   activationMode="manual"

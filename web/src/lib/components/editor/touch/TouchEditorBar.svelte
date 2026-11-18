@@ -43,6 +43,7 @@
 
 <nav
   aria-label="Editor toolbar"
+  data-swap="top"
   class="flex h-12 shrink-0 items-center gap-0.5 px-1.5 {floating
     ? 'absolute inset-x-0 top-0 z-30 bg-editor-chrome/70 backdrop-blur-sm'
     : 'sticky top-0 z-10 bg-editor-chrome'}"

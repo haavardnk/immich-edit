@@ -1,3 +1,4 @@
+import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
 import { selectedShapeNudges } from '#lib/commands/editor/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
@@ -78,7 +79,7 @@ export const editorFullscreen = {
   id: 'editor.fullscreen',
   contexts: ['editor'],
   ...fullscreenView,
-  run: () => ui.toggleFullscreen()
+  run: toggleEditorFullscreen
 } satisfies Command;
 
 export const viewerWindow = {

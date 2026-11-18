@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
   import RightSidebar from '#lib/components/editor/desktop/RightSidebar.svelte';
   import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
   import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
@@ -39,7 +40,7 @@
             icon={mdiFullscreenExit}
             title={hint('Exit fullscreen', 'fullscreen')}
             aria-label={hint('Exit fullscreen', 'fullscreen')}
-            onclick={ui.toggleFullscreen}
+            onclick={toggleEditorFullscreen}
           />
         {:else}
           {#if editor.compare.mode !== 'off'}<CompareBar />{/if}

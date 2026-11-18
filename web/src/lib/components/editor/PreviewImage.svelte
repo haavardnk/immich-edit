@@ -11,6 +11,7 @@
     class: className,
     style,
     testid,
+    swap,
     element = $bindable(null),
     onsize
   }: {
@@ -20,6 +21,7 @@
     class: string;
     style: string;
     testid?: string;
+    swap?: string;
     element?: PreviewSurface | null;
     onsize?: (size: { w: number; h: number }) => void;
   } = $props();
@@ -43,8 +45,13 @@
 
 {#if frame}
   {#key frame.colorSpace}
-    <canvas bind:this={element} data-testid={testid} data-photo-layer class={className} {style}
-      >{alt}</canvas
+    <canvas
+      bind:this={element}
+      data-testid={testid}
+      data-swap={swap}
+      data-photo-layer
+      class={className}
+      {style}>{alt}</canvas
     >
   {/key}
 {:else if url}
@@ -53,6 +60,7 @@
     src={url}
     {alt}
     data-testid={testid}
+    data-swap={swap}
     data-photo-layer
     class={className}
     style="{style} image-orientation: none;"

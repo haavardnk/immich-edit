@@ -112,3 +112,72 @@
     transform: translateY(-8px);
   }
 }
+
+:root[data-view-swap]::view-transition {
+  pointer-events: none;
+}
+
+:root[data-view-swap] [data-swap='photo'] {
+  view-transition-name: swap-photo;
+}
+
+:root[data-view-swap] [data-swap='top'] {
+  view-transition-name: swap-top;
+}
+
+:root[data-view-swap] [data-swap='tray'] {
+  view-transition-name: swap-tray;
+}
+
+:root[data-view-swap] [data-swap='bottom'] {
+  view-transition-name: swap-bottom;
+}
+
+:root[data-view-swap]::view-transition-group(*),
+:root[data-view-swap]::view-transition-old(*),
+:root[data-view-swap]::view-transition-new(*) {
+  animation-duration: var(--transition-duration-slow);
+  animation-timing-function: var(--ease-emphasized);
+}
+
+:root[data-view-swap]::view-transition-old(swap-top):only-child {
+  animation-name: swap-out-up;
+}
+
+:root[data-view-swap]::view-transition-new(swap-top):only-child {
+  animation-name: swap-in-down;
+}
+
+:root[data-view-swap]::view-transition-old(swap-tray):only-child,
+:root[data-view-swap]::view-transition-old(swap-bottom):only-child {
+  animation-name: swap-out-down;
+}
+
+:root[data-view-swap]::view-transition-new(swap-tray):only-child,
+:root[data-view-swap]::view-transition-new(swap-bottom):only-child {
+  animation-name: swap-in-up;
+}
+
+@keyframes swap-out-up {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes swap-in-down {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes swap-out-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes swap-in-up {
+  from {
+    transform: translateY(100%);
+  }
+}

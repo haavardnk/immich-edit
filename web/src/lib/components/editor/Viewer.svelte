@@ -218,6 +218,7 @@
         class="max-h-none max-w-none select-none object-contain {imageEdge}"
         style={baseStyle + cropExit.transform + visualize}
         testid="preview-image"
+        swap="photo"
         onsize={measured}
       />
       {#if (editor.viewUrl || editor.viewFrame) && viewPlace}

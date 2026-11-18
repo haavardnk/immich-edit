@@ -23,6 +23,7 @@
 
 <nav
   aria-label="Editor status and view controls"
+  data-swap="bottom"
   class="@container relative shrink-0 bg-editor-chrome before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-hairline"
 >
   <div

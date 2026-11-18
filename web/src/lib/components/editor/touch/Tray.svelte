@@ -82,6 +82,7 @@
 
 <section
   aria-label="Adjustments"
+  data-swap="tray"
   data-detent={touchUi.detent}
   transition:reveal
   class="flex shrink-0 flex-col overflow-hidden rounded-t-2xl border-t border-hairline bg-editor-panel motion-safe:data-snapping:transition-[height] motion-safe:data-snapping:duration-base motion-safe:data-snapping:ease-standard"
