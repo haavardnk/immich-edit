@@ -28,9 +28,11 @@ pub mod masks;
 #[cfg(feature = "ml")]
 pub mod models;
 pub mod people;
+pub mod preferences;
 pub mod presets;
 pub mod preview;
 pub mod rasters;
+pub mod saved_views;
 pub mod search;
 pub mod setup;
 pub mod source;

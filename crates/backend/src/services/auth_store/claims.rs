@@ -1,6 +1,8 @@
 use chrono::Utc;
 use sqlx::Row;
 
+use crate::services::edits_store::EditsStore;
+
 use super::*;
 
 impl AuthStore {
@@ -61,14 +63,7 @@ impl AuthStore {
             .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM jobs").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM edits").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM edits_history")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM export_jobs")
-            .execute(&mut *tx)
-            .await?;
+        EditsStore::purge_owned_rows(&mut tx).await?;
         sqlx::query("DELETE FROM sessions")
             .execute(&mut *tx)
             .await?;

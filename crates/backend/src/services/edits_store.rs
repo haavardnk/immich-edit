@@ -17,12 +17,16 @@ mod export_jobs;
 mod export_presets;
 mod history;
 mod pool;
+mod preferences;
 mod presets;
 mod purge;
+mod saved_views;
 
 pub use appearance::{Appearance, AppearanceMode};
 pub use copies::CopyRecord;
 pub use export_presets::ExportPresetRecord;
+pub use preferences::{CropRatio, Preferences, PreferencesPatch, SectionEntry};
+pub use saved_views::SavedViewRecord;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsStoreError {
@@ -453,7 +457,7 @@ pub struct PresetRecord {
 mod tests {
     use super::*;
 
-    const O: Uuid = Uuid::nil();
+    pub(super) const O: Uuid = Uuid::nil();
 
     fn key() -> AssetKey {
         AssetKey::master(Uuid::new_v4())
@@ -463,7 +467,7 @@ mod tests {
         Uuid::new_v4()
     }
 
-    async fn store() -> EditsStore {
+    pub(super) async fn store() -> EditsStore {
         EditsStore::migrated_memory().await.unwrap()
     }
 

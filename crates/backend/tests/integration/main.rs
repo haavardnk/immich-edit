@@ -42,10 +42,12 @@ mod middleware;
 #[cfg(feature = "ml")]
 mod models;
 mod people;
+mod preferences;
 mod presets;
 mod preview;
 mod rasters;
 mod request_timeout;
+mod saved_views;
 mod search;
 mod sessions;
 mod setup_oauth;
