@@ -70,30 +70,52 @@ async function centre(target: Locator): Promise<{ x: number; y: number }> {
 }
 
 test.describe('touch presets', { tag: '@touch' }, () => {
-  test('the tray shows group chips, 88 px tiles, create column and apply options', async ({
-    page
-  }) => {
+  test('the tray is a header row over a square grid led by None', async ({ page }) => {
     const { strip } = await openPresets(page);
     const chips = strip.getByRole('tablist', { name: 'Preset groups' });
     await expect(chips.getByRole('tab')).toHaveText(['All', 'B&W', 'Film']);
+    await expect(strip.getByRole('button', { name: 'Search presets' })).toBeVisible();
+    await expect(strip.getByRole('button', { name: 'Save current as preset' })).toBeVisible();
+    await expect(strip.getByRole('button', { name: 'Import presets' })).toHaveCount(0);
     await expect(strip.getByRole('button', { name: /^Apply / })).toHaveText([
       'Warm',
       'Kodak 400',
       'Mono'
     ]);
-
+    const none = strip.getByRole('button', { name: 'No preset' });
+    await expect(none).toHaveAttribute('aria-current', 'true');
     const thumb = await tile(strip, 'Warm').locator('span').first().boundingBox();
-    expect(thumb?.width).toBe(88);
-    expect(thumb?.height).toBe(88);
-    await expect(strip.getByRole('button', { name: 'Save current as preset' })).toBeVisible();
-    await expect(strip.getByRole('button', { name: 'Import presets' })).toBeVisible();
-    await expect(strip.getByRole('button', { name: 'Actions for Warm' })).toHaveCSS('opacity', '1');
-    await expect(strip.getByRole('slider', { name: 'Preset amount' })).toHaveValue('100');
-    await expect(strip.getByText('Crop', { exact: true })).toBeVisible();
-    await expect(strip.getByText('Masks', { exact: true })).toBeVisible();
+    expect(Math.round(thumb?.width ?? 0)).toBe(Math.round(thumb?.height ?? -1));
+    await expect(strip.getByRole('slider', { name: 'Amount' })).toHaveCount(0);
+
+    await strip.getByRole('button', { name: 'Preset actions' }).tap();
+    await expect(page.getByRole('dialog', { name: 'Presets' }).getByRole('button')).toContainText([
+      'Import presets',
+      'Export all presets'
+    ]);
+    await page.keyboard.press('Escape');
 
     await chips.getByRole('tab', { name: 'Film' }).tap();
     await expect(strip.getByRole('button', { name: /^Apply / })).toHaveText(['Warm', 'Kodak 400']);
+  });
+
+  test('an applied preset shows its card and None removes it', async ({ page }) => {
+    const { strip, saves } = await openPresets(page);
+    await tile(strip, 'Warm').tap();
+    const card = strip.getByRole('region', { name: 'Applied preset' });
+    await expect(card).toContainText('Warm');
+    await expect(card.getByRole('slider', { name: 'Amount' })).toHaveValue('100');
+    await expect(card.getByText('Crop', { exact: true })).toHaveCount(0);
+    await expect(tile(strip, 'Warm')).toHaveAttribute('aria-current', 'true');
+
+    const saved = saves.length;
+    await strip.getByRole('button', { name: 'No preset' }).tap();
+    await expect(card).toHaveCount(0);
+    await expect(strip.getByRole('button', { name: 'No preset' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    );
+    await expect.poll(() => saves.length).toBeGreaterThan(saved);
   });
 
   test('a tap applies the preset as one history step', async ({ page }) => {
@@ -127,12 +149,7 @@ test.describe('touch presets', { tag: '@touch' }, () => {
     const { strip, deleted } = await openPresets(page);
     await strip.getByRole('button', { name: 'Actions for Mono' }).tap();
     const sheet = page.getByRole('dialog', { name: 'Mono' });
-    await expect(sheet.getByRole('button')).toContainText([
-      'Edit…',
-      'Export',
-      'Export all presets',
-      'Delete'
-    ]);
+    await expect(sheet.getByRole('button')).toContainText(['Edit…', 'Export', 'Delete']);
     await sheet.getByRole('button', { name: 'Delete', exact: true }).tap();
     await sheet.getByRole('button', { name: 'Confirm delete' }).tap();
     await expect.poll(() => deleted).toEqual(['preset-mono']);

@@ -77,17 +77,6 @@ class PresetStripStore {
     };
   }
 
-  get appliedPill(): PillText | null {
-    const live = this.live;
-    if (!live) return null;
-    return {
-      lead: `${live.name} applied · Amount`,
-      label: `${live.amount}%`,
-      tail: 'stays live until your next edit',
-      mono: true
-    };
-  }
-
   ensureLoaded = (): void => {
     if (!presets.loaded && !presets.loading) void presets.load();
   };
@@ -98,8 +87,21 @@ class PresetStripStore {
   };
 
   setAmount = (amount: number): void => {
-    if (this.live) editor.presetApplied.blend(amount);
+    if (this.live) editor.presetApplied.adjust({ amount });
     else this.applyOptions.amount = amount;
+  };
+
+  setInclude = (key: 'includeGeometry' | 'includeMasks', value: boolean): void => {
+    if (!this.live) {
+      this.applyOptions[key] = value;
+      return;
+    }
+    editor.presetApplied.adjust({ [key]: value });
+    void editor.presetApplied.commitBlend();
+  };
+
+  remove = (): void => {
+    void editor.presetApplied.remove();
   };
 
   commitAmount = (): void => {

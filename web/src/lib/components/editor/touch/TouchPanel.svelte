@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PresetStrip from '#lib/components/preset/PresetStrip.svelte';
+  import PresetPanel from '#lib/components/preset/PresetPanel.svelte';
   import ExportPanel from '#lib/panels/Export.svelte';
   import DevelopViews from './DevelopViews.svelte';
   import GroupChips from './GroupChips.svelte';
@@ -17,8 +17,8 @@
 </script>
 
 {#if mode === 'presets'}
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <PresetStrip />
+  <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden">
+    <PresetPanel />
   </div>
 {:else if mode === 'develop'}
   {#if touchUi.searching}

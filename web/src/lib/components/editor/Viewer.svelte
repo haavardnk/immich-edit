@@ -76,11 +76,7 @@
       retouchView.pill ??
       (editor.showingOriginal
         ? null
-        : (editor.historySteps.pill ??
-          maskHoverPill() ??
-          maskClickPill() ??
-          rangeSamplePill() ??
-          presetStrip.appliedPill)) ??
+        : (editor.historySteps.pill ?? maskHoverPill() ?? maskClickPill() ?? rangeSamplePill())) ??
       (editor.geometrySession && layout.mode === 'touch' ? cropReadout() : null)
   );
 

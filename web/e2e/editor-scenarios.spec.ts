@@ -474,7 +474,10 @@ test('the preset strip explains a disabled save and keeps failed thumbnails visi
 
   const save = strip.getByRole('button', { name: 'Save current as preset' });
   await expect(save).toBeDisabled();
-  await expect(save).toContainText('No edits yet');
+  await save.locator('..').hover();
+  await expect(
+    page.locator('.tooltip-content', { hasText: 'Edit the photo to save a preset' })
+  ).toBeVisible();
   const tile = strip.getByRole('button', { name: 'Apply test' });
   await expect(tile).toContainText('T');
   expect((await tile.boundingBox())?.height).toBeGreaterThan(60);

@@ -983,6 +983,11 @@ export async function presetAction(page: Page, item: string): Promise<void> {
   await page.getByRole('region', { name: 'Presets' }).getByRole('button', { name: item }).click();
 }
 
+export async function presetMenuAction(page: Page, item: string): Promise<void> {
+  await presetAction(page, 'Preset actions');
+  await page.locator('[data-popover-content]').getByRole('button', { name: item }).click();
+}
+
 export async function openPresetMenu(page: Page, preset: string): Promise<Locator> {
   await presetAction(page, `Actions for ${preset}`);
   return page.locator('[data-popover-content]');

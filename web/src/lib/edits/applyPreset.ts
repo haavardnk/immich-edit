@@ -2,6 +2,7 @@ import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import { LOOK_AMOUNT_FULL, withLookAmount } from '#lib/edits/lookAmount.ts';
 import { manifestToEdits } from '#lib/edits/manifest.ts';
 import type { EditManifest, Edits } from '#lib/types/edits.ts';
+import { geometryIsIdentity } from '#lib/types/edits/geometry.ts';
 
 export function defaultApplyOptions(): ApplyPresetOptions {
   return { includeGeometry: false, includeMasks: false, amount: LOOK_AMOUNT_FULL };
@@ -26,4 +27,14 @@ export function presetEdits(current: Edits, { manifest, opts }: PresetPreview): 
     retouch: current.retouch,
     lens_blur: current.lens_blur
   };
+}
+
+export interface PresetCarries {
+  geometry: boolean;
+  masks: boolean;
+}
+
+export function presetCarries(manifest: EditManifest): PresetCarries {
+  const edits = manifestToEdits(manifest);
+  return { geometry: !geometryIsIdentity(edits.geometry), masks: edits.masks.length > 0 };
 }

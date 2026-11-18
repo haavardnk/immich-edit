@@ -7,8 +7,9 @@
   import { Icon } from '@immich/ui';
   import { mdiStar } from '@mdi/js';
   import { Tabs } from 'bits-ui';
+  import type { Snippet } from 'svelte';
 
-  let { chips = false }: { chips?: boolean } = $props();
+  let { chips = false, actions }: { chips?: boolean; actions?: Snippet } = $props();
 </script>
 
 {#if chips}
@@ -20,8 +21,13 @@
     </Tabs.List>
   </Tabs.Root>
 {:else}
-  <div class="flex w-[150px] flex-none flex-col gap-1" style:height="{ui.filmstripHeight}px">
-    <SearchField bind:value={presetStrip.query} label="Search presets" compact />
+  <div class="flex w-48 flex-none flex-col gap-1" style:height="{ui.filmstripHeight}px">
+    <div class="flex items-center gap-0.5">
+      <div class="min-w-0 flex-1">
+        <SearchField bind:value={presetStrip.query} label="Search presets" compact />
+      </div>
+      {@render actions?.()}
+    </div>
     {#if presetStrip.filterable}
       <nav
         aria-label="Preset groups"

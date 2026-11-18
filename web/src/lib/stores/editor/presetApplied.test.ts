@@ -91,7 +91,11 @@ describe('applied preset', () => {
 
   it('marks the preset as applied until the edits change', async () => {
     await editor.applyPreset(PORTRA, FULL);
-    expect(editor.presetApplied.current).toEqual({ id: 'portra', name: 'Portra', amount: 100 });
+    expect(editor.presetApplied.current).toMatchObject({
+      id: 'portra',
+      name: 'Portra',
+      amount: 100
+    });
     expect(actions()).toEqual(['Preset: Portra']);
 
     editor.edits.basic.exposure_ev = 2;
@@ -105,9 +109,9 @@ describe('applied preset', () => {
     await editor.applyPreset(PORTRA, FULL);
     expect(editor.edits.basic.contrast).toBe(40);
 
-    editor.presetApplied.blend(50);
+    editor.presetApplied.adjust({ amount: 50 });
     expect(editor.edits.basic.contrast).toBe(20);
-    editor.presetApplied.blend(65);
+    editor.presetApplied.adjust({ amount: 65 });
     expect(editor.edits.basic.contrast).toBe(26);
     expect(editor.presetApplied.current?.amount).toBe(65);
     expect(mocks.putEdits).toHaveBeenCalledTimes(1);
@@ -122,6 +126,20 @@ describe('applied preset', () => {
     expect(editor.canUndo).toBe(false);
   });
 
+  it('changes what the preset includes and removes it as one step', async () => {
+    await editor.applyPreset(PORTRA, FULL);
+    editor.presetApplied.adjust({ includeMasks: true });
+    expect(editor.presetApplied.current?.includeMasks).toBe(true);
+    await editor.presetApplied.commitBlend();
+
+    await editor.presetApplied.remove();
+    expect(editor.edits.basic.contrast).toBe(0);
+    expect(editor.presetApplied.current).toBeNull();
+    expect(actions().at(-1)).toBe('Remove preset: Portra');
+    editor.undo();
+    expect(editor.edits.basic.contrast).toBe(40);
+  });
+
   it('stays cleared after an undo and redo', async () => {
     await editor.applyPreset(PORTRA, FULL);
     editor.undo();
@@ -129,7 +147,7 @@ describe('applied preset', () => {
     editor.redo();
     expect(editor.edits.basic.contrast).toBe(40);
     expect(editor.presetApplied.current).toBeNull();
-    editor.presetApplied.blend(10);
+    editor.presetApplied.adjust({ amount: 10 });
     expect(editor.edits.basic.contrast).toBe(40);
   });
 
@@ -149,7 +167,7 @@ describe('applied preset', () => {
 
     await editor.applyPreset(PORTRA, FULL);
     expect(editor.presetApplied.current).toBeNull();
-    editor.presetApplied.blend(50);
+    editor.presetApplied.adjust({ amount: 50 });
     await editor.presetApplied.commitBlend();
     expect(editor.edits.basic.contrast).toBe(40);
 
@@ -196,7 +214,7 @@ describe('applied preset amend guard', () => {
   it('replaces the step the preset pushed while it is still on top', async () => {
     const { applied, steps, saves } = harness();
     await applied.apply(PORTRA, FULL);
-    applied.blend(50);
+    applied.adjust({ amount: 50 });
     await applied.commitBlend();
     expect(steps.replaceStep).toHaveBeenCalledWith(2, expect.anything());
     expect(saves).toEqual(['Preset: Portra (50%)']);
@@ -206,7 +224,7 @@ describe('applied preset amend guard', () => {
     const { applied, steps, commits, saves } = harness();
     await applied.apply(PORTRA, FULL);
     steps.topStep = 7;
-    applied.blend(50);
+    applied.adjust({ amount: 50 });
     await applied.commitBlend();
     expect(saves).toEqual([]);
     expect(commits).toEqual(['Preset: Portra', 'Preset: Portra (50%)']);
