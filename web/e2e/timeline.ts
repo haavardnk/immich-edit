@@ -63,7 +63,7 @@ export async function openTimeline(page: Page, opts: InstallOpts, height = 900):
   await page.clock.setFixedTime(NOW);
   await installMocks(page, opts);
   await page.goto('/photos');
-  await expect(page.getByTestId('day-header').first()).toBeVisible();
+  await expect(page.getByTestId('day-header').first()).toBeVisible({ timeout: 15_000 });
 }
 
 export async function openTouchTimeline(

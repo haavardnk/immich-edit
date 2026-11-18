@@ -171,9 +171,23 @@ for (const tag of ['@phone', '@tablet']) {
       const saved: unknown[] = [];
       const sheet = await openTouchSheet(page, saved);
       const grip = sheet.getByRole('button', { name: 'Reorder Grading' });
+      let last = '';
+      await expect
+        .poll(async () => {
+          const now = JSON.stringify(await grip.boundingBox());
+          const still = now === last;
+          last = now;
+          return still;
+        })
+        .toBe(true);
       const row = await grip.locator('xpath=ancestor::li').boundingBox();
       const from = await centre(grip);
-      await drag(page, from, { x: from.x, y: from.y - (row?.height ?? 44) * 2 });
+      await drag(
+        page,
+        from,
+        { x: from.x, y: from.y - (row?.height ?? 44) * 2 },
+        { steps: 16, settleMs: 120 }
+      );
       await expect
         .poll(() => orderOf(saved).filter((id) => id.startsWith('color.')))
         .toEqual(['color.grading', 'color.basic', 'color.mix', 'color.bw']);

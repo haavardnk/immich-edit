@@ -142,9 +142,11 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(page.getByRole('status').filter({ hasText: 'Original' })).toHaveCount(0);
 
     const photo = await centreOf(stage);
+    const swap = page.locator('html');
     await tapAt(page, photo.x, photo.y);
     await expect(toolbar(page)).toHaveCount(0);
     await expect(modes(page)).toHaveCount(0);
+    await expect(swap).not.toHaveAttribute('data-view-swap');
     await tapAt(page, photo.x, photo.y);
     await expect(toolbar(page)).toBeVisible();
   });
