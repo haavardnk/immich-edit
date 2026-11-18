@@ -19,6 +19,8 @@ import { trash } from '#lib/stores/trash.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { currentPath, isEditorPath } from '#lib/utils/route.ts';
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { navHistory } from '#lib/stores/navHistory.ts';
 
 export function loupeFocusedId(): string | null {
   return compare.mode === 'single' ? browseView.loupeId : compare.focusedId;
@@ -103,4 +105,16 @@ export function openInEditor(id: string | null = loupeFocusedId()): void {
   if (!id) return;
   browseView.leaveLoupeForEditor(id);
   void goto(editorHref(id, currentPath()));
+}
+
+export function openLoupeFrom(on: string, to: string, id: string): void {
+  browseView.openLoupe(id);
+  browseView.loupeReturn = { on, to };
+}
+
+export function dismissLoupe(): void {
+  const back = browseView.loupeReturn;
+  browseView.loupeReturn = null;
+  browseView.closeLoupe();
+  if (back && back.on === page.url.pathname) navHistory.back(back.to);
 }

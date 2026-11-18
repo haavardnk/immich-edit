@@ -2,15 +2,15 @@ import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { nudgeable } from '#lib/utils/maskDrag.ts';
 import { page } from '$app/state';
-import { backToGrid } from '#lib/browse/backToGrid.ts';
+import { backToGrid, type GridExit } from '#lib/browse/backToGrid.ts';
 import { returnPath } from '#lib/utils/route.ts';
 
 export function editorAssetId(): string | null {
   return page.params.id ?? null;
 }
 
-export function leaveEditor(id: string | null): void {
-  void backToGrid(id, returnPath());
+export function leaveEditor(id: string | null, exit: GridExit = 'push'): void {
+  void backToGrid(id, returnPath(), exit);
 }
 
 export function selectedShapeNudges(): boolean {

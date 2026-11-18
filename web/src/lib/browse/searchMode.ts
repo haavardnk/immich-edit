@@ -3,7 +3,9 @@ import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 export type TextField = 'filename' | 'description' | 'path' | 'ocr';
 export type SearchMode = 'context' | TextField;
 
-export const SEARCH_MODES: { mode: SearchMode; label: string }[] = [
+export type SearchModeOption = { mode: SearchMode; label: string };
+
+export const SEARCH_MODES: readonly SearchModeOption[] = [
   { mode: 'context', label: 'Context' },
   { mode: 'filename', label: 'File name' },
   { mode: 'description', label: 'Description' },

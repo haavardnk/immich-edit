@@ -72,6 +72,32 @@ describe('browse view persistence', () => {
     expect(browseView.filterSections).toEqual(['camera', 'date']);
   });
 
+  it('keeps the compact filter sheet transient and the docked panel persisted', async () => {
+    const values = stubStorage({ filtersOpen: true });
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setFiltersCompact(true);
+    expect(browseView.filtersOpen).toBe(false);
+
+    browseView.setFiltersOpen(true);
+    expect(browseView.filtersOpen).toBe(true);
+    expect(values.get(storageKey)).toBe(JSON.stringify({ filtersOpen: true }));
+
+    browseView.setFiltersOpen(false);
+    browseView.setFiltersCompact(false);
+    expect(browseView.filtersOpen).toBe(true);
+
+    browseView.setFiltersCompact(true);
+    browseView.setFiltersOpen(true);
+    browseView.setFiltersCompact(false);
+    browseView.setFiltersCompact(true);
+    expect(browseView.filtersOpen).toBe(false);
+
+    browseView.setFiltersCompact(false);
+    browseView.setFiltersOpen(false);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+  });
+
   it('cycles the tile info through none, badges and full', async () => {
     stubStorage({ tileInfo: 'full' });
     const { browseView } = await import('./browseView.svelte');

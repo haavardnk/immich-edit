@@ -4,6 +4,7 @@ import { layout, layoutControls, type ControlRef } from '#lib/testing/layoutPari
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FilterPanel from './FilterPanel.svelte';
 import FilterSections from './FilterSections.svelte';
+import FilterSheet from './FilterSheet.svelte';
 
 vi.mock('$app/navigation', () => ({ afterNavigate: (): void => {}, goto: vi.fn() }));
 
@@ -45,10 +46,19 @@ describe('FilterSections layout parity', () => {
           FilterPanel,
           { favoriteLocked: locked },
           { exclude: [button('Reset all filters'), button('Close filter panel')] }
+        ),
+        layout(
+          'sheet',
+          FilterSheet,
+          { favoriteLocked: locked, count: 3 },
+          {
+            exclude: [button('Reset all filters'), button('Close filters'), button('Show 3 photos')]
+          }
         )
       ]);
       expect(found.body.length).toBeGreaterThanOrEqual(FILTER_SECTIONS.length);
       expect(found.panel).toEqual(found.body);
+      expect(found.sheet).toEqual(found.body);
       const favorites = found.body.some((control) => control.name === 'Favorites only');
       expect(favorites).toBe(open.length > 0 && !locked);
     }

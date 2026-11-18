@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isManagedTag, tagHasValue, toTagRef } from './managedTags';
+import { isManagedTag, tagHasValue, toTagRef, userTags } from './managedTags';
 import type { TagRef } from '#lib/types/asset.ts';
 
 const keep: TagRef = { id: 'k', name: 'Keep', value: 'Keep' };
@@ -44,5 +44,15 @@ describe('toTagRef', () => {
       parentId: 'p',
       color: '#fff'
     });
+  });
+});
+
+describe('userTags', () => {
+  it('drops the tags immich-edit manages', () => {
+    const tags = [
+      { id: 'a', name: 'Sky', value: 'Sky', createdAt: null },
+      { id: 'b', name: 'reject', value: 'immich-edit/reject', createdAt: null }
+    ];
+    expect(userTags(tags).map((tag) => tag.id)).toEqual(['a']);
   });
 });

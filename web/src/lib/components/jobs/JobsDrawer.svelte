@@ -2,13 +2,17 @@
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import JobList from '#lib/components/jobs/JobList.svelte';
   import JobListActions from '#lib/components/jobs/JobListActions.svelte';
+  import JobsSheet from '#lib/components/jobs/JobsSheet.svelte';
   import { jobsSummary } from '#lib/components/jobs/jobFormat.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { mdiClose } from '@mdi/js';
   import { Dialog } from 'bits-ui';
   import { IconButton } from '@immich/ui';
 </script>
 
-{#if jobs.open}
+{#if layout.compact}
+  <JobsSheet />
+{:else if jobs.open}
   <Dialog.Root open onOpenChange={(open) => !open && jobs.close()}>
     <Dialog.Portal>
       <Dialog.Overlay class="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px]" />

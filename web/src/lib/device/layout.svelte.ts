@@ -50,6 +50,10 @@ class LayoutStore {
     return this.#resolved.landscape;
   }
 
+  get compact(): boolean {
+    return this.#resolved.compact;
+  }
+
   get hasKeyboard(): boolean {
     return this.#hasKeyboard;
   }

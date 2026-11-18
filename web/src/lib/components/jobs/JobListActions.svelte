@@ -9,6 +9,7 @@
   variant="ghost"
   color="secondary"
   fullWidth
+  class="touch:h-12 touch:rounded-full touch:bg-light-200 touch:text-base touch:font-semibold"
   leadingIcon={mdiTrashCanOutline}
   onclick={jobs.clear}
 >
