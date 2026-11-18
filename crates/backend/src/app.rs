@@ -208,6 +208,18 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             get(routes::appearance::get).put(routes::appearance::update),
         )
         .route(
+            "/saved-views",
+            get(routes::saved_views::list).post(routes::saved_views::create),
+        )
+        .route(
+            "/saved-views/{id}",
+            put(routes::saved_views::update).delete(routes::saved_views::delete),
+        )
+        .route(
+            "/preferences",
+            get(routes::preferences::get).patch(routes::preferences::update),
+        )
+        .route(
             "/jobs",
             get(routes::jobs::list)
                 .post(routes::jobs::create)

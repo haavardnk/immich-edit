@@ -1,8 +1,17 @@
 use raw_pipeline::edits::Edits;
-use sqlx::Row;
+use sqlx::{AssertSqlSafe, Row, SqliteConnection};
 use uuid::Uuid;
 
 use super::*;
+
+const OWNED_TABLES: [&str; 6] = [
+    "edits",
+    "edits_history",
+    "presets",
+    "export_jobs",
+    "raster_refs",
+    "saved_views",
+];
 
 impl EditsStore {
     pub async fn rebuild_raster_refs(&self) -> Result<usize, EditsStoreError> {
@@ -48,46 +57,25 @@ impl EditsStore {
     }
 
     pub async fn purge_owner(&self, owner: Uuid) -> Result<(), EditsStoreError> {
-        let owner_str = owner.to_string();
         let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits WHERE user_id = ?1")
-            .bind(&owner_str)
+        for table in OWNED_TABLES {
+            sqlx::query(AssertSqlSafe(format!(
+                "DELETE FROM {table} WHERE user_id = ?1"
+            )))
+            .bind(owner.to_string())
             .execute(&mut *tx)
             .await?;
-        sqlx::query("DELETE FROM edits_history WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM export_jobs WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs WHERE user_id = ?1")
-            .bind(&owner_str)
-            .execute(&mut *tx)
-            .await?;
+        }
         tx.commit().await?;
         Ok(())
     }
 
-    pub async fn purge_all(&self) -> Result<(), EditsStoreError> {
-        let mut tx = self.pool.begin().await?;
-        sqlx::query("DELETE FROM edits").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM edits_history")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM presets").execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM export_jobs")
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM raster_refs")
-            .execute(&mut *tx)
-            .await?;
-        tx.commit().await?;
+    pub async fn purge_owned_rows(conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+        for table in OWNED_TABLES {
+            sqlx::query(AssertSqlSafe(format!("DELETE FROM {table}")))
+                .execute(&mut *conn)
+                .await?;
+        }
         Ok(())
     }
 }

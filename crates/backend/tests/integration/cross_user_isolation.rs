@@ -735,3 +735,153 @@ async fn denoise_planes_are_scoped_to_the_owner() {
     );
     assert_eq!(denoise_call(&admin, id, "GET").await["state"], "ready");
 }
+
+#[tokio::test]
+async fn preferences_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+    let chosen = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({
+                    "mask_overlay_color": "#ff0000",
+                    "shortcuts": { "help": ["F1"] },
+                    "crop_ratios": [{ "num": 3, "den": 2 }]
+                }),
+            ),
+            StatusCode::OK,
+            "owner patch preferences",
+        )
+        .await,
+    )
+    .await;
+
+    let seen = body_json(
+        expect_status(
+            &member,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "member get preferences",
+        )
+        .await,
+    )
+    .await;
+    if !seen["mask_overlay_color"].is_null()
+        || seen["shortcuts"] != serde_json::json!({})
+        || !seen["crop_ratios"].is_null()
+    {
+        panic!("member read the owner's preferences: {seen}");
+    }
+
+    let member_saved = body_json(
+        expect_status(
+            &member,
+            json_request(
+                "PATCH",
+                "/api/preferences",
+                serde_json::json!({
+                    "pinned_settings": ["exposure"],
+                    "crop_ratios": [{ "num": 7, "den": 5 }]
+                }),
+            ),
+            StatusCode::OK,
+            "member patch preferences",
+        )
+        .await,
+    )
+    .await;
+    if !member_saved["mask_overlay_color"].is_null()
+        || member_saved["shortcuts"] != serde_json::json!({})
+        || member_saved["crop_ratios"] != serde_json::json!([{ "num": 7, "den": 5 }])
+    {
+        panic!("member patch merged onto the owner's preferences: {member_saved}");
+    }
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/preferences"),
+            StatusCode::OK,
+            "owner get preferences",
+        )
+        .await,
+    )
+    .await;
+    if owned != chosen
+        || !owned["pinned_settings"].is_null()
+        || owned["crop_ratios"] != serde_json::json!([{ "num": 3, "den": 2 }])
+    {
+        panic!("owner preferences after member calls: {owned}");
+    }
+}
+
+#[tokio::test]
+async fn saved_views_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+
+    let view = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                "/api/saved-views",
+                serde_json::json!({ "name": "Five stars", "url": "/photos?rating=5" }),
+            ),
+            StatusCode::OK,
+            "owner create saved view",
+        )
+        .await,
+    )
+    .await;
+    let view_id = view["id"].as_str().expect("saved view id").to_string();
+
+    let listed = body_json(
+        expect_status(
+            &member,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "member list",
+        )
+        .await,
+    )
+    .await;
+    if listed.as_array().map(Vec::len) != Some(0) {
+        panic!("member listed the owner's saved views: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            &format!("/api/saved-views/{view_id}"),
+            serde_json::json!({ "name": "stolen", "url": "/stolen" }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update saved view",
+    )
+    .await;
+    expect_status(
+        &member,
+        empty_request("DELETE", &format!("/api/saved-views/{view_id}")),
+        StatusCode::NOT_FOUND,
+        "member delete saved view",
+    )
+    .await;
+
+    let owned = body_json(
+        expect_status(
+            &admin,
+            get("/api/saved-views"),
+            StatusCode::OK,
+            "owner list",
+        )
+        .await,
+    )
+    .await;
+    if owned.as_array().map(Vec::len) != Some(1) || owned[0] != view {
+        panic!("owner saved views after member calls: {owned}");
+    }
+}
