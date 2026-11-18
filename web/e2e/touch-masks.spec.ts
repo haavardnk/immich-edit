@@ -99,6 +99,18 @@ test.describe('touch mask layers on a phone', { tag: ['@touch', '@phone'] }, () 
     await expect(page.getByRole('slider', { name: 'Brush size' })).toHaveCount(0);
   });
 
+  test('Done on an untouched Click to select returns to the tools', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openMasks(page);
+    await addFromSheet(page, page.getByRole('button', { name: 'All tools' }), 'Click to select');
+    const tool = page.getByRole('region', { name: 'Click to select tool' });
+    await tool.getByRole('button', { name: 'Done', exact: true }).tap();
+    await expect(tool).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'New mask' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('layers, shapes and adjustments are edited from the tray', async ({ page }) => {
     const saves: Array<Record<string, unknown>> = [];
     await openMasks(page, { onSave: (body) => saves.push(body) });

@@ -64,7 +64,7 @@
       return;
     }
     editor.stopClickTool();
-    if (tool.kind === 'shape') editor.setActiveMaskComponent(null);
+    editor.setActiveMaskComponent(null);
   }
 
   function setMode(mode: MaskComponentMode): void {
