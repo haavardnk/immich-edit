@@ -1,6 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import PageHeader from '#lib/components/shell/PageHeader.svelte';
+  import IconLink from '#lib/components/IconLink.svelte';
   import { Container } from '@immich/ui';
+  import { mdiCogOutline, mdiStethoscope } from '@mdi/js';
 
   let { children }: { children: import('svelte').Snippet } = $props();
 
@@ -8,10 +11,22 @@
   const title = $derived(diagnostics ? 'Diagnostics' : 'Settings');
 </script>
 
+{#snippet sectionLink()}
+  <IconLink
+    href={diagnostics ? '/settings' : '/settings/diagnostics'}
+    size="medium"
+    variant="ghost"
+    color="secondary"
+    shape="round"
+    class="size-11"
+    icon={diagnostics ? mdiCogOutline : mdiStethoscope}
+    aria-label={diagnostics ? 'Settings' : 'Diagnostics'}
+    data-sveltekit-replacestate
+  />
+{/snippet}
+
 <div class="flex h-full min-h-0 flex-col bg-light-50">
-  <header class="flex h-12 shrink-0 items-center border-b border-hairline bg-light px-3 sm:px-5">
-    <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
-  </header>
+  <PageHeader {title} compactActions={sectionLink} />
   <div class="min-h-0 flex-1 overflow-y-auto">
     <Container center class="max-w-3xl px-4 py-6 sm:px-8">
       <div class="min-w-0">

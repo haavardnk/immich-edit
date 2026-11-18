@@ -9,7 +9,11 @@ const ROUTES = [
   { path: '/albums/album-1', text: 'Review album' },
   { path: '/people/person-1', text: 'Person' },
   { path: '/tags/tag-1', text: 'Tag' },
-  { path: '/search', text: 'Search your library' }
+  { path: '/search', text: 'Search your library' },
+  { path: '/library', text: 'Collections' },
+  { path: '/albums', text: 'No albums' },
+  { path: '/people', text: 'No people' },
+  { path: '/tags', text: 'No tags' }
 ];
 
 async function installRouteMocks(page: Page): Promise<void> {

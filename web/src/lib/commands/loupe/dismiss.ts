@@ -1,8 +1,8 @@
+import { dismissLoupe } from '#lib/browse/loupeActions.ts';
 import { leaveMulti } from '#lib/browse/loupeNav.ts';
 import { loupeCommand, VIEWING } from '#lib/commands/loupe/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import type { KeybindContext, KeybindId } from '#lib/shortcuts/table.ts';
-import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { mdiArrowLeft } from '@mdi/js';
@@ -25,7 +25,7 @@ export const loupeClose = loupeCommand({
   label: 'Back',
   icon: mdiArrowLeft,
   bind: 'loupeClose',
-  run: () => browseView.closeLoupe()
+  run: dismissLoupe
 });
 
 export const LOUPE_DISMISS_COMMANDS: readonly Command[] = [
@@ -51,7 +51,7 @@ export const LOUPE_DISMISS_COMMANDS: readonly Command[] = [
     bind: 'backToGrid',
     run: () => {
       if (compare.mode !== 'single') leaveMulti();
-      browseView.closeLoupe();
+      dismissLoupe();
     }
   })
 ];

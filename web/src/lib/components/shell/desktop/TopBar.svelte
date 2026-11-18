@@ -3,7 +3,9 @@
   import { help } from '#lib/commands/app.ts';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
+  import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
+  import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
   import ThemeToggle from '#lib/components/shell/ThemeToggle.svelte';
   import {
     ControlBar,
@@ -12,65 +14,16 @@
     ControlBarOverflow,
     IconButton
   } from '@immich/ui';
-  import { mdiMenu, mdiCogOutline, mdiClose, mdiFormatListChecks } from '@mdi/js';
+  import { mdiMenu, mdiFormatListChecks } from '@mdi/js';
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
-  import { untrack } from 'svelte';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
+  import { SearchInput } from '#lib/browse/searchInput.svelte.ts';
 
   let { onToggleSidebar }: { onToggleSidebar?: () => void } = $props();
 
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
 
-  const routeQuery = $derived(
-    page.url.pathname === '/search' ? (page.url.searchParams.get('q') ?? '') : null
-  );
-
-  let searchTimeout: ReturnType<typeof setTimeout> | undefined;
-
-  $effect(() => {
-    const q = routeQuery;
-    untrack(() => (ui.searchQuery = q ?? ''));
-  });
-
-  function submitSearch(value: string): void {
-    const q = value.trim();
-    if (q) {
-      const onSearch = page.url.pathname === '/search';
-      const url = onSearch ? new URL(page.url.href) : new URL('/search', page.url.href);
-      url.searchParams.set('q', q);
-      void goto(`${url.pathname}${url.search}`, { replace: onSearch, reset: false });
-    } else if (page.url.pathname === '/search') {
-      void goto('/photos', { reset: false });
-    }
-  }
-
-  function onSearchInput(e: Event): void {
-    const value = (e.currentTarget as HTMLInputElement).value;
-    ui.searchQuery = value;
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => submitSearch(value), 300);
-  }
-
-  function onSearchSubmit(event: SubmitEvent): void {
-    event.preventDefault();
-    clearTimeout(searchTimeout);
-    submitSearch(ui.searchQuery);
-  }
-
-  function clearSearch(): void {
-    clearTimeout(searchTimeout);
-    ui.searchQuery = '';
-    if (page.url.pathname === '/search') void goto('/photos');
-  }
-
-  function toggleSettings(): void {
-    if (onSettings) {
-      window.history.back();
-    } else {
-      void goto('/settings');
-    }
-  }
+  const search = new SearchInput('/photos');
 </script>
 
 <ControlBar
@@ -103,9 +56,10 @@
   <ControlBarContent class="min-w-0 justify-start ps-1 pe-3">
     <GlobalSearch
       value={ui.searchQuery}
-      onInput={onSearchInput}
-      onSubmit={onSearchSubmit}
-      onClear={clearSearch}
+      onInput={search.inputEvent}
+      onSubmit={search.submitEvent}
+      onClear={search.clear}
+      onFocus={search.focus}
     />
   </ControlBarContent>
 
@@ -132,24 +86,10 @@
           {jobs.activeCount}
         </span>
       {:else if jobs.attention}
-        <span
-          class="pointer-events-none absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-danger"
-          data-testid="jobs-attention"
-          aria-hidden="true"
-        ></span>
+        <AttentionDot class="absolute -right-0.5 -top-0.5" />
       {/if}
     </div>
 
-    <IconButton
-      size="medium"
-      variant="ghost"
-      color={onSettings ? 'primary' : 'secondary'}
-      shape="rectangle"
-      icon={onSettings ? mdiClose : mdiCogOutline}
-      title={onSettings ? 'Close settings' : 'Settings & diagnostics'}
-      aria-label={onSettings ? 'Close settings' : 'Settings'}
-      aria-pressed={onSettings}
-      onclick={toggleSettings}
-    />
+    <SettingsButton />
   </ControlBarOverflow>
 </ControlBar>

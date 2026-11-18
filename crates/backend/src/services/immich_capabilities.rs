@@ -13,7 +13,7 @@ const STRUCTURED_SEARCH: ServerVersion = ServerVersion {
     patch: 0,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImmichCapabilities {
     pub version: Option<ServerVersion>,
     pub structured_search: bool,
@@ -21,6 +21,7 @@ pub struct ImmichCapabilities {
     pub ocr: bool,
     pub trash: bool,
     pub trash_days: Option<u32>,
+    pub external_host: Option<String>,
 }
 
 impl ImmichCapabilities {
@@ -36,8 +37,20 @@ impl ImmichCapabilities {
             ocr: features.is_none_or(|f| f.ocr),
             trash: features.is_some_and(|f| f.trash),
             trash_days: config.and_then(|c| c.trash_days),
+            external_host: config
+                .and_then(|c| c.external_domain.as_deref())
+                .and_then(external_host),
         }
     }
+}
+
+fn external_host(domain: &str) -> Option<String> {
+    let url = url::Url::parse(domain.trim()).ok()?;
+    let host = url.host_str().filter(|host| !host.is_empty())?;
+    Some(match url.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host.to_string(),
+    })
 }
 
 #[derive(Clone, Default)]
@@ -74,7 +87,7 @@ impl CapabilityCache {
             && config.is_some()
             && let Ok(mut guard) = self.inner.lock()
         {
-            guard.insert(server_epoch, (Instant::now(), fresh));
+            guard.insert(server_epoch, (Instant::now(), fresh.clone()));
         }
         fresh
     }
@@ -82,6 +95,31 @@ impl CapabilityCache {
     fn cached(&self, server_epoch: i64) -> Option<ImmichCapabilities> {
         let guard = self.inner.lock().ok()?;
         let (at, caps) = guard.get(&server_epoch)?;
-        (at.elapsed() < TTL).then_some(*caps)
+        (at.elapsed() < TTL).then(|| caps.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::external_host;
+
+    #[test]
+    fn an_external_domain_names_its_host_and_port() {
+        for (domain, host) in [
+            ("https://photos.example.net", Some("photos.example.net")),
+            ("https://photos.example.net/", Some("photos.example.net")),
+            (
+                "http://photos.example.net:2283/immich",
+                Some("photos.example.net:2283"),
+            ),
+            ("https://photos.example.net:443", Some("photos.example.net")),
+            (" https://photos.example.net ", Some("photos.example.net")),
+            ("", None),
+            ("   ", None),
+            ("photos.example.net", None),
+            ("not a url", None),
+        ] {
+            assert_eq!(external_host(domain).as_deref(), host, "{domain:?}");
+        }
     }
 }

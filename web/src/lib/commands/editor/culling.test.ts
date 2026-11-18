@@ -41,7 +41,7 @@ describe('editor trash', () => {
     editorTrash.run();
     expect(trash.request).toHaveBeenCalledWith([editor.asset]);
     await confirm(true);
-    expect(nav.backToGrid).toHaveBeenCalledWith('a', '/albums/x');
+    expect(nav.backToGrid).toHaveBeenCalledWith('a', '/albums/x', 'push');
   });
 
   it('stays on another asset opened while the dialog was up', async () => {

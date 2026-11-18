@@ -24,7 +24,7 @@
 </script>
 
 <div
-  class="fixed right-[calc(1rem+var(--safe-right))] bottom-[calc(1rem+var(--safe-bottom))] z-50 flex flex-col items-end gap-2 pointer-events-none"
+  class="pointer-events-none fixed right-[calc(1rem+var(--safe-right))] bottom-[calc(1rem+var(--chrome-bottom,var(--safe-bottom)))] z-50 flex flex-col items-end gap-2 *:motion-safe:transition-[opacity,translate] *:motion-safe:duration-base *:motion-safe:ease-standard *:starting:translate-y-2 *:starting:opacity-0"
 >
   {#each jobs.watched as id (id)}
     {@const job = jobs.jobs.find((j) => j.id === id)}

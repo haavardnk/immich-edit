@@ -9,12 +9,13 @@ import {
 } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import ElementTooltip from './ElementTooltip.svelte';
+import TruncationTooltip from './TruncationTooltip.svelte';
 
 type TooltipProps = ComponentProps<typeof ElementTooltip>;
 
 type ChildSnippet = TooltipProps['child'];
 
-type TriggerProps = { text: string; child: ChildSnippet };
+type TriggerProps = { text: string; force?: boolean; child: ChildSnippet };
 
 const Host: Component<{ component: Component<TriggerProps>; props: TriggerProps }> = ComponentHost;
 
@@ -55,6 +56,12 @@ afterEach(() => {
 describe('ElementTooltip', () => {
   it('hands the trigger props to any element without the button type', () => {
     const element = render(ElementTooltip, { text: 'Bergen' });
+    expect(element.hasAttribute('data-tooltip-trigger')).toBe(true);
+    expect(element.hasAttribute('type')).toBe(false);
+  });
+
+  it('keeps truncation tooltips off the button type too', () => {
+    const element = render(TruncationTooltip, { text: 'Bergen', force: true });
     expect(element.hasAttribute('data-tooltip-trigger')).toBe(true);
     expect(element.hasAttribute('type')).toBe(false);
   });

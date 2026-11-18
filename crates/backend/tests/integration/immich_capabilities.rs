@@ -98,3 +98,44 @@ async fn trash_follows_immich_features_and_config() {
         }
     }
 }
+
+#[tokio::test]
+async fn a_member_sees_only_the_public_immich_domain() {
+    for (domain, host) in [
+        (
+            Some("https://photos.example.net"),
+            json!("photos.example.net"),
+        ),
+        (
+            Some("http://photos.example.net:8443/immich"),
+            json!("photos.example.net:8443"),
+        ),
+        (Some(""), Value::Null),
+        (None, Value::Null),
+    ] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, 2, 2).await;
+        let mut config = json!({ "oauthButtonText": "", "trashDays": 30 });
+        if let Some(domain) = domain {
+            config["externalDomain"] = json!(domain);
+        }
+        Mock::given(method("GET"))
+            .and(path("/api/server/config"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(config))
+            .mount(&server)
+            .await;
+        let (_admin, member) = two_owner_apps(&server).await;
+        let resp = member
+            .oneshot(get("/api/immich/capabilities"))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("capabilities returned {}", resp.status());
+        }
+        let body = body_json(resp).await;
+        let internal = server.uri().trim_start_matches("http://").to_string();
+        if body["external_host"] != host || body.to_string().contains(&internal) {
+            panic!("domain {domain:?}: {body}");
+        }
+    }
+}

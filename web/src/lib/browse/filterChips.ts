@@ -85,3 +85,7 @@ export function photoCountLabel(total: number, hidden: number): string {
   const photos = countOf(total, 'photo');
   return hidden > 0 ? `${photos}, ${hidden} hidden` : photos;
 }
+
+export function showPhotosLabel(total: number | undefined): string {
+  return total === undefined ? 'Show photos' : `Show ${countOf(total, 'photo')}`;
+}

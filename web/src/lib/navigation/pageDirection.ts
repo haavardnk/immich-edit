@@ -1,4 +1,5 @@
 import { backParent } from '#lib/components/shell/backParent.ts';
+import { crossesTabs } from '#lib/components/shell/touch/navTabs.ts';
 import { isEditorPath } from '#lib/utils/route.ts';
 
 export type PageDirection = 'none' | 'tab' | 'forward' | 'back';
@@ -19,6 +20,7 @@ function depth(url: URL, roots: ReadonlySet<string>): number {
 export function pageDirection(from: URL, to: URL, roots: ReadonlySet<string>): PageDirection {
   if (from.pathname === to.pathname) return 'none';
   if (isEditorPath(from.pathname) || isEditorPath(to.pathname)) return 'none';
+  if (crossesTabs(from.pathname, to.pathname)) return 'tab';
   const before = depth(from, roots);
   const after = depth(to, roots);
   if (after > before) return 'forward';
