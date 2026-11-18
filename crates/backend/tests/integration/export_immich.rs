@@ -1,8 +1,9 @@
 use immich_edit_backend::asset_key::AssetKey;
 use immich_edit_backend::routes::export::{
-    ColorSpaceOpt, ExportParams, ExportToImmichBody, StackPrimary, hash_request, resolve_filename,
+    ColorSpaceOpt, ConflictPolicy, ExportParams, ExportToImmichBody, StackPrimary, hash_request,
+    resolve_filename,
 };
-use immich_edit_backend::services::edits_store::ExportJobKey;
+use immich_edit_backend::services::edits_store::{ExportJobCompletion, ExportJobKey};
 
 #[test]
 fn hash_request_differs_by_color_space() {
@@ -19,9 +20,10 @@ fn hash_request_differs_by_color_space() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original: false,
+        on_conflict: ConflictPolicy::default(),
     };
-    let srgb = hash_request(asset, &make(ColorSpaceOpt::Srgb));
-    let p3 = hash_request(asset, &make(ColorSpaceOpt::Displayp3));
+    let srgb = hash_request(asset, &make(ColorSpaceOpt::Srgb), None);
+    let p3 = hash_request(asset, &make(ColorSpaceOpt::Displayp3), None);
     assert_ne!(srgb, p3);
 }
 
@@ -40,10 +42,11 @@ fn hash_request_differs_by_filename_template() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original: false,
+        on_conflict: ConflictPolicy::default(),
     };
     assert_ne!(
-        hash_request(asset, &make(Some("{name}_a"))),
-        hash_request(asset, &make(Some("{name}_b")))
+        hash_request(asset, &make(Some("{name}_a")), None),
+        hash_request(asset, &make(Some("{name}_b")), None)
     );
 }
 
@@ -106,8 +109,9 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original: false,
+        on_conflict: ConflictPolicy::default(),
     };
-    let hash = hash_request(asset, &body);
+    let hash = hash_request(asset, &body, None);
     let job = ExportJobKey {
         owner: test_user_id(),
         asset_id: asset,
@@ -120,7 +124,15 @@ async fn export_immich_idempotency_returns_cached_without_reupload() {
         .unwrap();
     state
         .edits
-        .complete_export_job(job, &[], false)
+        .complete_export_job(
+            job,
+            ExportJobCompletion {
+                warnings: &[],
+                original_trashed: false,
+                replaced_asset_id: None,
+                output: None,
+            },
+        )
         .await
         .unwrap();
 
@@ -170,6 +182,7 @@ async fn export_immich_resume_keeps_render_warnings() {
         stack_with_original: false,
         stack_primary: StackPrimary::default(),
         replace_original: false,
+        on_conflict: ConflictPolicy::default(),
     };
     let job = ExportJobKey {
         owner: test_user_id(),
@@ -181,7 +194,7 @@ async fn export_immich_resume_keeps_render_warnings() {
         .edits
         .put_export_job_uploaded(
             job,
-            &hash_request(asset, &body),
+            &hash_request(asset, &body, None),
             uploaded,
             "x_edit.jpg",
             "created",
@@ -263,6 +276,7 @@ async fn export_immich_stacks_only_owned_originals() {
             stack_with_original: true,
             stack_primary: StackPrimary::default(),
             replace_original: false,
+            on_conflict: ConflictPolicy::default(),
         };
         let job = ExportJobKey {
             owner: test_user_id(),
@@ -273,7 +287,7 @@ async fn export_immich_stacks_only_owned_originals() {
             .edits
             .put_export_job_uploaded(
                 job,
-                &hash_request(asset, &body),
+                &hash_request(asset, &body, None),
                 uploaded,
                 "IMG_0001_edit.jpg",
                 "created",

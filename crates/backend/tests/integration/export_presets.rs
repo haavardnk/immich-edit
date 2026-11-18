@@ -65,6 +65,76 @@ async fn an_export_preset_survives_create_list_update_and_delete() {
 }
 
 #[tokio::test]
+async fn an_export_preset_keeps_its_destination() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let create = |body: serde_json::Value| {
+        let app = app.clone();
+        async move {
+            let resp = app
+                .oneshot(json_request("POST", "/api/export-presets", body))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            body_json(resp).await
+        }
+    };
+
+    let download = create(serde_json::json!({ "name": "Web", "form": {} })).await;
+    let immich = create(serde_json::json!({
+        "name": "Album",
+        "form": {},
+        "destination": "immich"
+    }))
+    .await;
+    assert_eq!(download["destination"], "download");
+    assert_eq!(immich["destination"], "immich");
+
+    let id = immich["id"].as_str().unwrap();
+    let resp = app
+        .clone()
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/export-presets/{id}"),
+            serde_json::json!({ "name": "Album 2", "form": { "format": "png" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(body_json(resp).await["destination"], "immich");
+
+    let resp = app
+        .clone()
+        .oneshot(json_request(
+            "PUT",
+            &format!("/api/export-presets/{id}"),
+            serde_json::json!({ "name": "Album 2", "form": {}, "destination": "download" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["destination"], "download");
+
+    let listed = body_json(app.clone().oneshot(list_request()).await.unwrap()).await;
+    let destinations: Vec<&str> = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|preset| preset["destination"].as_str())
+        .collect();
+    assert_eq!(destinations, ["download", "download"]);
+
+    let resp = app
+        .oneshot(json_request(
+            "POST",
+            "/api/export-presets",
+            serde_json::json!({ "name": "Bad", "form": {}, "destination": "dropbox" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
 async fn export_preset_bodies_are_validated() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;

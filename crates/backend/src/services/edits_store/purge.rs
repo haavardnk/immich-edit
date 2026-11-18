@@ -3,12 +3,13 @@ use uuid::Uuid;
 
 use super::*;
 
-pub(super) const ASSET_TABLES: [&str; 5] = [
+pub(super) const ASSET_TABLES: [&str; 6] = [
     "edits",
     "edits_history",
     "edit_snapshots",
     "raster_refs",
     "export_jobs",
+    "export_outputs",
 ];
 
 const OWNER_TABLES: [&str; 2] = ["presets", "saved_views"];

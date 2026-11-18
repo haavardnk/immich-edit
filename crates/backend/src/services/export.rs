@@ -17,23 +17,35 @@ pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
 
 mod archive;
 mod batch;
+mod conflict;
 mod denoise;
 mod immich;
 mod immich_metadata;
 mod naming;
+mod output_lookup;
 mod output_sharpen;
 mod params;
 mod post_upload;
 mod replace;
+mod replay;
+mod request_hash;
 mod resize;
+mod stack;
+mod variants;
 mod watermark;
 
 pub use archive::*;
 pub use batch::*;
+pub use conflict::ConflictPolicy;
 pub use immich::*;
 pub use naming::*;
+pub use output_lookup::{
+    ExportOutputsQuery, ExportOutputsSummary, ExportedFile, OutputLookup, find_export_outputs,
+};
 pub use params::*;
+pub use request_hash::hash_request;
 pub use resize::{Resize, ResizeMode};
+pub use variants::{ExportVariants, expand_items};
 
 #[derive(Debug, Deserialize)]
 pub struct ExportBody {

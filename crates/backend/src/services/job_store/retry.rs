@@ -51,7 +51,7 @@ impl JobStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::job_store::tests::{create, store};
+    use crate::services::job_store::tests::{create, create_items, item, store};
     use serde_json::json;
 
     async fn settle_next(store: &JobStore, succeed: bool) -> JobItemRecord {
@@ -79,6 +79,21 @@ mod tests {
             .retry_failed(job_id, Uuid::nil(), b"test-key", AuthKind::ApiKey)
             .await
             .unwrap()
+    }
+
+    async fn assert_not_retried(store: &JobStore, job_id: Uuid, status: JobStatus) {
+        let item_states = |items: Vec<JobItemRecord>| -> Vec<(JobItemStatus, Option<String>)> {
+            items
+                .into_iter()
+                .map(|item| (item.status, item.error))
+                .collect()
+        };
+        let before = item_states(store.list_items(job_id).await.unwrap());
+
+        assert!(retry(store, job_id).await.is_none(), "{status:?}");
+
+        assert_eq!(store.get_job(job_id).await.unwrap().unwrap().status, status);
+        assert_eq!(item_states(store.list_items(job_id).await.unwrap()), before);
     }
 
     #[tokio::test]
@@ -154,6 +169,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_retried_variant_item_keeps_its_variant() {
+        let store = store().await;
+        let job = create_items(&store, &[item("a", 1, 0), item("a", 1, 1)]).await;
+        settle_next(&store, true).await;
+        let failed = settle_next(&store, false).await;
+        assert_eq!(failed.variant, 1);
+
+        retry(&store, job.id).await.unwrap();
+
+        let reclaimed = store.claim_next_item().await.unwrap().unwrap();
+        assert_eq!(reclaimed.id, failed.id);
+        assert_eq!((reclaimed.position, reclaimed.variant), (1, 1));
+    }
+
+    #[tokio::test]
     async fn retry_publishes_the_reopened_job() {
         let store = store().await;
         let job = finished_with_one_failure(&store).await;
@@ -164,6 +194,45 @@ mod tests {
         let published = events.recv().await.unwrap();
         assert_eq!(published.id, job.id);
         assert_eq!(published.status, JobStatus::Pending);
+    }
+
+    #[tokio::test]
+    async fn retry_skips_a_running_job() {
+        let store = store().await;
+        let job = create(&store, &["a", "b"]).await;
+        settle_next(&store, false).await;
+
+        assert_not_retried(&store, job.id, JobStatus::Running).await;
+    }
+
+    #[tokio::test]
+    async fn retry_skips_a_pending_job() {
+        let store = store().await;
+        let job = create(&store, &["a", "b"]).await;
+        settle_next(&store, false).await;
+        store.claim_next_item().await.unwrap().unwrap();
+        store.requeue_running().await.unwrap();
+
+        assert_not_retried(&store, job.id, JobStatus::Pending).await;
+    }
+
+    #[tokio::test]
+    async fn retry_skips_a_cancelled_job() {
+        let store = store().await;
+        let job = create(&store, &["a", "b"]).await;
+        settle_next(&store, false).await;
+        assert!(store.cancel_job(job.id).await.unwrap());
+
+        assert_not_retried(&store, job.id, JobStatus::Cancelled).await;
+    }
+
+    #[tokio::test]
+    async fn retry_skips_a_job_without_failures() {
+        let store = store().await;
+        let job = create(&store, &["a"]).await;
+        settle_next(&store, true).await;
+
+        assert_not_retried(&store, job.id, JobStatus::Completed).await;
     }
 
     #[tokio::test]

@@ -33,6 +33,24 @@
   { "template": "{name}", "original": "Fjord æøå.jpg", "expect": "Fjord æøå" },
   { "template": ".{name}.", "original": "raw", "expect": "raw" },
   { "template": "...", "expect": "export" },
+  {
+    "template": "{name}_{preset}",
+    "original": "DSC0001.ARW",
+    "preset": "Web 2048",
+    "expect": "DSC0001_Web 2048"
+  },
+  { "template": "{preset}", "preset": "Print/A4: matte", "expect": "Print_A4_ matte" },
+  { "template": "{preset}", "preset": "v1.0.jpg", "expect": "v1.0.jpg" },
+  {
+    "template": "{name}_{preset}",
+    "original": "DSC0001.ARW",
+    "preset": "Print.",
+    "expect": "DSC0001_Print"
+  },
+  { "template": "{preset}", "expect": "export" },
+  { "template": "{preset}", "preset": null, "expect": "export" },
+  { "template": "{name}-{preset}", "original": "DSC0001.ARW", "expect": "DSC0001-" },
+  { "template": "{seq}_{preset}", "position": 4, "total": 12, "preset": "Web", "expect": "04_Web" },
   { "template": "{foo}", "error": "Unknown filename token {foo}" },
   { "template": "{}", "error": "Unknown filename token {}" },
   { "template": "{name", "error": "Filename template has an unmatched {" },

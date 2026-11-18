@@ -212,10 +212,14 @@ mod tests {
                     NewJobItem {
                         asset_id: "ok".into(),
                         idempotency_key: None,
+                        position: 1,
+                        variant: 0,
                     },
                     NewJobItem {
                         asset_id: "bad".into(),
                         idempotency_key: None,
+                        position: 2,
+                        variant: 0,
                     },
                 ],
                 cred: b"test-key",
