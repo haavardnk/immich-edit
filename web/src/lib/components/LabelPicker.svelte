@@ -1,6 +1,7 @@
 <script lang="ts">
   import LabelSwatches from '#lib/components/LabelSwatches.svelte';
   import Popover from '#lib/components/Popover.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { LABEL_NAMES, type LabelColor } from '#lib/stores/labels.ts';
   import { labelLook } from '#lib/browse/bulk/bulkMarks.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -58,5 +59,5 @@
       />
     {/if}
   {/snippet}
-  <LabelSwatches {label} onpick={pick} />
+  <LabelSwatches {label} size={layout.mode === 'touch' ? 'large' : 'tiny'} onpick={pick} />
 </Popover>
