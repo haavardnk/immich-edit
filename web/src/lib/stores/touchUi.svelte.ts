@@ -11,12 +11,11 @@ export const QUICK_GROUP = 'quick';
 export type TrayGroupId = TouchGroupId | typeof QUICK_GROUP;
 
 const STORAGE_KEY = 'immich-edit:touchEditor';
-const OPEN_EXPANDED: readonly string[] = ['light/curve', 'color/grading'];
 
 type Persisted = {
   group: string;
   views: Record<string, string>;
-  detents: Record<string, string>;
+  detent: string;
   filmstrip: boolean;
 };
 
@@ -38,24 +37,14 @@ function restoreViews(stored: unknown): Partial<Record<TouchGroupId, string>> {
   return views;
 }
 
-function restoreDetents(stored: unknown): Record<string, TrayDetent> {
-  if (!stored || typeof stored !== 'object') return {};
-  const detents: Record<string, TrayDetent> = {};
-  for (const [key, detent] of Object.entries(stored)) {
-    const known = TRAY_DETENTS.find((entry) => entry === detent);
-    if (known) detents[key] = known;
-  }
-  return detents;
-}
-
-function defaultDetent(key: string): TrayDetent {
-  return OPEN_EXPANDED.includes(key) ? 'expanded' : 'compact';
+function restoreDetent(stored: unknown): TrayDetent {
+  return TRAY_DETENTS.find((entry) => entry === stored) ?? 'compact';
 }
 
 export class TouchUiStore {
   group = $state<TrayGroupId>('light');
   views = $state<Partial<Record<TouchGroupId, string>>>({});
-  detents = $state<Record<string, TrayDetent>>({});
+  detent = $state<TrayDetent>('compact');
   focused = $state<string | null>(null);
   searching = $state(false);
   filmstrip = $state(true);
@@ -64,7 +53,7 @@ export class TouchUiStore {
     const stored = readStored<Persisted>(STORAGE_KEY);
     this.group = restoreGroup(stored?.group);
     this.views = restoreViews(stored?.views);
-    this.detents = restoreDetents(stored?.detents);
+    this.detent = restoreDetent(stored?.detent);
     this.filmstrip = stored?.filmstrip !== false;
   }
 
@@ -75,15 +64,6 @@ export class TouchUiStore {
 
   get view(): string {
     return this.viewOf(this.group);
-  }
-
-  get viewKey(): string {
-    return `${this.group}/${this.view}`;
-  }
-
-  get detent(): TrayDetent {
-    const key = this.viewKey;
-    return this.detents[key] ?? defaultDetent(key);
   }
 
   setGroup = (id: TrayGroupId): void => {
@@ -103,8 +83,7 @@ export class TouchUiStore {
   };
 
   setDetent = (detent: TrayDetent): void => {
-    const key = this.viewKey;
-    this.detents = { ...this.detents, [key]: detent };
+    this.detent = detent;
     this.persist();
   };
 
@@ -129,7 +108,7 @@ export class TouchUiStore {
     writeStored(STORAGE_KEY, {
       group: this.group,
       views: this.views,
-      detents: this.detents,
+      detent: this.detent,
       filmstrip: this.filmstrip
     } satisfies Persisted);
   }

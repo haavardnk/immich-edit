@@ -184,7 +184,7 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await handle.tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
     await groups(page).getByRole('tab', { name: 'Color' }).tap();
-    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
     await groups(page).getByRole('tab', { name: 'Light' }).tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
 
@@ -197,7 +197,7 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await develop.tap();
     await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
     await groups(page).getByRole('tab', { name: 'Color' }).tap();
-    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
     await expect(page.getByRole('slider', { name: 'Vibrance' })).toBeVisible();
   });
 
