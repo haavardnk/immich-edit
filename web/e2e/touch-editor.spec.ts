@@ -286,13 +286,13 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
 });
 
 test.describe('touch editor on a tablet', { tag: ['@touch', '@tablet'] }, () => {
-  test('the inspector stacks a group and its tabs jump to each view', async ({ page }) => {
+  test('the inspector shows one view per tab', async ({ page }) => {
     await openEditor(page);
     await expect(page.locator('[data-arrangement="inspector"]')).toBeVisible();
     await expect(toolbar(page).getByText('IMG_0001.ARW')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Tone' })).toBeVisible();
     const curve = page.getByRole('region', { name: 'Curve' });
-    await expect(curve).toHaveCount(1);
+    await expect(curve).toHaveCount(0);
     const track = page.getByRole('slider', { name: 'Exposure' });
     const start = await centreOf(track);
     await drag(page, start, { x: start.x + 40, y: start.y });
@@ -316,7 +316,8 @@ test.describe('touch editor on a tablet', { tag: ['@touch', '@tablet'] }, () => 
       .getByRole('tablist', { name: 'Light views' })
       .getByRole('tab', { name: 'Curve' })
       .tap();
-    await expect(curve).toBeInViewport();
+    await expect(curve).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Tone' })).toHaveCount(0);
     await modes(page).getByRole('tab', { name: 'Retouch' }).tap();
     await expect(groups(page)).toHaveCount(0);
     const panel = page.getByRole('complementary', { name: 'Adjustments' });

@@ -27,7 +27,7 @@
     {#if stacked || !valueEntry.target}
       <GroupChips grid={stacked} {onretap} />
     {/if}
-    <DevelopViews {stacked} />
+    <DevelopViews />
   {/if}
 {:else if mode === 'geometry'}
   <TouchCrop {stacked} />

@@ -9,8 +9,6 @@
   import QuickView from './QuickView.svelte';
   import { orderedTouchViews } from '#lib/stores/developSections.svelte.ts';
 
-  let { stacked = false }: { stacked?: boolean } = $props();
-
   const group = $derived(TOUCH_GROUPS.find((entry) => entry.id === touchUi.group));
   const modified = $derived(group ? modifiedTouchViews(editor.edits, group.id) : new Set<string>());
   const views = $derived(
@@ -22,16 +20,7 @@
           .map(({ view }) => view)
       : []
   );
-  const shown = $derived(stacked ? views : views.filter((view) => view.id === touchUi.view));
-
-  function anchorOf(view: string): string {
-    return `touch-view-${touchUi.group}-${view}`;
-  }
-
-  function select(view: string): void {
-    touchUi.setView(view);
-    if (stacked) document.getElementById(anchorOf(view))?.scrollIntoView({ block: 'start' });
-  }
+  const shown = $derived(views.filter((view) => view.id === touchUi.view));
 </script>
 
 {#if touchUi.group === QUICK_GROUP}
@@ -39,7 +28,7 @@
 {:else if group}
   <Tabs.Root
     value={touchUi.view}
-    onValueChange={select}
+    onValueChange={touchUi.setView}
     class="flex shrink-0 items-center border-b border-hairline pr-2"
   >
     <Tabs.List
@@ -66,11 +55,7 @@
   </Tabs.Root>
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden">
     {#each shown as view (view.id)}
-      <section
-        id={anchorOf(view.id)}
-        aria-label={view.label}
-        class="flex scroll-mt-2 flex-col divide-y divide-hairline px-3 py-1.5"
-      >
+      <section aria-label={view.label} class="flex flex-col divide-y divide-hairline px-3 py-1.5">
         {#each touchViewParts(group.id, view.id) as part, index (index)}
           <div class="flex flex-col gap-1 py-1.5">
             <part.component {...part.props} />
