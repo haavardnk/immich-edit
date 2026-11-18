@@ -116,7 +116,7 @@
   role="group"
   onpointerenter={onPreview}
   onpointerleave={onPreviewEnd}
-  class="group relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-200"
+  class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-200"
   class:bg-light-100={!selected}
   class:bg-light-400={selected}
   class:rounded-md={selected}

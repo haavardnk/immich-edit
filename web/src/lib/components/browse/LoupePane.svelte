@@ -124,7 +124,7 @@
   tabindex="0"
   aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
   aria-busy={loading}
-  class="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
+  class="no-callout relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-sm bg-image-canvas outline-none transition-shadow {zoomed
     ? dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'

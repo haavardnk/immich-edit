@@ -1,13 +1,13 @@
 <svelte:options namespace="svg" />
 
 <script lang="ts">
-  import { HANDLE_HIT } from '#lib/editor/handles.ts';
+  import type { MaskHandleProps } from '#lib/types/maskHandle.ts';
 
   let {
     cx,
     cy,
     r,
-    hit = HANDLE_HIT,
+    hit,
     label,
     cursor,
     fill,
@@ -16,20 +16,7 @@
     strokeWidth,
     onpointerdown,
     ondblclick
-  }: {
-    cx: number;
-    cy: number;
-    r: number;
-    hit?: number;
-    label: string;
-    cursor: string;
-    fill: string;
-    fillOpacity?: number;
-    stroke: string;
-    strokeWidth: number;
-    onpointerdown: (e: PointerEvent) => void;
-    ondblclick?: (e: MouseEvent) => void;
-  } = $props();
+  }: MaskHandleProps = $props();
 </script>
 
 <circle

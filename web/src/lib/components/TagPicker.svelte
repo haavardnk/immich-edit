@@ -115,7 +115,11 @@
     {anchor}
     {align}
     onOpenChange={(v) => (v ? onToggle() : onClose())}
+    appearance="panel"
     contentClass="w-72 overflow-visible! border-0! bg-transparent! p-0 shadow-none! ring-0!"
+    sheetClass="flex flex-col"
+    sheetPicker
+    title="Tags"
     tooltip={hint('Tags', 'toggleTags')}
   >
     {#snippet trigger(popoverProps)}

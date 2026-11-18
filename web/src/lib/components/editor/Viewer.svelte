@@ -127,7 +127,7 @@
   bind:this={container}
   use:observeSize={measure}
   role="application"
-  class="editor-stage relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+  class="editor-stage no-callout relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   {...editor.geometrySession ? {} : gestures.handlers}

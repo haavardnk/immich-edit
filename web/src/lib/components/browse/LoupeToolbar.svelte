@@ -60,6 +60,7 @@
       align="end"
       onOpenChange={(open) => (viewModeOpen = open)}
       contentClass="w-48 py-1"
+      title="View mode"
       tooltip={`View mode: ${commandLabel(viewMode)}`}
     >
       {#snippet trigger(popoverProps)}

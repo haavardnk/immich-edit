@@ -170,7 +170,7 @@
 {/snippet}
 
 {#if asset}
-  <div class="fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
+  <div class="safe-frame fixed inset-0 z-40 flex min-w-0 flex-col bg-image-canvas">
     {#if !ui.fullscreen}
       <LoupeToolbar filename={asset.originalFileName} {copyBadge} {multi} {moreActive} />
     {/if}
@@ -252,7 +252,7 @@
           variant="filled"
           color="primary"
           shape="round"
-          class="fixed top-3 right-3 z-40 shadow-lg"
+          class="fixed top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-40 shadow-lg"
           icon={mdiFullscreenExit}
           title={hint('Exit fullscreen', 'fullscreen')}
           aria-label={hint('Exit fullscreen', 'fullscreen')}

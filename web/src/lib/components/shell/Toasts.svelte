@@ -23,7 +23,9 @@
   }
 </script>
 
-<div class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
+<div
+  class="fixed right-[calc(1rem+var(--safe-right))] bottom-[calc(1rem+var(--safe-bottom))] z-50 flex flex-col items-end gap-2 pointer-events-none"
+>
   {#each jobs.watched as id (id)}
     {@const job = jobs.jobs.find((j) => j.id === id)}
     {#if job}

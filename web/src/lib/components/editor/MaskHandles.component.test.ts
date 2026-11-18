@@ -61,9 +61,9 @@ describe('mask handle hit areas', () => {
     expect(circles.at(-1)?.label).toBe('Radial center');
     const feather = circles.find((c) => c.label === 'Radial feather');
     const edge = circles.find((c) => c.label === 'Radial radius y');
-    expect(feather?.r).toBeLessThan(HANDLE_HIT);
-    expect(circles.at(-1)?.r).toBeLessThan(HANDLE_HIT);
-    expect(edge?.r).toBe(HANDLE_HIT);
+    expect(feather?.r).toBeLessThan(HANDLE_HIT.desktop);
+    expect(circles.at(-1)?.r).toBeLessThan(HANDLE_HIT.desktop);
+    expect(edge?.r).toBe(HANDLE_HIT.desktop);
   });
 
   it('draws the linear move handle above the feather handles', () => {

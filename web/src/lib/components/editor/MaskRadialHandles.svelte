@@ -4,7 +4,8 @@
   import { smoothRamp } from '#lib/utils/maskRamp.ts';
   import MaskHandle from './MaskHandle.svelte';
   import { HANDLE_DOT, spacedHandles } from '#lib/editor/handles.ts';
-  import type { ComponentProps } from 'svelte';
+  import { handleHit } from '#lib/editor/handleHit.svelte.ts';
+  import type { MaskHandleSpec } from '#lib/types/maskHandle.ts';
 
   const MIN_FEATHER_HANDLE_SCALE = 0.08;
   const ROTATE_GRIP_GAP = 22;
@@ -50,7 +51,7 @@
     y: c.y + (rxDy / Math.max(rx, 1)) * (rx + ROTATE_GRIP_GAP)
   });
 
-  function edge(sign: 1 | -1, axis: 'x' | 'y'): ComponentProps<typeof MaskHandle> {
+  function edge(sign: 1 | -1, axis: 'x' | 'y'): MaskHandleSpec {
     const dx = axis === 'x' ? rxDx : ryDx;
     const dy = axis === 'x' ? rxDy : ryDy;
     return {
@@ -68,7 +69,7 @@
   }
 
   const handles = $derived(
-    spacedHandles<ComponentProps<typeof MaskHandle>>([
+    spacedHandles<MaskHandleSpec>(handleHit(), [
       edge(1, 'x'),
       edge(-1, 'x'),
       edge(1, 'y'),

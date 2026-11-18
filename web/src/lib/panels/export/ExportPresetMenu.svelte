@@ -22,7 +22,15 @@
   }
 </script>
 
-<Popover {open} {onOpenChange} align="start" contentClass="w-64">
+<Popover
+  {open}
+  {onOpenChange}
+  align="start"
+  appearance="panel"
+  contentClass="w-64"
+  sheetClass="p-0"
+  title="Export presets"
+>
   {#snippet trigger(props)}
     <button
       {...props}

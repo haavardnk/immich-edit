@@ -145,7 +145,7 @@
     bind:this={bar}
     role="toolbar"
     aria-label="Selection actions"
-    class="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
+    class="fixed bottom-[calc(1rem+var(--safe-bottom))] left-1/2 z-40 flex w-max max-w-[calc(100vw-2rem-var(--safe-left)-var(--safe-right))] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-light-100 shadow-2xl"
   >
     <ControlBar static shape="rectangle" class="min-w-0 px-3">
       <ControlBarHeader class="flex items-center gap-2 p-1">
