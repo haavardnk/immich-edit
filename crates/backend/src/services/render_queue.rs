@@ -42,6 +42,7 @@ pub enum RenderLane {
     #[default]
     Base,
     Original,
+    Reference,
     Weight,
     Roi,
     Geometry,

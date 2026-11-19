@@ -1,18 +1,18 @@
 import { expect, type Locator, type Page, type Route } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
-import type { EditRecord } from '../src/lib/types/edits';
 import type { ExifInfo } from '../src/lib/types/asset';
+import type { EditRecord } from '../src/lib/types/edits';
 import {
-  type ExifFilter,
-  searchShapeProblem,
   matchesExif,
-  suggestions,
-  type ManagedFilter,
-  type IdSet,
-  type MockPerson,
-  type MockAlbum,
   matchesIds,
-  matchesManagedTags
+  matchesManagedTags,
+  searchShapeProblem,
+  suggestions,
+  type ExifFilter,
+  type IdSet,
+  type ManagedFilter,
+  type MockAlbum,
+  type MockPerson
 } from './searchMocks';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
@@ -37,12 +37,28 @@ function pngChunk(type: string, data: Buffer): Buffer {
 }
 
 export function makePng(width: number, height: number, fill = 0): Buffer {
+  return encodePng(width, height, Buffer.alloc(width * 3, fill));
+}
+
+export function makeStripesPng(
+  width: number,
+  height: number,
+  colors: readonly (readonly [number, number, number])[]
+): Buffer {
+  const pixels = Array.from({ length: width }, (_, x) => {
+    const color = colors[Math.floor((x * colors.length) / width)] ?? [0, 0, 0];
+    return Buffer.from(color);
+  });
+  return encodePng(width, height, Buffer.concat(pixels));
+}
+
+function encodePng(width: number, height: number, pixels: Buffer): Buffer {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 2;
-  const row = Buffer.concat([Buffer.alloc(1), Buffer.alloc(width * 3, fill)]);
+  const row = Buffer.concat([Buffer.alloc(1), pixels]);
   const raw = Buffer.concat(Array.from({ length: height }, () => row));
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

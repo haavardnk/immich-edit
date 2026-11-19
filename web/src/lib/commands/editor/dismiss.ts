@@ -2,6 +2,7 @@ import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
 import type { Command, KeyGate } from '#lib/commands/types.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
+import { targetAdjust } from '#lib/stores/targetAdjust.svelte.ts';
 
 function dismiss(
   id: string,
@@ -23,6 +24,11 @@ export const DISMISS_COMMANDS: readonly Command[] = [
     'editor.closeHelp',
     () => ui.keybindsHelpOpen,
     () => ui.closeKeybindsHelp()
+  ),
+  dismiss(
+    'develop.exitTarget',
+    () => !!targetAdjust.tool,
+    () => targetAdjust.exit()
   ),
   dismiss(
     'geometry.closeTool',

@@ -2,6 +2,7 @@
   import type { Histogram } from '#lib/types/preview.ts';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { mergeProps } from 'bits-ui';
+  import HistogramZones from './HistogramZones.svelte';
 
   let {
     hist,
@@ -95,6 +96,7 @@
       <span>{level}</span>
     {/each}
   </div>
+  <HistogramZones />
   {#if shadowClip > 0.1}
     <ElementTooltip text="Shadow clipping">
       {#snippet child({ props })}

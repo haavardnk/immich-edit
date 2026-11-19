@@ -10,6 +10,7 @@
   import { provideSettingFilter } from '#lib/components/editor/controls/settingFilter.ts';
   import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
   import ScopesSection from './scopes/ScopesSection.svelte';
+  import TargetButton from '#lib/components/editor/controls/TargetButton.svelte';
 
   provideSettingFilter(settingSearch);
 
@@ -41,8 +42,12 @@
   {#each shownPanels as panel (panel.id)}
     {@const Comp = panel.component}
     {@const Actions = panel.actions}
+    {@const target = panel.target}
     <div data-panel={panel.id}>
       {#snippet panelActions()}
+        {#if target}
+          <TargetButton tool={target} />
+        {/if}
         {#if Actions}
           <Actions />
         {/if}
@@ -52,7 +57,7 @@
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
         onReset={() => commitPanelReset(panel)}
-        actions={Actions ? panelActions : undefined}
+        actions={Actions || target ? panelActions : undefined}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
         <div class="bg-recess px-3 pb-2 pt-1">

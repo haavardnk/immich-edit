@@ -16,6 +16,7 @@
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { settingFilter, shownGroup } from '#lib/components/editor/controls/settingFilter.ts';
   import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
+  import TargetButton from '#lib/components/editor/controls/TargetButton.svelte';
 
   const filter = settingFilter();
   let activeBand = $state(0);
@@ -64,17 +65,20 @@
     {/each}
   </RadioGroup.Root>
   <div class="flex h-6 items-center justify-between">
-    <div class="text-[11px] font-medium tracking-wide text-dark/65 uppercase touch:text-[12px]">
+    <div class="section-label text-dark/65">
       {bandName}
     </div>
-    <ResetButton
-      title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
-      label="Reset {bandName}"
-      onclick={(e) =>
-        held('resetAll', e)
-          ? commitSectionReset(HSL)
-          : commitParamReset(bandParams, `Reset ${bandName}`)}
-    />
+    <div class="flex items-center gap-0.5">
+      <TargetButton tool="hsl" class="hidden touch:inline-flex" />
+      <ResetButton
+        title="Reset {bandName}  —  {keyLabel('Shift')}-click to reset all bands"
+        label="Reset {bandName}"
+        onclick={(e) =>
+          held('resetAll', e)
+            ? commitSectionReset(HSL)
+            : commitParamReset(bandParams, `Reset ${bandName}`)}
+      />
+    </div>
   </div>
   {#each bandParams as param (param.id)}
     <ParamSlider {param} />
