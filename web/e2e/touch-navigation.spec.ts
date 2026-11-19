@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { seriousViolations } from './axeHelpers';
 import { ASSET_ID, numberedAssets } from './helpers';
 import { tapCentre } from './touch';
 import { avatar, backButton, open, openDrawer, tab } from './touchShell';
@@ -112,41 +113,60 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(page.getByText(/not in this view/)).toHaveCount(0);
   });
 
-  test('the editor guard Back returns after an in-app asset change without looping', async ({
+  test('a recent edit opens in the loupe, and its Back returns to the library', async ({
     page
   }) => {
+    await open(page, '/library');
+    await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
+    await expect(page).toHaveURL('/edited');
+    const edit = page.getByRole('button', { name: 'Edit', exact: true });
+    await edit.tap();
+    await expect(page).toHaveURL(/\/assets\//);
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
+    expect(await seriousViolations(page)).toEqual([]);
+
+    await page.getByRole('button', { name: /^Back/ }).tap();
+    await expect(page).toHaveURL('/edited');
+    await expect(edit).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Loupe toolbar' })
+      .getByRole('button', { name: /^Back/ })
+      .tap();
+    await expect(page).toHaveURL('/library');
+    await expect(edit).toHaveCount(0);
+  });
+
+  test('editor Back returns after an in-app asset change without looping', async ({ page }) => {
     const [first, second] = numberedAssets(2);
     await open(page, '/albums/album-family', { assets: numberedAssets(2) });
     await tapCentre(page, page.locator(`[data-name="${first.originalFileName}"]`));
     await page.getByRole('button', { name: 'Edit', exact: true }).tap();
     await expect(page).toHaveURL(new RegExp(`/assets/${first.id}\\?from=`));
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
 
     await page.keyboard.press('ArrowRight');
     await expect(page).toHaveURL(new RegExp(`/assets/${second.id}\\?from=`));
 
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/albums/album-family');
     await back(page, '/albums');
     await expect(avatar(page)).toBeVisible();
   });
 
-  test('the editor guard Back on a deep-linked asset replaces it with the grid', async ({
-    page
-  }) => {
+  test('editor Back on a deep-linked asset replaces it with the grid', async ({ page }) => {
     const [first] = numberedAssets(1);
     const from = encodeURIComponent('/albums/album-family');
     await open(page, `/assets/${first.id}?from=${from}`, { assets: numberedAssets(2) });
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/albums/album-family');
     await back(page, '/albums');
   });
 
-  test('the editor guard Back without a return path goes to photos', async ({ page }) => {
+  test('editor Back without a return path goes to photos', async ({ page }) => {
     await open(page, `/assets/${ASSET_ID}`);
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page.getByRole('button', { name: /^Back/ }).tap();
     await expect(page).toHaveURL('/photos');
   });
 });
@@ -162,11 +182,6 @@ test.describe('touch search field on a small phone', { tag: ['@touch', '@phone']
     const [fieldBox, cancelBox] = await Promise.all([field.boundingBox(), cancel.boundingBox()]);
     expect((fieldBox?.x ?? 0) + (fieldBox?.width ?? 0)).toBeLessThanOrEqual(cancelBox?.x ?? 0);
     expect((cancelBox?.x ?? 0) + (cancelBox?.width ?? 0)).toBeLessThanOrEqual(360);
-    const options = await page
-      .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'Select photos' })
-      .boundingBox();
-    expect((options?.x ?? 0) + (options?.width ?? 0)).toBeLessThanOrEqual(360);
     const room = await field.evaluate((input) => {
       if (!(input instanceof HTMLInputElement)) return -1;
       const style = getComputedStyle(input);

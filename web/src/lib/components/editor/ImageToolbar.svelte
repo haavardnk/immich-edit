@@ -1,22 +1,12 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import ExifSummary from './ExifSummary.svelte';
-  import SoftProofControl from './SoftProofControl.svelte';
-  import VersionsList from './VersionsList.svelte';
-  import Popover from '#lib/components/Popover.svelte';
-  import CommandList from '#lib/components/CommandList.svelte';
+  import EditorMoreMenu from './EditorMoreMenu.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { redo, undo } from '#lib/commands/editor/edits.ts';
   import { editorBack } from '#lib/commands/editor/navigation.ts';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
-  import { EDITOR_MORE_MENU, EDITOR_VIEW_MENU } from '#lib/commands/menus.ts';
-  import { IconButton } from '@immich/ui';
-  import { mdiDotsVertical } from '@mdi/js';
-
-  let moreOpen = $state(false);
-  let moreAnchor = $state<HTMLElement | null>(null);
 
   const assetId = $derived(editor.assetId);
   const copyBadge = $derived(
@@ -31,6 +21,7 @@
 
 <nav
   aria-label="Editor toolbar"
+  data-swap="top"
   class="relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] {ui.rightCollapsed
     ? 'md:w-[calc(100%+3.5rem)]'
     : ''}"
@@ -72,46 +63,8 @@
       <CommandIconButton command={holdOriginal} size="small" variant="ghost" />
     </div>
 
-    {#if editor.assetId}
-      <ExifSummary anchor={moreAnchor} />
-    {/if}
-    <div class="flex shrink-0" bind:this={moreAnchor}>
-      <Popover
-        open={moreOpen}
-        anchor="bottom"
-        align="end"
-        onOpenChange={(open) => (moreOpen = open)}
-        contentClass="w-64 py-1"
-        tooltip="More editor actions"
-      >
-        {#snippet trigger(props)}
-          <IconButton
-            size="small"
-            variant="ghost"
-            color={editor.isProofing || ui.clipWarn || editor.splitMode ? 'primary' : 'secondary'}
-            icon={mdiDotsVertical}
-            title=""
-            aria-label="More editor actions"
-            {...props}
-          />
-        {/snippet}
-        <div class="flex flex-col">
-          <VersionsList onnavigate={() => (moreOpen = false)} />
-          <div class="my-1 border-t border-dark/10"></div>
-          <span class="px-3 pt-1.5 pb-1 text-[10px] tracking-wider text-dark/65 uppercase"
-            >View</span
-          >
-          <CommandList
-            menu={EDITOR_VIEW_MENU}
-            onrun={() => (moreOpen = false)}
-            rowClass={(command) => (command === holdOriginal ? 'xl:hidden' : undefined)}
-          />
-          <div class="my-1 border-t border-dark/10"></div>
-          <SoftProofControl />
-          <div class="my-1 border-t border-dark/10"></div>
-          <CommandList menu={EDITOR_MORE_MENU} onrun={() => (moreOpen = false)} />
-        </div>
-      </Popover>
+    <div class="flex shrink-0">
+      <EditorMoreMenu />
     </div>
   </div>
 </nav>

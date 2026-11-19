@@ -27,6 +27,14 @@
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { clampedPoint } from '#lib/gestures/point.ts';
   import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
+  import { viewerGestures, type ViewerAdjust } from '#lib/editor/viewerGestures.ts';
+  import { runCommand } from '#lib/commands/command.ts';
+  import { holdOriginal } from '#lib/commands/editor/view.ts';
+
+  let {
+    ontap = () => {},
+    adjust = () => null
+  }: { ontap?: () => void; adjust?: () => ViewerAdjust | null } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
@@ -73,7 +81,20 @@
     doubleTap(e) {
       if (ui.zoomed) ui.zoomFit();
       else gestures.zoomAt(e, ui.zoomLevel, e);
-    }
+    },
+    pointerTypes: ['mouse', 'pen']
+  });
+
+  const touchGestures = viewerGestures({
+    element: () => container,
+    metrics: () => metrics,
+    view: () => view,
+    apply: (next, change) => ui.applyView(next, change),
+    zoomLevel: () => ui.zoomLevel,
+    enabled: () => !editor.geometrySession,
+    tap: () => ontap(),
+    hold: { start: () => runCommand(holdOriginal), end: () => holdOriginal.release() },
+    adjust: () => adjust()
   });
 
   const split = pointerDrag<true>({
@@ -131,6 +152,7 @@
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   {...editor.geometrySession ? {} : gestures.handlers}
+  {@attach touchGestures}
 >
   {#if editor.geometrySession?.frameUrl}
     <CropOverlay />
@@ -138,6 +160,7 @@
     {#if editor.splitMode && editor.originalUrl}
       <div
         bind:this={splitWrap}
+        data-photo-layer
         class="relative overflow-hidden {imageEdge}"
         style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
           1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; {viewTransform}"
@@ -146,6 +169,7 @@
           bind:this={imgEl}
           src={editor.originalUrl}
           alt="Original"
+          data-photo-layer
           class="absolute inset-0 w-full h-full object-contain select-none"
           style="image-orientation: none;"
           draggable="false"

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { browseTarget, setDescription } from '#lib/browse/assetMeta.ts';
+  import { setDescription } from '#lib/browse/assetMeta.ts';
+  import { infoSource } from '#lib/browse/info/infoSource.ts';
   import { keyHeld } from '#lib/input/modifiers.svelte.ts';
   import { ownsAsset } from '#lib/browse/ownership.ts';
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
@@ -9,6 +10,7 @@
 
   type Draft = { id: string; text: string };
 
+  const source = infoSource();
   let { asset }: { asset: AssetSummary } = $props();
 
   const saved = $derived(asset.exifInfo?.description ?? '');
@@ -23,7 +25,8 @@
   async function commit(pending: Draft | null): Promise<void> {
     if (!pending || pending === sent) return;
     sent = pending;
-    await setDescription(browseTarget(pending.id), pending.text.trim());
+    const target = source.target(pending.id);
+    if (target) await setDescription(target, pending.text.trim());
     if (edit === pending) edit = null;
   }
 
@@ -64,13 +67,13 @@
         grow
         aria-label="Description"
         placeholder="Add a description"
-        class="max-h-40 bg-light-950/6! text-[13px] ring-hairline! touch:text-[15px]"
+        class="max-h-40 bg-light-950/6! text-label ring-hairline! touch:text-body"
         {oninput}
         onblur={() => void commit(edit)}
         {onkeydown}
       />
     {:else}
-      <p class="text-[13px] whitespace-pre-line text-light-950/90 touch:text-[15px]">{saved}</p>
+      <p class="text-label whitespace-pre-line text-light-950/90 touch:text-body">{saved}</p>
     {/if}
   </InfoSection>
 {/if}

@@ -1,3 +1,4 @@
+import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
 import type { Command, KeyGate } from '#lib/commands/types.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
@@ -43,9 +44,5 @@ export const DISMISS_COMMANDS: readonly Command[] = [
     () => !!editor.activeMaskComponentId,
     () => editor.setActiveMaskComponent(null)
   ),
-  dismiss(
-    'editor.exitFullscreen',
-    () => ui.fullscreen,
-    () => ui.toggleFullscreen()
-  )
+  dismiss('editor.exitFullscreen', () => ui.fullscreen, toggleEditorFullscreen)
 ];

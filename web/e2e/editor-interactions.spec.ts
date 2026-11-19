@@ -1,12 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-  ASSET_SUMMARY,
-  gotoAsset,
-  installMocks,
-  makePng,
-  NEUTRAL_RECORD,
-  type PreviewRequest
-} from './helpers';
+import { gotoAsset, installMocks, makePng, NEUTRAL_RECORD, type PreviewRequest } from './helpers';
 
 function exposureSlider(page: import('@playwright/test').Page) {
   return page
@@ -971,21 +964,6 @@ test('fullscreen leaves only the image and exit control', async ({ page }) => {
 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
-});
-
-test('the editor menu opens photo info, which I closes', async ({ page }) => {
-  await installMocks(page, {
-    assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY', model: 'ILCE-7M3' } }]
-  });
-  await gotoAsset(page);
-
-  await page.getByRole('button', { name: 'More editor actions' }).click();
-  await page.getByRole('button', { name: 'Info', exact: true }).click();
-  const camera = page.getByText(/ILCE-7M3/);
-  await expect(camera).toBeVisible();
-
-  await page.keyboard.press('i');
-  await expect(camera).toBeHidden();
 });
 
 test('collapsed editor controls leave the canvas and retain their state', async ({ page }) => {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { reportDrawFailure } from '#lib/api/clientLog.ts';
   import type { PreviewFrame } from '#lib/stores/editor/preview.svelte.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
@@ -10,6 +11,7 @@
     class: className,
     style,
     testid,
+    swap,
     element = $bindable(null),
     onsize
   }: {
@@ -19,6 +21,7 @@
     class: string;
     style: string;
     testid?: string;
+    swap?: string;
     element?: PreviewSurface | null;
     onsize?: (size: { w: number; h: number }) => void;
   } = $props();
@@ -29,14 +32,27 @@
     const { bitmap, colorSpace } = frame;
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
-    canvas.getContext('2d', { alpha: false, colorSpace })?.drawImage(bitmap, 0, 0);
+    const context = canvas.getContext('2d', { alpha: false, colorSpace });
+    if (!context) reportDrawFailure('photo context', 'no 2d context');
+    try {
+      context?.drawImage(bitmap, 0, 0);
+    } catch (err) {
+      reportDrawFailure('photo draw', err);
+    }
     untrack(() => onsize?.({ w: bitmap.width, h: bitmap.height }));
   });
 </script>
 
 {#if frame}
   {#key frame.colorSpace}
-    <canvas bind:this={element} data-testid={testid} class={className} {style}>{alt}</canvas>
+    <canvas
+      bind:this={element}
+      data-testid={testid}
+      data-swap={swap}
+      data-photo-layer
+      class={className}
+      {style}>{alt}</canvas
+    >
   {/key}
 {:else if url}
   <img
@@ -44,6 +60,8 @@
     src={url}
     {alt}
     data-testid={testid}
+    data-swap={swap}
+    data-photo-layer
     class={className}
     style="{style} image-orientation: none;"
     draggable="false"

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { budgetFor, TOUCH_BUDGET } from '#lib/render/budget.ts';
 import {
   baseEdge,
   dragEdge,
@@ -58,5 +59,26 @@ describe('largest preview edge', () => {
     vi.stubGlobal('innerHeight', 900);
     vi.stubGlobal('devicePixelRatio', 1.5);
     expect(windowEdge()).toBe(2160);
+  });
+});
+
+describe('touch render budget', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('applies only to the touch layout', () => {
+    expect(budgetFor('touch')).toBe(TOUCH_BUDGET);
+    expect(budgetFor('desktop')).not.toBe(TOUCH_BUDGET);
+  });
+
+  it('caps the device pixel ratio and the edges on touch', () => {
+    const phone = snap(390, 260, 390, 600, 3);
+    expect(baseEdge(phone, TOUCH_BUDGET)).toBe(1024);
+    expect(baseEdge(snap(1600, 1000, 1600, 1000, 3), TOUCH_BUDGET)).toBe(2560);
+    expect(largestEdge(phone, TOUCH_BUDGET)).toBe(1200);
+    expect(dragEdge(snap(4000, 3000, 1200, 900), TOUCH_BUDGET)).toBe(1024);
+    vi.stubGlobal('innerWidth', 390);
+    vi.stubGlobal('innerHeight', 844);
+    vi.stubGlobal('devicePixelRatio', 3);
+    expect(windowEdge(TOUCH_BUDGET)).toBe(1688);
   });
 });

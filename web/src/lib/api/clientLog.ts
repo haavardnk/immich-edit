@@ -45,6 +45,10 @@ export function reportClientError(
   }).catch(() => undefined);
 }
 
+export function reportDrawFailure(surface: string, err: unknown): void {
+  reportClientError('gpu', new Error(`${surface}: ${errorMessage(err)}`), 'warn');
+}
+
 export function installClientLog(): void {
   if (installed) return;
   installed = true;

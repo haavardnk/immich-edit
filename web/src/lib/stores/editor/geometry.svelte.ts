@@ -29,7 +29,8 @@ import {
   type Mat3,
   type PerspectiveEdits
 } from '#lib/utils/perspective.ts';
-import { LIVE_EDGE } from './previewEdge';
+import { budgetFor } from '#lib/render/budget.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 import type { UprightGuide } from '#lib/utils/upright.ts';
 
 export interface GeometrySession {
@@ -121,7 +122,7 @@ async function loadFrame(
     const { blob } = await livePreview(
       assetId,
       edits,
-      LIVE_EDGE,
+      budgetFor(layout.mode).liveEdge,
       'none',
       undefined,
       controller.signal,
