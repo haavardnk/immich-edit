@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { json, SESSION_USER } from './helpers';
+import { json, SESSION_USER, settingsGroup } from './helpers';
 
 const MODEL = {
   id: 'sam2_tiny',
@@ -31,6 +31,8 @@ async function installSettingsMocks(
     const p = new URL(route.request().url()).pathname;
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+    if (p === '/api/auth/sessions') return route.fulfill(json({ sessions: [] }));
+    if (p === '/api/export-presets') return route.fulfill(json([]));
     if (p === '/api/masks/models')
       return route.fulfill(
         json({ runtime: 'cpu', enabled: true, models: models(), active: {}, semantic_classes: [] })
@@ -47,27 +49,16 @@ async function installSettingsMocks(
   });
 }
 
-test('mask models section starts collapsed and expands on click', async ({ page }) => {
+test('the models section lists models with their install state', async ({ page }) => {
   await installSettingsMocks(page, () => [MODEL]);
-  await page.goto('/settings');
+  await page.goto('/settings/administration#models');
 
-  const appSettings = page.getByRole('button', { name: /app settings/i });
-  await expect(appSettings).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByText('SAM 2 Tiny')).toBeHidden();
-
-  await appSettings.click();
-  await expect(page.getByRole('button', { name: /^Users/ })).toHaveAttribute(
-    'aria-expanded',
-    'false'
-  );
-  await page.getByRole('button', { name: /^Models/ }).click();
-  await expect(page.getByRole('button', { name: /^Models/ })).toHaveAttribute(
-    'aria-expanded',
-    'true'
-  );
-  await expect(page.getByText('0 of 1 installed')).toBeVisible();
-  await expect(page.getByText('SAM 2 Tiny')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Download SAM 2 Tiny' })).toBeVisible();
+  await expect(page).toHaveURL('/settings/administration#models');
+  const group = settingsGroup(page, 'Models');
+  await expect(group.getByText('SAM 2 Tiny')).toBeVisible();
+  await expect(group.getByText('Runtime cpu')).toBeVisible();
+  await expect(group.getByRole('button', { name: 'Download SAM 2 Tiny' })).toBeVisible();
+  await expect(group.getByText(/installed/)).toHaveCount(0);
 });
 
 test('download button shows install progress and surfaces failures', async ({ page }) => {
@@ -79,9 +70,7 @@ test('download button shows install progress and surfaces failures', async ({ pa
       current = { ...MODEL, installing: true, progress_bytes: 100 };
     }
   );
-  await page.goto('/settings');
-  await page.getByRole('button', { name: /app settings/i }).click();
-  await page.getByRole('button', { name: /^Models/ }).click();
+  await page.goto('/settings/administration');
   await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
 
   await expect(
@@ -107,9 +96,7 @@ test('a running download can be cancelled', async ({ page }) => {
       current = { ...MODEL };
     }
   );
-  await page.goto('/settings');
-  await page.getByRole('button', { name: /app settings/i }).click();
-  await page.getByRole('button', { name: /^Models/ }).click();
+  await page.goto('/settings/administration');
   await page.getByRole('button', { name: 'Download SAM 2 Tiny' }).click();
   await expect(
     page.getByRole('progressbar', { name: 'SAM 2 Tiny download progress' })

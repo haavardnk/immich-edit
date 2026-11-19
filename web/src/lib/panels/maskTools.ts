@@ -1,5 +1,6 @@
 import { goto } from '$app/navigation';
 import type { MaskKind } from '#lib/api/masks.ts';
+import { settingsHref } from '#lib/settings/pages.ts';
 import { keyLabel } from '#lib/shortcuts/chord.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { maskModels } from '#lib/stores/maskModels.svelte.ts';
@@ -101,7 +102,7 @@ export function modeVerb(mode: MaskComponentMode): string {
 
 export function promptInstall(kind: MaskKind): void {
   if (session.isAdmin) {
-    void goto('/settings');
+    void goto(settingsHref('administration', 'models'));
     return;
   }
   toasts.push(

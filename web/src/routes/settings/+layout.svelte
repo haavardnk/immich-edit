@@ -1,37 +1,33 @@
 <script lang="ts">
+  import { afterNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
-  import IconLink from '#lib/components/IconLink.svelte';
-  import { Container } from '@immich/ui';
-  import { mdiCogOutline, mdiStethoscope } from '@mdi/js';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { findPage } from '#lib/settings/pages.ts';
+  import type { Snippet } from 'svelte';
 
-  let { children }: { children: import('svelte').Snippet } = $props();
+  let { children }: { children: Snippet } = $props();
 
-  const diagnostics = $derived(page.url.pathname === '/settings/diagnostics');
-  const title = $derived(diagnostics ? 'Diagnostics' : 'Settings');
+  const current = $derived(findPage(page.params.id));
+
+  let scroller = $state<HTMLElement | null>(null);
+
+  afterNavigate(({ from, to }) => {
+    if (scroller && from?.url.pathname !== to?.url.pathname) scroller.scrollTop = 0;
+  });
 </script>
 
-{#snippet sectionLink()}
-  <IconLink
-    href={diagnostics ? '/settings' : '/settings/diagnostics'}
-    size="medium"
-    variant="ghost"
-    color="secondary"
-    shape="round"
-    class="size-11"
-    icon={diagnostics ? mdiCogOutline : mdiStethoscope}
-    aria-label={diagnostics ? 'Settings' : 'Diagnostics'}
-    data-sveltekit-replacestate
-  />
-{/snippet}
-
 <div class="flex h-full min-h-0 flex-col bg-light-50">
-  <PageHeader {title} compactActions={sectionLink} />
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <Container center class="max-w-3xl px-4 py-6 sm:px-8">
-      <div class="min-w-0">
-        {@render children()}
-      </div>
-    </Container>
+  {#if layout.compact}
+    <PageHeader title={current?.title ?? 'Settings'} />
+  {/if}
+  <div bind:this={scroller} class="min-h-0 flex-1 overflow-y-auto">
+    <div
+      class="w-full max-w-3xl px-4 py-4 sm:px-10 sm:py-7 {layout.compact
+        ? 'mx-auto'
+        : ''} wide:px-8"
+    >
+      {@render children()}
+    </div>
   </div>
 </div>

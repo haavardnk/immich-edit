@@ -117,7 +117,7 @@ for (const { who, isAdmin, text, links } of [
     await expect(page.getByText(text, { exact: true })).toBeVisible();
     const link = page.getByRole('link', { name: 'Models settings' });
     await expect(link).toHaveCount(links);
-    if (isAdmin) await expect(link).toHaveAttribute('href', '/settings#models');
+    if (isAdmin) await expect(link).toHaveAttribute('href', '/settings/administration#models');
   });
 }
 

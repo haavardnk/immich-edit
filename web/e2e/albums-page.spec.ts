@@ -181,8 +181,7 @@ test.describe('albums page on the desktop', () => {
     await page.route('**/api/auth/me', (route) =>
       route.fulfill(json({ ...SESSION_USER, is_admin: false }))
     );
-    await page.goto('/settings');
-    await page.getByRole('button', { name: /^Account Review/ }).click();
+    await page.goto('/settings/account');
     await expect(
       page.getByText('photos.example.net · Immich v3.1.0', { exact: true })
     ).toBeVisible();

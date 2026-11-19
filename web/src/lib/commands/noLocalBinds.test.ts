@@ -32,7 +32,7 @@ const WINDOW_KEY_LISTENERS = [
 ];
 
 function dispatchesBinds(source: string): boolean {
-  return /\bmatchKeybind\s*\(/.test(source);
+  return /\bmatchKeybinds?\s*\(/.test(source);
 }
 
 function checksChords(source: string): boolean {
@@ -70,7 +70,7 @@ describe('shortcut dispatch', () => {
   });
 
   it.each([
-    ['a bind lookup', dispatchesBinds, 'const bind = matchKeybind(e, contexts);', true],
+    ['a bind lookup', dispatchesBinds, 'const [bind] = matchKeybinds(e, contexts);', true],
     ['a chord check as a lookup', dispatchesBinds, "if (isKeybind(e, 'maskDelete')) x();", false],
     ['a chord check', checksChords, "if (isKeybind(e, 'loupeClose')) close();", true],
     ['a window keydown', listensForKeys, '<svelte:window onkeydown={onKey} />', true],

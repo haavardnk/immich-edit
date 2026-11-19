@@ -1,6 +1,6 @@
 <script lang="ts">
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
-  import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
+  import CloseSettingsButton from '#lib/components/shell/CloseSettingsButton.svelte';
   import AvatarButton from '#lib/components/shell/account/AvatarButton.svelte';
   import SidebarJobs from '#lib/components/shell/wide/SidebarJobs.svelte';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
@@ -28,6 +28,6 @@
         </TruncationTooltip>
       {/if}
     </div>
-    <SettingsButton shape="round" class="size-11" />
+    <CloseSettingsButton shape="round" class="size-11" />
   </div>
 </div>

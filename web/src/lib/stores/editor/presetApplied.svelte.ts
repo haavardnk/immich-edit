@@ -1,5 +1,5 @@
 import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
-import { presetEdits } from '#lib/edits/applyPreset.ts';
+import { presetCarries, presetEdits, type PresetCarries } from '#lib/edits/applyPreset.ts';
 import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
 import type { EditManifest, Edits } from '#lib/types/edits.ts';
 import { sameValue } from '#lib/utils/sameValue.ts';
@@ -14,6 +14,9 @@ export interface AppliedPreset {
   id: string;
   name: string;
   amount: number;
+  includeGeometry: boolean;
+  includeMasks: boolean;
+  carries: PresetCarries;
 }
 
 interface Applied {
@@ -53,7 +56,14 @@ export class PresetApplied {
   readonly current = $derived.by<AppliedPreset | null>(() => {
     const applied = this.live();
     if (!applied) return null;
-    return { id: applied.preset.id, name: applied.preset.name, amount: applied.opts.amount };
+    return {
+      id: applied.preset.id,
+      name: applied.preset.name,
+      amount: applied.opts.amount,
+      includeGeometry: applied.opts.includeGeometry,
+      includeMasks: applied.opts.includeMasks,
+      carries: presetCarries(applied.preset.manifest)
+    };
   });
 
   constructor(ctx: PresetAppliedCtx, amend: PresetAmend) {
@@ -76,10 +86,10 @@ export class PresetApplied {
     return saved;
   };
 
-  blend = (amount: number): void => {
+  adjust = (patch: Partial<ApplyPresetOptions>): void => {
     const applied = this.live();
     if (!applied) return;
-    const opts = { ...applied.opts, amount };
+    const opts = { ...applied.opts, ...patch };
     const base = $state.snapshot(applied.base) as Edits;
     this.ctx.edits = presetEdits(base, { manifest: applied.preset.manifest, opts });
     this.applied = { ...applied, opts, edits: $state.snapshot(this.ctx.edits) as Edits };
@@ -93,6 +103,15 @@ export class PresetApplied {
     if (!this.amend.steps.replaceStep(applied.step, applied.edits))
       return this.ctx.onCommit(action);
     return this.amend.save(applied.edits, action);
+  };
+
+  remove = (): Promise<void> => {
+    const applied = this.live();
+    if (!applied) return Promise.resolve();
+    this.ctx.edits = $state.snapshot(applied.base) as Edits;
+    this.applied = null;
+    this.ctx.onLive();
+    return this.ctx.onCommit(`Remove preset: ${applied.preset.name}`);
   };
 
   drop = (): void => {

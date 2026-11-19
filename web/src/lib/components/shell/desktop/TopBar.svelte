@@ -3,7 +3,7 @@
   import GlobalSearch from '#lib/components/GlobalSearch.svelte';
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
-  import SettingsButton from '#lib/components/shell/SettingsButton.svelte';
+  import CloseSettingsButton from '#lib/components/shell/CloseSettingsButton.svelte';
   import AccountMenu from '#lib/components/shell/account/AccountMenu.svelte';
   import {
     ControlBar,
@@ -41,8 +41,8 @@
         shape="round"
         class="lg:hidden"
         icon={mdiMenu}
-        title={onSettings ? 'Administration' : 'Library'}
-        aria-label={onSettings ? 'Administration' : 'Library'}
+        title={onSettings ? 'Settings sections' : 'Library'}
+        aria-label={onSettings ? 'Settings sections' : 'Library'}
         onclick={onToggleSidebar}
       />
     {/if}
@@ -78,7 +78,7 @@
       />
       {#if jobs.activeCount > 0}
         <span
-          class="pointer-events-none absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 text-light"
+          class="pointer-events-none absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-micro leading-4 text-light"
         >
           {jobs.activeCount}
         </span>
@@ -87,7 +87,7 @@
       {/if}
     </div>
 
-    <SettingsButton />
+    <CloseSettingsButton />
 
     <AccountMenu />
   </ControlBarOverflow>

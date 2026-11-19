@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installMocks, json } from './helpers';
+import { installMocks, json, settingsGroup } from './helpers';
 
 const SESSIONS = [
   {
@@ -35,14 +35,17 @@ test('revoking a session drops it from the signed-in devices list', async ({ pag
     return route.fulfill(json({ ok: true }));
   });
 
-  await page.goto('/settings#sessions');
+  await page.goto('/settings/account#sessions');
 
-  const revoke = page.getByRole('button', { name: 'Revoke session for Firefox on Linux' });
-  await expect(page.getByText('2 active sessions')).toBeVisible();
+  const devices = settingsGroup(page, 'Signed-in devices');
+  const revoke = devices.getByRole('button', { name: 'Revoke session for Firefox on Linux' });
+  await expect(devices.getByText('Firefox on Linux')).toBeVisible();
+  await expect(devices.getByRole('button', { name: 'Revoke all other sessions' })).toBeVisible();
   await revoke.click();
 
-  await expect(page.getByText('1 active session', { exact: true })).toBeVisible();
   await expect(revoke).toHaveCount(0);
+  await expect(devices.getByText('Firefox on Linux')).toHaveCount(0);
+  await expect(devices.getByRole('button', { name: 'Revoke all other sessions' })).toHaveCount(0);
   await expect(page.getByText('Chrome on macOS')).toBeVisible();
   expect(revoked).toEqual(['session-other']);
 });

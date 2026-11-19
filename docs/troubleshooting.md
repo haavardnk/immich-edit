@@ -59,7 +59,7 @@ address the proxy does not guard, such as the container name on a shared Docker 
 ### A valid user cannot sign in
 
 `Access for this account is disabled.` means an administrator turned the account off under
-**Settings** > **App settings** > **Users**.
+**Settings** > **Administration** > **Users**.
 
 An OAuth-only Immich account has no password. Use the OAuth button, or create an Immich API key
 and choose **Use an Immich API key instead**.
@@ -178,7 +178,7 @@ hardware, and it is faster than the built-in CPU renderer at preview sizes; see
 
 ## Previews do not render in the browser
 
-**Browser renderer** in Diagnostics shows the **Preview rendering** setting, whether this browser
+**Browser renderer** in Diagnostics shows the **Preview renderer** setting, whether this browser
 draws previews, the measured **Browser speed** and **Server speed** in milliseconds per megapixel,
 the GPU adapter and its limits, how long the renderer took to load, and the last render time.
 **Reason** explains the decision:
@@ -186,8 +186,8 @@ the GPU adapter and its limits, how long the renderer took to load, and the last
 - `WebGPU needs HTTPS or localhost`: the page is served over plain HTTP from another machine. See
   [browser previews on a local network](rendering.md#browser-previews-on-a-local-network).
 - `no WebGPU`: the browser lacks WebGPU, or has it turned off.
-- `server selected` or `browser selected`: **Settings** > **This device** >
-  **Preview rendering** is set to **Server** or **Browser** in this browser.
+- `server selected` or `browser selected`: **Settings** > **Preferences** >
+  **Preview renderer** is set to **Server** or **Browser** in this browser.
 - `measuring speed`: **Fastest** has not timed both renderers yet. Previews come from the server
   until it has; **Previews** reads `measuring`.
 - `browser faster, 8.0 vs 30.0 ms/MP`: the browser's time per megapixel, then the server's.
@@ -198,7 +198,7 @@ the GPU adapter and its limits, how long the renderer took to load, and the last
 - `browser failed: …`, or any other message: the renderer could not start, or it stopped, with the
   error it reported. The editor uses server previews for the rest of the session.
 
-Switching **Preview rendering** to another setting and back retries after a failure. Set it to
+Switching **Preview renderer** to another setting and back retries after a failure. Set it to
 **Server** to rule the browser out when a preview looks wrong.
 
 ## Previews are slow or time out
@@ -260,7 +260,7 @@ Restart the service after a driver crash. If device loss repeats under memory pr
 
 ### A mask type is missing
 
-An administrator must install that model kind under **Settings** > **App settings** > **Models**.
+An administrator must install that model kind under **Settings** > **Administration** > **Models**.
 Check `ML_RUNTIME`; `off` disables every generated mask.
 
 ### Model installation fails
@@ -275,7 +275,7 @@ Linux, CPU inference is expected. Lower-memory model alternatives are available 
 
 ## AI Denoise does not finish
 
-**AI Denoise** needs its model installed under **App settings** > **Models**, and `ML_RUNTIME`
+**AI Denoise** needs its model installed under **Administration** > **Models**, and `ML_RUNTIME`
 must not be `off`. It runs once per photo at full resolution, so a large RAW file can take a minute
 or more without a GPU. Masks and other photos wait for the same inference slots; see
 `ML_MAX_CONCURRENCY` in [configuration](configuration.md).

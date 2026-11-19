@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import type { Preset } from '#lib/api/presets.ts';
   import MenuItem from '#lib/components/MenuItem.svelte';
   import Popover from '#lib/components/Popover.svelte';
@@ -10,13 +11,13 @@
   import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
+  import { mergeProps } from 'bits-ui';
   import {
     mdiCheck,
     mdiClose,
     mdiDeleteOutline,
     mdiDotsHorizontal,
     mdiDownload,
-    mdiDownloadMultiple,
     mdiPencilOutline,
     mdiStar,
     mdiStarOutline
@@ -100,7 +101,7 @@
 </script>
 
 <li
-  class="group/tile relative flex-none touch:w-22"
+  class="group/tile relative flex-none touch:min-w-0"
   onpointerenter={hover}
   onpointerleave={unhover}
   oncontextmenu={(event) => {
@@ -108,62 +109,67 @@
     if (!touch) setMenu(true);
   }}
 >
-  <button
-    bind:this={button}
-    type="button"
-    class="no-callout relative flex h-full flex-col rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 touch:h-auto touch:w-full touch:rounded-lg"
-    style:width={touch ? null : `${width}px`}
-    title="Apply {preset.name}"
-    aria-label="Apply {preset.name}"
-    aria-current={applied || undefined}
-    {disabled}
-    onfocus={() => {
-      if (!touch) presetStrip.preview(preset);
-    }}
-    onblur={() => {
-      if (!touch) presetStrip.endPreview();
-    }}
-    onclick={() => presetStrip.apply(preset)}
-    {@attach hold}
-    {@attach guard.attachment}
-  >
-    <span
-      class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-lg text-dark/40 touch:h-22 touch:flex-none touch:rounded-lg {applied
-        ? 'border-primary ring-1 ring-primary'
-        : 'border-hairline group-hover/tile:border-light-950/40'}"
-    >
-      {#if src && src !== failedSrc}
-        <img
-          {src}
-          alt=""
-          loading="lazy"
-          draggable="false"
-          class="size-full object-cover"
-          onerror={() => (failedSrc = src)}
-        />
-      {:else}
-        <span aria-hidden="true">{preset.name.slice(0, 1).toUpperCase()}</span>
-      {/if}
-      {#if applied}
+  <ElementTooltip text="Apply {preset.name}">
+    {#snippet child({ props })}
+      <button
+        {...mergeProps(props, {
+          onfocus: () => {
+            if (!touch) presetStrip.preview(preset);
+          },
+          onblur: () => {
+            if (!touch) presetStrip.endPreview();
+          },
+          onclick: () => presetStrip.apply(preset)
+        })}
+        bind:this={button}
+        type="button"
+        class="no-callout relative flex h-full flex-col rounded-sm outline-none select-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 touch:h-auto touch:w-full touch:gap-1.5 touch:rounded-lg"
+        style:width={touch ? null : `${width}px`}
+        aria-label="Apply {preset.name}"
+        aria-current={applied || undefined}
+        {disabled}
+        {@attach hold}
+        {@attach guard.attachment}
+      >
         <span
-          data-applied-badge
-          class="absolute top-1 left-1 grid size-4 place-items-center rounded-full bg-primary text-light touch:size-5"
-          aria-hidden="true"
+          class="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-sm border bg-light-100 text-title text-dark/45 touch:aspect-square touch:flex-none touch:rounded-lg {applied
+            ? 'border-primary ring-1 ring-primary'
+            : 'border-hairline group-hover/tile:border-light-950/40'}"
         >
-          <Icon icon={mdiCheck} size="75%" />
+          {#if src && src !== failedSrc}
+            <img
+              {src}
+              alt=""
+              loading="lazy"
+              draggable="false"
+              class="size-full object-cover"
+              onerror={() => (failedSrc = src)}
+            />
+          {:else}
+            <span aria-hidden="true">{preset.name.slice(0, 1).toUpperCase()}</span>
+          {/if}
+          {#if applied}
+            <span
+              data-applied-badge
+              class="absolute top-1 left-1 grid size-4 place-items-center rounded-full bg-primary text-light touch:top-auto touch:right-1.5 touch:bottom-1.5 touch:left-auto touch:size-5"
+              aria-hidden="true"
+            >
+              <Icon icon={mdiCheck} size="75%" />
+            </span>
+          {/if}
         </span>
-      {/if}
-    </span>
-    <span
-      class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-[11px] text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-[12px] touch:text-dark/80"
-      >{preset.name}</span
-    >
-  </button>
+        <span
+          class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-caption text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-xs touch:text-dark/80"
+          >{preset.name}</span
+        >
+      </button>
+    {/snippet}
+  </ElementTooltip>
   {#if preset.favorite}
     <span
       role="img"
       aria-label="Favourite"
-      class="pointer-events-none absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-black/55 text-warning touch:top-16 touch:right-1.5 touch:size-5 {menuOpen
+      class="pointer-events-none absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-black/55 text-warning touch:top-1.5 touch:right-auto touch:left-1.5 touch:size-5 {menuOpen
         ? 'opacity-0'
         : 'group-hover/tile:opacity-0 group-has-focus-visible/tile:opacity-0 touch:opacity-100'}"
     >
@@ -204,12 +210,7 @@
         label="Export"
         onclick={() => act(() => presets.exportOne(preset))}
       />
-      <MenuItem
-        icon={mdiDownloadMultiple}
-        label="Export all presets"
-        onclick={() => act(presets.exportAll)}
-      />
-      <div class="my-1 border-t border-dark/10"></div>
+      <div class="my-1 border-t border-hairline"></div>
       {#if confirmingDelete}
         <MenuItem
           icon={mdiCheck}

@@ -171,50 +171,6 @@ describe('TouchBrowseShell', () => {
     expect(current?.textContent.trim()).toBe('Library');
   });
 
-  it('opens the account drawer with the account card and rows', async () => {
-    await render();
-    const element = await openDrawer();
-
-    expect(element.textContent).toContain('Hanne Kristiansen');
-    expect(element.textContent).toContain('hanne@example.net');
-    expect(element.textContent).toContain('admin');
-    expect(element.textContent).toContain('single sign-on');
-    expect(buttonWithText('Settings')).not.toBeNull();
-    expect(element.querySelector('[role="radiogroup"][aria-label="Theme"]')).not.toBeNull();
-    expect(buttonWithText('Sign out')).not.toBeNull();
-    expect(buttonWithText('Keyboard shortcuts')).toBeNull();
-  });
-
-  it('shows Keyboard shortcuts once a hardware keyboard was used and opens the help', async () => {
-    layoutState.hasKeyboard = true;
-    await render();
-    await openDrawer();
-
-    [...document.querySelectorAll<HTMLButtonElement>('button')]
-      .find((candidate) => candidate.textContent.includes('Keyboard shortcuts'))
-      ?.click();
-    await settle();
-
-    expect(accountDrawer.open).toBe(false);
-    expect(ui.keybindsHelpOpen).toBe(true);
-  });
-
-  it('opens Settings and the jobs drawer from its rows', async () => {
-    await render();
-    await openDrawer();
-    buttonWithText('Settings')?.click();
-    await settle();
-    expect(nav.goto).toHaveBeenCalledWith('/settings');
-    expect(accountDrawer.open).toBe(false);
-
-    jobs.jobs = [job('apply_preset')];
-    await openDrawer();
-    byLabel('Jobs, 1 job running')?.click();
-    await settle();
-    expect(jobs.open).toBe(true);
-    expect(accountDrawer.open).toBe(false);
-  });
-
   it('marks the Jobs row when a job needs attention', async () => {
     jobs.attention = true;
     await render();
@@ -259,28 +215,6 @@ describe('TouchBrowseShell', () => {
     expect(pill?.textContent).toContain('1 h 7 min left');
   });
 
-  it('hides the bars while scrolling down in landscape only and makes them inert', async () => {
-    layoutState.landscape = true;
-    await render();
-    const tabBar = target.querySelector<HTMLElement>('nav[aria-label="Main"]');
-    const scroller = target.querySelector<HTMLElement>('[data-testid="scroller"]');
-    if (!tabBar || !scroller) throw new Error('missing shell');
-    const root = document.documentElement.style;
-    expect(root.getPropertyValue('--chrome-bottom')).toContain('3.75rem');
-
-    scrollTo(scroller, 10);
-    scrollTo(scroller, 200);
-    await settle();
-    expect(touchBars.hidden).toBe(true);
-    expect(tabBar.inert).toBe(true);
-    expect(root.getPropertyValue('--chrome-bottom')).toBe('var(--safe-bottom)');
-
-    scrollTo(scroller, 150);
-    await settle();
-    expect(touchBars.hidden).toBe(false);
-    expect(tabBar.inert).toBe(false);
-  });
-
   it('gives the tab bar up to the bulk bar while a grid is selecting and keeps the bars', async () => {
     layoutState.landscape = true;
     const detach = bulkScope.attach({
@@ -321,17 +255,6 @@ describe('TouchBrowseShell', () => {
       detach();
       selection.clear();
     }
-  });
-
-  it('keeps the bars in portrait', async () => {
-    await render();
-    const scroller = target.querySelector<HTMLElement>('[data-testid="scroller"]');
-    if (!scroller) throw new Error('missing shell');
-
-    scrollTo(scroller, 10);
-    scrollTo(scroller, 200);
-    await settle();
-    expect(touchBars.hidden).toBe(false);
   });
 
   it('clears the chrome offset when it unmounts', async () => {

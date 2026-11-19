@@ -6,13 +6,8 @@ export function isKeybind(e: KeyboardEvent, id: KeybindId): boolean {
   return effectiveChords(id).some((chord) => chordMatches(e, chord));
 }
 
-export function matchKeybind(
-  e: KeyboardEvent,
-  contexts: readonly KeybindContext[]
-): KeybindId | null {
-  for (const bind of KEYBINDS) {
-    if (!bind.contexts.some((c) => contexts.includes(c))) continue;
-    if (isKeybind(e, bind.id)) return bind.id;
-  }
-  return null;
+export function matchKeybinds(e: KeyboardEvent, contexts: readonly KeybindContext[]): KeybindId[] {
+  return KEYBINDS.filter(
+    (bind) => bind.contexts.some((c) => contexts.includes(c)) && isKeybind(e, bind.id)
+  ).map((bind) => bind.id);
 }

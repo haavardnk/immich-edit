@@ -4,11 +4,12 @@ import { neutralEdits } from '../src/lib/types/edits';
 import {
   ASSET_ID,
   ASSET_SUMMARY,
-  NEUTRAL_RECORD,
   gotoAsset,
   installMocks,
   json,
+  NEUTRAL_RECORD,
   numberedAssets,
+  openLoupeFromGrid,
   openPresetMenu,
   openPresetStrip,
   presetAction
@@ -114,6 +115,29 @@ test('compare opens the split from the editor menu', async ({ page }) => {
   await expect(split).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('editor and loupe keep independent filmstrip visibility', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/search?q=IMG');
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await openLoupeFromGrid(page);
+  await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await page.getByRole('button', { name: /^Edit/ }).click();
+
+  await expect(page.getByRole('button', { name: 'Hide filmstrip' })).toBeVisible();
+  await page.keyboard.press('Shift+S');
+  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
+  await page.getByRole('button', { name: /^Back/ }).click();
+
+  await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await expect(page.getByRole('button', { name: 'IMG_0001.ARW' })).toBeVisible();
+});
+
 test('the filmstrip keeps a manual scroll away from the current photo', async ({ page }) => {
   const assets = numberedAssets(80);
   await installMocks(page, { assets });
@@ -135,6 +159,29 @@ test('the filmstrip keeps a manual scroll away from the current photo', async ({
   });
 
   expect(settled).toBe(600);
+});
+
+test('editor and loupe layout choices survive reload', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/search?q=IMG');
+  await openLoupeFromGrid(page);
+
+  await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
+  await page.reload();
+  await openLoupeFromGrid(page);
+  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
+
+  await page.getByRole('button', { name: /^Edit/ }).click();
+  await page.getByRole('tab', { name: 'Develop' }).click();
+  await page.getByRole('button', { name: 'Hide filmstrip' }).click();
+  await page.reload();
+
+  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
+  await page.getByRole('button', { name: /^Back/ }).click();
+  await page
+    .locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)
+    .evaluate((element) => element.click());
+  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 });
 
 test('a popover closes on escape and on an outside click, returning focus', async ({ page }) => {
@@ -427,7 +474,10 @@ test('the preset strip explains a disabled save and keeps failed thumbnails visi
 
   const save = strip.getByRole('button', { name: 'Save current as preset' });
   await expect(save).toBeDisabled();
-  await expect(save).toContainText('No edits yet');
+  await save.locator('..').hover();
+  await expect(
+    page.locator('.tooltip-content', { hasText: 'Edit the photo to save a preset' })
+  ).toBeVisible();
   const tile = strip.getByRole('button', { name: 'Apply test' });
   await expect(tile).toContainText('T');
   expect((await tile.boundingBox())?.height).toBeGreaterThan(60);

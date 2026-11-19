@@ -69,13 +69,15 @@
   <div class="grid items-center gap-3 py-3 sm:grid-cols-[5rem_7rem_minmax(0,1fr)]">
     <div>
       <div class="text-xs font-medium">{name}</div>
-      <div class="text-[10px] text-dark/65">{stats.count} renders</div>
+      <div class="text-micro text-dark/65">{stats.count} renders</div>
     </div>
     <div>
-      <div class="text-[10px] uppercase text-dark/65">Typical</div>
-      <div class="font-mono text-lg tabular-nums text-light-950/90">{formatUs(stats.p50_us)}</div>
+      <div class="section-label text-dark/65">Typical</div>
+      <div class="font-mono text-title tabular-nums text-light-950/90">
+        {formatUs(stats.p50_us)}
+      </div>
     </div>
-    <dl class="grid grid-cols-3 gap-3 text-right text-[10px]">
+    <dl class="grid grid-cols-3 gap-3 text-right text-micro">
       <div>
         <dt class="text-dark/65">p95</dt>
         <dd class="font-mono text-xs tabular-nums text-dark">{formatUs(stats.p95_us)}</dd>
@@ -122,7 +124,7 @@
 {:else if error}
   <Notice message={error} class="text-sm" />
 {:else if health}
-  <section class="space-y-2">
+  <section class="space-y-2" data-setting-anchor="server">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Server</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
       <dt class="text-dark/65">Version</dt>
@@ -168,7 +170,7 @@
     </dl>
   </section>
 
-  <section class="space-y-2 pt-5">
+  <section class="space-y-2 pt-5" data-setting-anchor="browser-renderer">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Browser renderer</Heading>
     <dl class="grid grid-cols-[160px_1fr] gap-y-1 text-xs">
       <dt class="text-dark/65">Setting</dt>
@@ -257,7 +259,7 @@
   </section>
 
   {#if timings}
-    <section class="space-y-2 pt-5">
+    <section class="space-y-2 pt-5" data-setting-anchor="render-latency">
       <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Render latency</Heading>
       <div class="divide-y divide-hairline">
         {@render latencyRow('CPU', timings.render_latency.cpu)}
@@ -322,7 +324,7 @@
   <section class="space-y-2 pt-5">
     <Heading tag="h2" size="tiny" color="muted" fontWeight="medium">Configuration</Heading>
     <pre
-      class="overflow-x-auto rounded border border-dark/10 bg-light-100 p-3 font-mono text-[11px]">{JSON.stringify(
+      class="overflow-x-auto rounded border border-hairline bg-light-100 p-3 font-mono text-caption">{JSON.stringify(
         health.config,
         null,
         2

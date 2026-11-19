@@ -61,7 +61,6 @@ test('the applied preset keeps its badge until the next edit', async ({ page }) 
   await expect(tile(strip, 'Warm')).toHaveAttribute('aria-current', 'true');
   await expect(tile(strip, 'Warm').locator('[data-applied-badge]')).toBeVisible();
   await expect(tile(strip, 'Mono')).not.toHaveAttribute('aria-current');
-  await expect(pill(page)).toHaveText('Warm applied · Amount 100% stays live until your next edit');
   await expect(strip.getByText('Blending Warm')).toBeVisible();
   await expect.poll(() => saves.map((body) => body.action)).toEqual(['Preset: Warm']);
 
@@ -80,7 +79,6 @@ test('Amount stays live after an apply and amends the same step', async ({ page 
 
   await amount.fill('65');
   await expect(exposure(page)).toHaveValue('0.65');
-  await expect(pill(page)).toHaveText('Warm applied · Amount 65% stays live until your next edit');
   await expect
     .poll(() => saves.map((body) => body.action))
     .toEqual(['Preset: Warm', 'Preset: Warm (65%)']);
@@ -141,7 +139,7 @@ test('search heads the group column and finds names in every group', async ({ pa
   await expect(strip.getByRole('button', { name: /^Apply / })).toHaveText(['Kodak 400', 'Mono']);
   await expect(groups.getByRole('button', { pressed: true })).toHaveCount(0);
   await search.fill('zzz');
-  await expect(strip.getByText('No presets match.')).toBeVisible();
+  await expect(strip.getByText('No presets match')).toBeVisible();
 
   await groups.getByRole('button', { name: 'Film' }).click();
   await expect(search).toHaveValue('');
@@ -169,13 +167,7 @@ test.describe('touch applied preset', { tag: '@touch' }, () => {
     await tapCentre(page, tile(strip, 'Warm'));
     await expect(tile(strip, 'Warm')).toHaveAttribute('aria-current', 'true');
     await expect(tile(strip, 'Warm').locator('[data-applied-badge]')).toBeVisible();
-    await expect(pill(page)).toHaveText(
-      'Warm applied · Amount 100% stays live until your next edit'
-    );
-    await strip.getByRole('slider', { name: 'Preset amount' }).fill('40');
-    await expect(pill(page)).toHaveText(
-      'Warm applied · Amount 40% stays live until your next edit'
-    );
+    await strip.getByRole('slider', { name: 'Amount' }).fill('40');
     await expect
       .poll(() => saves.map((body) => body.action))
       .toEqual(['Preset: Warm', 'Preset: Warm (40%)']);

@@ -1,6 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { installMocks, gotoAsset, openPresetMenu, openPresetStrip, presetAction } from './helpers';
+import {
+  gotoAsset,
+  installMocks,
+  openPresetMenu,
+  openPresetStrip,
+  presetMenuAction
+} from './helpers';
 import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
 
@@ -19,7 +25,7 @@ function warmPreset(): Record<string, unknown> {
 
 async function chooseFile(page: Page, name: string, body: string): Promise<void> {
   const chooser = page.waitForEvent('filechooser');
-  await presetAction(page, 'Import presets');
+  await presetMenuAction(page, 'Import presets');
   await (await chooser).setFiles({ name, mimeType: 'application/json', buffer: Buffer.from(body) });
 }
 
@@ -29,11 +35,7 @@ test('presets export to a versioned file', async ({ page }) => {
   await openPresetStrip(page);
 
   const all = page.waitForEvent('download');
-  await (
-    await openPresetMenu(page, 'Warm')
-  )
-    .getByRole('button', { name: 'Export all presets' })
-    .click();
+  await presetMenuAction(page, 'Export all presets');
   const allFile = await all;
   expect(allFile.suggestedFilename()).toBe('immich-edit-presets.json');
   const body = JSON.parse(await readFile(await allFile.path(), 'utf8'));
