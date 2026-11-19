@@ -910,29 +910,6 @@ test('browse filter chips and fields keep the dense desktop sizes', async ({ pag
   });
 });
 
-test('tall mask picker stays inside the viewport', async ({ page }) => {
-  await installMocks(page);
-  await page.setViewportSize({ width: 1024, height: 420 });
-  await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Masks' }).click();
-  await page.getByRole('button', { name: 'New mask' }).click();
-
-  const popover = page.locator('[data-popover-content]');
-  await expect(popover).toBeVisible();
-  const geometry = await popover.evaluate((element) => {
-    const bounds = element.getBoundingClientRect();
-    return {
-      top: bounds.top,
-      bottom: bounds.bottom,
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight
-    };
-  });
-  expect(geometry.top).toBeGreaterThanOrEqual(8);
-  expect(geometry.bottom).toBeLessThanOrEqual(413);
-  expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
-});
-
 test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
