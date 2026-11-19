@@ -5,7 +5,7 @@
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { copyEditsFrom } from '#lib/browse/copyPaste.ts';
   import { Button } from '@immich/ui';
-  import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
+  import { mdiRestore, mdiContentCopy, mdiContentPaste, mdiClipboardCheckOutline } from '@mdi/js';
 
   let busy = $state(false);
 
@@ -63,5 +63,16 @@
     onclick={() => void bulkActions.paste()}
   >
     Paste
+  </Button>
+  <Button
+    size="tiny"
+    variant="ghost"
+    color="secondary"
+    class="h-6 flex-1 panel-action"
+    leadingIcon={mdiClipboardCheckOutline}
+    disabled={bulkActions.metaBusy || !clipboard.has || selection.count === 0}
+    onclick={bulkActions.pasteOnly}
+  >
+    Paste only…
   </Button>
 </div>

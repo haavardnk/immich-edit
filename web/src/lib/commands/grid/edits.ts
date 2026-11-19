@@ -1,4 +1,4 @@
-import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+import { copyEditsFrom, pasteEditsTo, pasteOnlyTo } from '#lib/browse/copyPaste.ts';
 import { gridTargets } from '#lib/browse/gridActions.ts';
 import { gridCommand } from '#lib/commands/grid/context.ts';
 import type { Command } from '#lib/commands/types.ts';
@@ -25,6 +25,12 @@ export const GRID_EDIT_COMMANDS: readonly Command[] = [
     bind: 'pasteEdits',
     yields: () => gridTargets().length === 0 || hasTextSelection(),
     run: () => void pasteEditsTo(gridTargets())
+  }),
+  gridCommand({
+    id: 'grid.pasteOnly',
+    bind: 'pasteOnly',
+    yields: () => gridTargets().length === 0 || hasTextSelection(),
+    run: () => pasteOnlyTo(gridTargets())
   }),
   gridCommand({
     id: 'grid.virtualCopy',

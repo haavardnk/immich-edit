@@ -248,12 +248,16 @@ leaving the tool. The tool stays open until you pick another one.
 
 ## Reuse edits
 
-**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you pick what to copy: **Basic**,
-**Tone**, **Color**, **Detail**, **Lens Corrections**, **Effects**, **Geometry & crop**, **Masks**
-and **Retouch**. The last three start unchecked, because a crop or a mask rarely fits another
-photo. **Lens Blur** is never copied, because its depth map belongs to one photo. Then open
-another photo and press **Paste edits** (`Ctrl+V`). A short message confirms each copy and paste,
-or says when there is nothing to copy or paste. To paste onto many photos at once, use
+**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you check what to copy. Each Develop
+section has its own box, in panel order, so you can copy just **HSL** or just **White Balance**.
+**Modified only** checks the sections you changed on this photo, and **Last touched**
+checks only the one you changed last. **Geometry & crop**, **Masks** and **Retouch** start
+unchecked, because a crop or a mask rarely fits another photo. **Lens Blur** copies its settings
+but never its depth map, which belongs to one photo. Your choice is kept until you reload. Then
+open another photo and press **Paste edits** (`Ctrl+V`). **Paste only…** (`Ctrl+Shift+V`) shows the
+sections you copied so you can paste a few of them. A short message confirms each copy and paste,
+or says when there is nothing to copy or paste. To paste onto many photos at once, select them in
+the grid and press `Ctrl+V`, or use
 [**Edit and export selected**](export.md#export-many-photos).
 
 A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press

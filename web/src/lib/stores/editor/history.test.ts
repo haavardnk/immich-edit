@@ -329,5 +329,6 @@ describe('history step replacement', () => {
     expect(history.replaceStep(first!, editsAt(5))).toBe(false);
     expect(history.replaceStep(second!, editsAt(2))).toBe(true);
     expect(history.push(editsAt(2))).toBeNull();
+    expect(history.lastChange).toEqual({ before: editsAt(0), after: editsAt(2) });
   });
 });
