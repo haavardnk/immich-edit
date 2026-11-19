@@ -3,6 +3,7 @@ import { editorTrash } from '#lib/commands/editor/culling.ts';
 import {
   autoAdjust,
   copyEdits,
+  newSnapshot,
   pasteEdits,
   redo,
   resetDevelop,
@@ -74,6 +75,6 @@ export const EDITOR_VIEW_MENU: Menu = [
 export const EDITOR_MORE_MENU: Menu = [[editorTrash], [help]];
 
 export const EDITOR_PALETTE_MENU: Menu = [
-  [autoAdjust, resetDevelop, copyEdits, pasteEdits, undo, redo, virtualCopy],
+  [autoAdjust, resetDevelop, copyEdits, pasteEdits, undo, redo, virtualCopy, newSnapshot],
   [beforeAfter, editorClipWarn, editorInfo, editorFullscreen, greyCanvas, help]
 ];

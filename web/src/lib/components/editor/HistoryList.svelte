@@ -5,7 +5,7 @@
   import { listEditHistory, type EditHistoryEntry } from '#lib/api/edits.ts';
   import { historyDetails, historyLabel } from '#lib/utils/history.ts';
   import { formatWhen } from '#lib/utils/datetime.ts';
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
 
   let { onRestored }: { onRestored?: () => void } = $props();
 
@@ -19,7 +19,7 @@
       loading = false;
       return;
     }
-    loading = true;
+    loading = entries.length === 0;
     try {
       entries = await listEditHistory(editor.assetId);
       if (expandedId !== null && !entries.some((entry) => entry.id === expandedId)) {
@@ -49,8 +49,9 @@
     expandedId = expandedId === entryId ? null : entryId;
   }
 
-  onMount(() => {
-    void refresh();
+  $effect(() => {
+    void editor.savedHash;
+    untrack(() => void refresh());
   });
 </script>
 

@@ -6,7 +6,7 @@
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { redo, undo } from '#lib/commands/editor/edits.ts';
   import { editorBack } from '#lib/commands/editor/navigation.ts';
-  import { holdOriginal } from '#lib/commands/editor/view.ts';
+  import { beforeAfter, holdOriginal } from '#lib/commands/editor/view.ts';
 
   const assetId = $derived(editor.assetId);
   const copyBadge = $derived(
@@ -42,7 +42,7 @@
           </span>
           {#if copyBadge}
             <span
-              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-[9px] font-medium text-light-950/60"
+              class="max-w-32 shrink-0 truncate rounded bg-hairline px-1.5 py-0.5 text-nano font-medium text-light-950/65"
               >{copyBadge}</span
             >
           {/if}
@@ -61,6 +61,7 @@
     </div>
     <div class="hidden shrink-0 items-center gap-0.5 xl:flex">
       <CommandIconButton command={holdOriginal} size="small" variant="ghost" />
+      <CommandIconButton command={beforeAfter} size="small" variant="ghost" />
     </div>
 
     <div class="flex shrink-0">

@@ -18,7 +18,7 @@ export interface ClientPreviewHooks {
   onSourceLong(long: number): void;
   onTile(request: RenderRequest, w: number, h: number): void;
   onFallback(): void;
-  refreshOriginal(): void;
+  refreshLeft(): void;
 }
 
 export class ClientPreview {
@@ -168,7 +168,7 @@ export class ClientPreview {
     const long = Math.max(frame.source_w, frame.source_h);
     if (long > 0) this.hooks.onSourceLong(long);
     scopes.onGrids(frame.scopes ?? null);
-    if (this.ctx.splitMode) this.hooks.refreshOriginal();
+    this.hooks.refreshLeft();
   }
 
   private onTile(job: ClientJob, frame: RenderedFrame): void {

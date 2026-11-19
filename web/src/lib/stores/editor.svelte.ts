@@ -30,6 +30,7 @@ import { PreviewEngine, type PreviewFrame } from '#lib/stores/editor/preview.sve
 import type { ViewSnapshot } from '#lib/stores/editor/previewEdge.ts';
 import * as retouch from '#lib/stores/editor/retouch.ts';
 import { SaveQueue } from '#lib/stores/editor/save.svelte.ts';
+import { SnapshotStore } from '#lib/stores/editor/snapshots.svelte.ts';
 import * as upright from '#lib/stores/editor/upright.ts';
 import { ViewportNav } from '#lib/stores/editor/viewport.ts';
 import * as whiteBalance from '#lib/stores/editor/whiteBalance.svelte.ts';
@@ -70,6 +71,7 @@ import type { PerspectiveEdits } from '#lib/utils/perspective.ts';
 import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 import type { UprightGuide } from '#lib/utils/upright.ts';
 import type { Roi } from '#lib/utils/viewGeometry.ts';
+import { CompareControl } from '#lib/stores/editor/compareControl.svelte.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -122,12 +124,10 @@ class EditorStore {
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
   presetPreview = $state.raw<PresetPreview | null>(null);
-  splitMode = $state(false);
-  splitPos = $state(0.5);
   proofSpace = $state<ColorSpaceOpt>('srgb');
   gamutWarn = $state(false);
   isProofing = $derived(this.proofSpace !== 'srgb' || this.gamutWarn);
-  originalUrl = $state<string | null>(null);
+  compareUrl = $state<string | null>(null);
   viewUrl = $state<string | null>(null);
   viewFrame = $state.raw<PreviewFrame | null>(null);
   viewRoi = $state<Roi | null>(null);
@@ -196,12 +196,16 @@ class EditorStore {
     ui.setRetouchTool(tool);
   }
 
-  private history = new EditHistory(this);
   private saves = new SaveQueue(this);
+  private history = new EditHistory(this, this.saves);
   private previews = new PreviewEngine(this);
   private viewport = new ViewportNav(this);
   private depthPreview = new DepthPreview(this);
   readonly aiDenoise = new AiDenoiseTracker(() => this.onAiDenoiseReady());
+  readonly snapshots = new SnapshotStore(this);
+  readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
+    this.previews.compareChanged(wasOn)
+  );
 
   get sourceRevision(): string {
     return this.aiDenoise.revision;
@@ -241,11 +245,6 @@ class EditorStore {
 
   panBy = (step: PanStep): void => this.viewport.panBy(step);
 
-  toggleSplit = (): void => {
-    if (this.geometrySession) return;
-    this.previews.toggleSplit();
-  };
-
   setProofSpace = (space: ColorSpaceOpt): void => {
     if (this.proofSpace === space) return;
     this.proofSpace = space;
@@ -262,10 +261,6 @@ class EditorStore {
     this.previews.reproof();
   };
 
-  setSplitPos = (p: number): void => {
-    this.splitPos = Math.min(1, Math.max(0, p));
-  };
-
   async load(id: string): Promise<void> {
     if (this.assetId === id && this.initialised) return;
     await this.endGeometrySession();
@@ -280,6 +275,7 @@ class EditorStore {
       this.saves.begin(id, s.hash);
       this.initialised = true;
       this.history.push($state.snapshot(this.edits) as Edits);
+      void this.snapshots.load(id);
       fetchLensProfile(this, id);
       void loadFaceData(id);
       this.onLive();
@@ -300,6 +296,7 @@ class EditorStore {
 
   unload(): void {
     this.previews.reset();
+    this.compare.reset();
     this.viewport.reset();
     this.depthPreview.reset();
     void geometry.endSession(this);
@@ -320,6 +317,7 @@ class EditorStore {
     this.saveError = null;
     this.saves.end();
     this.history.reset();
+    this.snapshots.reset();
     this.showingOriginal = false;
     this.bypassedSection = null;
     this.presetPreview = null;
@@ -400,6 +398,9 @@ class EditorStore {
   };
 
   restoreHistoryEntry = (entryId: number): Promise<void> => this.saves.restoreEntry(entryId);
+
+  restoreSnapshot = (snapshotId: string, name: string): Promise<boolean> =>
+    this.history.restoreSnapshot(snapshotId, name);
 
   retrySave = (): Promise<void> => this.saves.retry();
 
@@ -716,7 +717,10 @@ class EditorStore {
     this.previews.refreshBase();
   };
 
-  startGeometrySession = (): void => geometry.startSession(this);
+  startGeometrySession = (): void => {
+    this.compare.end();
+    geometry.startSession(this);
+  };
 
   endGeometrySession = (): Promise<void> => geometry.endSession(this);
 
