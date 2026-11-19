@@ -9,6 +9,7 @@
   import { navHistory } from '#lib/stores/navHistory.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
@@ -43,6 +44,7 @@
       configured = st.configured;
       if (configured && (await session.load())) {
         void appearance.load();
+        void preferences.load();
         await immichCapabilities.load();
       }
       bootState = 'ready';

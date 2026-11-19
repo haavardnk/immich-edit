@@ -6,6 +6,7 @@ export type ValueEntryTarget = {
   start: number;
   resetValue: number;
   owner: HTMLElement;
+  setting?: string;
   live: (value: number) => void;
   finish: (commit: boolean) => void;
 };

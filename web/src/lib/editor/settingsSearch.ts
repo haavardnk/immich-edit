@@ -131,6 +131,12 @@ function buildSettings(): Setting[] {
 
 export const SETTINGS: readonly Setting[] = buildSettings();
 
+const SETTING_BY_ID = new Map(SETTINGS.map((setting) => [setting.id, setting]));
+
+export function settingOf(id: string): Setting | undefined {
+  return SETTING_BY_ID.get(id);
+}
+
 export type Highlight = readonly [number, number];
 
 type Ranked = { setting: Setting; highlight: Highlight | null; rank: number };

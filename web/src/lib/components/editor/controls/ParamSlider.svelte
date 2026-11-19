@@ -1,20 +1,30 @@
 <script lang="ts">
   import EditSlider from './EditSlider.svelte';
+  import ParamMenu from './ParamMenu.svelte';
+  import { rowCaption } from '#lib/editor/quickSettings.ts';
   import { paramDefault } from '#lib/editor/params/define.ts';
   import type { ParamDef } from '#lib/editor/params/types.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { sliderFocus } from './sliderFocus';
   import { settingFilter } from './settingFilter';
 
-  let { param, disabled = false }: { param: ParamDef; disabled?: boolean } = $props();
+  let {
+    param,
+    disabled = false,
+    label
+  }: { param: ParamDef; disabled?: boolean; label?: string } = $props();
 
   const focus = sliderFocus();
   const filter = settingFilter();
 </script>
 
+{#snippet menu()}
+  <ParamMenu {param} />
+{/snippet}
+
 {#if !filter || filter.shows(param.id)}
   <EditSlider
-    label={param.label}
+    label={label ?? param.label}
     commitAction={param.history}
     bind:value={
       () => param.get(editor.edits, editor.isRaw),
@@ -27,5 +37,7 @@
     previewMode={param.previewMode}
     onLabelTap={focus ? () => focus.focus(param) : undefined}
     setting={param.id}
+    {menu}
+    menuTitle={rowCaption(param)}
   />
 {/if}

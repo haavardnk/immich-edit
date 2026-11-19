@@ -6,6 +6,10 @@ export const TRAY_DETENTS = ['peek', 'compact', 'expanded'] as const;
 
 export type TrayDetent = (typeof TRAY_DETENTS)[number];
 
+export const QUICK_GROUP = 'quick';
+
+export type TrayGroupId = TouchGroupId | typeof QUICK_GROUP;
+
 const STORAGE_KEY = 'immich-edit:touchEditor';
 const OPEN_EXPANDED: readonly string[] = ['light/curve', 'color/grading'];
 
@@ -19,6 +23,10 @@ type Persisted = {
 
 function groupOf(id: unknown): TouchGroup | undefined {
   return TOUCH_GROUPS.find((group) => group.id === id);
+}
+
+function restoreGroup(id: unknown): TrayGroupId {
+  return id === QUICK_GROUP ? QUICK_GROUP : (groupOf(id)?.id ?? 'light');
 }
 
 function restoreViews(stored: unknown): Partial<Record<TouchGroupId, string>> {
@@ -46,7 +54,7 @@ function defaultDetent(key: string): TrayDetent {
 }
 
 export class TouchUiStore {
-  group = $state<TouchGroupId>('light');
+  group = $state<TrayGroupId>('light');
   views = $state<Partial<Record<TouchGroupId, string>>>({});
   detents = $state<Record<string, TrayDetent>>({});
   raised = $state<Record<string, TrayDetent>>({});
@@ -56,16 +64,16 @@ export class TouchUiStore {
 
   constructor() {
     const stored = readStored<Persisted>(STORAGE_KEY);
-    this.group = groupOf(stored?.group)?.id ?? 'light';
+    this.group = restoreGroup(stored?.group);
     this.views = restoreViews(stored?.views);
     this.detents = restoreDetents(stored?.detents);
     this.raised = restoreDetents(stored?.raised);
     this.filmstrip = stored?.filmstrip !== false;
   }
 
-  viewOf = (id: TouchGroupId): string => {
-    const group = groupOf(id);
-    return this.views[id] ?? group?.views[0]?.id ?? '';
+  viewOf = (id: TrayGroupId): string => {
+    if (id === QUICK_GROUP) return '';
+    return this.views[id] ?? groupOf(id)?.views[0]?.id ?? '';
   };
 
   get view(): string {
@@ -81,12 +89,13 @@ export class TouchUiStore {
     return this.detents[key] ?? defaultDetent(key);
   }
 
-  setGroup = (id: TouchGroupId): void => {
+  setGroup = (id: TrayGroupId): void => {
     this.group = id;
     this.persist();
   };
 
   setView = (id: string): void => {
+    if (this.group === QUICK_GROUP) return;
     this.views = { ...this.views, [this.group]: id };
     this.persist();
   };

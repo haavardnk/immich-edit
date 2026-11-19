@@ -96,3 +96,7 @@ export function targetAvailable(tool: TargetTool, edits: Edits): boolean {
 export function targetToolOf(panel: DesktopPanelId): TargetTool | null {
   return Object.values(TARGET_TOOLS).find((tool) => tool.panel === panel)?.id ?? null;
 }
+
+export function targetToolOfSection(section: DevelopSection): TargetTool | null {
+  return Object.values(TARGET_TOOLS).find((tool) => tool.section === section)?.id ?? null;
+}

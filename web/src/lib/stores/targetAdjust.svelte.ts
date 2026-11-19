@@ -9,6 +9,11 @@ class TargetAdjustStore {
     this.tool = this.tool === tool ? null : tool;
   };
 
+  arm = (tool: TargetTool): void => {
+    this.last = tool;
+    this.tool = tool;
+  };
+
   exit = (): void => {
     this.tool = null;
   };

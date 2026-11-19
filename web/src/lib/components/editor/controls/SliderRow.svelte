@@ -5,7 +5,8 @@
   import SliderValue from './SliderValue.svelte';
   import { SCALE_POSITIONS } from './sliderScale';
   import type { SliderRange } from '#lib/editor/params/types.ts';
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
+  import ContextMenu from '#lib/components/ContextMenu.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
   import { panRecognizer } from '#lib/gestures/pan.ts';
@@ -35,7 +36,9 @@
     onLabelTap,
     disabled = false,
     commitAction,
-    setting
+    setting,
+    menu,
+    menuTitle
   }: {
     label: string;
     value: number;
@@ -53,6 +56,8 @@
     disabled?: boolean;
     commitAction?: string;
     setting?: string;
+    menu?: Snippet;
+    menuTitle?: string;
   } = $props();
 
   const { min, max, step, fineStep, scale } = $derived(range);
@@ -222,64 +227,80 @@
   }
 </script>
 
-<div
-  bind:this={row}
-  data-setting={setting}
-  class="panel-row group h-7 items-center rounded-sm px-0.5 transition-[background-color,opacity] hover:bg-light-950/3 touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem] {disabled
-    ? 'pointer-events-none opacity-50'
-    : dimmed
-      ? 'opacity-28'
-      : ''}"
-  {@attach wheel}
->
-  <Button
-    variant="ghost"
-    color="secondary"
-    size="tiny"
-    class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px] {touch
-      ? ''
-      : 'cursor-ew-resize'}"
-    title={touch ? '' : 'Drag to adjust, double-click to reset'}
-    aria-label={touch && onLabelTap ? `Focus ${label}` : undefined}
-    onclick={onLabelClick}
-    ondblclick={reset}
-    {@attach labelScrub}
-  >
-    <span class="truncate">{label}</span>
-  </Button>
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
+{#snippet slider(rowProps: Record<string, unknown>, labelProps: Record<string, unknown>)}
   <div
-    bind:this={track}
-    class="flex min-w-0 items-center touch:h-11"
-    ondblclick={reset}
-    {@attach touchDrag}
-    {@attach trackDrag}
+    {...rowProps}
+    bind:this={row}
+    data-setting={setting}
+    class="panel-row group h-7 items-center rounded-sm px-0.5 transition-[background-color,opacity] hover:bg-light-950/3 touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem] {disabled
+      ? 'pointer-events-none opacity-50'
+      : dimmed
+        ? 'opacity-28'
+        : ''}"
+    {@attach wheel}
   >
-    <RangeSlider
-      class="w-full touch:pointer-events-none"
+    <Button
+      {...labelProps}
+      variant="ghost"
+      color="secondary"
+      size="tiny"
+      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px] {touch
+        ? ''
+        : 'cursor-ew-resize'}"
+      title={touch ? '' : 'Drag to adjust, double-click to reset'}
+      aria-label={touch && onLabelTap ? `Focus ${label}` : undefined}
+      onclick={onLabelClick}
+      ondblclick={reset}
+      {@attach labelScrub}
+    >
+      <span class="truncate">{label}</span>
+    </Button>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      bind:this={track}
+      class="flex min-w-0 items-center touch:h-11"
+      ondblclick={reset}
+      {@attach touchDrag}
+      {@attach trackDrag}
+    >
+      <RangeSlider
+        class="w-full touch:pointer-events-none"
+        {label}
+        min={scale ? 0 : min}
+        max={scale ? SCALE_POSITIONS : max}
+        step={scale ? 1 : step}
+        fineStep={scale ? 1 : fineStep}
+        defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
+        {disabled}
+        value={position}
+        valueText={scale ? shown.format(value) : undefined}
+        gradient={gradient ?? range.gradient}
+        title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
+        oninput={onInput}
+        onchange={() => onCommit(commitAction)}
+      />
+    </div>
+    <SliderValue
       {label}
-      min={scale ? 0 : min}
-      max={scale ? SCALE_POSITIONS : max}
-      step={scale ? 1 : step}
-      fineStep={scale ? 1 : fineStep}
-      defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
+      {value}
+      range={shown}
+      {resetValue}
+      modified={!isDefault}
       {disabled}
-      value={position}
-      valueText={scale ? shown.format(value) : undefined}
-      gradient={gradient ?? range.gradient}
-      title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
-      oninput={onInput}
-      onchange={() => onCommit(commitAction)}
+      onLive={apply}
+      onCommit={() => onCommit(commitAction)}
+      {setting}
     />
   </div>
-  <SliderValue
-    {label}
-    {value}
-    range={shown}
-    {resetValue}
-    modified={!isDefault}
-    {disabled}
-    onLive={apply}
-    onCommit={() => onCommit(commitAction)}
-  />
-</div>
+{/snippet}
+
+{#if menu}
+  <ContextMenu title={menuTitle}>
+    {#snippet trigger(props)}
+      {@render slider(touch ? {} : props, touch ? props : {})}
+    {/snippet}
+    {@render menu()}
+  </ContextMenu>
+{:else}
+  {@render slider({}, {})}
+{/if}

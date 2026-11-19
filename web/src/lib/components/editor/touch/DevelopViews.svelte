@@ -3,16 +3,17 @@
   import { modifiedTouchViews } from '#lib/editor/modified.ts';
   import { touchViewParts } from '#lib/panels/touchViews.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { touchUi } from '#lib/stores/touchUi.svelte.ts';
+  import { QUICK_GROUP, touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { Tabs } from 'bits-ui';
   import DevelopTools from './DevelopTools.svelte';
+  import QuickView from './QuickView.svelte';
 
   let { stacked = false }: { stacked?: boolean } = $props();
 
   const group = $derived(TOUCH_GROUPS.find((entry) => entry.id === touchUi.group));
   const views = $derived(group?.views ?? []);
   const shown = $derived(stacked ? views : views.filter((view) => view.id === touchUi.view));
-  const modified = $derived(modifiedTouchViews(editor.edits, touchUi.group));
+  const modified = $derived(group ? modifiedTouchViews(editor.edits, group.id) : new Set<string>());
 
   function anchorOf(view: string): string {
     return `touch-view-${touchUi.group}-${view}`;
@@ -24,7 +25,9 @@
   }
 </script>
 
-{#if group}
+{#if touchUi.group === QUICK_GROUP}
+  <QuickView />
+{:else if group}
   <Tabs.Root
     value={touchUi.view}
     onValueChange={select}

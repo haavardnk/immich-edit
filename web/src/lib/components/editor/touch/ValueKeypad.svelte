@@ -2,12 +2,21 @@
   import TextInput from '#lib/components/TextInput.svelte';
   import { entryValue } from '#lib/components/editor/controls/sliderExpression.ts';
   import { entryText, nudgeValue } from '#lib/components/editor/controls/sliderStep.ts';
+  import { isPinnable } from '#lib/editor/quickSettings.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
   import { panRecognizer } from '#lib/gestures/pan.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { valueEntry, type ValueEntryTarget } from '#lib/stores/valueEntry.svelte.ts';
   import { revealWithin, scrollParent } from '#lib/utils/scrollReveal.ts';
   import { Button, IconButton } from '@immich/ui';
-  import { mdiBackspaceOutline, mdiMinus, mdiPlus, mdiPlusMinus } from '@mdi/js';
+  import {
+    mdiBackspaceOutline,
+    mdiMinus,
+    mdiPinOffOutline,
+    mdiPinOutline,
+    mdiPlus,
+    mdiPlusMinus
+  } from '@mdi/js';
   import { tick, untrack } from 'svelte';
   import { pressKey, type KeypadKey, type KeypadText } from './keypadText';
 
@@ -29,6 +38,8 @@
   let pad = $state<HTMLElement | null>(null);
   let shown = untrack(() => target.start);
   const { label, range } = $derived(target);
+  const setting = $derived(target.setting && isPinnable(target.setting) ? target.setting : null);
+  const pinned = $derived(setting !== null && preferences.isPinned(setting));
   const hint = $derived(`${range.format(range.min)} … ${range.format(range.max)}`);
 
   $effect(() => {
@@ -137,11 +148,25 @@
   {@attach swipe}
 >
   <div class="flex items-center gap-2 pb-2">
+    {#if setting}
+      {@const id = setting}
+      <IconButton
+        size="large"
+        variant="ghost"
+        color={pinned ? 'primary' : 'secondary'}
+        class="size-10 shrink-0 rounded-xl {pinned ? 'bg-primary/15' : 'bg-light-200'}"
+        icon={pinned ? mdiPinOffOutline : mdiPinOutline}
+        title={pinned ? `Unpin ${label}` : `Pin ${label} to Quick`}
+        aria-label={pinned ? `Unpin ${label}` : `Pin ${label} to Quick`}
+        onpointerdown={keep}
+        onclick={() => void preferences.togglePin(id)}
+      />
+    {/if}
     <IconButton
       size="large"
       variant="ghost"
       color="secondary"
-      class="size-10 shrink-0 rounded-[10px] bg-light-200"
+      class="size-10 shrink-0 rounded-xl bg-light-200"
       icon={mdiMinus}
       title="Decrease {label}"
       aria-label="Decrease {label}"
@@ -153,7 +178,7 @@
       inputmode="none"
       autocomplete="off"
       spellcheck="false"
-      class="h-10 flex-1 rounded-[10px] bg-light-100! outline-2 outline-primary [&_input]:px-3 [&_input]:selection:bg-primary/30 [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
+      class="h-10 flex-1 rounded-xl bg-light-100! outline-2 outline-primary [&_input]:px-3 [&_input]:selection:bg-primary/30 [&_input]:font-mono [&_input]:text-base [&_input]:tabular-nums"
       aria-label="{label} value"
       value={entry.text}
       oninput={onFieldInput}
@@ -163,7 +188,7 @@
       size="large"
       variant="ghost"
       color="secondary"
-      class="size-10 shrink-0 rounded-[10px] bg-light-200"
+      class="size-10 shrink-0 rounded-xl bg-light-200"
       icon={mdiPlus}
       title="Increase {label}"
       aria-label="Increase {label}"
@@ -227,7 +252,7 @@
       </Button>
       {@render key('0')}
       <span
-        class="flex items-center justify-center text-center text-[11px] leading-tight text-dark/65 tabular-nums"
+        class="flex items-center justify-center text-center text-caption leading-tight text-dark/65 tabular-nums"
       >
         {hint}
       </span>
