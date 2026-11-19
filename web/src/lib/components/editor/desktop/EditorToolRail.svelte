@@ -29,9 +29,9 @@
     { id: 'retouch', label: 'Retouch', icon: mdiBandage, title: hint('Retouch', 'openRetouch') },
     {
       id: 'geometry',
-      label: 'Geometry',
+      label: 'Crop',
       icon: mdiCropRotate,
-      title: hint('Geometry', 'openGeometry')
+      title: hint('Crop', 'openGeometry')
     },
     { id: 'export', label: 'Export', icon: mdiExportVariant, title: hint('Export', 'openExport') }
   ];
@@ -87,7 +87,7 @@
               ? 'mt-auto'
               : ''} {active
               ? 'bg-primary/10 text-primary'
-              : 'text-light-950/50 hover:bg-subtle hover:text-primary'}"
+              : 'text-light-950/65 hover:bg-subtle hover:text-primary'}"
             aria-label={tool.label}
             aria-selected={active}
             aria-controls="editor-panel-{tool.id}"
@@ -98,7 +98,7 @@
               onkeydown: (event: KeyboardEvent) => onToolKeydown(event, index)
             })}
           >
-            <Icon icon={tool.icon} size="21px" aria-hidden="true" />
+            <Icon icon={tool.icon} size="20px" aria-hidden="true" />
             {#if modified}
               <span
                 data-modified-indicator

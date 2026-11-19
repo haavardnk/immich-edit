@@ -1,7 +1,7 @@
 <script lang="ts">
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui, type CropGrid } from '#lib/stores/ui.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     rotatedBbox,
     aspectRatioFor,
@@ -15,11 +15,16 @@
   import { stageFrame } from '#lib/editor/geometryStage.ts';
   import PerspectiveCorners from './PerspectiveCorners.svelte';
   import UprightGuides from './UprightGuides.svelte';
+  import CropGuide from './crop/CropGuide.svelte';
+  import CropHandles from './crop/CropHandles.svelte';
+  import PhotoPill from './PhotoPill.svelte';
+  import { cropDragReadout } from '#lib/panels/geometry/cropReadout.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import type { CropRect } from '#lib/types/edits.ts';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { elementPoint } from '#lib/gestures/point.ts';
-  import { CROP_HANDLES, HANDLE_DOT, boxHandleHit } from '#lib/editor/handles.ts';
+  import { boxHandleHit } from '#lib/editor/handles.ts';
   import { handleHit } from '#lib/editor/handleHit.svelte.ts';
 
   let container = $state<HTMLDivElement | null>(null);
@@ -29,27 +34,6 @@
   let line = $state<{ from: Point; to: Point } | null>(null);
 
   const MIN_LINE_PX = 10;
-  const GOLDEN = 1 - 2 / (1 + Math.sqrt(5));
-
-  type GuideLine = [number, number, number, number];
-
-  function axisLines(stops: number[]): GuideLine[] {
-    return stops.flatMap((t): GuideLine[] => [
-      [t, 0, t, 1],
-      [0, t, 1, t]
-    ]);
-  }
-
-  const GUIDE_LINES: Record<CropGrid, GuideLine[]> = {
-    thirds: axisLines([1 / 3, 2 / 3]),
-    golden: axisLines([GOLDEN, 1 - GOLDEN]),
-    diagonal: [
-      [0, 0, 1, 1],
-      [1, 0, 0, 1]
-    ],
-    grid: axisLines([1, 2, 3, 4, 5, 6, 7].map((i) => i / 8)),
-    off: []
-  };
 
   function measure(): void {
     if (!container) return;
@@ -106,6 +90,12 @@
       };
 
   const hit = $derived(boxHandleHit(handleHit(), cropPx.w, cropPx.h));
+  const touch = $derived(layout.mode === 'touch');
+  let active = $state<DragKind | null>(null);
+  const activeHandle = $derived(
+    active === null || active === 'move' || active === 'pan' ? null : active
+  );
+  const dragReadout = $derived(active && !touch ? cropDragReadout() : null);
   let panStartCrop = $state<CropRect | null>(null);
   const panOffset = $derived(
     panStartCrop
@@ -137,6 +127,8 @@
   }
 
   function startCrop(e: PointerEvent, kind: 'line' | 'move' | CropHandle): CropDrag | null {
+    if (kind === 'move' && e.button === 2) return startLine(e);
+    if (e.button !== 0) return null;
     if (kind === 'line' || (kind === 'move' && held('straighten', e))) return startLine(e);
     e.preventDefault();
     e.stopPropagation();
@@ -144,6 +136,7 @@
     const panning = kind === 'move' && held('pan', e);
     const startCrop = { ...sess.draftCrop };
     panStartCrop = panning ? { ...sess.draftCrop } : null;
+    active = panning ? 'pan' : kind;
     const aspectRatio = aspectRatioFor(sess.draftAspect, sourceW, sourceH);
     const ratio =
       aspectRatio ??
@@ -189,6 +182,7 @@
       return;
     }
     panStartCrop = null;
+    active = null;
     void editor.commitGeometry('Crop');
   }
 
@@ -249,56 +243,18 @@
         class="absolute border border-white/90 cursor-move touch-none"
         style="left: {cropPx.x}px; top: {cropPx.y}px; width: {cropPx.w}px; height: {cropPx.h}px;"
         {...cropDrag.on('move')}
+        oncontextmenu={(e) => e.preventDefault()}
         role="presentation"
       >
-        <svg
-          class="absolute inset-0 size-full pointer-events-none"
-          viewBox="0 0 1 1"
-          preserveAspectRatio="none"
-          data-testid="crop-guide"
-          data-mode={ui.cropGrid}
-          aria-hidden="true"
-        >
-          {#each GUIDE_LINES[ui.cropGrid] as [x1, y1, x2, y2], i (i)}
-            <line
-              {x1}
-              {y1}
-              {x2}
-              {y2}
-              stroke="rgb(255 255 255 / 0.3)"
-              stroke-width="1"
-              vector-effect="non-scaling-stroke"
-            />
-          {/each}
-        </svg>
-        {#each CROP_HANDLES as h (h)}
-          <button
-            class="absolute touch-none"
-            style="
-              width: {hit * 2}px; height: {hit * 2}px;
-              {h.includes('n') ? `top: -${hit}px;` : ''}
-              {h.includes('s') ? `bottom: -${hit}px;` : ''}
-              {h.includes('w') ? `left: -${hit}px;` : ''}
-              {h.includes('e') ? `right: -${hit}px;` : ''}
-              {h === 'n' || h === 's' ? `left: calc(50% - ${hit}px);` : ''}
-              {h === 'w' || h === 'e' ? `top: calc(50% - ${hit}px);` : ''}
-              cursor: {h === 'n' || h === 's'
-              ? 'ns-resize'
-              : h === 'e' || h === 'w'
-                ? 'ew-resize'
-                : h === 'nw' || h === 'se'
-                  ? 'nwse-resize'
-                  : 'nesw-resize'};
-            "
-            onpointerdown={(e) => cropDrag.begin(e, h)}
-            aria-label="resize {h}"
-          >
-            <span
-              class="pointer-events-none absolute rounded-sm border border-black/60 bg-white"
-              style="inset: {hit - HANDLE_DOT.crop}px;"
-            ></span>
-          </button>
-        {/each}
+        <CropGuide
+          grid={ui.cropGrid}
+          turn={ui.cropGuideTurn}
+          aspect={cropPx.w / Math.max(cropPx.h, 1)}
+        />
+        <CropHandles {hit} {touch} active={activeHandle} onbegin={(e, h) => cropDrag.begin(e, h)} />
+        {#if dragReadout}
+          <PhotoPill {...dragReadout} placement="centre" />
+        {/if}
       </div>
 
       {#if ui.geometryTool === 'straighten'}

@@ -26,7 +26,7 @@
     { id: 'develop', label: 'Develop' },
     { id: 'masks', label: 'Masks' },
     { id: 'retouch', label: 'Retouch' },
-    { id: 'geometry', label: 'Geometry' },
+    { id: 'geometry', label: 'Crop' },
     { id: 'export', label: 'Export' }
   ];
 
@@ -70,7 +70,7 @@
     >
       <div class="flex h-12 shrink-0 items-center gap-2 border-b border-hairline px-3">
         <div class="min-w-0 flex-1">
-          <h2 class="truncate text-[13px] font-semibold text-light-950/90">
+          <h2 class="truncate text-label font-semibold text-light-950/90">
             {activeEditorTab?.label}
           </h2>
         </div>

@@ -31,7 +31,7 @@
   step="any"
   inputmode="decimal"
   {label}
-  class="ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 touch:[&_input]:h-11"
+  class="[&_input]:h-7 touch:[&_input]:h-11"
   placeholder="MB"
   value={local}
   oninput={onInput}

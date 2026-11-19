@@ -28,7 +28,8 @@ describe('preferences api', () => {
       pinnedSettings: ['exposure'],
       shortcuts: {},
       desktopSections: null,
-      touchSubviews: null
+      touchSubviews: null,
+      cropRatios: null
     });
   });
 
@@ -69,5 +70,38 @@ describe('preferences api', () => {
       desktop_sections: null,
       touch_subviews: [{ id: 'light.tone', hidden: true }]
     });
+  });
+
+  it('reads crop ratios, keeping only positive integer sides', async () => {
+    stubFetch({
+      crop_ratios: [
+        { num: 3, den: 2 },
+        { num: 0, den: 1 },
+        { num: 1.5, den: 1 },
+        { num: '4', den: 3 },
+        { num: 16 },
+        null,
+        { num: 16, den: 9 }
+      ]
+    });
+    await expect(getPreferences()).resolves.toMatchObject({
+      cropRatios: [
+        { num: 3, den: 2 },
+        { num: 16, den: 9 }
+      ]
+    });
+  });
+
+  it('reads missing crop ratios as none saved', async () => {
+    stubFetch({ crop_ratios: 'none' });
+    await expect(getPreferences()).resolves.toMatchObject({ cropRatios: null });
+  });
+
+  it('patches crop ratios under their wire name', async () => {
+    const fetch = stubFetch({});
+    await patchPreferences({ cropRatios: [{ num: 5, den: 4 }] });
+    expect(fetch.sent().body).toEqual({ crop_ratios: [{ num: 5, den: 4 }] });
+    await patchPreferences({ cropRatios: null });
+    expect(fetch.sent().body).toEqual({ crop_ratios: null });
   });
 });

@@ -1,7 +1,8 @@
 <script lang="ts" generics="T extends string">
-  import { chipRow, chipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chipRow, chipTone, type ChipTone } from '#lib/components/chips/chipStyles.ts';
   import { Icon } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
+  import type { Snippet } from 'svelte';
 
   type Option = { value: T; label: string; icon?: string };
 
@@ -9,12 +10,16 @@
     options,
     value,
     label,
-    onChange
+    onChange,
+    tone = 'value',
+    children
   }: {
     options: readonly Option[];
     value: T;
     label: string;
     onChange: (value: T) => void;
+    tone?: Extract<ChipTone, 'value' | 'dense'>;
+    children?: Snippet;
   } = $props();
 
   function pick(picked: string): void {
@@ -30,11 +35,12 @@
   class={chipRow}
 >
   {#each options as option (option.value)}
-    <RadioGroup.Item value={option.value} class={chipTone.value}>
+    <RadioGroup.Item value={option.value} class={chipTone[tone]}>
       {#if option.icon}
         <Icon icon={option.icon} size="1.15em" class="shrink-0" aria-hidden="true" />
       {/if}
       {option.label}
     </RadioGroup.Item>
   {/each}
+  {@render children?.()}
 </RadioGroup.Root>

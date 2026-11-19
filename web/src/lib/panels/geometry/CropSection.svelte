@@ -1,74 +1,28 @@
 <script lang="ts">
+  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { ui, CROP_GRIDS } from '#lib/stores/ui.svelte.ts';
   import { cropIsDefault, type GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
-  import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
-  import TextInput from '#lib/components/TextInput.svelte';
-  import { croppedOutputSize } from '#lib/utils/geom.ts';
-  import {
-    aspectForKey,
-    aspectOptions,
-    CUSTOM_KEY,
-    isPortraitAspect,
-    parseRatioSide,
-    selectedAspectKey
-  } from './aspects';
-  import { Field, IconButton, Select } from '@immich/ui';
-  import { mdiCropLandscape, mdiCropPortrait, mdiGrid } from '@mdi/js';
+  import { CROP_GRIDS, ui } from '#lib/stores/ui.svelte.ts';
+  import { IconButton } from '@immich/ui';
+  import { mdiGrid, mdiRotate3dVariant } from '@mdi/js';
+  import { TURNING_GRIDS } from '#lib/editor/cropGuides.ts';
+  import RatioChips from './RatioChips.svelte';
+  import RatioField from './RatioField.svelte';
+  import { draftOutputSize } from '#lib/panels/geometry/ratioActions.ts';
 
   let { sess }: { sess: GeometrySession } = $props();
 
-  let customPicked = $state(false);
-  let customDraft = $state({ num: '', den: '' });
-
-  const ratioInputClass =
-    'ring-0 focus-within:ring-1 focus-within:ring-primary [&_input]:h-7 [&_input]:px-2';
-
-  const aspect = $derived(sess.draftAspect);
-  const portrait = $derived(isPortraitAspect(aspect));
-  const selectedKey = $derived(customPicked ? CUSTOM_KEY : selectedAspectKey(aspect));
-  const customValues = $derived(
-    aspect.kind === 'ratio' ? { num: String(aspect.num), den: String(aspect.den) } : customDraft
-  );
-  const orientationAvailable = $derived(aspect.kind === 'ratio' && aspect.num !== aspect.den);
-  const cropModified = $derived(!cropIsDefault(sess) || aspect.kind !== 'original');
+  const cropModified = $derived(!cropIsDefault(sess) || sess.draftAspect.kind !== 'original');
   const gridLabel = $derived(CROP_GRIDS.find((g) => g.id === ui.cropGrid)?.label ?? '');
-  const outputSize = $derived(
-    editor.meta
-      ? croppedOutputSize(
-          {
-            ...editor.edits.geometry,
-            rotate: sess.draftRotate,
-            rotate_angle: sess.draftAngle,
-            crop: sess.draftCrop
-          },
-          editor.meta.source_w,
-          editor.meta.source_h
-        )
-      : null
-  );
-
-  function onAspectChange(key: string): void {
-    customPicked = key === CUSTOM_KEY;
-    const next = aspectForKey(key, portrait);
-    if (next) void editor.setGeometryAspect(next);
-  }
-
-  function setCustomSide(side: 'num' | 'den', raw: string): void {
-    customDraft = { ...customValues, [side]: raw };
-    const num = parseRatioSide(customDraft.num);
-    const den = parseRatioSide(customDraft.den);
-    if (num !== null && den !== null) void editor.setGeometryAspect({ kind: 'ratio', num, den });
-  }
+  const outputSize = $derived(draftOutputSize());
 
   function resetCrop(): void {
-    customPicked = false;
     void editor.setGeometryAspect({ kind: 'original' }, 'Reset crop');
   }
 </script>
 
-<div class="flex flex-col gap-1 pb-1.5">
+<div class="flex flex-col gap-1.5 pb-2">
   <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop}>
     {#snippet actions()}
       {#if outputSize}
@@ -85,58 +39,22 @@
         aria-label={`Crop guide: ${gridLabel}`}
         onclick={ui.cycleCropGrid}
       />
+      {#if TURNING_GRIDS.has(ui.cropGrid)}
+        <IconButton
+          size="tiny"
+          variant="ghost"
+          color="secondary"
+          icon={mdiRotate3dVariant}
+          title={hint('Turn guide', 'cropGuideTurn')}
+          aria-label="Turn guide"
+          onclick={ui.turnCropGuide}
+        />
+      {/if}
     {/snippet}
   </SectionHeader>
-  <div class="flex items-center gap-1.5">
-    <Field label="Aspect Ratio" size="tiny" class="min-w-0 flex-1">
-      <Select
-        size="tiny"
-        class="editor-compact-select editor-compact-field"
-        options={aspectOptions(portrait)}
-        value={selectedKey}
-        onChange={onAspectChange}
-      />
-    </Field>
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      class="size-7 bg-light-200 not-disabled:hover:bg-light-300"
-      icon={portrait ? mdiCropPortrait : mdiCropLandscape}
-      title={portrait ? 'Switch to landscape' : 'Switch to portrait'}
-      aria-label={portrait ? 'Switch to landscape' : 'Switch to portrait'}
-      disabled={!orientationAvailable}
-      onclick={editor.flipGeometryAspect}
-    />
-  </div>
-  {#if selectedKey === CUSTOM_KEY}
-    <div class="panel-row h-7 items-center">
-      <span class="editor-compact-label select-none">Ratio</span>
-      <div class="col-span-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
-        <TextInput
-          compact
-          color="neutral"
-          class={ratioInputClass}
-          inputSize={1}
-          inputmode="numeric"
-          aria-label="Width"
-          placeholder="Width"
-          value={customValues.num}
-          onchange={(e) => setCustomSide('num', e.currentTarget.value)}
-        />
-        <span class="text-[11px] text-dark/65 select-none" aria-hidden="true">:</span>
-        <TextInput
-          compact
-          color="neutral"
-          class={ratioInputClass}
-          inputSize={1}
-          inputmode="numeric"
-          aria-label="Height"
-          placeholder="Height"
-          value={customValues.den}
-          onchange={(e) => setCustomSide('den', e.currentTarget.value)}
-        />
-      </div>
-    </div>
-  {/if}
+  <span class="text-[10px] font-medium tracking-wider text-dark/55 uppercase select-none"
+    >Aspect ratio</span
+  >
+  <RatioChips />
+  <RatioField />
 </div>

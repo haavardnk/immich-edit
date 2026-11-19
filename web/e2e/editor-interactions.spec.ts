@@ -849,7 +849,7 @@ test('keyboard help modal toggles with the ? key', async ({ page }) => {
 
   await page.keyboard.press('Shift+/');
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
-  await expect(page.getByText('Open Geometry', { exact: true })).toBeVisible();
+  await expect(page.getByText('Open Crop', { exact: true })).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toHaveCount(0);
@@ -862,7 +862,7 @@ test('keyboard help opens from the editor menu', async ({ page }) => {
   await page.getByRole('button', { name: 'More editor actions' }).click();
   await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
   await expect(page.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
-  await expect(page.getByText('Open Geometry', { exact: true })).toBeVisible();
+  await expect(page.getByText('Open Crop', { exact: true })).toBeVisible();
 });
 
 test('keyboard help filters shortcuts and labels keys for the platform', async ({ page }) => {
@@ -917,7 +917,7 @@ test('editor tool tabs switch panels with pointer clicks', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  for (const name of ['Masks', 'Retouch', 'Geometry', 'Export', 'Develop']) {
+  for (const name of ['Masks', 'Retouch', 'Crop', 'Export', 'Develop']) {
     const tab = page.getByRole('tab', { name });
     await tab.click();
     await expect(tab).toHaveAttribute('aria-selected', 'true');
@@ -1003,15 +1003,12 @@ test('collapsed editor controls leave the canvas and retain their state', async 
     .toBe(384);
 });
 
-test('Geometry pane always exposes crop controls', async ({ page }) => {
+test('Crop pane always exposes crop controls', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await page.getByRole('tab', { name: 'Crop' }).click();
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'Angle', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
@@ -1035,7 +1032,7 @@ test('perspective sliders save into the transform op', async ({ page }) => {
   await installMocks(page, { onSave: (body) => saves.push(body) });
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
   await geometrySlider(page, 'Vertical').fill('40');
   await geometrySlider(page, 'Aspect').fill('-25');
@@ -1058,7 +1055,7 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await expect(page.getByRole('button', { name: 'perspective corner 1' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Corner handles' }).click();
@@ -1103,18 +1100,25 @@ test('o cycles the crop guide and the choice survives a reload', async ({ page }
   await page.keyboard.press('Shift+R');
   const guide = page.getByTestId('crop-guide');
   await expect(guide).toHaveAttribute('data-mode', 'thirds');
-  for (const mode of ['golden', 'diagonal', 'grid', 'off']) {
+  for (const mode of ['golden', 'spiral', 'diagonal', 'triangle', 'grid', 'off']) {
     await page.keyboard.press('o');
     await expect(guide).toHaveAttribute('data-mode', mode);
   }
   await page.keyboard.press('o');
   await page.keyboard.press('o');
-  await expect(guide).toHaveAttribute('data-mode', 'golden');
+  await page.keyboard.press('o');
+  await expect(guide).toHaveAttribute('data-mode', 'spiral');
+  await expect(guide).toHaveAttribute('data-turn', '0');
+  await page.keyboard.press('Shift+O');
+  await expect(guide).toHaveAttribute('data-turn', '1');
+  await page.getByRole('button', { name: 'Turn guide' }).click();
+  await expect(guide).toHaveAttribute('data-turn', '2');
 
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
-  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'golden');
-  await expect(page.getByRole('button', { name: 'Crop guide: Golden ratio' })).toBeVisible();
+  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-mode', 'spiral');
+  await expect(page.getByTestId('crop-guide')).toHaveAttribute('data-turn', '2');
+  await expect(page.getByRole('button', { name: 'Crop guide: Golden spiral' })).toBeVisible();
 });
 
 async function cropRatio(page: import('@playwright/test').Page): Promise<number> {
@@ -1123,47 +1127,120 @@ async function cropRatio(page: import('@playwright/test').Page): Promise<number>
   return (w ?? 0) / (h ?? 1);
 }
 
-test('aspect presets, the orientation button and a custom ratio drive the output size', async ({
+test('ratio chips, the orientation button and a typed ratio drive the output size', async ({
   page
 }) => {
-  await installMocks(page, { previewBody: makePng(60, 40) });
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
+  const patches: Record<string, unknown>[] = [];
+  await installMocks(page, {
+    previewBody: makePng(60, 40),
+    onPreferences: (patch) => patches.push(patch)
+  });
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
   await expect(page.getByTestId('crop-output-size')).toHaveText('6000 × 4000 px');
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  const field = page.getByRole('textbox', { name: 'Ratio' });
 
-  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
-  await page.getByRole('option', { name: '5:4', exact: true }).click();
+  await page.getByRole('button', { name: 'More ratios' }).click();
+  await page.getByRole('button', { name: '5:4', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(5 / 4, 2);
+  await expect(page.getByRole('button', { name: 'More ratios' })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
 
   await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
-  await expect(page.getByRole('combobox', { name: 'Aspect Ratio' })).toHaveText(/4:5/);
+  await expect(field).toHaveValue('4:5');
 
-  await page.getByRole('combobox', { name: 'Aspect Ratio' }).click();
-  await page.getByRole('option', { name: 'Custom…', exact: true }).click();
-  const widthBox = await page.getByRole('textbox', { name: 'Width' }).boundingBox();
-  const heightBox = await page.getByRole('textbox', { name: 'Height' }).boundingBox();
-  const rowEnd = await page
-    .getByRole('button', { name: /Switch to (landscape|portrait)/ })
-    .boundingBox();
-  if (!widthBox || !heightBox || !rowEnd) throw new Error('custom ratio row not laid out');
-  expect(Math.abs(widthBox.y - heightBox.y)).toBeLessThan(1);
-  expect(heightBox.x + heightBox.width).toBeLessThanOrEqual(rowEnd.x + rowEnd.width + 1);
-  await page.getByRole('textbox', { name: 'Width' }).fill('7');
-  await page.getByRole('textbox', { name: 'Width' }).press('Tab');
-  await page.getByRole('textbox', { name: 'Height' }).fill('3');
-  await page.getByRole('textbox', { name: 'Height' }).press('Tab');
+  await chips.getByRole('radio', { name: '9:16', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(9 / 16, 2);
+
+  await field.fill('2.39');
+  await expect(page.getByText('= 2.39 : 1')).toBeVisible();
+  await field.press('Enter');
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(2.39, 2);
+  await expect(field).toHaveValue('2.39:1');
+
+  await page.getByRole('button', { name: 'Save ratio' }).click();
+  expect(patches.at(-1)).toEqual({ crop_ratios: [{ num: 239, den: 100 }] });
+  const more = page.getByRole('button', { name: 'More ratios' });
+  await expect(more).toHaveAttribute('aria-pressed', 'true');
+  await expect(chips.getByRole('radio')).toHaveCount(6);
+
+  await field.fill('7:3');
+  await field.blur();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(7 / 3, 2);
+  await more.click();
+  await page.getByRole('button', { name: '2.39:1', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(2.39, 2);
+  await page.getByRole('button', { name: 'Remove ratio' }).click();
+  await more.click();
+  await expect(page.getByRole('button', { name: '2.39:1', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  expect(patches.at(-1)).toEqual({ crop_ratios: [] });
 });
 
-for (const how of ['tool', 'shift'] as const) {
+test('a wide inspector shows every ratio as a chip and keeps the ratio field its size', async ({
+  page
+}) => {
+  const fieldWidth = async (inspectorWidth: number): Promise<number> => {
+    await page.evaluate(
+      (width) =>
+        localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: width })),
+      inspectorWidth
+    );
+    await gotoAsset(page);
+    await page.keyboard.press('Shift+R');
+    return (await page.getByRole('textbox', { name: 'Ratio' }).boundingBox())?.width ?? 0;
+  };
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+
+  const narrow = await fieldWidth(320);
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  await expect(page.getByRole('button', { name: 'More ratios' })).toBeVisible();
+  await expect(chips.getByRole('radio', { name: '7:5', exact: true })).toHaveCount(0);
+
+  const wide = await fieldWidth(520);
+  await expect(chips.getByRole('radio', { name: '5:4', exact: true })).toBeVisible();
+  await expect(chips.getByRole('radio', { name: '7:5', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More ratios' })).toHaveCount(0);
+  expect(wide).toBe(narrow);
+
+  await chips.getByRole('radio', { name: '7:5', exact: true }).click();
+  await expect.poll(() => cropRatio(page)).toBeCloseTo(7 / 5, 2);
+});
+
+test('the ratio chips and the ratio row fit the narrowest inspector', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('immich-edit:editorUi', JSON.stringify({ inspectorWidth: 320 }))
+  );
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+  await page.keyboard.press('Shift+R');
+  const chips = page.getByRole('radiogroup', { name: 'Aspect ratio' });
+  const first = await chips.getByRole('radio', { name: 'Original' }).boundingBox();
+  const more = await page.getByRole('button', { name: 'More ratios' }).boundingBox();
+  expect(more?.y).toBe(first?.y);
+  const field = await page.getByRole('textbox', { name: 'Ratio' }).boundingBox();
+  const flip = await page.getByRole('button', { name: 'Switch to portrait' }).boundingBox();
+  expect(flip?.width).toBe(28);
+  expect(flip?.height).toBe(28);
+  expect(flip?.height).toBeCloseTo(field?.height ?? 0, 0);
+});
+
+for (const how of ['tool', 'shift', 'right'] as const) {
   test(`a line drawn with the straighten ${how} levels the photo`, async ({ page }) => {
     await installMocks(page);
     await gotoAsset(page);
     await page.keyboard.press('Shift+R');
     await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
-    const straighten = page.getByRole('button', { name: 'Straighten' });
+    const straighten = page.getByRole('button', { name: 'Straighten', exact: true });
     if (how === 'tool') {
       await page.keyboard.press('a');
       await expect(straighten).toHaveAttribute('aria-pressed', 'true');
@@ -1175,10 +1252,11 @@ for (const how of ['tool', 'shift'] as const) {
     const x = box.x + box.width * 0.25;
     const y = box.y + box.height * 0.5;
     if (how === 'shift') await page.keyboard.down('Shift');
+    const button = how === 'right' ? 'right' : 'left';
     await page.mouse.move(x, y);
-    await page.mouse.down();
+    await page.mouse.down({ button });
     await page.mouse.move(x + 200, y + 200 * Math.tan((10 * Math.PI) / 180), { steps: 6 });
-    await page.mouse.up();
+    await page.mouse.up({ button });
     if (how === 'shift') await page.keyboard.up('Shift');
 
     await expect
@@ -1188,12 +1266,30 @@ for (const how of ['tool', 'shift'] as const) {
   });
 }
 
-test('a crop saves on release, undo restores it and Escape stays on Geometry', async ({ page }) => {
+test('dragging a crop corner shows its size and ratio on the photo', async ({ page }) => {
+  await installMocks(page, { previewBody: makePng(60, 40) });
+  await gotoAsset(page);
+  await page.keyboard.press('Shift+R');
+  const corner = page.getByRole('button', { name: 'resize se' });
+  const box = await corner.boundingBox();
+  if (!box) throw new Error('crop handle has no box');
+  const readout = page.locator('[data-photo-pill]');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 60, box.y - 20, { steps: 4 });
+  await expect(readout).toHaveText(/^\d+ × \d+ · [\d.]+ : 1$/);
+  await expect(corner).toHaveAttribute('data-active', '');
+  await page.mouse.up();
+  await expect(readout).toHaveCount(0);
+  await expect(corner).not.toHaveAttribute('data-active');
+});
+
+test('a crop saves on release, undo restores it and Escape stays on Crop', async ({ page }) => {
   await installMocks(page, { previewBody: makePng(60, 40) });
   await gotoAsset(page);
 
   await page.keyboard.press('Shift+R');
-  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  const geometryTab = page.getByRole('tab', { name: 'Crop' });
   await expect(geometryTab).toHaveAttribute('aria-selected', 'true');
   const output = page.getByTestId('crop-output-size');
   await expect(output).toHaveText('6000 × 4000 px');
@@ -1218,10 +1314,10 @@ test('a crop saves on release, undo restores it and Escape stays on Geometry', a
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 });
 
-test('the active Geometry tab collapses the panels like any other tab', async ({ page }) => {
+test('the active Crop tab collapses the panels like any other tab', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  const geometryTab = page.getByRole('tab', { name: 'Geometry' });
+  const geometryTab = page.getByRole('tab', { name: 'Crop' });
   await geometryTab.click();
   await expect(page.getByRole('button', { name: 'resize nw' })).toBeVisible();
 
@@ -1234,7 +1330,7 @@ test('the active Geometry tab collapses the panels like any other tab', async ({
   await expect(page.getByRole('button', { name: 'resize nw' })).toHaveCount(0);
 });
 
-test('Enter does not leave Geometry after a mouse click on a panel button', async ({ page }) => {
+test('Enter does not leave Crop after a mouse click on a panel button', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
   await page.keyboard.press('Shift+R');
@@ -1247,10 +1343,7 @@ test('Enter does not leave Geometry after a mouse click on a panel button', asyn
   expect(after).not.toBe(before);
 
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('Enter still activates a button reached with Tab', async ({ page }) => {
@@ -1265,10 +1358,7 @@ test('Enter still activates a button reached with Tab', async ({ page }) => {
 
   await page.keyboard.press('Enter');
   await expect(guide).not.toHaveAttribute('aria-label', before ?? '');
-  await expect(page.getByRole('tab', { name: 'Geometry' })).toHaveAttribute(
-    'aria-selected',
-    'true'
-  );
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('lens reset clears all profile edits', async ({ page }) => {

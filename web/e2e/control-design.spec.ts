@@ -428,7 +428,7 @@ test('export is anchored at the bottom of the editor tool rail', async ({ page }
   await gotoAsset(page);
 
   const rail = page.getByRole('tablist', { name: 'Editor tools' });
-  const geometry = page.getByRole('tab', { name: 'Geometry' });
+  const geometry = page.getByRole('tab', { name: 'Crop' });
   const exportTab = page.getByRole('tab', { name: 'Export', exact: true });
   const positions = await Promise.all(
     [rail, geometry, exportTab].map((locator) =>
@@ -660,7 +660,7 @@ test('panel header actions match develop action buttons', async ({ page }) => {
   expect(maskMetrics[0]).toEqual(metrics[5]);
   expect(maskMetrics[1]).toEqual(metrics[0]);
 
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   const geometryMetrics = await Promise.all(
     [
       page.getByRole('button', { name: 'Reset geometry', exact: true }),
@@ -857,13 +857,13 @@ test('bulk export shows the neutral filename template field for both destination
 test('crop ratio controls share the neutral grey surface', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
 
-  const aspect = page.getByRole('combobox', { name: 'Aspect Ratio' });
+  const field = page.getByRole('textbox', { name: 'Ratio' });
   const orientation = page.getByRole('button', { name: /^Switch to/ });
   const neutral = await resolvedColor(page, '--color-neutral-800');
 
-  expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
+  expect((await metricsOf(field.locator('xpath=..'))).background).toBe(neutral);
   expect((await metricsOf(orientation)).background).toBe(neutral);
 });
 

@@ -19,7 +19,7 @@ export const CONTEXT_NAMES: Record<KeybindContext, string> = {
   compare: 'Compare',
   survey: 'Survey',
   editor: 'Editor',
-  geometry: 'Geometry',
+  geometry: 'Crop',
   masks: 'Masks',
   retouch: 'Retouch',
   viewer: 'Viewer window'
