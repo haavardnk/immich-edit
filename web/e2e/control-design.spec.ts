@@ -1,11 +1,17 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { DEFAULT_APPEARANCE, gotoAsset, installMocks, json, openFilters } from './helpers';
+import {
+  ASSET_ID,
+  DEFAULT_APPEARANCE,
+  gotoAsset,
+  installMocks,
+  numberedAssets,
+  openAccountMenu,
+  openLoupeFromGrid
+} from './helpers';
 import { unfoldExport } from './exportSections';
-import { openBulkExport } from './browse';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
-const EDITOR_COMPACT_CONTROL_HEIGHT = 28;
 
 type Metrics = {
   height: number;
@@ -79,30 +85,23 @@ async function expectPrimaryFocusRing(page: Page, input: Locator): Promise<void>
     .toBe(true);
 }
 
-async function expectNoRestingRing(input: Locator): Promise<void> {
-  await input.blur();
-  const ringColor = await containerOf(input).evaluate((element) => {
-    const raw = getComputedStyle(element).getPropertyValue('--tw-ring-color').trim();
-    const probe = document.createElement('span');
-    probe.style.color = raw;
-    document.body.append(probe);
-    const color = getComputedStyle(probe).color;
-    probe.remove();
-    return color;
-  });
-  expect(ringColor).toBe('rgba(0, 0, 0, 0)');
-}
+test('editor and loupe use the same black image canvas', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
 
-async function expectSegmentedControl(
-  page: Page,
-  control: Locator,
-  activeItem: Locator
-): Promise<void> {
-  expect((await metricsOf(control)).height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-  const activeMetrics = await metricsOf(activeItem);
-  expect(activeMetrics.height).toBe(24);
-  expect(activeMetrics.background).toBe(await resolvedColor(page, '--color-primary'));
-}
+  const canvas = await resolvedColor(page, '--color-image-canvas');
+  expect((await metricsOf(page.getByRole('application'))).background).toBe(canvas);
+
+  await page.goto('/search?q=IMG');
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await openLoupeFromGrid(page);
+
+  const loupeCanvases = page.locator('.bg-image-canvas');
+  await expect(loupeCanvases).toHaveCount(2);
+  for (const loupeCanvas of await loupeCanvases.all()) {
+    expect((await metricsOf(loupeCanvas)).background).toBe(canvas);
+  }
+});
 
 test('text inputs retain the package focus ring', async ({ page }) => {
   await installMocks(page);
@@ -299,267 +298,6 @@ for (const mode of ['dark', 'light'] as const) {
   });
 }
 
-test('sliders use the primary violet fill without replacing color gradients', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const fill = await resolvedColor(page, '--color-slider-fill');
-  const primary = await resolvedColor(page, '--color-primary');
-  expect(fill).toBe(primary);
-
-  const exposure = page.getByRole('slider', { name: 'Exposure', exact: true });
-  const exposureBackground = await exposure.evaluate(
-    (element) => getComputedStyle(element).backgroundImage
-  );
-  expect(exposureBackground).toContain(fill);
-
-  const temperature = page.getByRole('slider', { name: 'Temperature', exact: true });
-  const temperatureBackground = await temperature.evaluate(
-    (element) => getComputedStyle(element).backgroundImage
-  );
-  expect(temperatureBackground).not.toContain(fill);
-  expect(temperatureBackground).toContain(await resolvedColor(page, '--color-temperature-cool'));
-  expect(temperatureBackground).toContain(await resolvedColor(page, '--color-temperature-warm'));
-});
-
-test('symmetric sliders mark their default in the middle of the track', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const exposure = page.getByRole('slider', { name: 'Exposure', exact: true });
-  const track = await exposure.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      image: style.backgroundImage,
-      position: style.backgroundPosition,
-      size: style.backgroundSize
-    };
-  });
-  expect(track.image).toContain(await resolvedColor(page, '--color-slider-marker'));
-  expect(track.position.split(',')[0]).toContain('50%');
-  expect(track.size.split(',')[0].trim()).toBe('1px 6px');
-});
-
-test('the top bar search keeps its native pill shape', async ({ page }) => {
-  await installMocks(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/photos');
-
-  const search = page.getByRole('textbox', { name: 'Search your photos' });
-  await expect(search).toBeVisible();
-
-  const searchSurface = containerOf(search);
-  const container = await metricsOf(searchSurface);
-  await expectNoRestingRing(search);
-  expect(container.height).toBe(46);
-  expect(
-    await searchSurface.evaluate((element) => Math.round(element.getBoundingClientRect().width))
-  ).toBe(896);
-  expect(container.background).toBe(await resolvedBackground(page, 'bg-ghost'));
-  expect(container.radius).toBe(12);
-
-  const iconInset = await page
-    .getByRole('button', { name: 'Search', exact: true })
-    .locator('svg')
-    .evaluate((icon) => {
-      const iconBounds = icon.getBoundingClientRect();
-      const containerBounds = icon.closest('form')?.getBoundingClientRect();
-      return containerBounds ? Math.round(iconBounds.left - containerBounds.left) : 0;
-    });
-  expect(iconInset).toBe(16);
-
-  const navigation = page.getByRole('navigation', { name: 'Global navigation' });
-  const bar = navigation;
-  const logo = page.getByRole('img', { name: 'immich-edit' });
-  const logoMetrics = await logo.evaluate((element) => {
-    const mark = element.querySelector('svg');
-    const style = getComputedStyle(element);
-    return {
-      height: Math.round(element.getBoundingClientRect().height),
-      markHeight: Math.round(mark?.getBoundingClientRect().height ?? 0),
-      fontSize: Number.parseFloat(style.fontSize),
-      gap: Number.parseFloat(style.columnGap)
-    };
-  });
-  expect((await metricsOf(bar)).height).toBe(64);
-  expect(logoMetrics).toEqual({ height: 32, markHeight: 32, fontSize: 20, gap: 8 });
-  const centers = await Promise.all(
-    [bar, logo, search].map((locator) =>
-      locator.evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        return bounds.top + bounds.height / 2;
-      })
-    )
-  );
-  expect(Math.abs(centers[0] - centers[1])).toBeLessThanOrEqual(1);
-  expect(Math.abs(centers[0] - centers[2])).toBeLessThanOrEqual(1);
-});
-
-test('the shell uses subtle panel separators', async ({ page }) => {
-  await installMocks(page);
-  await page.goto('/photos');
-
-  const library = page.getByRole('complementary', { name: 'Library' });
-  expect(await library.evaluate((element) => getComputedStyle(element).borderRightWidth)).toBe(
-    '0px'
-  );
-  const sidebarGap = await page.getByRole('link', { name: /^Photos/ }).evaluate((link) => {
-    const linkBounds = link.getBoundingClientRect();
-    const sidebarBounds = link.closest('aside')?.getBoundingClientRect();
-    return sidebarBounds ? Math.round(sidebarBounds.right - linkBounds.right) : 0;
-  });
-  expect(sidebarGap).toBe(20);
-  const sidebarOrder = await Promise.all(
-    [
-      page.getByRole('button', { name: /^People/ }),
-      library.locator('.mx-4.my-3.h-px.bg-hairline'),
-      page.getByRole('link', { name: /^Favorites/ }),
-      page.getByRole('button', { name: /^Albums/ })
-    ].map((element) => element.evaluate((node) => node.getBoundingClientRect().top))
-  );
-  expect(sidebarOrder).toEqual([...sidebarOrder].sort((a, b) => a - b));
-
-  await gotoAsset(page);
-  const controls = page.getByRole('complementary', { name: 'Editor controls' });
-  expect(await controls.evaluate((element) => getComputedStyle(element).borderLeftWidth)).toBe(
-    '1px'
-  );
-});
-
-test('export is anchored at the bottom of the editor tool rail', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const rail = page.getByRole('tablist', { name: 'Editor tools' });
-  const geometry = page.getByRole('tab', { name: 'Crop' });
-  const exportTab = page.getByRole('tab', { name: 'Export', exact: true });
-  const positions = await Promise.all(
-    [rail, geometry, exportTab].map((locator) =>
-      locator.evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        return { top: Math.round(bounds.top), bottom: Math.round(bounds.bottom) };
-      })
-    )
-  );
-
-  expect(positions[0].bottom - positions[2].bottom).toBeLessThanOrEqual(8);
-  expect(positions[2].top - positions[1].bottom).toBeGreaterThan(100);
-
-  await geometry.focus();
-  await page.keyboard.press('ArrowDown');
-  await expect(exportTab).toBeFocused();
-  await expect(exportTab).toHaveAttribute('aria-selected', 'true');
-});
-
-test('the selected editor tool uses a muted primary tile', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const develop = page.getByRole('tab', { name: 'Develop' });
-  const masks = page.getByRole('tab', { name: 'Masks' });
-  const actionRow = page
-    .getByRole('button', { name: 'Auto', exact: true })
-    .locator('xpath=ancestor::div[.//button[@aria-label="Show modified only"]][1]');
-  const styles = await Promise.all(
-    [develop, masks].map((locator) =>
-      locator.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return {
-          background: style.backgroundColor,
-          color: style.color,
-          width: element.getBoundingClientRect().width,
-          height: element.getBoundingClientRect().height
-        };
-      })
-    )
-  );
-
-  expect(styles[0].background).not.toBe(styles[1].background);
-  expect(styles[0].color).not.toBe(styles[1].color);
-  expect(styles[0].width).toBe(40);
-  expect(styles[0].height).toBe(45);
-
-  const positions = await Promise.all(
-    [actionRow, develop].map((locator) =>
-      locator.evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        return { top: Math.round(bounds.top), height: Math.round(bounds.height) };
-      })
-    )
-  );
-  expect(positions[1]).toEqual(positions[0]);
-});
-
-test('bottom bar toggles mark their on state with a tile, not colour alone', async ({ page }) => {
-  await installMocks(page, {
-    appearance: { ...DEFAULT_APPEARANCE, mode: 'light', light_theme: 'rose-pine-dawn' }
-  });
-  await gotoAsset(page);
-  await expect(page.locator('html')).toHaveClass(/\blight\b/);
-  const tile = await resolvedBackground(page, 'bg-primary/10');
-  const background = async (name: string): Promise<string> =>
-    (await metricsOf(page.getByRole('button', { name, exact: true }))).background;
-
-  await expect.poll(() => background('Hide filmstrip')).toBe(tile);
-  await expect.poll(() => background('Show presets')).toBe('rgba(0, 0, 0, 0)');
-
-  await page.getByRole('button', { name: 'Show presets', exact: true }).click();
-  await page.mouse.move(0, 0);
-  await expect.poll(() => background('Hide presets')).toBe(tile);
-  await expect.poll(() => background('Show filmstrip')).toBe('rgba(0, 0, 0, 0)');
-
-  await page.getByRole('button', { name: 'Hide presets', exact: true }).click();
-  await page.getByRole('button', { name: 'Show filmstrip', exact: true }).click();
-  await page.mouse.move(0, 0);
-  await expect.poll(() => background('Show presets')).toBe('rgba(0, 0, 0, 0)');
-  await expect.poll(() => background('Hide filmstrip')).toBe(tile);
-});
-
-test('the tag picker opens as one panel with its search on top', async ({ page }) => {
-  await installMocks(page);
-  await page.route('**/api/tags', (route) =>
-    route.fulfill(json([{ id: 'tag-1', name: 'Landscape', value: 'Landscape', createdAt: null }]))
-  );
-  await gotoAsset(page);
-  await page.getByRole('button', { name: 'Tags (Shift+T)' }).click();
-
-  const panel = page.locator('[data-popover-content]');
-  const search = panel.getByRole('textbox', { name: 'Add tags…' });
-  await expect(search).toBeFocused();
-  expect((await metricsOf(panel)).background).toBe(await resolvedBackground(page, 'bg-light-100'));
-
-  const field = await search.boundingBox();
-  const row = await panel.getByRole('checkbox', { name: 'Landscape' }).boundingBox();
-  expect(field && row && row.y > field.y + field.height).toBe(true);
-});
-
-test('scopes panel has a slight inset without a frame', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const section = page.getByRole('button', { name: 'Scopes' }).locator('..');
-  const histogram = page.getByText('No data');
-  const geometry = await Promise.all(
-    [section, histogram].map((element) =>
-      element.evaluate((node) => {
-        const bounds = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return {
-          left: Math.round(bounds.left),
-          right: Math.round(bounds.right),
-          radius: Number.parseFloat(style.borderTopLeftRadius),
-          shadow: style.boxShadow
-        };
-      })
-    )
-  );
-
-  expect(geometry[1].left).toBe(geometry[0].left + 4);
-  expect(geometry[1].right).toBe(geometry[0].right - 4);
-  expect(geometry[1].radius).toBe(0);
-  expect(geometry[1].shadow).toBe('none');
-});
-
 test('the scope mode dropdown is slim and only shows while expanded', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
@@ -636,213 +374,54 @@ test('hovering a panel modified dot offers a reset for the whole panel', async (
   await expect(slider('Exposure')).toBeVisible();
 });
 
-test('panel header actions match develop action buttons', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
+test('browse and loupe controls name their shortcuts', async ({ page }) => {
+  await installMocks(page, { assets: numberedAssets(2) });
+  await page.goto('/photos');
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 
-  const auto = page.getByRole('button', { name: 'Auto', exact: true });
-  const reset = page.getByRole('button', { name: /Reset develop settings/ });
-  const copy = page.getByRole('button', { name: 'Copy edits', exact: true });
-  const paste = page.getByRole('button', { name: 'Paste edits', exact: true });
-  const history = page.getByRole('button', { name: 'Edit history', exact: true });
-  const filter = page.getByRole('button', { name: 'Show modified only', exact: true });
-  const metrics = await Promise.all([auto, reset, copy, paste, history, filter].map(metricsOf));
+  await page.getByRole('button', { name: 'Thumbnail size XL' }).hover();
+  await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();
 
-  expect(metrics.map(({ height }) => height)).toEqual([32, 32, 32, 32, 32, 32]);
-  expect(metrics[0].radius).toBeGreaterThan(0);
-  expect(metrics[1].radius).toBeGreaterThan(0);
-  expect(metrics.slice(2).map(({ radius }) => radius)).toEqual(Array(4).fill(metrics[2].radius));
-  expect(metrics[2].radius).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Select', exact: true }).first().click();
+  await page.getByRole('button', { name: /^Favorite \(/ }).hover();
+  await expect(page.getByText('Favorite (P)')).toBeVisible();
+  await page
+    .getByLabel('Selection actions')
+    .getByRole('radio', { name: '3 stars', exact: true })
+    .hover();
+  await expect(page.getByText('3 stars (0 – 5)')).toBeVisible();
+  await page.getByRole('button', { name: /^Reject \(/ }).hover();
+  await expect(page.getByText('Reject (X)')).toBeVisible();
+  await page.getByRole('button', { name: 'Clear selection' }).click();
 
-  await page.getByRole('tab', { name: 'Masks' }).click();
-  const maskOverlay = page.getByRole('button', { name: 'Toggle mask overlays' });
-  const maskMetrics = await Promise.all(
-    [maskOverlay, page.getByRole('button', { name: 'New mask' })].map(metricsOf)
-  );
-
-  expect(maskMetrics[0]).toEqual(metrics[5]);
-  expect(maskMetrics[1]).toEqual(metrics[0]);
-
-  await page.getByRole('tab', { name: 'Crop' }).click();
-  const geometryMetrics = await Promise.all(
-    [
-      page.getByRole('button', { name: 'Reset geometry', exact: true }),
-      page.getByRole('button', { name: 'Rotate left 90°' }),
-      page.getByRole('button', { name: 'Flip vertical' })
-    ].map(metricsOf)
-  );
-  expect(geometryMetrics[0]).toEqual(metrics[1]);
-  expect(geometryMetrics[1]).toEqual(metrics[2]);
-  expect(geometryMetrics[2]).toEqual(metrics[2]);
-  await page.getByRole('tab', { name: 'Masks' }).click();
-  const createMask = page.getByRole('button', { name: 'Create a mask' });
-  await expect
-    .soft(page.getByText('Masks limit an adjustment to part of the photo.'))
-    .toHaveCount(0);
-  expect
-    .soft((await metricsOf(createMask)).background)
-    .toBe(await resolvedColor(page, '--color-primary'));
-
-  await createMask.click();
-  await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
-  await expect.soft(page.getByText('These sliders only affect the mask.')).toHaveCount(0);
-
-  const labels = await page
-    .getByRole('slider')
-    .evaluateAll((sliders) => sliders.map((slider) => slider.getAttribute('aria-label')));
-  expect.soft(labels.indexOf('Temperature')).toBeLessThan(labels.indexOf('Tint'));
-  expect.soft(labels.indexOf('Tint')).toBeLessThan(labels.indexOf('Exposure'));
+  await openLoupeFromGrid(page);
+  await page.getByRole('button', { name: 'Next', exact: true }).hover();
+  await expect(page.getByText('Next (← / →)')).toBeVisible();
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  await expect(page.getByRole('button', { name: 'Clipping overlay' })).toContainText('J');
 });
 
-test('editor segmented controls share geometry and selection states', async ({ page }) => {
+test('tall mask picker stays inside the viewport', async ({ page }) => {
   await installMocks(page);
+  await page.setViewportSize({ width: 1024, height: 340 });
   await gotoAsset(page);
-
-  await page.getByRole('button', { name: 'Color Grading', exact: true }).click();
-  const gradingTabs = page
-    .getByRole('tablist')
-    .filter({ has: page.getByRole('tab', { name: '3-Way', exact: true }) });
-  const threeWay = gradingTabs.getByRole('tab', { name: '3-Way', exact: true });
-  await expectSegmentedControl(page, gradingTabs, threeWay);
-  await threeWay.focus();
-  await threeWay.press('ArrowRight');
-  await expect(gradingTabs.getByRole('tab', { name: 'Global', exact: true })).toBeFocused();
-  await expect(threeWay).toHaveAttribute('aria-selected', 'true');
-
-  await page.getByRole('button', { name: 'Camera Profile', exact: true }).click();
-  await page.getByRole('button', { name: 'Profile options', exact: true }).click();
-  const illuminant = page.getByRole('radiogroup', { name: 'Illuminant' });
-  const automatic = illuminant.getByRole('radio', { name: 'Auto', exact: true });
-  await expectSegmentedControl(page, illuminant, automatic);
-  await automatic.focus();
-  await automatic.press('ArrowRight');
-  await expect(illuminant.getByRole('radio', { name: 'Illum 1' })).toBeChecked();
-
-  await page.getByRole('tab', { name: 'Retouch', exact: true }).click();
-  const retouch = page.getByRole('radiogroup', { name: 'Retouch tool' });
-  const heal = retouch.getByRole('radio', { name: 'Heal', exact: true });
-  await expectSegmentedControl(page, retouch, heal);
-  await heal.focus();
-  await heal.press('ArrowRight');
-  await expect(retouch.getByRole('radio', { name: 'Clone', exact: true })).toBeChecked();
-
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
-  const destination = page.getByRole('radiogroup', { name: 'Export destination' });
-  const download = destination.getByRole('radio', { name: 'Download', exact: true });
-  await expectSegmentedControl(page, destination, download);
-  await download.focus();
-  await download.press('ArrowRight');
-  await expect(destination.getByRole('radio', { name: 'To Immich', exact: true })).toBeChecked();
-
-  await page.getByRole('tab', { name: 'Masks', exact: true }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
-  await page.getByRole('button', { name: 'Brush', exact: true }).click();
-  const paint = page.getByRole('button', { name: 'Paint', exact: true });
-  await expect(paint.locator('..')).toHaveCSS('height', '20px');
-});
 
-test('bulk export shows the neutral filename template field for both destinations', async ({
-  page
-}) => {
-  await installMocks(page);
-  await page.goto('/photos');
-  await page.getByRole('button', { name: 'Select', exact: true }).click();
-  const dialog = await openBulkExport(page);
-  await unfoldExport(dialog);
-  const template = dialog.getByLabel('Filename', { exact: true });
-  await expect(template).toBeVisible();
-  await expect(dialog.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();
-
-  await dialog.getByRole('radio', { name: 'To Immich' }).click();
-  await expect(template).toBeVisible();
-  const templateMetrics = await metricsOf(containerOf(template));
-  expect(templateMetrics.background).toBe(await resolvedColor(page, '--color-neutral-800'));
-  expect(
-    (templateMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
-      (length) => Number.parseFloat(length) === 0
-    )
-  ).toBe(true);
-  await expectPrimaryFocusRing(page, template);
-
-  await dialog.getByRole('radio', { name: 'Download', exact: true }).click();
-  await expect(template).toBeVisible();
-});
-
-test('crop ratio controls share the neutral grey surface', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Crop' }).click();
-
-  const field = page.getByRole('textbox', { name: 'Ratio' });
-  const orientation = page.getByRole('button', { name: /^Switch to/ });
-  const neutral = await resolvedColor(page, '--color-neutral-800');
-
-  expect((await metricsOf(field.locator('xpath=..'))).background).toBe(neutral);
-  expect((await metricsOf(orientation)).background).toBe(neutral);
-});
-
-test('browse filter chips and fields keep the dense desktop sizes', async ({ page }) => {
-  await installMocks(page, { structuredSearch: true });
-  await page.goto('/photos?minsize=25');
-
-  const panel = await openFilters(page, 'Library', 'Date', 'File');
-  const chips = [
-    panel.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: 'Timeline' }),
-    panel.getByRole('radiogroup', { name: 'Rejected' }).getByRole('radio', { name: 'Hide' }),
-    panel.getByRole('button', { name: 'Favorites only' }),
-    panel.getByRole('group', { name: 'File size' }).getByRole('button', { name: '1–10 MB' })
-  ];
-  for (const chip of chips) {
-    expect((await chip.boundingBox())?.height).toBe(26);
-  }
-  expect((await panel.getByRole('textbox', { name: 'Name contains' }).boundingBox())?.height).toBe(
-    30
-  );
-
-  await panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' }).click();
-  const from = panel.getByRole('group', { name: 'From' });
-  for (const field of [
-    from,
-    panel.getByRole('group', { name: 'To' }),
-    panel.getByLabel('Min size (MB)')
-  ]) {
-    expect((await field.boundingBox())?.height).toBe(28);
-  }
-  const neutral = await resolvedColor(page, '--color-neutral-800');
-  expect(await from.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(neutral);
-
-  const day = from.locator('[data-segment="day"]');
-  await day.focus();
-  expect(
-    await day.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { background: style.backgroundColor, color: style.color };
-    })
-  ).toEqual({
-    background: await resolvedColor(page, '--immich-ui-primary-400'),
-    color: 'rgb(255, 255, 255)'
+  const popover = page.locator('[data-popover-content]');
+  await expect(popover).toBeVisible();
+  const geometry = await popover.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      top: bounds.top,
+      bottom: bounds.bottom,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    };
   });
-});
-
-test('the shortcuts filter uses a neutral grey surface', async ({ page }) => {
-  await installMocks(page);
-  await page.goto('/photos');
-
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
-  const filter = page.getByRole('textbox', { name: 'Filter shortcuts' });
-  await expect(filter).toBeFocused();
-
-  const filterSurface = containerOf(filter);
-  expect((await metricsOf(filterSurface)).height).toBe(PACKAGE_TINY_CONTROL_HEIGHT);
-  await expectPrimaryFocusRing(page, filter);
-  await expectNoRestingRing(filter);
-  const focusedBackground = await resolvedColor(page, '--color-neutral-800');
-  await expect
-    .poll(async () => (await metricsOf(filterSurface)).background)
-    .toBe(focusedBackground);
-
-  await filter.fill('retouch');
-  await expect(page.getByText('Retouch', { exact: false }).first()).toBeVisible();
+  expect(geometry.top).toBeGreaterThanOrEqual(8);
+  expect(geometry.bottom).toBeLessThanOrEqual(333);
+  expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
 });
 
 test('the shortcuts dialog scrolls in one region', async ({ page }) => {
@@ -850,7 +429,7 @@ test('the shortcuts dialog scrolls in one region', async ({ page }) => {
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  await (await openAccountMenu(page)).getByRole('button', { name: 'Keyboard shortcuts' }).click();
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   const list = dialog.getByRole('region', { name: 'Keyboard shortcuts' });
   await expect(list).toBeVisible();

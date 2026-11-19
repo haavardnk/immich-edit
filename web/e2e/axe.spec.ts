@@ -1,6 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, DEFAULT_APPEARANCE, gotoAsset, installMocks, openFilters } from './helpers';
+import {
+  ASSET_ID,
+  DEFAULT_APPEARANCE,
+  gotoAsset,
+  installMocks,
+  openAccountMenu,
+  openFilters
+} from './helpers';
 import { openTileLoupe } from './touch';
 
 const IMPACTS = new Set(['serious', 'critical']);
@@ -128,7 +135,9 @@ test('open shared overlays stay accessible and inside the viewport', async ({ pa
   await installMocks(page);
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+  const menu = await openAccountMenu(page);
+  expect(await audit(page)).toEqual([]);
+  await menu.getByRole('button', { name: 'Keyboard shortcuts' }).click();
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   await expect(dialog).toBeVisible();
   expect(await audit(page)).toEqual([]);

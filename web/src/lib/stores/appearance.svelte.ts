@@ -70,10 +70,6 @@ class AppearanceStore {
     }));
   }
 
-  toggleMode(): void {
-    this.setMode(this.scheme === 'dark' ? 'light' : 'dark');
-  }
-
   useEditorChrome(on: boolean): void {
     this.#editorChrome = on;
     this.showScheme(this.scheme);

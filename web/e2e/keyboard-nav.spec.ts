@@ -18,8 +18,21 @@ test('the shortcuts dialog opens from the keyboard and returns focus on close', 
   await installMocks(page);
   await page.goto('/photos');
 
-  const trigger = page.getByRole('button', { name: 'Keyboard shortcuts' });
+  const trigger = page
+    .getByRole('navigation', { name: 'Global navigation' })
+    .getByRole('button', { name: 'Account', exact: true });
   await trigger.focus();
+  await page.keyboard.press('Enter');
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.activeElement?.closest('[data-popover-content]') !== null)
+    )
+    .toBe(true);
+  const row = page.locator('[data-popover-content]').getByRole('button', {
+    name: 'Keyboard shortcuts'
+  });
+  await row.focus();
+  await expect(row).toBeFocused();
   await page.keyboard.press('Enter');
 
   const filter = page.getByRole('textbox', { name: 'Filter shortcuts' });

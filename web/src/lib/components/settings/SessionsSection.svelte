@@ -1,42 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    listSessions,
-    revokeSession,
-    revokeAllSessions,
-    type SessionInfo
-  } from '#lib/api/account.ts';
+  import { signedInDevices } from '#lib/stores/signedInDevices.svelte.ts';
   import { formatWhen } from '#lib/utils/datetime.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { mdiLaptop, mdiLogoutVariant } from '@mdi/js';
   import { Badge, Icon, IconButton, LoadingSpinner, Text } from '@immich/ui';
 
-  let sessions = $state<SessionInfo[]>([]);
-  let loading = $state(false);
-
-  async function load(): Promise<void> {
-    loading = true;
-    try {
-      sessions = await listSessions();
-    } catch {
-      sessions = [];
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function revokeOne(id: string): Promise<void> {
-    await revokeSession(id);
-    await load();
-  }
-
-  async function revokeOthers(): Promise<void> {
-    await revokeAllSessions();
-    await load();
-  }
+  const sessions = $derived(signedInDevices.sessions);
+  const loading = $derived(signedInDevices.loading);
 
   onMount(() => {
-    void load();
+    void signedInDevices.load();
   });
 </script>
 
@@ -53,7 +27,7 @@
         icon={mdiLogoutVariant}
         title="Revoke all other sessions"
         aria-label="Revoke all other sessions"
-        onclick={() => void revokeOthers()}
+        onclick={() => void signedInDevices.revokeOthers()}
       />
     {/if}
   </div>
@@ -87,7 +61,7 @@
               icon={mdiLogoutVariant}
               title="Revoke session"
               aria-label={`Revoke session for ${s.user_agent || 'unknown device'}`}
-              onclick={() => void revokeOne(s.id)}
+              onclick={() => void signedInDevices.revoke(s.id)}
             />
           {/if}
         </li>
