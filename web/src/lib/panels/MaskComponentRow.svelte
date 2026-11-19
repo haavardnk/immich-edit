@@ -4,7 +4,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { maskHover } from '#lib/stores/editor/maskHover.svelte.ts';
   import type { MaskComponent, MaskComponentMode } from '#lib/types/edits.ts';
-  import { kindIcon, modeBadge, MODES } from './maskTools';
+  import { kindIcon, modeBadge, MODES, patchShape } from './maskTools';
   import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
@@ -46,8 +46,7 @@
   }
 
   function patch(patchValue: Partial<MaskComponent>): void {
-    editor.patchMaskComponent(layerId, comp.id, patchValue, false);
-    void editor.commitMasks();
+    patchShape(layerId, comp.id, patchValue);
   }
 
   function setMode(mode: MaskComponentMode): void {
@@ -65,7 +64,7 @@
   class="flex flex-col gap-1 rounded-md {lifted
     ? 'relative z-10 bg-light-200 shadow-popover'
     : reorder.active(layerId)
-      ? 'transition-[translate] duration-150'
+      ? 'transition-[translate] duration-fast'
       : ''}"
   onpointerenter={hover}
   onpointerleave={() => maskHover.leave(layerId, comp.id)}
@@ -115,7 +114,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="h-5 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-[11px] text-dark/65 hover:bg-transparent"
+      class="h-6 min-w-0 flex-1 justify-start truncate rounded-sm px-1 py-0 text-left text-caption text-dark/65 hover:bg-transparent"
       aria-pressed={isActive}
       onclick={() => editor.setActiveMaskComponent(isActive ? null : comp.id)}
     >
@@ -124,9 +123,8 @@
     {#if index === 0}
       <ElementTooltip text="The first shape starts the mask">
         {#snippet child({ props })}
-          <span
-            {...mergeProps(props, { tabindex: -1 })}
-            class="shrink-0 text-[9px] uppercase tracking-wider text-dark/65">Base</span
+          <span {...mergeProps(props, { tabindex: -1 })} class="section-label shrink-0 text-dark/65"
+            >Base</span
           >
         {/snippet}
       </ElementTooltip>
@@ -147,7 +145,7 @@
   {#if isActive}
     <div class="mx-1 flex min-h-7 items-center gap-1 px-2 pb-1">
       {#if index > 0}
-        <div class="{segmented.tool.group} flex text-[10px]">
+        <div class="{segmented.tool.group} flex text-micro">
           {#each MODES as m (m.value)}
             <IconButton
               size="tiny"

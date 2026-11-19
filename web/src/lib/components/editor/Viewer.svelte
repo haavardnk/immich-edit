@@ -43,6 +43,7 @@
   import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
   import { rangeSamplePill } from '#lib/panels/rangeSamplePill.ts';
   import RangeSampleSurface from './RangeSampleSurface.svelte';
+  import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
 
   let {
     ontap = () => {},
@@ -65,6 +66,7 @@
       maskOverlay.pill ??
       shapeWheel.pill ??
       brushErase.pill ??
+      paintInput.pill ??
       (editor.showingOriginal
         ? null
         : (editor.historySteps.pill ??
@@ -129,6 +131,7 @@
     apply: (next, change) => ui.applyView(next, change),
     zoomLevel: () => ui.zoomLevel,
     enabled: () => !editor.geometrySession,
+    paints: () => paintInput.fingersPaint,
     tap: () => ontap(),
     hold: { start: () => runCommand(holdOriginal), end: () => holdOriginal.release() },
     adjust: () => adjust()

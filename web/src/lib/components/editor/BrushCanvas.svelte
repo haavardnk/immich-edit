@@ -2,6 +2,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { type MaskComponent, type MaskLayer } from '#lib/types/edits.ts';
+  import { paintsWithBrush } from '#lib/types/masks.ts';
   import {
     bufferToImageData,
     maskOverlayRgb,
@@ -19,15 +20,19 @@
   import { BRUSH_HARDNESS, BRUSH_SIZE } from '#lib/editor/params/brush.ts';
   import { brushWheel } from '#lib/utils/brushSize.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
-  import { elementPoint } from '#lib/gestures/point.ts';
+  import { elementPoint, normalizedPoint } from '#lib/gestures/point.ts';
   import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
   import { isAnyModalOpen } from '#lib/stores/overlays.ts';
+  import { paintInput, SECOND_FINGER_MS } from '#lib/stores/editor/paintInput.svelte.ts';
+  import TouchMagnifier from './TouchMagnifier.svelte';
 
   let {
     img
   }: {
     img: PreviewSurface | null;
   } = $props();
+
+  const MAGNIFY = 2;
 
   const rect = imageRect(() => img);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
@@ -36,6 +41,10 @@
   let lastPx: number | null = null;
   let lastPy: number | null = null;
   let erasing = false;
+  let strokePointer: number | null = null;
+  let strokeStartedAt = 0;
+  let snapshot: Uint8Array | null = null;
+  let finger = $state<{ u: number; v: number } | null>(null);
 
   const view = $derived(viewTransform(editor.edits, editor.meta ?? null, editor.lensView));
 
@@ -52,6 +61,7 @@
       : null
   );
   const isBrush = $derived(!!activeComp && activeComp.kind.kind === 'brush');
+  const paints = $derived(!!activeComp && paintsWithBrush(activeComp));
   const ringRadius = $derived(editor.brushTool.size * 0.5 * Math.min(rect.w, rect.h));
   const show = $derived(isBrush && rect.w > 0 && rect.h > 0);
 
@@ -202,12 +212,10 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  async function stampWhenLoaded(
-    e: PointerEvent,
-    id: string,
-    rasterId: string | null
-  ): Promise<void> {
-    await editor.ensureBrushBuffer(id, rasterId);
+  async function beginStroke(e: PointerEvent, id: string, rasterId: string | null): Promise<void> {
+    const buf = await editor.ensureBrushBuffer(id, rasterId);
+    if (!strokeActive) return;
+    snapshot = buf.bytes.slice();
     stampAt(e);
   }
 
@@ -215,17 +223,30 @@
     hover = elementPoint(e, e.currentTarget as Element);
   }
 
+  function trackFinger(e: PointerEvent): void {
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    const at = normalizedPoint(e, e.currentTarget as Element);
+    finger = { u: at.x, v: at.y };
+  }
+
   const stroke = pointerDrag<true>({
     start(e) {
-      if (!activeComp || activeComp.kind.kind !== 'brush' || !active || e.button !== 0) return null;
+      if (!activeComp || !paints || activeComp.kind.kind !== 'brush' || !active || e.button !== 0)
+        return null;
+      if (!paintInput.paints(e.pointerType)) return null;
       e.preventDefault();
       e.stopPropagation();
       strokeActive = true;
+      strokePointer = e.pointerId;
+      strokeStartedAt = e.timeStamp;
       erasing = brushErase.mode(editor.brushTool.mode, e) === 'erase';
       lastPx = null;
       lastPy = null;
+      snapshot = null;
+      paintInput.begin(e.pointerType);
+      trackFinger(e);
       editor.beginMaskStroke();
-      void stampWhenLoaded(e, activeComp.id, activeComp.kind.raster_id);
+      void beginStroke(e, activeComp.id, activeComp.kind.raster_id);
       return true;
     },
     hover: trackHover,
@@ -233,9 +254,22 @@
       trackHover(e);
       if (!strokeActive) return;
       stampAt(e);
+      trackFinger(e);
     },
-    end: () => void finishStroke()
+    end: () => void finishStroke(),
+    cancel: () => void finishStroke()
   });
+
+  const handlers = stroke.on();
+
+  function onPointerDown(e: PointerEvent): void {
+    if (strokeActive && e.pointerType === 'touch' && e.pointerId !== strokePointer) {
+      if (e.timeStamp - strokeStartedAt <= SECOND_FINGER_MS) dropStroke();
+      else void finishStroke();
+      return;
+    }
+    handlers.onpointerdown(e);
+  }
 
   function onWheel(e: WheelEvent): void {
     brushWheel(
@@ -252,15 +286,38 @@
   }
 
   $effect(() => {
-    if (!show) brushErase.release();
-    return () => brushErase.release();
+    if (!show) {
+      brushErase.release();
+      paintInput.reset();
+    }
+    return () => {
+      brushErase.release();
+      paintInput.reset();
+    };
   });
+
+  function settle(): void {
+    strokeActive = false;
+    strokePointer = null;
+    lastPx = null;
+    lastPy = null;
+    finger = null;
+    paintInput.end();
+  }
+
+  function dropStroke(): void {
+    if (!strokeActive) return;
+    const buf = activeComp ? editor.brushBuffers[activeComp.id] : undefined;
+    if (buf && snapshot && snapshot.length === buf.bytes.length) buf.bytes.set(snapshot);
+    snapshot = null;
+    settle();
+    editor.endMaskStroke();
+  }
 
   async function finishStroke(): Promise<void> {
     if (!strokeActive) return;
-    strokeActive = false;
-    lastPx = null;
-    lastPy = null;
+    settle();
+    snapshot = null;
     if (!active || !activeComp) {
       editor.endMaskStroke();
       return;
@@ -281,12 +338,31 @@
     bind:this={canvasEl}
     class="absolute"
     style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px; touch-action: none; cursor: crosshair;"
-    {...stroke.on()}
+    class:pointer-events-none={!paints}
+    {...handlers}
+    onpointerdown={onPointerDown}
     onpointerleave={() => (hover = null)}
-    onwheel={onWheel}
+    onwheel={paints ? onWheel : undefined}
     data-testid="brush-canvas"
+    data-photo-layer
   ></canvas>
-  {#if hover}
+  {#if finger && img}
+    <div
+      class="pointer-events-none absolute"
+      style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
+    >
+      <TouchMagnifier
+        source={img}
+        u={finger.u}
+        v={finger.v}
+        width={rect.w}
+        zoom={MAGNIFY}
+        overlay={canvasEl}
+        ring={ringRadius * 2 * MAGNIFY}
+      />
+    </div>
+  {/if}
+  {#if hover && paints}
     <div
       class="pointer-events-none absolute rounded-full border border-white/90 shadow-[0_0_0_1px_rgb(0_0_0/0.55)]"
       style="left: {rect.x + hover.x - ringRadius}px; top: {rect.y +
