@@ -6,6 +6,7 @@ import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { openDevelopPanels, SCOPES_PANEL } from './registry';
+import { desktopSections } from '#lib/stores/developSections.svelte.ts';
 
 export function setDevelopPanel(id: string, open: boolean): void {
   const next = openDevelopPanels(ui.developOpenPanels);
@@ -26,6 +27,7 @@ export function revealDevelopSetting(setting: Setting): void {
   if (ui.developModifiedOnly && !modifiedDevelopPanels(editor.edits).has(setting.panel)) {
     ui.developModifiedOnly = false;
   }
+  if (desktopSections.isHidden(setting.panel)) desktopSections.revealed = setting.panel;
   setDevelopPanel(setting.panel, true);
   void revealSetting(setting.id, { focus: true, fallback: `[data-panel="${setting.panel}"]` });
 }

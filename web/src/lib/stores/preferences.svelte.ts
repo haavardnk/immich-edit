@@ -1,4 +1,6 @@
 import { getPreferences, patchPreferences, type Preferences } from '#lib/api/preferences.ts';
+import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
+import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export const DEFAULT_PINNED_SETTINGS: readonly string[] = [
@@ -11,10 +13,15 @@ export const DEFAULT_PINNED_SETTINGS: readonly string[] = [
 ];
 export const MAX_PINNED_SETTINGS = 64;
 
-class PreferencesStore {
+type Field = keyof Preferences;
+
+class PreferencesStore implements Preferences {
   pinnedSettings = $state.raw<readonly string[] | null>(null);
+  shortcuts = $state.raw<ShortcutMap>({});
+  desktopSections = $state.raw<readonly SectionEntry[] | null>(null);
+  touchSubviews = $state.raw<readonly SectionEntry[] | null>(null);
   pinsKnown = $state(false);
-  #pinsChosen = false;
+  #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
 
   get pins(): readonly string[] {
@@ -26,14 +33,28 @@ class PreferencesStore {
     const remote = await getPreferences().catch(() => null);
     this.pinsKnown = true;
     if (!remote) return;
-    if (!this.#pinsChosen) this.pinnedSettings = remote.pinnedSettings;
+    if (!this.#chosen.has('pinnedSettings')) this.pinnedSettings = remote.pinnedSettings;
+    if (!this.#chosen.has('shortcuts')) this.shortcuts = remote.shortcuts;
+    if (!this.#chosen.has('desktopSections')) this.desktopSections = remote.desktopSections;
+    if (!this.#chosen.has('touchSubviews')) this.touchSubviews = remote.touchSubviews;
   }
 
   reset(): void {
-    this.#pinsChosen = false;
+    this.#chosen.clear();
     this.pinnedSettings = null;
+    this.shortcuts = {};
+    this.desktopSections = null;
+    this.touchSubviews = null;
     this.pinsKnown = false;
   }
+
+  setShortcuts = (next: ShortcutMap): Promise<void> => this.#write('shortcuts', next);
+
+  setDesktopSections = (next: readonly SectionEntry[] | null): Promise<void> =>
+    this.#write('desktopSections', next);
+
+  setTouchSubviews = (next: readonly SectionEntry[] | null): Promise<void> =>
+    this.#write('touchSubviews', next);
 
   isPinned = (id: string): boolean => this.pins.includes(id);
 
@@ -48,13 +69,27 @@ class PreferencesStore {
   };
 
   #setPins(next: readonly string[]): Promise<void> {
-    const previous = this.pinnedSettings;
-    this.#pinsChosen = true;
     this.pinsKnown = true;
-    this.pinnedSettings = next;
-    return this.#save({ pinnedSettings: [...next] }, () => {
-      if (this.pinnedSettings === next) this.pinnedSettings = previous;
+    return this.#write('pinnedSettings', next);
+  }
+
+  #write<K extends Field>(field: K, value: Preferences[K]): Promise<void> {
+    const previous = this.#read(field);
+    this.#chosen.add(field);
+    this.#assign(field, value);
+    const patch: Partial<Preferences> = {};
+    patch[field] = value;
+    return this.#save(patch, () => {
+      if (this.#read(field) === value) this.#assign(field, previous);
     });
+  }
+
+  #read<K extends Field>(field: K): Preferences[K] {
+    return (this as Preferences)[field];
+  }
+
+  #assign<K extends Field>(field: K, value: Preferences[K]): void {
+    (this as Preferences)[field] = value;
   }
 
   #save(patch: Partial<Preferences>, rollback: () => void): Promise<void> {

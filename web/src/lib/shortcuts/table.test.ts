@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CONTEXT_STACKS } from './context';
+import { CONTEXT_STACKS } from './stacks';
 import { matchKeybind } from './match';
 import { KEYBINDS, type Keybind } from './table';
 

@@ -24,7 +24,12 @@ afterEach(() => {
 describe('preferences api', () => {
   it('reads the pins and drops stray entries', async () => {
     stubFetch({ pinned_settings: ['exposure', 3], shortcuts: {} });
-    await expect(getPreferences()).resolves.toEqual({ pinnedSettings: ['exposure'] });
+    await expect(getPreferences()).resolves.toEqual({
+      pinnedSettings: ['exposure'],
+      shortcuts: {},
+      desktopSections: null,
+      touchSubviews: null
+    });
   });
 
   it('treats missing pins as the default', async () => {
@@ -36,5 +41,33 @@ describe('preferences api', () => {
     const fetch = stubFetch({ pinned_settings: [] });
     await patchPreferences({ pinnedSettings: [] });
     expect(fetch.sent()).toEqual({ method: 'PATCH', body: { pinned_settings: [] } });
+  });
+
+  it('reads shortcuts and section lists, dropping malformed entries', async () => {
+    stubFetch({
+      pinned_settings: null,
+      shortcuts: { undo: ['Mod+y', 4], redo: 'Mod+Shift+y' },
+      desktop_sections: [{ id: 'lut', hidden: true }, { hidden: true }, 'basic'],
+      touch_subviews: null
+    });
+    await expect(getPreferences()).resolves.toMatchObject({
+      shortcuts: { undo: ['Mod+y'] },
+      desktopSections: [{ id: 'lut', hidden: true }],
+      touchSubviews: null
+    });
+  });
+
+  it('patches shortcuts and section lists under their wire names', async () => {
+    const fetch = stubFetch({});
+    await patchPreferences({
+      shortcuts: { undo: [] },
+      desktopSections: null,
+      touchSubviews: [{ id: 'light.tone', hidden: true }]
+    });
+    expect(fetch.sent().body).toEqual({
+      shortcuts: { undo: [] },
+      desktop_sections: null,
+      touch_subviews: [{ id: 'light.tone', hidden: true }]
+    });
   });
 });

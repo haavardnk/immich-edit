@@ -10,6 +10,7 @@ export interface Keybind {
   readonly group: string;
   readonly label: string;
   readonly display?: string | ((mac: boolean) => string);
+  readonly fixed?: boolean;
 }
 
 export const KEYBINDS = [
@@ -31,6 +32,7 @@ export const KEYBINDS = [
 
   {
     id: 'rate',
+    fixed: true,
     keys: ['0', '1', '2', '3', '4', '5'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
     group: 'Culling',
@@ -39,6 +41,7 @@ export const KEYBINDS = [
   },
   {
     id: 'rateAdvance',
+    fixed: true,
     keys: [
       'Shift+Digit0',
       'Shift+Digit1',
@@ -75,6 +78,7 @@ export const KEYBINDS = [
   },
   {
     id: 'label',
+    fixed: true,
     keys: ['6', '7', '8', '9'],
     contexts: ['grid', 'loupe', 'compare', 'survey', 'editor'],
     group: 'Culling',
@@ -91,6 +95,7 @@ export const KEYBINDS = [
 
   {
     id: 'gridMove',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'],
     contexts: ['grid'],
     group: 'Grid',
@@ -98,6 +103,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridExtend',
+    fixed: true,
     keys: [
       'Shift+ArrowLeft',
       'Shift+ArrowRight',
@@ -116,6 +122,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridEdge',
+    fixed: true,
     keys: ['Home', 'End'],
     contexts: ['grid'],
     group: 'Grid',
@@ -123,6 +130,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridPage',
+    fixed: true,
     keys: ['PageUp', 'PageDown'],
     contexts: ['grid'],
     group: 'Grid',
@@ -130,6 +138,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridSize',
+    fixed: true,
     keys: ['-', '_', '=', '+'],
     contexts: ['grid'],
     group: 'Grid',
@@ -167,6 +176,7 @@ export const KEYBINDS = [
   },
   {
     id: 'gridClearSelection',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['grid'],
     group: 'Grid',
@@ -235,6 +245,7 @@ export const KEYBINDS = [
 
   {
     id: 'loupeNav',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -242,6 +253,7 @@ export const KEYBINDS = [
   },
   {
     id: 'zoomPan',
+    fixed: true,
     keys: ['Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
     group: 'Loupe',
@@ -249,6 +261,7 @@ export const KEYBINDS = [
   },
   {
     id: 'loupeEdge',
+    fixed: true,
     keys: ['Home', 'End'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -277,6 +290,7 @@ export const KEYBINDS = [
   },
   {
     id: 'recentTag',
+    fixed: true,
     keys: [
       'Alt+Digit1',
       'Alt+Digit2',
@@ -301,6 +315,7 @@ export const KEYBINDS = [
   },
   {
     id: 'loupeClose',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['loupe'],
     group: 'Loupe',
@@ -309,6 +324,7 @@ export const KEYBINDS = [
 
   {
     id: 'compareFocus',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['compare'],
     group: 'Compare',
@@ -316,6 +332,7 @@ export const KEYBINDS = [
   },
   {
     id: 'paneFocusCycle',
+    fixed: true,
     keys: ['Tab', 'Shift+Tab'],
     contexts: ['compare', 'survey'],
     group: 'Compare',
@@ -323,6 +340,7 @@ export const KEYBINDS = [
   },
   {
     id: 'paneSwap',
+    fixed: true,
     keys: ['Alt+ArrowLeft', 'Alt+ArrowRight'],
     contexts: ['compare', 'survey'],
     group: 'Compare',
@@ -358,6 +376,7 @@ export const KEYBINDS = [
   },
   {
     id: 'compareExit',
+    fixed: true,
     keys: ['e', 'Escape'],
     contexts: ['compare'],
     group: 'Compare',
@@ -366,6 +385,7 @@ export const KEYBINDS = [
 
   {
     id: 'surveyFocus',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'],
     contexts: ['survey'],
     group: 'Survey',
@@ -380,6 +400,7 @@ export const KEYBINDS = [
   },
   {
     id: 'surveyExit',
+    fixed: true,
     keys: ['e', 'Escape'],
     contexts: ['survey'],
     group: 'Survey',
@@ -452,6 +473,7 @@ export const KEYBINDS = [
 
   {
     id: 'editorNav',
+    fixed: true,
     keys: ['ArrowLeft', 'ArrowRight'],
     contexts: ['editor'],
     group: 'Editor',
@@ -621,6 +643,7 @@ export const KEYBINDS = [
   },
   {
     id: 'editorEscape',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['editor'],
     group: 'Editor',
@@ -804,6 +827,7 @@ export const KEYBINDS = [
   },
   {
     id: 'maskNudge',
+    fixed: true,
     keys: [
       'ArrowUp',
       'ArrowDown',
@@ -867,6 +891,7 @@ export const KEYBINDS = [
   },
   {
     id: 'maskCancelDraw',
+    fixed: true,
     keys: ['Escape'],
     contexts: ['masks'],
     group: 'Masks',
@@ -881,6 +906,7 @@ export const KEYBINDS = [
   },
   {
     id: 'brushSize',
+    fixed: true,
     keys: ['[', ']'],
     contexts: ['masks', 'retouch'],
     group: 'Masks',
@@ -888,6 +914,7 @@ export const KEYBINDS = [
   },
   {
     id: 'brushHardness',
+    fixed: true,
     keys: ['{', '}'],
     contexts: ['masks', 'retouch'],
     group: 'Masks',
