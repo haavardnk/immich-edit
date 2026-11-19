@@ -245,7 +245,7 @@ test('an accent recolours primary, the logo and the favicon but not on-photo str
     .toEqual({ ...DEFAULT_APPEARANCE, accents: { dark: 'teal' } });
 
   await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Geometry' }).click();
+  await page.getByRole('tab', { name: 'Crop' }).click();
   await page.getByRole('button', { name: 'Corner handles' }).click();
   const handle = page.getByRole('button', { name: 'perspective corner 1' });
   await expect(handle).toBeVisible();

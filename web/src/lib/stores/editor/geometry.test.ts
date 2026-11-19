@@ -188,8 +188,8 @@ describe('live geometry', () => {
     ['a crop dragged back to full', { x: -0.2, y: -0.1, w: 1.5, h: 1.3 }, true]
   ])('treats %s as default: %s', (_name, crop, want) => {
     const c = session();
-    updateDraftCrop(c, { x: 0.1, y: 0.1, w: 0.5, h: 0.5 });
-    updateDraftCrop(c, crop);
+    updateDraftCrop(c, { x: 0.1, y: 0.1, w: 0.5, h: 0.5 }, false);
+    updateDraftCrop(c, crop, false);
     const sess = c.geometrySession;
     if (!sess) throw new Error('no session');
     expect(cropIsDefault(sess)).toBe(want);

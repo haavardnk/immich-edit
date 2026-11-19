@@ -26,7 +26,7 @@
   const inputClass = $derived(
     `[&_input]:caret-primary ${
       color === 'neutral'
-        ? 'bg-light-200! transition-colors hover:bg-light-300! focus-within:bg-light-200!'
+        ? 'bg-light-200! ring-0 transition-colors hover:bg-light-300! focus-within:bg-light-200! focus-within:ring-1 focus-within:ring-primary'
         : color === 'primary'
           ? 'bg-gray-100! dark:bg-gray-800! transition-colors hover:bg-gray-200! dark:hover:bg-gray-700! focus-within:bg-primary/10! dark:focus-within:bg-primary/10!'
           : 'focus-within:bg-primary/10!'
