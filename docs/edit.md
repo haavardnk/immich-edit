@@ -261,6 +261,15 @@ leaving the tool. The tool stays open until you pick another one.
   the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
   leaves your develop settings alone.
 
+On a phone or tablet, **Crop** shows a dial under the photo for **Straighten**, **Vertical**,
+**Horizontal** and **Aspect**: drag it sideways, and touch and hold the selected chip to see the
+photo without that setting. The row below it picks the aspect ratio, rotates, flips, turns on
+**Level**, **Upright** or **Corners**, and resets the geometry; **Custom…** in the ratio list opens
+a keypad for width and height, and **More** holds rotate right, flip vertical, the crop guide and
+**Reset crop**. After each
+change the view zooms to fit the crop, and while you draw an upright line a magnifier shows the
+photo under your finger.
+
 ## Reuse edits
 
 **Copy edits** (`Ctrl+C`) opens **Copy settings**, where you check what to copy. Each Develop

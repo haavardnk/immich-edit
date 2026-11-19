@@ -34,6 +34,7 @@
   import { scopes } from '#lib/stores/scopes.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { cropReadout } from '#lib/panels/geometry/cropReadout.ts';
+  import { cropExit } from '#lib/editor/cropExit.svelte.ts';
   import type { Snippet } from 'svelte';
 
   let {
@@ -177,7 +178,7 @@
         frame={editor.previewFrame}
         alt={editor.asset?.originalFileName ?? ''}
         class="max-h-none max-w-none select-none object-contain {imageEdge}"
-        style={baseStyle}
+        style={baseStyle + cropExit.transform}
         testid="preview-image"
         onsize={measured}
       />
