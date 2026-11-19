@@ -14,6 +14,10 @@ class EditedThumbsStore {
     return this.map.get(id)?.hash;
   }
 
+  has(id: string): boolean {
+    return this.map.has(id);
+  }
+
   getRevision(id: string): string {
     return this.map.get(id)?.revision || this.revision;
   }

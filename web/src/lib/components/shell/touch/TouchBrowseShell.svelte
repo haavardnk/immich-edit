@@ -19,15 +19,15 @@
   });
 
   $effect(() => {
-    document.documentElement.style.setProperty(
-      '--chrome-bottom',
-      touchBars.hidden ? 'var(--safe-bottom)' : TAB_BAR_BOTTOM
-    );
+    const root = document.documentElement.style;
+    root.setProperty('--chrome-bottom', touchBars.hidden ? 'var(--safe-bottom)' : TAB_BAR_BOTTOM);
+    root.setProperty('--chrome-inset', touchBars.hidden ? 'var(--safe-bottom)' : '0px');
   });
 
   onDestroy(() => {
     accountDrawer.close();
     document.documentElement.style.removeProperty('--chrome-bottom');
+    document.documentElement.style.removeProperty('--chrome-inset');
   });
 </script>
 

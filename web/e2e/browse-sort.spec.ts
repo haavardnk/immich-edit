@@ -275,10 +275,9 @@ test('edited view counts and steps through only the photos a filter keeps', asyn
   await expect(page.getByText('2 photos', { exact: true })).toBeVisible();
 
   await page.getByLabel('Quick review').first().click();
-  await expect(page.getByText('1 of 2', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
-  await expect(page.getByText('2 of 2', { exact: true })).toBeVisible();
 });
 
 test('folder view counts only the photos a filter keeps', async ({ page }) => {

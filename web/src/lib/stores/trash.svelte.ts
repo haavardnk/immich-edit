@@ -13,6 +13,7 @@ import {
 import { browseView } from './browseView.svelte';
 import { browsing, type Removal } from './browsing.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';
+import { monthCounts } from './monthCounts.svelte';
 import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
 
@@ -37,6 +38,7 @@ function dropFromView(ids: ReadonlySet<string>): Removal {
   const active = browseView.activeId;
   if (active && ids.has(active)) browseView.setActive(neighbourOf(active, ids));
   selection.forget(ids);
+  monthCounts.invalidate();
   return browsing.removeMany(ids);
 }
 
@@ -158,6 +160,7 @@ class TrashStore {
   private async restore(ids: string[], removal: Removal): Promise<void> {
     const { done, error } = await inChunks(ids, restoreAssets);
     const restored = new Set(done);
+    if (done.length > 0) monthCounts.invalidate();
     browsing.reinsert(removal, (asset) => restored.has(sourceId(asset.id)));
     if (error) {
       toasts.fail('Restore from trash', error);

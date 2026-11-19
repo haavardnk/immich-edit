@@ -1,20 +1,13 @@
 import { openInEditor } from '#lib/browse/loupeActions.ts';
 import { paneColumns } from '#lib/browse/loupeLayout.ts';
-import { openLastLoupe, selectViewMode, stepLoupe } from '#lib/browse/loupeNav.ts';
+import { openFirstLoupe, openLastLoupe, selectViewMode, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { loupeCommand } from '#lib/commands/loupe/context.ts';
 import type { Command, CommandTrigger } from '#lib/commands/types.ts';
-import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { compare, type CompareMode } from '#lib/stores/compare.svelte.ts';
 import { mdiCompare, mdiImageOutline, mdiPencilOutline, mdiViewGridOutline } from '@mdi/js';
 
 function toEdge(trigger?: CommandTrigger): void {
-  if (trigger?.key === 'Home') {
-    const first = browsing.visible[0];
-    if (first) browseView.openLoupe(first.id);
-    return;
-  }
-  void openLastLoupe();
+  void (trigger?.key === 'Home' ? openFirstLoupe() : openLastLoupe());
 }
 
 function surveyStep(key: string): number {

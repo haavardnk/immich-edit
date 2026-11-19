@@ -4,6 +4,7 @@
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { openFilterPanel } from '#lib/browse/filterPanel.ts';
+  import { clickOrigin, resizeGrid } from '#lib/browse/gridResize.ts';
   import { EDIT_SORT_ICONS, EDIT_SORT_LABELS } from '#lib/browse/sortOptions.ts';
   import { GRID_SIZE_OPTIONS, tileInfoLabel } from '#lib/browse/viewOptions.ts';
   import { Button, IconButton } from '@immich/ui';
@@ -29,7 +30,7 @@
       title={hint(opt.title, 'gridSize')}
       aria-label={opt.title}
       aria-pressed={browseView.gridSize === opt.value}
-      onclick={() => browseView.setGridSize(opt.value)}
+      onclick={(e: MouseEvent) => resizeGrid(opt.value, clickOrigin(e))}
     >
       {opt.label}
     </Button>

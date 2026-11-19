@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { gridRowHeight, gridRowTolerance } from '#lib/browse/gridSizes.ts';
 import {
   createAssetGridLayout,
   verticalAssetIndex,
@@ -27,7 +28,8 @@ describe('createAssetGridLayout', () => {
       [asset(6000, 4000), asset(3000, 4500), asset(4000, 4000), asset(8000, 3000)],
       800,
       180,
-      4
+      4,
+      0.5
     );
 
     expect(layout.boxes).toHaveLength(4);
@@ -38,21 +40,54 @@ describe('createAssetGridLayout', () => {
     expect(layout.rows.every((row) => row.endIndex > row.startIndex)).toBe(true);
   });
 
+  it.each([
+    ['sm', 5],
+    ['md', 3],
+    ['lg', 2]
+  ] as const)('keeps phone %s rows of mixed photos near their height', (size, across) => {
+    const shapes = [asset(6000, 4000), asset(4000, 6000), asset(4000, 3000), asset(4000, 4000)];
+    const assets = Array.from({ length: 12 }, () => shapes).flat();
+    const target = gridRowHeight(size, { mode: 'touch', phone: true });
+    const layout = createAssetGridLayout(assets, 396, target, 4, gridRowTolerance(true));
+    const full = layout.rows.slice(0, -1);
+
+    for (const row of full) {
+      expect(row.height).toBeGreaterThanOrEqual(target * 0.8);
+      expect(row.height).toBeLessThanOrEqual(target * 1.3);
+    }
+    expect(Math.min(...full.map((row) => row.endIndex - row.startIndex))).toBeGreaterThanOrEqual(
+      across
+    );
+  });
+
+  it.each([
+    ['lg', 2],
+    ['xl', 1]
+  ] as const)('fits phone %s landscape rows %i across on an iPhone', (size, across) => {
+    const assets = Array.from({ length: 6 }, () => asset(6000, 4000));
+    const target = gridRowHeight(size, { mode: 'touch', phone: true });
+    const layout = createAssetGridLayout(assets, 377, target, 4, gridRowTolerance(true));
+
+    expect(layout.rows.map((row) => row.endIndex - row.startIndex)).toEqual(
+      Array.from({ length: 6 / across }, () => across)
+    );
+  });
+
   it('uses a landscape fallback for missing and invalid dimensions', () => {
-    const layout = createAssetGridLayout([asset(null, null), asset(0, 4000)], 800, 180, 4);
+    const layout = createAssetGridLayout([asset(null, null), asset(0, 4000)], 800, 180, 4, 0.5);
 
     expect(ratio(layout, 0)).toBeCloseTo(1.5);
     expect(ratio(layout, 1)).toBeCloseTo(1.5);
   });
 
   it('swaps dimensions for rotated EXIF orientations', () => {
-    const layout = createAssetGridLayout([asset(6000, 4000, '6')], 800, 180, 4);
+    const layout = createAssetGridLayout([asset(6000, 4000, '6')], 800, 180, 4, 0.5);
 
     expect(ratio(layout, 0)).toBeCloseTo(2 / 3);
   });
 
   it('returns empty geometry before the grid has a measurable width', () => {
-    expect(createAssetGridLayout([asset(6000, 4000)], 0, 180, 4)).toEqual({
+    expect(createAssetGridLayout([asset(6000, 4000)], 0, 180, 4, 0.5)).toEqual({
       boxes: [],
       rows: [],
       height: 0
@@ -61,7 +96,7 @@ describe('createAssetGridLayout', () => {
 
   it('returns complete rows around the viewport', () => {
     const assets = Array.from({ length: 20 }, () => asset(6000, 4000));
-    const layout = createAssetGridLayout(assets, 800, 120, 4);
+    const layout = createAssetGridLayout(assets, 800, 120, 4, 0.5);
     const secondRow = layout.rows[1]!;
     const range = visibleAssetRange(layout, secondRow.top, secondRow.top + secondRow.height, 0);
 
@@ -73,7 +108,8 @@ describe('createAssetGridLayout', () => {
       [asset(6000, 4000), asset(3000, 4500), asset(8000, 3000), asset(4000, 4000)],
       500,
       140,
-      4
+      4,
+      0.5
     );
     const sourceIndex = layout.rows[0]!.endIndex - 1;
     const targetIndex = verticalAssetIndex(layout, sourceIndex, 1);

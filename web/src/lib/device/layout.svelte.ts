@@ -54,6 +54,10 @@ class LayoutStore {
     return this.#resolved.compact;
   }
 
+  get phone(): boolean {
+    return this.#resolved.phone;
+  }
+
   get hasKeyboard(): boolean {
     return this.#hasKeyboard;
   }

@@ -13,6 +13,7 @@ export interface Layout {
   wide: boolean;
   landscape: boolean;
   compact: boolean;
+  phone: boolean;
 }
 
 export const LAYOUT_CHOICES: readonly LayoutChoice[] = ['auto', 'desktop', 'touch'];
@@ -31,10 +32,13 @@ function autoMode(width: number, height: number, coarse: boolean): LayoutMode {
 export function resolveLayout({ width, height, coarse, choice }: LayoutInput): Layout {
   const mode = choice === 'auto' ? autoMode(width, height, coarse) : choice;
   const landscape = width > height;
-  const wide =
-    mode === 'touch' &&
-    landscape &&
-    width >= WIDE_MIN_WIDTH &&
-    Math.min(width, height) >= WIDE_SHORT_SIDE;
-  return { mode, wide, landscape, compact: mode === 'touch' && !wide };
+  const tabletSized = Math.min(width, height) >= WIDE_SHORT_SIDE;
+  const wide = mode === 'touch' && landscape && width >= WIDE_MIN_WIDTH && tabletSized;
+  return {
+    mode,
+    wide,
+    landscape,
+    compact: mode === 'touch' && !wide,
+    phone: mode === 'touch' && !tabletSized
+  };
 }

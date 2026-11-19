@@ -20,10 +20,11 @@ function navigate(id: string, delta: number): void {
     openInEditor(target.id);
     return;
   }
-  if (delta < 0) return;
-  void browsing.requestMore().then((loaded) => {
-    const after = loaded && page.params.id === id ? browsing.nextOf(id) : null;
-    if (after) openInEditor(after.id);
+  const request = delta < 0 ? browsing.requestPrevious() : browsing.requestMore();
+  void request.then((loaded) => {
+    if (!loaded || page.params.id !== id) return;
+    const next = delta < 0 ? browsing.prevOf(id) : browsing.nextOf(id);
+    if (next) openInEditor(next.id);
   });
 }
 

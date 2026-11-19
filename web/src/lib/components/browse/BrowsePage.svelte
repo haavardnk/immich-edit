@@ -3,27 +3,28 @@
   import BrowseHeader from '#lib/components/browse/BrowseHeader.svelte';
   import FilterPanel from '#lib/components/browse/filters/FilterPanel.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import DateScrubber from '#lib/components/browse/scrubber/DateScrubber.svelte';
+  import type { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+  import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
   import { hides } from '#lib/browse/loadedFilter.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import { Button, LoadingSpinner } from '@immich/ui';
-  import type { Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
 
   let {
     title,
-    assets,
-    loading,
+    assets: listed = [],
+    loading: pageLoading = false,
+    feed,
     loadingLabel,
     emptyTitle,
     emptyMessage,
     totalCount,
     countLoaded = false,
     favoriteLocked = false,
-    loadingMore = false,
-    onLoadMore,
-    onLoadAll,
     sortBasis = 'capture',
     error = null,
     onRetry,
@@ -35,17 +36,15 @@
     lead
   }: {
     title: string;
-    assets: AssetSummary[];
-    loading: boolean;
+    assets?: AssetSummary[];
+    loading?: boolean;
+    feed?: BrowseFeed;
     loadingLabel: string;
     emptyTitle: string;
     emptyMessage?: string;
     totalCount?: number;
     countLoaded?: boolean;
     favoriteLocked?: boolean;
-    loadingMore?: boolean;
-    onLoadMore?: () => void;
-    onLoadAll?: () => Promise<boolean>;
     sortBasis?: 'capture' | 'edit' | null;
     error?: string | null;
     onRetry?: () => void;
@@ -57,13 +56,22 @@
     lead?: Snippet;
   } = $props();
 
+  const assets = $derived(feed ? feed.assets : listed);
+  const loading = $derived(pageLoading || (feed ? feed.loading && !feed.loadedOnce : false));
+  const total = $derived(totalCount ?? feed?.totalCount);
   const hiddenCount = $derived(
     assets.filter((asset) => hides(browseControls.filters, asset)).length
   );
-  const headerTotal = $derived(countLoaded ? assets.length - hiddenCount : totalCount);
+  const headerTotal = $derived(countLoaded ? assets.length - hiddenCount : total);
+  const dayHeaders = $derived(sortBasis === 'capture' && browseControls.sortField === 'taken');
+  const timeline = $derived(dayHeaders && feed?.metadataBacked ? feed : null);
+
+  let scroller: HTMLDivElement | undefined = $state();
+
+  onMount(() => monthCounts.invalidate());
 
   async function trashRejected(): Promise<void> {
-    if (onLoadAll && !(await onLoadAll())) return;
+    if (feed && !(await feed.loadAll())) return;
     const rejects = assets.filter((asset) => !hides(browseControls.filters, asset));
     if (rejects.length === 0) {
       toasts.push('info', 'No rejected photos here');
@@ -129,9 +137,28 @@
       {:else if assets.length === 0}
         {@render emptyState()}
       {:else}
-        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden" data-testid="browse-scroller">
-          {@render lead?.()}
-          <AssetGrid {assets} {loadingMore} {onLoadMore} {onLoadAll} />
+        <div class="relative flex min-h-0 flex-1">
+          <div class="relative flex min-w-0 flex-1" data-testid="grid-column">
+            <div
+              bind:this={scroller}
+              class="min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-hidden"
+              data-testid="browse-scroller"
+            >
+              {@render lead?.()}
+              <AssetGrid
+                {assets}
+                {dayHeaders}
+                loadingMore={feed?.loadingMore}
+                loadingPrevious={feed?.loadingPrevious}
+                onLoadMore={feed?.hasMore ? () => void feed.loadMore() : undefined}
+                onLoadPrevious={feed?.hasPrevious ? () => void feed.loadPrevious() : undefined}
+                onLoadAll={feed ? (signal) => feed.loadAll(signal) : undefined}
+              />
+            </div>
+          </div>
+          {#if timeline}
+            <DateScrubber feed={timeline} {scroller} />
+          {/if}
         </div>
       {/if}
     {/if}

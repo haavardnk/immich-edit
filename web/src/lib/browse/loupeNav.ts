@@ -14,12 +14,12 @@ function loadedIds(): string[] {
   return browsing.visible.map((asset) => asset.id);
 }
 
-let stepsPastEnd = 0;
+let stepsPastEdge = 0;
 
-function walkForward(from: string, steps: number): string {
+function walk(from: string, steps: number, delta: number): string {
   let cursor = from;
   for (let step = 0; step < steps; step += 1) {
-    const next = browsing.nextOf(cursor);
+    const next = delta > 0 ? browsing.nextOf(cursor) : browsing.prevOf(cursor);
     if (!next) break;
     cursor = next.id;
   }
@@ -31,29 +31,38 @@ export function stepLoupe(delta: number): void {
   if (!from) return;
   const next = delta > 0 ? browsing.nextOf(from) : browsing.prevOf(from);
   if (next) {
-    stepsPastEnd = 0;
+    stepsPastEdge = 0;
     browseView.openLoupe(next.id);
     return;
   }
-  if (delta < 0) return;
-  stepsPastEnd += 1;
-  if (stepsPastEnd > 1) return;
-  void browsing.requestMore().then((loaded) => {
-    const steps = stepsPastEnd;
-    stepsPastEnd = 0;
+  stepsPastEdge += 1;
+  if (stepsPastEdge > 1) return;
+  const request = delta > 0 ? browsing.requestMore() : browsing.requestPrevious();
+  void request.then((loaded) => {
+    const steps = stepsPastEdge;
+    stepsPastEdge = 0;
     if (!loaded || browseView.loupeId !== from) return;
-    const target = walkForward(from, steps);
+    const target = walk(from, steps, delta);
     if (target !== from) browseView.openLoupe(target);
   });
 }
 
 export async function openLastLoupe(): Promise<void> {
   const from = browseView.loupeId;
-  while (browsing.hasMore && (await browsing.requestMore())) {
-    if (browseView.loupeId !== from) return;
+  if (!(await browsing.requestEdge('last'))) {
+    while (browsing.hasMore && (await browsing.requestMore())) {
+      if (browseView.loupeId !== from) return;
+    }
   }
   const last = browsing.visible.at(-1);
   if (last && browseView.loupeId === from) browseView.openLoupe(last.id);
+}
+
+export async function openFirstLoupe(): Promise<void> {
+  const from = browseView.loupeId;
+  await browsing.requestEdge('first');
+  const first = browsing.visible[0];
+  if (first && browseView.loupeId === from) browseView.openLoupe(first.id);
 }
 
 export function advanceFocused(delta: number): void {

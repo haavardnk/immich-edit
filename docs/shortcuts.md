@@ -47,6 +47,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Home` / `End`                                                                                           | Select the first or last photo                                   | Grid         |
 | `PgUp` / `PgDn`                                                                                          | Jump a page                                                      | Grid         |
 | `-` / `_` / `=` / `+`                                                                                    | Thumbnail size                                                   | Grid         |
+| `Ctrl scroll · pinch`                                                                                    | Change the thumbnail size around the pointer                     | Grid         |
 | `I`                                                                                                      | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
 | `Shift+F`                                                                                                | Show or hide the filter panel                                    | Grid         |
 | `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
