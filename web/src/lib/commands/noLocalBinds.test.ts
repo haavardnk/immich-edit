@@ -23,7 +23,7 @@ const WINDOW_KEY_LISTENERS = [
   '/src/lib/components/editor/MaskOverlay.svelte',
   '/src/lib/components/editor/MaskPolygonDraft.svelte',
   '/src/lib/components/editor/WhiteBalancePicker.svelte',
-  '/src/lib/components/editor/controls/SliderRow.svelte',
+  '/src/lib/components/editor/controls/sliderSession.svelte.ts',
   '/src/lib/components/shell/KeybindsHelp.svelte',
   '/src/lib/device/layout.svelte.ts',
   '/src/lib/stores/overlays.ts',

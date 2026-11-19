@@ -7,27 +7,34 @@
   import { panRecognizer } from '#lib/gestures/pan.ts';
   import { reveal } from '#lib/motion/reveal.ts';
   import { touchUi, TRAY_DETENTS } from '#lib/stores/touchUi.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
+  import { valueEntry } from '#lib/stores/valueEntry.svelte.ts';
   import { untrack } from 'svelte';
   import TouchPanel from './TouchPanel.svelte';
 
-  const PEEK = 73;
+  const FLOOR = 73;
   const COMPACT = 350;
   const EXPANDED_SHARE = 0.62;
   const MIN_PHOTO = 200;
-  const LABELS = ['Peek', 'Compact', 'Expanded'] as const;
+  const ENTRY = 260;
+  const LABELS = ['Compact', 'Expanded'] as const;
 
   let { available, docked, lift }: { available: number; docked: number; lift: number } = $props();
 
   const guard = clickGuard();
+  const ceiling = $derived(Math.max(FLOOR, available - MIN_PHOTO));
   const heights = $derived.by(() => {
-    const expanded = Math.max(PEEK, Math.min(docked * EXPANDED_SHARE, docked - MIN_PHOTO));
-    const ceiling = Math.max(PEEK, available - MIN_PHOTO);
-    return [PEEK, Math.min(COMPACT, expanded), expanded].map((height) =>
+    const expanded = Math.max(FLOOR, Math.min(docked * EXPANDED_SHARE, docked - MIN_PHOTO));
+    return [Math.min(COMPACT, expanded), expanded].map((height) =>
       Math.min(height + lift, ceiling)
     );
   });
   const current = $derived(TRAY_DETENTS.indexOf(touchUi.detent));
-  const rest = $derived(available > 0 ? (heights[current] ?? PEEK) : PEEK);
+  const entry = $derived(valueEntry.target !== null);
+  const rest = $derived.by(() => {
+    if (available <= 0) return FLOOR;
+    return entry ? Math.min(ENTRY, ceiling) : (heights[current] ?? FLOOR);
+  });
 
   function snap(index: number): void {
     const detent = TRAY_DETENTS[index];
@@ -38,10 +45,10 @@
     heights: () => heights,
     rest: () => rest,
     available: () => available,
-    dismissable: () => false,
+    dismissable: () => !entry,
     grab: guard.arm,
     snap,
-    dismiss: () => {}
+    dismiss: ui.collapsePanels
   });
 
   const drag = gestures({
@@ -56,11 +63,6 @@
     ]
   });
 
-  function retap(): void {
-    if (touchUi.detent === 'peek') touchUi.raise();
-    else touchUi.setDetent('peek');
-  }
-
   function step(): void {
     snap(nextDetent(current, TRAY_DETENTS.length));
   }
@@ -71,12 +73,10 @@
     const height = rest;
     const detent = touchUi.detent;
     if (motion.dragging()) return;
-    if (detent === settled) {
-      motion.rest(height);
-      return;
-    }
+    const moved = !entry && detent !== settled;
     settled = detent;
-    void motion.settle(height);
+    if (moved) void motion.settle(height);
+    else motion.rest(height);
   });
 </script>
 
@@ -97,8 +97,7 @@
       onstep={step}
     />
   </div>
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="flex min-h-0 flex-1 flex-col" onclick={touchUi.raise}>
-    <TouchPanel onretap={retap} />
+  <div class="flex min-h-0 flex-1 flex-col">
+    <TouchPanel onretap={step} />
   </div>
 </section>

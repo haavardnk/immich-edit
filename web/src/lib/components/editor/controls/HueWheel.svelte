@@ -1,6 +1,9 @@
 <script lang="ts">
   import { pointerDrag } from '#lib/gestures/drag.ts';
-  import { centredPoint } from '#lib/gestures/point.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
+  import { panRecognizer } from '#lib/gestures/pan.ts';
+  import { centredPoint, type Point } from '#lib/gestures/point.ts';
+  import { tapRecognizer } from '#lib/gestures/tap.ts';
 
   let {
     hue = $bindable(),
@@ -20,6 +23,8 @@
 
   let wheel = $state<HTMLDivElement | undefined>();
   let keyboardDirty = $state(false);
+  let puck: Point | null = null;
+  let lastPointer = 'mouse';
 
   const cx = $derived(size / 2);
   const cy = $derived(size / 2);
@@ -34,13 +39,13 @@
   const hasSat = $derived(sat > 0);
   const valueText = $derived(`hue ${Math.round(hue)}°, saturation ${Math.round(sat)}%`);
 
-  function updateFromEvent(ev: PointerEvent): void {
-    if (!wheel) return;
-    const rect = wheel.getBoundingClientRect();
-    const { x: px, y: py } = centredPoint(ev, rect);
+  function radius(): number {
+    return Math.max((wheel?.clientWidth ?? size) / 2 - 4, 1);
+  }
+
+  function place(px: number, py: number): void {
     const dist = Math.sqrt(px * px + py * py);
-    const maxR = rect.width / 2 - 4;
-    const newSat = Math.min(100, Math.round((dist / Math.max(maxR, 1)) * 100));
+    const newSat = Math.min(100, Math.round((dist / radius()) * 100));
     let angle = (Math.atan2(-py, px) * 180) / Math.PI;
     if (angle < 0) angle += 360;
     hue = Math.round(angle);
@@ -48,15 +53,64 @@
     onLive();
   }
 
+  function updateFromEvent(ev: PointerEvent): void {
+    if (!wheel) return;
+    const { x, y } = centredPoint(ev, wheel.getBoundingClientRect());
+    place(x, y);
+  }
+
+  function puckFrom(): Point {
+    const angle = (hue * Math.PI) / 180;
+    const distance = (Math.min(Math.max(sat, 0), 100) / 100) * radius();
+    return { x: distance * Math.cos(angle), y: -distance * Math.sin(angle) };
+  }
+
+  function movePuck(stepX: number, stepY: number): void {
+    if (!puck) return;
+    const next = { x: puck.x + stepX, y: puck.y + stepY };
+    const distance = Math.hypot(next.x, next.y);
+    const limit = radius();
+    puck =
+      distance > limit ? { x: (next.x / distance) * limit, y: (next.y / distance) * limit } : next;
+    place(puck.x, puck.y);
+  }
+
+  function endPuck(): void {
+    if (!puck) return;
+    puck = null;
+    onCommit(commitAction);
+  }
+
   const drag = pointerDrag<true>({
     start(ev) {
-      if (!wheel) return null;
+      lastPointer = ev.pointerType;
+      if (!wheel || ev.pointerType !== 'mouse') return null;
       updateFromEvent(ev);
       return true;
     },
     move: updateFromEvent,
     end: () => onCommit(commitAction)
   });
+
+  const touchDrag = gestures({
+    pointerTypes: ['touch', 'pen'],
+    recognizers: [
+      panRecognizer({
+        thresholds: { panSlop: 4 },
+        start: () => {
+          puck = puckFrom();
+        },
+        move: (pan) => movePuck(pan.stepX, pan.stepY),
+        end: endPuck,
+        cancel: endPuck
+      }),
+      tapRecognizer({ doubleTap: reset })
+    ]
+  });
+
+  function onDblClick(): void {
+    if (lastPointer === 'mouse') reset();
+  }
 
   function reset(): void {
     hue = 0;
@@ -111,7 +165,8 @@
   aria-valuemax={360}
   aria-valuetext={valueText}
   {...drag.on()}
-  ondblclick={reset}
+  {@attach touchDrag}
+  ondblclick={onDblClick}
   onkeydown={key}
   onkeyup={keyUp}
   onblur={commitKeyboard}
