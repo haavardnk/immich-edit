@@ -1,5 +1,5 @@
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import { parseThemeCache, THEME_CACHE_KEY, type SchemeChrome, type ThemeCache } from './cache';
+import { parseThemeCache, THEME_CACHE_KEY, type ThemeCache } from './cache';
 
 export const THEME_STYLE_ID = 'immich-edit-theme';
 
@@ -34,16 +34,19 @@ export function writeTheme(cache: ThemeCache): void {
   writeStored(THEME_CACHE_KEY, cache);
 }
 
-export function writeSchemeChrome(chrome: SchemeChrome): void {
+export function writeThemeColor(color: string): void {
   headElement('meta[name="theme-color"]', () => {
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
     return meta;
-  }).content = chrome.themeColor;
+  }).content = color;
+}
+
+export function writeFavicon(href: string): void {
   headElement('link[rel="icon"]', () => {
     const link = document.createElement('link');
     link.rel = 'icon';
     link.type = 'image/svg+xml';
     return link;
-  }).href = chrome.favicon;
+  }).href = href;
 }

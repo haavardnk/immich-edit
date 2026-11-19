@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createImmichExportJob, createZipExportJob } from './jobs';
+import {
+  createImmichExportJob,
+  createImmichPresetsJob,
+  createZipExportJob,
+  createZipPresetsJob
+} from './jobs';
 import type { ExportOptions, ImmichExportOptions } from './export';
 
 const base: ExportOptions = {
@@ -24,7 +29,8 @@ const immich: ImmichExportOptions = {
   favorite: false,
   stackWithOriginal: false,
   stackPrimary: 'edited',
-  replaceOriginal: false
+  replaceOriginal: false,
+  onConflict: 'keep_both'
 };
 
 function stubFetch(): { body: () => Record<string, unknown> } {
@@ -77,10 +83,44 @@ describe('export jobs', () => {
     expect(params).toMatchObject({ replace_original: true, stack_with_original: false });
   });
 
+  it('sends the upload conflict policy', async () => {
+    const req = stubFetch();
+    await createImmichExportJob(['a'], { ...immich, onConflict: 'skip' });
+    expect(req.body().params).toMatchObject({ on_conflict: 'skip' });
+  });
+
   it('sends concrete asset ids', async () => {
     const req = stubFetch();
     await createZipExportJob(['a', 'b'], base);
     const body = req.body();
     expect(body.asset_ids).toEqual(['a', 'b']);
+  });
+
+  it('sends one params object per preset and nothing else', async () => {
+    const req = stubFetch();
+    await createZipPresetsJob(
+      ['a'],
+      [
+        { preset: 'Web', options: base },
+        { preset: 'Print', options: { ...base, format: 'tiff' } }
+      ]
+    );
+    const body = req.body();
+    expect(body.kind).toBe('download_zip');
+    const params = body.params as {
+      variants: { preset: string; params: Record<string, unknown> }[];
+    };
+    expect(Object.keys(params)).toEqual(['variants']);
+    expect(params.variants.map((v) => [v.preset, v.params.format])).toEqual([
+      ['Web', 'jpeg'],
+      ['Print', 'tiff']
+    ]);
+
+    await createImmichPresetsJob(['a'], [{ preset: 'Family', options: immich }]);
+    const upload = req.body();
+    expect(upload.kind).toBe('export_immich');
+    expect(upload.params).toEqual({
+      variants: [{ preset: 'Family', params: expect.objectContaining({ album_ids: [] }) }]
+    });
   });
 });

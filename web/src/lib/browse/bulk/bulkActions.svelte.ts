@@ -2,7 +2,8 @@ import { runBulkJob } from '#lib/api/bulkJob.ts';
 import {
   createApplyPresetJob,
   createResetEditsJob,
-  type ApplyPresetOptions
+  type ApplyPresetOptions,
+  type Job
 } from '#lib/api/jobs.ts';
 import { addToAlbums, removeFromAlbum } from '#lib/browse/bulk/bulkAlbums.ts';
 import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -88,14 +89,17 @@ class BulkActions {
       runBulkJob((target) => createResetEditsJob(target), 'Failed to queue reset', ids)
     );
 
-  applyPreset = (presetId: string, options: ApplyPresetOptions): Promise<void> =>
-    this.run((ids) =>
-      runBulkJob(
+  applyPreset = async (presetId: string, options: ApplyPresetOptions): Promise<Job | null> => {
+    let job: Job | null = null;
+    await this.run(async (ids) => {
+      job = await runBulkJob(
         (target) => createApplyPresetJob(target, presetId, options),
         'Failed to queue preset',
         ids
-      )
-    );
+      );
+    });
+    return job;
+  };
 
   trash = (): void => {
     const reason = bulkScope.trashReason;

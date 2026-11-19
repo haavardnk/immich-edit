@@ -24,11 +24,12 @@ class ExportPresetsStore {
 
   save = async (name: string): Promise<void> => {
     const form = $state.snapshot(exportSettings.form) as unknown as Record<string, unknown>;
+    const destination = exportSettings.destination;
     const existing = this.presets.find((p) => p.name.toLowerCase() === name.toLowerCase());
     try {
       const saved = existing
-        ? await updateExportPreset(existing.id, { name: existing.name, form })
-        : await createExportPreset({ name, form });
+        ? await updateExportPreset(existing.id, { name: existing.name, form, destination })
+        : await createExportPreset({ name, form, destination });
       this.presets = [...this.presets.filter((p) => p.id !== saved.id), saved].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       );
@@ -41,6 +42,7 @@ class ExportPresetsStore {
   apply = (preset: ExportPreset): void => {
     Object.assign(exportSettings.form, restoreExportForm(preset.form));
     pruneLibraryIds(exportSettings.form);
+    exportSettings.destination = preset.destination;
   };
 
   remove = async (preset: ExportPreset): Promise<void> => {

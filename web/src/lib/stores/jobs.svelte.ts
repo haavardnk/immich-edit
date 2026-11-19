@@ -3,16 +3,20 @@ import {
   clearJobs,
   getJob,
   isJobActive,
+  jobDownloadUrl,
   JOB_KINDS,
+  jobParamSets,
   jobNeedsAttention,
   listJobs,
   splitJobs,
   TRANSFER_JOB_KINDS,
+  zipReady,
   type Job,
   type JobItem
 } from '#lib/api/jobs.ts';
 import { ApiError, url } from '#lib/api/client.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
+import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
@@ -41,9 +45,13 @@ function isGone(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 404 || error.status === 410);
 }
 
-function replacesOriginals(job: Job): boolean {
-  const params = job.params as { replace_original?: unknown } | null;
-  return job.kind === JOB_KINDS.exportImmich && params?.replace_original === true;
+function trashesAssets(job: Job): boolean {
+  return (
+    job.kind === JOB_KINDS.exportImmich &&
+    jobParamSets(job).some(
+      (params) => params.replace_original === true || params.on_conflict === 'replace'
+    )
+  );
 }
 
 class JobsStore {
@@ -55,6 +63,7 @@ class JobsStore {
   attention = $state(false);
   expanded = $state<string | null>(null);
 
+  private downloads = new Set<string>();
   private sources = new Map<string, EventSource>();
   private streamErrors = new Map<string, number>();
   private fallbacks = new Map<string, ReturnType<typeof setTimeout>>();
@@ -125,6 +134,10 @@ class JobsStore {
     else this.settle(job);
   };
 
+  downloadWhenDone = (id: string): void => {
+    this.downloads.add(id);
+  };
+
   unwatch = (id: string): void => {
     this.watched = this.watched.filter((w) => w !== id);
   };
@@ -141,13 +154,14 @@ class JobsStore {
       void editedThumbs.refresh();
     }
     libraryChanged();
-    if (replacesOriginals(job)) void this.forgetTrashedOriginals(job.id);
+    if (trashesAssets(job)) void this.forgetTrashed(job.id);
+    if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
     this.disconnect(job.id);
     this.stopFallback(job.id);
     this.settle(job);
   }
 
-  private async forgetTrashedOriginals(id: string): Promise<void> {
+  private async forgetTrashed(id: string): Promise<void> {
     let items: JobItem[];
     try {
       items = (await getJob(id)).items;
@@ -157,10 +171,15 @@ class JobsStore {
     const originals = items
       .filter((item) => item.result?.original_trashed)
       .map((item) => sourceId(item.asset_id));
-    if (originals.length === 0) return;
+    const exports = items.flatMap((item) => item.result?.replaced_asset_id ?? []);
+    const moved = [
+      originals.length > 0 ? countOf(originals.length, 'original') : null,
+      exports.length > 0 ? countOf(exports.length, 'earlier export') : null
+    ].filter((part) => part !== null);
+    if (moved.length === 0) return;
     trash.removeTrashed(
-      originals,
-      `Moved ${countOf(originals.length, 'original')} to the Immich trash`
+      [...originals, ...exports],
+      `Moved ${moved.join(' and ')} to the Immich trash`
     );
   }
 

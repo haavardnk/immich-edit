@@ -325,10 +325,12 @@ test.describe('touch selection', () => {
     const bar = await bulkBar(page).boundingBox();
     const viewport = page.viewportSize();
     expect((bar?.y ?? 0) + (bar?.height ?? 0)).toBeCloseTo(viewport?.height ?? 0, 0);
-    for (const name of ['Rate', 'Label', 'Reject', 'Album', 'Export', 'More']) {
-      await expect(bulkBar(page).getByRole('button', { name, exact: true })).toBeInViewport();
-    }
-    await expect(bulkBar(page).getByRole('button', { name: 'Tags', exact: true })).toBeHidden();
+    const names = await bulkBar(page)
+      .getByRole('button')
+      .evaluateAll((all) =>
+        all.filter((el) => el.checkVisibility()).map((el) => el.textContent?.trim())
+      );
+    expect(names).toEqual(['Rate', 'Label', 'Favorite', 'Reject', 'Export', 'More']);
 
     await appBar(page).getByRole('button', { name: 'Clear selection' }).tap();
     await expect(tabBar(page)).toBeVisible();
@@ -339,7 +341,9 @@ test.describe('touch selection', () => {
     await selectTwo(page);
 
     await expectBarDockedUnderGrid(page);
-    await expect(bulkBar(page).getByRole('button', { name: 'Tags', exact: true })).toBeVisible();
+    for (const name of ['Albums', 'Tags']) {
+      await expect(bulkBar(page).getByRole('button', { name, exact: true })).toBeVisible();
+    }
   });
 
   test('@touch Rate opens a picker that rates every selected photo', async ({ page }) => {
@@ -368,10 +372,25 @@ test.describe('touch selection', () => {
     await expect(appBar(page)).toContainText('2 selected');
   });
 
-  test('@touch Album opens the album sheet for the selection', async ({ page }) => {
+  test('@touch Favorite marks every selected photo', async ({ page }) => {
     await openTouchTimeline(page, MOCKS);
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'Album', exact: true }).tap();
+    const favorite = bulkBar(page).getByRole('button', { name: 'Favorite', exact: true });
+    await favorite.tap();
+    await expect(
+      bulkBar(page).getByRole('button', { name: 'Unfavorite', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(appBar(page)).toContainText('2 selected');
+  });
+
+  test('@touch @phone Albums in More opens the album sheet', async ({ page }) => {
+    await openTouchTimeline(page, MOCKS);
+    await selectTwo(page);
+    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
+    await page
+      .getByRole('dialog', { name: 'More actions' })
+      .getByRole('button', { name: 'Albums', exact: true })
+      .tap();
     const sheet = page.getByRole('dialog', { name: 'Add to album' });
     await expect(sheet).toBeVisible();
     await expect(
@@ -394,7 +413,6 @@ test.describe('touch selection', () => {
       'Apply preset',
       'Reset edits',
       'Compare',
-      'Favorite',
       'Create virtual copy',
       'Move to trash'
     ]) {

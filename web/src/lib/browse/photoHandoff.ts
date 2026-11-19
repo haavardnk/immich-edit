@@ -50,6 +50,10 @@ function editorAssetId(url: URL | undefined): string | null {
   return url && isEditorPath(url.pathname) ? (url.pathname.split('/')[2] ?? null) : null;
 }
 
+export function enteringEditor(from: URL | undefined, to: URL | undefined): boolean {
+  return !!from && editorAssetId(from) === null && editorAssetId(to) !== null;
+}
+
 export function handoffId(from: URL | undefined, to: URL | undefined): string | null {
   const leaving = editorAssetId(from);
   const entering = editorAssetId(to);

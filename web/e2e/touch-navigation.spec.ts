@@ -17,7 +17,37 @@ async function hitTarget(chip: Locator, dy: number): Promise<boolean> {
   }, dy);
 }
 
+async function recordPageMotion(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    Reflect.set(window, '__pageMotion', seen);
+    new MutationObserver(() => {
+      const motion = document.documentElement.dataset.pageMotion;
+      if (motion && seen.at(-1) !== motion) seen.push(motion);
+    }).observe(document.documentElement, { attributeFilter: ['data-page-motion'] });
+  });
+  return () => page.evaluate(() => [...(Reflect.get(window, '__pageMotion') as string[])]);
+}
+
 test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] }, () => {
+  test('pushed pages slide in, Back slides them out and tabs cross-fade', async ({ page }) => {
+    await open(page, '/library');
+    const motions = await recordPageMotion(page);
+
+    await page.getByRole('link', { name: 'See all people' }).tap();
+    await expect(page).toHaveURL('/people');
+    await expect.poll(motions).toEqual(['push']);
+    await expect(page.locator('html')).not.toHaveAttribute('data-page-motion');
+
+    await back(page, '/library');
+    await expect.poll(motions).toEqual(['push', 'pop']);
+
+    await tab(page, 'Albums').tap();
+    await expect(page).toHaveURL('/albums');
+    await expect.poll(motions).toEqual(['push', 'pop', 'fade']);
+    await expect(page.locator('html')).not.toHaveAttribute('data-page-motion');
+  });
+
   test('Back pops in-app history from pushed pages', async ({ page }) => {
     await open(page, '/library');
     await expect(avatar(page)).toBeVisible();

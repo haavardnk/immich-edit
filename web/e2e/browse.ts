@@ -21,6 +21,20 @@ export function bulkBar(page: Page): Locator {
   return page.getByRole('toolbar', { name: 'Selection actions' });
 }
 
+export async function openBulkExport(page: Page): Promise<Locator> {
+  await bulkBar(page).getByRole('button', { name: 'Export selected photos' }).click();
+  const panel = page.getByRole('complementary', { name: 'Export', exact: true });
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+export async function openBulkEdits(page: Page): Promise<Locator> {
+  await bulkBar(page).getByRole('button', { name: 'Edits', exact: true }).click();
+  const menu = page.getByRole('group', { name: 'Edits', exact: true });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
 export async function selectedNames(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('[role="group"][data-selected]')]

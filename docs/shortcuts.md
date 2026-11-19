@@ -146,7 +146,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Ctrl+C`       | Copy edits                                            | Editor, Grid, Loupe |
 | `Ctrl+V`       | Paste edits                                           | Editor, Grid, Loupe |
 | `Ctrl+Shift+V` | Paste only some settings                              | Editor, Grid, Loupe |
-| `Shift+E`      | Open Export                                           | Editor              |
+| `Shift+E`      | Open Export                                           | Editor, Grid        |
 | `Esc`          | Step out of the active tool, panel or fullscreen      | Editor              |
 
 ## Sliders

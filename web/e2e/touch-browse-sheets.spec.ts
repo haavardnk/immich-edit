@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
 import { json, numberedAssets } from './helpers';
-import { avatar, mockLibrary, open, openDrawer, tabBar } from './touchShell';
+import { avatar, mockLibrary, open, openDrawer } from './touchShell';
 
 const GREEN = { id: 'tag-green', name: 'green', value: 'immich-edit/label/green' };
 
@@ -114,34 +114,6 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
       .getByRole('button', { name: 'Close view & filters' })
       .tap();
     await expect(page.getByRole('dialog', { name: 'View & filters' })).toBeHidden();
-  });
-
-  test('the jobs pill opens a sheet with running jobs first', async ({ page }) => {
-    await openWithJobs(page);
-
-    const pill = page.getByRole('button', { name: /^Jobs: Exporting/ });
-    await expect(pill).toBeVisible();
-    const [pillBox, navBox] = await Promise.all([pill.boundingBox(), tabBar(page).boundingBox()]);
-    expect((pillBox?.y ?? 0) + (pillBox?.height ?? 0)).toBeLessThanOrEqual(navBox?.y ?? 0);
-    await pill.tap();
-    await expectLargeDetent(page, 'Jobs');
-    const sheet = page.getByRole('dialog', { name: 'Jobs' });
-    await expect(sheet.getByText('1 active', { exact: true })).toBeVisible();
-    await expect(sheet.getByRole('heading', { level: 3 })).toHaveText(['In progress', 'Finished']);
-    await expect(sheet.getByRole('progressbar')).toHaveCount(2);
-    await expect(sheet.getByRole('progressbar').first()).toHaveAccessibleName(
-      'Export to Immich progress'
-    );
-    await expect(sheet.getByRole('button', { name: 'Clear finished' })).toBeVisible();
-
-    await sheet.getByRole('button', { name: 'Toggle details' }).nth(1).tap();
-    await expect(sheet.getByText('IMG_3990.CR3')).toBeVisible();
-    await expect(sheet.getByText('Unsupported raw format')).toBeVisible();
-    expect(await seriousViolations(page)).toEqual([]);
-
-    await sheet.getByRole('button', { name: 'Close jobs' }).tap();
-    await expect(sheet).toBeHidden();
-    await expect(pill).toBeFocused();
   });
 
   test('the drawer Jobs row opens the jobs sheet and returns focus to the avatar', async ({

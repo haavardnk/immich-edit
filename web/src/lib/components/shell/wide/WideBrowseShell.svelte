@@ -8,6 +8,7 @@
   import AccountDrawer from '#lib/components/shell/account/AccountDrawer.svelte';
   import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
   import SidebarFoot from '#lib/components/shell/wide/SidebarFoot.svelte';
+  import JobsDock from '#lib/components/jobs/JobsDock.svelte';
   import { SearchInput } from '#lib/browse/searchInput.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
 
@@ -43,8 +44,9 @@
     </div>
     <SidebarFoot />
   </div>
-  <main class="flex h-full min-w-0 flex-1 flex-col bg-light">
+  <main data-page class="flex h-full min-w-0 flex-1 flex-col bg-light">
     {@render children()}
   </main>
+  <JobsDock />
 </div>
 <AccountDrawer />

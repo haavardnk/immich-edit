@@ -186,10 +186,13 @@ photo's other versions out of view with it. Signed in with an Immich API key, th
 ## Export many photos
 
 1. [Select the photos](cull.md#choose-between-similar-shots) in the grid.
-1. Press **Edit and export selected**.
-1. On the **Export** tab, choose **Download ZIP** or **To Immich** and set the options as for a
-   single photo.
-1. Press **Download** *count* **as** *format* **ZIP** or **Export** *count* **to Immich**.
+1. Press **Export selected photos** in the selection bar, or `Shift+E`. The export panel opens
+   beside the grid, and you can still add or remove photos while it is open.
+1. Choose **Download** or **To Immich** and set the options as for a single photo.
+1. Press **Download** *count* **as** *format* **ZIP** or **Export** *count* **to Immich**. The
+   panel closes and **Jobs** opens in its place.
+
+On a phone or tablet, **Export** in the selection bar opens the same settings in a sheet.
 
 The export runs on the server as a job, so you can keep working or close the tab. A small card in
 the corner shows its progress and goes away a few seconds after a clean finish. If any photo fails,
@@ -199,14 +202,17 @@ reason any failed and any metadata a photo could not keep. The cancel button sto
 finished ZIP job has a **Download ZIP** button, and its card a **Download** button. **Clear
 finished** tidies the list.
 
-The **Edit** tab of the same dialog works on the whole selection too:
+**Edits** in the selection bar works on the whole selection too:
 
-- **Copy** takes the edits from a single selected photo and opens **Copy settings**.
-- **Paste** applies the copied edits to every selected photo.
-- **Presets** applies a preset to every selected photo, at the **Amount** you choose.
-- **Reset** returns every selected photo to its original state.
+- **Apply preset** applies a preset to every selected photo, at the **Amount** you choose, and
+  opens **Jobs**.
+- **Paste edits** applies the copied edits to every selected photo, and **Paste only…** asks which
+  sections to paste.
+- **Copy edits** takes the edits from a single selected photo and opens **Copy settings**.
+- **Reset edits** returns every selected photo to its original state.
 
-These also run as jobs.
+These also run as jobs. On a phone or tablet, **Apply preset**, **Paste edits**, **Paste only…**
+and **Reset edits** are under **More** in the selection bar.
 
 ## Export presets
 

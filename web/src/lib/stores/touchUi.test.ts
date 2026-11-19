@@ -25,80 +25,60 @@ describe('touch editor ui', () => {
     expect(touchUi.filmstrip).toBe(true);
   });
 
-  it('remembers the view per group and the detent per view', async () => {
+  it('remembers the view per group and keeps one tray size across views', async () => {
     const values = stubStorage();
     const { touchUi } = await import('./touchUi.svelte');
     touchUi.setView('curve');
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.setDetent('peek');
+    expect(touchUi.detent).toBe('compact');
+    touchUi.setDetent('expanded');
     touchUi.setGroup('color');
-    expect([touchUi.view, touchUi.detent]).toEqual(['basic', 'compact']);
+    expect([touchUi.view, touchUi.detent]).toEqual(['basic', 'expanded']);
     touchUi.setGroup('light');
-    expect([touchUi.view, touchUi.detent]).toEqual(['curve', 'peek']);
+    expect([touchUi.view, touchUi.detent]).toEqual(['curve', 'expanded']);
     expect(JSON.parse(values.get(storageKey) ?? '{}')).toMatchObject({
       group: 'light',
       views: { light: 'curve' },
-      detents: { 'light/curve': 'peek' }
+      detent: 'expanded'
     });
   });
 
-  it('raises a peeked view to its last size, else its default, and leaves others alone', async () => {
-    const values = stubStorage();
-    const { touchUi } = await import('./touchUi.svelte');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('compact');
-    touchUi.setView('curve');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.setView('tone');
-    touchUi.setDetent('expanded');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.setDetent('peek');
-    touchUi.raise();
-    expect(touchUi.detent).toBe('expanded');
-    expect(JSON.parse(values.get(storageKey) ?? '{}')).toMatchObject({
-      raised: { 'light/tone': 'expanded' }
-    });
-  });
-
-  it('opens search at the current view size, raising it from peek', async () => {
+  it('opens search at the current view size', async () => {
     stubStorage();
     const { touchUi } = await import('./touchUi.svelte');
     touchUi.setDetent('expanded');
     touchUi.openSearch();
-    expect(touchUi.detent).toBe('expanded');
-    touchUi.closeSearch();
-    touchUi.setDetent('peek');
-    touchUi.openSearch();
-    expect(touchUi.detent).toBe('expanded');
+    expect([touchUi.searching, touchUi.detent]).toEqual([true, 'expanded']);
   });
 
   it('drops unknown stored groups, views and detents', async () => {
     stubStorage({
       group: 'bogus',
       views: { color: 'mix', light: 'nope' },
-      detents: { 'color/mix': 'expanded', 'light/tone': 'huge' },
+      detent: 'huge',
       filmstrip: false
     });
     const { touchUi } = await import('./touchUi.svelte');
     expect(touchUi.group).toBe('light');
     expect(touchUi.view).toBe('tone');
     expect(touchUi.viewOf('color')).toBe('mix');
-    expect(touchUi.detents).toEqual({ 'color/mix': 'expanded' });
+    expect(touchUi.detent).toBe('compact');
     expect(touchUi.filmstrip).toBe(false);
   });
 
-  it('keeps Quick as a group with one view and its own detent', async () => {
-    stubStorage({ group: 'quick', detents: { 'quick/': 'expanded' } });
+  it('keeps Quick as a group with one view', async () => {
+    stubStorage({ group: 'quick', detent: 'expanded' });
     const { touchUi } = await import('./touchUi.svelte');
-    expect([touchUi.group, touchUi.view, touchUi.viewKey]).toEqual(['quick', '', 'quick/']);
+    expect([touchUi.group, touchUi.view]).toEqual(['quick', '']);
     expect(touchUi.detent).toBe('expanded');
     touchUi.setView('tone');
     expect(touchUi.views).toEqual({});
-    touchUi.setGroup('light');
-    expect(touchUi.detent).toBe('compact');
+  });
+
+  it('starts every editor visit on Light Tone', async () => {
+    stubStorage({ group: 'color', views: { light: 'curve', color: 'mix' }, detent: 'expanded' });
+    const { touchUi } = await import('./touchUi.svelte');
+    touchUi.startDevelop();
+    expect([touchUi.group, touchUi.view, touchUi.detent]).toEqual(['light', 'tone', 'expanded']);
+    expect(touchUi.viewOf('color')).toBe('mix');
   });
 });

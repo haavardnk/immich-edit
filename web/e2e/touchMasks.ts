@@ -19,7 +19,11 @@ export async function openMasks(page: Page, opts: InstallOpts = {}): Promise<voi
   await page.goto(`/assets/${ASSET_ID}`);
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
   await modes(page).getByRole('tab', { name: 'Masks' }).tap();
-  await expect(page.getByRole('button', { name: 'New mask' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'New mask' })
+      .or(page.getByRole('button', { name: 'New mask' }))
+  ).toBeVisible();
 }
 
 export function modes(page: Page): Locator {

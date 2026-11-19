@@ -208,12 +208,13 @@ With photos selected, the selection bar shows one heart, one star row, one rejec
 color label. Each shows what the selection already is: filled when every photo has it, faded when
 only some do. A click sets every photo the same way, so **Favorite** on a mixed selection favorites
 all of them instead of flipping each one, and a star sets that rating on all. Click the lit star
-again to clear the rating. The bar also has **Tags**, **Albums**, **Create virtual copy**,
-**Edit and export selected**, and **Move to Immich trash**. **Albums** adds the selection to
-existing Immich albums; inside an album it also offers **Remove from** that album, which drops the
-photos from the grid while they stay in Immich. **Edit and export selected** pastes edits, applies a
-preset or exports every selected photo in one go; see
-[export many photos](export.md#export-many-photos). When the selection holds a photo another Immich
+again to clear the rating. The bar also has **Create virtual copy**, **Edits**, **Tags**,
+**Albums**, **Export selected photos** and **Move to Immich trash**. **Albums** adds the selection
+to existing Immich albums; inside an album it also offers **Remove from** that album, which drops
+the photos from the grid while they stay in Immich. **Edits** applies a preset, pastes or resets
+edits on every selected photo, and **Export selected photos** (`Shift+E`) opens the export panel
+beside the grid; see [export many photos](export.md#export-many-photos). In a narrow window,
+**Create virtual copy**, **Edits**, **Tags** and **Albums** move into **More actions**. When the selection holds a photo another Immich
 user owns, the favorite, rating, reject, label and **Tags** controls are disabled, and hovering
 them says why. `Shift+B` moves keyboard focus from the grid into the selection bar.
 

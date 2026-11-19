@@ -1,5 +1,4 @@
 <script lang="ts">
-  import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import EditorMoreMenu from '#lib/components/editor/EditorMoreMenu.svelte';
   import { runCommand } from '#lib/commands/command.ts';
@@ -10,8 +9,10 @@
   import { clickGuard } from '#lib/gestures/clickGuard.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
   import { longPressRecognizer } from '#lib/gestures/longPress.ts';
-  import ExportPanel from '#lib/panels/Export.svelte';
+  import TouchExportSheet from '#lib/components/editor/touch/TouchExportSheet.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { ui } from '#lib/stores/ui.svelte.ts';
   import { IconButton } from '@immich/ui';
   import { mdiDotsHorizontal, mdiExportVariant } from '@mdi/js';
 
@@ -19,6 +20,11 @@
 
   let sharing = $state(false);
   const guard = clickGuard();
+
+  function share(): void {
+    sharing = true;
+    if (layout.phone) ui.collapsePanels();
+  }
 
   const compareHold = gestures({
     recognizers: [
@@ -44,7 +50,7 @@
 >
   <CommandIconButton command={editorBack} size="medium" variant="ghost" shape="round" />
   {#if filename && editor.asset}
-    <span class="min-w-0 truncate px-1 text-[13px] font-semibold text-light-950/90">
+    <span class="min-w-0 truncate px-1 text-label font-semibold text-light-950/90">
       {editor.asset.originalFileName}
     </span>
   {/if}
@@ -63,18 +69,9 @@
     title="Share"
     aria-label="Share"
     disabled={!editor.assetId}
-    onclick={() => (sharing = true)}
+    onclick={share}
   />
   <EditorMoreMenu icon={mdiDotsHorizontal} />
 </nav>
 
-<BottomSheet
-  open={sharing}
-  onOpenChange={(open) => (sharing = open)}
-  title="Export"
-  close="done"
-  detents={[{ fraction: 1 }]}
-  bodyClass="px-3 py-2"
->
-  <ExportPanel />
-</BottomSheet>
+<TouchExportSheet open={sharing} onOpenChange={(open) => (sharing = open)} />

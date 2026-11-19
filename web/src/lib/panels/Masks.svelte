@@ -2,6 +2,7 @@
   import Notice from '#lib/components/Notice.svelte';
   import MaskAdjustments from './MaskAdjustments.svelte';
   import MaskClickTool from './MaskClickTool.svelte';
+  import MaskQuickStart from './MaskQuickStart.svelte';
   import MaskShapeControls from './MaskShapeControls.svelte';
   import MaskComponentRow from './MaskComponentRow.svelte';
   import MaskLayerRow from './MaskLayerRow.svelte';
@@ -67,7 +68,7 @@
 
 <div class="flex flex-col gap-1">
   <div class="flex h-8 items-center justify-between border-b border-hairline px-1">
-    <div class="text-[9px] font-semibold uppercase text-dark/65">
+    <div class="section-label text-dark/65">
       Masks ({layers.length}/{N_MAX_MASK_LAYERS})
     </div>
     <div class="flex items-center gap-1">
@@ -145,7 +146,10 @@
   {/if}
 
   {#if layers.length === 0}
-    <div class="flex justify-center px-2 py-2">
+    {#if layerMenu === null}
+      <MaskQuickStart />
+    {/if}
+    <div class="flex justify-center px-2 pb-2">
       <MaskToolMenu
         open={layerMenu === 'empty'}
         align="start"
@@ -175,8 +179,6 @@
     <div class="px-1.5">
       <MaskPolygonDraftControls />
     </div>
-  {:else if layers.length > 0 && !active}
-    <div class="px-1.5 pt-1 text-[11px] text-dark/65">Select a mask to adjust it.</div>
   {/if}
 
   {#if active}
@@ -200,7 +202,7 @@
             class="opacity-40 shrink-0"
             aria-hidden="true"
           />
-          <span class="truncate text-[10px] font-medium text-dark/65">
+          <span class="truncate text-micro font-medium text-dark/65">
             Refine ({active.components.length}/{N_MAX_COMPONENTS_PER_LAYER})
           </span>
         </Button>
@@ -253,11 +255,11 @@
         </div>
 
         {#if shapeLimit}
-          <div class="px-1 text-[10px] text-dark/65">{shapeLimit}</div>
+          <div class="px-1 text-micro text-dark/65">{shapeLimit}</div>
         {/if}
 
         {#if active.components.length === 0}
-          <div class="px-1 py-1 text-[10px] italic text-dark/65">
+          <div class="px-1 py-1 text-micro italic text-dark/65">
             Empty mask. Use Add to pick a tool.
           </div>
         {:else}

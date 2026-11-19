@@ -8,7 +8,7 @@ import {
   type MockAssetSummary
 } from './helpers';
 import { exposureManifest } from './snapshotMocks';
-import { bulkBar } from './browse';
+import { bulkBar, openBulkEdits } from './browse';
 import { mockLibrary, selectTwo } from './touchShell';
 
 interface PasteJob {
@@ -170,8 +170,7 @@ test.describe('copy and paste per section on desktop', () => {
     expect(checkedTools(only)).toEqual(['hsl']);
     await expect(paste).toBeHidden();
 
-    await page.getByRole('button', { name: 'Edit and export selected' }).click();
-    const bulk = page.getByRole('dialog', { name: 'Edit and export selected' });
+    const bulk = await openBulkEdits(page);
     await bulk.getByRole('button', { name: 'Paste only…', exact: true }).click();
     await expect(paste.getByRole('checkbox')).toHaveCount(3);
     await paste.getByRole('checkbox', { name: 'HSL', exact: true }).click();
@@ -224,6 +223,45 @@ test.describe('copy and paste per section on touch', { tag: ['@touch'] }, () => 
   test('quick picks stay on one line and the columns follow the sheet width', async ({ page }) => {
     const sheet = await openCopySheet(page);
     await expectLayout(sheet, (page.viewportSize()?.width ?? 0) >= 700);
+  });
+
+  test('the copy sheet lists every section in 44 px rows and pastes a chosen subset', async ({
+    page
+  }) => {
+    const sheet = await openCopySheet(page);
+    for (const [name, text] of [
+      ['Check all', 'All'],
+      ['Check none', 'None']
+    ]) {
+      const action = sheet.getByRole('button', { name, exact: true });
+      await expect(action.getByText(text, { exact: true })).toBeVisible();
+      await expect(action.getByText(name, { exact: true })).toBeHidden();
+    }
+    await expect(sheet).not.toContainText('Then open another photo');
+    const tone = sheet.getByRole('checkbox', { name: 'Tone', exact: true });
+    const row = tone.locator('xpath=../..');
+    const box = await row.boundingBox();
+    expect(Math.round(box?.height ?? 0)).toBeGreaterThanOrEqual(44);
+
+    await sheet.getByRole('button', { name: 'Check none', exact: true }).tap();
+    await expect(sheet.getByRole('button', { name: 'Copy', exact: true })).toBeDisabled();
+    await tone.tap();
+    await sheet.getByRole('checkbox', { name: 'Vignette', exact: true }).tap();
+    await sheet.getByRole('button', { name: 'Copy', exact: true }).tap();
+    await expect(sheet).toBeHidden();
+
+    await page.getByRole('button', { name: 'More editor actions' }).tap();
+    await expect(page.getByRole('button', { name: 'Paste edits', exact: true })).toContainText(
+      'from IMG_'
+    );
+    await page.getByRole('button', { name: 'Paste only…', exact: true }).tap();
+    const paste = pasteDialog(page);
+    await expect(paste).toBeVisible();
+    await expect(paste.getByRole('checkbox')).toHaveCount(5);
+    await paste.getByRole('checkbox', { name: 'Vignette', exact: true }).tap();
+    await paste.getByRole('button', { name: 'Paste', exact: true }).tap();
+    await expect(paste).toBeHidden();
+    await expect(page.getByRole('status').filter({ hasText: 'Pasted settings' })).toBeVisible();
   });
 
   test('bulk More pastes only the checked sections onto the selection', async ({ page }) => {

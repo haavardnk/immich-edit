@@ -1,14 +1,17 @@
 <script lang="ts">
   import { jobs } from '#lib/stores/jobs.svelte.ts';
+  import { isJobActive, jobDownloadUrl, type Job, type JobItem, zipReady } from '#lib/api/jobs.ts';
   import {
-    isJobActive,
-    jobDownloadUrl,
-    type Job,
-    type JobItem,
-    type JobItemStatus
-  } from '#lib/api/jobs.ts';
-  import { jobEtaText, jobKindLabel, jobProgress } from '#lib/components/jobs/jobFormat.ts';
+    jobEtaText,
+    jobItemPreset,
+    jobItemState,
+    jobKindLabel,
+    jobProgress,
+    type JobItemState
+  } from '#lib/components/jobs/jobFormat.ts';
   import Notice from '#lib/components/Notice.svelte';
+  import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
+  import { mergeProps } from 'bits-ui';
   import IconLink from '#lib/components/IconLink.svelte';
   import { mdiChevronDown, mdiChevronRight, mdiCancel, mdiDownload } from '@mdi/js';
   import { Badge, IconButton, ProgressBar, type Color } from '@immich/ui';
@@ -32,14 +35,18 @@
     }
   }
 
-  function itemColor(status: JobItemStatus): string {
-    switch (status) {
+  function itemColor(state: JobItemState): string {
+    switch (state) {
       case 'completed':
+      case 'replaced':
         return 'text-success-800';
       case 'failed':
         return 'text-danger-800';
       case 'running':
         return 'text-primary';
+      case 'skipped':
+      case 'duplicate':
+        return 'text-warning-800';
       default:
         return 'text-dark/65';
     }
@@ -102,7 +109,7 @@
         aria-label="Cancel job"
       />
     {/if}
-    {#if job.kind === 'download_zip' && job.status === 'completed' && job.completed > 0}
+    {#if zipReady(job)}
       <IconLink
         size="small"
         variant="ghost"
@@ -125,10 +132,25 @@
       {:else}
         <div class="flex flex-col gap-1">
           {#each jobs.items[job.id] as item (item.id)}
+            {@const preset = jobItemPreset(job, item)}
+            {@const state = jobItemState(item)}
             <div class="min-w-0">
               <div class="flex items-baseline gap-2 text-[11px] touch:text-xs">
                 <span class="font-mono truncate flex-1 min-w-0">{itemName(item)}</span>
-                <span class="flex-none {itemColor(item.status)}">{item.status}</span>
+                {#if preset}
+                  <TruncationTooltip text={preset}>
+                    {#snippet child({ props })}
+                      <span
+                        {...mergeProps(props, { tabindex: -1 })}
+                        data-truncate
+                        class="max-w-1/3 flex-none truncate text-dark/65"
+                      >
+                        {preset}
+                      </span>
+                    {/snippet}
+                  </TruncationTooltip>
+                {/if}
+                <span class="flex-none {itemColor(state)}">{state}</span>
               </div>
               {#if item.status === 'failed' && item.error}
                 <Notice message={item.error} class="mt-1 whitespace-pre-wrap" />

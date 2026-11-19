@@ -336,6 +336,56 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(page.getByTestId('upright-surface')).toHaveCount(0);
   });
 
+  test('crop keeps the tray detent and height of the other modes', async ({ page }) => {
+    await open(page, `/assets/${ASSET_ID}`, { previewBody: makePng(60, 40) });
+    const tray = page.getByRole('region', { name: 'Adjustments' });
+    const handle = page.getByRole('button', { name: 'Resize adjustments' });
+    const modes = page.getByRole('tablist', { name: 'Editor modes' });
+    const height = async () => (await tray.boundingBox())?.height;
+    const enter = async (name: string) => {
+      const tab = modes.getByRole('tab', { name });
+      if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.tap();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+    };
+    const settle = async (detent: string) => {
+      for (let step = 0; step < 2; step++) {
+        const at = await tray.getAttribute('data-detent');
+        if (at === detent) break;
+        await handle.click();
+        await expect(tray).not.toHaveAttribute('data-detent', at ?? '');
+      }
+      await expect(tray).toHaveAttribute('data-detent', detent);
+      await expect(tray).not.toHaveAttribute('data-snapping');
+    };
+
+    for (const detent of ['expanded', 'compact']) {
+      await enter('Develop');
+      await settle(detent);
+      const develop = await height();
+
+      await enter('Crop');
+      await expect(tray).toHaveAttribute('data-detent', detent);
+      await expect(tray).not.toHaveAttribute('data-snapping');
+      await expect.poll(height).toBe(develop);
+      await expect(dial(page)).toBeInViewport();
+      await expect(tools(page)).toBeInViewport({ ratio: 1 });
+      const bottom = async (target: Locator) => {
+        const box = await target.boundingBox();
+        return box ? box.y + box.height : 0;
+      };
+      expect(await bottom(tray)).toBeCloseTo(await bottom(tools(page)), -1.5);
+    }
+
+    for (const mode of ['Masks', 'Retouch', 'Presets', 'Develop']) {
+      await enter(mode);
+      await expect(tray).toHaveAttribute('data-detent', 'compact');
+    }
+
+    await settle('expanded');
+    await enter('Develop');
+    await expect(tray).toHaveAttribute('data-detent', 'expanded');
+  });
+
   test('the crop tools stay reachable beside the photo in landscape', async ({ page }) => {
     const size = page.viewportSize();
     if (!size) throw new Error('no viewport');

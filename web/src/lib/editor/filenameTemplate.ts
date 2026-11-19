@@ -1,7 +1,14 @@
 import type { ExifInfo } from '#lib/types/asset.ts';
 
 export const DEFAULT_FILENAME_TEMPLATE = '{name}_edit';
-export const FILENAME_TOKENS = ['{name}', '{date}', '{seq}'] as const;
+export const PRESET_FILENAME_TEMPLATE = '{name}_{preset}';
+export const ORIGINAL_FILENAME_TEMPLATE = '{name}';
+export const FILENAME_TOKENS = [
+  { token: '{name}', label: 'Original name' },
+  { token: '{date}', label: 'Capture date' },
+  { token: '{seq}', label: 'Number in batch' },
+  { token: '{preset}', label: 'Preset name' }
+] as const;
 
 const MAX_TEMPLATE_CHARS = 64;
 const FALLBACK_STEM = 'export';
@@ -11,6 +18,11 @@ const RFC3339 = /^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2
 
 type Token = 'name' | 'date' | 'seq' | 'preset';
 type Part = { text: string } | { token: Token };
+
+export interface TemplateEdit {
+  value: string;
+  caret: number;
+}
 
 export interface NameContext {
   original: string;
@@ -85,6 +97,20 @@ export function renderTemplate(raw: string, ctx: NameContext): string {
     .join('')
     .replace(/^[\s.]+|[\s.]+$/g, '');
   return rendered || FALLBACK_STEM;
+}
+
+export function insertToken(
+  template: string,
+  token: string,
+  start: number | null,
+  end: number | null
+): TemplateEdit {
+  const from = Math.min(start ?? template.length, template.length);
+  const to = Math.min(Math.max(end ?? from, from), template.length);
+  return {
+    value: template.slice(0, from) + token + template.slice(to),
+    caret: from + token.length
+  };
 }
 
 export function captureDate(asset: {

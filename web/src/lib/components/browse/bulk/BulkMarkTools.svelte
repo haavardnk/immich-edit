@@ -7,7 +7,7 @@
   import RejectButton from '#lib/components/RejectButton.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
-  import { ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
+  import { ONE_ROW, ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
   import { ratingLook } from '#lib/browse/bulk/bulkMarks.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
@@ -29,7 +29,7 @@
 <DisabledReason
   locked={!scope.allOwned}
   reason={scope.notOwnedReason}
-  class="flex shrink-0 items-center gap-1"
+  class="flex shrink-0 items-center {ONE_ROW.group}"
 >
   <FavoriteButton
     size="medium"

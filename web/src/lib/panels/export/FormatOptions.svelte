@@ -1,29 +1,24 @@
 <script lang="ts">
   import CheckboxRow from '#lib/components/CheckboxRow.svelte';
   import { Field, Select } from '@immich/ui';
-  import RangeSlider from '#lib/components/editor/controls/RangeSlider.svelte';
+  import ExportSlider from '#lib/panels/export/ExportSlider.svelte';
   import {
     BIT_DEPTHS,
+    bitDepthShown,
     changeFormat,
     COLOR_SPACES,
     FORMATS,
     METADATA_OPTIONS,
     PNG_COMPRESSIONS,
+    qualityShown,
     TIFF_COMPRESSIONS,
     type ExportFormValues
   } from './settings';
 
   let { form = $bindable<ExportFormValues>() }: { form: ExportFormValues } = $props();
 
-  let showQuality = $derived(
-    form.format === 'jpeg' ||
-      form.format === 'avif' ||
-      form.format === 'heic' ||
-      (form.format === 'webp' && !form.lossless)
-  );
-  let showBitDepth = $derived(
-    form.format === 'png' || form.format === 'tiff' || form.format === 'jxl'
-  );
+  let showQuality = $derived(qualityShown(form));
+  let showBitDepth = $derived(bitDepthShown(form.format));
   let showPngCompression = $derived(form.format === 'png');
   let showTiffCompression = $derived(form.format === 'tiff');
   let showLossless = $derived(form.format === 'webp');
@@ -40,22 +35,13 @@
 </Field>
 
 {#if showQuality}
-  <div class="panel-row h-7 items-center">
-    <span class="editor-compact-label select-none">Quality</span>
-    <RangeSlider
-      label="Quality"
-      min={1}
-      max={100}
-      step={1}
-      value={form.quality}
-      oninput={(event) => {
-        form.quality = (event.currentTarget as HTMLInputElement).valueAsNumber;
-      }}
-    />
-    <span class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65"
-      >{form.quality}</span
-    >
-  </div>
+  <ExportSlider
+    label="Quality"
+    min={1}
+    max={100}
+    value={form.quality}
+    onvalue={(v) => (form.quality = v)}
+  />
 {/if}
 
 {#if showBitDepth}

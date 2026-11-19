@@ -1,6 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ASSET_ID } from './helpers';
-import { drag, longPressUntil, tapAt, touchDown, touchUp, type TouchPoint } from './touch';
+import {
+  drag,
+  longPressUntil,
+  tapAt,
+  tapCentre,
+  touchDown,
+  touchUp,
+  type TouchPoint
+} from './touch';
 import { open } from './touchShell';
 
 async function openEditor(page: Page): Promise<void> {
@@ -70,7 +78,7 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await modes(page).getByRole('tab', { name: 'Crop' }).tap();
     await expect(page.getByRole('tablist', { name: 'Dial' })).toBeVisible();
     await modes(page).getByRole('tab', { name: 'Masks' }).tap();
-    await expect(page.getByRole('button', { name: 'New mask' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'New mask' })).toBeVisible();
     await modes(page).getByRole('tab', { name: 'Develop' }).tap();
     await expect(groups(page)).toBeVisible();
 
@@ -156,6 +164,79 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await page.clock.runFor(400);
     await expect(toolbar(page)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Edit Temperature value' })).toHaveText('4300 K');
+  });
+
+  test('entering from the loupe starts on the photo, and Develop opens on Light Tone', async ({
+    page
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'immich-edit:touchEditor',
+        JSON.stringify({ group: 'color', views: { light: 'curve' }, detent: 'compact' })
+      );
+      localStorage.setItem('immich-edit:editorUi', JSON.stringify({ tab: 'retouch' }));
+    });
+    await open(page, '/photos');
+    await tapCentre(page, page.locator('[role="group"][data-name]').first());
+    await page.getByRole('button', { name: 'Edit', exact: true }).tap();
+    await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();
+    await expect(tray(page)).toHaveCount(0);
+    await page
+      .getByRole('tablist', { name: 'Editor modes' })
+      .getByRole('tab', { name: 'Develop' })
+      .tap();
+    await expect(groups(page).getByRole('tab', { name: 'Light' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(
+      page.getByRole('tablist', { name: 'Light views' }).getByRole('tab', { name: 'Tone' })
+    ).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('the tray steps from its handle or active chip, and closes by drag or its mode', async ({
+    page
+  }) => {
+    await openEditor(page);
+    const handle = page.getByRole('button', { name: 'Resize adjustments' });
+    const develop = page.getByRole('tablist', { name: 'Editor modes' }).getByRole('tab', {
+      name: 'Develop'
+    });
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await handle.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await handle.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await expect(tray(page)).not.toHaveAttribute('data-snapping');
+
+    const grip = await centreOf(handle);
+    await drag(page, grip, { x: grip.x, y: grip.y + 240 });
+    await expect(tray(page)).toHaveCount(0);
+    await develop.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+
+    await groups(page).getByRole('tab', { name: 'Color' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await groups(page).getByRole('tab', { name: 'Light' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await handle.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await groups(page).getByRole('tab', { name: 'Color' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await groups(page).getByRole('tab', { name: 'Light' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+
+    await groups(page).getByRole('tab', { name: 'Light' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'compact');
+    await groups(page).getByRole('tab', { name: 'Light' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await develop.tap();
+    await expect(tray(page)).toHaveCount(0);
+    await develop.tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await groups(page).getByRole('tab', { name: 'Color' }).tap();
+    await expect(tray(page)).toHaveAttribute('data-detent', 'expanded');
+    await expect(page.getByRole('slider', { name: 'Vibrance' })).toBeVisible();
   });
 
   test('an edit marks its group and view, and Reset clears every develop edit', async ({

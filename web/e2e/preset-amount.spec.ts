@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   ASSET_SUMMARY,
   installMocks,
@@ -7,6 +7,7 @@ import {
   openPresetStrip,
   type PreviewRequest
 } from './helpers';
+import { openBulkEdits } from './browse';
 import { editsToManifest } from '../src/lib/edits/manifest';
 import { neutralEdits } from '../src/lib/types/edits';
 
@@ -21,11 +22,6 @@ function warmPreset(): Record<string, unknown> {
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z'
   };
-}
-
-async function openPresets(scope: Locator): Promise<void> {
-  const section = scope.getByRole('button', { name: 'Presets', exact: true });
-  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
 }
 
 async function pickWarm(page: Page): Promise<void> {
@@ -122,15 +118,19 @@ test('the bulk preset job carries the chosen amount', async ({ page }) => {
   });
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await openPresets(dialog);
-  await expect(dialog.getByRole('slider', { name: 'Preset amount' })).toHaveCount(0);
+  const menu = await openBulkEdits(page);
+  await menu.getByRole('button', { name: 'Apply preset', exact: true }).click();
+  const flyout = page
+    .locator('[data-popover-content]')
+    .filter({ has: page.getByRole('combobox', { name: 'Select a preset…' }) });
+  await expect(flyout.getByRole('slider', { name: 'Preset amount' })).toHaveCount(0);
   await pickWarm(page);
-  await dialog.getByRole('slider', { name: 'Preset amount' }).fill('150');
-  await dialog.getByRole('button', { name: 'Apply Warm to 1' }).click();
+  await flyout.getByRole('slider', { name: 'Preset amount' }).fill('150');
+  await flyout.getByRole('button', { name: 'Apply Warm to 1' }).click();
 
   await expect.poll(() => jobs.length).toBe(1);
+  await expect(menu).toBeHidden();
+  await expect(page.getByRole('complementary', { name: 'Jobs' })).toBeVisible();
   expect(jobs[0]).toMatchObject({
     kind: 'apply_preset',
     asset_ids: [ASSET_SUMMARY.id],

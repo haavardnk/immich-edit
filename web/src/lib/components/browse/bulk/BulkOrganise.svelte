@@ -2,12 +2,14 @@
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import Popover from '#lib/components/Popover.svelte';
+  import BulkEditsMenu from '#lib/components/browse/bulk/BulkEditsMenu.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { IconButton } from '@immich/ui';
+  import { Icon, IconButton } from '@immich/ui';
   import {
+    mdiChevronRight,
     mdiContentDuplicate,
     mdiDotsHorizontal,
     mdiImageAlbum,
@@ -27,67 +29,64 @@
     run: () => void;
   };
 
+  const EDITS_TOOLTIP = 'Apply a preset, paste or reset edits';
+
   let {
     band,
-    onBand,
-    onEditExport
+    onBand
   }: {
     band: Band | null;
     onBand: (band: Band | null) => void;
-    onEditExport: () => void;
   } = $props();
 
   let menu = $state(false);
+  let edits = $state<'bar' | 'menu' | null>(null);
 
   const scope = bulkScope;
   const actions = bulkActions;
   const shared = $derived(!scope.allOwned);
-  const photos = $derived(scope.targetCount === 1 ? 'this photo' : 'selected photos');
 
-  const tools: Tool[] = $derived([
-    {
-      label: 'Create virtual copy',
-      tooltip: hint(
-        scope.targetCount === 1 ? 'Create a virtual copy' : 'Create a virtual copy of each',
-        'createVirtualCopy'
-      ),
-      icon: mdiContentDuplicate,
-      ownerOnly: false,
-      disabled: actions.metaBusy,
-      run: () => void actions.createCopies()
-    },
-    {
-      label: 'Edit and export selected',
-      tooltip: `Paste edits, apply a preset or export ${photos}`,
-      icon: mdiTuneVariant,
-      ownerOnly: false,
-      disabled: scope.selectingAll,
-      run: onEditExport
-    },
-    {
-      label: 'Tags',
-      tooltip: 'Tags',
-      icon: mdiTagOutline,
-      ownerOnly: true,
-      pressed: band === 'tags',
-      disabled: actions.metaBusy,
-      run: () => onBand(band === 'tags' ? null : 'tags')
-    },
-    {
-      label: 'Albums',
-      tooltip: 'Albums',
-      icon: mdiImageAlbum,
-      ownerOnly: false,
-      pressed: band === 'albums',
-      disabled: actions.metaBusy,
-      run: () => onBand(band === 'albums' ? null : 'albums')
-    }
-  ]);
+  const copyTool: Tool = $derived({
+    label: 'Create virtual copy',
+    tooltip: hint(
+      scope.targetCount === 1 ? 'Create a virtual copy' : 'Create a virtual copy of each',
+      'createVirtualCopy'
+    ),
+    icon: mdiContentDuplicate,
+    ownerOnly: false,
+    disabled: actions.metaBusy,
+    run: () => void actions.createCopies()
+  });
+
+  const tagsTool: Tool = $derived({
+    label: 'Tags',
+    tooltip: 'Tags',
+    icon: mdiTagOutline,
+    ownerOnly: true,
+    pressed: band === 'tags',
+    disabled: actions.metaBusy,
+    run: () => onBand(band === 'tags' ? null : 'tags')
+  });
+
+  const albumsTool: Tool = $derived({
+    label: 'Albums',
+    tooltip: 'Albums',
+    icon: mdiImageAlbum,
+    ownerOnly: false,
+    pressed: band === 'albums',
+    disabled: actions.metaBusy,
+    run: () => onBand(band === 'albums' ? null : 'albums')
+  });
 
   function pick(tool: Tool): void {
     menu = false;
     if (tool.ownerOnly && !actions.ownedOrExplain()) return;
     tool.run();
+  }
+
+  function setMenu(open: boolean): void {
+    menu = open;
+    if (!open && edits === 'menu') edits = null;
   }
 </script>
 
@@ -105,22 +104,57 @@
   />
 {/snippet}
 
-<div class="{ROOMY_ONLY} shrink-0 items-center gap-1">
-  {#each tools as tool (tool.label)}
-    {#if tool.ownerOnly}
-      <DisabledReason locked={shared} reason={scope.notOwnedReason} class="flex">
-        {@render button(tool)}
-      </DisabledReason>
-    {:else}
+{#snippet barTool(tool: Tool)}
+  {#if tool.ownerOnly}
+    <DisabledReason locked={shared} reason={scope.notOwnedReason} class="flex">
       {@render button(tool)}
-    {/if}
-  {/each}
+    </DisabledReason>
+  {:else}
+    {@render button(tool)}
+  {/if}
+{/snippet}
+
+{#snippet row(tool: Tool)}
+  <MenuRow
+    icon={tool.icon}
+    label={tool.label}
+    pressed={tool.pressed}
+    class={tool.ownerOnly && shared ? 'opacity-50' : ''}
+    aria-label={tool.label}
+    aria-disabled={(tool.ownerOnly && shared) || undefined}
+    disabled={tool.disabled}
+    onclick={() => pick(tool)}
+  />
+{/snippet}
+
+<div class="{ROOMY_ONLY} shrink-0 items-center gap-1">
+  {@render barTool(copyTool)}
+  <BulkEditsMenu
+    open={edits === 'bar'}
+    onOpenChange={(open) => (edits = open ? 'bar' : null)}
+    tooltip={EDITS_TOOLTIP}
+  >
+    {#snippet trigger(props)}
+      <IconButton
+        {...props}
+        size="medium"
+        variant={edits === 'bar' ? 'filled' : 'ghost'}
+        color={edits === 'bar' ? 'primary' : 'secondary'}
+        icon={mdiTuneVariant}
+        title=""
+        aria-label="Edits"
+        disabled={scope.selectingAll}
+      />
+    {/snippet}
+  </BulkEditsMenu>
+  {@render barTool(tagsTool)}
+  {@render barTool(albumsTool)}
 </div>
 <Popover
   open={menu}
   anchor="top"
   align="end"
-  onOpenChange={(open) => (menu = open)}
+  onOpenChange={setMenu}
   contentClass="w-60 py-1"
   tooltip="More actions"
 >
@@ -137,17 +171,27 @@
     />
   {/snippet}
   <div class="flex flex-col">
-    {#each tools as tool (tool.label)}
-      <MenuRow
-        icon={tool.icon}
-        label={tool.label}
-        pressed={tool.pressed}
-        class={tool.ownerOnly && shared ? 'opacity-50' : ''}
-        aria-label={tool.label}
-        aria-disabled={(tool.ownerOnly && shared) || undefined}
-        disabled={tool.disabled}
-        onclick={() => pick(tool)}
-      />
-    {/each}
+    {@render row(copyTool)}
+    <BulkEditsMenu
+      open={edits === 'menu'}
+      anchor="right"
+      onOpenChange={(open) => (edits = open ? 'menu' : null)}
+      onDone={() => (menu = false)}
+    >
+      {#snippet trigger(props)}
+        <MenuRow
+          {...props}
+          icon={mdiTuneVariant}
+          label="Edits"
+          aria-label="Edits"
+          pressed={edits === 'menu'}
+          disabled={scope.selectingAll}
+        >
+          <Icon icon={mdiChevronRight} size="14px" class="shrink-0 opacity-70" aria-hidden="true" />
+        </MenuRow>
+      {/snippet}
+    </BulkEditsMenu>
+    {@render row(tagsTool)}
+    {@render row(albumsTool)}
   </div>
 </Popover>

@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ASSET_ID } from './helpers';
+import { drag } from './touch';
 import { open } from './touchShell';
 
 async function openEditor(page: Page): Promise<void> {
@@ -96,6 +97,25 @@ test.describe('value keypad on touch', { tag: '@touch' }, () => {
     await expect(keypad(page)).toHaveCount(0);
     await expect(exposureValue(page)).toHaveText('2.00');
     await expect(page.getByRole('button', { name: /^Undo/ })).toBeEnabled();
+  });
+
+  test('a swipe down cancels and a tap outside commits', async ({ page }) => {
+    await openEditor(page);
+    await exposureValue(page).tap();
+    await press(page, '3');
+    await expect(exposureValue(page)).toHaveText('3.00');
+    const box = await keypad(page).boundingBox();
+    if (!box) throw new Error('keypad has no box');
+    const x = box.x + box.width / 2;
+    await drag(page, { x, y: box.y + 20 }, { x, y: box.y + 140 });
+    await expect(keypad(page)).toHaveCount(0);
+    await expect(exposureValue(page)).toHaveText('0.00');
+
+    await exposureValue(page).tap();
+    await press(page, '4');
+    await page.getByRole('tab', { name: 'Tone' }).tap();
+    await expect(keypad(page)).toHaveCount(0);
+    await expect(exposureValue(page)).toHaveText('4.00');
   });
 
   test('the edited row stays in view above the keypad', async ({ page }) => {

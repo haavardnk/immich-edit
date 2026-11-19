@@ -6,6 +6,8 @@
   import LeftSidebar from '#lib/components/shell/LeftSidebar.svelte';
   import SettingsSidebar from '#lib/components/shell/SettingsSidebar.svelte';
   import { navSidebar } from '#lib/components/shell/desktop/navSidebar.svelte.ts';
+  import JobsDock from '#lib/components/jobs/JobsDock.svelte';
+  import BulkExportDock from '#lib/components/browse/bulk/BulkExportDock.svelte';
   import { AppShell, AppShellBar, AppShellSidebar } from '@immich/ui';
 
   let { children }: { children: Snippet } = $props();
@@ -32,7 +34,11 @@
       </div>
     {/if}
   </AppShellSidebar>
-  <main data-page class="flex h-full min-w-0 flex-col bg-light">
-    {@render children()}
-  </main>
+  <div class="flex h-full min-w-0">
+    <main data-page class="flex h-full min-w-0 flex-1 flex-col bg-light">
+      {@render children()}
+    </main>
+    <BulkExportDock />
+    <JobsDock />
+  </div>
 </AppShell>

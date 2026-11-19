@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { handoffId } from './photoHandoff';
+import { enteringEditor, handoffId } from './photoHandoff';
 
 const at = (path: string): URL => new URL(path, 'https://edit.test');
 
@@ -12,5 +12,14 @@ describe('photo handoff', () => {
     ['a first load', undefined, '/assets/a1', 'a1']
   ])('hands the photo over when %s', (_name, from, to, want) => {
     expect(handoffId(from ? at(from) : undefined, to ? at(to) : undefined)).toBe(want);
+  });
+
+  it.each<[string, string | undefined, string, boolean]>([
+    ['from a browse page', '/photos', '/assets/a1', true],
+    ['on a first load', undefined, '/assets/a1', false],
+    ['between editor photos', '/assets/a1', '/assets/a2', false],
+    ['to a browse page', '/assets/a1', '/photos', false]
+  ])('starts a fresh edit only when entering %s', (_name, from, to, want) => {
+    expect(enteringEditor(from ? at(from) : undefined, at(to))).toBe(want);
   });
 });

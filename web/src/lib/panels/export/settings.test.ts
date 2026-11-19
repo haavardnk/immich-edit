@@ -205,9 +205,29 @@ describe('immichOptions', () => {
     expect(opts.stackWithOriginal).toBe(stacked);
   });
 
+  it('sends the conflict policy, keeping both when replacing is not allowed', () => {
+    expect(immichOptions(form()).onConflict).toBe('keep_both');
+    expect(immichOptions(form(), { onConflict: 'skip' }).onConflict).toBe('skip');
+    expect(immichOptions(form(), { onConflict: 'replace' }).onConflict).toBe('replace');
+    expect(immichOptions(form(), { onConflict: 'replace', replaceExports: false }).onConflict).toBe(
+      'keep_both'
+    );
+  });
+
+  it('does not keep a conflict policy in the form', () => {
+    const stored = { ...defaultExportForm(), onConflict: 'replace' };
+    expect(restoreExportForm(stored)).not.toHaveProperty('onConflict');
+  });
+
   it('never stacks when it replaces the original', () => {
     const opts = immichOptions(form({ stackWithOriginal: true }), { replaceOriginal: true });
     expect(opts).toMatchObject({ stackWithOriginal: false, replaceOriginal: true });
+  });
+
+  it('keeps the original name when it replaces the original', () => {
+    const custom = form({ filenameTemplate: '{date}_{name}_web' });
+    expect(immichOptions(custom, { replaceOriginal: true }).filenameTemplate).toBe('{name}');
+    expect(immichOptions(custom).filenameTemplate).toBe('{date}_{name}_web');
   });
 });
 

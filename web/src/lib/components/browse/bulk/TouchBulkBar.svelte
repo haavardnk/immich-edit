@@ -5,13 +5,14 @@
   import BarAction from '#lib/components/browse/BarAction.svelte';
   import BulkAlbumBand from '#lib/components/browse/bulk/BulkAlbumBand.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
-  import BulkExport from '#lib/components/browse/bulk/BulkExport.svelte';
   import BulkMoreSheet from '#lib/components/browse/bulk/BulkMoreSheet.svelte';
   import BulkTagBand from '#lib/components/browse/bulk/BulkTagBand.svelte';
+  import TouchBulkExportSheet from '#lib/components/browse/bulk/TouchBulkExportSheet.svelte';
+  import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { labelLook, ratingLook, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
+  import { favoriteMark, labelLook, ratingLook, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
   import type { LabelColor } from '#lib/stores/labels.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { mdiDotsHorizontal, mdiExportVariant, mdiImageAlbum, mdiTagOutline } from '@mdi/js';
@@ -30,9 +31,11 @@
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
   const reject = $derived(rejectMark(scope.rejected));
+  const favorite = $derived(favoriteMark(scope.favorite));
   const rating = $derived(ratingLook(scope.rating));
   const labelDot = $derived(labelLook(scope.label));
   const photos = $derived(countOf(scope.targetCount, 'photo'));
+  const exportSheet = presence(() => sheet === 'export');
 
   function opener(name: Sheet): (open: boolean) => void {
     return (open) => {
@@ -44,6 +47,10 @@
 
   function toggleReject(): void {
     if (actions.ownedOrExplain()) void actions.setRejected(scope.rejected !== 'all');
+  }
+
+  function toggleFavorite(): void {
+    if (actions.ownedOrExplain()) void actions.setFavorite(scope.favorite !== 'all');
   }
 
   function closeMore(open: boolean): void {
@@ -97,6 +104,15 @@
     <LabelSwatches label={scope.label} size="large" onpick={label} />
   </Popover>
   <BarAction
+    icon={favorite.icon}
+    iconClass={favorite.tone}
+    label={favorite.label}
+    aria-pressed={favorite.pressed}
+    blocked={shared}
+    disabled={busy}
+    onclick={toggleFavorite}
+  />
+  <BarAction
     icon={reject.icon}
     iconClass={reject.tone}
     label={reject.label}
@@ -114,7 +130,13 @@
     sheetClass="px-4 pb-3"
   >
     {#snippet trigger(props)}
-      <BarAction {...props} icon={mdiImageAlbum} label="Album" disabled={busy} />
+      <BarAction
+        {...props}
+        icon={mdiImageAlbum}
+        label="Albums"
+        class="hidden wide:flex"
+        disabled={busy}
+      />
     {/snippet}
     <BulkAlbumBand />
   </Popover>
@@ -138,23 +160,14 @@
     {/snippet}
     <BulkTagBand />
   </Popover>
-  <Popover
-    open={sheet === 'export'}
-    onOpenChange={opener('export')}
-    appearance="panel"
-    title="Export {photos}"
-    sheetClass="pb-3"
-  >
-    {#snippet trigger(props)}
-      <BarAction
-        {...props}
-        icon={mdiExportVariant}
-        label="Export"
-        disabled={empty || scope.selectingAll}
-      />
-    {/snippet}
-    <BulkExport />
-  </Popover>
+  <BarAction
+    icon={mdiExportVariant}
+    label="Export"
+    aria-haspopup="dialog"
+    aria-expanded={sheet === 'export'}
+    disabled={empty || scope.selectingAll}
+    onclick={() => opener('export')(sheet !== 'export')}
+  />
   <BarAction
     icon={mdiDotsHorizontal}
     label="More"
@@ -169,10 +182,20 @@
   onOpenChange={opener('preset')}
   appearance="panel"
   title="Apply preset"
+  subtitle={photos}
   sheetClass="pb-3"
 >
-  <BulkApplyPreset />
+  <BulkApplyPreset onApplied={() => (sheet = null)} />
 </Popover>
+
+{#if exportSheet.mounted}
+  <TouchBulkExportSheet
+    open={sheet === 'export'}
+    title="Export {photos}"
+    onOpenChange={opener('export')}
+    onExited={exportSheet.exited}
+  />
+{/if}
 
 {#if more}
   <BulkMoreSheet open={more} onOpenChange={closeMore} onPick={(name) => (next = name)} />

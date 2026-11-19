@@ -31,32 +31,30 @@
   }
 
   const short = $derived(inline && layout.mode === 'touch');
-  const includeClass =
-    'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-[13px] touch:text-dark';
 </script>
 
 {#snippet includes()}
   <CheckboxRow
     label={short ? 'Crop' : 'Geometry & crop'}
-    class={inline ? includeClass : ''}
+    look={inline ? 'chip' : 'row'}
     checked={options.includeGeometry}
     onChange={(v) => (options.includeGeometry = v)}
   />
   <CheckboxRow
     label="Masks"
-    class={inline ? includeClass : ''}
+    look={inline ? 'chip' : 'row'}
     checked={options.includeMasks}
     onChange={(v) => (options.includeMasks = v)}
   />
 {/snippet}
 
 <div
-  class="flex flex-col text-[11px] text-dark/65 {inline ? 'touch:gap-1' : 'gap-1'} {bordered
-    ? 'border-t border-dark/10 pt-3'
+  class="flex flex-col text-caption text-dark/65 {inline ? 'touch:gap-1' : 'gap-1'} {bordered
+    ? 'border-t border-hairline pt-3'
     : ''}"
 >
   <div class="panel-row h-7 items-center touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem]">
-    <span class="editor-compact-label flex items-center gap-1.5 select-none touch:text-[13px]">
+    <span class="editor-compact-label flex items-center gap-1.5 select-none">
       {#if value !== LOOK_AMOUNT_FULL}
         <span class="hidden size-1.5 rounded-full bg-primary touch:block" aria-hidden="true"></span>
       {/if}
@@ -79,22 +77,20 @@
       }}
     />
     <span
-      class="px-1 text-right font-mono text-[10px] tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
+      class="px-1 text-right font-mono text-micro tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
       >{value}%</span
     >
   </div>
   {#if note}
-    <p class="truncate text-[11px] text-dark/65 touch:text-[13px]">{note}</p>
+    <p class="truncate text-caption text-dark/65 touch:text-label">{note}</p>
   {/if}
   {#if inline}
     <div class="flex items-center gap-3 touch:gap-2">
-      <span class="editor-compact-label select-none touch:w-24 touch:flex-none touch:text-[13px]"
-        >Include</span
-      >
+      <span class="editor-compact-label select-none touch:w-24 touch:flex-none">Include</span>
       {@render includes()}
     </div>
   {:else}
-    <span class="uppercase tracking-wider text-[10px] text-dark/65">Apply includes</span>
+    <span class="section-label text-dark/65">Apply includes</span>
     {@render includes()}
   {/if}
 </div>
