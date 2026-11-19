@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { browsing } from './browsing.svelte';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { browsing, type BrowsePager } from './browsing.svelte';
 import { browseControls } from './browseControls.svelte';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { ExifInfo } from '#lib/types/asset.ts';
@@ -92,7 +92,23 @@ describe('browsing store', () => {
       null,
       null
     ]);
-    expect([browsing.positionOf('c'), browsing.count]).toEqual([2, 8]);
+    expect(browsing.count).toBe(8);
     browseControls.reset();
+  });
+
+  it('reveals a photo through the pager without a failure toast', async () => {
+    const jumpTo = vi.fn(() => Promise.resolve(false));
+    const pager: BrowsePager = {
+      hasMore: false,
+      hasPrevious: false,
+      loadingMore: false,
+      loadMore: () => Promise.resolve(false),
+      loadPrevious: () => Promise.resolve(false),
+      loadEdge: () => Promise.resolve(false),
+      jumpTo
+    };
+    browsing.set(feed, pager);
+    expect(await browsing.requestReveal(B)).toBe(false);
+    expect(jumpTo).toHaveBeenCalledWith(B, { failure: null });
   });
 });

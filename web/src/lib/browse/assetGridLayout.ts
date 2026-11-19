@@ -44,7 +44,8 @@ export function createAssetGridLayout(
   assets: GridAsset[],
   width: number,
   targetRowHeight: number,
-  gap: number
+  gap: number,
+  tolerance: number
 ): AssetGridLayout {
   if (assets.length === 0 || width <= 0) return { boxes: [], rows: [], height: 0 };
 
@@ -53,7 +54,7 @@ export function createAssetGridLayout(
     containerPadding: 0,
     boxSpacing: gap,
     targetRowHeight,
-    targetRowHeightTolerance: 0.5,
+    targetRowHeightTolerance: tolerance,
     widowLayoutStyle: 'left'
   });
   const rows: AssetGridRow[] = [];

@@ -55,7 +55,6 @@
     query
       ? {
           title: `Search: ${query}`,
-          loading: feed.loading && !feed.loadedOnce,
           toolbar: modeBar,
           emptyTitle: 'No results',
           emptyMessage: `Nothing matched “${query}”.`,
@@ -63,7 +62,6 @@
         }
       : {
           title: 'Search',
-          loading: false,
           toolbar: undefined,
           emptyTitle: 'Search your library',
           emptyMessage: 'Type in the search bar to find photos.',
@@ -100,15 +98,12 @@
 {/snippet}
 
 <BrowsePage
+  {feed}
   {...view}
   bar={searchBar}
   lead={query ? undefined : recents}
-  assets={feed.assets}
   loadingLabel="Searching…"
   headerWhileLoading
   sortBasis={null}
   trashRejects={false}
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
 />

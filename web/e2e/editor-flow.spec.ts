@@ -30,10 +30,13 @@ test('photos grid restores scroll after editor back', async ({ page }) => {
     el.dispatchEvent(new Event('scroll'));
   });
   await expect.poll(async () => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(500);
-  const link = page.getByRole('main').locator('a[href^="/assets/"]').first();
-  await expect(link).toBeVisible();
-  const href = await link.getAttribute('href');
-  if (!href) throw new Error('visible tile has no href');
+  const href = await scroller.evaluate((el) => {
+    const top = el.getBoundingClientRect().top;
+    const links = [...el.querySelectorAll<HTMLAnchorElement>('a[href^="/assets/"]')];
+    return links.find((a) => a.getBoundingClientRect().top >= top)?.getAttribute('href') ?? null;
+  });
+  if (!href) throw new Error('no tile in view');
+  const link = page.locator(`a[href="${href}"]`);
   const before = await scroller.evaluate((el) => el.scrollTop);
 
   await link.evaluate((el) => (el as HTMLAnchorElement).click());

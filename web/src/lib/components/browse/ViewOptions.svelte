@@ -2,6 +2,7 @@
   import SortControls from '#lib/components/browse/SortControls.svelte';
   import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
   import { GRID_SIZE_OPTIONS, TILE_INFO_OPTIONS } from '#lib/browse/viewOptions.ts';
+  import { resizeGrid } from '#lib/browse/gridResize.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { Button, Label } from '@immich/ui';
@@ -19,7 +20,7 @@
     options={GRID_SIZE_OPTIONS}
     value={browseView.gridSize}
     label="Thumbnail size"
-    onChange={(size) => browseView.setGridSize(size)}
+    onChange={(size) => resizeGrid(size)}
   />
 </div>
 <div class="flex flex-col gap-1">

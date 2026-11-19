@@ -67,6 +67,17 @@ class SelectionStore {
     this.rangeBase = new Set(ids);
   };
 
+  setMany = (ids: readonly string[], on: boolean): void => {
+    const next = new Set(this.selected);
+    for (const id of ids) {
+      if (on) next.add(id);
+      else next.delete(id);
+    }
+    this.selected = next;
+    this.anchorId = ids.at(-1) ?? this.anchorId;
+    this.rangeBase = new Set(next);
+  };
+
   forget = (ids: ReadonlySet<string>): void => {
     if (![...this.selected].some((id) => ids.has(id))) return;
     this.selected = new Set([...this.selected].filter((id) => !ids.has(id)));

@@ -50,10 +50,6 @@
   const gridStyle = $derived(paneGridStyle(multi, panes.length));
   const moreActive = $derived(browseView.loupeAutoAdvance || ui.clipWarn);
   const canDrop = $derived(canDropPane());
-  const position = $derived(
-    multi ? compare.focusIndex + 1 : currentId ? browsing.positionOf(currentId) : 0
-  );
-  const count = $derived(multi ? panes.length : browsing.count);
 
   let paneMetrics = $state.raw<Record<string, ViewportMetrics>>({});
   let paneImages = $state<Record<string, HTMLImageElement>>({});
@@ -153,7 +149,9 @@
     paneImageOrder = next.order;
   }
 
-  const hasPrev = $derived(!multi && currentId ? browsing.prevOf(currentId) !== null : false);
+  const hasPrev = $derived(
+    !multi && currentId ? browsing.prevOf(currentId) !== null || browsing.hasPrevious : false
+  );
   const atLoadedEnd = $derived(currentId ? browsing.nextOf(currentId) === null : false);
   const hasNext = $derived(!multi && currentId !== null && (!atLoadedEnd || browsing.hasMore));
 </script>
@@ -266,8 +264,6 @@
         cull={cullState(asset)}
         tags={currentTags}
         {multi}
-        {position}
-        {count}
         {zoom}
         fitZoom={focusedFitZoom}
         fitMode={paneView.zoom === null}

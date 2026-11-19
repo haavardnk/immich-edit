@@ -74,3 +74,15 @@ export async function pinch(
   }
   await dispatch(page, 'touchEnd', []);
 }
+
+export async function touchDown(page: Page, point: TouchPoint): Promise<void> {
+  await dispatch(page, 'touchStart', [point]);
+}
+
+export async function touchMoveTo(page: Page, point: TouchPoint): Promise<void> {
+  await dispatch(page, 'touchMove', [point]);
+}
+
+export async function touchUp(page: Page): Promise<void> {
+  await dispatch(page, 'touchEnd', []);
+}

@@ -5,6 +5,7 @@
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { readFilterParams } from '#lib/browse/filterParams.ts';
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
+  import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
@@ -18,21 +19,11 @@
       selection.clear();
       browseControls.enter('collection', readFilterParams(page.url));
       feed.reset();
-      void feed.fetchPage(true);
+      void feed.resume(resumeId(page.url));
     });
   });
 
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowsePage
-  {title}
-  assets={feed.assets}
-  loading={feed.loading && !feed.loadedOnce}
-  loadingLabel="Loading tag…"
-  loadingMore={feed.loadingMore}
-  onLoadMore={feed.hasMore ? () => feed.loadMore() : undefined}
-  onLoadAll={() => feed.loadAll()}
-  totalCount={feed.totalCount}
-  emptyTitle="No photos with this tag"
-/>
+<BrowsePage {feed} {title} loadingLabel="Loading tag…" emptyTitle="No photos with this tag" />

@@ -7,87 +7,97 @@ const ROWS: Row[] = [
   [
     'phone portrait',
     { width: 390, height: 844, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: false, compact: true }
+    { mode: 'touch', wide: false, landscape: false, compact: true, phone: true }
   ],
   [
     'phone landscape',
     { width: 844, height: 390, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: true, compact: true }
+    { mode: 'touch', wide: false, landscape: true, compact: true, phone: true }
   ],
   [
     'iPad portrait',
     { width: 820, height: 1180, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: false, compact: true }
+    { mode: 'touch', wide: false, landscape: false, compact: true, phone: false }
+  ],
+  [
+    'iPad mini portrait',
+    { width: 744, height: 1133, coarse: true, choice: 'auto' },
+    { mode: 'touch', wide: false, landscape: false, compact: true, phone: false }
   ],
   [
     'iPad landscape',
     { width: 1180, height: 820, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ],
   [
     'iPad mini landscape',
     { width: 1133, height: 744, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ],
   [
     'small touch tablet landscape',
     { width: 760, height: 620, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: true, compact: true }
+    { mode: 'touch', wide: false, landscape: true, compact: true, phone: false }
   ],
   [
     'touch tablet landscape narrower than wide',
     { width: 960, height: 600, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: true, compact: true }
+    { mode: 'touch', wide: false, landscape: true, compact: true, phone: false }
   ],
   [
     'iPad Pro landscape',
     { width: 1366, height: 1024, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ],
   [
     'small laptop window',
     { width: 700, height: 800, coarse: false, choice: 'auto' },
-    { mode: 'touch', wide: false, landscape: false, compact: true }
+    { mode: 'touch', wide: false, landscape: false, compact: true, phone: false }
+  ],
+  [
+    'narrow desktop window',
+    { width: 500, height: 800, coarse: false, choice: 'auto' },
+    { mode: 'touch', wide: false, landscape: false, compact: true, phone: true }
   ],
   [
     'laptop',
     { width: 1280, height: 800, coarse: false, choice: 'auto' },
-    { mode: 'desktop', wide: false, landscape: true, compact: false }
+    { mode: 'desktop', wide: false, landscape: true, compact: false, phone: false }
   ],
   [
     'full HD touch screen',
     { width: 1920, height: 1080, coarse: true, choice: 'auto' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ],
   [
     'large touch monitor',
     { width: 2560, height: 1440, coarse: true, choice: 'auto' },
-    { mode: 'desktop', wide: false, landscape: true, compact: false }
+    { mode: 'desktop', wide: false, landscape: true, compact: false, phone: false }
   ],
   [
     'full HD desktop',
     { width: 1920, height: 1080, coarse: false, choice: 'auto' },
-    { mode: 'desktop', wide: false, landscape: true, compact: false }
+    { mode: 'desktop', wide: false, landscape: true, compact: false, phone: false }
   ],
   [
     'desktop forced on a phone',
     { width: 390, height: 844, coarse: true, choice: 'desktop' },
-    { mode: 'desktop', wide: false, landscape: false, compact: false }
+    { mode: 'desktop', wide: false, landscape: false, compact: false, phone: false }
   ],
   [
     'desktop forced on an iPad landscape',
     { width: 1180, height: 820, coarse: true, choice: 'desktop' },
-    { mode: 'desktop', wide: false, landscape: true, compact: false }
+    { mode: 'desktop', wide: false, landscape: true, compact: false, phone: false }
   ],
   [
     'touch forced on a laptop',
     { width: 1280, height: 800, coarse: false, choice: 'touch' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ],
   [
     'touch forced on a large monitor',
     { width: 1920, height: 1080, coarse: false, choice: 'touch' },
-    { mode: 'touch', wide: true, landscape: true, compact: false }
+    { mode: 'touch', wide: true, landscape: true, compact: false, phone: false }
   ]
 ];
 

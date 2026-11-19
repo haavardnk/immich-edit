@@ -18,11 +18,15 @@ function summary(id: string): AssetSummary {
   return { id, originalFileName: `${id}.arw` } as AssetSummary;
 }
 
-function load(ids: string[], pages: string[][] = []): void {
+function load(ids: string[], pages: string[][] = [], earlier: string[][] = []): void {
   const pending = [...pages];
+  const before = [...earlier];
   const pager: BrowsePager = {
     get hasMore() {
       return pending.length > 0;
+    },
+    get hasPrevious() {
+      return before.length > 0;
     },
     loadingMore: false,
     loadMore: () => {
@@ -30,7 +34,20 @@ function load(ids: string[], pages: string[][] = []): void {
       if (!page) return Promise.resolve(false);
       browsing.assets = [...browsing.assets, ...page.map(summary)];
       return Promise.resolve(true);
-    }
+    },
+    loadPrevious: () => {
+      const page = before.shift();
+      if (!page) return Promise.resolve(false);
+      browsing.assets = [...page.map(summary), ...browsing.assets];
+      return Promise.resolve(true);
+    },
+    loadEdge: (end) => {
+      if (end === 'last') return Promise.resolve(false);
+      const earlier = before.splice(0).reverse().flat();
+      browsing.assets = [...earlier.map(summary), ...browsing.assets];
+      return Promise.resolve(true);
+    },
+    jumpTo: () => Promise.resolve(false)
   };
   browsing.set(ids.map(summary), pager);
 }
@@ -38,7 +55,15 @@ function load(ids: string[], pages: string[][] = []): void {
 function deferPage(ids: string[], more: string[]): () => Promise<void> {
   let resolvePage = (_loaded: boolean): void => undefined;
   const page = new Promise<boolean>((resolve) => (resolvePage = resolve));
-  browsing.set(ids.map(summary), { hasMore: true, loadingMore: false, loadMore: () => page });
+  browsing.set(ids.map(summary), {
+    hasMore: true,
+    hasPrevious: false,
+    loadingMore: false,
+    loadMore: () => page,
+    loadPrevious: () => Promise.resolve(false),
+    loadEdge: () => Promise.resolve(false),
+    jumpTo: () => Promise.resolve(false)
+  });
   return async () => {
     browsing.assets = [...browsing.assets, ...more.map(summary)];
     resolvePage(true);
@@ -72,6 +97,17 @@ describe('loupe navigation', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(browseView.loupeId).toBe('c');
+  });
+
+  it('loads the earlier page when stepping back past the near end', async () => {
+    load(['c', 'd'], [], [['a', 'b']]);
+    browseView.openLoupe('c');
+    stepLoupe(-1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(browseView.loupeId).toBe('b');
+    stepLoupe(-1);
+    expect(browseView.loupeId).toBe('a');
   });
 
   it('keeps every step pressed while the next page loads', async () => {
