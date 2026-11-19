@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobs } from './jobs.svelte';
 import { toasts } from './toasts.svelte';
-import { getJob, listJobs, type Job, type JobItem } from '#lib/api/jobs.ts';
+import { getJob, listJobs, retryJob, type Job, type JobItem } from '#lib/api/jobs.ts';
 import { ApiError } from '#lib/api/client.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
@@ -20,11 +20,13 @@ vi.mock('#lib/api/jobs.ts', async (importOriginal) => ({
   listJobs: vi.fn(),
   getJob: vi.fn(),
   cancelJob: vi.fn(),
-  clearJobs: vi.fn()
+  clearJobs: vi.fn(),
+  retryJob: vi.fn()
 }));
 
 const mockedListJobs = vi.mocked(listJobs);
 const mockedGetJob = vi.mocked(getJob);
+const mockedRetryJob = vi.mocked(retryJob);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -105,6 +107,10 @@ function trashedItem(): JobItem {
     asset_id: '11111111-1111-1111-1111-111111111111',
     result: { original_trashed: true }
   } as JobItem;
+}
+
+function item(status: JobItem['status']): JobItem {
+  return { id: 'item-1', asset_id: 'asset-1', status } as JobItem;
 }
 
 function giveUpStreams(): { onerror: (() => void) | null }[] {
@@ -344,5 +350,167 @@ describe('tracked jobs', () => {
     expect(jobs.expanded).toBe('job-1');
     expect(jobs.watched).toEqual([]);
     expect(jobs.attention).toBe(false);
+  });
+
+  it('reopens a failed job, watches it again and refreshes its details', async () => {
+    const failed = job({ status: 'completed', completed: 3, failed: 1 });
+    const reopened = job({ status: 'pending', completed: 3, updated_at: '2024-01-01T00:01:00Z' });
+    mockedRetryJob.mockResolvedValue(reopened);
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValue({ job: reopened, items: [] });
+    jobs.track(job({}));
+    jobs.receive(failed);
+    jobs.items = { 'job-1': [] };
+
+    await jobs.retry('job-1');
+
+    expect(mockedRetryJob).toHaveBeenCalledWith('job-1');
+    expect(jobs.jobs[0]?.status).toBe('pending');
+    expect(jobs.watched).toEqual(['job-1']);
+    expect(jobs.attention).toBe(false);
+    expect(mockedGetJob).toHaveBeenCalledWith('job-1');
+  });
+
+  it('ignores the failed record a poll in flight still returns after a retry', async () => {
+    const failed = job({ status: 'completed', completed: 3, failed: 1 });
+    const reopened = job({ status: 'pending', completed: 3, updated_at: '2024-01-01T00:01:00Z' });
+    mockedRetryJob.mockResolvedValue(reopened);
+    jobs.track(job({}));
+    jobs.receive(failed);
+    await jobs.retry('job-1');
+
+    mockedListJobs.mockResolvedValue([failed]);
+    await jobs.load();
+    jobs.receive(failed);
+
+    expect(jobs.jobs[0]?.status).toBe('pending');
+    jobs.receive({ ...reopened, status: 'completed', completed: 4 });
+    expect(jobs.jobs[0]?.status).toBe('completed');
+    expect(jobs.jobs[0]?.failed).toBe(0);
+  });
+
+  it('watches a job another tab retried', async () => {
+    const streams: string[] = [];
+    vi.stubGlobal(
+      'EventSource',
+      class {
+        constructor(url: string) {
+          streams.push(url);
+        }
+        addEventListener(): void {}
+        close(): void {}
+      }
+    );
+    jobs.jobs = [job({ status: 'completed', completed: 3, failed: 1 })];
+    jobs.receive(job({ status: 'pending', completed: 3, updated_at: '2024-01-01T00:01:00Z' }));
+
+    expect(jobs.jobs[0]?.status).toBe('pending');
+    expect(streams).toEqual(['/api/jobs/job-1/events']);
+  });
+
+  it('keeps the job and says so when a retry is refused', async () => {
+    const failed = job({ status: 'completed', completed: 3, failed: 1 });
+    mockedRetryJob.mockRejectedValue(
+      new ApiError(409, 'conflict', 'job belongs to a previous server')
+    );
+    jobs.jobs = [failed];
+
+    await jobs.retry('job-1');
+
+    expect(jobs.jobs[0]).toEqual(failed);
+    expect(toasts.items.map((t) => t.message)).toEqual([
+      'Failed to retry job: job belongs to a previous server'
+    ]);
+  });
+
+  it('refreshes the items of an expanded job when it ends', async () => {
+    const running = job({ status: 'running' });
+    const done = job({ status: 'completed', completed: 4 });
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValueOnce({ job: running, items: [item('pending')] });
+    mockedGetJob.mockResolvedValue({ job: done, items: [item('completed')] });
+    jobs.track(running);
+    jobs.toggleExpanded('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(jobs.items['job-1']?.[0]?.status).toBe('pending');
+
+    jobs.receive(done);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(jobs.items['job-1']?.[0]?.status).toBe('completed');
+    expect(mockedGetJob).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes the items of an expanded job when the drawer poll sees the end', async () => {
+    const running = job({ status: 'running' });
+    const done = job({ status: 'completed', completed: 4 });
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValueOnce({ job: running, items: [item('pending')] });
+    mockedGetJob.mockResolvedValue({ job: done, items: [item('completed')] });
+    jobs.track(running);
+    jobs.toggleExpanded('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+    mockedListJobs.mockResolvedValue([done]);
+
+    await jobs.load();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(jobs.items['job-1']?.[0]?.status).toBe('completed');
+  });
+
+  it('leaves the cached items of a collapsed job until it opens again', async () => {
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValue({ job: job({}), items: [item('pending')] });
+    jobs.track(job({}));
+    jobs.toggleExpanded('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+    jobs.toggleExpanded('job-1');
+
+    jobs.receive(job({ status: 'completed', completed: 4 }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mockedGetJob).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes items as an expanded job progresses without stacking requests', async () => {
+    let release: () => void = () => undefined;
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValueOnce({ job: job({}), items: [item('pending')] });
+    jobs.track(job({}));
+    jobs.toggleExpanded('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+    const latest = job({ completed: 3 });
+    mockedGetJob.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ job: latest, items: [item('completed')] });
+        })
+    );
+
+    jobs.receive(job({ completed: 1 }));
+    jobs.receive(job({ completed: 2 }));
+    jobs.receive(latest);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mockedGetJob).toHaveBeenCalledTimes(3);
+    expect(jobs.items['job-1']?.[0]?.status).toBe('completed');
+  });
+
+  it('keeps the last items quietly when a background refresh fails', async () => {
+    mockedGetJob.mockReset();
+    mockedGetJob.mockResolvedValueOnce({ job: job({}), items: [item('pending')] });
+    mockedGetJob.mockRejectedValue(new Error('offline'));
+    jobs.track(job({}));
+    jobs.toggleExpanded('job-1');
+    await vi.advanceTimersByTimeAsync(0);
+
+    jobs.receive(job({ completed: 1 }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(jobs.items['job-1']?.[0]?.status).toBe('pending');
+    expect(toasts.items).toEqual([]);
   });
 });

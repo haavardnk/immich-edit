@@ -120,7 +120,10 @@ Previews, exports, and edited thumbnails pick up the change on their next render
 ## Immich instance
 
 **Administration** > **Server** > **Immich instance** shows the Immich server immich-edit is bound
-to. **Change server…** rebinds it to another one.
+to. **Change server…** rebinds it to another one. It first checks that you are still an
+administrator on the current server; when that server does not answer, it goes ahead on your
+immich-edit administrator session, so an instance whose Immich moved can be rebound from the
+**Can't reach Immich.** page.
 
 {: .warning }
 Rebinding validates an administrator on the new server, then removes local users, edits, and jobs

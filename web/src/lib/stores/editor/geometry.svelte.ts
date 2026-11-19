@@ -376,7 +376,7 @@ export async function reset(ctx: GeometryCtx): Promise<void> {
   ctx.edits = { ...ctx.edits, geometry: neutralGeometry() };
   if (ctx.geometrySession) resetDrafts(ctx.geometrySession, ctx.edits.geometry);
   await ctx.onCommit('Reset Geometry');
-  toasts.push('success', `Reset geometry. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
+  toasts.push('success', `Reset geometry. Undo with ${keysFor('undo')}.`);
 }
 
 export async function flipAspect(ctx: GeometryCtx): Promise<void> {

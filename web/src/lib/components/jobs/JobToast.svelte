@@ -3,13 +3,14 @@
     jobDownloadUrl,
     isJobActive,
     jobNeedsAttention,
+    jobRetryable,
     zipReady,
     type Job
   } from '#lib/api/jobs.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { jobKindLabel, jobOutcome, jobProgress } from './jobFormat';
   import { Button, IconButton, ProgressBar, ToastContainer, type Color } from '@immich/ui';
-  import { mdiClose } from '@mdi/js';
+  import { mdiClose, mdiRefresh } from '@mdi/js';
 
   let { job }: { job: Job } = $props();
 
@@ -27,7 +28,7 @@
     <div class="flex items-start gap-2">
       <div class="min-w-0 flex-1">
         <p class="truncate text-xs font-medium">{label}</p>
-        <p class="mt-0.5 text-[11px] text-dark/70" data-testid="job-toast-outcome">
+        <p class="mt-0.5 text-caption text-dark/80" data-testid="job-toast-outcome">
           {jobOutcome(job)}
         </p>
       </div>
@@ -67,6 +68,18 @@
         {#if failed}
           <Button size="tiny" variant="ghost" color="danger" onclick={() => jobs.showJob(job.id)}>
             Details
+          </Button>
+        {/if}
+        {#if jobRetryable(job)}
+          <Button
+            size="tiny"
+            variant="outline"
+            color="secondary"
+            leadingIcon={mdiRefresh}
+            aria-label="Retry {job.failed} failed"
+            onclick={() => jobs.retry(job.id)}
+          >
+            Retry
           </Button>
         {/if}
       </div>

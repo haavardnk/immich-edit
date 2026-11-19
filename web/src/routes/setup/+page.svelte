@@ -8,71 +8,42 @@
     startOAuthSetup,
     type AuthProviders
   } from '#lib/api/auth.ts';
-  import { ApiError, isBackendDown } from '#lib/api/client.ts';
   import { callbackError, isOAuthCallback, redirectUri } from '#lib/auth/oauth.ts';
   import Wordmark from '#lib/components/Wordmark.svelte';
-  import Notice from '#lib/components/Notice.svelte';
-  import TextInput from '#lib/components/TextInput.svelte';
-  import { Alert, Button, Field } from '@immich/ui';
+  import AdminStep from '#lib/components/setup/AdminStep.svelte';
+  import ServerStep from '#lib/components/setup/ServerStep.svelte';
+  import SetupSteps from '#lib/components/setup/SetupSteps.svelte';
+  import { claimError, IMMICH_SILENT, probeError } from '#lib/setup/setupErrors.ts';
+  import type { AdminCredentials } from '#lib/setup/setupSteps.ts';
 
   let immichUrl = $state('');
-  let method = $state<'password' | 'apikey'>('password');
-  let email = $state('');
-  let password = $state('');
-  let apiKey = $state('');
-  let submitting = $state(false);
-  let error = $state<string | null>(null);
   let providers = $state<AuthProviders | null>(null);
   let probing = $state(false);
+  let submitting = $state(false);
   let oauthBusy = $state(false);
+  let error = $state<string | null>(null);
 
   const trimmedUrl = $derived(immichUrl.trim());
-  const showOAuth = $derived(providers?.oauth === true);
-  const canSubmit = $derived(
-    !submitting &&
-      trimmedUrl.length > 0 &&
-      (method === 'password' ? email.length > 0 && password.length > 0 : apiKey.length > 0)
-  );
+  const step = $derived(providers ? 'admin' : 'server');
 
-  function messageFor(e: ApiError): string {
-    switch (e.code) {
-      case 'admin_required':
-        return 'That account is not an Immich administrator. Setup requires an admin.';
-      case 'invalid_credentials':
-        return 'Invalid credentials.';
-      case 'rate_limited':
-        return 'Too many attempts. Wait a moment and try again.';
-      case 'upstream_unavailable':
-        return 'Could not reach the Immich server. Check the URL.';
-      case 'conflict':
-        return 'This instance is already configured.';
-      case 'bad_request':
-        return 'The sign-in link expired. Start again.';
-      default:
-        return e.message || 'Setup failed.';
-    }
-  }
-
-  function describe(err: unknown, fallback: string): string {
-    if (isBackendDown(err)) {
-      return 'The immich-edit server is not responding. Check that it is running.';
-    }
-    if (err instanceof ApiError) return messageFor(err);
-    return err instanceof Error && err.message ? err.message : fallback;
-  }
-
-  async function probeProviders(): Promise<void> {
-    if (trimmedUrl.length === 0) {
-      providers = null;
-      return;
-    }
+  async function probe(): Promise<void> {
+    if (probing || trimmedUrl === '') return;
     probing = true;
+    error = null;
     try {
-      providers = await setupProviders(trimmedUrl);
-    } catch {
-      providers = null;
+      const found = await setupProviders(trimmedUrl);
+      if (found.degraded) error = IMMICH_SILENT;
+      else providers = found;
+    } catch (err: unknown) {
+      error = probeError(err);
+    } finally {
+      probing = false;
     }
-    probing = false;
+  }
+
+  function editServer(): void {
+    providers = null;
+    error = null;
   }
 
   async function launchOAuth(): Promise<void> {
@@ -83,7 +54,7 @@
       const url = await startOAuthSetup(trimmedUrl, redirectUri(page.url));
       window.location.assign(url);
     } catch (err: unknown) {
-      error = describe(err, 'Could not start single sign-on.');
+      error = claimError(err, 'Could not start single sign-on.');
       oauthBusy = false;
     }
   }
@@ -99,25 +70,20 @@
       await completeOAuthSetup(page.url.href);
       window.location.replace('/');
     } catch (err: unknown) {
-      error = describe(err, 'Single sign-on failed.');
+      error = claimError(err, 'Single sign-on failed.');
       oauthBusy = false;
     }
   }
 
-  async function submit(e: SubmitEvent): Promise<void> {
-    e.preventDefault();
-    if (!canSubmit) return;
+  async function claim(credentials: AdminCredentials): Promise<void> {
+    if (submitting) return;
     submitting = true;
     error = null;
     try {
-      const body =
-        method === 'password'
-          ? { immich_url: trimmedUrl, email, password }
-          : { immich_url: trimmedUrl, api_key: apiKey };
-      await completeSetup(body);
+      await completeSetup({ immich_url: trimmedUrl, ...credentials });
       window.location.replace('/');
     } catch (err: unknown) {
-      error = describe(err, 'Setup failed');
+      error = claimError(err, 'Setup failed');
       submitting = false;
     }
   }
@@ -127,103 +93,26 @@
   });
 </script>
 
-<div class="auth-stage h-full w-full overflow-y-auto px-6 py-10">
-  <main class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center">
-    <Wordmark size="large" bright class="mb-8" />
-    <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-light-950">Connect Immich</h1>
-      <p class="mt-1 text-sm text-light-950/45">
-        Sign in as an Immich administrator to claim this editor.
-      </p>
-    </div>
-    <div class="flex flex-col gap-4">
-      <Alert color="warning" size="small" shape="rectangle" icon={false}>
-        Complete setup before exposing this instance publicly. The first Immich admin to finish
-        claims the instance.
-      </Alert>
-      <form onsubmit={submit} class="flex flex-col gap-4">
-        <Field label="Immich URL" size="tiny" disabled={submitting}>
-          <TextInput
-            type="url"
-            placeholder="https://immich.example.com"
-            autocomplete="url"
-            onblur={probeProviders}
-            bind:value={immichUrl}
-          />
-        </Field>
-
-        {#if showOAuth && providers}
-          <Button
-            type="button"
-            size="small"
-            color="primary"
-            disabled={oauthBusy || probing}
-            loading={oauthBusy}
-            fullWidth
-            onclick={launchOAuth}
-          >
-            {providers.button_text}
-          </Button>
-          <div class="flex items-center gap-3 text-xs text-light-950/35">
-            <span class="h-px flex-1 bg-light-950/15"></span>
-            or
-            <span class="h-px flex-1 bg-light-950/15"></span>
-          </div>
-        {/if}
-
-        <div class="flex gap-1 rounded bg-light-100 p-1 text-sm">
-          <Button
-            type="button"
-            size="tiny"
-            variant={method === 'password' ? 'filled' : 'ghost'}
-            color={method === 'password' ? 'primary' : 'secondary'}
-            class="flex-1"
-            aria-pressed={method === 'password'}
-            onclick={() => (method = 'password')}
-          >
-            Email &amp; password
-          </Button>
-          <Button
-            type="button"
-            size="tiny"
-            variant={method === 'apikey' ? 'filled' : 'ghost'}
-            color={method === 'apikey' ? 'primary' : 'secondary'}
-            class="flex-1"
-            aria-pressed={method === 'apikey'}
-            onclick={() => (method = 'apikey')}
-          >
-            API key
-          </Button>
-        </div>
-
-        {#if method === 'password'}
-          <Field label="Email" size="tiny" disabled={submitting}>
-            <TextInput type="email" autocomplete="username" bind:value={email} />
-          </Field>
-          <Field label="Password" size="tiny" disabled={submitting}>
-            <TextInput type="password" autocomplete="current-password" bind:value={password} />
-          </Field>
-        {:else}
-          <Field label="API key" size="tiny" disabled={submitting}>
-            <TextInput type="password" autocomplete="off" bind:value={apiKey} />
-          </Field>
-        {/if}
-
-        {#if error}
-          <Notice message={error} />
-        {/if}
-
-        <Button
-          type="submit"
-          size="small"
-          color="primary"
-          disabled={!canSubmit}
-          loading={submitting}
-          fullWidth
-        >
-          {submitting ? 'Connecting…' : 'Connect and claim instance'}
-        </Button>
-      </form>
-    </div>
+<div
+  class="auth-stage flex h-full w-full flex-col overflow-y-auto px-6 py-10 touch:px-5 touch:pt-4 touch:pb-6"
+>
+  <main class="mx-auto my-auto flex w-full max-w-sm flex-col gap-5 touch:my-0 touch:flex-1">
+    <Wordmark bright class="touch:hidden" />
+    <h1 class="text-xl font-semibold text-light-950 touch:text-title">Set up immich-edit</h1>
+    <SetupSteps current={step} />
+    {#if providers}
+      <AdminStep
+        url={trimmedUrl}
+        {providers}
+        {submitting}
+        {oauthBusy}
+        {error}
+        onEdit={editServer}
+        onOAuth={() => void launchOAuth()}
+        onClaim={(credentials) => void claim(credentials)}
+      />
+    {:else}
+      <ServerStep bind:url={immichUrl} {probing} {error} onContinue={() => void probe()} />
+    {/if}
   </main>
 </div>

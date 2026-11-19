@@ -8,42 +8,30 @@ import {
   jobParamSets,
   jobNeedsAttention,
   listJobs,
+  retryJob,
   splitJobs,
   TRANSFER_JOB_KINDS,
   zipReady,
   type Job,
   type JobItem
 } from '#lib/api/jobs.ts';
-import { ApiError, url } from '#lib/api/client.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { downloadUrl } from '#lib/utils/download.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
-import { toasts } from '#lib/stores/toasts.svelte.ts';
+import { TOAST_TTL_MS, toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
+import { endedNow, progressed, revives, supersedes } from '#lib/stores/jobs/transitions.ts';
+import { ItemRefresh } from '#lib/stores/jobs/itemRefresh.ts';
+import { JobWatch, pollDelay } from '#lib/stores/jobs/watch.ts';
+import { jobNotifications } from '#lib/stores/jobs/notify.svelte.ts';
 
-const POLL_BASE_MS = 4000;
-const MAX_BACKOFF_STEPS = 4;
-const MAX_STREAM_ERRORS = 5;
-const DONE_TOAST_MS = 6000;
 const REFRESHES_THUMBS: ReadonlySet<string> = new Set([
   JOB_KINDS.applyPreset,
   JOB_KINDS.pasteEdits,
   JOB_KINDS.resetEdits
 ]);
-
-function endedNow(previous: Job | undefined, next: Job): boolean {
-  return previous !== undefined && isJobActive(previous.status) && !isJobActive(next.status);
-}
-
-function revives(previous: Job | undefined, next: Job): boolean {
-  return previous !== undefined && !isJobActive(previous.status) && isJobActive(next.status);
-}
-
-function isGone(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 404 || error.status === 410);
-}
 
 function trashesAssets(job: Job): boolean {
   return (
@@ -64,9 +52,11 @@ class JobsStore {
   expanded = $state<string | null>(null);
 
   private downloads = new Set<string>();
-  private sources = new Map<string, EventSource>();
-  private streamErrors = new Map<string, number>();
-  private fallbacks = new Map<string, ReturnType<typeof setTimeout>>();
+  private watch = new JobWatch({
+    receive: (job) => this.receive(job),
+    isActive: (id) => this.jobs.some((j) => j.id === id && isJobActive(j.status))
+  });
+  private itemRefresh = new ItemRefresh((id) => this.fetchItems(id));
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private polling = false;
   private failures = 0;
@@ -84,17 +74,19 @@ class JobsStore {
       const previous = new Map(this.jobs.map((j) => [j.id, j]));
       const merged = fetched.map((job) => {
         const known = previous.get(job.id);
-        return known && revives(known, job) ? known : job;
+        return supersedes(known, job) ? job : (known ?? job);
       });
       this.jobs = merged;
       this.failures = 0;
       for (const job of merged) {
-        if (endedNow(previous.get(job.id), job)) this.finish(job);
+        const known = previous.get(job.id);
+        this.refreshExpanded(known, job);
+        if (endedNow(known, job)) this.finish(job);
       }
       this.syncStreams();
     } catch (e) {
       this.failures += 1;
-      if (this.failures === 1) toasts.fail('Failed to load jobs', e, 6000);
+      if (this.failures === 1) toasts.fail('Failed to load jobs', e);
     } finally {
       this.loading = false;
     }
@@ -130,8 +122,23 @@ class JobsStore {
   track = (job: Job): void => {
     this.patch(job);
     if (!this.watched.includes(job.id)) this.watched = [job.id, ...this.watched];
-    if (isJobActive(job.status)) this.connect(job.id);
+    if (isJobActive(job.status)) this.watch.connect(job.id);
     else this.settle(job);
+  };
+
+  retry = async (id: string): Promise<void> => {
+    let job: Job;
+    try {
+      job = await retryJob(id);
+    } catch (e) {
+      toasts.fail('Failed to retry job', e);
+      return;
+    }
+    this.patch(job);
+    this.attention = false;
+    if (!this.open && !this.watched.includes(id)) this.watched = [id, ...this.watched];
+    this.watch.resume(id);
+    if (this.items[id] !== undefined) void this.loadItems(id);
   };
 
   downloadWhenDone = (id: string): void => {
@@ -144,10 +151,17 @@ class JobsStore {
 
   receive = (job: Job): void => {
     const previous = this.jobs.find((j) => j.id === job.id);
-    if (revives(previous, job)) return;
+    if (!supersedes(previous, job)) return;
     this.patch(job);
+    this.refreshExpanded(previous, job);
     if (endedNow(previous, job)) this.finish(job);
+    else if (revives(previous, job)) this.watch.connect(job.id);
   };
+
+  private refreshExpanded(previous: Job | undefined, job: Job): void {
+    if (this.expanded !== job.id || this.items[job.id] === undefined) return;
+    if (progressed(previous, job)) this.itemRefresh.request(job.id);
+  }
 
   private finish(job: Job): void {
     if (REFRESHES_THUMBS.has(job.kind) && job.status === 'completed') {
@@ -156,8 +170,8 @@ class JobsStore {
     libraryChanged();
     if (trashesAssets(job)) void this.forgetTrashed(job.id);
     if (this.downloads.delete(job.id) && zipReady(job)) downloadUrl(jobDownloadUrl(job.id));
-    this.disconnect(job.id);
-    this.stopFallback(job.id);
+    this.watch.stop(job.id);
+    jobNotifications.notify(job);
     this.settle(job);
   }
 
@@ -189,7 +203,7 @@ class JobsStore {
       if (!this.open) this.attention = true;
       return;
     }
-    setTimeout(() => this.unwatch(job.id), DONE_TOAST_MS);
+    setTimeout(() => this.unwatch(job.id), TOAST_TTL_MS.success);
   }
 
   close = (): void => {
@@ -201,7 +215,7 @@ class JobsStore {
     try {
       await cancelJob(id);
     } catch (e) {
-      toasts.fail('Failed to cancel job', e, 6000);
+      toasts.fail('Failed to cancel job', e);
     }
   };
 
@@ -209,29 +223,30 @@ class JobsStore {
     try {
       await clearJobs();
       const removed = new Set(splitJobs(this.jobs).finished.map((j) => j.id));
-      for (const id of removed) {
-        this.disconnect(id);
-        this.streamErrors.delete(id);
-      }
+      for (const id of removed) this.watch.forget(id);
       this.jobs = splitJobs(this.jobs).running;
       this.watched = this.watched.filter((id) => !removed.has(id));
       const items = { ...this.items };
       for (const id of removed) delete items[id];
       this.items = items;
     } catch (e) {
-      toasts.fail('Failed to clear jobs', e, 6000);
+      toasts.fail('Failed to clear jobs', e);
     }
   };
 
   loadItems = async (id: string): Promise<void> => {
     try {
-      const detail = await getJob(id);
-      this.receive(detail.job);
-      this.items = { ...this.items, [id]: detail.items };
+      await this.fetchItems(id);
     } catch (e) {
-      toasts.fail('Failed to load job items', e, 6000);
+      toasts.fail('Failed to load job items', e);
     }
   };
+
+  private async fetchItems(id: string): Promise<void> {
+    const detail = await getJob(id);
+    this.items = { ...this.items, [id]: detail.items };
+    this.receive(detail.job);
+  }
 
   private patch(job: Job): void {
     const idx = this.jobs.findIndex((j) => j.id === job.id);
@@ -246,77 +261,9 @@ class JobsStore {
 
   private syncStreams(): void {
     for (const job of this.jobs) {
-      if (isJobActive(job.status)) {
-        this.connect(job.id);
-      } else {
-        this.disconnect(job.id);
-      }
+      if (isJobActive(job.status)) this.watch.connect(job.id);
+      else this.watch.stop(job.id);
     }
-  }
-
-  private connect(id: string): void {
-    if (this.sources.has(id)) return;
-    if ((this.streamErrors.get(id) ?? 0) >= MAX_STREAM_ERRORS) return;
-    const source = new EventSource(url`/api/jobs/${id}/events`);
-    source.addEventListener('job', (ev) => {
-      let job: Job;
-      try {
-        job = JSON.parse((ev as MessageEvent).data) as Job;
-      } catch {
-        return;
-      }
-      this.streamErrors.delete(id);
-      this.receive(job);
-    });
-    source.onerror = () => {
-      const errors = (this.streamErrors.get(id) ?? 0) + 1;
-      this.streamErrors.set(id, errors);
-      if (errors >= MAX_STREAM_ERRORS) {
-        this.disconnect(id);
-        this.pollJob(id, 0);
-        return;
-      }
-      if (source.readyState === EventSource.CLOSED) {
-        this.sources.delete(id);
-      }
-    };
-    this.sources.set(id, source);
-  }
-
-  private disconnect(id: string): void {
-    const source = this.sources.get(id);
-    if (source) {
-      source.close();
-      this.sources.delete(id);
-    }
-  }
-
-  private pollJob(id: string, failures: number): void {
-    this.stopFallback(id);
-    const delay = POLL_BASE_MS * 2 ** Math.min(failures, MAX_BACKOFF_STEPS);
-    const timer = setTimeout(() => void this.checkJob(id, failures), delay);
-    this.fallbacks.set(id, timer);
-  }
-
-  private async checkJob(id: string, failures: number): Promise<void> {
-    this.fallbacks.delete(id);
-    let job: Job;
-    try {
-      job = (await getJob(id)).job;
-    } catch (e) {
-      if (!isGone(e)) this.pollJob(id, failures + 1);
-      return;
-    }
-    this.receive(job);
-    const current = this.jobs.find((j) => j.id === id);
-    if (current && isJobActive(current.status)) this.pollJob(id, 0);
-  }
-
-  private stopFallback(id: string): void {
-    const timer = this.fallbacks.get(id);
-    if (timer === undefined) return;
-    clearTimeout(timer);
-    this.fallbacks.delete(id);
   }
 
   private startPolling(): void {
@@ -328,11 +275,10 @@ class JobsStore {
   private async poll(): Promise<void> {
     await this.load();
     if (!this.polling) return;
-    const delay = POLL_BASE_MS * 2 ** Math.min(this.failures, MAX_BACKOFF_STEPS);
     this.pollTimer = setTimeout(() => {
       this.pollTimer = null;
       if (this.polling) void this.poll();
-    }, delay);
+    }, pollDelay(this.failures));
   }
 
   private stopPolling(): void {

@@ -88,7 +88,7 @@ export class SnapshotStore {
     const edits = $state.snapshot(this.ctx.edits) as Edits;
     if (!(await this.update(id, { edits }, 'Could not update the snapshot'))) return false;
     const name = this.items.find((item) => item.id === id)?.name;
-    if (name) toasts.push('success', `Updated ${name}`, { ttlMs: 3000 });
+    if (name) toasts.push('success', `Updated ${name}`);
     return true;
   }
 

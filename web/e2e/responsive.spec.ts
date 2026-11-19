@@ -388,8 +388,7 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
     .getByRole('dialog', { name: 'More actions' })
     .getByRole('button', { name: 'Tags' })
     .click();
-  await expect(page.getByRole('button', { name: 'Add to selected' })).toBeInViewport();
-  await expect(page.getByRole('button', { name: 'Remove from selected' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeInViewport();
 });
 
 for (const size of [

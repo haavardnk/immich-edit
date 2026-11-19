@@ -391,12 +391,14 @@ test.describe('touch selection', () => {
       .getByRole('dialog', { name: 'More actions' })
       .getByRole('button', { name: 'Albums', exact: true })
       .tap();
-    const sheet = page.getByRole('dialog', { name: 'Add to album' });
+    const sheet = page.getByRole('dialog', { name: 'Albums' });
     await expect(sheet).toBeVisible();
-    await expect(
-      sheet.getByText('Pick albums, then add the 2 selected photos to them')
-    ).toBeVisible();
-    await expect(sheet.getByRole('button', { name: 'Add to albums' })).toBeDisabled();
+    const apply = sheet.getByRole('button', { name: 'Apply', exact: true });
+    await expect(apply).toBeDisabled();
+    await expect(apply).toBeInViewport();
+    await sheet.getByRole('checkbox').first().tap();
+    await expect(apply).toBeEnabled();
+    await expect(apply).toBeInViewport();
   });
 
   test('@touch More lists the remaining actions and keeps the selection on Cancel', async ({
@@ -439,6 +441,6 @@ test.describe('touch selection', () => {
 
     const sheet = page.getByRole('dialog', { name: 'Tags' });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('button', { name: 'Add to selected' })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Apply', exact: true })).toBeInViewport();
   });
 });

@@ -122,7 +122,7 @@ const ALBUM = {
 async function installAlbumMocks(page: Page): Promise<Array<{ method: string; ids: string[] }>> {
   const calls: Array<{ method: string; ids: string[] }> = [];
   await installBulkMocks(page);
-  await page.route('**/api/albums', (route) => route.fulfill(json([ALBUM])));
+  await page.route(/\/api\/albums(\?.*)?$/, (route) => route.fulfill(json([ALBUM])));
   await page.route('**/api/albums/album-1', (route) => route.fulfill(json(ALBUM)));
   await page.route('**/api/albums/album-1/assets', (route) => {
     const request = route.request();
@@ -133,31 +133,18 @@ async function installAlbumMocks(page: Page): Promise<Array<{ method: string; id
   return calls;
 }
 
-test('the bulk bar adds a selection to an album', async ({ page }) => {
-  const calls = await installAlbumMocks(page);
-  await page.goto('/photos');
-  await selectBoth(page);
-
-  await page.getByRole('button', { name: 'Albums', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^Remove from/ })).toHaveCount(0);
-  await page.getByLabel('Choose albums…').fill('Review');
-  await page.getByRole('option', { name: 'Review album' }).click();
-  await expect(page.getByRole('button', { name: 'Remove Review album' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add to albums' }).click();
-
-  await expect(page.getByText('Added 2 selected photos to the album')).toBeVisible();
-  expect(calls).toEqual([{ method: 'PUT', ids: ASSETS.map((a) => a.id) }]);
-});
-
 test('removing a selection from the open album drops its tiles', async ({ page }) => {
   const calls = await installAlbumMocks(page);
   await page.goto('/albums/album-1');
   await selectBoth(page);
 
   await page.getByRole('button', { name: 'Albums', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove from Review album' }).click();
+  const review = page.getByRole('checkbox', { name: /^Review album/ });
+  await expect(review).toHaveAttribute('aria-checked', 'true');
+  await review.click();
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
 
-  await expect(page.getByText('Removed 2 from Review album')).toBeVisible();
+  await expect(page.getByText('Updated albums for 2 photos')).toBeVisible();
   expect(calls).toEqual([{ method: 'DELETE', ids: ASSETS.map((a) => a.id) }]);
   for (const asset of ASSETS) {
     await expect(page.locator(`[data-name="${asset.originalFileName}"]`)).toHaveCount(0);

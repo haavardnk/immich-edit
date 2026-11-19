@@ -5,7 +5,7 @@ import {
   type ApplyPresetOptions,
   type Job
 } from '#lib/api/jobs.ts';
-import { addToAlbums, removeFromAlbum } from '#lib/browse/bulk/bulkAlbums.ts';
+import { changeAlbums } from '#lib/browse/bulk/bulkAlbums.ts';
 import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
 import * as bulkMeta from '#lib/browse/bulkMeta.ts';
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
@@ -17,7 +17,6 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
-import type { AlbumSummary } from '#lib/types/album.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 import { firstFocusable } from '#lib/utils/focusable.ts';
 import type { Attachment } from 'svelte/attachments';
@@ -65,18 +64,20 @@ class BulkActions {
 
   createCopies = (): Promise<void> => this.run(virtualCopies.create);
 
-  setTags = (tags: TagRef[], add: boolean): Promise<boolean> => {
-    if (add) for (const tag of tags) recentTags.record(tag);
-    return this.#report((ids) =>
-      add ? bulkMeta.addTags(ids, tags) : bulkMeta.removeTags(ids, tags)
-    );
+  changeAlbums = (
+    add: readonly string[],
+    remove: readonly string[],
+    viewing: string | null
+  ): Promise<boolean> => this.#report((ids) => changeAlbums(ids, add, remove, viewing));
+
+  changeTags = async (add: TagRef[], remove: TagRef[]): Promise<boolean> => {
+    for (const tag of add) recentTags.record(tag);
+    return this.#report(async (ids) => {
+      const added = add.length === 0 || (await bulkMeta.addTags(ids, add));
+      const removed = remove.length === 0 || (await bulkMeta.removeTags(ids, remove));
+      return added && removed;
+    });
   };
-
-  addToAlbums = (albumIds: readonly string[]): Promise<boolean> =>
-    this.#report((ids) => addToAlbums(ids, albumIds));
-
-  removeFromAlbum = (album: AlbumSummary): Promise<void> =>
-    this.run((ids) => removeFromAlbum(ids, album));
 
   paste = (): Promise<void> => this.run((ids) => pasteEditsTo(ids));
 

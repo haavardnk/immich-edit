@@ -18,7 +18,7 @@ class ExportPresetsStore {
       this.presets = await listExportPresets();
       this.loaded = true;
     } catch (e) {
-      toasts.fail('Failed to load export presets', e, 8000);
+      toasts.fail('Failed to load export presets', e);
     }
   };
 
@@ -33,9 +33,9 @@ class ExportPresetsStore {
       this.presets = [...this.presets.filter((p) => p.id !== saved.id), saved].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       );
-      toasts.push('success', `Saved export preset "${saved.name}"`, { ttlMs: 5000 });
+      toasts.push('success', `Saved export preset "${saved.name}"`);
     } catch (e) {
-      toasts.fail('Failed to save export preset', e, 8000);
+      toasts.fail('Failed to save export preset', e);
     }
   };
 
@@ -50,7 +50,7 @@ class ExportPresetsStore {
       await deleteExportPreset(preset.id);
       this.presets = this.presets.filter((p) => p.id !== preset.id);
     } catch (e) {
-      toasts.fail('Failed to delete export preset', e, 8000);
+      toasts.fail('Failed to delete export preset', e);
     }
   };
 }

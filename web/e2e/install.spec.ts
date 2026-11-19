@@ -343,10 +343,7 @@ test.describe('service worker', () => {
     expect(cached.paths.filter((path) => path.startsWith('/api'))).toEqual([]);
   });
 
-  test('opens the app shell offline and shows the server as unreachable', async ({
-    page,
-    context
-  }) => {
+  test('opens the app shell offline and says it is offline', async ({ page, context }) => {
     await installMocks(page);
     await waitForControl(page);
 
@@ -355,7 +352,7 @@ test.describe('service worker', () => {
 
     for (const path of ['/photos', '/assets/offline-deep-link']) {
       await page.goto(path);
-      await expect(page.getByText("Can't reach the immich-edit server.")).toBeVisible();
+      await expect(page.getByRole('heading', { name: "You're offline." })).toBeVisible();
       expect(new URL(page.url()).pathname).toBe(path);
     }
   });

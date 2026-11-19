@@ -23,15 +23,26 @@ describe('toast store', () => {
   });
 
   it.each<[ToastKind, number]>([
-    ['info', 5000],
-    ['warn', 8000],
-    ['success', 10_000],
-    ['error', 12_000]
+    ['info', 3000],
+    ['success', 3000],
+    ['warn', 6000],
+    ['error', 8000]
   ])('expires %s messages after %d ms', (kind, ttl) => {
     const store = new ToastStore();
     store.push(kind, 'Message');
 
     vi.advanceTimersByTime(ttl - 1);
+    expect(store.items).toHaveLength(1);
+
+    vi.advanceTimersByTime(1);
+    expect(store.items).toHaveLength(0);
+  });
+
+  it('leaves time to act on a toast with an action', () => {
+    const store = new ToastStore();
+    store.push('success', 'Moved', { action: { label: 'Undo', run: vi.fn() } });
+
+    vi.advanceTimersByTime(7999);
     expect(store.items).toHaveLength(1);
 
     vi.advanceTimersByTime(1);

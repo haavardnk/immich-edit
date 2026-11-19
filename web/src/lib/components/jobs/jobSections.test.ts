@@ -46,7 +46,7 @@ describe('jobSections', () => {
   it('puts running jobs first and finished ones after when grouped', () => {
     const sections = jobSections(JOBS, true);
     expect(sections.map((section) => [section.label, ids(section.jobs)])).toEqual([
-      ['In progress', ['run', 'queued']],
+      ['Running', ['run', 'queued']],
       ['Finished', ['done', 'failed', 'stopped']]
     ]);
   });

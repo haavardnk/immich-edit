@@ -17,6 +17,7 @@
     safeNext,
     shouldAutoLaunch
   } from '#lib/auth/oauth.ts';
+  import ImmichUnavailable from '#lib/components/shell/ImmichUnavailable.svelte';
   import Wordmark from '#lib/components/Wordmark.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import TextInput from '#lib/components/TextInput.svelte';
@@ -32,6 +33,7 @@
   let oauthBusy = $state(false);
   let passwordFallback = $state(false);
 
+  const immichDown = $derived(providers?.degraded === true);
   const showOAuth = $derived(providers?.oauth === true);
   const showPasswordForm = $derived(
     providers === null || providers.password_login !== false || passwordFallback
@@ -120,123 +122,135 @@
     }
   }
 
+  async function immichAnswers(): Promise<boolean> {
+    return !(await authProviders()).degraded;
+  }
+
+  async function loadProviders(): Promise<AuthProviders | null> {
+    try {
+      providers = await authProviders();
+    } catch {
+      providers = null;
+    }
+    return providers;
+  }
+
   onMount(() => {
     void (async () => {
       const callback = isOAuthCallback(page.url);
       if (callback) await completeCallback();
-      try {
-        providers = await authProviders();
-      } catch {
-        providers = null;
-        return;
-      }
-      if (!callback && shouldAutoLaunch(page.url, providers)) await launchOAuth();
+      const loaded = await loadProviders();
+      if (loaded && !callback && shouldAutoLaunch(page.url, loaded)) await launchOAuth();
     })();
   });
 </script>
 
-<div class="auth-stage flex h-full w-full items-center justify-center px-5 py-8">
-  <main class="w-full max-w-xs">
-    <Wordmark bright class="mb-6" />
-    <div class="mb-5">
-      <h1 class="text-xl font-semibold text-light-950">Sign in</h1>
-    </div>
-    <div class="flex flex-col gap-3.5">
-      {#if showOAuth && providers}
-        <Button
-          type="button"
-          size="small"
-          color="primary"
-          disabled={oauthBusy}
-          loading={oauthBusy}
-          fullWidth
-          onclick={launchOAuth}
-        >
-          {providers.button_text}
-        </Button>
-        {#if showPasswordForm}
-          <div class="flex items-center gap-3 text-xs text-light-950/35">
-            <span class="h-px flex-1 bg-light-950/15"></span>
-            or
-            <span class="h-px flex-1 bg-light-950/15"></span>
-          </div>
-        {/if}
-      {/if}
-
-      {#if showPasswordForm}
-        <form onsubmit={submit} class="flex flex-col gap-3.5">
-          {#if method === 'password'}
-            <TextInput
-              label="Immich email"
-              type="email"
-              autocomplete="username"
-              disabled={submitting}
-              bind:value={email}
-            />
-            <TextInput
-              label="Immich password"
-              type="password"
-              autocomplete="current-password"
-              disabled={submitting}
-              bind:value={password}
-            />
-          {:else}
-            <TextInput
-              label="Immich API key"
-              type="password"
-              autocomplete="off"
-              disabled={submitting}
-              bind:value={apiKey}
-            />
+{#if immichDown}
+  <ImmichUnavailable probe={immichAnswers} retry={() => void loadProviders()} />
+{:else}
+  <div class="auth-stage flex h-full w-full items-center justify-center px-5 py-8">
+    <main class="w-full max-w-xs">
+      <Wordmark bright class="mb-6" />
+      <div class="mb-5">
+        <h1 class="text-xl font-semibold text-light-950">Sign in</h1>
+      </div>
+      <div class="flex flex-col gap-3.5">
+        {#if showOAuth && providers}
+          <Button
+            type="button"
+            size="small"
+            color="primary"
+            disabled={oauthBusy}
+            loading={oauthBusy}
+            fullWidth
+            onclick={launchOAuth}
+          >
+            {providers.button_text}
+          </Button>
+          {#if showPasswordForm}
+            <div class="flex items-center gap-3 text-xs text-light-950/45">
+              <span class="h-px flex-1 bg-light-950/15"></span>
+              or
+              <span class="h-px flex-1 bg-light-950/15"></span>
+            </div>
           {/if}
+        {/if}
 
+        {#if showPasswordForm}
+          <form onsubmit={submit} class="flex flex-col gap-3.5">
+            {#if method === 'password'}
+              <TextInput
+                label="Immich email"
+                type="email"
+                autocomplete="username"
+                disabled={submitting}
+                bind:value={email}
+              />
+              <TextInput
+                label="Immich password"
+                type="password"
+                autocomplete="current-password"
+                disabled={submitting}
+                bind:value={password}
+              />
+            {:else}
+              <TextInput
+                label="Immich API key"
+                type="password"
+                autocomplete="off"
+                disabled={submitting}
+                bind:value={apiKey}
+              />
+            {/if}
+
+            {#if error}
+              <Notice message={error} />
+            {/if}
+
+            <Button
+              type="submit"
+              size="small"
+              variant={showOAuth ? 'outline' : 'filled'}
+              disabled={!canSubmit}
+              loading={submitting}
+              fullWidth
+            >
+              {submitting ? 'Signing in…' : 'Sign in'}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              color="secondary"
+              size="tiny"
+              onclick={() => {
+                method = method === 'password' ? 'apikey' : 'password';
+                error = null;
+              }}
+            >
+              {method === 'password'
+                ? 'Use an Immich API key instead'
+                : 'Use Immich email and password instead'}
+            </Button>
+          </form>
+        {:else}
           {#if error}
             <Notice message={error} />
           {/if}
-
-          <Button
-            type="submit"
-            size="small"
-            variant={showOAuth ? 'outline' : 'filled'}
-            disabled={!canSubmit}
-            loading={submitting}
-            fullWidth
-          >
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </Button>
-
           <Button
             type="button"
             variant="ghost"
             color="secondary"
             size="tiny"
             onclick={() => {
-              method = method === 'password' ? 'apikey' : 'password';
-              error = null;
+              method = 'apikey';
+              passwordFallback = true;
             }}
           >
-            {method === 'password'
-              ? 'Use an Immich API key instead'
-              : 'Use Immich email and password instead'}
+            Use an Immich API key instead
           </Button>
-        </form>
-      {:else}
-        {#if error}
-          <Notice message={error} />
         {/if}
-        <Button
-          type="button"
-          variant="ghost"
-          color="secondary"
-          size="tiny"
-          onclick={() => {
-            method = 'apikey';
-            passwordFallback = true;
-          }}
-        >
-          Use an Immich API key instead
-        </Button>
-      {/if}
-    </div>
-  </main>
-</div>
+      </div>
+    </main>
+  </div>
+{/if}

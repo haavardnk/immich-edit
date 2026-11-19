@@ -140,5 +140,5 @@ test('a narrow column folds the stars and the organise group into menus', async 
     'aria-expanded',
     'false'
   );
-  await expect(bar.getByPlaceholder('Choose albums…')).toBeVisible();
+  await expect(bar.getByRole('textbox', { name: 'Search albums' })).toBeVisible();
 });

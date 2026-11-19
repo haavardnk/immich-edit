@@ -40,7 +40,7 @@ test('setup offers the provider once the immich url is known', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Sign in with Authentik' })).toBeHidden();
 
   await page.getByLabel('Immich URL').fill('https://immich.example.com');
-  await page.getByLabel('Immich URL').blur();
+  await page.getByRole('button', { name: 'Continue' }).click();
 
   const provider = page.getByRole('button', { name: 'Sign in with Authentik' });
   await expect(provider).toBeVisible();
@@ -56,6 +56,8 @@ test('setup offers the provider once the immich url is known', async ({ page }) 
 test('setup still accepts an admin password', async ({ page }) => {
   await stubApi(page);
   await page.goto('/setup');
+  await page.getByLabel('Immich URL').fill('https://immich.example.com');
+  await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('button', { name: /connect and claim instance/i })).toBeVisible();
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
 });

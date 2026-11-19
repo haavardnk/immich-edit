@@ -67,8 +67,9 @@ describe('JobList layout parity', () => {
     ]);
     expect(found.body).toEqual([
       button('Cancel job'),
-      button('Toggle details'),
-      button('Toggle details'),
+      button('Copy errors'),
+      { ...button('Download ZIP details'), expanded: true },
+      { ...button('Export to Immich details'), expanded: false },
       { role: 'link', name: 'Download ZIP' }
     ]);
     expect(found.panel).toEqual(found.body);
@@ -93,35 +94,25 @@ describe('JobList layout parity', () => {
     expect(found.sheet).toEqual(mergeControls(found.list, found.actions));
   });
 
-  it('shows the ETA of a running job in its row', async () => {
-    jobs.jobs = [{ ...job('run', 'export_immich', 'running'), eta_secs: 30 }];
-    const target = document.createElement('div');
-    document.body.appendChild(target);
-    const destroy = layout('list', JobList, {}).render(target);
-    expect(target.textContent).toContain('1 / 2 · <1 min left');
-    await destroy();
-    target.remove();
-  });
-
   it('lists running jobs before finished ones only when grouped', async () => {
     jobs.jobs = [job('zip', 'download_zip', 'completed'), job('run', 'export_immich', 'running')];
     const headings = async (grouped: boolean): Promise<string[]> => {
       const target = document.createElement('div');
       document.body.appendChild(target);
       const destroy = layout('list', JobList, { grouped }).render(target);
-      const found = [...target.querySelectorAll('h3, [aria-label$=" progress"]')].map(
+      const found = [...target.querySelectorAll('h3, [aria-label$=" details"]')].map(
         (element) => element.textContent?.trim() || (element.getAttribute('aria-label') ?? '')
       );
       await destroy();
       target.remove();
       return found;
     };
-    expect(await headings(false)).toEqual(['Download ZIP progress', 'Export to Immich progress']);
+    expect(await headings(false)).toEqual(['Download ZIP details', 'Export to Immich details']);
     expect(await headings(true)).toEqual([
-      'In progress',
-      'Export to Immich progress',
+      'Running',
+      'Export to Immich details',
       'Finished',
-      'Download ZIP progress'
+      'Download ZIP details'
     ]);
   });
 

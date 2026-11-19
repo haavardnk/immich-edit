@@ -11,25 +11,25 @@ import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export async function copyEditsFrom(assetId: string): Promise<void> {
   if (editedThumbs.getHash(assetId) === undefined) {
-    toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
+    toasts.push('info', NO_EDITS_TO_COPY);
     return;
   }
   try {
     const record = await getEdits(assetId);
     copyDialog.show(
       manifestToEdits(record.manifest),
-      () => toasts.push('success', 'Copied settings', { ttlMs: 3000 }),
+      () => toasts.push('success', 'Copied settings'),
       browsing.find(assetId)?.originalFileName ?? null
     );
   } catch (e) {
-    toasts.fail('Failed to copy edits', e, 6000);
+    toasts.fail('Failed to copy edits', e);
   }
 }
 
 export async function pasteEditsTo(assetIds: string[], tools?: CopySelection): Promise<void> {
   const snap = clipboard.snapshot();
   if (!snap) {
-    toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
+    toasts.push('info', NOTHING_COPIED);
     return;
   }
   await runBulkJob(
@@ -42,7 +42,7 @@ export async function pasteEditsTo(assetIds: string[], tools?: CopySelection): P
 export function pasteOnlyTo(assetIds: string[]): void {
   const snap = clipboard.snapshot();
   if (!snap) {
-    toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
+    toasts.push('info', NOTHING_COPIED);
     return;
   }
   copyDialog.showPaste(snap, (tools) => void pasteEditsTo(assetIds, tools), clipboard.source);

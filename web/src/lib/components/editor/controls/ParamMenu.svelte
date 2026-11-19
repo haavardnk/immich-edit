@@ -31,9 +31,9 @@
   async function copyValue(): Promise<void> {
     try {
       await navigator.clipboard.writeText(param.format(Object.is(value, -0) ? 0 : value));
-      toasts.push('success', `Copied ${param.label}`, { ttlMs: 2500 });
+      toasts.push('success', `Copied ${param.label}`);
     } catch (error) {
-      toasts.fail('Could not copy the value', error, 6000);
+      toasts.fail('Could not copy the value', error);
     }
   }
 </script>

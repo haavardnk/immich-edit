@@ -8,9 +8,6 @@ import {
 } from '#lib/api/savedViews.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
-const FAIL_TTL_MS = 8000;
-const UNDO_TTL_MS = 8000;
-
 function byName(a: SavedView, b: SavedView): number {
   return (
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) ||
@@ -35,7 +32,7 @@ export class SavedViewsStore {
       this.loaded = true;
     } catch (e) {
       this.#loading = null;
-      toasts.fail('Failed to load saved views', e, FAIL_TTL_MS);
+      toasts.fail('Failed to load saved views', e);
     }
   };
 
@@ -48,10 +45,10 @@ export class SavedViewsStore {
     try {
       const view = await createSavedView(input);
       this.#put(view);
-      toasts.push('success', `Saved view “${view.name}”`, { ttlMs: 5000 });
+      toasts.push('success', `Saved view “${view.name}”`);
       return view;
     } catch (e) {
-      toasts.fail('Failed to save view', e, FAIL_TTL_MS);
+      toasts.fail('Failed to save view', e);
       return null;
     }
   };
@@ -62,7 +59,7 @@ export class SavedViewsStore {
       this.#put(await updateSavedView(view.id, { name, url: view.url }));
       return true;
     } catch (e) {
-      toasts.fail('Failed to rename view', e, FAIL_TTL_MS);
+      toasts.fail('Failed to rename view', e);
       return false;
     }
   };
@@ -73,12 +70,11 @@ export class SavedViewsStore {
     try {
       await deleteSavedView(view.id);
       toasts.push('success', `Deleted “${view.name}”`, {
-        ttlMs: UNDO_TTL_MS,
         action: { label: 'Undo', run: () => void this.restore(view) }
       });
     } catch (e) {
       this.#put(view);
-      toasts.fail('Failed to delete view', e, FAIL_TTL_MS);
+      toasts.fail('Failed to delete view', e);
     }
   };
 
@@ -87,7 +83,7 @@ export class SavedViewsStore {
     try {
       this.#put(await createSavedView({ name: view.name, url: view.url }));
     } catch (e) {
-      toasts.fail('Failed to restore view', e, FAIL_TTL_MS);
+      toasts.fail('Failed to restore view', e);
     }
   };
 }
