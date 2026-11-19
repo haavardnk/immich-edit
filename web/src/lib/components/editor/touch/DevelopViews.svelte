@@ -7,22 +7,20 @@
   import { Tabs } from 'bits-ui';
   import DevelopTools from './DevelopTools.svelte';
   import QuickView from './QuickView.svelte';
-
-  let { stacked = false }: { stacked?: boolean } = $props();
+  import { orderedTouchViews } from '#lib/stores/developSections.svelte.ts';
 
   const group = $derived(TOUCH_GROUPS.find((entry) => entry.id === touchUi.group));
-  const views = $derived(group?.views ?? []);
-  const shown = $derived(stacked ? views : views.filter((view) => view.id === touchUi.view));
   const modified = $derived(group ? modifiedTouchViews(editor.edits, group.id) : new Set<string>());
-
-  function anchorOf(view: string): string {
-    return `touch-view-${touchUi.group}-${view}`;
-  }
-
-  function select(view: string): void {
-    touchUi.setView(view);
-    if (stacked) document.getElementById(anchorOf(view))?.scrollIntoView({ block: 'start' });
-  }
+  const views = $derived(
+    group
+      ? orderedTouchViews(group)
+          .filter(
+            ({ view, hidden }) => !hidden || modified.has(view.id) || view.id === touchUi.view
+          )
+          .map(({ view }) => view)
+      : []
+  );
+  const shown = $derived(views.filter((view) => view.id === touchUi.view));
 </script>
 
 {#if touchUi.group === QUICK_GROUP}
@@ -30,7 +28,7 @@
 {:else if group}
   <Tabs.Root
     value={touchUi.view}
-    onValueChange={select}
+    onValueChange={touchUi.setView}
     class="flex shrink-0 items-center border-b border-hairline pr-2"
   >
     <Tabs.List
@@ -40,7 +38,7 @@
       {#each views as view (view.id)}
         <Tabs.Trigger
           value={view.id}
-          class="flex shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65"
+          class="flex shrink-0 items-center gap-1.5 border-b-2 text-sm whitespace-nowrap outline-none focus-visible:text-primary data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-light-950 data-[state=inactive]:border-transparent data-[state=inactive]:text-dark/65"
         >
           {view.label}
           {#if modified.has(view.id)}
@@ -57,11 +55,7 @@
   </Tabs.Root>
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden">
     {#each shown as view (view.id)}
-      <section
-        id={anchorOf(view.id)}
-        aria-label={view.label}
-        class="flex scroll-mt-2 flex-col divide-y divide-dark/10 px-3 py-1.5"
-      >
+      <section aria-label={view.label} class="flex flex-col divide-y divide-hairline px-3 py-1.5">
         {#each touchViewParts(group.id, view.id) as part, index (index)}
           <div class="flex flex-col gap-1 py-1.5">
             <part.component {...part.props} />

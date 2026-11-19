@@ -100,6 +100,11 @@ export class TouchUiStore {
     this.persist();
   };
 
+  setGroupView = (group: TouchGroupId, view: string): void => {
+    this.views = { ...this.views, [group]: view };
+    this.persist();
+  };
+
   setDetent = (detent: TrayDetent): void => {
     const key = this.viewKey;
     this.detents = { ...this.detents, [key]: detent };

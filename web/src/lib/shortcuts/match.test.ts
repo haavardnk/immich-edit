@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { preferences } from '#lib/stores/preferences.svelte.ts';
 import { isKeybind, matchKeybind } from './match';
 import type { KeybindContext, KeybindId } from './table';
 
@@ -115,5 +116,28 @@ describe('layout symbols', () => {
     ]
   ])('%s', (_name, init, id, expected) => {
     expect(isKeybind(key(init), id as KeybindId)).toBe(expected);
+  });
+});
+
+describe('custom keys', () => {
+  it('matches the effective keymap', () => {
+    preferences.shortcuts = { clipWarn: ['w'], pickWhiteBalance: ['j'] };
+    try {
+      expect(matchKeybind(key({ key: 'w' }), ['editor', 'global'])).toBe('clipWarn');
+      expect(matchKeybind(key({ key: 'j' }), ['editor', 'global'])).toBe('pickWhiteBalance');
+      expect(isKeybind(key({ key: 'u', metaKey: true }), 'autoAdjust')).toBe(true);
+    } finally {
+      preferences.reset();
+    }
+    expect(matchKeybind(key({ key: 'w' }), ['editor', 'global'])).toBe('pickWhiteBalance');
+  });
+
+  it('matches Option with a letter by its code on a Mac', () => {
+    preferences.shortcuts = { autoAdjust: ['Alt+a'] };
+    try {
+      expect(isKeybind(key({ key: 'å', code: 'KeyA', altKey: true }), 'autoAdjust')).toBe(true);
+    } finally {
+      preferences.reset();
+    }
   });
 });

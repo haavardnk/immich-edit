@@ -5,7 +5,7 @@
   import DesktopBrowseShell from '#lib/components/shell/desktop/DesktopBrowseShell.svelte';
   import TouchBrowseShell from '#lib/components/shell/touch/TouchBrowseShell.svelte';
   import WideBrowseShell from '#lib/components/shell/wide/WideBrowseShell.svelte';
-  import KeybindsHelp from './KeybindsHelp.svelte';
+  import KeybindsHelp from './shortcuts/KeybindsHelp.svelte';
   import CopyDialog from './CopyDialog.svelte';
   import MetadataConsentDialog from './MetadataConsentDialog.svelte';
   import TrashDialog from './TrashDialog.svelte';

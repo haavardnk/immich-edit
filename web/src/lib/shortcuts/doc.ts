@@ -1,17 +1,6 @@
 import { formatChord } from './chord';
-import { KEYBINDS, type Keybind, type KeybindContext } from './table';
-
-const CONTEXT_LABELS: Record<KeybindContext, string> = {
-  global: 'Anywhere',
-  grid: 'Grid',
-  loupe: 'Loupe',
-  compare: 'Compare',
-  survey: 'Survey',
-  editor: 'Editor',
-  geometry: 'Geometry',
-  masks: 'Masks',
-  retouch: 'Retouch'
-};
+import { CONTEXT_NAMES } from './stacks';
+import { KEYBINDS, type Keybind } from './table';
 
 const PREAMBLE = `---
 layout: default
@@ -27,6 +16,11 @@ permalink: /shortcuts/
 
 Press \`?\` anywhere in immich-edit to open the same list as a searchable dialog. On macOS, press
 Command wherever a shortcut below says \`Ctrl\`.
+
+The keys below are the defaults. In that dialog, click a key and press a new one to change it; if
+the new key already runs something else, you can swap the two. Ranges, arrow keys, \`Esc\` and
+pointer gestures stay fixed. Your shortcuts are saved to your account and work on every device
+with a keyboard.
 
 \`Shift\` with a letter opens a tool, panel or strip, a plain letter acts on the photo, and \`Ctrl\`
 runs a command. Symbol keys such as \`[\`, \`{\` and \`\\\` work however your keyboard layout types
@@ -48,7 +42,7 @@ function keysCell(bind: Keybind): string {
 }
 
 function contextsCell(bind: Keybind): string {
-  return bind.contexts.map((context) => CONTEXT_LABELS[context]).join(', ');
+  return bind.contexts.map((context) => CONTEXT_NAMES[context]).join(', ');
 }
 
 function table(binds: readonly Keybind[]): string {

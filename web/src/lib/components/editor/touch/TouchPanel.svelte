@@ -28,7 +28,7 @@
     {#if stacked || !valueEntry.target}
       <GroupChips grid={stacked} {onretap} />
     {/if}
-    <DevelopViews {stacked} />
+    <DevelopViews />
   {/if}
 {:else}
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 scrollbar-hidden">

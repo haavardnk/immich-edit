@@ -13,7 +13,7 @@ const CHORD_CHECKS = [
   '/src/lib/components/editor/MaskOverlay.svelte',
   '/src/lib/components/editor/MaskPolygonDraft.svelte',
   '/src/lib/components/editor/desktop/CommandPalette.svelte',
-  '/src/lib/components/shell/KeybindsHelp.svelte',
+  '/src/lib/components/shell/shortcuts/KeybindsHelp.svelte',
   '/src/lib/components/tags/TagPickerBody.svelte'
 ];
 
@@ -24,7 +24,7 @@ const WINDOW_KEY_LISTENERS = [
   '/src/lib/components/editor/MaskPolygonDraft.svelte',
   '/src/lib/components/editor/WhiteBalancePicker.svelte',
   '/src/lib/components/editor/controls/sliderSession.svelte.ts',
-  '/src/lib/components/shell/KeybindsHelp.svelte',
+  '/src/lib/components/shell/shortcuts/KeybindsHelp.svelte',
   '/src/lib/device/layout.svelte.ts',
   '/src/lib/stores/overlays.ts',
   '/src/lib/utils/pointerFocus.ts'

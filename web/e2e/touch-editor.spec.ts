@@ -190,4 +190,45 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
   });
 });
 
-test.describe('touch editor on a tablet', { tag: ['@touch', '@tablet'] }, () => {});
+test.describe('touch editor on a tablet', { tag: ['@touch', '@tablet'] }, () => {
+  test('the inspector shows one view per tab', async ({ page }) => {
+    await openEditor(page);
+    await expect(page.locator('[data-arrangement="inspector"]')).toBeVisible();
+    await expect(toolbar(page).getByText('IMG_0001.ARW')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Tone' })).toBeVisible();
+    const curve = page.getByRole('region', { name: 'Curve' });
+    await expect(curve).toHaveCount(0);
+    const track = page.getByRole('slider', { name: 'Exposure' });
+    const start = await centreOf(track);
+    await drag(page, start, { x: start.x + 40, y: start.y });
+    await expect(
+      groups(page).getByRole('tab', { name: 'Light' }).locator('[data-modified-indicator]')
+    ).toHaveCount(1);
+    const offsets = await groups(page)
+      .getByRole('tab')
+      .evaluateAll((chips) =>
+        chips.map((chip) => {
+          const range = document.createRange();
+          range.selectNodeContents(chip);
+          const text = range.getClientRects()[0];
+          const box = chip.getBoundingClientRect();
+          return Math.abs(text.left + text.width / 2 - (box.left + box.width / 2));
+        })
+      );
+    for (const offset of offsets) expect(offset).toBeLessThan(1.5);
+
+    await page
+      .getByRole('tablist', { name: 'Light views' })
+      .getByRole('tab', { name: 'Curve' })
+      .tap();
+    await expect(curve).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Tone' })).toHaveCount(0);
+    await modes(page).getByRole('tab', { name: 'Retouch' }).tap();
+    await expect(groups(page)).toHaveCount(0);
+    const panel = page.getByRole('complementary', { name: 'Adjustments' });
+    await modes(page).getByRole('tab', { name: 'Retouch' }).tap();
+    await expect(panel).toHaveCount(0);
+    await modes(page).getByRole('tab', { name: 'Retouch' }).tap();
+    await expect(panel).toBeVisible();
+  });
+});

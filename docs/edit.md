@@ -111,6 +111,11 @@ the toolbar; see [try variations](#try-variations).
 - A panel with changes shows a dot next to its name. Click the dot to reset the whole panel.
 - Press and hold a changed section's name, such as **Tone**, to see the photo without that section.
 - **Show modified only**, in the row at the top of **Develop**, hides every untouched panel.
+- **Customize sections** (`⋯`) at the end of that row reorders the panels: drag a row, or focus
+  its handle and press `↑` or `↓`. The eye hides a panel. A hidden panel still shows while it has
+  changes, and the settings filter and the command palette still find it. On a phone or tablet,
+  **More** > **Customize Develop** does the same for the tabs inside each group. Both layouts are
+  saved to your account.
 
 ### Black and white
 
