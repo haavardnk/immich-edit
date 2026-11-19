@@ -8,8 +8,16 @@ export function commandLabel(command: Command): string {
   return label ?? bind?.label ?? command.id;
 }
 
+export function commandShortLabel(command: Command): string {
+  return command.short ?? commandLabel(command);
+}
+
+export function isShown(command: Command): boolean {
+  return command.shown?.() ?? true;
+}
+
 export function isEnabled(command: Command): boolean {
-  return command.enabled?.() ?? true;
+  return isShown(command) && (command.enabled?.() ?? true);
 }
 
 export function commandTitle(command: Command): string {

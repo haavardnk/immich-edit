@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { numberedAssets } from './helpers';
+import { openTileLoupe } from './touch';
 import { open } from './touchShell';
 
 type TopEdge = { position: string; top: number; background: string | null; colours: number };
@@ -60,5 +61,23 @@ test.describe(
         }
       );
     }
+
+    test('the loupe bars keep the app chrome colour and back the top edge', async ({ page }) => {
+      await open(page, '/photos', { assets: ASSETS });
+      const chrome = await background(page.locator('[data-app-bar]'));
+      await openTileLoupe(page, page.locator('[role="group"][data-name="IMG_0002.ARW"]'));
+      const toolbar = page.getByRole('navigation', { name: 'Loupe toolbar' });
+      const cullBar = page.getByRole('navigation', { name: 'Photo actions' });
+      await expect(toolbar.getByRole('heading')).toHaveText('IMG_0002.ARW');
+
+      expect(await background(cullBar)).toBe(chrome);
+      expect(await background(toolbar)).toBe(chrome);
+      expect(await topEdge(page)).toEqual({
+        position: 'fixed',
+        top: 0,
+        background: chrome,
+        colours: 1
+      });
+    });
   }
 );

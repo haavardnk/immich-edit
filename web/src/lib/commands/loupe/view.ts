@@ -5,7 +5,7 @@ import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { panStep } from '#lib/utils/imageViewport.ts';
-import { mdiSkipNextOutline } from '@mdi/js';
+import { mdiFilmstrip, mdiMagnifyPlusOutline, mdiSkipNextOutline } from '@mdi/js';
 
 export const loupeInfo = loupeCommand({
   id: 'loupe.info',
@@ -39,13 +39,26 @@ export const loupeAutoAdvance = loupeCommand({
   run: () => browseView.setLoupeAutoAdvance(!browseView.loupeAutoAdvance)
 });
 
+export const loupeZoom = loupeCommand({
+  id: 'loupe.zoom',
+  contexts: VIEWING,
+  icon: mdiMagnifyPlusOutline,
+  bind: 'zoomToggle',
+  run: () => loupeHost.get()?.cycleZoom()
+});
+
+export const loupeFilmstrip = loupeCommand({
+  id: 'loupe.filmstrip',
+  contexts: VIEWING,
+  label: () => (browseView.loupeFilmstripShown ? 'Collapse filmstrip' : 'Show filmstrip'),
+  icon: mdiFilmstrip,
+  bind: 'filmstrip',
+  pressed: () => browseView.loupeFilmstripShown,
+  run: () => browseView.toggleLoupeFilmstrip()
+});
+
 export const LOUPE_VIEW_COMMANDS: readonly Command[] = [
-  loupeCommand({
-    id: 'loupe.zoom',
-    contexts: VIEWING,
-    bind: 'zoomToggle',
-    run: () => loupeHost.get()?.cycleZoom()
-  }),
+  loupeZoom,
   loupeCommand({
     id: 'loupe.pan',
     contexts: VIEWING,
@@ -65,10 +78,5 @@ export const LOUPE_VIEW_COMMANDS: readonly Command[] = [
   loupeClipWarn,
   loupeFullscreen,
   loupeAutoAdvance,
-  loupeCommand({
-    id: 'loupe.filmstrip',
-    contexts: VIEWING,
-    bind: 'filmstrip',
-    run: () => ui.toggleLoupeFilmstrip()
-  })
+  loupeFilmstrip
 ];

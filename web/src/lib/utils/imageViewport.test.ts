@@ -9,6 +9,7 @@ import {
   panByPixels,
   panByStep,
   panStep,
+  pinchView,
   scaleOf,
   viewportMetrics,
   viewportTransform,
@@ -186,6 +187,29 @@ describe('zoomAround', () => {
     expect(zoomAround(unknown, at(150, 0.3, 0.6), 200, { x: 50, y: 50 })).toEqual(
       at(200, 0.3, 0.6)
     );
+  });
+});
+
+describe('pinchView', () => {
+  it('scales the start zoom about the first focal point', () => {
+    const anchor = { x: 100, y: 50 };
+    expect(pinchView(METRICS, FIT_VIEW, 2, anchor, { x: 0, y: 0 })).toEqual(
+      zoomAround(METRICS, FIT_VIEW, 100, anchor)
+    );
+    expect(pinchView(METRICS, at(100), 1.5, anchor, { x: 0, y: 0 }).zoom).toBe(150);
+  });
+
+  it('keeps the pinched point under the fingers as they move', () => {
+    const anchor = { x: 100, y: 50 };
+    const next = pinchView(METRICS, FIT_VIEW, 2, anchor, { x: 40, y: -20 });
+    const before = imagePoint(METRICS, FIT_VIEW, anchor);
+    const after = imagePoint(METRICS, next, { x: 140, y: 30 });
+    expect(after.x).toBeCloseTo(before.x, 9);
+    expect(after.y).toBeCloseTo(before.y, 9);
+  });
+
+  it('centres a pinch that ends below fit', () => {
+    expect(pinchView(METRICS, FIT_VIEW, 0.8, { x: 100, y: 50 }, { x: 30, y: 0 })).toEqual(at(40));
   });
 });
 

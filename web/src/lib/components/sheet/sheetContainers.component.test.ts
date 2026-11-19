@@ -147,6 +147,25 @@ describe('Popover presentation', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
+  it('keeps a menu reopened while the previous action sheet was still leaving', async () => {
+    layoutState.mode = 'touch';
+    const { onOpenChange, onRow } = await render('menu', true);
+    button('Toggle').click();
+    await settle();
+    popoverContent()?.setAttribute('style', 'transition-duration: 300ms');
+    button('Run row').click();
+    await settle();
+    expect(onRow).toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+    button('Toggle').click();
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await settle();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    expect(popoverContent()).not.toBeNull();
+  });
+
   it('opens a control popover as a modal sheet with its title, a close and a light scrim', async () => {
     layoutState.mode = 'touch';
     const { onOpenChange } = await render('control');

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets } from './helpers';
-import { drag, longPress } from './touch';
+import { drag, longPress, openTileLoupe } from './touch';
 import { open } from './touchShell';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
@@ -24,7 +24,7 @@ async function openLoupe(page: Page): Promise<void> {
   await page.goto('/search?q=IMG');
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'touch');
   await expect(page.locator(`a[href^="/assets/${ASSET_SUMMARY.id}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
 
@@ -128,6 +128,9 @@ test.describe('touch sheets', { tag: '@touch' }, () => {
   test('long-pressing a filmstrip thumbnail opens its menu as an action sheet', async ({
     page
   }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('immich-edit:editorUi', JSON.stringify({ loupeCompactFilmstrip: true }));
+    });
     await openLoupe(page);
 
     const thumb = page

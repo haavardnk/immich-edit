@@ -1,6 +1,5 @@
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
-
-export const TOUCH_PANES = 4;
+import { COMPARE_PANES } from '#lib/stores/compare.svelte.ts';
 
 export function scopeLine(
   loaded: number,
@@ -12,7 +11,7 @@ export function scopeLine(
 }
 
 function multiCap(mode: MultiMode, panes: number): number {
-  return mode === 'compare' ? 2 : panes;
+  return mode === 'compare' ? COMPARE_PANES : panes;
 }
 
 export function multiDetail(mode: MultiMode, count: number, panes: number): string | null {

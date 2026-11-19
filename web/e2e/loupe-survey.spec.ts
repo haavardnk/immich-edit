@@ -161,7 +161,7 @@ test('c opens a compare of the grid selection', async ({ page }) => {
 test('hovering a survey pane offers a drop button for that photo', async ({ page }) => {
   await openSurvey(page);
   const pane = page.locator('div.group', { has: page.getByRole('img', { name: 'IMG_0002.ARW' }) });
-  const drop = pane.getByRole('button', { name: 'Drop from survey' });
+  const drop = pane.getByRole('button', { name: /^Drop this photo/ });
 
   await expect(drop).toHaveCSS('opacity', '0');
   await pane.hover();

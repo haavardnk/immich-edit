@@ -1,4 +1,3 @@
-import { ui } from '#lib/stores/ui.svelte.ts';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { FIT_VIEW, type View, type ViewportMetrics } from '#lib/utils/imageViewport.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
@@ -24,42 +23,41 @@ afterEach(() => {
 });
 
 describe('LoupePane', () => {
-  it('shows the Immich preview and a busy pane until the render loads', () => {
+  it('numbers a pane, names its compare role and dims a rejected photo', () => {
     component = mount(Host, {
       target,
       props: {
         component: LoupePane,
-        props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {} }
+        props: {
+          assetId: 'a',
+          alt: 'a.jpg',
+          view: FIT_VIEW,
+          onView: () => {},
+          badge: '2',
+          caption: 'Candidate',
+          rejected: true
+        }
       }
     });
     flushSync();
     const pane = target.querySelector<HTMLElement>('[role="button"]');
-    expect(pane?.getAttribute('aria-busy')).toBe('true');
-    expect(immichPreview()?.getAttribute('src')).toBe('/api/assets/a/thumb?size=preview');
-
-    target.querySelector('img[alt="a.jpg"]')?.dispatchEvent(new Event('load'));
-    flushSync();
-
-    expect(pane?.getAttribute('aria-busy')).toBe('false');
-    expect(immichPreview()).toBeNull();
+    expect(pane?.textContent).toContain('2');
+    expect(pane?.textContent).toContain('Candidate');
+    expect(target.querySelector('[role="img"][aria-label="Rejected"]')).not.toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).toContain('grayscale');
   });
 
-  it('keeps the loaded render when a render at a new size fails', () => {
-    loadedPane(FIT_VIEW, () => {});
-    const first = renderImage()?.getAttribute('src');
-    try {
-      ui.clipWarn = true;
-      flushSync();
-      expect(renderImage()?.getAttribute('src')).not.toBe(first);
-
-      renderImage()?.dispatchEvent(new Event('error'));
-      flushSync();
-
-      expect(renderImage()?.getAttribute('src')).toBe(first);
-      expect(immichPreview()).toBeNull();
-    } finally {
-      ui.clipWarn = false;
-    }
+  it('leaves a kept photo undimmed', () => {
+    component = mount(Host, {
+      target,
+      props: {
+        component: LoupePane,
+        props: { assetId: 'a', alt: 'a.jpg', view: FIT_VIEW, onView: () => {}, badge: '1' }
+      }
+    });
+    flushSync();
+    expect(target.querySelector('[aria-label="Rejected"]')).toBeNull();
+    expect(target.querySelector('img[alt="a.jpg"]')?.classList).not.toContain('grayscale');
   });
 
   it('leaves the Immich preview showing when the first render fails', () => {
@@ -216,25 +214,21 @@ function loadedPane(view: View, onView: PaneProps['onView'], sourceLong?: number
 }
 
 function pointer(pane: HTMLElement, type: string, pointerId = 1, clientX = 100): void {
-  pane.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId, clientX, clientY: 100 }));
+  pane.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true,
+      pointerId,
+      pointerType: 'mouse',
+      clientX,
+      clientY: 100
+    })
+  );
   flushSync();
 }
 
 const ZOOMED: View = { zoom: 400, cx: 0.5, cy: 0.5 };
 
 describe('LoupePane wheel', () => {
-  it('zooms out below fit, centred, on a modifier wheel', () => {
-    const onView = vi.fn();
-    const pane = loadedPane(FIT_VIEW, onView, 4000);
-    pane.dispatchEvent(
-      new WheelEvent('wheel', { deltaY: 100, ctrlKey: true, clientX: 700, clientY: 400 })
-    );
-    const [view] = onView.mock.lastCall ?? [];
-    expect(view.zoom).toBeCloseTo(25 / 1.1, 9);
-    expect(view.cx).toBe(0.5);
-    expect(view.cy).toBe(0.5);
-  });
-
   it('pans a zoomed pane within the photo', () => {
     const onView = vi.fn();
     const pane = loadedPane({ zoom: 100, cx: 0.5, cy: 0.5 }, onView, 4000);
@@ -254,27 +248,6 @@ describe('LoupePane wheel', () => {
 });
 
 describe('LoupePane presses', () => {
-  it('zooms in on a click', () => {
-    const onView = vi.fn();
-    const pane = loadedPane(FIT_VIEW, onView);
-    pointer(pane, 'pointerdown');
-    pointer(pane, 'pointerup');
-    expect(onView).toHaveBeenCalledOnce();
-    expect(onView.mock.lastCall?.[0].zoom).not.toBeNull();
-  });
-
-  it('keeps the clicked point under the pointer', () => {
-    const onView = vi.fn();
-    const pane = loadedPane(FIT_VIEW, onView, 4000);
-    pointer(pane, 'pointerdown');
-    pointer(pane, 'pointerup');
-    const [view, solo] = onView.mock.lastCall ?? [];
-    expect(solo).toBe(false);
-    expect(view.zoom).toBe(100);
-    expect(view.cx).toBeCloseTo(0.575, 9);
-    expect(view.cy).toBeCloseTo(0.65, 9);
-  });
-
   it('zooms out on a click without travel', () => {
     const onView = vi.fn();
     const pane = loadedPane(ZOOMED, onView);

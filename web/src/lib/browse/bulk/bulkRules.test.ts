@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileStem, multiDetail, scopeLine, TOUCH_PANES } from './bulkRules';
+import { fileStem, multiDetail, scopeLine } from './bulkRules';
 
 describe('scopeLine', () => {
   it.each([
@@ -15,11 +15,11 @@ describe('scopeLine', () => {
 
 describe('multiDetail', () => {
   it.each([
-    ['compare', 2, TOUCH_PANES, null],
-    ['compare', 14, TOUCH_PANES, 'first 2'],
+    ['compare', 2, 4, null],
+    ['compare', 14, 4, 'first 2'],
     ['compare', 14, 9, 'first 2'],
-    ['survey', 3, TOUCH_PANES, null],
-    ['survey', 14, TOUCH_PANES, 'first 4'],
+    ['survey', 3, 4, null],
+    ['survey', 14, 4, 'first 4'],
     ['survey', 9, 9, null],
     ['survey', 14, 9, 'first 9']
   ] as const)('labels %s with %i picked over %i panes', (mode, count, panes, expected) => {

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
+import { openTileLoupe } from './touch';
 
 const SIZES = [
   { width: 1600, height: 832 },
@@ -398,12 +399,14 @@ for (const size of [
     await installMocks(page);
     await page.goto('/photos');
 
-    await page.getByLabel('Quick review').click();
+    await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
     await expect(page.getByRole('button', { name: /^Back/ })).toBeInViewport();
     await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toBeInViewport();
 
-    if (size.width === 390) {
+    if (size.width !== 390) {
+      await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toBeInViewport();
+    } else {
+      await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeInViewport();
       await page.getByRole('button', { name: 'More loupe actions' }).click();
       const clipping = page.getByRole('button', { name: /^Clipping overlay/ });
       await expect(clipping).toBeInViewport();

@@ -9,12 +9,14 @@
     kind,
     onClose,
     onOpenChange,
-    onRow
+    onRow,
+    closeOnRow = false
   }: {
     kind: 'dialog' | 'menu' | 'panel' | 'control' | 'context';
     onClose: () => void;
     onOpenChange: (open: boolean) => void;
     onRow: () => void;
+    closeOnRow?: boolean;
   } = $props();
 
   let open = $state(false);
@@ -22,6 +24,11 @@
   function change(next: boolean): void {
     open = next;
     onOpenChange(next);
+  }
+
+  function runRow(): void {
+    onRow();
+    if (closeOnRow) change(false);
   }
 </script>
 
@@ -48,6 +55,6 @@
     {#snippet trigger(props)}
       <button type="button" {...props}>Toggle</button>
     {/snippet}
-    <MenuItem icon="M0 0" label="Run row" onclick={onRow} />
+    <MenuItem icon="M0 0" label="Run row" onclick={runRow} />
   </Popover>
 {/if}

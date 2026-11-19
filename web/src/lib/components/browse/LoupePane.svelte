@@ -12,7 +12,6 @@
     clampView,
     FIT_VIEW,
     isZoomed,
-    panByStep,
     viewportMetrics,
     viewportTransform,
     zoomRatio,
@@ -24,9 +23,14 @@
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
   import PreviewStatusChip from '#lib/components/browse/PreviewStatusChip.svelte';
+  import { loupeGestures } from '#lib/browse/loupeGestures.ts';
+  import type { LoupeStage } from '#lib/browse/loupeStage.ts';
+  import { coverageOf, rejectMark } from '#lib/browse/bulk/bulkMarks.ts';
+  import { Icon } from '@immich/ui';
 
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
+  const rejectedMark = rejectMark(coverageOf(true));
 
   let {
     assetId,
@@ -37,12 +41,15 @@
     focused = false,
     showFocus = false,
     badge,
+    caption,
+    rejected = false,
     onView,
     onFocus,
     onSize,
     sourceLong,
     onMetrics,
-    onImage
+    onImage,
+    stage = null
   }: {
     assetId: string;
     thumbhash?: string | null;
@@ -52,12 +59,15 @@
     focused?: boolean;
     showFocus?: boolean;
     badge?: string;
+    caption?: string;
+    rejected?: boolean;
     onView: (view: View, solo?: boolean) => void;
     onFocus?: () => void;
     onSize?: (maxEdge: number) => void;
     sourceLong?: number | null;
     onMetrics?: (metrics: ViewportMetrics) => void;
     onImage?: (element: HTMLImageElement) => void;
+    stage?: LoupeStage | null;
   } = $props();
 
   let container = $state<HTMLDivElement | null>(null);
@@ -82,6 +92,7 @@
   const loading = $derived(rendered?.id !== assetId);
   const rendering = $derived(loading && sources.render !== null);
   const transform = $derived(viewportTransform(metrics, shown));
+  const dim = $derived(rejected ? 'opacity-40 grayscale' : '');
 
   function quantize(value: number): number {
     return SIZES.find((size) => size >= value) ?? MAX_SIZE;
@@ -105,11 +116,6 @@
     if (preview) previewed = sizeOf(id, preview);
   }
 
-  export function panBy(fx: number, fy: number): void {
-    if (!zoomed) return;
-    onView(panByStep(metrics, shown, [fx, fy]));
-  }
-
   const gestures = viewportGestures({
     element: () => container,
     metrics: () => metrics,
@@ -125,7 +131,18 @@
       if (!wasFocused) return;
       if (zoomed) onView(FIT_VIEW, held('solo', e));
       else gestures.zoomAt(e, ui.zoomLevel, e);
-    }
+    },
+    pointerTypes: ['mouse', 'pen']
+  });
+
+  const touchGestures = loupeGestures({
+    element: () => container,
+    metrics: () => metrics,
+    view: () => shown,
+    apply: (next) => onView(next),
+    focus: () => onFocus?.(),
+    zoomLevel: () => ui.zoomLevel,
+    stage: () => stage
   });
 
   $effect(() => {
@@ -155,15 +172,36 @@
       : 'border-2 border-white/20 hover:border-white/35 focus-visible:border-primary'
     : 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'}"
   {...gestures.handlers}
+  {@attach touchGestures}
 >
-  {#if badge !== undefined}
-    <span
-      class="pointer-events-none absolute top-2 left-2 z-10 min-w-6 rounded-md border px-1.5 text-center text-[11px] leading-5 font-semibold shadow-md backdrop-blur-sm {focused
-        ? 'border-primary bg-primary text-neutral-950'
-        : 'border-white/20 bg-neutral-950/85 text-white/90'}"
-    >
-      {badge}
-    </span>
+  {#if badge !== undefined || rejected}
+    <div class="pointer-events-none absolute top-2 left-2 z-10 flex items-center gap-1">
+      {#if badge !== undefined}
+        <span
+          class="min-w-6 rounded-full border px-1.5 text-center text-caption leading-5 font-semibold shadow-md backdrop-blur-sm {focused
+            ? 'border-primary bg-primary text-neutral-950'
+            : 'border-white/20 bg-neutral-950/85 text-white/90'}"
+        >
+          {badge}
+        </span>
+      {/if}
+      {#if caption}
+        <span
+          class="rounded-md border border-white/20 bg-neutral-950/85 px-1.5 text-caption leading-5 font-semibold text-white/90 shadow-md backdrop-blur-sm"
+        >
+          {caption}
+        </span>
+      {/if}
+      {#if rejected}
+        <span
+          role="img"
+          aria-label="Rejected"
+          class="grid size-[22px] place-items-center rounded-full border border-white/20 bg-neutral-950/85 shadow-md {rejectedMark.tone}"
+        >
+          <Icon icon={rejectedMark.icon} size="16px" aria-hidden="true" />
+        </span>
+      {/if}
+    </div>
   {/if}
   {#if box.w > 0}
     {#key assetId}
@@ -174,7 +212,7 @@
           alt=""
           draggable="false"
           data-testid="loupe-immich-preview"
-          class="pointer-events-none absolute inset-0 h-full w-full object-contain select-none"
+          class="pointer-events-none absolute inset-0 h-full w-full object-contain select-none {dim}"
           style={transform}
           onload={() => onPreview(assetId)}
         />
@@ -186,7 +224,7 @@
           {src}
           {alt}
           draggable="false"
-          class="relative max-w-full max-h-full object-contain select-none"
+          class="relative max-w-full max-h-full object-contain select-none {dim}"
           style={transform}
           onload={() => onRender(assetId, src)}
           onerror={() => (failedSrc = src)}
