@@ -4,29 +4,16 @@ import { isCullTag } from '#lib/stores/cullTags.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 import { getAsset } from '#lib/api/assets.ts';
-import { putBounded } from '#lib/utils/boundedRecord.ts';
-
-const MAX_CACHED = 50;
+import { tagCache } from '#lib/stores/tagCache.svelte.ts';
 
 class LoupeTagStore {
-  private cache = $state<Record<string, TagRef[]>>({});
-  private order = $state<string[]>([]);
-
   tagsOf(id: string | null): TagRef[] {
-    return id ? (this.cache[id] ?? []) : [];
-  }
-
-  set(id: string, tags: TagRef[]): void {
-    const next = putBounded(this.cache, this.order, id, tags, MAX_CACHED);
-    this.cache = next.record;
-    this.order = next.order;
+    return id ? (tagCache.get(id) ?? []) : [];
   }
 
   async ensure(id: string): Promise<void> {
-    if (this.cache[id]) return;
     try {
-      const asset = await getAsset(id);
-      this.set(id, asset.tags);
+      await tagCache.load(id, async () => (await getAsset(id)).tags);
     } catch (e) {
       toasts.fail('tags', e);
     }
@@ -38,7 +25,7 @@ class LoupeTagStore {
       id,
       read: () => {
         const asset = summary.read();
-        const tags = this.cache[id];
+        const tags = tagCache.get(id);
         if (!asset || !tags) return asset;
         return {
           ...asset,
@@ -46,7 +33,7 @@ class LoupeTagStore {
         };
       },
       patch: (fields) => {
-        if (fields.tags && this.cache[id]) this.set(id, fields.tags);
+        if (fields.tags && tagCache.get(id)) tagCache.set(id, fields.tags);
         summary.patch(fields);
       },
       fail: summary.fail

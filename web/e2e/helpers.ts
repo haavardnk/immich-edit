@@ -505,7 +505,14 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       albums.push(album);
       return route.fulfill(json(albumSummary(album)));
     }
-    if (p === '/api/albums') return route.fulfill(json(albums.map(albumSummary)));
+    if (p === '/api/albums') {
+      const holding = url.searchParams.get('assetId')?.split('_')[0];
+      return route.fulfill(
+        json(
+          albums.filter(({ assetIds }) => !holding || assetIds.includes(holding)).map(albumSummary)
+        )
+      );
+    }
     const albumDetail = albums.find((album) => p === `/api/albums/${album.id}`);
     if (albumDetail && method === 'GET') {
       const { id, albumName, assetCount, updatedAt } = albumSummary(albumDetail);

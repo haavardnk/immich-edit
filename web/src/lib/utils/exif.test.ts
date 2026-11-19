@@ -138,7 +138,10 @@ describe('exifDetailRows', () => {
       dateTimeOriginal: null,
       timeZone: null,
       rating: null,
-      fileSizeInByte: null
+      fileSizeInByte: null,
+      description: null,
+      latitude: null,
+      longitude: null
     };
     const rows = exifDetailRows({ exifInfo: exif });
     const keys = rows.map((r) => r.key);

@@ -1,5 +1,6 @@
 import type { KeybindContext } from '#lib/shortcuts/table.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { holdEscape } from '#lib/stores/overlays.ts';
 import { createKeyDispatcher } from './keys';
 import type { Command } from './types';
 
@@ -82,6 +83,30 @@ describe('key dispatcher', () => {
     expect(inactive.run).not.toHaveBeenCalled();
     expect(active.run).toHaveBeenCalledWith({ key: 'p', code: '', shiftKey: false, repeat: false });
     expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  it('leaves an Escape that closed a popover to the popover', () => {
+    vi.stubGlobal('document', new EventTarget());
+    const release = holdEscape();
+    const close = command({ id: 'close', contexts: ['grid'], bind: 'gridClearSelection' });
+    const event = Object.assign(new Event('keydown', { cancelable: true }), {
+      key: 'Escape',
+      code: 'Escape',
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      repeat: false,
+      getModifierState: () => false
+    }) as unknown as KeyboardEvent;
+    document.dispatchEvent(event);
+    release();
+    vi.unstubAllGlobals();
+
+    createKeyDispatcher([close]).keydown(event, GRID);
+    createKeyDispatcher([close]).keydown(press('Escape'), GRID);
+
+    expect(close.run).toHaveBeenCalledOnce();
   });
 
   it('hands the code, shift and repeat state to active, yields and run', () => {

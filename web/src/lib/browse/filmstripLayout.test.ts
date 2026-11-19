@@ -19,6 +19,11 @@ describe('createFilmstripLayout', () => {
     expect(layout.width).toBe(194);
   });
 
+  it('widens a very tall photo to half its height', () => {
+    const layout = createFilmstripLayout([asset(200, 600)], 60, 4, 8);
+    expect(layout.boxes.map(({ width }) => width)).toEqual([30]);
+  });
+
   it('returns the visible slice with overscan', () => {
     const layout = createFilmstripLayout(
       [asset(600, 400), asset(400, 600), asset(400, 400), asset(800, 400)],
