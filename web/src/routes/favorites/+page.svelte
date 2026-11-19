@@ -11,7 +11,8 @@
 
   onMount(() => {
     browseControls.enter('timeline', readFilterParams(page.url));
-    void feed.resume(resumeId(page.url));
+    void feed.open(resumeId(page.url));
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());

@@ -28,6 +28,7 @@ export async function runSearch(
 export function searchFeed(query: () => string, mode: () => SearchMode): BrowseFeedOptions {
   return {
     baseFilter: () => ({}),
+    cacheScope: () => `${mode()}:${query()}`,
     flatOnly: () => mode() === 'context',
     fetcher: (filter, cursor) => runSearch(query(), mode(), filter, cursor),
     includeStats: false

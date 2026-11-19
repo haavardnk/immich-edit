@@ -1,3 +1,4 @@
+import { feedCache } from '#lib/browse/feedCache.ts';
 import { hides } from '#lib/browse/loadedFilter.ts';
 import type { WindowEnd } from '#lib/browse/feedWindow.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
@@ -94,6 +95,7 @@ class BrowsingStore {
   patch(id: string, fields: Partial<AssetSummary>): void {
     const current = this.find(id);
     if (current) Object.assign(current, fields);
+    feedCache.clear();
   }
 
   insertCopy(copyId: string, source: string, label: string | null): void {
@@ -110,12 +112,14 @@ class BrowsingStore {
       copyLabel: label ?? undefined
     };
     this.assets.splice(at, 0, copy);
+    feedCache.clear();
   }
 
   remove(id: string): void {
     const idx = this.assets.findIndex((a) => a.id === id);
     if (idx < 0) return;
     this.assets.splice(idx, 1);
+    feedCache.clear();
   }
 
   removeMany(ids: ReadonlySet<string>): Removal {
@@ -127,6 +131,7 @@ class BrowsingStore {
       items.unshift({ index, asset });
     }
     if (this.total !== undefined) this.total = Math.max(0, this.total - items.length);
+    if (items.length > 0) feedCache.clear();
     return { list: this.list, items };
   }
 
@@ -139,6 +144,7 @@ class BrowsingStore {
       added += 1;
     }
     if (this.total !== undefined) this.total += added;
+    if (added > 0) feedCache.clear();
   }
 
   prevOf(id: string): AssetSummary | null {

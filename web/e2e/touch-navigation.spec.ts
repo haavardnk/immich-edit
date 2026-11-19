@@ -55,6 +55,29 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(avatar(page)).toBeVisible();
   });
 
+  test('Back walks a folder drill-down up one level at a time', async ({ page }) => {
+    await open(page, '/folders?path=%2Fphotos%2F2026%2FNorway');
+    await expect(page.getByRole('heading', { name: 'Norway', level: 1 })).toBeVisible();
+
+    await back(page, '/folders?path=%2Fphotos%2F2026');
+    await back(page, '/folders?path=%2Fphotos');
+    await back(page, '/folders');
+    await back(page, '/library');
+
+    await page.getByRole('link', { name: /^Folders/ }).tap();
+    await page
+      .getByRole('list', { name: 'Subfolders' })
+      .getByRole('link', { name: /^photos/ })
+      .tap();
+    await expect(page).toHaveURL('/folders?path=%2Fphotos');
+    await page
+      .getByRole('navigation', { name: 'Folder path' })
+      .getByRole('link', { name: 'Folders' })
+      .tap();
+    await expect(page).toHaveURL('/folders');
+    await back(page, '/library');
+  });
+
   test('Back leaves settings for Photos', async ({ page }) => {
     await open(page, '/settings');
     await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
@@ -172,5 +195,57 @@ test.describe('touch search field on a small phone', { tag: ['@touch', '@phone']
     await expect(page).toHaveURL(/mode=ocr/);
     await expect(last).toHaveAttribute('aria-pressed', 'true');
     await expect(first).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+test.describe('touch tabs remember their place', { tag: ['@touch', '@phone'] }, () => {
+  async function scrollTo(scroller: Locator, top: number): Promise<number> {
+    await scroller.evaluate((element, value) => element.scrollTo({ top: value }), top);
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    return scroller.evaluate((element) => element.scrollTop);
+  }
+
+  async function expectScrolled(scroller: Locator, top: number): Promise<void> {
+    await expect
+      .poll(async () => Math.abs((await scroller.evaluate((element) => element.scrollTop)) - top))
+      .toBeLessThan(2);
+  }
+
+  test('a tab returns to its last page and Back stays inside the tab', async ({ page }) => {
+    await open(page, '/albums');
+    await page
+      .getByRole('list', { name: 'Albums' })
+      .getByRole('link', { name: /^Family/ })
+      .tap();
+    await expect(page).toHaveURL('/albums/album-family');
+
+    await tab(page, 'Photos').tap();
+    await expect(page).toHaveURL('/photos');
+    await tab(page, 'Albums').tap();
+    await expect(page).toHaveURL('/albums/album-family');
+    await back(page, '/albums');
+
+    await tab(page, 'Photos').tap();
+    await tab(page, 'Albums').tap();
+    await expect(page).toHaveURL('/albums');
+  });
+
+  test('a list page keeps its scroll position', async ({ page }) => {
+    const albums = Array.from({ length: 40 }, (_, index) => ({
+      id: `album-${index}`,
+      albumName: `Album ${index}`,
+      assetIds: []
+    }));
+    await open(page, '/albums', { albums });
+    const scroller = page.getByTestId('page-scroller');
+    await expect(page.getByRole('link', { name: /^Album 0/ })).toBeVisible();
+    const top = await scrollTo(scroller, 700);
+
+    await tab(page, 'Photos').tap();
+    await expect(page).toHaveURL('/photos');
+    await tab(page, 'Albums').tap();
+    await expect(page).toHaveURL('/albums');
+
+    await expectScrolled(scroller, top);
   });
 });

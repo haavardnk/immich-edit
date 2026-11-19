@@ -18,6 +18,7 @@
   import RecentSearches from '#lib/components/browse/RecentSearches.svelte';
   import SearchModeBar from '#lib/components/browse/SearchModeBar.svelte';
   import TouchSearchBar from '#lib/components/shell/touch/TouchSearchBar.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { Button } from '@immich/ui';
 
   const query = $derived((page.url.searchParams.get('q') ?? '').trim());
@@ -45,8 +46,9 @@
       selection.clear();
       browseControls.enter(null, readFilterParams(page.url));
       feed.reset();
-      if (query) void feed.fetchPage(true);
+      if (query) void feed.open(null);
     });
+    return () => feed.close();
   });
 
   $effect(() => feed.watchFilterChange());
@@ -54,7 +56,7 @@
   const view = $derived(
     query
       ? {
-          title: `Search: ${query}`,
+          title: layout.compact ? 'Search' : `Search: ${query}`,
           toolbar: modeBar,
           emptyTitle: 'No results',
           emptyMessage: `Nothing matched “${query}”.`,

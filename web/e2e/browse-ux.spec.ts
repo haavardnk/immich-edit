@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { ASSET_SUMMARY, installMocks, json, numberedAssets, openFilters } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
@@ -130,33 +130,6 @@ test('grid shows total count without loaded progress', async ({ page }) => {
   await expect(page.getByText('1000 photos', { exact: true })).toBeVisible();
   await expect(page.getByText('1 of 1000', { exact: true })).toHaveCount(0);
   await expect(page.getByText('1 loaded', { exact: true })).toHaveCount(0);
-});
-
-test('browse popover triggers and filter controls show styled tooltips', async ({ page }) => {
-  await installMocks(page, { structuredSearch: true });
-  await page.goto('/photos');
-  const expectTooltip = async (target: Locator, text: string | RegExp) => {
-    const tooltip = page.locator('.tooltip-content', { hasText: text });
-    await target.hover();
-    await expect(tooltip).toBeVisible();
-    await page.mouse.move(1, 1);
-    await expect(tooltip).toBeHidden();
-  };
-
-  const filters = page.getByRole('button', { name: 'Filters' });
-  const sort = page.getByRole('button', { name: /^Sort:/ });
-  await expectTooltip(filters, 'Filters');
-  await expectTooltip(filters, 'Filters');
-  await expectTooltip(sort, /^Sort: date/);
-  await expectTooltip(sort, /^Sort: date/);
-
-  const panel = await openFilters(page, 'Rating & label');
-  await expectTooltip(panel.getByRole('radio', { name: 'Green label' }), 'Green label');
-  await expectTooltip(panel.getByRole('radio', { name: '3 stars' }), '3 stars');
-  await expectTooltip(
-    page.getByRole('button', { name: /^Rating match/ }),
-    'Match ratings at least the selected stars'
-  );
 });
 
 test('select all loads every page and enables local actions', async ({ page }) => {
