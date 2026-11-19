@@ -284,6 +284,65 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expectTab(page, 'Albums');
   });
 
+  test('the search tab focuses its field and keeps recent queries', async ({ page }) => {
+    await open(page, '/photos');
+
+    await tab(page, 'Search').tap();
+    const field = page.getByRole('textbox', { name: 'Search your photos' });
+    await expect(field).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
+
+    await field.pressSequentially('IMG_0001');
+    await expect(page).toHaveURL(/\/search\?q=IMG_0001/);
+    await expect(page.getByRole('link', { name: ASSET_SUMMARY.originalFileName })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'File name', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+
+    const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+    const clear = page.getByRole('button', { name: 'Clear search', exact: true });
+    await cancel.tap();
+    await expect(field).not.toBeFocused();
+    await expect(cancel).toHaveCount(0);
+    await expect(page).toHaveURL(/\/search\?q=IMG_0001/);
+    await expect(page.locator('header[data-app-bar] h1')).toHaveText('Search');
+    await clear.tap();
+    await expect(page).toHaveURL('/search');
+    await expect(field).toHaveValue('');
+    const recent = page.getByRole('region', { name: 'Recent' });
+    await expect(recent.getByRole('button', { name: 'IMG_0001', exact: true })).toBeVisible();
+    await expect(recent.getByRole('listitem')).toHaveCount(1);
+
+    await recent.getByRole('button', { name: 'IMG_0001', exact: true }).tap();
+    await expect(page).toHaveURL(/\/search\?q=IMG_0001/);
+    await expect(field).toHaveValue('IMG_0001');
+
+    await page.reload();
+    await expect(field).toHaveValue('IMG_0001');
+    await expect(field).not.toBeFocused();
+    await expect(cancel).toHaveCount(0);
+
+    await clear.tap();
+    await recent
+      .getByRole('button', { name: 'Remove IMG_0001 from recent searches', exact: true })
+      .tap();
+    await expect(recent).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'Recent' })).toHaveCount(0);
+
+    await field.pressSequentially('red ');
+    await expect(page).toHaveURL(/\/search\?q=red$/);
+    await field.pressSequentially('car');
+    await expect(page).toHaveURL(/\/search\?q=red(\+|%20)car$/);
+    await expect(field).toHaveValue('red car');
+    await clear.tap();
+    await expect(page.getByRole('region', { name: 'Recent' }).getByRole('listitem')).toHaveText([
+      /^\s*red car\s*$/
+    ]);
+  });
+
   test('folders drill down with a breadcrumb', async ({ page }) => {
     await open(page, '/folders');
 

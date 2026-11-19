@@ -7,6 +7,7 @@ import { browseControls } from './browseControls.svelte';
 import { selection } from './selection.svelte';
 import { browsing } from './browsing.svelte';
 import { toasts } from './toasts.svelte';
+import { feedCache } from '#lib/browse/feedCache.ts';
 
 vi.mock('#lib/api/search.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('#lib/api/search.ts')>();
@@ -478,5 +479,58 @@ describe('BrowseFeed window mode', () => {
     metadata.reset();
     expect(metadata.windowed).toBe(false);
     expect(metadata.hasPrevious).toBe(false);
+  });
+});
+
+describe('BrowseFeed list cache', () => {
+  beforeEach(() => feedCache.clear());
+
+  async function loaded(scope = 'a1'): Promise<BrowseFeed> {
+    const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: scope } }) });
+    await feed.open(null);
+    return feed;
+  }
+
+  it('hands a closed list to the next feed of the same view without fetching', async () => {
+    const first = await loaded();
+    first.close();
+
+    const second = await loaded();
+    expect(searchApi.searchMetadata).toHaveBeenCalledTimes(1);
+    expect(second.assets).toBe(first.assets);
+    expect(browsing.assets).toBe(second.assets);
+    expect(second.totalCount).toBe(20);
+    expect(browsing.total).toBe(20);
+  });
+
+  it('fetches again for another view, after a change, or for a list still loading', async () => {
+    (await loaded('a1')).close();
+    (await loaded('a2')).close();
+    expect(searchApi.searchMetadata).toHaveBeenCalledTimes(2);
+
+    browsing.patch('top', { isFavorite: true });
+    (await loaded('a1')).close();
+    expect(searchApi.searchMetadata).toHaveBeenCalledTimes(3);
+
+    const pending = new BrowseFeed({ baseFilter: () => ({ scope: { album: 'a3' } }) });
+    vi.mocked(searchApi.searchMetadata).mockReturnValueOnce(new Promise(() => undefined));
+    void pending.open(null);
+    pending.close();
+    await loaded('a3');
+    expect(searchApi.searchMetadata).toHaveBeenCalledTimes(5);
+  });
+
+  it('drops a response that lands after the list closed', async () => {
+    let answer: (page: SearchPage) => void = () => undefined;
+    vi.mocked(searchApi.searchMetadata).mockReturnValueOnce(
+      new Promise((resolve) => (answer = resolve))
+    );
+    const feed = new BrowseFeed({ baseFilter: () => ({}) });
+    void feed.open(null);
+    feed.close();
+    browsing.set([asset('other')]);
+    answer(result(null, ['late']));
+    await flush();
+    expect(browsing.assets.map((item) => item.id)).toEqual(['other']);
   });
 });

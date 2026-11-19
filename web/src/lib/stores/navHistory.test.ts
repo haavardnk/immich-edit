@@ -148,6 +148,16 @@ describe('navHistory without the Navigation API', () => {
     expect(nav.goto).not.toHaveBeenCalled();
   });
 
+  it('goes up to the parent when the previous entry is outside the current stack', () => {
+    navHistory.record(step('enter', null, '/photos'));
+    push('link', '/photos', '/albums/trip');
+
+    navHistory.back('/albums', (previous) => previous !== '/photos');
+
+    expect(browser.back).not.toHaveBeenCalled();
+    expect(nav.goto).toHaveBeenCalledWith('/albums', { replace: true });
+  });
+
   it('remembers the pushed-from entry until history moves', () => {
     navHistory.record(step('enter', null, '/albums/x'));
     push('link', '/albums/x', '/assets/a?from=%2Falbums%2Fx');
