@@ -9,7 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import JobList from './JobList.svelte';
 import JobListActions from './JobListActions.svelte';
-import JobsDrawer from './JobsDrawer.svelte';
+import JobsPanel from './JobsPanel.svelte';
 import JobsSheet from './JobsSheet.svelte';
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
@@ -34,6 +34,8 @@ const item: JobItem = {
   id: 'i1',
   job_id: 'zip',
   asset_id: 'asset-0001',
+  position: 1,
+  variant: 0,
   status: 'failed',
   error: 'Render failed',
   result: { warnings: ['Lens profile missing'] },
@@ -58,15 +60,10 @@ afterEach(() => {
 });
 
 describe('JobList layout parity', () => {
-  it('exposes the same controls standalone and in the jobs drawer', async () => {
+  it('exposes the same controls standalone and in the jobs panel', async () => {
     const found = await layoutControls([
       layout('body', JobList, {}),
-      layout(
-        'drawer',
-        JobsDrawer,
-        {},
-        { exclude: [button('Close jobs'), button('Clear finished')] }
-      )
+      layout('panel', JobsPanel, {}, { exclude: [button('Close jobs'), button('Clear finished')] })
     ]);
     expect(found.body).toEqual([
       button('Cancel job'),
@@ -74,17 +71,17 @@ describe('JobList layout parity', () => {
       button('Toggle details'),
       { role: 'link', name: 'Download ZIP' }
     ]);
-    expect(found.drawer).toEqual(found.body);
+    expect(found.panel).toEqual(found.body);
   });
 
-  it('exposes the list and its actions together in the jobs drawer', async () => {
+  it('exposes the list and its actions together in the jobs panel', async () => {
     const found = await layoutControls([
       layout('list', JobList, {}),
       layout('actions', JobListActions, {}),
-      layout('drawer', JobsDrawer, {}, { exclude: [button('Close jobs')] })
+      layout('panel', JobsPanel, {}, { exclude: [button('Close jobs')] })
     ]);
     expect(found.actions).toEqual([button('Clear finished')]);
-    expect(found.drawer).toEqual(mergeControls(found.list, found.actions));
+    expect(found.panel).toEqual(mergeControls(found.list, found.actions));
   });
 
   it('exposes the grouped list and its actions in the jobs sheet', async () => {
@@ -126,5 +123,27 @@ describe('JobList layout parity', () => {
       'Finished',
       'Download ZIP progress'
     ]);
+  });
+
+  it('names the preset of each item in a multi-preset job', async () => {
+    jobs.jobs = [
+      {
+        ...job('zip', 'download_zip', 'completed'),
+        params: { variants: [{ preset: 'Web' }, { preset: 'Print' }] }
+      }
+    ];
+    jobs.items = {
+      zip: [
+        { ...item, status: 'completed', result: { filename: 'a_web.jpg', preset: 'Web' } },
+        { ...item, id: 'i2', variant: 1, status: 'pending', error: null, result: null }
+      ]
+    };
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const destroy = layout('list', JobList, {}).render(target);
+    expect(target.textContent).toMatch(/a_web\.jpg\s*Web\s*completed/);
+    expect(target.textContent).toMatch(/asset-00\s*Print\s*pending/);
+    await destroy();
+    target.remove();
   });
 });

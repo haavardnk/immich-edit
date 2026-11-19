@@ -1,29 +1,22 @@
 <script lang="ts">
-  import { segmented } from '#lib/components/segmented.ts';
+  import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import type { Destination } from './settings';
-  import { RadioGroup } from 'bits-ui';
+  import { mdiCellphone, mdiCloudOutline } from '@mdi/js';
 
-  let {
-    value = $bindable<Destination>(),
-    downloadLabel = 'Download',
-    immichLabel = 'To Immich'
-  }: {
-    value: Destination;
-    downloadLabel?: string;
-    immichLabel?: string;
-  } = $props();
+  let { value = $bindable<Destination>() }: { value: Destination } = $props();
+
+  const touch = $derived(layout.mode === 'touch');
+  const options = $derived<{ value: Destination; label: string; icon: string }[]>([
+    { value: 'download', label: touch ? 'Device' : 'Download', icon: mdiCellphone },
+    { value: 'immich', label: touch ? 'Immich' : 'To Immich', icon: mdiCloudOutline }
+  ]);
 </script>
 
-<RadioGroup.Root
-  bind:value={() => value, (v) => (value = v as Destination)}
-  orientation="horizontal"
-  aria-label="Export destination"
-  class={segmented.text.group}
->
-  <RadioGroup.Item value="download" class="{segmented.text.radio} flex-1">
-    {downloadLabel}
-  </RadioGroup.Item>
-  <RadioGroup.Item value="immich" class="{segmented.text.radio} flex-1">
-    {immichLabel}
-  </RadioGroup.Item>
-</RadioGroup.Root>
+<SegmentedChoice
+  label="Export destination"
+  fill
+  {value}
+  options={options.map((option) => ({ ...option, icon: touch ? option.icon : undefined }))}
+  onChange={(v) => (value = v)}
+/>

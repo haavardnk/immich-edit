@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   dispositionFilename,
+  downloadName,
+  downloadStoredExport,
   exportUrlPersisted,
   headerWarnings,
   type ExportOptions
@@ -103,5 +105,29 @@ describe('headerWarnings', () => {
     [null, []]
   ])('reads %s', (header, warnings) => {
     expect(headerWarnings(header)).toEqual(warnings);
+  });
+});
+
+describe('downloadStoredExport', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('renders the stored edits with the given options', async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL) =>
+        new Response('jpg', {
+          headers: {
+            'content-disposition': 'attachment; filename="IMG_1_edit.jpg"',
+            'x-export-warnings': '["Metadata not copied"]'
+          }
+        })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const download = await downloadStoredExport('a', base);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(exportUrlPersisted('a', base));
+    expect(download.filename).toBe('IMG_1_edit.jpg');
+    expect(download.warnings).toEqual(['Metadata not copied']);
+    expect(downloadName('a', download, 'jpeg')).toBe('IMG_1_edit.jpg');
+    expect(downloadName('a', { ...download, filename: null }, 'tiff')).toBe('a.tif');
   });
 });

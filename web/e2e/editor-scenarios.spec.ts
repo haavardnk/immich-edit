@@ -13,6 +13,7 @@ import {
   openPresetStrip,
   presetAction
 } from './helpers';
+import { openExportTab } from './exportSections';
 
 test('editor toolbar shows the filename without a duplicate extension', async ({ page }) => {
   await installMocks(page);
@@ -76,18 +77,21 @@ test('export download triggers a file download', async ({ page }) => {
 
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
 
-  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export JPEG/ }).click();
+  const file = page.getByRole('group', { name: 'Exported file' });
+  await expect(file).toContainText('Ready, not saved yet');
+  const downloadPromise = page.waitForEvent('download');
+  await file.getByRole('button', { name: 'Save' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/IMG_0001.*\.jpg$/);
-  await expect(page.getByText('Saved IMG_0001_edit.jpg')).toBeVisible();
+  await expect(file).toContainText('Saved');
 });
 
 test('export quality uses the shared range control', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await openExportTab(page);
   const quality = page.getByRole('slider', { name: 'Quality' });
   await quality.fill('82');
 
@@ -516,7 +520,11 @@ test("another user's photo is read-only and says why", async ({ page }) => {
   await expect(stack).toBeDisabled();
   await expect(stack).not.toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Mark as favorite' })).toBeEnabled();
-  await stack.hover({ force: true });
+  await stack.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = await stack.boundingBox();
+  if (!box) throw new Error('stack checkbox is not laid out');
+  await page.mouse.move(box.x - 40, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
   await expect(page.getByText('Only the owner can stack it.')).toBeVisible();
 });
 

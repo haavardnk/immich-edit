@@ -297,8 +297,8 @@ but never its depth map, which belongs to one photo. Your choice is kept until y
 open another photo and press **Paste edits** (`Ctrl+V`). **Paste only…** (`Ctrl+Shift+V`) shows the
 sections you copied so you can paste a few of them. A short message confirms each copy and paste,
 or says when there is nothing to copy or paste. To paste onto many photos at once, select them in
-the grid and press `Ctrl+V`, or use
-[**Edit and export selected**](export.md#export-many-photos).
+the grid and press `Ctrl+V`, or use **Paste edits** in the selection bar's
+[**Edits**](export.md#export-many-photos) menu.
 
 A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press
 `Shift+P` or **Presets** in the bottom bar to show it, and again to close it along with the

@@ -646,7 +646,7 @@ export const KEYBINDS = [
   {
     id: 'openExport',
     keys: ['Shift+e'],
-    contexts: ['editor'],
+    contexts: ['editor', 'grid'],
     group: 'Editor',
     label: 'Open Export'
   },

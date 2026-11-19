@@ -3,6 +3,7 @@ import { session } from '#lib/stores/session.svelte.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   REPLACE_NONE_OWNED,
+  REPLACE_EXPORT_TRASH_OFF,
   REPLACE_NOT_OWNER,
   REPLACE_TRASH_OFF,
   REPLACE_TWO_VERSIONS
@@ -33,8 +34,19 @@ describe('exportScope', () => {
       stackable: true,
       stackReason: NOT_OWNER_STACK,
       replaceReason: null,
+      conflictReason: null,
       nameExample: { original: 'a.ARW', date: '2024-05-06', position: 1, total: 1 }
     });
+  });
+
+  it('blocks replacing earlier exports while the trash is off', () => {
+    const scope = exportScope({ assets: [asset('a')], count: 1, trashOn: false });
+    expect(scope.conflictReason).toBe(REPLACE_EXPORT_TRASH_OFF);
+    const form = defaultExportForm();
+    expect(uploadOptions(form, scope, false, 'replace').onConflict).toBe('keep_both');
+    const trashOn = exportScope({ assets: [asset('a')], count: 1, trashOn: true });
+    expect(uploadOptions(form, trashOn, false, 'replace').onConflict).toBe('replace');
+    expect(uploadOptions(form, trashOn, false).onConflict).toBe('keep_both');
   });
 
   it('allows stacking before the photo has loaded', () => {
@@ -94,7 +106,8 @@ describe('uploadOptions', () => {
     const scope = exportScope({ assets: [asset('a')], count: 1, trashOn: true });
     expect(uploadOptions(form, scope, true)).toMatchObject({
       replaceOriginal: true,
-      stackWithOriginal: false
+      stackWithOriginal: false,
+      filenameTemplate: '{name}'
     });
   });
 
@@ -102,7 +115,8 @@ describe('uploadOptions', () => {
     const scope = exportScope({ assets: [asset('a')], count: 1, trashOn: false });
     expect(uploadOptions(form, scope, true)).toMatchObject({
       replaceOriginal: false,
-      stackWithOriginal: true
+      stackWithOriginal: true,
+      filenameTemplate: form.filenameTemplate
     });
   });
 

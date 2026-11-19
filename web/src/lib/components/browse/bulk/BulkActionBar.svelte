@@ -4,13 +4,17 @@
   import { editorHref } from '#lib/editor/navigation.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { BAR_CONTAINER, NAME_WIDTH, ONE_ROW } from '#lib/browse/bulk/bulkBarFit.ts';
+  import {
+    BULK_EXPORT_BUTTON,
+    BULK_EXPORT_PANEL,
+    bulkExportDock
+  } from '#lib/browse/bulk/bulkExportDock.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
   import { NOT_OWNER_TRASH } from '#lib/browse/bulk/bulkMarks.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
-  import BulkActionsDialog from './BulkActionsDialog.svelte';
   import BulkMarkTools from './BulkMarkTools.svelte';
   import BulkOrganise from './BulkOrganise.svelte';
   import BulkTagBand from './BulkTagBand.svelte';
@@ -22,17 +26,18 @@
   import {
     mdiClose,
     mdiCompare,
+    mdiExportVariant,
     mdiImageEditOutline,
     mdiTrashCanOutline,
     mdiViewGridOutline
   } from '@mdi/js';
 
   let band = $state<'tags' | 'albums' | null>(null);
-  let bulkActionsOpen = $state(false);
 
   const scope = bulkScope;
   const actions = bulkActions;
   const photos = $derived(scope.targetCount === 1 ? 'this photo' : 'selected photos');
+  const exporting = $derived(bulkExportDock.open);
 
   function multiTitle(mode: MultiMode): string {
     const detail = multiDetail(mode, scope.count, compare.paneLimit);
@@ -45,7 +50,6 @@
 
   async function selectAll(): Promise<void> {
     band = null;
-    bulkActionsOpen = false;
     await actions.selectAll();
   }
 </script>
@@ -79,7 +83,7 @@
   >
     <div class="items-center gap-1 py-1.5 {ONE_ROW.row}">
       <div class="flex min-w-0 items-center gap-1 {ONE_ROW.head}">
-        <div class="flex shrink-0 flex-col justify-center pe-1 leading-tight" aria-live="polite">
+        <div class="flex min-w-0 flex-col justify-center pe-1 leading-tight" aria-live="polite">
           {#if scope.single}
             <span class="sr-only">1 selected</span>
             <TruncationTooltip text={scope.single.originalFileName}>
@@ -95,11 +99,10 @@
               {/snippet}
             </TruncationTooltip>
           {:else}
-            <span class="text-sm font-semibold whitespace-nowrap">{scope.targetCount} selected</span
-            >
+            <span class="truncate text-sm font-semibold">{scope.targetCount} selected</span>
           {/if}
           {#if scope.scope}
-            <span class="text-[11px] whitespace-nowrap text-dark/65">{scope.scope}</span>
+            <span class="truncate text-[11px] text-dark/65">{scope.scope}</span>
           {/if}
         </div>
         {#if scope.canSelectAll}
@@ -137,10 +140,22 @@
         {@render divider()}
         <BulkMarkTools />
         {@render divider()}
-        <BulkOrganise
-          {band}
-          onBand={(next) => (band = next)}
-          onEditExport={() => (bulkActionsOpen = true)}
+        <BulkOrganise {band} onBand={(next) => (band = next)} />
+      </div>
+      <div class="flex shrink-0 items-center {ONE_ROW.end}">
+        <IconButton
+          id={BULK_EXPORT_BUTTON}
+          size="medium"
+          variant={exporting ? 'filled' : 'ghost'}
+          color={exporting ? 'primary' : 'secondary'}
+          class="shrink-0"
+          icon={mdiExportVariant}
+          title={hint('Export selected photos', 'openExport')}
+          aria-label="Export selected photos"
+          aria-expanded={exporting}
+          aria-controls={exporting ? BULK_EXPORT_PANEL : undefined}
+          disabled={scope.count === 0 || scope.selectingAll}
+          onclick={bulkExportDock.toggle}
         />
         {@render divider()}
         <DisabledReason locked={!scope.trashable} reason={NOT_OWNER_TRASH} class="flex shrink-0">
@@ -155,17 +170,17 @@
             onclick={actions.trash}
           />
         </DisabledReason>
+        <IconButton
+          size="medium"
+          variant="ghost"
+          color="secondary"
+          class="shrink-0"
+          icon={mdiClose}
+          title={hint(scope.closeLabel, 'gridClearSelection')}
+          aria-label={scope.closeLabel}
+          onclick={actions.clear}
+        />
       </div>
-      <IconButton
-        size="medium"
-        variant="ghost"
-        color="secondary"
-        class="shrink-0 {ONE_ROW.close}"
-        icon={mdiClose}
-        title={hint(scope.closeLabel, 'gridClearSelection')}
-        aria-label={scope.closeLabel}
-        onclick={actions.clear}
-      />
     </div>
 
     {#if band === 'tags' && scope.allOwned}
@@ -175,7 +190,3 @@
     {/if}
   </div>
 </div>
-
-{#if bulkActionsOpen}
-  <BulkActionsDialog onClose={() => (bulkActionsOpen = false)} />
-{/if}

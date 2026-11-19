@@ -142,6 +142,12 @@ export const NEUTRAL_RECORD = {
   hash: 'hash-neutral'
 };
 
+export function jobsPanel(page: Page): Locator {
+  return page
+    .getByRole('complementary', { name: 'Jobs' })
+    .or(page.getByRole('dialog', { name: 'Jobs' }));
+}
+
 export function json(data: unknown, status = 200): Parameters<Route['fulfill']>[0] {
   return { status, contentType: 'application/json', body: JSON.stringify(data) };
 }
@@ -222,6 +228,8 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  exportPresets?: Array<Record<string, unknown>>;
+  earlierExports?: (query: EarlierExportsQuery) => EarlierExportsFound;
   luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
@@ -260,6 +268,16 @@ export interface InstallOpts {
   metadataPushConsented?: boolean;
 }
 
+export interface EarlierExportsQuery {
+  asset_ids: string[];
+  presets: string[];
+}
+
+export interface EarlierExportsFound {
+  photos: number;
+  files: Array<{ filename: string; exported_at: string }>;
+}
+
 export interface MockSavedView {
   id: string;
   name: string;
@@ -287,7 +305,7 @@ export async function installMocks(
   const assets = opts.assets ?? [ASSET_SUMMARY];
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
-  const exportPresets: Array<Record<string, unknown>> = [];
+  const exportPresets = [...(opts.exportPresets ?? [])];
   const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
   let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
@@ -636,9 +654,14 @@ export async function installMocks(
       }
       return route.fulfill(json(preferences));
     }
+    if (p === '/api/export-outputs/query' && method === 'POST') {
+      const query = req.postDataJSON() as EarlierExportsQuery;
+      return route.fulfill(json(opts.earlierExports?.(query) ?? { photos: 0, files: [] }));
+    }
     if (p === '/api/export-presets') {
       if (method === 'POST') {
         const created = {
+          destination: 'download',
           ...((req.postDataJSON() as Record<string, unknown>) ?? {}),
           id: `export-preset-${exportPresets.length + 1}`,
           created_at: '2024-01-01T00:00:00Z',

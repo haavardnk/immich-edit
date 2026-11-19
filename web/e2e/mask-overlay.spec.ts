@@ -21,7 +21,50 @@ async function addRadial(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Radial gradient', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Radial center' })).toBeVisible();
+  await page.mouse.move(0, 0);
 }
+
+test('shift O cycles the mask overlay modes with a pill', async ({ page }) => {
+  await installMocks(page, { previewRender: weightRender });
+  await gotoAsset(page);
+  await addRadial(page);
+
+  const backdrop = page.getByTestId('mask-weight-backdrop');
+  const pill = page.locator('[data-photo-pill]');
+  await expect(backdrop).toHaveAttribute('data-mode', 'color');
+  await expect.poll(() => centrePixel(page)).toEqual([255, 59, 48, 255]);
+
+  await page.keyboard.press('Shift+O');
+  await expect(backdrop).toHaveAttribute('data-mode', 'colorOnBw');
+  await expect(pill).toContainText('Color on black and white');
+  await expect(pill).toContainText('cycles overlay');
+  await expect
+    .poll(() => backdrop.evaluate((el) => getComputedStyle(el).backdropFilter))
+    .toContain('grayscale');
+
+  await page.keyboard.press('Shift+O');
+  await expect(backdrop).toHaveAttribute('data-mode', 'whiteOnBlack');
+  await expect(pill).toContainText('White on black');
+  await expect.poll(() => centrePixel(page)).toEqual([255, 255, 255, 255]);
+  await expect(page.getByTestId('mask-weight')).toHaveCSS('opacity', '1');
+  await expect(pill).toHaveCount(0, { timeout: 4000 });
+
+  await page.reload();
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'Mask overlay options' }).click();
+  const menu = page.locator('[data-popover-content]');
+  await expect(menu.getByRole('button', { name: 'White on black', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+O');
+  await page.getByRole('button', { name: 'Mask overlay options' }).click();
+  await expect(menu.getByRole('button', { name: 'Color', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  );
+});
 
 test('the overlay colour is saved to the account', async ({ page }) => {
   const patches: Record<string, unknown>[] = [];

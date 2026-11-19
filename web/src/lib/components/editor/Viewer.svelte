@@ -45,6 +45,7 @@
   import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
   import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
   import RetouchOverlay from './retouch/RetouchOverlay.svelte';
+  import WatermarkPreview from './WatermarkPreview.svelte';
   import VisualizeFilter, { VISUALIZE_FILTER } from './retouch/VisualizeFilter.svelte';
 
   let {
@@ -240,6 +241,7 @@
       <BrushCanvas img={imgEl} />
       <ClickCanvas img={imgEl} />
       <RetouchOverlay img={imgEl} />
+      <WatermarkPreview img={imgEl} />
     {/if}
     {#if editor.maskGenerating}
       <div

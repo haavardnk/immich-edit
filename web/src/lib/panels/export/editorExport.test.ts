@@ -1,16 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ backToGrid: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  backToGrid: vi.fn(),
+  submitPresetExport: vi.fn(),
+  showJob: vi.fn()
+}));
 
 vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/edit/a1?from=%2Falbums%2Fx') }
 }));
 vi.mock('#lib/browse/backToGrid.ts', () => ({ backToGrid: mocks.backToGrid }));
+vi.mock('#lib/panels/export/presetExport.ts', () => ({
+  submitPresetExport: mocks.submitPresetExport
+}));
+vi.mock('#lib/stores/jobs.svelte.ts', () => ({ jobs: { showJob: mocks.showJob } }));
 
 import { EditorExporter } from '#lib/panels/export/editorExport.svelte.ts';
+import { exportPresets } from '#lib/panels/export/exportPresets.svelte.ts';
 import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
 import { uploadOptions } from '#lib/panels/export/scope.ts';
-import { baseOptions } from '#lib/panels/export/settings.ts';
+import { baseOptions, defaultExportForm } from '#lib/panels/export/settings.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { mdiCloudUpload, mdiExport } from '@mdi/js';
@@ -22,14 +31,17 @@ beforeEach(() => {
 
 afterEach(() => {
   editor.assetId = null;
-  editor.exporting = false;
-  editor.exportingToImmich = false;
-  editor.lastDownload = null;
-  editor.lastUpload = null;
+  editor.exports.reset();
+  exportSettings.form = defaultExportForm();
   exportSettings.destination = 'download';
+  exportSettings.saveAutomatically = false;
   immichCapabilities.trash = false;
   vi.restoreAllMocks();
   mocks.backToGrid.mockReset();
+  mocks.submitPresetExport.mockReset();
+  mocks.showJob.mockReset();
+  exportPresets.presets = [];
+  editor.saveError = null;
 });
 
 describe('EditorExporter download', () => {
@@ -39,7 +51,7 @@ describe('EditorExporter download', () => {
     expect(exporter.icon).toBe(mdiExport);
     expect(exporter.disabled).toBe(false);
 
-    editor.exporting = true;
+    editor.exports.rendering = true;
     expect(exporter.busy).toBe(true);
     expect(exporter.label).toBe('Exporting…');
     expect(exporter.disabled).toBe(true);
@@ -50,23 +62,46 @@ describe('EditorExporter download', () => {
     expect(new EditorExporter().disabled).toBe(true);
   });
 
-  it('starts and retries a download', () => {
-    const onExport = vi.spyOn(editor, 'onExport').mockResolvedValue();
-    const retryExport = vi.spyOn(editor, 'retryExport').mockResolvedValue();
+  it('starts and retries a download, saving only when the device says so', () => {
+    const render = vi.spyOn(editor.exports, 'render').mockResolvedValue();
+    const retryRender = vi.spyOn(editor.exports, 'retryRender').mockResolvedValue();
     const exporter = new EditorExporter();
 
     exporter.start();
-    expect(onExport).toHaveBeenCalledWith(baseOptions(exportSettings.form));
+    expect(render).toHaveBeenLastCalledWith(baseOptions(exportSettings.form), false);
+    exportSettings.saveAutomatically = true;
+    exporter.start();
+    expect(render).toHaveBeenLastCalledWith(baseOptions(exportSettings.form), true);
 
     exporter.retry();
-    expect(retryExport).toHaveBeenCalledTimes(1);
+    expect(retryRender).toHaveBeenCalledTimes(1);
     expect(mocks.backToGrid).not.toHaveBeenCalled();
   });
 
-  it('shows the last download', () => {
-    const result = { kind: 'success' as const, message: 'Saved', warnings: [] };
-    editor.lastDownload = result;
+  it('shows the last failed download', () => {
+    const result = { kind: 'error' as const, message: 'Export failed: boom', warnings: [] };
+    editor.exports.lastDownload = result;
     expect(new EditorExporter().result).toEqual(result);
+  });
+
+  it('drops the rendered file once the export settings change', () => {
+    vi.spyOn(editor.exports, 'file', 'get').mockReturnValue({
+      blob: new Blob(),
+      name: 'IMG_0001_edit.jpg',
+      options: baseOptions(exportSettings.form),
+      edits: editor.edits,
+      size: null,
+      renderedAt: new Date(),
+      renderMs: 10,
+      saved: false,
+      warnings: []
+    });
+    const exporter = new EditorExporter();
+    expect(exporter.file?.name).toBe('IMG_0001_edit.jpg');
+    const quality = exportSettings.form.quality;
+    exportSettings.form.quality = 50;
+    expect(exporter.file).toBeNull();
+    exportSettings.form.quality = quality;
   });
 });
 
@@ -81,12 +116,12 @@ describe('EditorExporter upload', () => {
     expect(exporter.label).toBe('Upload JPEG to Immich');
     expect(exporter.icon).toBe(mdiCloudUpload);
 
-    editor.exportingToImmich = true;
+    editor.exports.uploading = true;
     expect(exporter.label).toBe('Uploading…');
   });
 
   it('uploads, resets replace original and returns to the grid', async () => {
-    const upload = vi.spyOn(editor, 'onUploadToImmich').mockResolvedValue(true);
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(true);
     const exporter = new EditorExporter();
     exporter.replaceOriginal = true;
     const expected = uploadOptions(exportSettings.form, exporter.scope, true);
@@ -99,17 +134,98 @@ describe('EditorExporter upload', () => {
   });
 
   it('stays in the editor when the upload fails', async () => {
-    const upload = vi.spyOn(editor, 'onUploadToImmich').mockResolvedValue(false);
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(false);
     new EditorExporter().start();
     await upload.mock.results[0]?.value;
     await Promise.resolve();
     expect(mocks.backToGrid).not.toHaveBeenCalled();
   });
 
+  it('uploads a rendered file with its options and the Immich choices', () => {
+    exportSettings.destination = 'download';
+    const options = baseOptions(exportSettings.form);
+    vi.spyOn(editor.exports, 'file', 'get').mockReturnValue({
+      blob: new Blob(),
+      name: 'IMG_0001_edit.jpg',
+      options,
+      edits: editor.edits,
+      size: null,
+      renderedAt: new Date(),
+      renderMs: 2400,
+      saved: false,
+      warnings: []
+    });
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(false);
+    const exporter = new EditorExporter();
+    exporter.replaceOriginal = true;
+
+    vi.spyOn(exporter.earlier, 'take').mockReturnValue('replace');
+
+    exporter.uploadFile();
+    expect(upload).toHaveBeenCalledWith({
+      ...uploadOptions(exportSettings.form, exporter.scope, false, 'replace'),
+      ...options
+    });
+  });
+
+  it('asks about earlier exports of this photo only for Immich', () => {
+    const exporter = new EditorExporter();
+    expect(exporter.earlierQuery).toEqual({ assetIds: ['a1'], presets: [] });
+    exportSettings.destination = 'download';
+    expect(exporter.earlierQuery).toBeNull();
+  });
+
+  it('sends the earlier-export choice and looks again after the upload', async () => {
+    const upload = vi.spyOn(editor.exports, 'upload').mockResolvedValue(true);
+    const exporter = new EditorExporter();
+    vi.spyOn(exporter.earlier, 'take').mockReturnValue('replace');
+    const refresh = vi.spyOn(exporter.earlier, 'refresh');
+
+    exporter.start();
+    expect(upload).toHaveBeenCalledWith(
+      uploadOptions(exportSettings.form, exporter.scope, false, 'replace')
+    );
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
   it('returns to the grid after a successful retry', async () => {
-    const retry = vi.spyOn(editor, 'retryUpload').mockResolvedValue(true);
+    const retry = vi.spyOn(editor.exports, 'retryUpload').mockResolvedValue(true);
     new EditorExporter().retry();
     expect(retry).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(mocks.backToGrid).toHaveBeenCalledWith('a1', '/albums/x'));
+  });
+});
+
+describe('EditorExporter presets', () => {
+  const web = {
+    id: 'web',
+    name: 'Web',
+    form: {},
+    destination: 'download' as const,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  };
+  const print = { ...web, id: 'print', name: 'Print', form: { quality: 70 } };
+
+  it('keeps one ticked preset while an export runs', async () => {
+    exportPresets.presets = [web];
+    editor.exports.rendering = true;
+    const exporter = new EditorExporter();
+    exporter.presets.toggle('web', true);
+
+    await expect(exporter.exportPresets()).resolves.toBe(false);
+    expect(exporter.presets.picked).toEqual([web]);
+  });
+
+  it('refuses several presets while the edits are not saved', async () => {
+    exportPresets.presets = [web, print];
+    editor.saveError = 'offline';
+    const exporter = new EditorExporter();
+    exporter.presets.toggle('web', true);
+    exporter.presets.toggle('print', true);
+
+    await expect(exporter.exportPresets()).resolves.toBe(false);
+    expect(mocks.submitPresetExport).not.toHaveBeenCalled();
+    expect(exporter.presets.picked).toEqual([web, print]);
   });
 });

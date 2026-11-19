@@ -328,9 +328,11 @@ test('the narrow desktop browse shell uses a toggleable 256px sidebar', async ({
   const sidebar = page.getByRole('complementary');
   const main = page.getByRole('main');
   const visibleMainWidth = (): Promise<number> =>
-    main.evaluate((element) => element.parentElement?.clientWidth ?? 0);
+    main.evaluate((element) => element.parentElement?.parentElement?.clientWidth ?? 0);
   const sidebarWidth = (): Promise<number> =>
-    main.evaluate((element) => element.parentElement?.previousElementSibling?.clientWidth ?? 0);
+    main.evaluate(
+      (element) => element.parentElement?.parentElement?.previousElementSibling?.clientWidth ?? 0
+    );
   await expect(page.getByRole('textbox', { name: 'Search your photos' })).toBeVisible();
   await expect(sidebar).toBeHidden();
   await expect.poll(visibleMainWidth).toBeGreaterThan(380);
@@ -374,7 +376,7 @@ test('the mobile bulk action bar keeps every action reachable', async ({ page })
   const bulkBar = page.getByRole('toolbar', { name: 'Selection actions' });
   await expect(page.locator('header[data-app-bar]')).toContainText('1 selected');
   await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
-  for (const name of ['Rate', 'Label', 'Reject', 'Album', 'Export', 'More']) {
+  for (const name of ['Rate', 'Label', 'Favorite', 'Reject', 'Export', 'More']) {
     await expect(bulkBar.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
   }
   const bounds = await bulkBar.boundingBox();

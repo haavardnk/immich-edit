@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiTools, MISSING_MODEL } from './maskToolCatalog';
+import { aiTools, quickTools } from './maskToolCatalog';
 
 describe('aiTools', () => {
   it('follows the picker order with Background and Box select beside their models', () => {
@@ -19,15 +19,34 @@ describe('aiTools', () => {
       'Click to select',
       'Box select'
     ]);
-    expect(tools.find((tool) => tool.id === 'depth')?.hint).toBe(MISSING_MODEL);
+    expect(tools.find((tool) => tool.id === 'depth')?.installed).toBe(false);
     expect(tools.find((tool) => tool.id === 'semantic')?.scene).toBe(true);
   });
 
-  it('says tap for click to select on touch and hides helpers of missing models', () => {
-    const tools = aiTools([{ kind: 'click', installed: true }], true);
-    expect(tools[0]?.hint).toBe('Tap the photo to select');
+  it('hides the helpers of missing models', () => {
     expect(aiTools([{ kind: 'subject', installed: false }]).map((tool) => tool.id)).toEqual([
       'subject'
+    ]);
+  });
+});
+
+describe('quickTools', () => {
+  it('leads with installed AI tools and fills six slots with drawing tools', () => {
+    const labels = (kinds: Parameters<typeof quickTools>[0]) =>
+      quickTools(kinds).map((tool) => tool.label);
+    expect(
+      labels([
+        { kind: 'sky', installed: true },
+        { kind: 'subject', installed: true }
+      ])
+    ).toEqual(['Subject', 'Sky', 'Background', 'Brush', 'Linear', 'Radial']);
+    expect(labels([{ kind: 'subject', installed: false }])).toEqual([
+      'Brush',
+      'Linear',
+      'Radial',
+      'Polygon',
+      'Luminance',
+      'Color'
     ]);
   });
 });

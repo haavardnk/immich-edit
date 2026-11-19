@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openBulkEdits, openBulkExport } from './browse';
 import { installMocks, json, numberedAssets } from './helpers';
 
 const ASSETS = numberedAssets(2);
@@ -175,9 +176,7 @@ for (const [selection, owners, stackable] of [
     });
     await page.goto('/photos');
     await selectBoth(page);
-    await page.getByRole('button', { name: 'Edit and export selected' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-    await dialog.getByRole('tab', { name: 'Export' }).click();
+    const dialog = await openBulkExport(page);
     await dialog.getByRole('radio', { name: 'To Immich' }).click();
 
     await expect(dialog.getByRole('checkbox', { name: 'Stack with original' })).toBeEnabled({
@@ -186,7 +185,7 @@ for (const [selection, owners, stackable] of [
   });
 }
 
-test('the preset picker opens above the bulk dialog', async ({ page }) => {
+test('the preset picker opens above the edits menu', async ({ page }) => {
   await installMocks(page, {
     assets: ASSETS,
     presets: [{ id: 'preset-warm', name: 'Warm', group_name: null, manifest: { ops: {} } }]
@@ -194,15 +193,17 @@ test('the preset picker opens above the bulk dialog', async ({ page }) => {
 
   await page.goto('/photos');
   await selectBoth(page);
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
-  await expect(dialog.getByRole('button', { name: 'Paste only…', exact: true })).toBeDisabled();
-  const section = dialog.getByRole('button', { name: 'Presets', exact: true });
-  if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
-  await dialog.getByRole('combobox', { name: 'Select a preset…' }).click();
+  const menu = await openBulkEdits(page);
+  await expect(menu.getByRole('button', { name: 'Paste only…', exact: true })).toBeDisabled();
+  await menu.getByRole('button', { name: 'Apply preset', exact: true }).click();
+  const flyout = page
+    .locator('[data-popover-content]')
+    .filter({ has: page.getByRole('combobox', { name: 'Select a preset…' }) });
+  await flyout.getByRole('combobox', { name: 'Select a preset…' }).click();
   await page.getByRole('option', { name: 'Warm', exact: true }).click();
 
-  await expect(dialog.getByRole('button', { name: 'Apply Warm to 2' })).toBeEnabled();
+  await expect(flyout.getByRole('button', { name: 'Apply Warm to 2' })).toBeEnabled();
+  await expect(menu).toBeVisible();
 });
 
 test('grid shortcuts copy edits from one photo and paste them onto a selection', async ({

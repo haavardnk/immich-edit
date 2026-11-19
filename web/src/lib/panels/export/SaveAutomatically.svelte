@@ -1,0 +1,13 @@
+<script lang="ts">
+  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
+</script>
+
+{#if exportSettings.destination === 'download'}
+  <CheckboxRow
+    label="Save automatically"
+    class="mt-1"
+    checked={exportSettings.saveAutomatically}
+    onChange={(checked) => (exportSettings.saveAutomatically = checked)}
+  />
+{/if}

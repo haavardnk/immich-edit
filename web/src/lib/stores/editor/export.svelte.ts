@@ -1,107 +1,179 @@
 import { getAsset } from '#lib/api/assets.ts';
 import {
   downloadExport,
-  EXTENSION_BY_FORMAT,
+  downloadName,
   uploadToImmich,
   type ExportOptions,
   type ImmichExportOptions
 } from '#lib/api/export.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
+import { resizedSize, type PixelSize } from '#lib/panels/export/resize.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
+import { uploadOutcome } from '#lib/stores/editor/uploadOutcome.ts';
 import type { AssetDetail } from '#lib/types/asset.ts';
 import type { Edits } from '#lib/types/edits.ts';
+import type { PreviewMeta } from '#lib/types/preview.ts';
 import { downloadBlob } from '#lib/utils/download.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
+import { croppedOutputSize } from '#lib/utils/geom.ts';
+import { sameValue } from '#lib/utils/sameValue.ts';
 
 export interface ExportResult {
-  kind: 'success' | 'duplicate' | 'error';
+  kind: 'success' | 'warning' | 'error';
   message: string;
   warnings: string[];
 }
 
-export interface ExportCtx {
-  assetId: string | null;
-  asset: AssetDetail | null;
+export interface ExportedFile {
+  blob: Blob;
+  name: string;
+  options: ExportOptions;
   edits: Edits;
-  exporting: boolean;
-  exportingToImmich: boolean;
-  lastDownloadOpts: ExportOptions | null;
-  lastImmichOpts: ImmichExportOptions | null;
-  lastDownload: ExportResult | null;
-  lastUpload: ExportResult | null;
+  size: PixelSize | null;
+  renderedAt: Date;
+  renderMs: number;
+  saved: boolean;
+  warnings: string[];
 }
 
-export async function onExport(ctx: ExportCtx, opts: ExportOptions): Promise<void> {
-  if (!ctx.assetId) return;
-  ctx.lastDownloadOpts = opts;
-  ctx.exporting = true;
-  ctx.lastDownload = null;
-  try {
-    const download = await downloadExport(ctx.assetId, $state.snapshot(ctx.edits), opts);
-    const name = download.filename ?? `${ctx.assetId}.${EXTENSION_BY_FORMAT[opts.format]}`;
-    downloadBlob(download.blob, name);
-    ctx.lastDownload = {
-      kind: 'success',
-      message: `Saved ${name}`,
-      warnings: download.warnings
-    };
-  } catch (e) {
-    ctx.lastDownload = {
-      kind: 'error',
-      message: `Export failed: ${errorMessage(e)}`,
-      warnings: []
-    };
-  } finally {
-    ctx.exporting = false;
+export interface ExportCtx {
+  readonly assetId: string | null;
+  asset: AssetDetail | null;
+  readonly edits: Edits;
+  readonly meta: PreviewMeta | null;
+}
+
+export class EditorExports {
+  private ctx: ExportCtx;
+  private lastRender: { options: ExportOptions; save: boolean } | null = null;
+  private lastUploadOptions: ImmichExportOptions | null = null;
+  private session = 0;
+
+  rendering = $state(false);
+  uploading = $state(false);
+  lastDownload = $state<ExportResult | null>(null);
+  lastUpload = $state<ExportResult | null>(null);
+  private rendered = $state.raw<ExportedFile | null>(null);
+
+  readonly file = $derived.by<ExportedFile | null>(() => {
+    const file = this.rendered;
+    return file && sameValue(this.ctx.edits, file.edits) ? file : null;
+  });
+
+  constructor(ctx: ExportCtx) {
+    this.ctx = ctx;
   }
-}
 
-export async function retryExport(ctx: ExportCtx): Promise<void> {
-  if (ctx.lastDownloadOpts) await onExport(ctx, ctx.lastDownloadOpts);
-}
+  render = async (options: ExportOptions, save: boolean): Promise<void> => {
+    const assetId = this.ctx.assetId;
+    if (!assetId) return;
+    const session = this.session;
+    this.lastRender = { options, save };
+    this.rendering = true;
+    this.lastDownload = null;
+    this.rendered = null;
+    const edits = $state.snapshot(this.ctx.edits) as Edits;
+    const size = this.outputSize(edits, options);
+    const started = performance.now();
+    try {
+      const download = await downloadExport(assetId, edits, options);
+      if (session !== this.session) return;
+      const name = downloadName(assetId, download, options.format);
+      if (save) downloadBlob(download.blob, name);
+      this.rendered = {
+        blob: download.blob,
+        name,
+        options,
+        edits,
+        size,
+        renderedAt: new Date(),
+        renderMs: performance.now() - started,
+        saved: save,
+        warnings: download.warnings
+      };
+    } catch (e) {
+      if (session !== this.session) return;
+      this.lastDownload = {
+        kind: 'error',
+        message: `Export failed: ${errorMessage(e)}`,
+        warnings: []
+      };
+    } finally {
+      if (session === this.session) this.rendering = false;
+    }
+  };
 
-export async function onUploadToImmich(
-  ctx: ExportCtx,
-  opts: ImmichExportOptions
-): Promise<boolean> {
-  if (!ctx.assetId) return false;
-  ctx.lastImmichOpts = opts;
-  ctx.exportingToImmich = true;
-  ctx.lastUpload = null;
-  try {
-    const result = await uploadToImmich(ctx.assetId, $state.snapshot(ctx.edits), opts);
-    const duplicate = result.status.toLowerCase() === 'duplicate';
-    const outcome = duplicate
-      ? `Not uploaded: identical asset already exists in Immich (matched by content hash)`
-      : `Uploaded ${result.filename} to Immich`;
-    const message = result.original_trashed
-      ? `${outcome}; the original moved to the Immich trash`
-      : outcome;
-    ctx.lastUpload = {
-      kind: duplicate ? 'duplicate' : 'success',
-      message,
-      warnings: result.warnings
-    };
-    if (result.original_trashed) {
-      trash.removeTrashed([sourceId(ctx.assetId)], message);
-      return true;
+  retryRender = async (): Promise<void> => {
+    if (this.lastRender) await this.render(this.lastRender.options, this.lastRender.save);
+  };
+
+  save = (): void => {
+    const file = this.file;
+    if (!file) return;
+    downloadBlob(file.blob, file.name);
+    this.rendered = { ...file, saved: true };
+  };
+
+  upload = async (options: ImmichExportOptions): Promise<boolean> => {
+    const assetId = this.ctx.assetId;
+    if (!assetId) return false;
+    const session = this.session;
+    this.lastUploadOptions = options;
+    this.uploading = true;
+    this.lastUpload = null;
+    try {
+      const result = await uploadToImmich(assetId, $state.snapshot(this.ctx.edits), options);
+      const { kind, message } = uploadOutcome(result);
+      const warned = kind === 'warning' || result.warnings.length > 0;
+      const trashed = [
+        ...(result.original_trashed ? [sourceId(assetId)] : []),
+        ...(result.replaced_asset_id ? [result.replaced_asset_id] : [])
+      ];
+      if (trashed.length > 0) trash.removeTrashed(trashed, message);
+      else {
+        toasts.push(warned ? 'warn' : 'success', message, {
+          ttlMs: 10000,
+          description: result.warnings.length > 0 ? result.warnings.join('\n') : undefined
+        });
+      }
+      if (session !== this.session) return false;
+      this.lastUpload = { kind, message, warnings: result.warnings };
+      if (result.original_trashed) return true;
+      if (options.stackWithOriginal || options.favorite) {
+        const asset = await getAsset(assetId).catch(() => null);
+        if (asset && session === this.session) this.ctx.asset = asset;
+      }
+      return false;
+    } catch (e) {
+      const message = errorMessage(e);
+      toasts.push('error', `Upload failed: ${message}`, { ttlMs: 10000 });
+      if (session !== this.session) return false;
+      this.lastUpload = { kind: 'error', message: `Upload failed: ${message}`, warnings: [] };
+      return false;
+    } finally {
+      if (session === this.session) this.uploading = false;
     }
-    toasts.push(duplicate ? 'warn' : 'success', message, { ttlMs: 10000 });
-    if (opts.stackWithOriginal || opts.favorite) {
-      ctx.asset = await getAsset(ctx.assetId).catch(() => ctx.asset);
-    }
-    return false;
-  } catch (e) {
-    const message = errorMessage(e);
-    ctx.lastUpload = { kind: 'error', message: `Upload failed: ${message}`, warnings: [] };
-    toasts.push('error', `Upload failed: ${message}`, { ttlMs: 10000 });
-    return false;
-  } finally {
-    ctx.exportingToImmich = false;
+  };
+
+  retryUpload = async (): Promise<boolean> =>
+    this.lastUploadOptions ? this.upload(this.lastUploadOptions) : false;
+
+  reset(): void {
+    this.session += 1;
+    this.rendered = null;
+    this.rendering = false;
+    this.uploading = false;
+    this.lastDownload = null;
+    this.lastUpload = null;
+    this.lastRender = null;
+    this.lastUploadOptions = null;
   }
-}
 
-export async function retryUpload(ctx: ExportCtx): Promise<boolean> {
-  return ctx.lastImmichOpts ? onUploadToImmich(ctx, ctx.lastImmichOpts) : false;
+  private outputSize(edits: Edits, options: ExportOptions): PixelSize | null {
+    const meta = this.ctx.meta;
+    if (!meta) return null;
+    const crop = croppedOutputSize(edits.geometry, meta.source_w, meta.source_h);
+    return resizedSize(crop, options.resize);
+  }
 }

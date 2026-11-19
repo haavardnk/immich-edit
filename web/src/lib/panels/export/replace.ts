@@ -8,6 +8,8 @@ export const REPLACE_TWO_VERSIONS =
   'Two versions of one photo are selected. Replace original takes one version of each photo.';
 export const REPLACE_TRASH_OFF =
   'The Immich trash is turned off, so Immich would delete the original for good.';
+export const REPLACE_EXPORT_TRASH_OFF =
+  'The Immich trash is turned off, so Replace would delete the earlier export for good.';
 export const REPLACE_STACKS = "Replace original moves the upload into the original's stack.";
 
 export function replaceBlocked({

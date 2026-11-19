@@ -226,11 +226,11 @@
       {/snippet}
     </TruncationTooltip>
     {#if description}
-      <span class="block truncate text-[10px] text-dark/65">{description}</span>
+      <span class="block truncate text-micro text-dark/65">{description}</span>
     {/if}
   </span>
   {#if previewing !== null && previewing === getId(item)}
-    <span class="flex shrink-0 items-center gap-1 text-[10px] text-primary touch:text-xs">
+    <span class="flex shrink-0 items-center gap-1 text-micro text-primary touch:text-xs">
       <Icon icon={mdiEyeOutline} size="12px" aria-hidden="true" />
       previewing
     </span>
@@ -271,14 +271,14 @@
     {@const previous = suggestions[index - 1]}
     {@const previousGroup = previous ? getGroup?.(previous) : null}
     {#if group && group !== previousGroup}
-      <div class="px-3 pt-2 pb-1 text-[9px] font-semibold text-dark/65 uppercase">
+      <div class="section-label px-3 pt-2 pb-1 text-dark/65">
         {group}
       </div>
     {/if}
     {@render row(item)}
   {:else}
     {#if !canCreate}
-      <p class="flex h-9 items-center px-3 text-xs text-muted">No matches</p>
+      <p class="flex h-9 items-center px-3 text-xs text-dark/65">No matches</p>
     {/if}
   {/each}
   {#if canCreate}
@@ -286,7 +286,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="h-9 w-full justify-start rounded-none px-3 text-left text-xs touch:h-11 touch:px-4 touch:text-sm {color ===
+      class="h-8 w-full justify-start rounded-none px-3 text-left text-xs touch:h-11 touch:px-4 touch:text-sm {color ===
       'neutral'
         ? 'hover:bg-light-950/6'
         : 'hover:bg-primary-200'}"
@@ -346,14 +346,16 @@
   <div class="relative contain-inline-size">
     <Button
       size={compact ? 'tiny' : 'small'}
-      variant="outline"
+      variant={color === 'neutral' ? 'ghost' : 'outline'}
       color="secondary"
       fullWidth
       {disabled}
       aria-label={label}
       aria-haspopup="dialog"
       aria-expanded={open}
-      class="min-h-11 justify-between font-normal {selectedLabel ? 'pr-12' : ''}"
+      class="min-h-11 justify-between font-normal {color === 'neutral'
+        ? 'bg-light-200 not-disabled:hover:bg-light-300'
+        : ''} {selectedLabel ? 'pr-12' : ''}"
       onclick={openSheet}
     >
       <span class="min-w-0 truncate {selectedLabel ? '' : 'text-dark/65'}">
@@ -447,7 +449,7 @@
         collisionPadding={8}
         customAnchor={anchor}
         onpointerleave={unhover}
-        class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-light-950/10 py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
+        class="editor-compact-combobox-content z-50 w-(--bits-floating-anchor-width) rounded-b-lg border border-hairline py-1 text-dark data-[side=top]:rounded-t-lg data-[side=top]:rounded-b-none {color ===
         'neutral'
           ? 'bg-light-200'
           : 'bg-gray-100 dark:bg-gray-800'}"

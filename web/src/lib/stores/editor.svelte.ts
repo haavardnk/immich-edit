@@ -1,10 +1,5 @@
 import { getAsset } from '#lib/api/assets.ts';
 import { getEdits, type WhiteBalanceSample } from '#lib/api/edits.ts';
-import {
-  type ColorSpaceOpt,
-  type ExportOptions,
-  type ImmichExportOptions
-} from '#lib/api/export.ts';
 import type { ApplyPresetOptions } from '#lib/api/jobs.ts';
 import type { LensProfileMatch } from '#lib/api/lensProfile.ts';
 import type { ClickPoint, MaskBox, MaskKind, MaskRange } from '#lib/api/masks.ts';
@@ -17,7 +12,7 @@ import { AiDenoiseTracker } from '#lib/stores/editor/aiDenoise.svelte.ts';
 import { DepthPreview, type DepthTarget } from '#lib/stores/editor/depthPreview.ts';
 import * as develop from '#lib/stores/editor/develop.svelte.ts';
 import type { EditsPreview, EditsPreviewOwner } from '#lib/stores/editor/editsPreview.ts';
-import * as exportActions from '#lib/stores/editor/export.svelte.ts';
+import { EditorExports } from '#lib/stores/editor/export.svelte.ts';
 import type { GeometrySession } from '#lib/stores/editor/geometry.svelte.ts';
 import * as geometry from '#lib/stores/editor/geometry.svelte.ts';
 import { EditHistory, type EntryRestore } from '#lib/stores/editor/history.svelte.ts';
@@ -83,6 +78,7 @@ import {
 } from '#lib/stores/editor/rangePicker.ts';
 import type { RangeSample } from '#lib/editor/rangeSample.ts';
 import type { Rgb } from '#lib/utils/oklab.ts';
+import type { ColorSpaceOpt } from '#lib/api/export.ts';
 
 class EditorStore {
   assetId = $state<string | null>(null);
@@ -113,10 +109,6 @@ class EditorStore {
   savedHash = $state<string>('');
   restoreCount = $state(0);
   saveError = $state<string | null>(null);
-  exporting = $state(false);
-  exportingToImmich = $state(false);
-  lastUpload = $state<exportActions.ExportResult | null>(null);
-  lastDownload = $state<exportActions.ExportResult | null>(null);
   hasEdits = $derived(!isIdentity(this.edits));
   lensView: LensEdits = $derived(
     effectiveLens(
@@ -124,8 +116,6 @@ class EditorStore {
       this.isRaw && this.lensProfile?.auto ? this.lensProfile.edits : null
     )
   );
-  lastImmichOpts: ImmichExportOptions | null = null;
-  lastDownloadOpts: ExportOptions | null = null;
   autoRunning = $state<AutoScope | null>(null);
   wbPicking = $state(false);
   wbBusy = $state(false);
@@ -218,6 +208,7 @@ class EditorStore {
   readonly snapshots = new SnapshotStore(this);
   readonly historySteps = new HistorySteps(this);
   readonly versions = new VersionStore(this);
+  readonly exports = new EditorExports(this);
   readonly presetApplied = new PresetApplied(this, {
     steps: this.history,
     save: (edits, action) => this.saves.commit(edits, action)
@@ -358,10 +349,7 @@ class EditorStore {
     this.rangePicker = null;
     this.brushBuffers = {};
     this.brushBufferSource = {};
-    this.lastUpload = null;
-    this.lastDownload = null;
-    this.lastImmichOpts = null;
-    this.lastDownloadOpts = null;
+    this.exports.reset();
   }
 
   get canUndo(): boolean {
@@ -471,15 +459,6 @@ class EditorStore {
   onAutoWhiteBalance = (): Promise<void> => whiteBalance.autoWb(this);
 
   loadAsShot = (): void => whiteBalance.loadAsShot(this);
-
-  onExport = (opts: ExportOptions): Promise<void> => exportActions.onExport(this, opts);
-
-  retryExport = (): Promise<void> => exportActions.retryExport(this);
-
-  onUploadToImmich = (opts: ImmichExportOptions): Promise<boolean> =>
-    exportActions.onUploadToImmich(this, opts);
-
-  retryUpload = (): Promise<boolean> => exportActions.retryUpload(this);
 
   maskCapacityFor = (layerId: string | null): ReturnType<typeof maskCapacity> =>
     maskLayers.maskCapacityFor(this, layerId);

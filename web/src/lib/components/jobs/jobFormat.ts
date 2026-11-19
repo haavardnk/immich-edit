@@ -1,4 +1,4 @@
-import { isJobActive, JOB_KINDS, type Job } from '#lib/api/jobs.ts';
+import { isJobActive, JOB_KINDS, jobVariants, type Job, type JobItem } from '#lib/api/jobs.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 const KIND_LABELS: Record<string, string> = {
@@ -30,12 +30,27 @@ export function jobProgress(job: Job): number {
   return Math.round(((job.completed + job.failed) / job.total) * 100);
 }
 
+export function jobItemPreset(job: Job, item: JobItem): string | null {
+  return item.result?.preset ?? (jobVariants(job)[item.variant]?.preset || null);
+}
+
+export type JobItemState = JobItem['status'] | 'skipped' | 'duplicate' | 'replaced';
+
+export function jobItemState(item: JobItem): JobItemState {
+  if (item.status !== 'completed') return item.status;
+  const status = item.result?.status;
+  if (status === 'skipped' || status === 'duplicate') return status;
+  return item.result?.replaced_asset_id ? 'replaced' : 'completed';
+}
+
 export function jobOutcome(job: Job): string {
   if (isJobActive(job.status)) return `${job.completed + job.failed} of ${job.total}`;
   if (job.status === 'cancelled') return 'Cancelled';
   if (job.failed > 0) return `${job.failed} of ${job.total} failed`;
   if (job.status === 'failed') return 'Failed';
-  return `Done, ${countOf(job.completed, 'photo')}`;
+  const presets = jobVariants(job).length;
+  if (presets < 2) return `Done, ${countOf(job.completed, 'photo')}`;
+  return `Done, ${countOf(Math.floor(job.completed / presets), 'photo')} × ${countOf(presets, 'preset')}`;
 }
 
 export function jobsSummary(activeCount: number): string {

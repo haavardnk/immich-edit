@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { installMocks, json } from './helpers';
+import { installMocks, jobsPanel, json } from './helpers';
 import { mockLibrary } from './touchShell';
 
 const RUNNING_JOB = {
@@ -43,7 +43,7 @@ async function expectEtaInside(control: Locator): Promise<void> {
 }
 
 async function expectEtaInJobs(page: Page): Promise<void> {
-  const jobs = page.getByRole('dialog', { name: 'Jobs' });
+  const jobs = jobsPanel(page);
   await expect(jobs).toBeVisible();
   await expect(jobs).toContainText(`3 / 12 · ${ETA}`);
 }

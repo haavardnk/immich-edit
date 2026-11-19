@@ -1,10 +1,12 @@
-import type { Job } from '#lib/api/jobs.ts';
+import type { Job, JobItem } from '#lib/api/jobs.ts';
 import { describe, expect, it } from 'vitest';
 import {
   etaText,
   jobEtaText,
   jobKindLabel,
   jobKindVerb,
+  jobItemPreset,
+  jobItemState,
   jobOutcome,
   jobProgress,
   jobsEtaText,
@@ -112,5 +114,37 @@ describe('jobFormat', () => {
     expect(jobOutcome(job({ status: 'completed', failed: 0, completed: 4 }))).toBe(
       'Done, 4 photos'
     );
+  });
+
+  it('counts photos, not files, in a multi-preset job', () => {
+    const variants = { variants: [{ preset: 'Web' }, { preset: 'Print' }] };
+    expect(
+      jobOutcome(job({ status: 'completed', failed: 0, completed: 4, params: variants }))
+    ).toBe('Done, 2 photos × 2 presets');
+    expect(jobOutcome(job({ status: 'completed', failed: 1, params: variants }))).toBe(
+      '1 of 4 failed'
+    );
+    expect(
+      jobOutcome(
+        job({ status: 'completed', failed: 0, completed: 3, total: 3, params: { variants: [{}] } })
+      )
+    ).toBe('Done, 3 photos');
+  });
+
+  it('names the preset of a job item', () => {
+    const variants = job({ params: { variants: [{ preset: 'Web' }, { preset: 'Print' }] } });
+    const item = { variant: 1, result: null } as JobItem;
+    expect(jobItemPreset(variants, item)).toBe('Print');
+    expect(jobItemPreset(variants, { ...item, result: { preset: 'Print 2' } })).toBe('Print 2');
+    expect(jobItemPreset(job({}), { ...item, variant: 0 })).toBeNull();
+  });
+
+  it('tells skipped and updated uploads apart from plain ones', () => {
+    const done = { status: 'completed', result: { filename: 'a.jpg' } } as JobItem;
+    expect(jobItemState(done)).toBe('completed');
+    expect(jobItemState({ ...done, result: { status: 'skipped' } })).toBe('skipped');
+    expect(jobItemState({ ...done, result: { status: 'duplicate' } })).toBe('duplicate');
+    expect(jobItemState({ ...done, result: { replaced_asset_id: 'old' } })).toBe('replaced');
+    expect(jobItemState({ ...done, status: 'failed' })).toBe('failed');
   });
 });

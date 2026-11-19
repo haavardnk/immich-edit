@@ -6,7 +6,7 @@ import {
   type InstallOpts,
   type PreviewRequest
 } from './helpers';
-import { touchDown, touchMoveTo, touchUp } from './touch';
+import { tapAt, touchDown, touchMoveTo, touchUp } from './touch';
 import { open } from './touchShell';
 
 const HUES = makeStripesPng(64, 48, [
@@ -246,5 +246,19 @@ test.describe('pick on photo', { tag: '@touch' }, () => {
       'true'
     );
     await expect(view.getByRole('button', { name: 'Edit Saturation value' })).toHaveText('0');
+  });
+
+  test('adds or selects the curve point for the tone under the finger', async ({ page }) => {
+    const view = await openView(page, 'Light', 'Curve');
+    await view.getByRole('button', { name: 'Pick point on the photo' }).tap();
+    const surface = await readySurface(page);
+    const box = await surface.boundingBox();
+    if (!box) throw new Error('no surface');
+
+    await tapAt(page, box.x + box.width * 0.5, box.y + box.height * 0.5);
+    await expect(page.getByTestId('target-surface')).toHaveCount(0);
+    await expect(view.getByRole('button', { name: 'Edit In value' })).toBeVisible();
+    const plot = view.getByRole('application', { name: 'Curves – RGB' });
+    await expect(plot.locator('circle')).toHaveCount(4);
   });
 });

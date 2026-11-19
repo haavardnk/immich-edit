@@ -184,7 +184,8 @@ test('select all loads every page and enables local actions', async ({ page }) =
   expect(pages).toEqual([undefined, 2, 3]);
   await expect(page.getByRole('button', { name: 'Select all', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Favorite \(/ })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Edit and export selected' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Edits', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export selected photos' })).toBeEnabled();
 });
 
 for (const via of ['the X', 'Escape'] as const) {

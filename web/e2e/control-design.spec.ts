@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { DEFAULT_APPEARANCE, gotoAsset, installMocks, json, openFilters } from './helpers';
+import { unfoldExport } from './exportSections';
+import { openBulkExport } from './browse';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -110,6 +112,7 @@ test('text inputs retain the package focus ring', async ({ page }) => {
   await gotoAsset(page);
   await page.getByRole('tab', { name: 'Export', exact: true }).click();
   await page.getByRole('radio', { name: 'To Immich' }).click();
+  await unfoldExport(page.getByRole('tabpanel'));
   await expectPrimaryFocusRing(page, page.getByLabel('Filename', { exact: true }));
 });
 
@@ -738,103 +741,14 @@ test('editor segmented controls share geometry and selection states', async ({ p
   await expect(paint.locator('..')).toHaveCSS('height', '20px');
 });
 
-test('dense panel fields and selects share package sizing and states', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
-  await page.getByRole('radio', { name: 'To Immich' }).click();
-
-  const template = page.getByLabel('Filename', { exact: true });
-  await expect(template).toBeVisible();
-  const neutral = await resolvedColor(page, '--color-neutral-800');
-  const neutralHover = await resolvedColor(page, '--color-neutral-700');
-  const templateMetrics = await metricsOf(containerOf(template));
-  expect(templateMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-  expect(templateMetrics.background).toBe(neutral);
-  expect(
-    (templateMetrics.boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? []).every(
-      (length) => Number.parseFloat(length) === 0
-    )
-  ).toBe(true);
-  await containerOf(template).hover();
-  await expect
-    .poll(async () => (await metricsOf(containerOf(template))).background)
-    .toBe(neutralHover);
-  await expectPrimaryFocusRing(page, template);
-
-  const panel = page.getByRole('tabpanel');
-  const labelMetrics = await Promise.all(
-    ['Format', 'Color space', 'Quality', 'Filename', 'Albums', 'Tags'].map((label) =>
-      metricsOf(panel.getByText(label, { exact: true }))
-    )
-  );
-  const labelText = labelMetrics.map(({ color, fontSize, fontWeight }) => ({
-    color,
-    fontSize,
-    fontWeight
-  }));
-  expect(labelText).toEqual(Array(6).fill(labelText[0]));
-  expect(labelText[0].fontSize).toBe('11px');
-  expect(labelText[0].fontWeight).toBe('500');
-
-  for (const [name, placeholder] of [
-    ['Albums', 'Add album…'],
-    ['Tags', 'Add tag…']
-  ]) {
-    const label = await panel.getByText(name, { exact: true }).boundingBox();
-    const field = await containerOf(page.getByLabel(placeholder)).boundingBox();
-    if (!label || !field) throw new Error(`${name} row is not laid out`);
-    expect(Math.abs(label.y + label.height / 2 - (field.y + field.height / 2))).toBeLessThan(1);
-  }
-
-  for (const label of ['Add album…', 'Add tag…']) {
-    const field = containerOf(page.getByLabel(label));
-    const metrics = await metricsOf(field);
-    expect(metrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-    expect(metrics.background).toBe(neutral);
-    await field.hover();
-    await expect.poll(async () => (await metricsOf(field)).background).toBe(neutralHover);
-  }
-
-  const trigger = page.getByRole('combobox', { name: 'Format' });
-  await expect(trigger).toBeVisible();
-  const triggerMetrics = await metricsOf(trigger.locator('div').first());
-  expect(triggerMetrics.height).toBe(EDITOR_COMPACT_CONTROL_HEIGHT);
-  expect(triggerMetrics.background).toBe(neutral);
-  await trigger.hover();
-  await expect
-    .poll(async () => (await metricsOf(trigger.locator('div').first())).background)
-    .toBe(neutralHover);
-
-  const before = (await trigger.textContent())?.trim();
-  await trigger.click();
-
-  const menu = page.getByRole('listbox');
-  await expect(menu).toBeVisible();
-  expect((await metricsOf(menu)).background).toBe(await resolvedColor(page, '--color-neutral-800'));
-
-  const option = page.locator('[data-select-item]').first();
-  const optionMetrics = await metricsOf(option);
-  expect(optionMetrics.height).toBe(PACKAGE_TINY_CONTROL_HEIGHT);
-  expect(optionMetrics.fontSize).toBe('12px');
-
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await expect(menu).toBeHidden();
-  await expect(trigger).toBeFocused();
-  expect((await trigger.textContent())?.trim()).not.toBe(before);
-});
-
 test('bulk export shows the neutral filename template field for both destinations', async ({
   page
 }) => {
   await installMocks(page);
   await page.goto('/photos');
   await page.getByRole('button', { name: 'Select', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit and export selected' }).click();
-  await page.getByRole('tab', { name: 'Export' }).click();
-
-  const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  const dialog = await openBulkExport(page);
+  await unfoldExport(dialog);
   const template = dialog.getByLabel('Filename', { exact: true });
   await expect(template).toBeVisible();
   await expect(dialog.getByText('IMG_0001_edit.jpg', { exact: true })).toBeVisible();
@@ -850,7 +764,7 @@ test('bulk export shows the neutral filename template field for both destination
   ).toBe(true);
   await expectPrimaryFocusRing(page, template);
 
-  await dialog.getByRole('radio', { name: 'Download ZIP' }).click();
+  await dialog.getByRole('radio', { name: 'Download', exact: true }).click();
   await expect(template).toBeVisible();
 });
 

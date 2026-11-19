@@ -73,6 +73,18 @@ self.addEventListener('message', (event) => {
   if (isSkipWaiting(event.data)) void self.skipWaiting();
 });
 
+async function focusApp(): Promise<void> {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const [open] = windows;
+  if (open) await open.focus();
+  else await self.clients.openWindow('/');
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(focusApp());
+});
+
 self.addEventListener('fetch', (event) => {
   const strategy = strategyFor(event.request, self.location.origin, PRECACHED);
   if (strategy === 'network') return;

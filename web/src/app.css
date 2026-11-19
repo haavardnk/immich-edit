@@ -1,5 +1,6 @@
 @import '@immich/ui/theme/default.css';
 @import './fonts.css';
+@import './pageMotion.css';
 
 @source '../node_modules/@immich/ui/dist';
 
@@ -317,6 +318,26 @@
   --color-image-canvas: #767676;
 }
 
+:root:not([data-layout='touch'])
+  :is(
+    [data-popover-content]:not([data-dialog-content]),
+    [data-tooltip-content],
+    [data-dropdown-menu-content],
+    [data-context-menu-content],
+    [data-select-content],
+    [data-combobox-content],
+    [data-dialog-content]
+  ) {
+  transition:
+    opacity var(--transition-duration-fast) var(--ease-standard),
+    scale var(--transition-duration-fast) var(--ease-standard);
+
+  @starting-style {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
 :root.editor-chrome body {
   background-color: var(--color-editor-chrome);
 }
@@ -458,12 +479,25 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   background-color: var(--immich-ui-light-300);
 }
 
-.editor-compact-field {
+.editor-compact-field,
+.editor-compact-input-field > div,
+.editor-compact-indent {
   display: grid;
-  height: 28px;
   grid-template-columns: minmax(5.5rem, 0.75fr) minmax(4.5rem, 1.25fr) 3.25rem;
   align-items: center;
   gap: 8px;
+}
+
+.editor-compact-field {
+  height: 28px;
+}
+
+.editor-compact-indent {
+  row-gap: 6px;
+}
+
+.editor-compact-indent > * {
+  grid-column: 2 / 4;
 }
 
 .editor-compact-field [data-select-trigger] {
@@ -479,13 +513,6 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   color: color-mix(in srgb, var(--immich-ui-dark) 65%, transparent);
 }
 
-.editor-compact-input-field > div {
-  display: grid;
-  grid-template-columns: minmax(5.5rem, 0.75fr) minmax(4.5rem, 1.25fr) 3.25rem;
-  align-items: center;
-  gap: 8px;
-}
-
 .editor-compact-input-field > div > div:last-child {
   grid-column: 2 / 4;
 }
@@ -495,10 +522,35 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   padding: 0 10px;
 }
 
+[data-layout='touch'] .editor-compact-field {
+  height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-field [data-select-trigger] > div > span {
+  height: 44px;
+  line-height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-input-field input {
+  height: 44px;
+}
+
+[data-layout='touch'] .editor-compact-indent {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+[data-layout='touch'] .editor-compact-field label,
+[data-layout='touch'] .editor-compact-input-field label,
+[data-layout='touch'] .editor-compact-label {
+  font-size: 13px;
+}
+
 .compact-date-field [data-date-field-input] {
   height: 28px;
   background-color: var(--immich-ui-light-200);
-  transition: background-color 150ms;
+  transition: background-color var(--transition-duration-fast);
 }
 
 #browse-filters .editor-compact-input-field input {
@@ -543,7 +595,7 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
 .editor-compact-combobox input {
   height: 28px;
   padding-block: 0;
-  transition: padding-inline-start 200ms cubic-bezier(0.33, 1, 0.68, 1);
+  transition: padding-inline-start var(--transition-duration-base) var(--ease-standard);
 }
 
 .editor-compact-combobox-open {
@@ -554,7 +606,7 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   position: absolute;
   z-index: 1;
   inset-inline-start: 8px;
-  animation: editor-compact-combobox-icon-open 200ms cubic-bezier(0.33, 1, 0.68, 1);
+  animation: editor-compact-combobox-icon-open var(--transition-duration-base) var(--ease-standard);
 }
 
 .editor-compact-combobox-open input {
@@ -587,7 +639,7 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
 }
 
 .editor-compact-combobox-content[data-state='open'] {
-  animation: editor-compact-combobox-open 250ms cubic-bezier(0.33, 1, 0.68, 1);
+  animation: editor-compact-combobox-open var(--transition-duration-base) var(--ease-standard);
 }
 
 [data-flash] {

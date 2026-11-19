@@ -28,17 +28,28 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  editor.lastDownload = null;
+  editor.exports.reset();
   vi.unstubAllGlobals();
 });
 
 describe('ExportResult layout parity', () => {
   it('exposes the same controls standalone and in the export panel', async () => {
-    editor.lastDownload = failed;
+    editor.exports.lastDownload = failed;
     const found = await layoutControls([
       layout('result', ExportResult, { result: failed, busy: false, onRetry: (): void => {} }),
       layout('form', ExportForm, { scope: exportScope({ assets: [], count: 1, trashOn: false }) }),
-      layout('panel', Export, {}, { exclude: [{ role: 'button', name: 'Export JPEG' }] })
+      layout(
+        'panel',
+        Export,
+        {},
+        {
+          exclude: [
+            { role: 'button', name: 'Export JPEG' },
+            { role: 'button', name: 'Export presets' },
+            { role: 'checkbox', name: 'Save automatically' }
+          ]
+        }
+      )
     ]);
 
     expect(found.result).toEqual([{ role: 'button', name: 'Retry' }]);

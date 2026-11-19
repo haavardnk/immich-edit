@@ -13,6 +13,7 @@
   import AppearanceSection from '#lib/components/settings/AppearanceSection.svelte';
   import LayoutSection from '#lib/components/settings/LayoutSection.svelte';
   import InstallSection from '#lib/components/settings/InstallSection.svelte';
+  import ExportSavingSection from '#lib/components/settings/ExportSavingSection.svelte';
   import { install } from '#lib/pwa/install.svelte.ts';
   import {
     mdiAccountCircleOutline,
@@ -23,7 +24,7 @@
 
   type AdminSection = 'users' | 'models' | 'defaults' | 'instance';
 
-  const DEVICE_HASHES = ['#device', '#layout', '#rendering', '#install'];
+  const DEVICE_HASHES = ['#device', '#layout', '#rendering', '#export', '#install'];
 
   let appOpen = $state(false);
   let accountOpen = $state(false);
@@ -32,6 +33,7 @@
   let deviceOpen = $state(false);
   let layoutOpen = $state(false);
   let renderingOpen = $state(false);
+  let exportOpen = $state(false);
   let installOpen = $state(false);
   let adminSection = $state<AdminSection | null>(null);
 
@@ -84,6 +86,7 @@
       deviceOpen = true;
       layoutOpen = page.url.hash === '#layout';
       renderingOpen = page.url.hash === '#rendering';
+      exportOpen = page.url.hash === '#export';
       installOpen = page.url.hash === '#install';
     }
   });
@@ -187,6 +190,14 @@
           onOpenChange={(open) => (renderingOpen = open)}
         >
           <PreviewRenderingSection />
+        </SettingsGroup>
+        <SettingsGroup
+          title="Export"
+          description="Choose whether exports save to this device as soon as they render."
+          open={exportOpen}
+          onOpenChange={(open) => (exportOpen = open)}
+        >
+          <ExportSavingSection />
         </SettingsGroup>
         {#if install.state.kind !== 'hidden'}
           <SettingsGroup
