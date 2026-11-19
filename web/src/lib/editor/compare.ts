@@ -2,7 +2,8 @@ import type { Box, ClientPoint } from '#lib/gestures/point.ts';
 
 export type CompareMode = 'off' | 'split' | 'side';
 
-export type CompareSource = { kind: 'original' } | { kind: 'snapshot'; id: string };
+export type CompareSource =
+  { kind: 'original' } | { kind: 'snapshot'; id: string } | { kind: 'version'; id: string };
 
 type Named = { id: string; name: string };
 
@@ -29,15 +30,26 @@ export function sameSource(a: CompareSource, b: CompareSource): boolean {
   return a.kind === b.kind && a.id === b.id;
 }
 
-export function compareName(source: CompareSource, snapshots: readonly Named[]): string {
+export function compareName(
+  source: CompareSource,
+  snapshots: readonly Named[],
+  versions: readonly Named[]
+): string {
   if (source.kind === 'snapshot') {
     return snapshots.find((item) => item.id === source.id)?.name ?? 'Snapshot';
+  }
+  if (source.kind === 'version') {
+    return `Version · ${versions.find((item) => item.id === source.id)?.name ?? 'Copy'}`;
   }
   return 'Original';
 }
 
-export function compareLabel(source: CompareSource, snapshots: readonly Named[]): string {
-  const name = compareName(source, snapshots);
+export function compareLabel(
+  source: CompareSource,
+  snapshots: readonly Named[],
+  versions: readonly Named[]
+): string {
+  const name = compareName(source, snapshots, versions);
   return source.kind === 'snapshot' ? `Snapshot · ${name}` : name;
 }
 

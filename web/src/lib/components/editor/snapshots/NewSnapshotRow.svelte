@@ -1,5 +1,5 @@
 <script lang="ts">
-  import SnapshotNameField from './SnapshotNameField.svelte';
+  import NameField from '#lib/components/NameField.svelte';
   import type { EditSnapshot } from '#lib/api/snapshots.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
@@ -49,7 +49,7 @@
     class="flex items-center gap-2.5 px-3 py-1 touch:gap-3.5 touch:border-b touch:border-hairline touch:px-4 touch:py-2"
   >
     {@render plus()}
-    <SnapshotNameField
+    <NameField
       initial={editor.snapshots.nextName}
       ariaLabel="Snapshot name"
       onsave={create}
@@ -72,10 +72,9 @@
     <span class="flex min-w-0 flex-1 flex-col touch:gap-0.5">
       <span class="truncate touch:text-base touch:font-medium touch:text-primary">New snapshot</span
       >
-      <span class="hidden text-[13px] text-dark/65 touch:block">From the current edits</span>
     </span>
     <kbd
-      class="shrink-0 rounded border border-dark/15 px-1 font-mono text-[10px] text-dark/65 touch:hidden"
+      class="shrink-0 rounded border border-dark/15 px-1 font-mono text-micro text-dark/65 touch:hidden"
       aria-hidden="true">{keysFor('newSnapshot')}</kbd
     >
   </Button>

@@ -1,11 +1,15 @@
 import type { EditSnapshot } from '#lib/api/snapshots.ts';
 import { ORIGINAL_SOURCE, type CompareMode, type CompareSource } from '#lib/editor/compare.ts';
+import { editsToManifest } from '#lib/edits/manifest.ts';
 import { neutralEdits, originalPreviewEdits, type Edits } from '#lib/types/edits.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Render = { assetId: string; edits: Edits; edge: number; lane: string };
 
-const mocks = vi.hoisted(() => ({ renders: [] as Render[] }));
+const mocks = vi.hoisted(() => ({
+  renders: [] as Render[],
+  getEdits: vi.fn()
+}));
 
 vi.mock('#lib/api/preview.ts', () => ({
   livePreview: vi.fn((assetId: string, edits: Edits, edge: number, ...rest: unknown[]) => {
@@ -13,6 +17,7 @@ vi.mock('#lib/api/preview.ts', () => ({
     return Promise.resolve({ blob: new Blob(), metaId: null });
   })
 }));
+vi.mock('#lib/api/edits.ts', () => ({ getEdits: mocks.getEdits }));
 vi.mock('#lib/utils/objectUrl.ts', () => ({
   makeObjectUrl: () => 'blob:left',
   revoke: () => {}
@@ -55,6 +60,7 @@ describe('CompareLeft', () => {
 
   beforeEach(() => {
     mocks.renders.length = 0;
+    mocks.getEdits.mockReset();
     edge = 1600;
     view = { mode: 'side', source: ORIGINAL_SOURCE };
     ctx = context(view);
@@ -86,6 +92,21 @@ describe('CompareLeft', () => {
     await settle();
     expect(mocks.renders).toEqual([
       { assetId: 'asset-1', edits: SNAPSHOT.edits, edge: 1600, lane: 'original' }
+    ]);
+  });
+
+  it('renders another version with its saved edits and fetches them once', async () => {
+    mocks.getEdits.mockResolvedValue({ manifest: editsToManifest(withExposure(-1)) });
+    view.source = { kind: 'version', id: 'asset-1_2' };
+    left.refresh();
+    await settle();
+    edge = 2400;
+    left.refresh();
+    await vi.waitFor(() => expect(mocks.renders).toHaveLength(2));
+    expect(mocks.getEdits.mock.calls).toEqual([['asset-1_2']]);
+    expect(mocks.renders.map((r) => [r.assetId, r.edits.basic.exposure_ev, r.edge])).toEqual([
+      ['asset-1_2', -1, 1600],
+      ['asset-1_2', -1, 2400]
     ]);
   });
 

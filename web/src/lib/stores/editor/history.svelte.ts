@@ -16,18 +16,43 @@ function sameValue(a: unknown, b: unknown): boolean {
   );
 }
 
+export interface RestoreMarker {
+  from: number;
+  to: number;
+}
+
 interface HistoryStep {
   id: number;
   edits: Edits;
+  restore?: RestoreMarker;
 }
 
 export interface HistoryCtx {
   edits: Edits;
   onCommit(action?: string): Promise<void>;
+  onLive(): void;
+}
+
+export interface EntryRestore {
+  id: number;
+  edits: Edits;
+  from: number | null;
+  label: string;
 }
 
 export interface HistoryRestores {
+  restoreEntry(entryId: number): Promise<boolean>;
   restoreSnapshot(snapshotId: string): Promise<boolean>;
+}
+
+interface Checkpoint {
+  entries: HistoryStep[];
+  cursor: number;
+  edits: Edits;
+}
+
+function unmarked(steps: HistoryStep[]): HistoryStep[] {
+  return steps.map(({ id, edits }) => ({ id, edits }));
 }
 
 export class EditHistory {
@@ -55,11 +80,14 @@ export class EditHistory {
     return this.skip;
   }
 
-  push(edits: Edits): number | null {
-    if (this.cursor >= 0 && sameValue(this.entries[this.cursor]?.edits, edits)) return null;
-    const trimmed = this.entries.slice(0, this.cursor + 1);
+  push(edits: Edits, restore?: RestoreMarker): number | null {
+    if (!restore && this.cursor >= 0 && sameValue(this.entries[this.cursor]?.edits, edits)) {
+      return null;
+    }
+    const kept = this.entries.slice(0, this.cursor + 1);
+    const trimmed = restore ? kept : unmarked(kept);
     const id = ++this.nextId;
-    trimmed.push({ id, edits });
+    trimmed.push(restore ? { id, edits, restore } : { id, edits });
     if (trimmed.length > MAX_HISTORY) trimmed.shift();
     this.entries = trimmed;
     this.cursor = this.entries.length - 1;
@@ -68,6 +96,15 @@ export class EditHistory {
 
   undoStep(id: number): void {
     if (this.entries[this.cursor]?.id === id) this.undo();
+  }
+
+  async restoreEntry({ id, edits, from, label }: EntryRestore): Promise<boolean> {
+    const before = this.checkpoint();
+    this.show(edits);
+    const step = this.push(edits, from === null ? undefined : { from, to: id });
+    const restored = await this.settle(this.saves.restoreEntry(id), before);
+    if (restored) this.offerUndo(label, step);
+    return restored;
   }
 
   async restoreSnapshot(snapshotId: string, name: string): Promise<boolean> {
@@ -89,19 +126,59 @@ export class EditHistory {
 
   undo(): void {
     if (!this.canUndo) return;
-    this.cursor--;
-    this.replay();
+    const marker = this.entries[this.cursor]?.restore;
+    if (marker) this.jump(this.cursor - 1, marker.from);
+    else this.replay(this.cursor - 1);
   }
 
   redo(): void {
     if (!this.canRedo) return;
-    this.cursor++;
-    this.replay();
+    const marker = this.entries[this.cursor + 1]?.restore;
+    if (marker) this.jump(this.cursor + 1, marker.to);
+    else this.replay(this.cursor + 1);
   }
 
-  private replay(): void {
-    const step = this.entries[this.cursor];
+  private jump(target: number, entryId: number): void {
+    const step = this.entries[target];
     if (!step) return;
+    const before = this.checkpoint();
+    this.cursor = target;
+    this.show(step.edits);
+    void this.settle(this.saves.restoreEntry(entryId), before).catch((e: unknown) =>
+      toasts.fail('Could not restore the history step', e)
+    );
+  }
+
+  private checkpoint(): Checkpoint {
+    const edits = $state.snapshot(this.ctx.edits) as Edits;
+    return { entries: this.entries, cursor: this.cursor, edits };
+  }
+
+  private async settle(restore: Promise<boolean>, before: Checkpoint): Promise<boolean> {
+    const landed = { entries: this.entries, cursor: this.cursor };
+    let restored = false;
+    try {
+      restored = await restore;
+      return restored;
+    } finally {
+      if (!restored && this.entries === landed.entries && this.cursor === landed.cursor) {
+        this.entries = before.entries;
+        this.cursor = before.cursor;
+        this.show(before.edits);
+      }
+    }
+  }
+
+  private show(edits: Edits): void {
+    this.ctx.edits = $state.snapshot(edits) as Edits;
+    this.ctx.onLive();
+  }
+
+  private replay(target: number): void {
+    const step = this.entries[target];
+    if (!step) return;
+    this.cursor = target;
+    this.entries = unmarked(this.entries);
     this.ctx.edits = $state.snapshot(step.edits) as Edits;
     this.skip = true;
     void this.ctx.onCommit();

@@ -109,6 +109,17 @@ describe('CompareControl', () => {
     expect(changed.mock.calls.at(-1)).toEqual([true]);
   });
 
+  it('falls back to the original when the compared version is deleted', () => {
+    const { changed, control } = setup();
+    control.open({ kind: 'version', id: 'copy-1' });
+    changed.mockClear();
+    control.versionRemoved('copy-2');
+    expect(changed).not.toHaveBeenCalled();
+    control.versionRemoved('copy-1');
+    expect([control.mode, control.source]).toEqual(['side', ORIGINAL_SOURCE]);
+    expect(changed.mock.calls).toEqual([[true]]);
+  });
+
   it('refreshes only when the compared snapshot changes its edits', () => {
     const { ctx, changed, control } = setup();
     control.open(SNAPSHOT);

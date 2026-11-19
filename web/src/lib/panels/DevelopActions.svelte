@@ -3,7 +3,7 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { openDevelopPanels } from '#lib/panels/registry.ts';
   import { modifiedDevelopPanels } from '#lib/editor/modified.ts';
-  import HistoryPopover from '#lib/components/editor/HistoryPopover.svelte';
+  import HistoryPopover from '#lib/components/editor/history/HistoryPopover.svelte';
   import { commandLabel, commandTitle, isEnabled, runCommand } from '#lib/commands/command.ts';
   import { autoAdjust, copyEdits, pasteEdits, resetDevelop } from '#lib/commands/editor/edits.ts';
   import { Button, IconButton } from '@immich/ui';

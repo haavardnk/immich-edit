@@ -2,7 +2,7 @@
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import SnapshotActions from './SnapshotActions.svelte';
-  import SnapshotNameField from './SnapshotNameField.svelte';
+  import NameField from '#lib/components/NameField.svelte';
   import type { SnapshotAction } from './snapshotAction.ts';
   import type { EditSnapshot } from '#lib/api/snapshots.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
@@ -126,7 +126,7 @@
         class="shrink-0 opacity-70 touch:hidden"
         aria-hidden="true"
       />
-      <SnapshotNameField
+      <NameField
         initial={snapshot.name}
         ariaLabel="Snapshot name"
         onsave={rename}
@@ -170,24 +170,18 @@
             <span class="truncate text-dark touch:text-base touch:font-medium">{snapshot.name}</span
             >
             {#if restored}
-              <span
-                class="shrink-0 text-[9px] uppercase tracking-wider text-dark/65 touch:text-[11px] touch:font-semibold touch:text-primary"
-                >Restored</span
-              >
+              <span class="section-label shrink-0 text-dark/65 touch:text-primary">Restored</span>
             {/if}
             {#if compared}
-              <span
-                class="hidden shrink-0 text-[11px] font-semibold tracking-wider text-primary uppercase touch:inline"
-                >Compared</span
-              >
+              <span class="section-label hidden shrink-0 text-primary touch:inline">Compared</span>
             {/if}
           </span>
-          <span class="hidden text-[13px] text-dark/65 touch:block">
+          <span class="hidden text-label text-dark/65 touch:block">
             {formatDay(snapshot.updated_at)}
           </span>
         </span>
         <span
-          class="shrink-0 text-[10px] text-dark/65 touch:hidden {deleting
+          class="shrink-0 text-micro text-dark/65 touch:hidden {deleting
             ? 'hidden'
             : 'group-hover:hidden group-focus-within:hidden'}"
         >

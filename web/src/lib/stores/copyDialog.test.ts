@@ -48,4 +48,12 @@ describe('copyDialog source', () => {
     clipboard.clear();
     expect(clipboard.source).toBeNull();
   });
+
+  it('counts the copied sections until the clipboard clears', () => {
+    copyDialog.show(neutralEdits());
+    copyDialog.confirm();
+    expect(clipboard.sectionCount).toBe(DEVELOP_KEYS.length);
+    clipboard.clear();
+    expect(clipboard.sectionCount).toBe(0);
+  });
 });

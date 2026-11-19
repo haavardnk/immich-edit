@@ -8,7 +8,6 @@ import {
   type ProofOptions
 } from '#lib/api/preview.ts';
 import type { ColorSpaceOpt } from '#lib/api/export.ts';
-import { presetEdits, type PresetPreview } from '#lib/edits/applyPreset.ts';
 import { renderer } from '#lib/stores/renderer.svelte.ts';
 import { scopes } from '#lib/stores/scopes.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
@@ -21,6 +20,7 @@ import { makeObjectUrl, revoke } from '#lib/utils/objectUrl.ts';
 import { SingleFlight } from '#lib/utils/singleFlight.ts';
 import type { Roi } from '#lib/utils/viewGeometry.ts';
 import type { GeometrySession } from './geometry.svelte';
+import type { EditsPreview, EditsPreviewOwner } from '#lib/stores/editor/editsPreview.ts';
 import { ClientPreview } from './clientPreview';
 import { MaskWeight, type MaskWeightCtx } from './maskWeight.svelte';
 import { CompareLeft, type CompareLeftCtx } from '#lib/stores/editor/compareLeft.svelte.ts';
@@ -71,7 +71,7 @@ export interface PreviewCtx extends MaskWeightCtx, CompareLeftCtx {
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
   readonly isRaw: boolean;
-  presetPreview: PresetPreview | null;
+  editsPreview: EditsPreview | null;
   geometrySession: GeometrySession | null;
   colorPicker: { layerId: string; componentId: string; ready: boolean } | null;
   proofSpace: ColorSpaceOpt;
@@ -209,6 +209,17 @@ export class PreviewEngine {
     this.scheduleIdle();
   }
 
+  showEdits(preview: EditsPreview): void {
+    this.ctx.editsPreview = preview;
+    this.live();
+  }
+
+  endEdits(owner: EditsPreviewOwner): void {
+    if (this.ctx.editsPreview?.owner !== owner) return;
+    this.ctx.editsPreview = null;
+    this.live();
+  }
+
   beginDrag(): void {
     this.dragging = true;
     this.draggedLive = false;
@@ -337,8 +348,8 @@ export class PreviewEngine {
         maxEdge,
         previewMode: 'none'
       };
-    if (this.ctx.presetPreview) {
-      return { edits: presetEdits(edits, this.ctx.presetPreview), maxEdge, previewMode: 'none' };
+    if (this.ctx.editsPreview) {
+      return { edits: this.ctx.editsPreview.edits, maxEdge, previewMode: 'none' };
     }
     return { edits, maxEdge, previewMode: 'none' };
   }
@@ -412,7 +423,7 @@ export class PreviewEngine {
       this.ctx.compare.mode !== 'off' ||
       this.ctx.showingOriginal ||
       !!this.ctx.bypassedSection ||
-      !!this.ctx.presetPreview ||
+      !!this.ctx.editsPreview ||
       !!this.ctx.geometrySession ||
       this.previewing ||
       !!this.ctx.colorPicker
