@@ -1,4 +1,6 @@
 import type { Command } from '#lib/commands/types.ts';
+import { openTouchSearch } from '#lib/components/editor/touch/modes.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 import {
   BRUSH_HARDNESS,
   BRUSH_SIZE,
@@ -7,10 +9,12 @@ import {
 } from '#lib/editor/params/brush.ts';
 import type { KeybindId } from '#lib/shortcuts/table.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import type { MaskComponentKind } from '#lib/types/edits.ts';
 import { defaultLinear, defaultRadial } from '#lib/types/masks.ts';
 import { stepBrush } from '#lib/utils/brushSize.ts';
+import { mdiMagnify } from '@mdi/js';
 
 function addShapeLayer(id: string, bind: KeybindId, kind: () => MaskComponentKind): Command {
   return {
@@ -50,7 +54,21 @@ function stepHardness(key: string): void {
   }
 }
 
+export const searchSettings = {
+  id: 'editor.searchSettings',
+  contexts: ['editor'],
+  label: 'Search settings',
+  icon: mdiMagnify,
+  bind: 'searchSettings',
+  gate: 'always',
+  run: () => {
+    if (layout.mode === 'touch') openTouchSearch();
+    else settingSearch.paletteOpen = !settingSearch.paletteOpen;
+  }
+} satisfies Command;
+
 export const TOOL_COMMANDS: readonly Command[] = [
+  searchSettings,
   {
     id: 'editor.pickWhiteBalance',
     contexts: ['editor'],

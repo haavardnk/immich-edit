@@ -133,6 +133,7 @@ export const LUT: SectionDef = {
 export const DCP: SectionDef = {
   id: 'dcp',
   title: 'Camera Profile',
+  synonyms: ['DCP', 'profile', 'camera matching'],
   rows: [],
   clear: (edits) => {
     edits.color.dcp = neutralDcp();

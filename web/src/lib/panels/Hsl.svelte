@@ -12,16 +12,25 @@
   import { Tooltip } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { settingFilter, shownGroup } from '#lib/components/editor/controls/settingFilter.ts';
+  import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 
+  const filter = settingFilter();
   let activeBand = $state(0);
 
-  const bandName = $derived(HSL_BAND_NAMES[activeBand] ?? '');
-  const bandParams = $derived(HSL_BAND_PARAMS[activeBand] ?? []);
+  $effect(() => {
+    const revealed = settingSearch.revealedIn(HSL_BAND_PARAMS);
+    if (revealed >= 0) activeBand = revealed;
+  });
+
+  const band = $derived(shownGroup(filter, HSL_BAND_PARAMS, activeBand));
+  const bandName = $derived(HSL_BAND_NAMES[band] ?? '');
+  const bandParams = $derived(HSL_BAND_PARAMS[band] ?? []);
 </script>
 
 <div class="flex flex-col gap-1">
   <RadioGroup.Root
-    bind:value={() => String(activeBand), (v) => (activeBand = Number(v))}
+    bind:value={() => String(band), (v) => (activeBand = Number(v))}
     orientation="horizontal"
     aria-label="Colour band"
     class="grid grid-cols-8 gap-0.5"

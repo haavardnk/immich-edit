@@ -75,14 +75,19 @@ export const TOUCH_GROUPS: readonly TouchGroup[] = [
     label: 'Light',
     views: [
       { id: 'tone', label: 'Tone', params: flat(TONE) },
-      { id: 'curve', label: 'Curve', params: [] }
+      { id: 'curve', label: 'Curve', params: [], sections: [CURVES] }
     ]
   },
   {
     id: 'color',
     label: 'Color',
     views: [
-      { id: 'basic', label: 'Basic', params: [vibrance, saturation] },
+      {
+        id: 'basic',
+        label: 'Basic',
+        params: [vibrance, saturation],
+        sections: [WHITE_BALANCE]
+      },
       { id: 'mix', label: 'Mix', params: flat(HSL) },
       { id: 'grading', label: 'Grading', params: flat(COLOR_GRADING) },
       { id: 'bw', label: 'B&W', params: flat(BW) }
@@ -117,7 +122,7 @@ export const TOUCH_GROUPS: readonly TouchGroup[] = [
     id: 'profile',
     label: 'Profile',
     views: [
-      { id: 'camera', label: 'Camera', params: [] },
+      { id: 'camera', label: 'Camera', params: [], sections: [DCP] },
       { id: 'lut', label: 'LUT', params: flat(LUT) }
     ]
   }

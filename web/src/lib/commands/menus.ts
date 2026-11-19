@@ -1,6 +1,14 @@
 import { greyCanvas, help } from '#lib/commands/app.ts';
 import { editorTrash } from '#lib/commands/editor/culling.ts';
-import { virtualCopy } from '#lib/commands/editor/edits.ts';
+import {
+  autoAdjust,
+  copyEdits,
+  pasteEdits,
+  redo,
+  resetDevelop,
+  undo,
+  virtualCopy
+} from '#lib/commands/editor/edits.ts';
 import {
   beforeAfter,
   editorClipWarn,
@@ -64,3 +72,8 @@ export const EDITOR_VIEW_MENU: Menu = [
 ];
 
 export const EDITOR_MORE_MENU: Menu = [[editorTrash], [help]];
+
+export const EDITOR_PALETTE_MENU: Menu = [
+  [autoAdjust, resetDevelop, copyEdits, pasteEdits, undo, redo, virtualCopy],
+  [beforeAfter, editorClipWarn, editorInfo, editorFullscreen, greyCanvas, help]
+];

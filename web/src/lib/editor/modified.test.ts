@@ -4,7 +4,7 @@ import { everyDevelopOpModified } from '#lib/testing/developEdits.ts';
 import { AI_DENOISE_STRENGTH, neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { describe, expect, it } from 'vitest';
 import {
-  DEVELOP_PANEL_OPS,
+  SECTION_OPS,
   TOUCH_VIEW_OPS,
   modifiedDevelopPanels,
   modifiedTabCount,
@@ -69,7 +69,7 @@ describe('editor modified state', () => {
   });
 
   it.each([
-    ['desktop panels', DEVELOP_PANEL_OPS],
+    ['develop sections', SECTION_OPS],
     ['touch views', Object.values(TOUCH_VIEW_OPS).flatMap((views) => Object.values(views))]
   ] as const)('assigns every develop operator to exactly one of the %s', (_name, table) => {
     const ops = Object.values<readonly string[]>(table).flat();

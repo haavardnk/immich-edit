@@ -180,7 +180,26 @@ describe('command registry', () => {
           'app.greyCanvas'
         ]
       ],
-      EDITOR_MORE_MENU: [['editor.trash'], ['app.help']]
+      EDITOR_MORE_MENU: [['editor.trash'], ['app.help']],
+      EDITOR_PALETTE_MENU: [
+        [
+          'editor.auto',
+          'editor.resetDevelop',
+          'editor.copy',
+          'editor.paste',
+          'editor.undo',
+          'editor.redo',
+          'editor.virtualCopy'
+        ],
+        [
+          'editor.beforeAfter',
+          'editor.clipWarn',
+          'editor.info',
+          'editor.fullscreen',
+          'app.greyCanvas',
+          'app.help'
+        ]
+      ]
     });
     for (const command of Object.values(menus).flatMap((menu) => menu.flat())) {
       expect(COMMANDS, command.id).toContain(command);

@@ -44,6 +44,7 @@ function hslParam(band: number, { key, label }: { key: Channel; label: string })
     label,
     history: `${name} ${label}`,
     synonyms: ['HSL', 'color mixer', name.toLowerCase()],
+    subgroup: name,
     ...PERCENT,
     gradient: key === 'hue' ? hueGradient(band) : undefined,
     liveGradient: liveGradient(key, band),

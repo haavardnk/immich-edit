@@ -5,6 +5,7 @@
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
   import { Tabs } from 'bits-ui';
+  import DevelopTools from './DevelopTools.svelte';
 
   let { stacked = false }: { stacked?: boolean } = $props();
 
@@ -24,10 +25,14 @@
 </script>
 
 {#if group}
-  <Tabs.Root value={touchUi.view} onValueChange={select} class="shrink-0">
+  <Tabs.Root
+    value={touchUi.view}
+    onValueChange={select}
+    class="flex shrink-0 items-center border-b border-hairline pr-2"
+  >
     <Tabs.List
       aria-label="{group.label} views"
-      class="flex h-10 items-stretch gap-5 overflow-x-auto border-b border-hairline px-4 scrollbar-hidden"
+      class="flex h-10 min-w-0 flex-1 items-stretch gap-5 overflow-x-auto px-4 scrollbar-hidden"
     >
       {#each views as view (view.id)}
         <Tabs.Trigger
@@ -45,6 +50,7 @@
         </Tabs.Trigger>
       {/each}
     </Tabs.List>
+    <DevelopTools size="small" />
   </Tabs.Root>
   <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-hidden">
     {#each shown as view (view.id)}

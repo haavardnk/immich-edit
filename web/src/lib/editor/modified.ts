@@ -1,33 +1,27 @@
 import { editsToManifest } from '#lib/edits/manifest.ts';
+import { DESKTOP_PANELS } from '#lib/editor/params/catalog.ts';
 import type { DesktopPanelId, TouchGroupId } from '#lib/editor/params/types.ts';
 import type { EditorTab } from '#lib/stores/ui.svelte.ts';
-import { lensBlurActive, type Edits } from '#lib/types/edits.ts';
+import { lensBlurActive, type DevelopSection, type Edits } from '#lib/types/edits.ts';
 
 type OpTable<Id extends string> = Readonly<Record<Id, readonly string[]>>;
 
-export const DEVELOP_PANEL_OPS: OpTable<DesktopPanelId> = {
+export const SECTION_OPS: OpTable<DevelopSection> = {
   dcp: ['dcp_hue_sat'],
-  basic: [
-    'white_balance',
-    'exposure',
-    'brightness',
-    'contrast',
-    'tone_regions',
-    'texture',
-    'clarity',
-    'dehaze',
-    'vibrance',
-    'saturation'
-  ],
+  white_balance: ['white_balance'],
+  tone: ['exposure', 'brightness', 'contrast', 'tone_regions'],
+  presence: ['texture', 'clarity', 'dehaze', 'vibrance', 'saturation'],
   curves: ['curves'],
   hsl: ['hsl'],
-  'color-grading': ['color_grade'],
+  color_grading: ['color_grade'],
   bw: ['bw'],
   lut: ['lut_3d'],
-  detail: ['capture_sharpen', 'sharpen', 'ai_denoise', 'luma_nr', 'color_nr'],
+  sharpening: ['capture_sharpen', 'sharpen'],
+  noise_reduction: ['ai_denoise', 'luma_nr', 'color_nr'],
   lens: ['lens_profile'],
-  'lens-blur': ['lens_blur'],
-  effects: ['vignette', 'grain']
+  lens_blur: ['lens_blur'],
+  vignette: ['vignette'],
+  grain: ['grain']
 };
 
 export const TOUCH_VIEW_OPS: Readonly<Record<TouchGroupId, OpTable<string>>> = {
@@ -63,7 +57,12 @@ function modifiedIds<Id extends string>(active: ReadonlySet<string>, table: OpTa
 }
 
 export function modifiedDevelopPanels(edits: Edits): Set<DesktopPanelId> {
-  return modifiedIds(activeDevelopOps(edits), DEVELOP_PANEL_OPS);
+  const sections = modifiedSections(edits);
+  return new Set(
+    DESKTOP_PANELS.filter((panel) =>
+      panel.sections.some((section) => sections.has(section.id))
+    ).map((panel) => panel.id)
+  );
 }
 
 export function modifiedTouchGroups(edits: Edits): Set<TouchGroupId> {
@@ -74,6 +73,10 @@ export function modifiedTouchGroups(edits: Edits): Set<TouchGroupId> {
 
 export function modifiedTouchViews(edits: Edits, group: TouchGroupId): Set<string> {
   return modifiedIds(activeDevelopOps(edits), TOUCH_VIEW_OPS[group]);
+}
+
+export function modifiedSections(edits: Edits): Set<DevelopSection> {
+  return modifiedIds(activeDevelopOps(edits), SECTION_OPS);
 }
 
 export function modifiedTabCount(edits: Edits, tab: EditorTab): number {
