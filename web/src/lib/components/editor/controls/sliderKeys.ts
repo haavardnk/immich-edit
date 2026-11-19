@@ -1,4 +1,5 @@
-import { heldAlone, type ModifierKeys } from '#lib/input/modifiers.svelte.ts';
+import { heldAlone, unmodified, type ModifierKeys } from '#lib/input/modifiers.svelte.ts';
+import { clampTo, decimalsOf } from './sliderStep';
 
 type ArrowKeyEvent = ModifierKeys & { key: string };
 
@@ -7,6 +8,7 @@ type StepOptions = {
   min: number;
   max: number;
   step: number;
+  fineStep: number;
   coarseStep: number;
 };
 
@@ -17,16 +19,17 @@ const DIRECTIONS: Record<string, number> = {
   ArrowDown: -1
 };
 
-function decimalsOf(step: number): number {
-  const text = String(step);
-  const dot = text.indexOf('.');
-  return dot < 0 ? 0 : text.length - dot - 1;
+function stride(event: ArrowKeyEvent, options: StepOptions): number | null {
+  if (heldAlone('coarse', event)) return options.coarseStep;
+  if (heldAlone('fine', event)) return options.fineStep;
+  return unmodified(event) ? options.step : null;
 }
 
 export function arrowStepValue(event: ArrowKeyEvent, options: StepOptions): number | null {
   const direction = DIRECTIONS[event.key];
-  if (!direction || !heldAlone('coarse', event)) return null;
-  const raw = options.value + direction * options.coarseStep;
-  const next = Math.min(options.max, Math.max(options.min, raw));
-  return Number(next.toFixed(decimalsOf(options.step)));
+  if (!direction) return null;
+  const size = stride(event, options);
+  if (size === null) return null;
+  const next = clampTo(options.value + direction * size, options.min, options.max);
+  return Number(next.toFixed(decimalsOf(options.fineStep)));
 }

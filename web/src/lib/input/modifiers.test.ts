@@ -26,6 +26,7 @@ const TABLE: Record<ModifierRole, Key> = {
   pan: 'mod',
   zoom: 'mod',
   coarse: 'shift',
+  fine: 'alt',
   exclude: 'shift',
   sample: 'alt',
   extend: 'shift',

@@ -40,12 +40,19 @@
 {:else}
   {#each shownPanels as panel (panel.id)}
     {@const Comp = panel.component}
+    {@const Actions = panel.actions}
     <div data-panel={panel.id}>
+      {#snippet panelActions()}
+        {#if Actions}
+          <Actions />
+        {/if}
+      {/snippet}
       <Disclosure
         open={settingSearch.filtering || openPanels.has(panel.id)}
         title={panel.title}
         modified={modifiedPanels.has(panel.id)}
         onReset={() => commitPanelReset(panel)}
+        actions={Actions ? panelActions : undefined}
         onOpenChange={(open) => setDevelopPanel(panel.id, open)}
       >
         <div class="bg-recess px-3 pb-2 pt-1">

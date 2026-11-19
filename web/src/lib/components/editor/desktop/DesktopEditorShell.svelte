@@ -14,6 +14,7 @@
   import { IconButton } from '@immich/ui';
   import { mdiFullscreenExit } from '@mdi/js';
   import CommandPalette from './CommandPalette.svelte';
+  import CurvePopout from './CurvePopout.svelte';
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -56,3 +57,4 @@
   </div>
 </div>
 <CommandPalette />
+<CurvePopout />

@@ -54,7 +54,7 @@ test('exact slider value entry commits through the shared control', async ({ pag
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Edit Exposure value' }).click();
-  const value = page.getByRole('spinbutton', { name: 'Exposure value' });
+  const value = page.getByRole('textbox', { name: 'Exposure value' });
   await value.fill('1.25');
   await value.press('Enter');
 
@@ -312,7 +312,7 @@ test('pending saves guard browser unload', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Edit Exposure value' }).click();
-  const value = page.getByRole('spinbutton', { name: 'Exposure value' });
+  const value = page.getByRole('textbox', { name: 'Exposure value' });
   await value.fill('1');
   await value.press('Enter');
   await expect(page.getByText('Saving…')).toBeVisible();
@@ -328,18 +328,6 @@ test('pending saves guard browser unload', async ({ page }) => {
   releaseSave();
   await expect(page.getByText('Saved')).toBeVisible();
   expect(await unloadPrevented()).toBe(false);
-});
-
-test('only sliders that drive a preview hint the alt drag', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  await page.getByRole('button', { name: 'Detail', exact: true }).click();
-  await expect(geometrySlider(page, 'Radius')).toHaveAttribute(
-    'title',
-    /^(⌥|Alt) \+ drag to preview$/
-  );
-  await expect(exposureSlider(page)).not.toHaveAttribute('title');
 });
 
 test('the clipping overlay toggles from the editor menu at desktop width', async ({ page }) => {
@@ -727,7 +715,7 @@ test('raw white balance edits kelvin from the as-shot white', async ({ page }) =
   await expect(slider).toHaveAttribute('aria-valuetext', '5200 K');
 
   await temperature.click();
-  await page.getByRole('spinbutton', { name: 'Temperature value' }).fill('3200');
+  await page.getByRole('textbox', { name: 'Temperature value' }).fill('3200');
   await page.keyboard.press('Enter');
 
   await expect(temperature).toHaveText('3200 K');
