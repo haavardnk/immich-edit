@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
 import { ASSET_ID, numberedAssets } from './helpers';
+import { tapCentre } from './touch';
 import { avatar, backButton, open, openDrawer, tab } from './touchShell';
 
 async function back(page: Page, to: string | RegExp): Promise<void> {
@@ -85,6 +86,33 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(avatar(page)).toBeVisible();
   });
 
+  test('reopening a tag does not look for a photo from another view', async ({ page }) => {
+    const sky = { id: 'tag-sky', name: 'Sky', value: 'Sky' };
+    const [first, second, third] = numberedAssets(3);
+    await open(page, '/photos', {
+      assets: [first, second, { ...third, tags: [sky] }].filter((asset) => asset !== undefined),
+      structuredSearch: true
+    });
+    await tapCentre(page, page.locator(`[data-name="${first?.originalFileName}"]`));
+    await page
+      .getByRole('navigation', { name: 'Loupe toolbar' })
+      .getByRole('button', { name: /^Back/ })
+      .tap();
+
+    const tag = page.getByRole('link', { name: 'Sky' });
+    const tile = page.locator(`[data-name="${third?.originalFileName}"]`);
+    await tab(page, 'Library').tap();
+    await page.getByRole('link', { name: /^Tags/ }).first().tap();
+    await expect(page).toHaveURL('/tags');
+    await tag.tap();
+    await expect(tile).toBeVisible();
+    await back(page, '/tags');
+    await tag.tap();
+    await expect(tile).toBeVisible();
+    await back(page, '/tags');
+    await expect(page.getByText(/not in this view/)).toHaveCount(0);
+  });
+
   test('the editor guard explains itself and goes back', async ({ page }) => {
     await open(page, '/library');
     await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
@@ -102,9 +130,8 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
   }) => {
     const [first, second] = numberedAssets(2);
     await open(page, '/albums/album-family', { assets: numberedAssets(2) });
-    const tile = page.getByRole('link', { name: first.originalFileName, exact: true });
-    const box = await tile.boundingBox();
-    await tile.tap({ position: { x: 6, y: (box?.height ?? 40) / 2 } });
+    await tapCentre(page, page.locator(`[data-name="${first.originalFileName}"]`));
+    await page.getByRole('button', { name: 'Edit', exact: true }).tap();
     await expect(page).toHaveURL(new RegExp(`/assets/${first.id}\\?from=`));
     await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
 

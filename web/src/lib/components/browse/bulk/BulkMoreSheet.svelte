@@ -3,10 +3,11 @@
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { fileStem, multiDetail, TOUCH_PANES } from '#lib/browse/bulk/bulkRules.ts';
+  import { fileStem, multiDetail } from '#lib/browse/bulk/bulkRules.ts';
   import { favoriteMark } from '#lib/browse/bulk/bulkMarks.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
   import { clipboard, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
+  import { compare } from '#lib/stores/compare.svelte.ts';
   import {
     mdiCompare,
     mdiContentDuplicate,
@@ -60,9 +61,9 @@
     icon={mode === 'compare' ? mdiCompare : mdiViewGridOutline}
     label={mode === 'compare' ? 'Compare' : 'Survey'}
     disabled={scope.count < 2}
-    onclick={() => actions.multi(mode, TOUCH_PANES)}
+    onclick={() => actions.multi(mode)}
   >
-    {@render detail(multiDetail(mode, scope.count, TOUCH_PANES))}
+    {@render detail(multiDetail(mode, scope.count, compare.paneLimit))}
   </MenuRow>
 {/snippet}
 
@@ -96,7 +97,9 @@
     onclick={() => void actions.resetEdits()}
   />
   {@render multiRow('compare')}
-  {@render multiRow('survey')}
+  {#if compare.surveyAvailable}
+    {@render multiRow('survey')}
+  {/if}
   <MenuRow
     icon={favorite.icon}
     label={favorite.label}

@@ -99,6 +99,7 @@ type PersistedEditorUi = {
   rightCollapsed?: boolean;
   editorFilmstripCollapsed?: boolean;
   loupeFilmstripCollapsed?: boolean;
+  loupeCompactFilmstrip?: boolean;
   developOpenPanels?: string[];
   brushTool?: BrushTool;
   retouchTool?: RetouchTool;
@@ -115,6 +116,7 @@ class UiStore {
   editorFilmstripCollapsed = $state(false);
   presetStrip = $state(false);
   loupeFilmstripCollapsed = $state(false);
+  loupeCompactFilmstrip = $state(false);
   developOpenPanels = $state<string[] | null>(null);
   developModifiedOnly = $state(false);
   searchQuery = $state('');
@@ -160,6 +162,7 @@ class UiStore {
     if (typeof stored?.loupeFilmstripCollapsed === 'boolean') {
       this.loupeFilmstripCollapsed = stored.loupeFilmstripCollapsed;
     }
+    this.loupeCompactFilmstrip = stored?.loupeCompactFilmstrip === true;
     if (Array.isArray(stored?.developOpenPanels)) {
       this.developOpenPanels = stored.developOpenPanels.filter((id) => typeof id === 'string');
     }
@@ -179,6 +182,7 @@ class UiStore {
       rightCollapsed: this.rightCollapsed,
       editorFilmstripCollapsed: this.editorFilmstripCollapsed,
       loupeFilmstripCollapsed: this.loupeFilmstripCollapsed,
+      loupeCompactFilmstrip: this.loupeCompactFilmstrip,
       developOpenPanels: this.developOpenPanels ?? undefined,
       brushTool: this.brushTool,
       retouchTool: this.retouchTool,
@@ -265,8 +269,9 @@ class UiStore {
     this.persistEditorUi();
   };
 
-  toggleLoupeFilmstrip = (): void => {
-    this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
+  toggleLoupeFilmstrip = (compact = false): void => {
+    if (compact) this.loupeCompactFilmstrip = !this.loupeCompactFilmstrip;
+    else this.loupeFilmstripCollapsed = !this.loupeFilmstripCollapsed;
     this.persistEditorUi();
   };
 

@@ -120,11 +120,11 @@ class BrowseViewStore {
   }
 
   get loupeFilmstripShown(): boolean {
-    return !ui.loupeFilmstripCollapsed;
+    return this.#compact ? ui.loupeCompactFilmstrip : !ui.loupeFilmstripCollapsed;
   }
 
   toggleLoupeFilmstrip(): void {
-    ui.toggleLoupeFilmstrip();
+    ui.toggleLoupeFilmstrip(this.#compact);
   }
 
   cycleTileInfo(): void {

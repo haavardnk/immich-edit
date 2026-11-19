@@ -29,12 +29,14 @@ function pointer(
   currentTarget: Element,
   clientX: number,
   clientY: number,
-  pointerId = 1
+  pointerId = 1,
+  pointerType = 'mouse'
 ): PointerEvent {
   return {
     currentTarget,
     target: currentTarget,
     pointerId,
+    pointerType,
     clientX,
     clientY,
     shiftKey: false,
@@ -186,6 +188,23 @@ describe('viewportGestures tap', () => {
     expect(dragging.mock.calls).toEqual([[true], [false]]);
   });
 
+  it('ignores presses from pointer types it is not given', () => {
+    const tap = vi.fn();
+    const press = vi.fn();
+    const { handlers, applied } = setup(ZOOMED, { tap, press, pointerTypes: ['mouse', 'pen'] });
+    const target = captureTarget();
+    handlers.onpointerdown(pointer(target, 300, 300, 1, 'touch'));
+    handlers.onpointermove(pointer(target, 460, 180, 1, 'touch'));
+    handlers.onpointerup(pointer(target, 460, 180, 1, 'touch'));
+    expect(press).not.toHaveBeenCalled();
+    expect(tap).not.toHaveBeenCalled();
+    expect(applied).toEqual([]);
+
+    handlers.onpointerdown(pointer(target, 300, 300, 2, 'pen'));
+    handlers.onpointerup(pointer(target, 300, 300, 2, 'pen'));
+    expect(tap).toHaveBeenCalledOnce();
+  });
+
   it('does not tap a cancelled press', () => {
     const tap = vi.fn();
     const { handlers } = setup(FIT_VIEW, { tap });
@@ -208,6 +227,20 @@ describe('viewportGestures tap', () => {
     const { handlers, applied } = setup(FIT_VIEW);
     handlers.ondblclick({ clientX: 1, clientY: 2 } as MouseEvent);
     expect(applied).toEqual([]);
+  });
+
+  it('ignores the double click a browser synthesises after a double tap', () => {
+    const doubleTap = vi.fn();
+    const { handlers } = setup(FIT_VIEW, { doubleTap, pointerTypes: ['mouse', 'pen'] });
+    const target = captureTarget();
+    const e = { clientX: 300, clientY: 300 } as MouseEvent;
+    handlers.onpointerdown(pointer(target, 300, 300, 1, 'touch'));
+    handlers.ondblclick(e);
+    expect(doubleTap).not.toHaveBeenCalled();
+
+    handlers.onpointerdown(pointer(target, 300, 300, 2, 'mouse'));
+    handlers.ondblclick(e);
+    expect(doubleTap).toHaveBeenCalledExactlyOnceWith(e);
   });
 });
 

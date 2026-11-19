@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks, type MockTag } from './helpers';
+import { openTileLoupe } from './touch';
 
 const SECOND_ID = '00000000-0000-0000-0000-000000000002';
 
@@ -24,7 +25,7 @@ async function openLoupe(page: Page, applied: MockTag[] = []): Promise<TagChange
   });
   await page.goto('/search?q=IMG');
   await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   return changes;
 }
@@ -85,4 +86,35 @@ test('Alt and a digit without a recent tag stays with the loupe', async ({ page 
   expect(changes).toEqual([]);
 });
 
-test.describe('the tags sheet on touch', { tag: '@touch' }, () => {});
+test.describe('the tags sheet on touch', { tag: '@touch' }, () => {
+  test('shows the applied and recent tags', { tag: '@phone' }, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'immich-edit:recentTags',
+        JSON.stringify({ tags: [{ id: 'tag-norway', name: 'Norway', value: 'Places/Norway' }] })
+      );
+    });
+    const changes = await openLoupe(page, [TAGS[2] as MockTag]);
+    await rail(page).getByRole('button', { name: 'Tags (1)' }).tap();
+    const sheet = page.getByRole('dialog', { name: 'Tags' });
+    await expect(sheet).toContainText('IMG_0001.ARW');
+
+    const applied = sheet.getByRole('region', { name: 'Applied' });
+    await expect(applied.getByRole('button', { name: 'Remove Landscape' })).toBeVisible();
+    const chip = sheet.getByRole('region', { name: 'Recent' }).getByRole('button', {
+      name: 'Places/Norway'
+    });
+    await expect(chip).toHaveText('Norway');
+    await expect(chip).toHaveAttribute('aria-pressed', 'false');
+
+    await chip.tap();
+    await expect
+      .poll(() => changes)
+      .toEqual([{ tagId: 'tag-norway', assetId: ASSET_ID, added: true }]);
+    await expect(applied.getByRole('button', { name: 'Remove Places/Norway' })).toBeVisible();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+
+    await sheet.getByRole('button', { name: 'Done' }).tap();
+    await expect(sheet).toBeHidden();
+  });
+});

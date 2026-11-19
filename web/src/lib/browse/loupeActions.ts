@@ -9,7 +9,7 @@ import {
 } from '#lib/browse/assetMeta.ts';
 import type { CullKind } from '#lib/browse/cullMark.ts';
 import { cullState, type CullActions } from '#lib/browse/cullState.ts';
-import { advanceFocused, stepLoupe } from '#lib/browse/loupeNav.ts';
+import { advanceFocused, dropPane, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -20,6 +20,7 @@ import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
 import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
+import type { TagRef } from '#lib/types/asset.ts';
 import { currentPath, isEditorPath } from '#lib/utils/route.ts';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
@@ -35,11 +36,11 @@ export function loupeAsset(): AssetSummary | null {
 }
 
 export function canDropPane(): boolean {
-  return compare.members.length > (compare.mode === 'compare' ? 2 : 1);
+  return compare.members.length > 1;
 }
 
 export function dropFocusedPane(): void {
-  if (canDropPane()) compare.drop(compare.focusIndex);
+  if (canDropPane()) dropPane(compare.focusIndex);
 }
 
 function advanceFrom(id: string): void {
@@ -109,6 +110,27 @@ export const loupeCullActions: CullActions = {
   favorite: favoriteFocused,
   reject: rejectFocused,
   label: labelFocused
+};
+
+export interface TagActions {
+  add: (tag: TagRef) => Promise<void>;
+  remove: (tagId: string) => Promise<void>;
+  create: (value: string) => Promise<TagRef | null>;
+}
+
+export const loupeTagActions: TagActions = {
+  add: (tag) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.add(id, tag) : Promise.resolve();
+  },
+  remove: (tagId) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.remove(id, tagId) : Promise.resolve();
+  },
+  create: (value) => {
+    const id = loupeFocusedId();
+    return id ? loupeTags.createAndAdd(id, value) : Promise.resolve(null);
+  }
 };
 
 export function tagFocusedRecent(slot: number): void {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { browsing, type BrowsePager } from '#lib/stores/browsing.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -7,7 +7,7 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
   advanceFocused,
-  leaveMulti,
+  canStepLoupe,
   openLastLoupe,
   pickFromStrip,
   selectViewMode,
@@ -90,6 +90,15 @@ describe('loupe navigation', () => {
     expect(browseView.loupeId).toBe(expected);
   });
 
+  it('can step towards a loaded neighbour or a page still to load, but not past an end', () => {
+    expect(canStepLoupe('a', -1)).toBe(false);
+    expect(canStepLoupe('a', 1)).toBe(true);
+    expect(canStepLoupe('d', 1)).toBe(false);
+    load(['c', 'd'], [['e']], [['a', 'b']]);
+    expect(canStepLoupe('c', -1)).toBe(true);
+    expect(canStepLoupe('d', 1)).toBe(true);
+  });
+
   it('loads the next page when stepping past the end', async () => {
     load(['a', 'b'], [['c']]);
     browseView.openLoupe('b');
@@ -161,16 +170,6 @@ describe('loupe navigation', () => {
     expect(toasts.items.map((t) => t.message)).toEqual(['compare needs two photos']);
   });
 
-  it('selects the survivors of a pruned survey on leave', () => {
-    browseView.openLoupe('a');
-    selectViewMode('survey');
-    compare.drop(0);
-    leaveMulti();
-    expect(compare.mode).toBe('single');
-    expect(browseView.loupeId).toBe('b');
-    expect([...selection.selected]).toEqual(['b', 'c', 'd']);
-  });
-
   it('switches between single and compare views', () => {
     browseView.openLoupe('a');
     selectViewMode('compare');
@@ -197,5 +196,49 @@ describe('loupe navigation', () => {
     pickFromStrip('a', true);
     expect(compare.mode).toBe('single');
     expect(browseView.loupeId).toBe('b');
+  });
+
+  describe('with a four-pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => {
+      release = compare.limitBy(() => 4);
+      load(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+      browseView.openLoupe('a');
+    });
+
+    afterEach(() => release());
+
+    it('surveys at most four photos', () => {
+      selectViewMode('survey');
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('refuses a fifth pane from the strip and says why', () => {
+      selectViewMode('survey');
+      pickFromStrip('e', true);
+      expect(compare.members).toEqual(['a', 'b', 'c', 'd']);
+      expect(toasts.items.map((t) => t.message)).toEqual(['Survey holds up to 4 photos']);
+    });
+  });
+
+  describe('with a two-pane limit', () => {
+    let release = (): void => undefined;
+
+    beforeEach(() => {
+      release = compare.limitBy(() => 2);
+      load(['a', 'b', 'c', 'd']);
+      browseView.openLoupe('a');
+    });
+
+    afterEach(() => release());
+
+    it('refuses a third pane from the strip and keeps compare', () => {
+      selectViewMode('compare');
+      pickFromStrip('c', true);
+      expect(compare.mode).toBe('compare');
+      expect(compare.members).toEqual(['a', 'b']);
+      expect(toasts.items.map((t) => t.message)).toEqual(['Compare holds 2 photos']);
+    });
   });
 });

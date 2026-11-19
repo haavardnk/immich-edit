@@ -14,6 +14,7 @@
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
+  import { COMPACT_PANES, compare, COMPARE_PANES, MAX_PANES } from '#lib/stores/compare.svelte.ts';
   import { installPointerKind } from '#lib/device/pointerKind.svelte.ts';
   import { showLayout } from '#lib/device/document.ts';
   import { lockPageZoom } from '#lib/device/pageZoom.ts';
@@ -55,6 +56,11 @@
   onMount(listenForCommands);
   onMount(installLayout);
   onMount(lockPageZoom);
+  onMount(() =>
+    compare.limitBy(() =>
+      layout.phone ? COMPARE_PANES : layout.compact ? COMPACT_PANES : MAX_PANES
+    )
+  );
   onMount(installPointerKind);
   onMount(() => installServiceWorker(() => editor.saving || editor.saveError !== null));
   afterNavigate(checkForUpdate);

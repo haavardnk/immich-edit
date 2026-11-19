@@ -139,6 +139,25 @@ test('F toggles loupe fullscreen', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Photo actions' })).toBeVisible();
 });
 
+test('a mouse drag at fit never swipes to another photo', async ({ page }) => {
+  await openLoupe(page);
+  const pane = page.getByRole('button', { name: 'Zoom in' });
+  const box = await pane.boundingBox();
+  if (!box) throw new Error('no loupe pane');
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 300, y, { steps: 10 });
+  const track = page.getByTestId('loupe-track');
+  expect(await track.evaluate((element: HTMLElement) => element.style.transform)).toBe('');
+  await page.mouse.up();
+
+  await expect(page.getByRole('navigation', { name: 'Loupe toolbar' })).toContainText(LOUPE_IMAGE);
+  await expect(pane).toHaveAccessibleName('Zoom in');
+});
+
 test('the shortcuts dialog lists the loupe gestures', async ({ page }) => {
   await openLoupe(page);
 
@@ -227,6 +246,37 @@ test('Shift+digit rates and advances with auto-advance off', async ({ page }) =>
   await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
 });
 
+test('the rating HUD names the rating and auto-advance steps once after its bar', async ({
+  page
+}) => {
+  await page.clock.install();
+  await openLoupe(page, { assets: numberedAssets(3, { exifInfo: ASSET_EXIF }) });
+  const hud = page.getByTestId('rating-hud');
+  const pill = page.getByRole('button', { name: 'Auto-advance', exact: true });
+
+  await page.keyboard.press('3');
+  await expect(hud).toHaveText(/^\s*3 stars\s*$/);
+  await expect(page.getByTestId('rating-hud-progress')).toHaveCount(0);
+  await page.clock.runFor(1300);
+  await expect(hud).toBeHidden();
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+
+  await expect(pill).toHaveAttribute('aria-pressed', 'false');
+  await pill.click();
+  await expect(pill).toHaveAttribute('aria-pressed', 'true');
+
+  await page.keyboard.press('4');
+  await expect(hud).toContainText('4 stars');
+  await expect(hud).toContainText('· next photo');
+  await expect(page.getByTestId('rating-hud-progress')).toBeVisible();
+  await page.clock.runFor(800);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(hud).toBeHidden();
+  await page.clock.runFor(3000);
+  await expect(page.getByRole('img', { name: NEXT_IMAGE })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'IMG_0003.ARW' })).toHaveCount(0);
+});
+
 test('Shift+arrows pan a zoomed loupe and Home/End jump to the ends', async ({ page }) => {
   await openLoupe(page, { previewBody: makePng(60, 40) });
   const image = page.getByRole('img', { name: LOUPE_IMAGE });
@@ -285,6 +335,30 @@ test('the filmstrip context menu opens a photo in the editor', async ({ page }) 
   await thumb.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Open in editor' }).click();
   await expect(page).toHaveURL(new RegExp(`/assets/${SECOND_ID}`));
+});
+
+test('the grid never shows between the loupe and the editor', async ({ page }) => {
+  await openLoupe(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { gaps: number; watching: boolean };
+    w.gaps = 0;
+    w.watching = true;
+    const tick = (): void => {
+      const loupe = document.querySelector('[data-loupe-root]');
+      const photo = document.querySelector('.editor-stage [data-testid="preview-image"]');
+      if (!loupe && !photo && document.querySelector('main[data-page]')) w.gaps += 1;
+      if (w.watching) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const gaps = () => page.evaluate(() => (window as unknown as { gaps: number }).gaps);
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByTestId('preview-image')).toBeVisible();
+  await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Back/ }).first().click();
+  await expect(page.locator('[data-loupe-root]')).toHaveCount(1);
+  expect(await gaps()).toBe(0);
 });
 
 test('j toggles the clipping overlay', async ({ page }) => {
