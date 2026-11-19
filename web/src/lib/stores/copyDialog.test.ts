@@ -1,4 +1,6 @@
 import { DEFAULT_COPY_SECTIONS, DEVELOP_KEYS, allSections } from '#lib/editor/copyPaste.ts';
+import { clipboard } from '#lib/stores/clipboard.svelte.ts';
+import { neutralEdits } from '#lib/types/edits.ts';
 import { afterEach, describe, expect, it } from 'vitest';
 import { copyDialog } from './copyDialog.svelte';
 
@@ -27,5 +29,23 @@ describe('copyDialog section setters', () => {
     expect(copyDialog.sections).toEqual(allSections(true));
     copyDialog.setAll(false);
     expect(copyDialog.sections).toEqual(allSections(false));
+  });
+});
+
+describe('copyDialog source', () => {
+  afterEach(() => clipboard.clear());
+
+  it('names the photo the edits came from on the clipboard', () => {
+    copyDialog.show(neutralEdits(), undefined, 'IMG_4120.ARW');
+    copyDialog.confirm();
+    expect(clipboard.has).toBe(true);
+    expect(clipboard.source).toBe('IMG_4120.ARW');
+  });
+
+  it('forgets the source when the clipboard clears', () => {
+    copyDialog.show(neutralEdits(), undefined, 'IMG_4120.ARW');
+    copyDialog.confirm();
+    clipboard.clear();
+    expect(clipboard.source).toBeNull();
   });
 });

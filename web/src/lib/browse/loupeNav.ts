@@ -84,7 +84,7 @@ export function leaveMulti(): void {
   const id = compare.focusedId;
   const survivors = compare.mode === 'survey' && compare.pruned ? [...compare.members] : [];
   compare.exit();
-  if (survivors.length > 0) selection.selectLoaded(survivors);
+  if (survivors.length > 0) selection.replace(survivors);
   if (id) browseView.openLoupe(id);
 }
 

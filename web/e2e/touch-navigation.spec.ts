@@ -211,6 +211,26 @@ test.describe('touch tabs remember their place', { tag: ['@touch', '@phone'] }, 
       .toBeLessThan(2);
   }
 
+  test('Photos keeps its loaded photos and position across a tab switch', async ({ page }) => {
+    let loads = 0;
+    page.on('request', (request) => {
+      if (/\/api\/search\/(metadata|window|statistics)$/.test(request.url())) loads += 1;
+    });
+    await open(page, '/photos', { assets: numberedAssets(90), structuredSearch: true });
+    const scroller = page.getByTestId('browse-scroller');
+    await expect(page.locator('[data-name="IMG_0001.ARW"]')).toBeVisible();
+    const top = await scrollTo(scroller, 900);
+    const before = loads;
+
+    await tab(page, 'Albums').tap();
+    await expect(page).toHaveURL('/albums');
+    await tab(page, 'Photos').tap();
+    await expect(page).toHaveURL('/photos');
+
+    await expectScrolled(scroller, top);
+    expect(loads).toBe(before);
+  });
+
   test('a tab returns to its last page and Back stays inside the tab', async ({ page }) => {
     await open(page, '/albums');
     await page

@@ -173,6 +173,23 @@ export const KEYBINDS = [
     label: 'Clear the selection'
   },
   {
+    id: 'gridMarquee',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Box-select the photos it touches',
+    display: 'Drag from a gap'
+  },
+  {
+    id: 'gridMarqueeAdd',
+    keys: [],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Add the boxed photos to the selection',
+    display: (mac: boolean) =>
+      `${keyLabel('Shift', mac)} or ${keyLabel('Mod', mac)} + drag from a gap`
+  },
+  {
     id: 'focusBulkBar',
     keys: ['Shift+b'],
     contexts: ['grid'],

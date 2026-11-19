@@ -96,7 +96,7 @@ describe('Loupe', () => {
   });
 
   it('compares the photo and the next one, ignoring the grid selection', () => {
-    selection.selectLoaded(['a', 'c']);
+    selection.replace(['a', 'c']);
     render();
     press('c');
     expect(compare.members).toEqual(['b', 'c']);

@@ -13,10 +13,12 @@ class CopyDialogStore {
   open = $state(false);
   sections = $state<CopySections>({ ...DEFAULT_COPY_SECTIONS });
   private source: Edits | null = null;
+  private sourceName: string | null = null;
   private onCopied: (() => void) | null = null;
 
-  show = (edits: Edits, onCopied?: () => void): void => {
+  show = (edits: Edits, onCopied?: () => void, sourceName: string | null = null): void => {
     this.source = structuredClone(edits) as Edits;
+    this.sourceName = sourceName;
     this.onCopied = onCopied ?? null;
     this.open = true;
   };
@@ -37,7 +39,7 @@ class CopyDialogStore {
 
   confirm = (): void => {
     if (!this.source || !hasSelectedSections(this.sections)) return;
-    clipboard.copy(this.source, this.sections);
+    clipboard.copy(this.source, this.sections, this.sourceName);
     this.open = false;
     this.source = null;
     this.onCopied?.();

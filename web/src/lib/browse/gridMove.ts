@@ -24,7 +24,7 @@ export function gridMover(src: GridMoveSource): (key: string, extend: boolean) =
         target.id
       );
     } else {
-      selection.selectLoaded([target.id]);
+      selection.replace([target.id]);
     }
     browseView.setActive(target.id);
     src.reveal(target.id);

@@ -16,6 +16,12 @@ import { open } from './touchShell';
 const MONTHS = 30;
 const ASSETS = datedAssets(monthlyShots(MONTHS, 10));
 const JULY = 15;
+const ONE_MONTH = datedAssets(
+  Array.from({ length: 120 }, (_, index) => ({
+    at: `2026-10-${String(28 - Math.floor(index / 5)).padStart(2, '0')}T${String(20 - (index % 5)).padStart(2, '0')}:00:00Z`
+  }))
+);
+const DEEP = 'IMG_0091.ARW';
 
 test.use({ timezoneId: 'UTC' });
 
@@ -127,6 +133,21 @@ test('clicking an unloaded month jumps there and scrolling up keeps the top phot
   expect(log.windows.at(-1)).toMatchObject({ assetId: ASSETS[JULY * 10 - 30]?.id, after: 0 });
 });
 
+test('the rail scrolls inside a library that spans one month', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installMocks(page, { assets: ONE_MONTH });
+  await page.goto('/photos');
+  const rail = page.getByRole('slider', { name: 'Timeline' });
+  await expect(rail).toHaveAttribute('aria-valuetext', 'October 2026');
+  const box = await rail.boundingBox();
+  const track = await page.getByTestId('date-rail-track').boundingBox();
+  if (!box || !track) throw new Error('no rail');
+
+  await page.mouse.click(box.x + box.width / 2, track.y + track.height * 0.76);
+  await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
+  await expect(page.locator('[data-name="IMG_0001.ARW"]')).not.toBeInViewport();
+});
+
 test('a keyboard step on the rail moves one month', async ({ page }) => {
   await openTimeline(page);
   const rail = page.getByRole('slider', { name: 'Timeline' });
@@ -147,7 +168,7 @@ test('the loupe steps back across the near end of a window', async ({ page }) =>
 
   const first = ASSETS[JULY * 10 - 30]?.originalFileName ?? '';
   const previous = ASSETS[JULY * 10 - 31]?.originalFileName ?? '';
-  const tile = page.getByRole('group', { name: first });
+  const tile = page.locator(`[data-name="${first}"]`);
   await tile.hover();
   await tile.getByRole('button', { name: 'Quick review' }).click();
   await expect(page.getByRole('img', { name: first })).toBeVisible();
@@ -173,16 +194,13 @@ test('End and Home reach the true ends of a window and Select all stays offered'
 
   const last = ASSETS.at(-1)?.originalFileName ?? '';
   await page.keyboard.press('End');
-  await expect(page.getByRole('group', { name: last })).toHaveAttribute('data-selected', 'true');
+  await expect(page.locator(`[data-name="${last}"]`)).toHaveAttribute('data-selected', 'true');
   expect(log.metadata.at(-1)).toMatchObject({ size: 1, sort: { direction: 'asc' } });
   await expect(page.getByRole('link', { name: 'IMG_0001.ARW' })).toHaveCount(0);
   await expect(bar.getByRole('button', { name: 'Select all' })).toBeVisible();
 
   await page.keyboard.press('Home');
-  await expect(page.getByRole('group', { name: 'IMG_0001.ARW' })).toHaveAttribute(
-    'data-selected',
-    'true'
-  );
+  await expect(page.locator('[data-name="IMG_0001.ARW"]')).toHaveAttribute('data-selected', 'true');
   await expect(page.getByRole('slider', { name: 'Timeline' })).toHaveAttribute(
     'aria-valuetext',
     'October 2026'
@@ -202,7 +220,10 @@ test('the editor round trip after a jump returns to the same photos without pagi
         const top = node.getBoundingClientRect().top;
         return top >= box.top + 40 && top < box.bottom - 200;
       });
-      return { name: tile?.title ?? '', top: tile?.getBoundingClientRect().top ?? 0 };
+      return {
+        name: tile?.getAttribute('data-name') ?? '',
+        top: tile?.getBoundingClientRect().top ?? 0
+      };
     });
   await expect.poll(async () => (await inView()).name).not.toBe('');
   const seen = await inView();
@@ -253,6 +274,31 @@ test.describe('touch scrubber', () => {
     await expect(page.getByTestId('date-thumb-bubble')).toHaveCount(0);
     await expect(dayHeader(page, 'Sunday 20 July 2025')).toBeVisible();
     expect(log.windows.at(-1)).toMatchObject({ assetId: ASSETS[JULY * 10]?.id });
+  });
+
+  test('@touch dragging the thumb scrolls inside a library that spans one month', async ({
+    page
+  }) => {
+    await open(page, '/photos', { assets: ONE_MONTH });
+    const thumb = page.getByTestId('date-thumb');
+    await scrollGridTo(page, 40);
+    await expect(thumb).toHaveCSS('opacity', '1');
+    const box = await thumb.boundingBox();
+    const track = await page.getByTestId('date-thumb-track').boundingBox();
+    if (!box || !track) throw new Error('no thumb');
+    const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const target = { x: start.x, y: track.y + track.height * 0.76 };
+
+    await touchDown(page, start);
+    for (let step = 1; step <= 8; step += 1) {
+      await touchMoveTo(page, { x: start.x, y: start.y + ((target.y - start.y) * step) / 8 });
+    }
+    await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
+    await touchUp(page);
+
+    await expect(page.getByTestId('date-thumb-bubble')).toHaveCount(0);
+    await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
+    await expect(page.locator('[data-name="IMG_0001.ARW"]')).not.toBeInViewport();
   });
 
   test('@touch the thumb hides a moment after scrolling stops', async ({ page }) => {

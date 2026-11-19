@@ -74,3 +74,15 @@ export async function expectTargets(locator: Locator, min: number): Promise<void
     expect((await element.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(min);
   }
 }
+
+export async function expectBarDockedUnderGrid(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      const bar = await page.getByRole('toolbar', { name: 'Selection actions' }).boundingBox();
+      const column = await page.getByTestId('grid-column').boundingBox();
+      if (!bar || !column) return false;
+      const gaps = [bar.x - column.x, bar.width - column.width, bar.y - column.y - column.height];
+      return gaps.every((gap) => Math.abs(gap) < 1);
+    })
+    .toBe(true);
+}
