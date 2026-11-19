@@ -16,11 +16,11 @@
   class="group flex min-w-0 flex-col gap-0.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
 >
   <span
-    class="no-callout relative mb-1.5 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-light-200 text-dark/40"
+    class="no-callout relative mb-1.5 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-light-200 text-dark/45"
   >
     {#if album.albumThumbnailAssetId}
       <img
-        src={assetThumbUrl(album.albumThumbnailAssetId)}
+        src={assetThumbUrl({ id: album.albumThumbnailAssetId })}
         alt=""
         loading="lazy"
         class="size-full object-cover transition-transform group-hover:scale-[1.02]"
@@ -34,16 +34,16 @@
         role="img"
         aria-label="Shared"
       >
-        <Icon icon={mdiAccountMultiple} size="15px" aria-hidden="true" />
+        <Icon icon={mdiAccountMultiple} size="16px" aria-hidden="true" />
       </span>
     {/if}
   </span>
   <span
     data-truncate
-    class="block min-w-0 truncate text-sm font-medium text-light-950 touch:text-[14.5px]"
+    class="block min-w-0 truncate text-sm font-medium text-light-950 touch:text-body"
     ><HighlightedText text={album.albumName} {query} /></span
   >
-  <span class="block text-xs text-dark/65 touch:text-[12.5px]">
+  <span class="block text-xs text-dark/65 touch:text-label">
     {countOf(album.assetCount, 'photo')}
   </span>
 </TooltipLink>

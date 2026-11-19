@@ -18,8 +18,13 @@ const ASSETS = [
 const LOUPE_IMAGE = 'IMG_0001.ARW';
 const NEXT_IMAGE = 'IMG_0002.ARW';
 
-async function openLoupe(page: Page, opts: InstallOpts = {}): Promise<void> {
+async function openLoupe(
+  page: Page,
+  opts: InstallOpts = {},
+  prepare?: () => Promise<void>
+): Promise<void> {
   await installMocks(page, { assets: ASSETS, ...opts });
+  await prepare?.();
   await page.addInitScript(() => {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
@@ -44,6 +49,30 @@ test('loupe navigates with the arrow keys and closes with escape', async ({ page
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press(' ');
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
+});
+
+test('the loupe paints the Immich preview while the render is pending', async ({ page }) => {
+  let release = (): void => {};
+  const rendered = new Promise<void>((resolve) => (release = resolve));
+  await openLoupe(page, { thumbnailRender: () => makePng(36, 24) }, () =>
+    page.route(`**/api/assets/${ASSET_ID}/preview?*`, async (route) => {
+      await rendered;
+      await route.fallback();
+    })
+  );
+
+  const immichPreview = page.getByTestId('loupe-immich-preview');
+  await expect(immichPreview).toHaveAttribute('src', `/api/assets/${ASSET_ID}/thumb?size=preview`);
+  await expect
+    .poll(() => immichPreview.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(36);
+  const status = page.getByTestId('preview-status');
+  await expect(status).toHaveText('Immich preview · rendering');
+
+  release();
+  await expect(status).toBeHidden();
+  await expect(immichPreview).toHaveCount(0);
   await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toBeVisible();
 });
 

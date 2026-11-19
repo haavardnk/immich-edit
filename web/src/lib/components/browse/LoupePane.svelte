@@ -1,7 +1,12 @@
 <script lang="ts">
   import { observeSize } from '#lib/actions/observeSize.ts';
-  import { assetThumbUrl } from '#lib/api/assets.ts';
-  import { persistedPreviewUrl } from '#lib/api/preview.ts';
+  import {
+    paneNatural,
+    paneSources,
+    type LoadedRender,
+    type LoadedSize
+  } from '#lib/browse/previewSource.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import {
     clampView,
@@ -18,12 +23,15 @@
   import { devicePixelRatio } from 'svelte/reactivity/window';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
+  import PreviewStatusChip from '#lib/components/browse/PreviewStatusChip.svelte';
 
   const MAX_SIZE = 2560;
   const SIZES = [768, 1024, 1536, 2048, MAX_SIZE];
 
   let {
     assetId,
+    thumbhash = null,
+    checksum = null,
     alt,
     view,
     focused = false,
@@ -37,6 +45,8 @@
     onImage
   }: {
     assetId: string;
+    thumbhash?: string | null;
+    checksum?: string | null;
     alt: string;
     view: View;
     focused?: boolean;
@@ -52,19 +62,25 @@
 
   let container = $state<HTMLDivElement | null>(null);
   let image = $state<HTMLImageElement | null>(null);
+  let preview = $state<HTMLImageElement | null>(null);
   let box = $state({ w: 0, h: 0 });
-  let natural = $state({ w: 0, h: 0 });
+  let rendered = $state<LoadedRender | null>(null);
+  let previewed = $state<LoadedSize | null>(null);
+  let failedSrc = $state<string | null>(null);
   let dragging = $state(false);
-  let loadedId = $state<string | null>(null);
   let wasFocused = false;
 
   const dpr = $derived(Math.min(2, devicePixelRatio.current || 1));
+  const natural = $derived(paneNatural(assetId, rendered, previewed));
   const metrics = $derived(viewportMetrics(box, natural, sourceLong ?? 0, dpr));
   const zoomed = $derived(isZoomed(metrics, view));
   const shown = $derived(clampView(metrics, view));
   const maxEdge = $derived(quantize(box.w * dpr * Math.max(1, zoomRatio(metrics, view.zoom))));
-  const src = $derived(persistedPreviewUrl(assetId, maxEdge, ui.clipWarn));
-  const loading = $derived(loadedId !== assetId);
+  const sources = $derived(
+    paneSources({ id: assetId, thumbhash, checksum }, rendered, failedSrc, maxEdge, ui.clipWarn)
+  );
+  const loading = $derived(rendered?.id !== assetId);
+  const rendering = $derived(loading && sources.render !== null);
   const transform = $derived(viewportTransform(metrics, shown));
 
   function quantize(value: number): number {
@@ -73,15 +89,20 @@
 
   function measure(): void {
     if (container) box = { w: container.clientWidth, h: container.clientHeight };
-    if (image) {
-      natural = { w: image.naturalWidth, h: image.naturalHeight };
-      onImage?.(image);
-    }
   }
 
-  function onLoad(id: string): void {
-    loadedId = id;
-    measure();
+  function sizeOf(id: string, element: HTMLImageElement): LoadedSize {
+    return { id, w: element.naturalWidth, h: element.naturalHeight };
+  }
+
+  function onRender(id: string, src: string): void {
+    if (!image) return;
+    rendered = { ...sizeOf(id, image), src };
+    onImage?.(image);
+  }
+
+  function onPreview(id: string): void {
+    if (preview) previewed = sizeOf(id, preview);
   }
 
   export function panBy(fx: number, fy: number): void {
@@ -145,25 +166,33 @@
     </span>
   {/if}
   {#if box.w > 0}
-    {#if loading}
-      <img
-        src={assetThumbUrl(assetId)}
-        alt=""
-        draggable="false"
-        data-testid="loupe-underlay"
-        class="pointer-events-none absolute inset-0 h-full w-full object-contain blur-sm select-none"
-      />
-    {/if}
     {#key assetId}
-      <img
-        bind:this={image}
-        {src}
-        {alt}
-        draggable="false"
-        class="relative max-w-full max-h-full object-contain select-none"
-        style={transform}
-        onload={() => onLoad(assetId)}
-      />
+      {#if sources.underlay}
+        <img
+          bind:this={preview}
+          src={sources.underlay}
+          alt=""
+          draggable="false"
+          data-testid="loupe-immich-preview"
+          class="pointer-events-none absolute inset-0 h-full w-full object-contain select-none"
+          style={transform}
+          onload={() => onPreview(assetId)}
+        />
+      {/if}
+      {#if sources.render}
+        {@const src = sources.render}
+        <img
+          bind:this={image}
+          {src}
+          {alt}
+          draggable="false"
+          class="relative max-w-full max-h-full object-contain select-none"
+          style={transform}
+          onload={() => onRender(assetId, src)}
+          onerror={() => (failedSrc = src)}
+        />
+      {/if}
     {/key}
   {/if}
+  <PreviewStatusChip pending={rendering} edited={editedThumbs.has(assetId)} episode={assetId} />
 </div>

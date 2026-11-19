@@ -27,7 +27,12 @@
           aria-label={name ? `Open ${name}` : `Open recent edit ${index + 1}`}
           class="no-callout block h-28 w-42 overflow-hidden rounded-lg bg-light-200 outline-none focus-visible:ring-2 focus-visible:ring-primary touch:h-32 touch:w-48"
         >
-          <img src={assetThumbUrl(entry.id)} alt="" loading="lazy" class="size-full object-cover" />
+          <img
+            src={assetThumbUrl({ id: entry.id })}
+            alt=""
+            loading="lazy"
+            class="size-full object-cover"
+          />
         </TooltipLink>
       </li>
     {/each}

@@ -54,6 +54,7 @@
     "justified-layout": "^4.1.0",
     "luxon": "^3.7.2",
     "tailwind-merge": "3.7.0",
+    "thumbhash": "^0.1.1",
     "uuid": "^14.0.3"
   },
   "overrides": {

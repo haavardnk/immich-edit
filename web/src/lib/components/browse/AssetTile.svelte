@@ -7,7 +7,7 @@
   import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { assetThumbUrl } from '#lib/api/assets.ts';
+  import { assetPlaceholder, assetThumbUrl } from '#lib/api/assets.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { isRejected } from '#lib/browse/reject.ts';
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
@@ -66,7 +66,8 @@
   const rejected = $derived(isRejected(asset));
   const label = $derived(labelOf(asset));
   const edited = $derived(info !== 'none' && editedThumbs.has(asset.id));
-  const src = $derived(assetThumbUrl(asset.id));
+  const src = $derived(assetThumbUrl(asset));
+  const placeholder = $derived(assetPlaceholder(asset));
   const marked = $derived(selected || rangePreview);
   const copyBadge = $derived(
     isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
@@ -134,6 +135,7 @@
   data-selected={selected || undefined}
   data-range-preview={rangePreview || undefined}
   data-name={asset.originalFileName}
+  data-asset-id={asset.id}
 >
   <a
     href={editorHref(asset.id, `${page.url.pathname}${page.url.search}`)}
@@ -149,8 +151,9 @@
         alt=""
         loading="lazy"
         draggable="false"
-        class="h-full w-full object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
+        class="h-full w-full bg-cover bg-center object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
         style:transform={selected ? 'none' : undefined}
+        style:background-image={placeholder}
         class:opacity-40={rejected}
         class:grayscale={rejected}
       />
