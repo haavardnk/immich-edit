@@ -56,7 +56,7 @@ test('grid selection previews and commits a shift range', async ({ page }) => {
 
   await firstSelector.click();
   await expect(firstTile).toHaveAttribute('data-selected', 'true');
-  await expect(firstTile.locator('a')).toHaveCSS('padding', '8px');
+  await expect(firstTile.locator('> a')).toHaveCSS('padding', '8px');
   await expect(firstTile.locator('img')).toHaveCSS('transform', 'none');
 
   await page.keyboard.down('Shift');

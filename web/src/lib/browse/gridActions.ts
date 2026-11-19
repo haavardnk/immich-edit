@@ -7,6 +7,7 @@ import {
   toggleReject
 } from '#lib/browse/assetMeta.ts';
 import { multiMembers, type MultiMode } from '#lib/browse/compareEntry.ts';
+import { peek } from '#lib/browse/peek.svelte.ts';
 import { nextRatingFromKey } from '#lib/browse/ratingShortcuts.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -20,17 +21,19 @@ import { currentPath } from '#lib/utils/route.ts';
 import { goto } from '$app/navigation';
 
 export function gridTargets(): string[] {
-  return [...selection.selected];
+  return peek.id ? [peek.id] : [...selection.selected];
 }
 
 export function gridCurrent(items: readonly AssetSummary[]): string | null {
+  if (peek.id) return peek.id;
   const id = browseView.activeId;
   if (id && selection.has(id)) return id;
   return items.find((asset) => selection.has(asset.id))?.id ?? null;
 }
 
 function pickedAssets(items: readonly AssetSummary[]): AssetSummary[] {
-  return items.filter((asset) => selection.has(asset.id));
+  const targets = new Set(gridTargets());
+  return items.filter((asset) => targets.has(asset.id));
 }
 
 function common<T>(values: readonly T[]): T | undefined {
@@ -92,6 +95,10 @@ export function rateAndAdvance(
   const following = items[items.findIndex((asset) => asset.id === only) + 1];
   void setRating(browseTarget(only), rating).then((outcome) => {
     if (outcome === 'skipped' || !following) return;
+    if (peek.id === only) {
+      peek.show(following.id);
+      return;
+    }
     selection.replace([following.id]);
     browseView.setActive(following.id);
     reveal(following.id);

@@ -6,6 +6,7 @@ import {
   installMocks,
   numberedAssets,
   openFilters,
+  openLoupeFromGrid,
   type InstallOpts
 } from './helpers';
 
@@ -22,7 +23,7 @@ async function openGrid(page: Page, opts: InstallOpts = {}): Promise<TagChange[]
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   return changes;
 }
 
@@ -72,7 +73,7 @@ test('the label filter asks the server for one color', async ({ page }) => {
 
 test('the loupe picker sets purple, which has no key', async ({ page }) => {
   await openGrid(page);
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   const rail = page.getByRole('navigation', { name: 'Photo actions' });
 
   await rail.getByRole('button', { name: 'Colour label' }).click();

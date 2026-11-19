@@ -169,8 +169,7 @@ test('the loupe steps back across the near end of a window', async ({ page }) =>
   const first = ASSETS[JULY * 10 - 30]?.originalFileName ?? '';
   const previous = ASSETS[JULY * 10 - 31]?.originalFileName ?? '';
   const tile = page.locator(`[data-name="${first}"]`);
-  await tile.hover();
-  await tile.getByRole('button', { name: 'Quick review' }).click();
+  await tile.locator('> a').click({ position: { x: 8, y: 8 } });
   await expect(page.getByRole('img', { name: first })).toBeVisible();
   const rail = page.getByRole('navigation', { name: 'Photo actions' });
   await expect(rail).toBeVisible();
@@ -236,7 +235,7 @@ test('the editor round trip after a jump returns to the same photos without pagi
   const windowsBefore = log.windows.length;
 
   await page
-    .getByRole('link', { name: before.name })
+    .locator(`[data-name="${before.name}"] a[aria-label="Edit"]`)
     .evaluate((el) => (el as HTMLAnchorElement).click());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   await page.getByRole('button', { name: /^Back/ }).click();

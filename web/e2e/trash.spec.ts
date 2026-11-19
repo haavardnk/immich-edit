@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installMocks, numberedAssets, openFilters, type InstallOpts } from './helpers';
+import {
+  installMocks,
+  numberedAssets,
+  openFilters,
+  openLoupeFromGrid,
+  type InstallOpts
+} from './helpers';
 
 const ASSETS = numberedAssets(3);
 
@@ -102,7 +108,7 @@ test('nothing is trashed while the Immich trash is off', async ({ page }) => {
 
 test('the loupe moves on to the next photo after trashing', async ({ page }) => {
   await openGrid(page);
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
 
   await page.getByRole('button', { name: 'More loupe actions' }).click();

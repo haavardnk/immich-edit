@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import {
+  ASSET_EXIF,
+  ASSET_ID,
+  ASSET_SUMMARY,
+  gridTileLink,
+  installMocks,
+  openLoupeFromGrid
+} from './helpers';
 
 const ASSETS = [
   { ...ASSET_SUMMARY, exifInfo: ASSET_EXIF },
@@ -22,7 +29,7 @@ const PANES = ['IMG_0001.ARW', 'IMG_0002.ARW', 'IMG_0003.ARW'];
 async function openGrid(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
 }
 
 async function selectTile(page: Page, name: string): Promise<void> {
@@ -32,8 +39,8 @@ async function selectTile(page: Page, name: string): Promise<void> {
 async function openSurvey(page: Page): Promise<void> {
   await installMocks(page, { assets: ASSETS });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await openLoupeFromGrid(page);
   await page.keyboard.press('n');
   for (const name of PANES) {
     await expect(page.getByRole('img', { name })).toBeVisible();
@@ -71,7 +78,7 @@ test('enter keeps only the focused survey pane', async ({ page }) => {
 
 test('enter keeps the focused pane after opening the loupe from the keyboard', async ({ page }) => {
   await openGrid(page);
-  await page.getByLabel('Quick review').first().focus();
+  await gridTileLink(page).focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('n');
   for (const name of PANES) {
