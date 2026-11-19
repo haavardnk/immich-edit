@@ -543,6 +543,13 @@ export const KEYBINDS = [
     label: 'Pick white balance from a neutral area'
   },
   {
+    id: 'targetAdjust',
+    keys: ['t'],
+    contexts: ['editor'],
+    group: 'Editor',
+    label: 'Adjust HSL, Curves, B&W or Color Grading on the photo'
+  },
+  {
     id: 'autoAdjust',
     keys: ['Mod+u'],
     contexts: ['editor'],
@@ -666,6 +673,22 @@ export const KEYBINDS = [
     group: 'Sliders',
     label: 'Move a curve point at a quarter of the speed',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag a curve point`
+  },
+  {
+    id: 'targetHueDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust hue while dragging on the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + drag on the photo`
+  },
+  {
+    id: 'targetLightnessDrag',
+    keys: [],
+    contexts: ['editor'],
+    group: 'Sliders',
+    label: 'Adjust luminance while dragging on the photo',
+    display: (mac: boolean) => `${keyLabel('Shift', mac)} + drag on the photo`
   },
 
   {

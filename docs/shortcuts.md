@@ -131,6 +131,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Tab`          | Hide or show the side panels                            | Editor              |
 | `Shift+Tab`    | Hide or show every panel                                | Editor              |
 | `W`            | Pick white balance from a neutral area                  | Editor              |
+| `T`            | Adjust HSL, Curves, B&W or Color Grading on the photo   | Editor              |
 | `Ctrl+U`       | Auto adjust                                             | Editor              |
 | `Ctrl+K`       | Search settings, presets and actions                    | Editor              |
 | `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
@@ -152,6 +153,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Alt + drag`                        | Preview the mask or radius a slider drives while you drag it                    | Editor       |
 | `Shift + click the reset button`    | Reset every band or channel at once, on HSL and Curves                          | Editor       |
 | `Alt + drag a curve point`          | Move a curve point at a quarter of the speed                                    | Editor       |
+| `Alt + drag on the photo`           | Adjust hue while dragging on the photo                                          | Editor       |
+| `Shift + drag on the photo`         | Adjust luminance while dragging on the photo                                    | Editor       |
 
 ## Geometry
 

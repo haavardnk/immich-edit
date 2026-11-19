@@ -24,7 +24,9 @@ const ROLES = {
   resetAll: 'shift',
   resize: 'alt',
   hardness: 'shift',
-  lineBreak: 'shift'
+  lineBreak: 'shift',
+  hueAxis: 'alt',
+  lightnessAxis: 'shift'
 } as const satisfies Record<string, ModifierKey>;
 
 export type ModifierRole = keyof typeof ROLES;

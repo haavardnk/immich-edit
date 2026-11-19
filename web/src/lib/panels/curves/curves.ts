@@ -1,6 +1,7 @@
 import type { CurveChannel, CurvePoint } from '#lib/types/edits.ts';
 
 const MIN_GAP = 0.01;
+const PICK_SNAP = 0.03;
 
 export const CHANNEL_LABELS: Record<CurveChannel, string> = {
   composite: 'RGB',
@@ -111,4 +112,19 @@ export function nudgePoint(
 export function removePoint(pts: CurvePoint[], idx: number): CurvePoint[] | null {
   if (idx <= 0 || idx >= pts.length - 1) return null;
   return pts.filter((_, i) => i !== idx);
+}
+
+export function pickPoint(
+  pts: CurvePoint[],
+  x: number,
+  snap = PICK_SNAP
+): { points: CurvePoint[]; index: number } {
+  const level = Math.max(0, Math.min(1, x));
+  const nearest = pts.reduce(
+    (best, p, i) => (Math.abs(p.x - level) < Math.abs((pts[best]?.x ?? 0) - level) ? i : best),
+    0
+  );
+  const near = pts[nearest];
+  if (near && Math.abs(near.x - level) <= snap) return { points: pts, index: nearest };
+  return insertPoint(pts, { x: level, y: hermite(pts, level) });
 }
