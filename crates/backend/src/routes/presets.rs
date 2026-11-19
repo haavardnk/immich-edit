@@ -39,6 +39,11 @@ pub struct PresetBody {
     pub manifest: EditManifest,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct FavoriteBody {
+    pub favorite: bool,
+}
+
 struct ParsedPreset {
     name: String,
     group_name: Option<String>,
@@ -128,6 +133,20 @@ pub async fn update(
             parsed.group_name.as_deref(),
             &parsed.manifest,
         )
+        .await?
+        .ok_or(AppError::NotFound)?;
+    Ok(Json(record))
+}
+
+pub async fn favorite(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Path(id): Path<Uuid>,
+    Json(body): Json<FavoriteBody>,
+) -> Result<Json<PresetRecord>, AppError> {
+    let record = state
+        .edits
+        .set_preset_favorite(ctx.owner, id, body.favorite)
         .await?
         .ok_or(AppError::NotFound)?;
     Ok(Json(record))

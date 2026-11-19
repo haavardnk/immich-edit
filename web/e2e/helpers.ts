@@ -216,6 +216,7 @@ export interface InstallOpts {
   onPresetDelete?: (id: string) => void;
   onPresetUpdate?: (id: string, body: Record<string, unknown>) => void;
   watermarks?: Array<Record<string, unknown>>;
+  luts?: Array<Record<string, unknown>>;
   editRecord?: EditRecord;
   onExport?: (route: Route) => Promise<void> | void;
   onHistory?: (route: Route) => Promise<void> | void;
@@ -598,6 +599,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
         const created = {
           ...body,
           id: `preset-${presets.length + 1}`,
+          favorite: false,
           created_at: '2024-01-01T00:00:00Z',
           updated_at: '2024-01-01T00:00:00Z'
         };
@@ -686,7 +688,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       savedViews[idx] = updated;
       return route.fulfill(json(updated));
     }
-    if (p === '/api/luts') return route.fulfill(json([]));
+    if (p === '/api/luts') return route.fulfill(json(opts.luts ?? []));
     if (p === '/api/watermarks') {
       if (method === 'POST') {
         const created = {
@@ -746,6 +748,15 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       const updated = { ...(presets[idx] ?? {}), ...body };
       if (idx >= 0) presets[idx] = updated;
       return route.fulfill(json(updated));
+    }
+
+    const favoriteMatch = p.match(/^\/api\/presets\/([^/]+)\/favorite$/);
+    if (favoriteMatch && method === 'PUT') {
+      const body = JSON.parse(route.request().postData() ?? '{}') as { favorite?: unknown };
+      const idx = presets.findIndex((preset) => preset.id === favoriteMatch[1]);
+      if (idx < 0) return route.fulfill({ status: 404, body: '{}' });
+      presets[idx] = { ...presets[idx], favorite: body.favorite === true };
+      return route.fulfill(json(presets[idx]));
     }
 
     const assetMatch = p.match(/^\/api\/assets\/([^/]+)$/);

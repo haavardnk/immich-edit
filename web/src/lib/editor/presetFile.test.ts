@@ -14,16 +14,18 @@ function preset(name: string, group_name: string | null = null): Preset {
     name,
     group_name,
     manifest: { schema_version: 3, ops: { basic: { contrast: 20 } } },
+    favorite: true,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z'
   };
 }
 
 describe('preset files', () => {
-  it('round-trips names, groups and manifests without ids', () => {
+  it('round-trips names, groups and manifests without ids or favourites', () => {
     const list = [preset('Warm', 'Film'), preset('Cool')];
     const text = presetFileJson(list);
     expect(text).not.toContain('id-Warm');
+    expect(text).not.toContain('favorite');
     expect(parsePresetFile(text)).toEqual(
       list.map((p) => ({ name: p.name, group_name: p.group_name, manifest: p.manifest }))
     );

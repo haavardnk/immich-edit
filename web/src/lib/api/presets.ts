@@ -8,6 +8,7 @@ export interface Preset {
   name: string;
   group_name: string | null;
   manifest: EditManifest;
+  favorite: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,10 @@ export function createPreset(input: PresetInput): Promise<Preset> {
 
 export function updatePreset(id: string, input: PresetInput): Promise<Preset> {
   return sendJson('PUT', url`/api/presets/${id}`, input);
+}
+
+export function setPresetFavorite(id: string, favorite: boolean): Promise<Preset> {
+  return sendJson('PUT', url`/api/presets/${id}/favorite`, { favorite });
 }
 
 export function deletePreset(id: string): Promise<void> {

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { commandLabel, commandTitle, pressHandlers } from '#lib/commands/command.ts';
+  import { commandLabel, commandTitle, runCommand } from '#lib/commands/command.ts';
   import { loupeFilmstrip } from '#lib/commands/loupe/view.ts';
   import ZoomPopover from '#lib/components/ZoomPopover.svelte';
   import { ui } from '#lib/stores/ui.svelte.ts';
-  import { IconButton } from '@immich/ui';
+  import BarToggle from '#lib/components/editor/BarToggle.svelte';
 
   let {
     zoom,
@@ -31,14 +31,10 @@
   {onZoom}
   {onFit}
 />
-<IconButton
-  size="tiny"
-  variant="ghost"
-  color={shown ? 'primary' : 'secondary'}
-  class="touch:size-11 {shown ? 'touch:bg-primary/15' : ''}"
+<BarToggle
   icon={loupeFilmstrip.icon}
+  pressed={shown}
+  label={commandLabel(loupeFilmstrip)}
   title={commandTitle(loupeFilmstrip)}
-  aria-label={commandLabel(loupeFilmstrip)}
-  aria-pressed={shown}
-  {...pressHandlers(loupeFilmstrip)}
-/>
+  onclick={() => runCommand(loupeFilmstrip)}>Filmstrip</BarToggle
+>

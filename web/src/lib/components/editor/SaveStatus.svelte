@@ -10,7 +10,7 @@
       size="tiny"
       variant="ghost"
       color="danger"
-      class="gap-1 p-0 text-[11px]"
+      class="gap-1 p-0 text-caption"
       title={editor.saveError}
       onclick={() => void editor.retrySave()}
     >
@@ -18,14 +18,14 @@
       Save failed — retry
     </Button>
   {:else if editor.saving}
-    <span class="flex items-center gap-1 text-[11px] text-dark/65" role="status">
+    <span class="flex items-center gap-1 text-caption text-dark/65" role="status">
       <Icon icon={mdiLoading} size="12px" class="animate-spin" aria-hidden="true" />
       Saving…
     </span>
   {:else}
-    <span class="flex items-center gap-1 text-[11px] text-dark/65" role="status">
+    <span class="flex items-center gap-1 text-caption text-dark/65" role="status">
       <Icon icon={mdiCheck} size="12px" aria-hidden="true" />
-      Saved
+      Saved{editor.editsPreview ? ' · preview only, nothing committed' : ''}
     </span>
   {/if}
 {/if}

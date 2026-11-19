@@ -1,20 +1,8 @@
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { Edits } from '#lib/types/edits.ts';
+import { sameValue } from '#lib/utils/sameValue.ts';
 
 const MAX_HISTORY = 50;
-
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left);
-  return (
-    keys.length === Object.keys(right).length &&
-    keys.every((key) => key in right && sameValue(left[key], right[key]))
-  );
-}
 
 export interface RestoreMarker {
   from: number;
@@ -92,6 +80,18 @@ export class EditHistory {
     this.entries = trimmed;
     this.cursor = this.entries.length - 1;
     return id;
+  }
+
+  get topStep(): number | null {
+    return this.entries[this.cursor]?.id ?? null;
+  }
+
+  replaceStep(id: number, edits: Edits): boolean {
+    if (this.entries[this.cursor]?.id !== id) return false;
+    this.entries = this.entries.map((step, index) =>
+      index === this.cursor ? { ...step, edits } : step
+    );
+    return true;
   }
 
   undoStep(id: number): void {
