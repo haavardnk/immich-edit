@@ -19,6 +19,7 @@ import { LOUPE_NAVIGATION_COMMANDS } from '#lib/commands/loupe/navigation.ts';
 import { LOUPE_PANE_COMMANDS } from '#lib/commands/loupe/panes.ts';
 import { LOUPE_VIEW_COMMANDS } from '#lib/commands/loupe/view.ts';
 import type { Command } from '#lib/commands/types.ts';
+import { VIEWER_COMMANDS } from '#lib/commands/viewer.ts';
 
 export const COMMANDS: readonly Command[] = [
   ...APP_COMMANDS,
@@ -39,7 +40,8 @@ export const COMMANDS: readonly Command[] = [
   ...GRID_NAVIGATION_COMMANDS,
   ...GRID_EDIT_COMMANDS,
   ...GRID_CULLING_COMMANDS,
-  ...GRID_FILTER_COMMANDS
+  ...GRID_FILTER_COMMANDS,
+  ...VIEWER_COMMANDS
 ];
 
 export const commandKeys = createKeyDispatcher(COMMANDS);

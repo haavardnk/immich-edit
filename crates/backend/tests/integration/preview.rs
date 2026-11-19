@@ -142,6 +142,29 @@ async fn live_preview_with_clip_warn_skips_meta() {
 }
 
 #[tokio::test]
+async fn viewer_lane_preview_skips_meta() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    let app = test_app(&server).await;
+
+    let resp = app
+        .oneshot(json_request(
+            "POST",
+            &format!("/api/assets/{id}/preview"),
+            json!({"max_edge": 512, "lane": "viewer"}),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    if resp.headers().contains_key("x-preview-meta-id") {
+        panic!("a viewer window render must not publish preview meta");
+    }
+}
+
+#[tokio::test]
 async fn persisted_preview_etag_varies_with_clip_flag() {
     let server = MockServer::start().await;
     let id = asset_id();

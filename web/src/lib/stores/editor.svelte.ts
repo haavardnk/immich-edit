@@ -235,6 +235,10 @@ class EditorStore {
     return this.previews.sourceLong;
   }
 
+  get dragging(): boolean {
+    return this.previews.dragActive;
+  }
+
   get viewScale(): number | null {
     return this.previews.viewScale;
   }

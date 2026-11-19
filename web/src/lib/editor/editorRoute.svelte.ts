@@ -6,6 +6,7 @@ import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { returnPath } from '#lib/utils/route.ts';
+import { publishToViewer } from '#lib/viewer/publish.svelte.ts';
 import { onDestroy, onMount, untrack } from 'svelte';
 import { on } from 'svelte/events';
 
@@ -53,6 +54,8 @@ export function runEditorRoute(id: () => string): void {
   });
 
   $effect(() => on(window, 'beforeunload', guardPendingSave));
+
+  publishToViewer();
 
   onMount(() => {
     if (browsing.assets.length > 0) return;

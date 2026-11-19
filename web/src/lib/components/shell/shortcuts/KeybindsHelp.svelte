@@ -25,7 +25,8 @@
     editor: 'the editor',
     geometry: 'the Geometry panel',
     masks: 'the Masks panel',
-    retouch: 'the Retouch panel'
+    retouch: 'the Retouch panel',
+    viewer: 'the viewer window'
   };
 
   const recorder = new ShortcutRecorder();
@@ -123,10 +124,10 @@
       class="immich-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 touch:max-h-[calc(var(--app-height)*0.7)]"
     >
       {#if sections.here.length === 0 && sections.elsewhere.length === 0}
-        <p class="text-xs text-dark/65">No shortcuts match “{query}”.</p>
+        <p class="text-xs text-dark/65">No shortcuts match “{query}”</p>
       {:else}
         {#if sections.here.length > 0}
-          <h3 class="text-[11px] uppercase tracking-wider text-primary mb-2">
+          <h3 class="section-label text-primary mb-2">
             Available in {hereLabel}
           </h3>
           {@render groupList(sections.here)}
@@ -134,8 +135,8 @@
 
         {#if sections.elsewhere.length > 0}
           <h3
-            class="text-[11px] uppercase tracking-wider text-dark/65 mb-2 {sections.here.length > 0
-              ? 'mt-3 pt-3 border-t border-dark/10'
+            class="section-label text-dark/65 mb-2 {sections.here.length > 0
+              ? 'mt-3 pt-3 border-t border-hairline'
               : ''}"
           >
             Elsewhere in the app
@@ -155,7 +156,7 @@
   <div class="columns-1 sm:columns-2 gap-8">
     {#each groups as group (group.title)}
       <div class="break-inside-avoid mb-5">
-        <h4 class="text-[11px] uppercase tracking-wider text-dark/65 mb-1.5">
+        <h4 class="section-label text-dark/65 mb-1.5">
           {group.title}
         </h4>
         <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 text-xs">
