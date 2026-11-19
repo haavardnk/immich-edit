@@ -3,9 +3,11 @@ import { createVirtualCopy } from '#lib/editor/copies.ts';
 import { hasTextSelection } from '#lib/shortcuts/targets.ts';
 import { NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import {
   mdiAutoFix,
+  mdiCameraOutline,
   mdiContentCopy,
   mdiContentDuplicate,
   mdiContentPaste,
@@ -103,6 +105,22 @@ export const virtualCopy = {
   }
 } satisfies Command;
 
+async function saveSnapshot(): Promise<void> {
+  const created = await editor.snapshots.create();
+  if (created) toasts.push('success', `Saved ${created.name}`, { ttlMs: 3000 });
+}
+
+export const newSnapshot = {
+  id: 'editor.newSnapshot',
+  contexts: ['editor'],
+  label: 'New snapshot',
+  icon: mdiCameraOutline,
+  bind: 'newSnapshot',
+  yields: (trigger) => trigger.repeat,
+  enabled: () => editor.initialised,
+  run: () => void saveSnapshot()
+} satisfies Command;
+
 export const EDIT_COMMANDS: readonly Command[] = [
   undo,
   redo,
@@ -111,5 +129,6 @@ export const EDIT_COMMANDS: readonly Command[] = [
   resetDevelop,
   copyEdits,
   pasteEdits,
-  virtualCopy
+  virtualCopy,
+  newSnapshot
 ];

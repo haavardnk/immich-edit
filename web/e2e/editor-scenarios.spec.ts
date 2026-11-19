@@ -95,12 +95,12 @@ test('export quality uses the shared range control', async ({ page }) => {
   await expect(page.getByText('82', { exact: true })).toBeVisible();
 });
 
-test('split view toggles from the editor menu and reveals the slider', async ({ page }) => {
+test('compare opens the split from the editor menu', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
 
   const more = page.getByRole('button', { name: 'More editor actions' });
-  const split = page.getByRole('button', { name: 'Before/After split', exact: true });
+  const split = page.getByRole('button', { name: 'Compare', exact: true });
   await more.click();
   await expect(split).toHaveAttribute('aria-pressed', 'false');
   await split.click();

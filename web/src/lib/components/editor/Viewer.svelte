@@ -10,23 +10,18 @@
   import ClickCanvas from './ClickCanvas.svelte';
   import RetouchOverlay from './RetouchOverlay.svelte';
   import PreviewImage from './PreviewImage.svelte';
+  import CompareSideBySide from './compare/CompareSideBySide.svelte';
+  import CompareSplit from './compare/CompareSplit.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import { Button, Icon } from '@immich/ui';
   import { mdiLoading } from '@mdi/js';
   import { frameBox, placement } from '#lib/utils/viewGeometry.ts';
-  import {
-    clampView,
-    frameOffset,
-    scaleOf,
-    viewportMetrics,
-    viewportTransform
-  } from '#lib/utils/imageViewport.ts';
+  import { clampView, frameOffset, scaleOf, viewportMetrics } from '#lib/utils/imageViewport.ts';
   import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { devicePixelRatio } from 'svelte/reactivity/window';
-  import { held } from '#lib/input/modifiers.svelte.ts';
-  import { pointerDrag } from '#lib/gestures/drag.ts';
-  import { clampedPoint } from '#lib/gestures/point.ts';
+  import type { Box, ClientPoint } from '#lib/gestures/point.ts';
   import { viewportGestures } from '#lib/gestures/viewportGestures.ts';
+  import { comparePane, compareViewport } from '#lib/editor/compare.ts';
   import { viewerGestures, type ViewerAdjust } from '#lib/editor/viewerGestures.ts';
   import { runCommand } from '#lib/commands/command.ts';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
@@ -39,12 +34,10 @@
 
   let container = $state<HTMLDivElement | null>(null);
   let imgEl = $state<PreviewSurface | null>(null);
-  let viewBox = $state({ w: 0, h: 0 });
+  let stage = $state({ w: 0, h: 0 });
+  const viewBox = $derived(compareViewport(stage, editor.compare.mode));
   const dpr = $derived(devicePixelRatio.current || 1);
   let baseNat = $state<{ w: number; h: number } | null>(null);
-  let splitWrap = $state<HTMLDivElement | null>(null);
-  let splitNatW = $state(0);
-  let splitNatH = $state(0);
   let dragging = $state(false);
 
   const metrics = $derived(
@@ -75,6 +68,7 @@
 
   const gestures = viewportGestures({
     element: () => container,
+    anchor: paneAt,
     metrics: () => metrics,
     view: () => view,
     apply: (next, _e, change) => ui.applyView(next, change),
@@ -88,6 +82,7 @@
 
   const touchGestures = viewerGestures({
     element: () => container,
+    anchor: paneAt,
     metrics: () => metrics,
     view: () => view,
     apply: (next, change) => ui.applyView(next, change),
@@ -98,35 +93,19 @@
     adjust: () => adjust()
   });
 
-  const split = pointerDrag<true>({
-    start(e) {
-      updateSplit(e);
-      e.stopPropagation();
-      return true;
-    },
-    move: (e) => updateSplit(e)
-  });
-
-  function updateSplit(e: PointerEvent): void {
-    if (!splitWrap) return;
-    editor.setSplitPos(clampedPoint(e, splitWrap).x);
+  function paneAt(point: ClientPoint): Box | null {
+    return container
+      ? comparePane(container.getBoundingClientRect(), point, editor.compare.mode)
+      : null;
   }
 
-  function onSplitKeyDown(e: KeyboardEvent): void {
-    const step = held('coarse', e) ? 0.1 : 0.02;
-    if (e.key === 'ArrowLeft') editor.setSplitPos(editor.splitPos - step);
-    else if (e.key === 'ArrowRight') editor.setSplitPos(editor.splitPos + step);
-    else if (e.key === 'Home') editor.setSplitPos(0);
-    else if (e.key === 'End') editor.setSplitPos(1);
-    else return;
-    e.preventDefault();
+  function measured(size: { w: number; h: number }): void {
+    if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
   }
-
-  const viewTransform = $derived(viewportTransform(metrics, view));
 
   function measure(): void {
     if (!container) return;
-    viewBox = { w: container.clientWidth, h: container.clientHeight };
+    stage = { w: container.clientWidth, h: container.clientHeight };
   }
 
   $effect(() => {
@@ -158,62 +137,15 @@
   {#if editor.geometrySession?.frameUrl}
     <CropOverlay />
   {:else if editor.previewUrl || editor.previewFrame}
-    {#if editor.splitMode && editor.originalUrl}
-      <div
-        bind:this={splitWrap}
-        data-photo-layer
-        class="relative overflow-hidden {imageEdge}"
-        style="aspect-ratio: {splitNatW || 1} / {splitNatH ||
-          1}; max-width: 100%; max-height: 100%; height: 100%; width: auto; {viewTransform}"
-      >
-        <img
-          bind:this={imgEl}
-          src={editor.originalUrl}
-          alt="Original"
-          data-photo-layer
-          class="absolute inset-0 w-full h-full object-contain select-none"
-          style="image-orientation: none;"
-          draggable="false"
-          onload={(e) => {
-            const t = e.target as HTMLImageElement;
-            splitNatW = t.naturalWidth;
-            splitNatH = t.naturalHeight;
-          }}
-        />
-        <PreviewImage
-          url={editor.previewUrl}
-          frame={editor.previewFrame}
-          alt={editor.asset?.originalFileName ?? ''}
-          class="absolute inset-0 w-full h-full object-contain select-none"
-          style="clip-path: inset(0 0 0 {editor.splitPos * 100}%);"
-        />
-        <div
-          class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-split pointer-events-none"
-          style="left: {editor.splitPos * 100}%; transform: translateX(-50%);"
-        ></div>
-        <span
-          class="pointer-events-none absolute left-2 top-2 rounded bg-black/65 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white"
-          >Original</span
-        >
-        <span
-          class="pointer-events-none absolute right-2 top-2 rounded bg-black/65 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white"
-          >Edited</span
-        >
-        <div
-          role="slider"
-          tabindex="0"
-          aria-label="Before/after split"
-          aria-valuenow={Math.round(editor.splitPos * 100)}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          class="absolute top-1/2 w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white border-2 border-black/40 shadow-lg cursor-ew-resize flex items-center justify-center text-black/70 text-xs font-bold"
-          style="left: {editor.splitPos * 100}%;"
-          {...split.on()}
-          onkeydown={onSplitKeyDown}
-        >
-          ↔
-        </div>
-      </div>
+    {#if editor.compare.mode === 'split' && editor.compareUrl}
+      <CompareSplit bind:surface={imgEl} frame={baseStyle} edge={imageEdge} onsize={measured} />
+    {:else if editor.compare.mode === 'side'}
+      <CompareSideBySide
+        bind:surface={imgEl}
+        frame={baseStyle}
+        edge={imageEdge}
+        onsize={measured}
+      />
     {:else}
       <PreviewImage
         bind:element={imgEl}
@@ -223,9 +155,7 @@
         class="max-h-none max-w-none select-none object-contain {imageEdge}"
         style={baseStyle}
         testid="preview-image"
-        onsize={(size) => {
-          if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
-        }}
+        onsize={measured}
       />
       {#if (editor.viewUrl || editor.viewFrame) && viewPlace}
         <PreviewImage
