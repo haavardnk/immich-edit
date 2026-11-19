@@ -15,7 +15,8 @@
     modified,
     disabled,
     onLive,
-    onCommit
+    onCommit,
+    setting
   }: {
     label: string;
     value: number;
@@ -25,6 +26,7 @@
     disabled: boolean;
     onLive: (value: number) => void;
     onCommit: () => void;
+    setting?: string;
   } = $props();
 
   const display = $derived(range.format(Object.is(value, -0) ? 0 : value));
@@ -59,6 +61,7 @@
       start,
       resetValue,
       owner,
+      setting,
       live: onLive,
       finish
     };
@@ -113,7 +116,7 @@
     autocomplete="off"
     spellcheck="false"
     size="tiny"
-    class="h-5 bg-hairline ring-1 ring-primary [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-[10px] [&_input]:tabular-nums"
+    class="h-5 bg-hairline ring-1 ring-primary [&_input]:px-1 [&_input]:py-0 [&_input]:text-right [&_input]:font-mono [&_input]:text-micro [&_input]:tabular-nums"
     aria-label="{label} value"
     value={draft}
     oninput={onDraftInput}
@@ -126,7 +129,7 @@
     size="tiny"
     variant="ghost"
     color="secondary"
-    class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums touch:h-8 touch:text-xs {editing
+    class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1.5 h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-micro tabular-nums touch:h-8 touch:text-xs {editing
       ? 'bg-primary/10 text-primary outline-2 outline-primary'
       : modified
         ? 'bg-primary/10 text-primary'

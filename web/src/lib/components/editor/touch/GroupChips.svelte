@@ -1,34 +1,49 @@
 <script lang="ts">
-  import { TOUCH_GROUPS } from '#lib/editor/params/catalog.ts';
-  import type { TouchGroupId } from '#lib/editor/params/types.ts';
   import { modifiedTouchGroups } from '#lib/editor/modified.ts';
+  import { TOUCH_GROUPS } from '#lib/editor/params/catalog.ts';
+  import { paramsModified } from '#lib/editor/params/define.ts';
+  import { pinnedParams } from '#lib/editor/quickSettings.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { touchUi } from '#lib/stores/touchUi.svelte.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
+  import { QUICK_GROUP, touchUi, type TrayGroupId } from '#lib/stores/touchUi.svelte.ts';
+  import { Icon } from '@immich/ui';
+  import { mdiPinOutline } from '@mdi/js';
   import { Tabs } from 'bits-ui';
 
   let { grid = false, onretap }: { grid?: boolean; onretap?: () => void } = $props();
 
   const modified = $derived(modifiedTouchGroups(editor.edits));
+  const quickModified = $derived(
+    paramsModified(editor.edits, pinnedParams(preferences.pins), editor.isRaw)
+  );
+  const chips = $derived<{ id: TrayGroupId; label: string; modified: boolean }[]>([
+    { id: QUICK_GROUP, label: 'Quick', modified: quickModified },
+    ...TOUCH_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      modified: modified.has(group.id)
+    }))
+  ]);
 </script>
 
-{#snippet chips()}
+<div class="flex shrink-0 items-center {grid ? 'px-2 py-2' : 'py-1.5'}">
   <Tabs.Root
     value={touchUi.group}
-    onValueChange={(value) => touchUi.setGroup(value as TouchGroupId)}
+    onValueChange={(value) => touchUi.setGroup(value as TrayGroupId)}
     activationMode="manual"
     class="min-w-0 flex-1"
   >
     <Tabs.List
       aria-label="Develop groups"
       class={grid
-        ? 'grid grid-cols-6 gap-1'
+        ? 'grid grid-cols-7 gap-1'
         : 'flex gap-1.5 overflow-x-auto px-4 scrollbar-hidden fade-x'}
     >
-      {#each TOUCH_GROUPS as group (group.id)}
+      {#each chips as chip (chip.id)}
         <Tabs.Trigger
-          value={group.id}
+          value={chip.id}
           onclick={(event) => {
-            if (!onretap || group.id !== touchUi.group) return;
+            if (!onretap || chip.id !== touchUi.group) return;
             event.stopPropagation();
             onretap();
           }}
@@ -36,20 +51,19 @@
             ? 'min-w-0 rounded-lg px-1 text-[12px]'
             : ''}"
         >
-          {group.label}
-          {#if modified.has(group.id)}
+          {#if chip.id === QUICK_GROUP && !grid}
+            <Icon icon={mdiPinOutline} size="15px" class="-me-0.5" aria-hidden="true" />
+          {/if}
+          {chip.label}
+          {#if chip.modified}
             <span
               data-modified-indicator
               aria-hidden="true"
-              class="size-1.5 rounded-full bg-primary {grid ? 'absolute top-1.5 right-1.5' : ''}"
+              class="size-1.5 rounded-full bg-primary {grid ? 'absolute top-1 right-1' : ''}"
             ></span>
           {/if}
         </Tabs.Trigger>
       {/each}
     </Tabs.List>
   </Tabs.Root>
-{/snippet}
-
-<div class="flex shrink-0 items-center {grid ? 'px-2 py-2' : 'py-1.5'}">
-  {@render chips()}
 </div>

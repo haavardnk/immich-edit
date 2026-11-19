@@ -16,15 +16,18 @@
     type Highlight
   } from '#lib/editor/settingsSearch.ts';
   import { revealDevelopSetting } from '#lib/panels/developPanels.ts';
+  import { keysFor } from '#lib/shortcuts/labels.ts';
   import { isKeybind } from '#lib/shortcuts/match.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { holdModalSheet } from '#lib/stores/overlays.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { presets } from '#lib/stores/presets.svelte.ts';
   import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
   import { Icon } from '@immich/ui';
   import {
     mdiCubeOutline,
     mdiMagnify,
+    mdiPinOutline,
     mdiRestore,
     mdiTuneVariant,
     mdiViewGridOutline
@@ -39,7 +42,10 @@
   const ROW =
     'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-[13px] text-dark outline-none data-selected:bg-primary/12';
 
+  const SETTING_VALUE = 'setting:';
+
   let query = $state('');
+  let highlighted = $state('');
   let luts = $state<LutMeta[]>([]);
   let pending: (() => void) | null = null;
   const open = $derived(settingSearch.paletteOpen);
@@ -120,6 +126,15 @@
     setOpen(false);
   }
 
+  function pinKey(event: KeyboardEvent): void {
+    if (!isKeybind(event, 'pinSetting') || !highlighted.startsWith(SETTING_VALUE)) return;
+    const id = highlighted.slice(SETTING_VALUE.length);
+    if (!settings.some(({ setting }) => setting.id === id && setting.param)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void preferences.togglePin(id);
+  }
+
   function previewPreset(preset: Preset): void {
     editor.previewPreset({ manifest: preset.manifest, opts: defaultApplyOptions() });
   }
@@ -138,7 +153,13 @@
       onkeydown={toggleKey}
     >
       <Dialog.Title class="sr-only">Search settings and actions</Dialog.Title>
-      <Command.Root shouldFilter={false} loop class="flex min-h-0 flex-col">
+      <Command.Root
+        bind:value={highlighted}
+        shouldFilter={false}
+        loop
+        class="flex min-h-0 flex-col"
+        onkeydown={pinKey}
+      >
         <div class="flex shrink-0 items-center gap-2 border-b border-hairline px-3">
           <Icon icon={mdiMagnify} size="18px" class="text-dark/65" aria-hidden="true" />
           <Command.Input
@@ -158,7 +179,7 @@
               <Command.GroupItems>
                 {#each settings as { setting, highlight } (setting.id)}
                   <Command.Item
-                    value="setting:{setting.id}"
+                    value="{SETTING_VALUE}{setting.id}"
                     class={ROW}
                     onSelect={() => choose(() => revealDevelopSetting(setting))}
                   >
@@ -169,6 +190,14 @@
                     <span class="min-w-0 flex-1 truncate text-xs text-dark/65"
                       >{setting.desktopPath}</span
                     >
+                    {#if preferences.isPinned(setting.id)}
+                      <Icon
+                        icon={mdiPinOutline}
+                        size="13px"
+                        class="shrink-0 text-primary"
+                        aria-label="Pinned"
+                      />
+                    {/if}
                     <span class="shrink-0 font-mono text-[11px] text-dark/65 tabular-nums">
                       {settingValue(setting, editor.edits, editor.isRaw)}
                     </span>
@@ -240,6 +269,9 @@
         >
           <span><kbd class="font-mono">↑↓</kbd> move</span>
           <span><kbd class="font-mono">↵</kbd> open</span>
+          {#if highlighted.startsWith(SETTING_VALUE)}
+            <span><kbd class="font-mono">{keysFor('pinSetting')}</kbd> pin</span>
+          {/if}
           <span><kbd class="font-mono">esc</kbd> close</span>
         </div>
       </Command.Root>

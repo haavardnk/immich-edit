@@ -1,5 +1,6 @@
 <script lang="ts">
   import SliderRow from './SliderRow.svelte';
+  import type { Snippet } from 'svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import type { PreviewMode } from '#lib/api/preview.ts';
   import type { SliderRange } from '#lib/editor/params/types.ts';
@@ -15,7 +16,9 @@
     previewMode,
     onLive = editor.onLive,
     onLabelTap,
-    setting
+    setting,
+    menu,
+    menuTitle
   }: {
     label: string;
     commitAction: string;
@@ -28,6 +31,8 @@
     onLive?: (value: number) => void;
     onLabelTap?: () => void;
     setting?: string;
+    menu?: Snippet;
+    menuTitle?: string;
   } = $props();
 </script>
 
@@ -42,6 +47,8 @@
   {onLive}
   {onLabelTap}
   {setting}
+  {menu}
+  {menuTitle}
   onCommit={editor.onCommit}
   onPreviewStart={previewMode ? () => editor.onPreview(previewMode) : undefined}
   onPreviewEnd={previewMode ? editor.endPreview : undefined}

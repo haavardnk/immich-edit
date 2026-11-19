@@ -90,4 +90,15 @@ describe('touch editor ui', () => {
     expect(touchUi.detents).toEqual({ 'color/mix': 'expanded' });
     expect(touchUi.filmstrip).toBe(false);
   });
+
+  it('keeps Quick as a group with one view and its own detent', async () => {
+    stubStorage({ group: 'quick', detents: { 'quick/': 'expanded' } });
+    const { touchUi } = await import('./touchUi.svelte');
+    expect([touchUi.group, touchUi.view, touchUi.viewKey]).toEqual(['quick', '', 'quick/']);
+    expect(touchUi.detent).toBe('expanded');
+    touchUi.setView('tone');
+    expect(touchUi.views).toEqual({});
+    touchUi.setGroup('light');
+    expect(touchUi.detent).toBe('compact');
+  });
 });

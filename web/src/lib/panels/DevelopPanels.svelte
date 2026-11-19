@@ -11,8 +11,14 @@
   import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
   import ScopesSection from './scopes/ScopesSection.svelte';
   import TargetButton from '#lib/components/editor/controls/TargetButton.svelte';
+  import { pinnedParams } from '#lib/editor/quickSettings.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
+  import QuickPanel from './quick/QuickPanel.svelte';
 
   provideSettingFilter(settingSearch);
+
+  const pinned = $derived(pinnedParams(preferences.pins));
+  const browsing = $derived(!ui.developModifiedOnly && !settingSearch.filtering);
 
   const openPanels = $derived(openDevelopPanels(ui.developOpenPanels));
   const modifiedPanels = $derived(modifiedDevelopPanels(editor.edits));
@@ -28,11 +34,14 @@
   );
 </script>
 
-{#if !scopes.pinned && !ui.developModifiedOnly && !settingSearch.filtering}
+{#if !scopes.pinned && browsing}
   <ScopesSection
     open={openPanels.has(SCOPES_PANEL)}
     onOpenChange={(open) => setDevelopPanel(SCOPES_PANEL, open)}
   />
+{/if}
+{#if browsing && pinned.length > 0}
+  <QuickPanel params={pinned} />
 {/if}
 {#if shownPanels.length === 0}
   <div class="px-4 py-8 text-center text-xs text-dark/65">

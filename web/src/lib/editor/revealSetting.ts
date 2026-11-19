@@ -19,7 +19,7 @@ export async function revealSetting(id: string, options: RevealOptions = {}): Pr
   await tick();
   settingSearch.target = null;
   const row =
-    document.querySelector<HTMLElement>(`[data-setting="${id}"]`) ??
+    document.querySelector<HTMLElement>(`[data-setting="${id}"]:not([data-quick] *)`) ??
     (options.fallback ? document.querySelector<HTMLElement>(options.fallback) : null);
   if (!row) return;
   row.scrollIntoView({

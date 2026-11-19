@@ -244,6 +244,7 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
+  pinnedSettings?: string[] | null;
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
   metadataPushConsented?: boolean;
@@ -278,7 +279,7 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
   let preferences: Record<string, unknown> = {
-    pinned_settings: null,
+    pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
     mask_overlay_color: null,
     shortcuts: {},
     desktop_sections: null,
