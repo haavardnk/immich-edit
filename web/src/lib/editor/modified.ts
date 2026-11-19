@@ -30,13 +30,24 @@ export const DEVELOP_PANEL_OPS: OpTable<DesktopPanelId> = {
   effects: ['vignette', 'grain']
 };
 
-export const TOUCH_TOOL_OPS: OpTable<TouchGroupId> = {
-  light: ['exposure', 'brightness', 'contrast', 'tone_regions', 'curves'],
-  color: ['white_balance', 'vibrance', 'saturation', 'hsl', 'color_grade', 'bw'],
-  effects: ['texture', 'clarity', 'dehaze', 'vignette', 'grain', 'lens_blur'],
-  detail: ['capture_sharpen', 'sharpen', 'ai_denoise', 'luma_nr', 'color_nr'],
-  optics: ['lens_profile'],
-  profile: ['dcp_hue_sat', 'lut_3d']
+export const TOUCH_VIEW_OPS: Readonly<Record<TouchGroupId, OpTable<string>>> = {
+  light: { tone: ['exposure', 'brightness', 'contrast', 'tone_regions'], curve: ['curves'] },
+  color: {
+    basic: ['white_balance', 'vibrance', 'saturation'],
+    mix: ['hsl'],
+    grading: ['color_grade'],
+    bw: ['bw']
+  },
+  effects: {
+    basic: ['texture', 'clarity', 'dehaze', 'vignette', 'grain'],
+    lens_blur: ['lens_blur']
+  },
+  detail: {
+    sharpening: ['capture_sharpen', 'sharpen'],
+    noise: ['ai_denoise', 'luma_nr', 'color_nr']
+  },
+  optics: { corrections: ['lens_profile'] },
+  profile: { camera: ['dcp_hue_sat'], lut: ['lut_3d'] }
 };
 
 function activeDevelopOps(edits: Edits): Set<string> {
@@ -45,19 +56,24 @@ function activeDevelopOps(edits: Edits): Set<string> {
   return active;
 }
 
-function modifiedIds<Id extends string>(edits: Edits, table: OpTable<Id>): Set<Id> {
-  const active = activeDevelopOps(edits);
+function modifiedIds<Id extends string>(active: ReadonlySet<string>, table: OpTable<Id>): Set<Id> {
   return new Set(
     (Object.keys(table) as Id[]).filter((id) => table[id].some((op) => active.has(op)))
   );
 }
 
 export function modifiedDevelopPanels(edits: Edits): Set<DesktopPanelId> {
-  return modifiedIds(edits, DEVELOP_PANEL_OPS);
+  return modifiedIds(activeDevelopOps(edits), DEVELOP_PANEL_OPS);
 }
 
 export function modifiedTouchGroups(edits: Edits): Set<TouchGroupId> {
-  return modifiedIds(edits, TOUCH_TOOL_OPS);
+  const active = activeDevelopOps(edits);
+  const groups = Object.keys(TOUCH_VIEW_OPS) as TouchGroupId[];
+  return new Set(groups.filter((group) => modifiedIds(active, TOUCH_VIEW_OPS[group]).size > 0));
+}
+
+export function modifiedTouchViews(edits: Edits, group: TouchGroupId): Set<string> {
+  return modifiedIds(activeDevelopOps(edits), TOUCH_VIEW_OPS[group]);
 }
 
 export function modifiedTabCount(edits: Edits, tab: EditorTab): number {

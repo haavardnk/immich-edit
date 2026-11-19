@@ -109,6 +109,31 @@ test('the info panel follows the photo and stays open across loupe visits', asyn
   await expect(page.getByRole('complementary', { name: 'Info' })).toBeVisible();
 });
 
+test('the info panel slides in and out', async ({ page }) => {
+  await openLoupe(page);
+  await page.evaluate(() => {
+    const slides: number[] = [];
+    Reflect.set(window, '__infoSlides', slides);
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
+      if (this.firstElementChild?.matches('aside[aria-label="Info"]')) slides.push(1);
+      return animate.apply(this, args);
+    };
+  });
+  const slides = () =>
+    page.evaluate(() => (Reflect.get(window, '__infoSlides') as number[]).length);
+  const panel = page.getByRole('complementary', { name: 'Info' });
+
+  await page.keyboard.press('i');
+  await expect(panel).toBeVisible();
+  await expect.poll(slides).toBeGreaterThan(0);
+  const opened = await slides();
+
+  await page.keyboard.press('i');
+  await expect(panel).toBeHidden();
+  expect(await slides()).toBeGreaterThan(opened);
+});
+
 test('the photo stays when the render for the narrower stage fails', async ({ page }) => {
   await openLoupe(page);
   const photo = page.getByRole('img', { name: 'IMG_0001.ARW' });

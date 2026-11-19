@@ -8,6 +8,11 @@
   import type { SliderRange } from '#lib/editor/params/types.ts';
   import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
   import { untrack } from 'svelte';
+  import { layout } from '#lib/device/layout.svelte.ts';
+  import { gestures } from '#lib/gestures/gestures.ts';
+  import { panRecognizer } from '#lib/gestures/pan.ts';
+  import { tapRecognizer } from '#lib/gestures/tap.ts';
+  import { dragBounds, dragPosition, valueAt } from './relativeDrag';
 
   let {
     label,
@@ -22,6 +27,7 @@
     onPreviewEnd,
     onDragStart,
     onDragEnd,
+    onLabelTap,
     disabled = false,
     commitAction
   }: {
@@ -37,6 +43,7 @@
     onPreviewEnd?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    onLabelTap?: () => void;
     disabled?: boolean;
     commitAction?: string;
   } = $props();
@@ -55,6 +62,9 @@
   let draft = $state(0);
   let editStart = 0;
   let valueInput = $state<HTMLInputElement | null>(null);
+  let track = $state<HTMLDivElement | null>(null);
+  const touch = $derived(layout.mode === 'touch');
+  let relative: { position: number; centreY: number; start: number } | null = null;
 
   $effect(() => {
     if (!editing || !valueInput) return;
@@ -149,6 +159,58 @@
     }
   }
 
+  function relativeStart(): void {
+    if (!track) return;
+    const box = track.getBoundingClientRect();
+    relative = { position, centreY: box.top + box.height / 2, start: value };
+    editor.beginDrag();
+    onDragStart?.();
+  }
+
+  function relativeMove(stepX: number, y: number): void {
+    if (!relative || !track) return;
+    relative.position = dragPosition(relative.position, stepX, y - relative.centreY, {
+      ...dragBounds(range),
+      width: track.clientWidth
+    });
+    const next = valueAt(relative.position, range);
+    if (next === value) return;
+    value = next;
+    onLive(next);
+  }
+
+  function relativeEnd(): void {
+    const current = relative;
+    if (!current) return;
+    relative = null;
+    editor.endDrag();
+    onDragEnd?.();
+    if (value !== current.start) onCommit(commitAction);
+  }
+
+  const touchDrag = gestures({
+    pointerTypes: ['touch', 'pen'],
+    touchAction: 'pan-y',
+    recognizers: [
+      panRecognizer({
+        enabled: () => touch && !disabled,
+        lockAxis: true,
+        thresholds: { panSlop: 8 },
+        start: (pan) => {
+          if (pan.axis === 'x') relativeStart();
+        },
+        move: (pan) => relativeMove(pan.stepX, pan.y),
+        end: relativeEnd,
+        cancel: relativeEnd
+      }),
+      tapRecognizer({ enabled: () => touch && !disabled, doubleTap: reset })
+    ]
+  });
+
+  function onLabelClick(): void {
+    if (touch && onLabelTap) onLabelTap();
+  }
+
   function onKeyChange(e: KeyboardEvent): void {
     previewKey = keyHeld('preview', e);
     updatePreview();
@@ -167,7 +229,7 @@
 </script>
 
 <div
-  class="panel-row group h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-light-950/3 {disabled
+  class="panel-row group h-7 items-center rounded-sm px-0.5 transition-colors hover:bg-light-950/3 touch:h-11 touch:grid-cols-[6rem_minmax(0,1fr)_3.25rem] {disabled
     ? 'pointer-events-none opacity-50'
     : ''}"
 >
@@ -175,28 +237,33 @@
     variant="ghost"
     color="secondary"
     size="tiny"
-    class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark"
-    title="double click to reset"
+    class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px]"
+    title={touch ? '' : 'double click to reset'}
+    aria-label={touch && onLabelTap ? `Focus ${label}` : undefined}
+    onclick={onLabelClick}
     ondblclick={reset}
   >
     <span class="truncate">{label}</span>
   </Button>
-  <RangeSlider
-    {label}
-    min={scale ? 0 : min}
-    max={scale ? SCALE_POSITIONS : max}
-    step={scale ? 1 : step}
-    defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
-    {disabled}
-    value={position}
-    valueText={scale ? displayValue : undefined}
-    gradient={gradient ?? range.gradient}
-    title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
-    onpointerdown={onPointerDown}
-    oninput={onInput}
-    onchange={() => onCommit(commitAction)}
-    ondblclick={reset}
-  />
+  <div bind:this={track} class="flex min-w-0 items-center touch:h-11" {@attach touchDrag}>
+    <RangeSlider
+      class="w-full touch:pointer-events-none"
+      {label}
+      min={scale ? 0 : min}
+      max={scale ? SCALE_POSITIONS : max}
+      step={scale ? 1 : step}
+      defaultValue={scale ? scale.toPosition(resetValue) : resetValue}
+      {disabled}
+      value={position}
+      valueText={scale ? displayValue : undefined}
+      gradient={gradient ?? range.gradient}
+      title={supportsPreview ? `${keysFor('sliderPreviewDrag')} to preview` : undefined}
+      onpointerdown={onPointerDown}
+      oninput={onInput}
+      onchange={() => onCommit(commitAction)}
+      ondblclick={reset}
+    />
+  </div>
   {#if editing}
     <TextInput
       bind:ref={valueInput}
@@ -225,7 +292,7 @@
       size="tiny"
       variant="ghost"
       color="secondary"
-      class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums {isDefault
+      class="h-5 min-h-0 w-full justify-end rounded px-1 py-0 text-right font-mono text-[10px] tabular-nums touch:h-8 touch:text-xs {isDefault
         ? 'text-dark/65'
         : 'bg-primary/10 text-primary'}"
       aria-label="Edit {label} value"

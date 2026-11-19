@@ -5,10 +5,11 @@ import { AI_DENOISE_STRENGTH, neutralEdits, type Edits } from '#lib/types/edits.
 import { describe, expect, it } from 'vitest';
 import {
   DEVELOP_PANEL_OPS,
-  TOUCH_TOOL_OPS,
+  TOUCH_VIEW_OPS,
   modifiedDevelopPanels,
   modifiedTabCount,
-  modifiedTouchGroups
+  modifiedTouchGroups,
+  modifiedTouchViews
 } from './modified';
 
 function everyDevelopOpActive(): Edits {
@@ -69,7 +70,7 @@ describe('editor modified state', () => {
 
   it.each([
     ['desktop panels', DEVELOP_PANEL_OPS],
-    ['touch groups', TOUCH_TOOL_OPS]
+    ['touch views', Object.values(TOUCH_VIEW_OPS).flatMap((views) => Object.values(views))]
   ] as const)('assigns every develop operator to exactly one of the %s', (_name, table) => {
     const ops = Object.values<readonly string[]>(table).flat();
 
@@ -89,6 +90,22 @@ describe('editor modified state', () => {
     edits.basic.texture = 20;
 
     expect([...modifiedTouchGroups(edits)]).toEqual(['color', 'effects']);
+  });
+
+  it('lists an operator table for every touch view', () => {
+    for (const group of TOUCH_GROUPS) {
+      expect(Object.keys(TOUCH_VIEW_OPS[group.id])).toEqual(group.views.map((view) => view.id));
+    }
+  });
+
+  it('maps active operators to their touch views', () => {
+    const edits = neutralEdits();
+    edits.basic.white_balance = { mode: 'relative', temp: 10, tint: 0 };
+    edits.basic.exposure_ev = 0.5;
+
+    expect([...modifiedTouchViews(edits, 'color')]).toEqual(['basic']);
+    expect([...modifiedTouchViews(edits, 'light')]).toEqual(['tone']);
+    expect(modifiedTouchViews(edits, 'effects').size).toBe(0);
   });
 
   it('marks Lens Blur modified only while it renders', () => {

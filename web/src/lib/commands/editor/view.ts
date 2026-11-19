@@ -1,3 +1,4 @@
+import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
 import { selectedShapeNudges } from '#lib/commands/editor/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { clipWarnView, fullscreenView, infoView } from '#lib/commands/viewSpecs.ts';
@@ -22,9 +23,9 @@ export const editorInfo = {
   id: 'editor.info',
   contexts: ['editor'],
   ...infoView,
-  pressed: () => ui.metaPopover === 'exif',
-  enabled: () => !!editor.asset?.exifInfo,
-  run: () => ui.togglePopover('exif')
+  pressed: () => ui.editorInfoOpen,
+  enabled: () => !!editor.asset,
+  run: ui.toggleEditorInfo
 } satisfies Command;
 
 export const editorClipWarn = {
@@ -61,7 +62,7 @@ export const editorFullscreen = {
   id: 'editor.fullscreen',
   contexts: ['editor'],
   ...fullscreenView,
-  run: () => ui.toggleFullscreen()
+  run: toggleEditorFullscreen
 } satisfies Command;
 
 export const VIEW_COMMANDS: readonly Command[] = [

@@ -3,7 +3,7 @@
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import TagPicker from '#lib/components/TagPicker.svelte';
-  import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+  import { infoSource } from '#lib/browse/info/infoSource.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
 
   let { asset }: { asset: AssetSummary } = $props();
@@ -11,7 +11,8 @@
   let picking = $state(false);
 
   const owned = $derived(ownsAsset(asset));
-  const tags = $derived(loupeTags.tagsOf(asset.id));
+  const source = infoSource();
+  const tags = $derived(source.tagsOf(asset.id));
 </script>
 
 <InfoSection title="Tags">
@@ -22,9 +23,9 @@
       open={picking}
       onToggle={() => (picking = !picking)}
       onClose={() => (picking = false)}
-      onAdd={(tag) => loupeTags.add(asset.id, tag)}
-      onRemove={(tagId) => loupeTags.remove(asset.id, tagId)}
-      onCreate={(value) => loupeTags.createAndAdd(asset.id, value)}
+      onAdd={(tag) => void source.addTag(asset.id, tag)}
+      onRemove={(tagId) => void source.removeTag(asset.id, tagId)}
+      onCreate={(value) => source.createTag(asset.id, value)}
       anchor="bottom"
       align="end"
       addLabel="Add"

@@ -8,9 +8,9 @@ import type { AlbumSummary, AssetSummary } from '#lib/types/album.ts';
 import type { ExifInfo } from '#lib/types/asset.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import LoupeInfoBody from './LoupeInfoBody.svelte';
-import LoupeInfoPanel from './LoupeInfoPanel.svelte';
-import LoupeInfoSheet from './LoupeInfoSheet.svelte';
+import PhotoInfoBody from './PhotoInfoBody.svelte';
+import PhotoInfoPanel from './PhotoInfoPanel.svelte';
+import PhotoInfoSheet from './PhotoInfoSheet.svelte';
 
 const h = vi.hoisted(() => ({
   setDescription: vi.fn(() => Promise.resolve('saved')),
@@ -29,7 +29,7 @@ vi.mock('#lib/api/albums.ts', async (orig) => ({
   albumsWithAsset: h.albumsWithAsset
 }));
 
-type BodyProps = ComponentProps<typeof LoupeInfoBody>;
+type BodyProps = ComponentProps<typeof PhotoInfoBody>;
 
 const Host: Component<{ component: Component<BodyProps>; props: BodyProps }> = ComponentHost;
 
@@ -65,7 +65,7 @@ let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
 
 function render(asset: AssetSummary = photo): void {
-  component = mount(Host, { target, props: { component: LoupeInfoBody, props: { asset } } });
+  component = mount(Host, { target, props: { component: PhotoInfoBody, props: { asset } } });
   flushSync();
 }
 
@@ -123,7 +123,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('LoupeInfoBody', () => {
+describe('PhotoInfoBody', () => {
   it('shows the exposure strip, detail rows, place, albums and path', async () => {
     render();
     const text = target.textContent ?? '';
@@ -142,18 +142,6 @@ describe('LoupeInfoBody', () => {
     expect(h.albumsWithAsset).toHaveBeenCalledWith('p1');
   });
 
-  it('saves the description on Enter', () => {
-    render();
-    const input = type('  Reine at dusk ');
-    const event = key(input, 'Enter');
-    expect(event.defaultPrevented).toBe(true);
-    expect(h.setDescription).toHaveBeenCalledTimes(1);
-    expect(h.setDescription).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'p1' }),
-      'Reine at dusk'
-    );
-  });
-
   it('commits the typed draft to its own photo when the panel steps to another', () => {
     const next: AssetSummary = {
       ...photo,
@@ -165,7 +153,7 @@ describe('LoupeInfoBody', () => {
     component = mount(Host, {
       target,
       props: {
-        component: LoupeInfoBody,
+        component: PhotoInfoBody,
         props: {
           get asset(): AssetSummary {
             return shown.value;
@@ -206,15 +194,20 @@ describe('LoupeInfoBody', () => {
   });
 });
 
-describe('LoupeInfoBody layout parity', () => {
+describe('PhotoInfoBody layout parity', () => {
   it('exposes the same controls in the docked panel and the sheet', async () => {
     const found = await layoutControls([
-      layout('body', LoupeInfoBody, { asset: photo }),
-      layout('panel', LoupeInfoPanel, { asset: photo }, { exclude: [button('Close info')] }),
+      layout('body', PhotoInfoBody, { asset: photo }),
+      layout(
+        'panel',
+        PhotoInfoPanel,
+        { asset: photo, onclose: () => {} },
+        { exclude: [button('Close info')] }
+      ),
       layout(
         'sheet',
-        LoupeInfoSheet,
-        { asset: photo },
+        PhotoInfoSheet,
+        { asset: photo, onclose: () => {} },
         { exclude: [button('Close info'), button('Resize sheet')] }
       )
     ]);

@@ -36,14 +36,6 @@
   );
 
   $effect(() => {
-    if (ui.editorTab !== 'masks') {
-      editor.setActiveLayer(null);
-      editor.setActiveMaskComponent(null);
-    }
-    if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
-  });
-
-  $effect(() => {
     scopes.setPanelOpen(scopesOpen);
   });
 </script>

@@ -49,6 +49,8 @@ class RendererStore {
   private starting: Promise<ClientRenderer | null> | null = null;
   private failure: string | null = null;
   private edge = 0;
+  private backgrounded = false;
+  private recreated = false;
 
   constructor() {
     const stored = readStored<Stored>(STORAGE_KEY);
@@ -57,6 +59,11 @@ class RendererStore {
     this.browserMs = storedMs(stored?.browserMs);
     this.serverMs = storedMs(stored?.serverMs);
     this.refresh();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') this.backgrounded = true;
+      });
+    }
   }
 
   get current(): ClientRenderer | null {
@@ -92,11 +99,15 @@ class RendererStore {
     this.refresh();
   }
 
-  fail(err: unknown): void {
+  fail(err: unknown): boolean {
     reportClientError('render_worker', err);
     this.release();
-    this.failure = `browser failed: ${errorMessage(err)}`;
+    const recreate = this.backgrounded && !this.recreated;
+    this.backgrounded = false;
+    if (recreate) this.recreated = true;
+    else this.failure = `browser failed: ${errorMessage(err)}`;
     this.refresh();
+    return recreate;
   }
 
   recordRender(sample: TickSample): void {

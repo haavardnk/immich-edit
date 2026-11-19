@@ -7,6 +7,7 @@
   import { imageRect } from '#lib/utils/imageRect.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { clampedPoint } from '#lib/gestures/point.ts';
+  import TouchMagnifier, { MAGNIFIER_LIFT, MAGNIFIER_SIZE } from './TouchMagnifier.svelte';
 
   type Spot = { u: number; v: number; x: number; y: number; id: number };
 
@@ -27,9 +28,13 @@
   );
   let start = $state<Spot | null>(null);
   let pointer = $state<Spot | null>(null);
+  let touching = $state(false);
 
   const dragging = $derived(
-    !!start && !!pointer && Math.hypot(pointer.x - start.x, pointer.y - start.y) >= MIN_DRAG_PX
+    !touching &&
+      !!start &&
+      !!pointer &&
+      Math.hypot(pointer.x - start.x, pointer.y - start.y) >= MIN_DRAG_PX
   );
   const sample = $derived<WhiteBalanceSample | null>(
     start && dragging && pointer
@@ -40,9 +45,11 @@
   );
   const reading = $derived(probe.reading);
   const cardShift = $derived(
-    pointer
-      ? `${pointer.u > 0.7 ? 'calc(-100% - 16px)' : '16px'}, ${pointer.v > 0.8 ? 'calc(-100% - 16px)' : '16px'}`
-      : ''
+    !pointer
+      ? ''
+      : touching
+        ? `-50%, calc(-100% - ${MAGNIFIER_LIFT + MAGNIFIER_SIZE + 8}px)`
+        : `${pointer.u > 0.7 ? 'calc(-100% - 16px)' : '16px'}, ${pointer.v > 0.8 ? 'calc(-100% - 16px)' : '16px'}`
   );
 
   $effect(() => {
@@ -81,6 +88,7 @@
       e.preventDefault();
       e.stopPropagation();
       if (editor.wbBusy || start || e.button !== 0) return null;
+      touching = e.pointerType === 'touch';
       start = spotAt(e);
       pointer = start;
       return true;
@@ -90,8 +98,10 @@
     end(e) {
       if (!start) return;
       e.stopPropagation();
-      const picked = dragging && pointer ? boxSample(start, pointer) : boxSample(start, start);
+      const at = touching && pointer ? pointer : start;
+      const picked = dragging && pointer ? boxSample(start, pointer) : boxSample(at, at);
       start = null;
+      if (touching) pointer = null;
       void editor.pickWhiteBalance(picked);
     },
     cancel() {
@@ -125,6 +135,9 @@
         style="left: {sample.u * 100}%; top: {sample.v * 100}%; width: {sample.w *
           100}%; height: {sample.h * 100}%;"
       ></span>
+    {/if}
+    {#if touching && pointer && img}
+      <TouchMagnifier source={img} u={pointer.u} v={pointer.v} width={rect.w} />
     {/if}
     {#if pointer}
       <span

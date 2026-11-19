@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { numberedAssets } from './helpers';
+import { ASSET_ID, numberedAssets } from './helpers';
 import { openTileLoupe } from './touch';
 import { open } from './touchShell';
 
@@ -61,6 +61,18 @@ test.describe(
         }
       );
     }
+
+    test('the editor toolbar backs the top edge with the editor chrome', async ({ page }) => {
+      await open(page, `/assets/${ASSET_ID}`);
+      const toolbar = page.getByRole('navigation', { name: 'Editor toolbar' });
+      await expect(toolbar).toBeVisible();
+      expect(await topEdge(page)).toEqual({
+        position: 'sticky',
+        top: 0,
+        background: await background(toolbar),
+        colours: 1
+      });
+    });
 
     test('the loupe bars keep the app chrome colour and back the top edge', async ({ page }) => {
       await open(page, '/photos', { assets: ASSETS });
