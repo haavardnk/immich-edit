@@ -1000,6 +1000,13 @@ export const KEYBINDS = [
     label: 'Clone mode'
   },
   {
+    id: 'retouchVisualize',
+    keys: ['v'],
+    contexts: ['retouch'],
+    group: 'Retouch',
+    label: 'Visualize spots'
+  },
+  {
     id: 'retouchDelete',
     keys: ['Backspace', 'Delete'],
     contexts: ['retouch'],

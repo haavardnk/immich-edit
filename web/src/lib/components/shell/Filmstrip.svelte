@@ -12,12 +12,14 @@
   import { editorHref } from '#lib/editor/navigation.ts';
   import BottomPanelResizeHandle from './BottomPanelResizeHandle.svelte';
   import ContextMenu from '#lib/components/ContextMenu.svelte';
+  import ElementTooltip from '#lib/components/ElementTooltip.svelte';
   import RatingBadge from '#lib/components/browse/RatingBadge.svelte';
   import type { Snippet } from 'svelte';
   import { Icon } from '@immich/ui';
   import { mergeProps } from 'bits-ui';
   import { mdiCircle, mdiCloseCircle, mdiHeart } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
+  import { scrollSideways } from '#lib/input/sidewaysWheel.ts';
 
   let {
     currentId: currentIdProp = null,
@@ -80,12 +82,6 @@
     scrollLeft = scrollContainer.scrollLeft;
   }
 
-  function onWheel(e: WheelEvent): void {
-    if (!scrollContainer || e.deltaX !== 0 || e.deltaY === 0 || held('zoom', e)) return;
-    e.preventDefault();
-    scrollContainer.scrollLeft += e.deltaY;
-  }
-
   let revealed: { id: string; container: HTMLDivElement } | null = null;
 
   $effect(() => {
@@ -110,11 +106,11 @@
     <div
       class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-0.5 text-white drop-shadow-md"
     >
-      {#if favorite}<Icon icon={mdiHeart} size="13px" aria-hidden="true" />{/if}
-      {#if rejected}<Icon icon={mdiCloseCircle} size="13px" aria-hidden="true" />{/if}
+      {#if favorite}<Icon icon={mdiHeart} size="14px" aria-hidden="true" />{/if}
+      {#if rejected}<Icon icon={mdiCloseCircle} size="14px" aria-hidden="true" />{/if}
       {#if label}
         <div role="img" aria-label="{LABEL_NAMES[label]} label" class={LABEL_TEXT[label]}>
-          <Icon icon={mdiCircle} size="11px" aria-hidden="true" />
+          <Icon icon={mdiCircle} size="12px" aria-hidden="true" />
         </div>
       {/if}
     </div>
@@ -146,7 +142,7 @@
           bind:this={scrollContainer}
           use:observeSize={measure}
           onscroll={measure}
-          onwheel={onWheel}
+          onwheel={scrollSideways}
         >
           <div class="relative" style:width="{layout.width}px" style:height="{thumbnailHeight}px">
             <div class="absolute top-0 flex gap-1" style:left="{view.offsetX}px">
@@ -160,82 +156,89 @@
                 {#if onSelect}
                   <ContextMenu disabled={!menu}>
                     {#snippet trigger(props)}
-                      <button
-                        {...mergeProps(props, {
-                          onclick: (e: MouseEvent) =>
-                            onSelect(asset.id, held('extend', e) || held('toggle', e))
-                        })}
-                        type="button"
-                        aria-pressed={isCurrent || isMember}
-                        class="group relative flex-none overflow-hidden rounded-sm border-2 bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
-                          ? 'border-primary ring-2 ring-primary/60'
-                          : isMember
-                            ? 'border-primary/75 ring-1 ring-primary/40'
-                            : 'border-transparent hover:border-light-950/25'}"
+                      <ElementTooltip text={asset.originalFileName}>
+                        {#snippet child({ props: tip })}
+                          <button
+                            {...mergeProps(tip, props, {
+                              onclick: (e: MouseEvent) =>
+                                onSelect(asset.id, held('extend', e) || held('toggle', e))
+                            })}
+                            type="button"
+                            aria-pressed={isCurrent || isMember}
+                            class="group relative flex-none overflow-hidden rounded-sm border-2 bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                              ? 'border-primary ring-2 ring-primary/60'
+                              : isMember
+                                ? 'border-primary/75 ring-1 ring-primary/40'
+                                : 'border-transparent hover:border-light-950/25'}"
+                            style:width="{box.width}px"
+                            style:height="{thumbnailHeight}px"
+                            aria-label={asset.originalFileName}
+                          >
+                            <img
+                              src={assetThumbUrl(asset)}
+                              alt=""
+                              loading="lazy"
+                              class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent ||
+                              isMember
+                                ? 'opacity-100'
+                                : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
+                              style:background-image={assetPlaceholder(asset)}
+                              class:grayscale={rejected}
+                            />
+                            {#if paneNumber > 0}
+                              <span
+                                class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-micro leading-4 font-semibold shadow-sm {isCurrent
+                                  ? 'border-primary bg-primary text-light-50'
+                                  : 'border-primary/70 bg-light-50/90 text-primary'}"
+                              >
+                                {paneNumber}
+                              </span>
+                            {/if}
+                            {@render badges(
+                              showBadges && asset.isFavorite,
+                              showBadges && rejected,
+                              labelOf(asset)
+                            )}
+                            {@render stars(showBadges ? rating : 0)}
+                          </button>
+                        {/snippet}
+                      </ElementTooltip>
+                    {/snippet}
+                    {@render menu?.(asset.id)}
+                  </ContextMenu>
+                {:else}
+                  <ElementTooltip text={asset.originalFileName}>
+                    {#snippet child({ props: tip })}
+                      <a
+                        {...tip}
+                        href={editorHref(asset.id, page.url.searchParams.get('from'))}
+                        aria-label={asset.originalFileName}
+                        aria-current={isCurrent ? 'page' : undefined}
+                        class="group relative flex-none overflow-hidden rounded-sm border bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
+                          ? 'border-primary ring-1 ring-primary/40'
+                          : 'border-hairline hover:border-light-950/25'}"
                         style:width="{box.width}px"
                         style:height="{thumbnailHeight}px"
-                        title={asset.originalFileName}
-                        aria-label={asset.originalFileName}
                       >
                         <img
                           src={assetThumbUrl(asset)}
                           alt=""
                           loading="lazy"
-                          class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent ||
-                          isMember
+                          class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent
                             ? 'opacity-100'
-                            : 'opacity-55 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
+                            : 'opacity-65 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
                           style:background-image={assetPlaceholder(asset)}
                           class:grayscale={rejected}
                         />
-                        {#if paneNumber > 0}
-                          <span
-                            class="pointer-events-none absolute top-1 left-1 min-w-5 rounded border px-1 text-center text-[10px] leading-4 font-semibold shadow-sm {isCurrent
-                              ? 'border-primary bg-primary text-light-50'
-                              : 'border-primary/70 bg-light-50/90 text-primary'}"
-                          >
-                            {paneNumber}
-                          </span>
-                        {/if}
                         {@render badges(
                           showBadges && asset.isFavorite,
                           showBadges && rejected,
                           labelOf(asset)
                         )}
                         {@render stars(showBadges ? rating : 0)}
-                      </button>
+                      </a>
                     {/snippet}
-                    {@render menu?.(asset.id)}
-                  </ContextMenu>
-                {:else}
-                  <a
-                    href={editorHref(asset.id, page.url.searchParams.get('from'))}
-                    aria-label={asset.originalFileName}
-                    aria-current={isCurrent ? 'page' : undefined}
-                    class="group relative flex-none overflow-hidden rounded-sm border bg-light-100 outline-none transition-[opacity,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-primary {isCurrent
-                      ? 'border-primary ring-1 ring-primary/40'
-                      : 'border-hairline hover:border-light-950/25'}"
-                    style:width="{box.width}px"
-                    style:height="{thumbnailHeight}px"
-                    title={asset.originalFileName}
-                  >
-                    <img
-                      src={assetThumbUrl(asset)}
-                      alt=""
-                      loading="lazy"
-                      class="w-full h-full bg-cover bg-center object-cover transition-[opacity,filter] {isCurrent
-                        ? 'opacity-100'
-                        : 'opacity-65 saturate-75 group-hover:opacity-95 group-hover:saturate-100'}"
-                      style:background-image={assetPlaceholder(asset)}
-                      class:grayscale={rejected}
-                    />
-                    {@render badges(
-                      showBadges && asset.isFavorite,
-                      showBadges && rejected,
-                      labelOf(asset)
-                    )}
-                    {@render stars(showBadges ? rating : 0)}
-                  </a>
+                  </ElementTooltip>
                 {/if}
               {/each}
             </div>

@@ -4,11 +4,11 @@ import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { warmNeighbours } from '#lib/editor/neighbours.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
-import { ui } from '#lib/stores/ui.svelte.ts';
 import { returnPath } from '#lib/utils/route.ts';
 import { publishToViewer } from '#lib/viewer/publish.svelte.ts';
 import { onDestroy, onMount, untrack } from 'svelte';
 import { on } from 'svelte/events';
+import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
 
 function guardPendingSave(event: BeforeUnloadEvent): void {
   if (!editor.saving) return;
@@ -46,11 +46,11 @@ export function runEditorRoute(id: () => string): void {
   });
 
   $effect(() => {
-    if (ui.editorTab !== 'masks') {
+    if (!toolOpen('masks')) {
       editor.setActiveLayer(null);
       editor.setActiveMaskComponent(null);
     }
-    if (ui.editorTab !== 'retouch') editor.activeRetouchId = null;
+    if (!toolOpen('retouch')) editor.activeRetouchId = null;
   });
 
   $effect(() => on(window, 'beforeunload', guardPendingSave));
