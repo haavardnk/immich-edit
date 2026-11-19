@@ -21,6 +21,7 @@ export interface AlbumDetail {
 export interface AssetSummary {
   id: string;
   originalFileName: string;
+  originalPath?: string;
   type: AssetType;
   ownerId?: string;
   localDateTime?: string | null;

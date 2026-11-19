@@ -38,7 +38,10 @@ function exifTaken(dateTimeOriginal: string): ExifInfo {
     dateTimeOriginal,
     timeZone: null,
     rating: null,
-    fileSizeInByte: null
+    fileSizeInByte: null,
+    description: null,
+    latitude: null,
+    longitude: null
   };
 }
 

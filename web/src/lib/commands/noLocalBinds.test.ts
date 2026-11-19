@@ -12,7 +12,21 @@ const CHORD_CHECKS = [
   '/src/lib/components/editor/ClickCanvas.svelte',
   '/src/lib/components/editor/MaskOverlay.svelte',
   '/src/lib/components/editor/MaskPolygonDraft.svelte',
-  '/src/lib/components/shell/KeybindsHelp.svelte'
+  '/src/lib/components/shell/KeybindsHelp.svelte',
+  '/src/lib/components/tags/TagPickerBody.svelte'
+];
+
+const WINDOW_KEY_LISTENERS = [
+  '/src/lib/components/browse/GridTiles.svelte',
+  '/src/lib/components/editor/ClickCanvas.svelte',
+  '/src/lib/components/editor/MaskOverlay.svelte',
+  '/src/lib/components/editor/MaskPolygonDraft.svelte',
+  '/src/lib/components/editor/WhiteBalancePicker.svelte',
+  '/src/lib/components/editor/controls/SliderRow.svelte',
+  '/src/lib/components/shell/KeybindsHelp.svelte',
+  '/src/lib/device/layout.svelte.ts',
+  '/src/lib/stores/overlays.ts',
+  '/src/lib/utils/pointerFocus.ts'
 ];
 
 function dispatchesBinds(source: string): boolean {
@@ -47,6 +61,10 @@ describe('shortcut dispatch', () => {
 
   it('checks single chords only in the overlays that own them', () => {
     expect(offenders(checksChords)).toEqual(CHORD_CHECKS);
+  });
+
+  it('listens for keys on the window only where the registry cannot', () => {
+    expect(offenders(listensForKeys)).toEqual(WINDOW_KEY_LISTENERS);
   });
 
   it.each([

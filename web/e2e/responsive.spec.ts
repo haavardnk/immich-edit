@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, makePng } from './helpers';
 
 const SIZES = [
@@ -23,6 +23,54 @@ async function sidewaysScrollers(page: Page): Promise<string[]> {
       out.push(`${el.tagName.toLowerCase()}.${el.className || '(no class)'}`);
     }
     return out;
+  });
+}
+
+async function brokenControls(bar: Locator): Promise<string[]> {
+  return bar.evaluate((nav) => {
+    const controls = Array.from(nav.querySelectorAll<HTMLElement>('button, [role="status"]'));
+    const name = (control: HTMLElement): string =>
+      control.getAttribute('aria-label') ?? control.textContent?.trim() ?? '';
+    const boxes = controls.map((control) => control.getBoundingClientRect());
+    const out: string[] = [];
+    controls.forEach((control, index) => {
+      const box = boxes[index];
+      if (!box) return;
+      for (
+        let node = control.parentElement;
+        node && nav.contains(node);
+        node = node.parentElement
+      ) {
+        if (getComputedStyle(node).overflowX === 'visible') continue;
+        const frame = node.getBoundingClientRect();
+        if (box.left < frame.left - 0.5 || box.right > frame.right + 0.5) {
+          out.push(`${name(control)} clipped`);
+          break;
+        }
+      }
+      boxes.slice(index + 1).forEach((other, offset) => {
+        const across = Math.min(box.right, other.right) - Math.max(box.left, other.left);
+        const down = Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top);
+        if (across > 0.5 && down > 0.5) {
+          out.push(`${name(control)} overlaps ${name(controls[index + offset + 1] ?? control)}`);
+        }
+      });
+    });
+    return out;
+  });
+}
+
+for (const width of [768, 800, 900, 1000, 1024, 1280]) {
+  test(`the editor bottom bar keeps every control whole at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installMocks(page);
+
+    await gotoAsset(page);
+
+    const bar = page.getByRole('navigation', { name: 'Editor status and view controls' });
+    await expect(bar.getByRole('button', { name: /^Tags/ })).toBeInViewport({ ratio: 1 });
+    await expect(bar.getByRole('button', { name: 'Hide filmstrip' })).toBeInViewport({ ratio: 1 });
+    expect(await brokenControls(bar)).toEqual([]);
   });
 }
 

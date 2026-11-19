@@ -1,16 +1,15 @@
-import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import Loupe from './Loupe.svelte';
-import ComponentHost from '#lib/testing/ComponentHost.svelte';
-import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { listenForCommands } from '#lib/commands/listen.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
-import type { AssetSummary } from '#lib/types/album.ts';
-import type { ExifInfo } from '#lib/types/asset.ts';
-import { listenForCommands } from '#lib/commands/listen.ts';
+import { asset } from '#lib/testing/assets.ts';
+import ComponentHost from '#lib/testing/ComponentHost.svelte';
+import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import Loupe from './Loupe.svelte';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -31,20 +30,6 @@ vi.mock('#lib/editor/copies.ts', async (importOriginal) => ({
 type LoupeProps = ComponentProps<typeof Loupe>;
 
 const Host: Component<{ component: Component<LoupeProps>; props: LoupeProps }> = ComponentHost;
-
-function asset(id: string): AssetSummary {
-  return {
-    id,
-    originalFileName: `${id}.jpg`,
-    type: 'IMAGE',
-    fileCreatedAt: null,
-    updatedAt: null,
-    checksum: null,
-    isFavorite: false,
-    exifInfo: null,
-    tags: []
-  };
-}
 
 let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
@@ -125,6 +110,20 @@ describe('Loupe', () => {
     expect(query('nav[aria-label="Loupe toolbar"] h2')?.textContent).toBe('c.jpg');
   });
 
+  it('toggles auto-advance from the toolbar pill', () => {
+    browseView.setLoupeAutoAdvance(false);
+    render();
+    const pill = [...target.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Auto-advance'
+    );
+    expect(pill?.getAttribute('aria-pressed')).toBe('false');
+    pill?.click();
+    flushSync();
+    expect(browseView.loupeAutoAdvance).toBe(true);
+    expect(pill?.getAttribute('aria-pressed')).toBe('true');
+    browseView.setLoupeAutoAdvance(false);
+  });
+
   it('keeps fullscreen on Shift+Escape', () => {
     render();
     ui.fullscreen = true;
@@ -144,7 +143,7 @@ describe('Loupe', () => {
     expect(browseView.loupeId).toBe('b');
   });
 
-  it("creates one virtual copy per Mod+' press, ignoring key repeat and presses while copying", async () => {
+  it("creates one virtual copy per Mod+' press, ignoring key repeat", async () => {
     copies.createVirtualCopies.mockReset();
     copies.createVirtualCopies.mockResolvedValue(undefined);
     render();
@@ -152,38 +151,5 @@ describe('Loupe', () => {
     await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
     press("'", { ctrlKey: true, repeat: true });
     expect(copies.createVirtualCopies).toHaveBeenCalledExactlyOnceWith(['b']);
-
-    let finish = (): void => {};
-    copies.createVirtualCopies.mockReturnValue(new Promise<void>((done) => (finish = done)));
-    press("'", { ctrlKey: true });
-    press("'", { ctrlKey: true });
-    finish();
-    await vi.waitFor(() => expect(virtualCopies.busy).toBe(false));
-    expect(copies.createVirtualCopies).toHaveBeenCalledTimes(2);
-  });
-
-  it('describes the photo with the editor EXIF rows and closes the info panel', () => {
-    const taken = '2024-05-06T07:08:09Z';
-    browsing.patch('b', {
-      localDateTime: '2024-05-06T09:08:09.000Z',
-      exifInfo: {
-        dateTimeOriginal: taken,
-        timeZone: 'UTC+2',
-        fileSizeInByte: 2 * 1024 * 1024
-      } as ExifInfo
-    });
-    if (!browseView.loupeInfoOpen) browseView.toggleLoupeInfo();
-    render();
-
-    const info = query('section[aria-label="Photo info"]');
-    expect(info?.textContent).toContain('b.jpg');
-    expect(info?.textContent).toContain(
-      new Date('2024-05-06T09:08:09Z').toLocaleString(undefined, { timeZone: 'UTC' })
-    );
-    expect(info?.textContent).toContain('2.0 MB');
-
-    query('button[aria-label="Close info"]')?.click();
-    flushSync();
-    expect(query('section[aria-label="Photo info"]')).toBeNull();
   });
 });

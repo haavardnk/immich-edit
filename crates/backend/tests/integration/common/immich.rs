@@ -236,6 +236,7 @@ pub async fn mock_asset_detail(server: &MockServer) {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": asset_id(),
             "originalFileName": "DSC0001.ARW",
+            "originalPath": "/library/2026/01/DSC0001.ARW",
             "type": "IMAGE",
             "ownerId": super::test_user_id(),
             "originalMimeType": "image/x-sony-arw",

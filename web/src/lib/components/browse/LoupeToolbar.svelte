@@ -1,10 +1,12 @@
 <script lang="ts">
   import Popover from '#lib/components/Popover.svelte';
+  import AutoAdvancePill from '#lib/components/browse/AutoAdvancePill.svelte';
   import CommandList from '#lib/components/CommandList.svelte';
   import CommandIconButton from '#lib/components/CommandIconButton.svelte';
   import { commandLabel } from '#lib/commands/command.ts';
   import { loupeClose } from '#lib/commands/loupe/dismiss.ts';
   import { loupeOpenEditor, loupeSingle } from '#lib/commands/loupe/navigation.ts';
+  import { loupeInfo } from '#lib/commands/loupe/view.ts';
   import { LOUPE_MORE_MENU, LOUPE_VIEW_MODE_MENU } from '#lib/commands/menus.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiContentDuplicate, mdiDotsVertical } from '@mdi/js';
@@ -28,7 +30,7 @@
 
 <nav
   aria-label="Loupe toolbar"
-  class="relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2"
+  class="@container relative z-40 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-hairline bg-editor-chrome px-2"
 >
   <div class="flex min-w-0 items-center gap-2 overflow-hidden">
     <CommandIconButton
@@ -54,6 +56,7 @@
   </div>
 
   <div class="flex min-w-0 items-center justify-end gap-0.5">
+    <AutoAdvancePill class="me-1.5" />
     <Popover
       open={viewModeOpen}
       anchor="bottom"
@@ -80,6 +83,7 @@
       </div>
     </Popover>
     <CommandIconButton command={loupeOpenEditor} size="small" variant="ghost" />
+    <CommandIconButton command={loupeInfo} size="small" variant="ghost" />
     <Popover
       open={moreOpen}
       anchor="bottom"

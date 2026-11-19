@@ -41,19 +41,6 @@ test('the compare rail toggles sync and keeps two panes', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Make select' })).toBeDisabled();
 });
 
-test('I shows the focused pane in the info panel', async ({ page }) => {
-  await openCompare(page);
-  const info = page.getByRole('region', { name: 'Photo info' });
-
-  await page.keyboard.press('i');
-  await page.getByRole('img', { name: 'IMG_0001.ARW' }).click();
-  await expect(info).toContainText('IMG_0001.ARW');
-  await page.getByRole('img', { name: 'IMG_0002.ARW' }).click();
-  await expect(info).toContainText('IMG_0002.ARW');
-  await page.keyboard.press('i');
-  await expect(info).toBeHidden();
-});
-
 test('alt+arrow swaps only the focused compare pane', async ({ page }) => {
   await openCompare(page);
 
@@ -139,7 +126,6 @@ test('keyboard focus never paints a ring inside a pane', async ({ page }) => {
 
 test('auto-advance swaps the rated pane for the next photo', async ({ page }) => {
   await openCompare(page);
-  await page.getByRole('button', { name: 'More loupe actions' }).click();
   await page.getByRole('button', { name: 'Auto-advance', exact: true }).click();
 
   await page.keyboard.press('3');

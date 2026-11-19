@@ -8,6 +8,7 @@ import {
   type MetaTarget
 } from '#lib/browse/assetMeta.ts';
 import { toTagRef } from '#lib/browse/managedTags.ts';
+import { tagCache } from '#lib/stores/tagCache.svelte.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 
 export function addTag(target: MetaTarget, tag: TagRef): Promise<MetaOutcome> {
@@ -52,7 +53,9 @@ function tagChange(
     from: tags.some((t) => t.id === tagId),
     to: on,
     fields: (asset, value) => ({ tags: withTag(asset.tags, tagId, value ? tag : null) }),
-    write: () => (on ? addTagToAsset(tagId, assetId) : removeTagFromAsset(tagId, assetId))
+    write: () => (on ? addTagToAsset(tagId, assetId) : removeTagFromAsset(tagId, assetId)),
+    mirror: (value) =>
+      tagCache.update(assetId, (cached) => withTag(cached, tagId, value ? tag : null))
   };
 }
 

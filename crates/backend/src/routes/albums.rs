@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -18,14 +18,26 @@ pub struct AlbumAssetsBody {
 }
 
 #[derive(Deserialize)]
+pub struct AlbumListQuery {
+    #[serde(rename = "assetId")]
+    asset_id: Option<AssetKey>,
+}
+
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateAlbumBody {
     #[serde(rename = "albumName")]
     album_name: String,
 }
 
-pub async fn list(ctx: AuthCtx) -> Result<Json<Vec<AlbumSummary>>, AppError> {
-    let albums = ctx.immich.list_albums().await?;
+pub async fn list(
+    ctx: AuthCtx,
+    Query(query): Query<AlbumListQuery>,
+) -> Result<Json<Vec<AlbumSummary>>, AppError> {
+    let albums = match query.asset_id {
+        Some(asset) => ctx.immich.albums_with_asset(asset.source()).await?,
+        None => ctx.immich.list_albums().await?,
+    };
     Ok(Json(albums))
 }
 

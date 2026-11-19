@@ -6,10 +6,12 @@ import {
   rateFocused,
   rateFocusedAndAdvance,
   rejectFocused,
+  tagFocusedRecent,
   trashFocused,
   unflagFocused
 } from '#lib/browse/loupeActions.ts';
 import { nextRatingFromKey, ratingFromCode } from '#lib/browse/ratingShortcuts.ts';
+import { recentTagSlot } from '#lib/browse/recentTags.ts';
 import { trashLabelFor } from '#lib/browse/trash.ts';
 import { loupeCommand, VIEWING } from '#lib/commands/loupe/context.ts';
 import type { Command, CommandTrigger } from '#lib/commands/types.ts';
@@ -28,6 +30,11 @@ function nextRating(trigger: CommandTrigger): number | null | undefined {
 
 function advanceRating(trigger: CommandTrigger): number | null | undefined {
   return loupeFocusedId() ? ratingFromCode(trigger.code) : undefined;
+}
+
+function tagRecent(trigger?: CommandTrigger): void {
+  const slot = trigger ? recentTagSlot(trigger.code) : null;
+  if (slot !== null) tagFocusedRecent(slot);
 }
 
 function keyed<T>(
@@ -75,5 +82,11 @@ export const LOUPE_CULLING_COMMANDS: readonly Command[] = [
     contexts: VIEWING,
     bind: 'rateAdvance',
     ...keyed(advanceRating, rateFocusedAndAdvance)
+  }),
+  loupeCommand({
+    id: 'loupe.recentTag',
+    contexts: VIEWING,
+    bind: 'recentTag',
+    run: tagRecent
   })
 ];

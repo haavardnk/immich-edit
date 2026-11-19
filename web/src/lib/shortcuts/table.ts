@@ -268,6 +268,23 @@ export const KEYBINDS = [
     label: 'Toggle the tags panel'
   },
   {
+    id: 'recentTag',
+    keys: [
+      'Alt+Digit1',
+      'Alt+Digit2',
+      'Alt+Digit3',
+      'Alt+Digit4',
+      'Alt+Digit5',
+      'Alt+Digit6',
+      'Alt+Digit7',
+      'Alt+Digit8'
+    ],
+    contexts: ['loupe', 'compare', 'survey'],
+    group: 'Loupe',
+    label: 'Add one of the eight recent tags',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} 1 – 8`
+  },
+  {
     id: 'clipWarn',
     keys: ['j'],
     contexts: ['loupe', 'compare', 'survey', 'editor'],
