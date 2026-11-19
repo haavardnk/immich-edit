@@ -106,7 +106,7 @@ describe('editor layout persistence', () => {
 
   it.each([
     ['golden', 'spiral'],
-    ['triangle', 'grid'],
+    ['triangle', 'triangle'],
     ['off', 'thirds'],
     ['bogus', 'golden']
   ])('restores crop guide %s and cycles to %s', async (stored, next) => {
@@ -122,6 +122,29 @@ describe('editor layout persistence', () => {
     expect(ui.cropGrid).toBe(next);
     expect(JSON.parse(values.get(storageKey) ?? '').cropGrid).toBe(next);
   });
+
+  it.each([
+    ['spiral', 0, 'spiral', 1, 'Golden spiral, mirrored', 'Spiral ↔'],
+    ['spiral', 1, 'diagonal', 1, 'Diagonals', 'Diagonals'],
+    ['spiral', 6, 'spiral', 7, 'Golden spiral, mirrored', 'Spiral ↔'],
+    ['diagonal', 5, 'triangle', 4, 'Golden triangle', 'Triangle'],
+    ['triangle', 3, 'grid', 3, 'Grid', 'Grid']
+  ])(
+    'cycles guide %s at turn %s to %s at turn %s',
+    async (grid, turn, nextGrid, nextTurn, label, short) => {
+      vi.stubGlobal('localStorage', {
+        getItem: (key: string) =>
+          key === storageKey ? JSON.stringify({ cropGrid: grid, cropGuideTurn: turn }) : null,
+        setItem: () => {}
+      });
+      const { ui, cropGuideLabel } = await import('./ui.svelte');
+      ui.cycleCropGrid();
+
+      expect([ui.cropGrid, ui.cropGuideTurn]).toEqual([nextGrid, nextTurn]);
+      expect(cropGuideLabel(ui.cropGrid, ui.cropGuideTurn)).toBe(label);
+      expect(cropGuideLabel(ui.cropGrid, ui.cropGuideTurn, 'short')).toBe(short);
+    }
+  );
 
   it('restores brush and retouch tools inside their ranges', async () => {
     const values = new Map<string, string>();

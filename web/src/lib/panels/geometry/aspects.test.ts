@@ -7,7 +7,8 @@ import {
   parseRatio,
   parseRatioSide,
   ratioLabel,
-  ratioReadout
+  ratioReadout,
+  sourceRatioLabel
 } from './aspects';
 
 describe('crop aspects', () => {
@@ -75,5 +76,12 @@ describe('crop aspects', () => {
     ['10000', null]
   ])('parses ratio side %j as %s', (raw, want) => {
     expect(parseRatioSide(raw)).toBe(want);
+  });
+
+  it('labels the source shape as reduced sides or a decimal', () => {
+    expect(sourceRatioLabel(6000, 4000)).toBe('3:2');
+    expect(sourceRatioLabel(4000, 6000)).toBe('2:3');
+    expect(sourceRatioLabel(5472, 3648)).toBe('3:2');
+    expect(sourceRatioLabel(6024, 4024)).toBe('1.5 : 1');
   });
 });

@@ -771,7 +771,8 @@ export const KEYBINDS = [
     keys: ['o'],
     contexts: ['geometry'],
     group: 'Crop',
-    label: 'Cycle the crop guide: thirds, golden ratio, spiral, diagonals, triangle, grid, none'
+    label:
+      'Cycle the crop guide: thirds, golden ratio, spiral and its mirror, diagonals, triangle and its mirror, grid, none'
   },
   {
     id: 'cropGuideTurn',
