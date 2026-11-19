@@ -33,6 +33,7 @@ const viewport = vi.hoisted(() => {
 });
 
 vi.mock('$app/state', () => route);
+vi.mock('#lib/pwa/install.svelte.ts', () => ({ install: { state: { kind: 'hidden' } } }));
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -156,10 +157,10 @@ describe('DesktopBrowseShell', () => {
     expect(sidebar('Library')).not.toBeNull();
   });
 
-  it('shows the administration sidebar on settings routes', () => {
-    render('/settings');
+  it('swaps the library sidebar for the settings pages on settings routes', () => {
+    render('/settings/preferences');
 
-    expect(sidebar('Administration')).not.toBeNull();
+    expect(sidebar('Settings')).not.toBeNull();
     expect(sidebar('Library')).toBeNull();
   });
 });

@@ -6,6 +6,7 @@
   import AccountCard from '#lib/components/shell/account/AccountCard.svelte';
   import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { help } from '#lib/commands/app.ts';
+  import { settingsHref } from '#lib/settings/pages.ts';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { signedInDevices } from '#lib/stores/signedInDevices.svelte.ts';
@@ -64,7 +65,7 @@
       title=""
       aria-label="Account"
     >
-      <Avatar size="small" class="size-8 text-[13px] font-bold" {name} />
+      <Avatar size="small" class="size-8 text-label font-bold" {name} />
     </Button>
   {/snippet}
   {#if user}
@@ -90,10 +91,10 @@
       icon={mdiKeyOutline}
       label="Signed-in devices"
       aria-label="Signed-in devices"
-      onclick={() => go('/settings#sessions')}
+      onclick={() => go(settingsHref('account', 'sessions'))}
     >
       {#if signedInDevices.count !== null}
-        <span class="shrink-0 text-[11px] text-dark/65">{signedInDevices.count}</span>
+        <span class="shrink-0 text-caption text-dark/65">{signedInDevices.count}</span>
       {/if}
     </MenuRow>
   </div>

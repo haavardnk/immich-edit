@@ -13,6 +13,7 @@ import { resetLayout } from '#lib/testing/layoutMock.ts';
 const route = vi.hoisted(() => ({ page: { url: new URL('http://localhost/photos'), params: {} } }));
 
 vi.mock('$app/state', () => route);
+vi.mock('#lib/pwa/install.svelte.ts', () => ({ install: { state: { kind: 'hidden' } } }));
 
 vi.mock('#lib/device/layout.svelte.ts', async () => ({
   layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
@@ -99,11 +100,12 @@ describe('WideBrowseShell', () => {
     expect(target.querySelector('main [role="search"]')).toBeNull();
   });
 
-  it('shows the administration sidebar on settings routes', () => {
+  it('shows the settings sidebar on settings routes', () => {
     render('/settings');
 
-    expect(target.querySelector('aside[aria-label="Administration"]')).not.toBeNull();
+    expect(target.querySelector('aside[aria-label="Settings"]')).not.toBeNull();
     expect(target.querySelector('aside[aria-label="Library"]')).toBeNull();
+    expect(labelled('Close settings')).toHaveLength(1);
   });
 
   it('fills the search field from the search route', () => {
@@ -114,13 +116,14 @@ describe('WideBrowseShell', () => {
     expect(labelled('Clear search')).toHaveLength(1);
   });
 
-  it('has the account, settings and running jobs once each at the sidebar foot', () => {
+  it('has the account and running jobs once each at the sidebar foot', () => {
     session.set({ id: 'u', email: 'h@x', name: 'Hanne', is_admin: false, auth_kind: 'password' });
     immichCapabilities.externalHost = 'photos.example.net';
     jobs.jobs = [runningJob];
     render('/photos');
 
-    expect(labelled('Settings')).toHaveLength(1);
+    expect(labelled('Settings')).toHaveLength(0);
+    expect(labelled('Close settings')).toHaveLength(0);
     expect(labelled('Jobs')).toHaveLength(0);
     expect(labelled('Jobs: Exporting 3 of 12')).toHaveLength(1);
     expect(target.textContent).toContain('Hanne');

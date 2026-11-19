@@ -6,6 +6,12 @@ import { readStored, writeStored } from '#lib/utils/storage.ts';
 import { blend, decide, msPerMegapixel, type Verdict } from './rendererGate';
 
 export type RendererChoice = 'auto' | 'browser' | 'server';
+
+export const RENDERER_CHOICE_LABELS: Readonly<Record<RendererChoice, string>> = {
+  auto: 'Fastest',
+  browser: 'Browser',
+  server: 'Server'
+};
 export type RendererState = 'idle' | 'starting' | 'measuring' | 'browser' | 'server';
 
 export interface RenderNeed {

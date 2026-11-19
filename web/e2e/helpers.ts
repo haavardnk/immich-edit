@@ -473,6 +473,11 @@ export async function installMocks(
 
     if (p === '/api/setup/status') return route.fulfill(json({ configured: true }));
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
+    if (p === '/api/masks/models' && method === 'GET') {
+      return route.fulfill(
+        json({ runtime: 'cpu', enabled: false, models: [], active: {}, semantic_classes: [] })
+      );
+    }
     if (p === '/api/auth/sessions' && method === 'GET') {
       return route.fulfill(json({ sessions: [] }));
     }
@@ -978,6 +983,11 @@ export async function presetAction(page: Page, item: string): Promise<void> {
   await page.getByRole('region', { name: 'Presets' }).getByRole('button', { name: item }).click();
 }
 
+export async function presetMenuAction(page: Page, item: string): Promise<void> {
+  await presetAction(page, 'Preset actions');
+  await page.locator('[data-popover-content]').getByRole('button', { name: item }).click();
+}
+
 export async function openPresetMenu(page: Page, preset: string): Promise<Locator> {
   await presetAction(page, `Actions for ${preset}`);
   return page.locator('[data-popover-content]');
@@ -1000,6 +1010,14 @@ export async function openAccountMenu(page: Page): Promise<Locator> {
     .filter({ has: page.getByRole('radiogroup', { name: 'Theme' }) });
   await expect(menu).toBeVisible();
   return menu;
+}
+
+export function settingsGroup(page: Page, title: string): Locator {
+  return page.getByRole('main').getByRole('region', { name: title, exact: true });
+}
+
+export function settingsPages(page: Page): Locator {
+  return page.getByRole('navigation', { name: 'Settings pages' });
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {

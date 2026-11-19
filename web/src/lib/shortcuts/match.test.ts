@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { preferences } from '#lib/stores/preferences.svelte.ts';
-import { isKeybind, matchKeybind } from './match';
+import { isKeybind, matchKeybinds } from './match';
 import type { KeybindContext, KeybindId } from './table';
 
 function key(init: Partial<KeyboardEvent> & { key: string; altGraph?: boolean }): KeyboardEvent {
@@ -78,7 +78,7 @@ describe('context resolution', () => {
     [{ key: 'c' }, ['grid', 'global'], 'enterCompare'],
     [{ key: 'q' }, ['grid', 'global'], null]
   ])('%o in %o resolves to %s', (event, contexts, expected) => {
-    expect(matchKeybind(key(event), contexts)).toBe(expected);
+    expect(matchKeybinds(key(event), contexts)[0] ?? null).toBe(expected);
   });
 });
 
@@ -90,7 +90,7 @@ describe('code chords', () => {
     ['Norwegian = without Shift', { key: '=', code: 'Minus' }, 'gridSize'],
     ['Shift+6', { key: '&', code: 'Digit6', shiftKey: true }, null]
   ])('%s', (_name, init, expected) => {
-    expect(matchKeybind(key(init), ['grid'])).toBe(expected);
+    expect(matchKeybinds(key(init), ['grid'])[0] ?? null).toBe(expected);
   });
 });
 
@@ -123,13 +123,17 @@ describe('custom keys', () => {
   it('matches the effective keymap', () => {
     preferences.shortcuts = { clipWarn: ['w'], pickWhiteBalance: ['j'] };
     try {
-      expect(matchKeybind(key({ key: 'w' }), ['editor', 'global'])).toBe('clipWarn');
-      expect(matchKeybind(key({ key: 'j' }), ['editor', 'global'])).toBe('pickWhiteBalance');
+      expect(matchKeybinds(key({ key: 'w' }), ['editor', 'global'])[0] ?? null).toBe('clipWarn');
+      expect(matchKeybinds(key({ key: 'j' }), ['editor', 'global'])[0] ?? null).toBe(
+        'pickWhiteBalance'
+      );
       expect(isKeybind(key({ key: 'u', metaKey: true }), 'autoAdjust')).toBe(true);
     } finally {
       preferences.reset();
     }
-    expect(matchKeybind(key({ key: 'w' }), ['editor', 'global'])).toBe('pickWhiteBalance');
+    expect(matchKeybinds(key({ key: 'w' }), ['editor', 'global'])[0] ?? null).toBe(
+      'pickWhiteBalance'
+    );
   });
 
   it('matches Option with a letter by its code on a Mac', () => {

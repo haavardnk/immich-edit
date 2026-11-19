@@ -1,4 +1,4 @@
-import { isKeybind, matchKeybind } from '#lib/shortcuts/match.ts';
+import { isKeybind, matchKeybinds } from '#lib/shortcuts/match.ts';
 import type { KeybindContext } from '#lib/shortcuts/table.ts';
 import { isRadioGroupTarget, isTypingTarget, yieldsToControl } from '#lib/shortcuts/targets.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -31,13 +31,16 @@ export function createKeyDispatcher(commands: readonly Command[]): KeyDispatcher
     contexts: readonly KeybindContext[],
     trigger: CommandTrigger
   ): Command | null {
-    const bind = matchKeybind(e, contexts);
-    if (!bind) return null;
-    const owned = commands.filter(
-      (command) =>
-        command.bind === bind && command.contexts.some((context) => contexts.includes(context))
-    );
-    return owned.find((command) => command.active?.(trigger) ?? true) ?? null;
+    for (const bind of matchKeybinds(e, contexts)) {
+      const active = commands.find(
+        (command) =>
+          command.bind === bind &&
+          command.contexts.some((context) => contexts.includes(context)) &&
+          (command.active?.(trigger) ?? true)
+      );
+      if (active) return active;
+    }
+    return null;
   }
 
   return {

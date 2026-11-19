@@ -4,11 +4,11 @@
   import { session } from '#lib/stores/session.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
   import { getInstance, rebindInstance, type InstanceInfo } from '#lib/api/admin.ts';
-  import { formatWhen } from '#lib/utils/datetime.ts';
   import { errorMessage } from '#lib/utils/errors.ts';
-  import { mdiServerNetworkOutline, mdiSwapHorizontal } from '@mdi/js';
-  import { Button, Icon, IconButton, Select } from '@immich/ui';
+  import { Button, Select } from '@immich/ui';
+  import Dialog from '#lib/components/Dialog.svelte';
   import Notice from '#lib/components/Notice.svelte';
+  import SettingsRow from '#lib/components/settings/SettingsRow.svelte';
 
   let instance = $state<InstanceInfo | null>(null);
   let showRebind = $state(false);
@@ -20,6 +20,7 @@
   let confirm = $state('');
   let busy = $state(false);
   let error = $state<string | null>(null);
+  let loadError = $state<string | null>(null);
 
   const methodOptions = [
     { value: 'password', label: 'Password' },
@@ -39,8 +40,9 @@
   async function load(): Promise<void> {
     try {
       instance = await getInstance();
+      loadError = null;
     } catch (e) {
-      error = errorMessage(e);
+      loadError = errorMessage(e);
     }
   }
 
@@ -74,57 +76,56 @@
     }
   }
 
+  function close(): void {
+    showRebind = false;
+    error = null;
+  }
+
   onMount(() => {
     void load();
   });
 </script>
 
-<section class="space-y-5 py-2">
-  {#if error}
-    <Notice message={error} />
-  {/if}
-  {#if instance}
-    <div class="flex min-h-16 items-center gap-3">
-      <Icon
-        icon={mdiServerNetworkOutline}
-        size="28px"
-        class="shrink-0 text-dark/45"
+<SettingsRow label="Immich instance" anchor="instance">
+  {#snippet detail()}
+    {#if loadError}
+      <span class="text-danger-800">{loadError}</span>
+    {:else if instance}
+      <span
+        class="me-1.5 inline-block size-1.5 rounded-full bg-success align-middle"
         aria-hidden="true"
-      />
-      <div class="min-w-0 flex-1">
-        <div class="truncate font-mono text-sm">{instance.immich_url}</div>
-        <div class="mt-0.5 text-xs text-dark/65">
-          Configured {formatWhen(instance.configured_at)} · epoch {instance.server_epoch}
-        </div>
-      </div>
-      {#if !showRebind}
-        <IconButton
-          size="small"
-          variant="ghost"
-          color="secondary"
-          icon={mdiSwapHorizontal}
-          title="Connect to a different Immich server"
-          aria-label="Connect to a different Immich server"
-          onclick={() => (showRebind = true)}
-        />
+      ></span><span class="font-mono">{instance.immich_url}</span>
+    {/if}
+  {/snippet}
+  <Button
+    size="small"
+    variant="ghost"
+    color="secondary"
+    class="shrink-0 bg-light-200/60 touch:min-h-11"
+    onclick={() => (showRebind = true)}
+  >
+    Change server…
+  </Button>
+</SettingsRow>
+
+{#if showRebind}
+  <Dialog title="Change Immich server" size="medium" onClose={close}>
+    <div class="flex flex-col gap-3 text-xs">
+      {#if error}
+        <Notice message={error} />
       {/if}
-    </div>
-  {/if}
-  {#if showRebind}
-    <div class="max-w-xl space-y-3 border-t border-hairline pt-5 text-xs">
       <Notice
         color="warning"
         message="Rebinding points immich-edit at a new Immich server and wipes all local users, edits and export jobs. Shared LUTs and camera profiles are kept. This cannot be undone."
       />
       <TextInput
-        size="tiny"
         class="font-mono"
         bind:value={url}
         placeholder="https://immich.example.com"
         aria-label="Immich server URL"
       />
       <Select
-        size="tiny"
+        size="small"
         class="w-40"
         options={methodOptions}
         value={method}
@@ -133,7 +134,6 @@
       />
       {#if method === 'password'}
         <TextInput
-          size="tiny"
           type="email"
           bind:value={email}
           placeholder="admin@example.com"
@@ -142,7 +142,6 @@
         />
         <TextInput
           type="password"
-          size="tiny"
           bind:value={password}
           placeholder="Password"
           aria-label="Password"
@@ -150,7 +149,6 @@
         />
       {:else}
         <TextInput
-          size="tiny"
           class="font-mono"
           bind:value={apiKey}
           placeholder="Immich API key"
@@ -158,34 +156,29 @@
           autocomplete="off"
         />
       {/if}
-      <p class="text-dark/65">
+      <p class="text-dark/75">
         Type the new hostname
         {#if host}<span class="font-mono">{host}</span>{/if}
         to confirm.
       </p>
       <TextInput
-        size="tiny"
         class="font-mono"
         bind:value={confirm}
         placeholder={host || 'hostname'}
         aria-label="Confirm hostname"
       />
-      <div class="flex items-center gap-2">
-        <Button size="tiny" color="warning" onclick={() => void submit()} disabled={busy}>
-          {busy ? 'Rebinding…' : 'Rebind and reset'}
-        </Button>
+      <div class="flex justify-end gap-2">
+        <Button size="small" variant="ghost" color="secondary" onclick={close}>Cancel</Button>
         <Button
-          size="tiny"
-          variant="ghost"
-          color="secondary"
-          onclick={() => {
-            showRebind = false;
-            error = null;
-          }}
+          size="small"
+          color="warning"
+          loading={busy}
+          onclick={() => void submit()}
+          disabled={busy}
         >
-          Cancel
+          Rebind and reset
         </Button>
       </div>
     </div>
-  {/if}
-</section>
+  </Dialog>
+{/if}

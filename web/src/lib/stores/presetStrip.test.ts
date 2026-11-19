@@ -9,7 +9,8 @@ const stores = vi.hoisted(() => ({
     applyPreset: vi.fn(() => Promise.resolve()),
     presetApplied: {
       current: null as { id: string; name: string; amount: number } | null,
-      blend: vi.fn(),
+      adjust: vi.fn(),
+      remove: vi.fn(() => Promise.resolve()),
       commitBlend: vi.fn(() => Promise.resolve())
     }
   }
@@ -136,24 +137,6 @@ describe('presetStrip', () => {
     });
     expect(presetStrip.applyOptions.amount).toBe(100);
     expect(presetStrip.pill).toBeNull();
-    expect(presetStrip.appliedPill).toBeNull();
-  });
-
-  it('keeps Amount live on the applied preset and shows it in the pill', () => {
-    stores.editor.presetApplied.current = { id: '2', name: 'Portra', amount: 65 };
-    expect(presetStrip.appliedId).toBe('2');
-    expect(presetStrip.amount).toBe(65);
-    expect(presetStrip.appliedPill).toEqual({
-      lead: 'Portra applied · Amount',
-      label: '65%',
-      tail: 'stays live until your next edit',
-      mono: true
-    });
-    presetStrip.setAmount(40);
-    expect(stores.editor.presetApplied.blend).toHaveBeenCalledWith(40);
-    expect(presetStrip.applyOptions.amount).toBe(100);
-    presetStrip.commitAmount();
-    expect(stores.editor.presetApplied.commitBlend).toHaveBeenCalled();
   });
 
   it('previews and applies the next preset at the live amount', () => {
@@ -173,7 +156,7 @@ describe('presetStrip', () => {
 
   it('sets the amount for the next apply while nothing is applied', () => {
     presetStrip.setAmount(30);
-    expect(stores.editor.presetApplied.blend).not.toHaveBeenCalled();
+    expect(stores.editor.presetApplied.adjust).not.toHaveBeenCalled();
     expect(presetStrip.amount).toBe(30);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CONTEXT_STACKS } from './stacks';
-import { matchKeybind } from './match';
+import { matchKeybinds } from './match';
 import { KEYBINDS, type Keybind } from './table';
 
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/') } }));
@@ -42,7 +42,7 @@ describe('registry integrity', () => {
     expect(keyless.length).toBeGreaterThan(0);
     for (const bind of keyless) {
       expect(bind.display, bind.id).toBeTruthy();
-      expect(matchKeybind(shift, bind.contexts)).not.toBe(bind.id);
+      expect(matchKeybinds(shift, bind.contexts)).not.toContain(bind.id);
     }
   });
 });

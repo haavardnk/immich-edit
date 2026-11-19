@@ -21,10 +21,12 @@ test('the account menu replaces the theme and shortcut buttons in the top bar', 
   await expect(bar.getByRole('button', { name: /^Switch to (light|dark) theme$/ })).toHaveCount(0);
   await expect(bar.getByRole('button', { name: 'Keyboard shortcuts' })).toHaveCount(0);
   await expect(bar.getByRole('button', { name: 'Jobs', exact: true })).toBeVisible();
-  await expect(bar.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(0);
 
   const menu = await openAccountMenu(page);
   await expect(menu.getByText('user@example.com').first()).toBeVisible();
+  await expect(menu.getByText('admin', { exact: true })).toBeVisible();
+  await expect(menu.getByText('password', { exact: true })).toHaveCount(0);
   await expect(menu.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
   await expect(menu.getByRole('button', { name: 'Signed-in devices' })).toContainText('3');
 

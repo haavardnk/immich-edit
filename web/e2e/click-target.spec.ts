@@ -44,6 +44,13 @@ test('the D key opens the editor from a selected tile', async ({ page }) => {
   await expectEditor(page);
 });
 
+test('settings offer no click setting', async ({ page }) => {
+  await installMocks(page);
+  await page.goto('/settings/preferences#appearance');
+  await expect(page.getByRole('radiogroup', { name: 'Mode' })).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Click a photo' })).toHaveCount(0);
+});
+
 test.describe('click target on touch', { tag: '@touch' }, () => {
   test('a tap opens the loupe', async ({ page }) => {
     await openGrid(page);

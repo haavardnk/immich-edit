@@ -3,7 +3,7 @@
   import { getRenderDefaults, setRenderDefaults, type RenderDefaults } from '#lib/api/admin.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { errorMessage } from '#lib/utils/errors.ts';
-  import Notice from '#lib/components/Notice.svelte';
+  import SettingsRow from '#lib/components/settings/SettingsRow.svelte';
   import { Switch } from '@immich/ui';
 
   let defaults = $state<RenderDefaults | null>(null);
@@ -37,24 +37,17 @@
   });
 </script>
 
-<section class="space-y-3 py-2">
-  {#if error}
-    <Notice message={error} />
-  {/if}
+<SettingsRow
+  label="Automatic lens corrections"
+  hint={error ?? 'For raw files without a lens choice'}
+  anchor="lens-auto"
+>
   {#if defaults}
-    <div class="flex items-center gap-3 text-xs">
-      <div class="min-w-0 flex-1">
-        <div>Automatic lens corrections</div>
-        <div class="text-dark/65">
-          Apply matched lens profiles to raw files that have no lens choice of their own.
-        </div>
-      </div>
-      <Switch
-        checked={defaults.lens_auto}
-        aria-label="Automatic lens corrections"
-        onCheckedChange={(checked) => void toggleLensAuto(checked)}
-        disabled={busy}
-      />
-    </div>
+    <Switch
+      checked={defaults.lens_auto}
+      aria-label="Automatic lens corrections"
+      onCheckedChange={(checked) => void toggleLensAuto(checked)}
+      disabled={busy}
+    />
   {/if}
-</section>
+</SettingsRow>

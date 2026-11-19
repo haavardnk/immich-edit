@@ -1,37 +1,20 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { mdiCogOutline, mdiStethoscope } from '@mdi/js';
-  import SidebarLink from './SidebarLink.svelte';
-
-  const currentPath = $derived(page.url.pathname);
+  import SettingsPagesNav from '#lib/components/settings/SettingsPagesNav.svelte';
+  import SettingsSearch from '#lib/components/settings/SettingsSearch.svelte';
 </script>
 
 <aside
-  aria-label="Administration"
-  class="flex h-full w-64 min-h-0 flex-col overflow-hidden bg-light-50 text-dark wide:w-full"
+  aria-label="Settings"
+  class="flex h-full min-h-0 w-64 flex-col bg-light-50 text-dark wide:w-full"
 >
   <div
-    class="shrink-0 px-5 pb-2 pt-5 text-[10px] font-semibold uppercase text-dark/65 dark:text-light-950/35"
+    class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-3 pe-4 pb-4 ps-0 scrollbar-hidden wide:px-2.5"
   >
-    Administration
+    <div class="section-label ps-5 pt-2 text-dark/65 wide:hidden">Settings</div>
+    <div class="flex flex-col gap-3 ps-3 wide:ps-0">
+      <SettingsSearch>
+        <SettingsPagesNav />
+      </SettingsSearch>
+    </div>
   </div>
-  <nav
-    aria-label="Settings"
-    data-sveltekit-replacestate
-    class="flex-1 min-h-0 space-y-1 overflow-y-auto pe-5 wide:px-2.5"
-  >
-    <SidebarLink
-      href="/settings"
-      icon={mdiCogOutline}
-      label="Settings"
-      active={currentPath === '/settings'}
-    />
-    <div class="mx-4 my-3 h-px bg-hairline"></div>
-    <SidebarLink
-      href="/settings/diagnostics"
-      icon={mdiStethoscope}
-      label="Diagnostics"
-      active={currentPath === '/settings/diagnostics'}
-    />
-  </nav>
 </aside>

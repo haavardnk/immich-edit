@@ -61,6 +61,21 @@ export function themeEntry(id: string, scheme: Scheme): ThemeEntry {
   return found;
 }
 
+export interface SchemeSelection {
+  theme: string;
+  accent: string | null;
+}
+
+export function schemeSelection(appearance: Appearance, scheme: Scheme): SchemeSelection {
+  const { family, theme } = themeEntry(
+    scheme === 'dark' ? appearance.darkTheme : appearance.lightTheme,
+    scheme
+  );
+  const accentId = appearance.accents[scheme] ?? family.defaultAccent;
+  const accent = family.accents.find((option) => option.id === accentId);
+  return { theme: theme.name, accent: family.accents.length > 1 && accent ? accent.name : null };
+}
+
 export function resolveAppearance(appearance: Appearance): Record<Scheme, ResolvedTheme> {
   const resolve = (id: string, scheme: Scheme): ResolvedTheme => {
     const { family, theme } = themeEntry(id, scheme);

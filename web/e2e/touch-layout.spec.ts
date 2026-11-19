@@ -23,14 +23,14 @@ test.describe('on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(root(page)).toHaveAttribute('data-layout', 'touch');
     await expect(root(page)).not.toHaveAttribute('data-wide');
 
-    await page.goto('/settings#layout');
+    await page.goto('/settings/preferences#layout');
     const group = layoutGroup(page);
     await expect(group.getByRole('radio', { name: 'Auto' })).toBeChecked();
-    await expect(page.getByText('Using the touch layout, picked for this screen.')).toBeVisible();
+    await expect(page.getByText('Touch on this screen')).toBeVisible();
 
     await group.getByRole('radio', { name: 'Desktop' }).click();
     await expect(root(page)).toHaveAttribute('data-layout', 'desktop');
-    await expect(page.getByText('Using the desktop layout.')).toBeVisible();
+    await expect(page.getByText('Desktop on this screen')).toHaveCount(0);
 
     await page.reload();
     const reloaded = layoutGroup(page);

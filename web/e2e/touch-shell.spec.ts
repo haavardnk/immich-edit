@@ -121,7 +121,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(panel.getByText('Test User', { exact: true })).toBeVisible();
     await expect(panel.getByText('user@example.com', { exact: true })).toBeVisible();
     await expect(panel.getByText('admin', { exact: true })).toBeVisible();
-    await expect(panel.getByText('password', { exact: true })).toBeVisible();
+    await expect(panel.getByText('password', { exact: true })).toHaveCount(0);
     await expect(panel.getByRole('button', { name: 'Keyboard shortcuts' })).toHaveCount(0);
     await expectTargets(panel.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio'), 44);
     expect(await seriousViolations(page)).toEqual([]);
@@ -452,7 +452,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     expect(headerBox?.y).toBe(0);
 
     await expect(page.getByRole('button', { name: 'Jobs', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(0);
     await expect(
       page.locator('main header').getByRole('button', { name: 'View & filters', exact: true })
     ).toBeVisible();
@@ -482,8 +482,9 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await drawer(page).getByRole('button', { name: 'Close account menu' }).tap();
     await expect(drawer(page)).toBeHidden();
 
-    await page.getByRole('button', { name: 'Settings', exact: true }).tap();
-    await expect(page).toHaveURL('/settings');
+    await openDrawer(page);
+    await drawer(page).getByRole('button', { name: 'Settings', exact: true }).tap();
+    await expect(page).toHaveURL(/\/settings/);
     await expect(page.getByRole('button', { name: 'Close settings' })).toBeVisible();
   });
 
