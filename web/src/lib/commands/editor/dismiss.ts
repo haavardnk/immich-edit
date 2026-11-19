@@ -46,6 +46,16 @@ export const DISMISS_COMMANDS: readonly Command[] = [
     () => (editor.activeRetouchId = null)
   ),
   dismiss(
+    'masks.stopSampling',
+    () => !!editor.rangePicker,
+    () => editor.cancelRangePicker()
+  ),
+  dismiss(
+    'masks.stopClickTool',
+    () => editor.clickTool.active,
+    () => editor.stopClickTool()
+  ),
+  dismiss(
     'masks.deselectShape',
     () => !!editor.activeMaskComponentId,
     () => editor.setActiveMaskComponent(null)

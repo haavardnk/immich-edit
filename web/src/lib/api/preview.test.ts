@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { persistedPreviewUrl } from './preview';
+import { MIN_RENDER_EDGE, persistedPreviewUrl, renderEdge } from './preview';
 
 describe('persistedPreviewUrl', () => {
   it.each([
@@ -12,5 +12,17 @@ describe('persistedPreviewUrl', () => {
         ? persistedPreviewUrl('a', 512)
         : persistedPreviewUrl('a', 512, clipWarn);
     expect(url).toBe(`/api/assets/a/preview?max=512&${expected}`);
+  });
+});
+
+describe('renderEdge', () => {
+  it.each([
+    [1, MIN_RENDER_EDGE],
+    [48, MIN_RENDER_EDGE],
+    [64, 64],
+    [96.4, 96],
+    [4096, 4096]
+  ])('sends %s as %s, never below the server minimum', (edge, expected) => {
+    expect(renderEdge(edge)).toBe(expected);
   });
 });

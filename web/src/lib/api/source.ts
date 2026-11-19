@@ -1,5 +1,5 @@
 import { request, url } from './client';
-import type { Roi } from './preview';
+import { renderEdge, type Roi } from './preview';
 import type { Edits } from '#lib/types/edits.ts';
 
 export interface SourcePayload {
@@ -17,7 +17,7 @@ export async function fetchSource(
   const resp = await request(url`/api/assets/${assetId}/source`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ max_edge: maxEdge, edits, roi: roi ?? null }),
+    body: JSON.stringify({ max_edge: renderEdge(maxEdge), edits, roi: roi ?? null }),
     signal
   });
   return { bytes: await resp.arrayBuffer(), dcpId: resp.headers.get('x-source-dcp') };

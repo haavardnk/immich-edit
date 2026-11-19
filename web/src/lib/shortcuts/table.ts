@@ -907,12 +907,19 @@ export const KEYBINDS = [
     label: 'Toggle the mask overlay'
   },
   {
+    id: 'maskOverlayMode',
+    keys: ['Shift+o'],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Cycle the mask overlay: color, color on black and white, white on black'
+  },
+  {
     id: 'maskCancelDraw',
     fixed: true,
     keys: ['Escape'],
     contexts: ['masks'],
     group: 'Masks',
-    label: 'Cancel drawing, box select or the eyedropper'
+    label: 'Cancel drawing, click select, box select or the eyedropper'
   },
   {
     id: 'maskClosePolygon',
@@ -951,6 +958,30 @@ export const KEYBINDS = [
     contexts: ['masks', 'retouch'],
     group: 'Masks',
     label: 'Change the brush hardness over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
+  },
+  {
+    id: 'brushEraseHold',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Erase with the mask brush while held',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} (hold)`
+  },
+  {
+    id: 'maskShapeSizeWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Resize the selected shape over the photo',
+    display: (mac: boolean) => `${keyLabel('Alt', mac)} + scroll`
+  },
+  {
+    id: 'maskShapeFeatherWheel',
+    keys: [],
+    contexts: ['masks'],
+    group: 'Masks',
+    label: 'Change the selected shape feather over the photo',
     display: (mac: boolean) => `${keyLabel('Alt', mac)} + ${keyLabel('Shift', mac)} + scroll`
   },
 

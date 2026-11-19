@@ -7,6 +7,7 @@ export type MaskStroke = 'idle' | 'painting' | 'awaiting';
 
 export interface MaskWeightFrame {
   layerId: string;
+  componentId: string | null;
   key: string;
   blob: Blob;
 }
@@ -19,18 +20,36 @@ export interface MaskWeightCtx {
   maskStroke: MaskStroke;
 }
 
-type WeightArgs = { layerId: string; key: string; edits: Edits; edge: number };
+type WeightArgs = {
+  layerId: string;
+  componentId: string | null;
+  key: string;
+  edits: Edits;
+  edge: number;
+};
 
-export function weightEdits(edits: Edits, layerId: string): Edits | null {
+export function weightEdits(
+  edits: Edits,
+  layerId: string,
+  componentId: string | null = null
+): Edits | null {
   const layer = edits.masks.find((item) => item.id === layerId);
   if (!layer) return null;
-  return { ...edits, masks: [{ ...layer, edits: {}, amount: 1, enabled: true }] };
+  const solo = { ...layer, edits: {}, amount: 1, enabled: true };
+  if (componentId === null) return { ...edits, masks: [solo] };
+  const component = layer.components.find((item) => item.id === componentId);
+  if (!component) return null;
+  return {
+    ...edits,
+    masks: [{ ...solo, invert: false, components: [{ ...component, mode: 'add', enabled: true }] }]
+  };
 }
 
 export class MaskWeight {
   private readonly ctx: MaskWeightCtx;
   private readonly edge: () => number;
   private layerId: string | null = null;
+  private componentId: string | null = null;
   private wanted = '';
 
   constructor(ctx: MaskWeightCtx, edge: () => number) {
@@ -53,37 +72,44 @@ export class MaskWeight {
       return blob;
     },
     (args, blob) => {
-      if (args.layerId !== this.layerId) return;
-      this.ctx.maskWeight = { layerId: args.layerId, key: args.key, blob };
+      if (args.layerId !== this.layerId || args.componentId !== this.componentId) return;
+      this.ctx.maskWeight = {
+        layerId: args.layerId,
+        componentId: args.componentId,
+        key: args.key,
+        blob
+      };
       if (args.key === this.wanted) this.settle();
     },
     () => this.settle()
   );
 
-  sync(layerId: string | null): void {
+  sync(layerId: string | null, componentId: string | null = null): void {
     const snap = $state.snapshot(this.ctx.edits) as Edits;
-    const edits = layerId && this.ctx.initialised ? weightEdits(snap, layerId) : null;
+    const edits = layerId && this.ctx.initialised ? weightEdits(snap, layerId, componentId) : null;
     if (!layerId || !edits || !this.ctx.assetId) {
       this.flight.cancel();
       this.layerId = null;
+      this.componentId = null;
       this.wanted = '';
       untrack(() => this.settle());
       return;
     }
     const edge = this.edge();
-    const key = JSON.stringify({ edits, edge });
+    const key = JSON.stringify({ edits, edge, componentId });
     this.layerId = layerId;
+    this.componentId = componentId;
     if (key === this.wanted) return;
-    untrack(() => this.want(layerId, key, edits, edge));
+    untrack(() => this.want({ layerId, componentId, key, edits, edge }));
   }
 
-  private want(layerId: string, key: string, edits: Edits, edge: number): void {
-    this.wanted = key;
-    if (this.ctx.maskWeight?.key === key) {
+  private want(args: WeightArgs): void {
+    this.wanted = args.key;
+    if (this.ctx.maskWeight?.key === args.key) {
       this.settle();
       return;
     }
-    this.flight.submit({ layerId, key, edits, edge });
+    this.flight.submit(args);
   }
 
   endStroke(): void {
@@ -98,6 +124,7 @@ export class MaskWeight {
   drop(): void {
     this.flight.cancel();
     this.layerId = null;
+    this.componentId = null;
     this.wanted = '';
     this.ctx.maskWeight = null;
     this.ctx.maskStroke = 'idle';

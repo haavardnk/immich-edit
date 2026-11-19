@@ -13,8 +13,10 @@ import {
   mdiCircleOutline,
   mdiGradientHorizontal,
   mdiMinus,
+  mdiMinusCircleOutline,
   mdiPalette,
   mdiPlus,
+  mdiPlusCircleOutline,
   mdiSetCenter,
   mdiVectorPolygon
 } from '@mdi/js';
@@ -38,6 +40,17 @@ export const MODES: { value: MaskComponentMode; icon: string; hint: string }[] =
   { value: 'subtract', icon: mdiMinus, hint: 'Subtract: cut this shape out of the mask' },
   { value: 'intersect', icon: mdiSetCenter, hint: 'Intersect: keep only where this shape overlaps' }
 ];
+
+const MODE_BADGES: Record<MaskComponentMode, { icon: string; tone: string }> = {
+  add: { icon: mdiPlusCircleOutline, tone: 'text-success' },
+  subtract: { icon: mdiMinusCircleOutline, tone: 'text-danger' },
+  intersect: { icon: mdiSetCenter, tone: 'text-primary' }
+};
+
+export function modeBadge(mode: MaskComponentMode): { icon: string; tone: string; hint: string } {
+  const hint = MODES.find((entry) => entry.value === mode)?.hint ?? '';
+  return { ...MODE_BADGES[mode], hint };
+}
 
 export function kindIcon(kind: MaskComponentKind): string {
   return KIND_ICONS[kind.kind];
@@ -91,10 +104,6 @@ export async function addAiTool(
   }
   if (kind === 'click') {
     armClickTool(target, false);
-    toasts.push(
-      'info',
-      `Click the photo to build a mask. ${keyLabel('Shift')}-click excludes an area, and clicking a dot deletes it.`
-    );
     return;
   }
   if (target.layerId)
@@ -104,7 +113,6 @@ export async function addAiTool(
 
 export function armBoxTool(target: MaskTarget): void {
   armClickTool(target, true);
-  toasts.push('info', 'Drag a box around the subject.');
 }
 
 export async function addBackground(target: MaskTarget): Promise<void> {
@@ -113,12 +121,14 @@ export async function addBackground(target: MaskTarget): Promise<void> {
   else await editor.addGeneratedLayer('subject', undefined, true);
 }
 
-export function refineWith(layerId: string, negative: boolean): void {
+export function refineWith(layerId: string | null, negative: boolean): void {
+  const tool = editor.clickTool;
+  if (tool.active && !tool.box && tool.layerId === layerId) {
+    if (tool.negative === negative) editor.stopClickTool();
+    else tool.negative = negative;
+    return;
+  }
   editor.clickTool = { active: true, negative, box: false, layerId, mode: 'add' };
-}
-
-export function stopClickTool(): void {
-  editor.clickTool = { active: false, negative: false, box: false, layerId: null, mode: 'add' };
 }
 
 function armClickTool(target: MaskTarget, box: boolean): void {

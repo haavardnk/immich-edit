@@ -35,7 +35,14 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { cropReadout } from '#lib/panels/geometry/cropReadout.ts';
   import { cropExit } from '#lib/editor/cropExit.svelte.ts';
+  import { maskClickPill } from '#lib/panels/maskClickPill.ts';
+  import { maskHoverPill } from '#lib/panels/maskHoverPill.ts';
+  import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
   import type { Snippet } from 'svelte';
+  import { shapeWheel } from '#lib/editor/shapeWheel.svelte.ts';
+  import { brushErase } from '#lib/stores/editor/brushErase.svelte.ts';
+  import { rangeSamplePill } from '#lib/panels/rangeSamplePill.ts';
+  import RangeSampleSurface from './RangeSampleSurface.svelte';
 
   let {
     ontap = () => {},
@@ -55,7 +62,16 @@
     editor.versions.hold.pill ??
       presetStrip.pill ??
       lutPreview.pill ??
-      (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill)) ??
+      maskOverlay.pill ??
+      shapeWheel.pill ??
+      brushErase.pill ??
+      (editor.showingOriginal
+        ? null
+        : (editor.historySteps.pill ??
+          maskHoverPill() ??
+          maskClickPill() ??
+          rangeSamplePill() ??
+          presetStrip.appliedPill)) ??
       (editor.geometrySession && layout.mode === 'touch' ? cropReadout() : null)
   );
 
@@ -124,6 +140,11 @@
       : null;
   }
 
+  function onwheel(e: WheelEvent): void {
+    if (editor.geometrySession || shapeWheel.wheel(e)) return;
+    gestures.handlers.onwheel(e);
+  }
+
   function measured(size: { w: number; h: number }): void {
     if (baseNat?.w !== size.w || baseNat.h !== size.h) baseNat = size;
   }
@@ -154,9 +175,11 @@
   use:observeSize={measure}
   role="application"
   class="editor-stage no-callout relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+  style:--color-mask-overlay={maskOverlay.customColor}
   class:cursor-grab={ui.zoomed && !dragging && !editor.geometrySession}
   class:cursor-grabbing={dragging}
   {...editor.geometrySession ? {} : gestures.handlers}
+  {onwheel}
   {@attach touchGestures}
 >
   {#if editor.geometrySession?.frameUrl}
@@ -194,6 +217,7 @@
       {/if}
       <MaskWeight img={imgEl} />
       <MaskOverlay img={imgEl} />
+      <RangeSampleSurface img={imgEl} />
       <WhiteBalancePicker img={imgEl} />
       <TargetOverlay img={imgEl} />
       <BrushCanvas img={imgEl} />

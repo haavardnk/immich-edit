@@ -214,6 +214,7 @@ export async function addGeneratedLayer(
       invert
     );
     const compId = appendLayer(ctx, layer);
+    ctx.clickTool.layerId = layer.id;
     if (compId) await ensureBrushBuffer(ctx, compId, res.raster_id);
     await ctx.onCommit('Masks');
     return layer.id;
@@ -326,6 +327,7 @@ export async function addClickLayer(
       points
     });
     const compId = appendLayer(ctx, layer);
+    ctx.clickTool.layerId = layer.id;
     if (compId) await ensureBrushBuffer(ctx, compId, res.raster_id);
     await ctx.onCommit('Masks');
     return layer.id;
@@ -461,13 +463,13 @@ export async function addClickPoint(
     await clickRefineRaster(ctx, layer.id, comp.id, [point], !positive);
     return;
   }
-  if (!positive) return;
+  const first = { ...point, positive: true };
   const target = ctx.clickTool.layerId;
   if (target && ctx.edits.masks.some((l) => l.id === target)) {
-    await addClickComponent(ctx, target, [point], ctx.clickTool.mode);
+    await addClickComponent(ctx, target, [first], ctx.clickTool.mode);
     return;
   }
-  await addClickLayer(ctx, [point]);
+  await addClickLayer(ctx, [first]);
 }
 
 export async function addClickBox(ctx: MaskGenCtx, bbox: MaskBox): Promise<void> {

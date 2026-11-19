@@ -1,6 +1,5 @@
 <script lang="ts">
   import { editor } from '#lib/stores/editor.svelte.ts';
-  import { surfaceSize, type PreviewSurface } from '#lib/utils/previewSurface.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { isKeybind } from '#lib/shortcuts/match.ts';
@@ -22,7 +21,8 @@
   import MaskPolygonDraft from './MaskPolygonDraft.svelte';
   import { held } from '#lib/input/modifiers.svelte.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
-  import { clampedPoint, elementPoint } from '#lib/gestures/point.ts';
+  import { elementPoint } from '#lib/gestures/point.ts';
+  import type { PreviewSurface } from '#lib/utils/previewSurface.ts';
 
   let {
     img
@@ -44,10 +44,6 @@
   );
 
   const showOverlay = $derived(!!active && rect.w > 0 && rect.h > 0);
-  const showColorPicker = $derived(
-    !!editor.colorPicker?.ready && rect.w > 0 && rect.h > 0 && !!img
-  );
-
   function toPx(scene: Vec2f): { x: number; y: number } {
     const d = sceneUvToDisplayUv(view, scene.x, scene.y);
     return { x: rect.x + d[0] * rect.w, y: rect.y + d[1] * rect.h };
@@ -111,11 +107,6 @@
 
   function onKeyDown(e: KeyboardEvent): void {
     if (isAnyModalOpen()) return;
-    if (isKeybind(e, 'maskCancelDraw') && editor.colorPicker) {
-      e.preventDefault();
-      editor.cancelColorPicker();
-      return;
-    }
     if (nudge(e)) return;
     if (!isKeybind(e, 'maskDelete')) return;
     if (ui.editorTab !== 'masks' || isTypingTarget(e)) return;
@@ -133,45 +124,12 @@
     void editor.commitMasks();
   }
 
-  function sampleColor(e: PointerEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!img || !editor.colorPicker?.ready) return;
-    const size = surfaceSize(img);
-    if (size.w < 1 || size.h < 1) return;
-    const at = clampedPoint(e, img);
-    const sx = Math.min(size.w - 1, Math.floor(at.x * size.w));
-    const sy = Math.min(size.h - 1, Math.floor(at.y * size.h));
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) return;
-    context.drawImage(img, sx, sy, 1, 1, 0, 0, 1, 1);
-    const pixel = context.getImageData(0, 0, 1, 1).data;
-    void editor.commitColorSample([
-      (pixel[0] ?? 0) / 255,
-      (pixel[1] ?? 0) / 255,
-      (pixel[2] ?? 0) / 255
-    ]);
-  }
-
   const draft = $derived(editor.polygonDraft);
   const drafting = $derived(!!draft && rect.w > 0 && rect.h > 0);
   const activeCompId = $derived(editor.activeMaskComponentId);
 </script>
 
 <svelte:window onkeydown={onKeyDown} />
-
-{#if showColorPicker}
-  <button
-    type="button"
-    class="absolute z-30 cursor-crosshair bg-transparent"
-    style="left: {rect.x}px; top: {rect.y}px; width: {rect.w}px; height: {rect.h}px;"
-    aria-label="Sample mask color"
-    onpointerdown={sampleColor}
-  ></button>
-{/if}
 
 {#if showOverlay && active}
   <svg

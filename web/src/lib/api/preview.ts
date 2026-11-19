@@ -18,9 +18,15 @@ export interface ProofOptions {
 }
 
 export type RenderLane =
-  'base' | 'original' | 'reference' | 'weight' | 'roi' | 'geometry' | 'viewer';
+  'base' | 'original' | 'reference' | 'weight' | 'mask_thumb' | 'roi' | 'geometry' | 'viewer';
 
 export type Roi = [number, number, number, number];
+
+export const MIN_RENDER_EDGE = 64;
+
+export function renderEdge(maxEdge: number): number {
+  return Math.max(MIN_RENDER_EDGE, Math.round(maxEdge));
+}
 
 export function maskWeightPreview(layerId: string): PreviewMode {
   return { mask_weight: { layer_id: layerId } };
@@ -48,7 +54,7 @@ export async function livePreview(
   return postForBlob(
     url`/api/assets/${assetId}/preview`,
     {
-      max_edge: maxEdge,
+      max_edge: renderEdge(maxEdge),
       edits,
       preview_mode: previewMode,
       output_color_space: proof?.colorSpace ?? 'srgb',
