@@ -16,6 +16,7 @@ import {
   editorClipWarn,
   editorFullscreen,
   editorInfo,
+  floatScope,
   holdOriginal
 } from '#lib/commands/editor/view.ts';
 import { loupeTrash } from '#lib/commands/loupe/culling.ts';
@@ -70,7 +71,7 @@ export const LOUPE_WIDE_MORE_MENU: Menu = [
 export const EDITOR_VERSION_MENU: Menu = [[virtualCopy]];
 
 export const EDITOR_VIEW_MENU: Menu = [
-  [editorInfo, editorFullscreen, holdOriginal, beforeAfter, editorClipWarn, greyCanvas]
+  [editorInfo, editorFullscreen, holdOriginal, beforeAfter, editorClipWarn, floatScope, greyCanvas]
 ];
 
 export const EDITOR_MORE_MENU: Menu = [[editorTrash], [help]];
@@ -87,5 +88,5 @@ export const EDITOR_PALETTE_MENU: Menu = [
     virtualCopy,
     newSnapshot
   ],
-  [beforeAfter, editorClipWarn, editorInfo, editorFullscreen, greyCanvas, help]
+  [beforeAfter, editorClipWarn, floatScope, editorInfo, editorFullscreen, greyCanvas, help]
 ];

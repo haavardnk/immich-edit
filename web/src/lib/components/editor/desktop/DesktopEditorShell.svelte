@@ -16,6 +16,9 @@
   import CommandPalette from './CommandPalette.svelte';
   import CurvePopout from './CurvePopout.svelte';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
+  import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
+  import PhotoInfoPanel from '#lib/components/browse/info/PhotoInfoPanel.svelte';
+  import { reveal } from '#lib/motion/reveal.ts';
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -26,7 +29,7 @@
           <Notice message={editor.error} class="mx-4 my-2 text-xs" />
         {/if}
         {#if !ui.fullscreen}<ImageToolbar />{/if}
-        <Viewer />
+        <Viewer><FloatingScope /></Viewer>
         {#if ui.fullscreen}
           <IconButton
             size="small"
@@ -46,13 +49,20 @@
       </main>
       {#if editor.assetId && !ui.fullscreen}
         {#if ui.presetStrip}
-          <PresetStrip />
+          <div class="flex-none" transition:reveal>
+            <PresetStrip />
+          </div>
         {:else}
           <Filmstrip resizable collapsed={ui.editorFilmstripCollapsed} />
         {/if}
       {/if}
     </div>
     {#if !ui.fullscreen}
+      {#if ui.editorInfoOpen && editor.asset}
+        <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
+          <PhotoInfoPanel asset={editor.asset} onclose={() => (ui.editorInfoOpen = false)} />
+        </div>
+      {/if}
       <RightSidebar />
       <EditorToolRail />
     {/if}
