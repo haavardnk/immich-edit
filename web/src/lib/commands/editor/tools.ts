@@ -19,6 +19,7 @@ import { mdiMagnify } from '@mdi/js';
 import { showTargetTool } from '#lib/editor/targetSession.ts';
 import { TARGET_TOOLS, targetAvailable } from '#lib/editor/targetTools.ts';
 import { targetAdjust } from '#lib/stores/targetAdjust.svelte.ts';
+import { retouchView } from '#lib/stores/editor/retouchView.svelte.ts';
 
 function addShapeLayer(id: string, bind: KeybindId, kind: () => MaskComponentKind): Command {
   return {
@@ -145,6 +146,12 @@ export const TOOL_COMMANDS: readonly Command[] = [
     contexts: ['retouch'],
     bind: 'retouchClone',
     run: () => editor.setRetouchMode('clone')
+  },
+  {
+    id: 'retouch.visualize',
+    contexts: ['retouch'],
+    bind: 'retouchVisualize',
+    run: () => retouchView.toggleVisualize()
   },
   {
     id: 'retouch.delete',

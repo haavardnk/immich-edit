@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { toggleEditorFullscreen } from '#lib/editor/fullscreen.ts';
+  import { untrack } from 'svelte';
   import Notice from '#lib/components/Notice.svelte';
   import Viewer from '#lib/components/editor/Viewer.svelte';
   import Filmstrip from '#lib/components/shell/Filmstrip.svelte';
@@ -21,8 +23,15 @@
   import { viewportInset, windowViewport } from '#lib/components/sheet/visualViewport.svelte.ts';
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
-  import { paintInput } from '#lib/stores/editor/paintInput.svelte.ts';
-  import BrushSizeRail from './masks/BrushSizeRail.svelte';
+  import PhotoInfoSheet from '#lib/components/browse/info/PhotoInfoSheet.svelte';
+  import { paintSize } from '#lib/editor/paintSize.ts';
+  import BrushSizeRail from './BrushSizeRail.svelte';
+  import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
+  import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
+  import ToolStrip from './ToolStrip.svelte';
+  import { hint } from '#lib/shortcuts/labels.ts';
+  import { IconButton } from '@immich/ui';
+  import { mdiFullscreenExit } from '@mdi/js';
 
   provideSliderFocus({ focus: (param) => touchUi.focus(param.id) });
 
@@ -30,6 +39,12 @@
   const stack = $derived(arrangement === 'stack');
   const focused = $derived(PARAMS.find((param) => param.id === touchUi.focused) ?? null);
   const chrome = $derived(!ui.fullscreen && !focused);
+  const railSize = $derived(
+    !focused && (ui.fullscreen || arrangement !== 'inspector') ? paintSize() : null
+  );
+  const stripTool = $derived(
+    ui.rightCollapsed && !ui.presetStrip && (ui.editorTab === 'retouch' || ui.editorTab === 'masks')
+  );
   const width = $derived(arrangement === 'inspector' ? 'w-90' : 'w-75');
   let available = $state(0);
   let region = $state<HTMLElement>();
@@ -51,6 +66,10 @@
     if (region) available = region.clientHeight;
   });
 
+  $effect(() => {
+    if (ui.editorInfoOpen && layout.phone) untrack(ui.collapsePanels);
+  });
+
   function adjust(): ViewerAdjust | null {
     const param = focused;
     if (!param || param.inactive?.(editor.edits, editor.isRaw)) return null;
@@ -58,7 +77,11 @@
   }
 
   function tapPhoto(): void {
-    if (!focused) ui.toggleFullscreen();
+    if (!focused && !paintSize()) toggleEditorFullscreen();
+  }
+
+  function twoFingerTap(): void {
+    if (!focused) toggleEditorFullscreen();
   }
 </script>
 
@@ -89,9 +112,30 @@
       {#snippet overlay()}
         <FloatingScope yieldToSliders />
       {/snippet}
-      <Viewer ontap={tapPhoto} {adjust} children={layout.phone ? overlay : undefined} />
-      {#if chrome && arrangement !== 'inspector' && paintInput.brushActive}
-        <BrushSizeRail />
+      <Viewer
+        ontap={tapPhoto}
+        ontwofingertap={twoFingerTap}
+        {adjust}
+        children={layout.phone ? overlay : undefined}
+      />
+      {#if railSize}
+        <BrushSizeRail size={railSize} />
+      {/if}
+      {#if ui.fullscreen}
+        <IconButton
+          size="large"
+          shape="round"
+          variant="ghost"
+          color="secondary"
+          class="absolute top-[calc(0.75rem+var(--safe-top))] right-[calc(0.75rem+var(--safe-right))] z-30 bg-black/50 text-white backdrop-blur-md"
+          icon={mdiFullscreenExit}
+          title=""
+          aria-label={hint('Exit fullscreen', 'fullscreen')}
+          onclick={toggleEditorFullscreen}
+        />
+      {/if}
+      {#if chrome && toolOpen('retouch')}
+        <RetouchSourceBanner />
       {/if}
       {#if chrome && editor.compare.mode !== 'off'}
         <CompareBar />
@@ -114,11 +158,16 @@
       {#if chrome && arrangement === 'inspector' && touchUi.filmstrip && editor.assetId}
         <Filmstrip />
       {/if}
+      {#if chrome && !stack && stripTool}
+        <ToolStrip />
+      {/if}
     </div>
     {#if stack}
       {#if chrome}
         {#if !ui.rightCollapsed}
           <Tray {available} {docked} {lift} />
+        {:else if stripTool}
+          <ToolStrip />
         {/if}
       {/if}
     {:else if chrome}
@@ -152,3 +201,7 @@
     <div class="shrink-0" style:height="{keyboard.bottom}px"></div>
   {/if}
 </div>
+
+{#if ui.editorInfoOpen && editor.asset}
+  <PhotoInfoSheet asset={editor.asset} onclose={() => (ui.editorInfoOpen = false)} />
+{/if}

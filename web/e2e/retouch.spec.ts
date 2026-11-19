@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ASSET_ID, gotoAsset, installMocks, makePng, NEUTRAL_RECORD, PNG_64 } from './helpers';
+import { FULL_RETOUCH_RECORD } from './retouchRecords';
 
 const RETOUCH_RECORD = {
   ...NEUTRAL_RECORD,
@@ -53,7 +54,8 @@ test('painting a retouch stroke saves it and lists it in the panel', async ({ pa
       return ops?.ops?.retouch?.strokes?.length ?? 0;
     })
     .toBeGreaterThan(0);
-  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Heal', exact: true })).toBeVisible();
+  await expect(page.getByRole('tabpanel').getByText('Strokes (1/64)')).toBeVisible();
 });
 
 test('painting without a sampled source asks for one', async ({ page }) => {
@@ -73,7 +75,7 @@ test('painting without a sampled source asks for one', async ({ page }) => {
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
   await page.mouse.up();
 
-  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Heal', exact: true })).toHaveCount(0);
   await expect(panel.getByRole('status')).toHaveText('Set a source before painting');
 });
 
@@ -121,8 +123,8 @@ test('Sample arms a one-shot source pick', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
-  await expect(panel.getByText('Stroke 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Heal', exact: true })).toBeVisible();
+  await expect(panel.getByText('Stroke 1 · Heal', { exact: true })).toHaveCount(2);
   await expect(panel.getByRole('button', { name: 'Edit Size value' })).toHaveText(/^\s*\d+ px\s*$/);
 
   await page.keyboard.press('Escape');
@@ -160,7 +162,7 @@ test('painting while zoomed in paints instead of panning', async ({ page }) => {
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5, { steps: 4 });
   await page.mouse.up();
 
-  await expect(page.getByRole('button', { name: 'Heal 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Heal', exact: true })).toBeVisible();
   const after = await image.boundingBox();
   if (!after) throw new Error('preview image has no bounding box');
   expect(Math.abs(after.x - before.x)).toBeLessThan(1);
@@ -172,10 +174,10 @@ test('saved retouch strokes reappear after a reload', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Retouch' }).click();
-  await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Clone', exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete retouch stroke', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Stroke 1 · Clone', exact: true })).toHaveCount(0);
 });
 
 for (const [name, to, want] of [
@@ -191,7 +193,7 @@ for (const [name, to, want] of [
     });
     await gotoAsset(page);
     await page.getByRole('tab', { name: 'Retouch' }).click();
-    await expect(page.getByRole('button', { name: 'Clone 1', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stroke 1 · Clone', exact: true })).toBeVisible();
     const box = await page.getByLabel('retouch canvas').boundingBox();
     if (!box) throw new Error('retouch canvas has no bounding box');
     const at = (u: number, v: number) => [box.x + box.width * u, box.y + box.height * v] as const;
@@ -216,3 +218,72 @@ for (const [name, to, want] of [
     expect(stroke.source.y - first.y).toBeCloseTo(0, 5);
   });
 }
+
+test('a click on the photo at the stroke limit says so', async ({ page }) => {
+  await installMocks(page, { previewBody: PNG_64, editRecord: FULL_RETOUCH_RECORD });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  const panel = page.getByRole('tabpanel');
+  await expect(panel.getByText('Strokes (64/64)')).toBeVisible();
+  await expect(panel.getByText('Limit of 64 retouch strokes reached.')).toBeVisible();
+
+  const box = await page.getByLabel('retouch canvas').boundingBox();
+  if (!box) throw new Error('retouch canvas has no bounding box');
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.7);
+  await expect(page.locator('[data-photo-pill]')).toHaveText(
+    'Limit of 64 retouch strokes reached.'
+  );
+  await expect(page.locator('[data-photo-pill]')).toHaveCount(0, { timeout: 4000 });
+});
+
+test('Visualize spots filters the preview from the panel and the V key', async ({ page }) => {
+  await installMocks(page, { previewBody: PNG_64 });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  const preview = page.getByTestId('preview-image');
+  const visualize = page.getByRole('checkbox', { name: 'Visualize spots' });
+
+  await visualize.click();
+  await expect(preview).toHaveAttribute('style', /filter: url\("?#retouch-visualize"?\)/);
+  await expect(page.locator('[data-photo-pill]')).toContainText('Visualize spots');
+  await expect(visualize).toBeChecked();
+
+  await page.getByLabel('retouch canvas').hover();
+  await page.keyboard.press('v');
+  await expect(preview).not.toHaveAttribute('style', /filter/);
+  await expect(visualize).not.toBeChecked();
+  await page.keyboard.press('v');
+  await expect(preview).toHaveAttribute('style', /filter: url\("?#retouch-visualize"?\)/);
+
+  await page.getByRole('tab', { name: 'Develop' }).click();
+  await expect(preview).not.toHaveAttribute('style', /filter/);
+});
+
+test('hovering the photo with a source set links the brush to the source', async ({ page }) => {
+  await installMocks(page, { previewBody: makePng(1600, 1067) });
+  await gotoAsset(page);
+  await page.getByRole('tab', { name: 'Retouch' }).click();
+  const canvas = page.getByLabel('retouch canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('retouch canvas has no bounding box');
+  const linked = (): Promise<number> =>
+    canvas.evaluate((element) => {
+      const c = element as HTMLCanvasElement;
+      const data = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
+      if (!data) return 0;
+      const y = Math.round(c.height * 0.4);
+      let painted = 0;
+      for (let x = Math.round(c.width * 0.45); x < Math.round(c.width * 0.55); x += 1) {
+        if ((data[(y * c.width + x) * 4 + 3] ?? 0) > 0) painted += 1;
+      }
+      return painted;
+    });
+
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.4);
+  await expect.poll(linked).toBe(0);
+  await page.keyboard.down('Alt');
+  await page.mouse.click(box.x + box.width * 0.7, box.y + box.height * 0.4);
+  await page.keyboard.up('Alt');
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.4, { steps: 3 });
+  await expect.poll(linked).toBeGreaterThan(0);
+});
