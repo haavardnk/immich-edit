@@ -71,11 +71,12 @@ describe('browse view persistence', () => {
     browseView.setFiltersOpen(true);
     browseView.setFilterSection('library', true);
     browseView.setFilterSection('place', true);
+    browseView.setFilterSection('date', true);
     browseView.setFilterSection('library', false);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({
       filtersOpen: true,
-      filterSections: ['place'],
+      filterSections: ['place', 'date'],
       gridSizeChoice: 'lg',
       loupeAutoAdvance: true,
       loupeInfoOpen: true,
@@ -84,7 +85,7 @@ describe('browse view persistence', () => {
   });
 
   it('restores the filter panel and drops unknown sections', async () => {
-    stubStorage({ filtersOpen: true, filterSections: ['camera', 'lens', 'date'] });
+    stubStorage({ filtersOpen: true, filterSections: ['view', 'camera', 'lens', 'date'] });
 
     const { browseView } = await import('./browseView.svelte');
 
@@ -96,7 +97,7 @@ describe('browse view persistence', () => {
     const values = stubStorage({ filtersOpen: true });
     const { browseView } = await import('./browseView.svelte');
 
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(true);
     expect(browseView.filtersOpen).toBe(false);
 
     browseView.setFiltersOpen(true);
@@ -104,18 +105,44 @@ describe('browse view persistence', () => {
     expect(values.get(storageKey)).toBe(JSON.stringify({ filtersOpen: true }));
 
     browseView.setFiltersOpen(false);
-    browseView.setFiltersCompact(false);
+    browseView.setCompact(false);
     expect(browseView.filtersOpen).toBe(true);
 
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(true);
     browseView.setFiltersOpen(true);
-    browseView.setFiltersCompact(false);
-    browseView.setFiltersCompact(true);
+    browseView.setCompact(false);
+    browseView.setCompact(true);
     expect(browseView.filtersOpen).toBe(false);
 
-    browseView.setFiltersCompact(false);
+    browseView.setCompact(false);
     browseView.setFiltersOpen(false);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+  });
+
+  it('keeps the compact info sheet transient and the docked info panel persisted', async () => {
+    const values = stubStorage({ loupeInfoOpen: true });
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setCompact(true);
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.toggleLoupeInfo();
+    expect(browseView.loupeInfoOpen).toBe(true);
+    expect(values.get(storageKey)).toBe(JSON.stringify({ loupeInfoOpen: true }));
+
+    browseView.openLoupe('a');
+    browseView.closeLoupe();
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.toggleLoupeInfo();
+    browseView.setCompact(false);
+    browseView.setCompact(true);
+    expect(browseView.loupeInfoOpen).toBe(false);
+
+    browseView.setCompact(false);
+    expect(browseView.loupeInfoOpen).toBe(true);
+    browseView.setLoupeInfoOpen(false);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ loupeInfoOpen: false });
   });
 
   it('cycles the tile info through none, badges and full', async () => {

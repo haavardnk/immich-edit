@@ -1,31 +1,23 @@
 <script lang="ts">
-  import TextInput from '#lib/components/TextInput.svelte';
+  import SearchField from '#lib/components/SearchField.svelte';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 
-  let filenameLocal = $state(browseControls.filters.filename);
-  let filenameTimer: ReturnType<typeof setTimeout> | null = null;
+  let local = $state(browseControls.filters.filename);
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
-    if (browseControls.filters.filename !== filenameLocal && filenameTimer === null) {
-      filenameLocal = browseControls.filters.filename;
+    if (browseControls.filters.filename !== local && timer === null) {
+      local = browseControls.filters.filename;
     }
   });
 
-  function onFilenameInput(e: Event): void {
-    filenameLocal = (e.target as HTMLInputElement).value;
-    if (filenameTimer) clearTimeout(filenameTimer);
-    filenameTimer = setTimeout(() => {
-      browseControls.filters.filename = filenameLocal;
-      filenameTimer = null;
+  function oninput(value: string): void {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      browseControls.filters.filename = value;
+      timer = null;
     }, 350);
   }
 </script>
 
-<TextInput
-  compact
-  color="neutral"
-  label="Filename"
-  placeholder="Search…"
-  value={filenameLocal}
-  oninput={onFilenameInput}
-/>
+<SearchField bind:value={local} label="Name contains" {oninput} />

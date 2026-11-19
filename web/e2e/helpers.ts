@@ -228,7 +228,16 @@ export interface InstallOpts {
   trash?: boolean;
   appearance?: MockAppearance;
   onAppearance?: (body: MockAppearance) => void;
+  savedViews?: MockSavedView[];
   metadataPushConsented?: boolean;
+}
+
+export interface MockSavedView {
+  id: string;
+  name: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<void> {
@@ -248,6 +257,8 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets: Array<Record<string, unknown>> = [];
+  const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
+  let savedViewSeq = savedViews.length;
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();
@@ -597,6 +608,44 @@ export async function installMocks(page: Page, opts: InstallOpts = {}): Promise<
       exportPresets[idx] = updated;
       return route.fulfill(json(updated));
     }
+    if (p === '/api/saved-views') {
+      if (method === 'POST') {
+        const body = req.postDataJSON() as { name: string; url: string };
+        savedViewSeq += 1;
+        const at = new Date(Date.UTC(2026, 0, 1, 0, 0, savedViewSeq)).toISOString();
+        const created = {
+          id: `saved-view-${savedViewSeq}`,
+          name: body.name.trim(),
+          url: body.url,
+          created_at: at,
+          updated_at: at
+        };
+        savedViews.push(created);
+        return route.fulfill(json(created));
+      }
+      const listed = savedViews
+        .slice()
+        .sort(
+          (a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) ||
+            a.created_at.localeCompare(b.created_at)
+        );
+      return route.fulfill(json(listed));
+    }
+    const savedViewMatch = p.match(/^\/api\/saved-views\/([^/]+)$/);
+    if (savedViewMatch) {
+      const idx = savedViews.findIndex((v) => v.id === savedViewMatch[1]);
+      const found = savedViews[idx];
+      if (!found) return route.fulfill(json({ error: 'not_found' }, 404));
+      if (method === 'DELETE') {
+        savedViews.splice(idx, 1);
+        return route.fulfill({ status: 204, body: '' });
+      }
+      const body = req.postDataJSON() as { name: string; url: string };
+      const updated = { ...found, name: body.name.trim(), url: body.url };
+      savedViews[idx] = updated;
+      return route.fulfill(json(updated));
+    }
     if (p === '/api/luts') return route.fulfill(json([]));
     if (p === '/api/watermarks') {
       if (method === 'POST') {
@@ -845,10 +894,9 @@ export async function gotoAsset(page: Page): Promise<void> {
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
-  await page.getByRole('button', { name: /^Filters/ }).click();
-  const panel = page
-    .getByRole('complementary', { name: 'Filters' })
-    .or(page.getByRole('dialog', { name: 'Filters' }));
+  await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
+  const name = /^(View & filters|Filters)$/;
+  const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
   for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
   return panel;
 }

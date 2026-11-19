@@ -11,7 +11,7 @@ import {
 import type { BrowseFeedOptions } from '#lib/stores/browseFeed.svelte.ts';
 import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
-import type { SearchScope } from '#lib/types/search.ts';
+import type { BrowseFilter, SearchScope } from '#lib/types/search.ts';
 
 interface RouteBase {
   family: SortFamily | null;
@@ -119,6 +119,17 @@ export function structuredRoute(url: ReadonlyURL): boolean {
 export function routeScope(url: ReadonlyURL): SearchScope | undefined {
   const route = matchBrowseRoute(url);
   return route && 'feed' in route ? route.feed.baseFilter().scope : undefined;
+}
+
+export function timelineBase(url: ReadonlyURL): BrowseFilter | null {
+  const route = matchBrowseRoute(url);
+  if (!route || !('feed' in route) || route.feed.fetcher) return null;
+  return route.feed.baseFilter();
+}
+
+export function loadsWhole(url: ReadonlyURL): boolean {
+  const route = matchBrowseRoute(url);
+  return route !== null && !('feed' in route);
 }
 
 export function supportsFilter(url: ReadonlyURL, key: keyof BrowseFilters): boolean {

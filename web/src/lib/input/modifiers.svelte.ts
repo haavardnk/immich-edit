@@ -74,3 +74,7 @@ export function heldAlone(role: ModifierRole, e: ModifierKeys): boolean {
   const own = ROLES[role];
   return held(role, e) && !KEYS.some((key) => key !== own && down(key, e));
 }
+
+export function plainClick(e: ModifierKeys & { button: number }): boolean {
+  return e.button === 0 && !KEYS.some((key) => down(key, e));
+}

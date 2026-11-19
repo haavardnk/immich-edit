@@ -197,11 +197,13 @@ test('smart search hides rejects in the browser and matches exact ratings', asyn
   expect(filters[0]?.rating).toBeUndefined();
   const panel = await openFilters(page, 'Library', 'Rating & label');
   await expect(panel.getByRole('button', { name: 'File', exact: true })).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: /^Rating match/ })).toHaveCount(0);
-  await page.getByRole('combobox', { name: 'Rejected', exact: true }).click();
-  await page.getByRole('option', { name: 'Hide', exact: true }).click();
-  const rating = panel.getByRole('radiogroup', { name: 'Rating', exact: true });
-  await rating.getByRole('radio', { name: '3 stars' }).click();
+  await expect(panel.getByRole('radiogroup', { name: 'Rating match' })).toHaveCount(0);
+  await panel
+    .getByRole('radiogroup', { name: 'Rejected', exact: true })
+    .getByRole('radio', { name: 'Hide', exact: true })
+    .click();
+  const rating = panel.getByRole('group', { name: 'Rating', exact: true });
+  await rating.getByRole('button', { name: '3 stars' }).click();
 
   await expect(page).toHaveURL(/rating=3(&|$)/);
   await expect.poll(() => filters.at(-1)?.rating).toEqual({ eq: 3 });

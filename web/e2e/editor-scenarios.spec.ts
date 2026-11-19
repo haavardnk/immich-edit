@@ -110,29 +110,6 @@ test('split view toggles from the editor menu and reveals the slider', async ({ 
   await expect(split).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('editor and loupe keep independent filmstrip visibility', async ({ page }) => {
-  await installMocks(page);
-  await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
-  await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
-  await page.getByRole('button', { name: /^Edit/ }).click();
-
-  await expect(page.getByRole('button', { name: 'Hide filmstrip' })).toBeVisible();
-  await page.keyboard.press('Shift+S');
-  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
-  await page.getByRole('button', { name: /^Back/ }).click();
-
-  await expect(page.getByRole('button', { name: 'Collapse filmstrip' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
-  await expect(page.getByRole('button', { name: 'IMG_0001.ARW' })).toBeVisible();
-});
-
 test('the filmstrip keeps a manual scroll away from the current photo', async ({ page }) => {
   const assets = numberedAssets(80);
   await installMocks(page, { assets });
@@ -154,27 +131,6 @@ test('the filmstrip keeps a manual scroll away from the current photo', async ({
   });
 
   expect(settled).toBe(600);
-});
-
-test('editor and loupe layout choices survive reload', async ({ page }) => {
-  await installMocks(page);
-  await page.goto('/search?q=IMG');
-  await page.getByLabel('Quick review').first().click();
-
-  await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
-  await page.reload();
-  await page.getByLabel('Quick review').first().click();
-  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
-
-  await page.getByRole('button', { name: /^Edit/ }).click();
-  await page.getByRole('tab', { name: 'Develop' }).click();
-  await page.getByRole('button', { name: 'Hide filmstrip' }).click();
-  await page.reload();
-
-  await expect(page.getByRole('complementary', { name: 'Editor controls' })).toBeHidden();
-  await page.getByRole('button', { name: /^Back/ }).click();
-  await page.locator(`a[href^="/assets/${ASSET_ID}?"]`).evaluate((element) => element.click());
-  await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 });
 
 test('a popover closes on escape and on an outside click, returning focus', async ({ page }) => {

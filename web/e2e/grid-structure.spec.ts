@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { sizeButton } from './browse';
 import { installMocks, numberedAssets } from './helpers';
 import { datedAssets, dayShots } from './timeline';
 import { pinch } from './touch';
@@ -41,10 +42,6 @@ async function scrollGrid(page: Page, top: number): Promise<void> {
 async function anchorRatio(page: Page, name: string, y: number): Promise<number> {
   const box = await tileBox(page, name);
   return (y - box.top) / box.height;
-}
-
-function sizeButton(page: Page, size: string) {
-  return page.getByRole('button', { name: `Thumbnail size ${size}`, exact: true });
 }
 
 async function wheelBurst(page: Page, x: number, y: number, count: number): Promise<void> {
@@ -238,10 +235,12 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
 
   test('defaults to the phone row height and remembers a chosen size', async ({ page }) => {
     await open(page, '/photos', { assets: ASSETS });
-    await page.locator('header[data-app-bar]').getByRole('button', { name: 'View options' }).tap();
-    const sizes = page
-      .getByRole('dialog', { name: 'View options' })
-      .getByRole('radiogroup', { name: 'Thumbnail size' });
+    await page
+      .locator('header[data-app-bar]')
+      .getByRole('button', { name: 'View & filters', exact: true })
+      .tap();
+    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
     await expect(sizes.getByRole('radio', { name: 'L', exact: true })).toBeChecked();
 
     await sizes.getByRole('radio', { name: 'S', exact: true }).tap();

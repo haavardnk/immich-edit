@@ -1,12 +1,13 @@
 <script lang="ts">
   import { assetThumbUrl } from '#lib/api/assets.ts';
+  import HighlightedText from '#lib/components/HighlightedText.svelte';
   import TooltipLink from '#lib/components/TooltipLink.svelte';
   import type { AlbumSummary } from '#lib/types/album.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Icon } from '@immich/ui';
   import { mdiAccountMultiple, mdiImageAlbum } from '@mdi/js';
 
-  let { album }: { album: AlbumSummary } = $props();
+  let { album, query = '' }: { album: AlbumSummary; query?: string } = $props();
 </script>
 
 <TooltipLink
@@ -40,9 +41,8 @@
   <span
     data-truncate
     class="block min-w-0 truncate text-sm font-medium text-light-950 touch:text-[14.5px]"
+    ><HighlightedText text={album.albumName} {query} /></span
   >
-    {album.albumName}
-  </span>
   <span class="block text-xs text-dark/65 touch:text-[12.5px]">
     {countOf(album.assetCount, 'photo')}
   </span>
