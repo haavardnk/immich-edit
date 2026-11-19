@@ -8,13 +8,10 @@
   import { touchBars } from '#lib/components/shell/touch/touchBars.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { provideTileOpen } from '#lib/browse/tileOpen.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { onDestroy, type Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
-
-  provideTileOpen('loupe');
 
   const selecting = $derived(bulkScope.selecting);
 
@@ -38,7 +35,7 @@
 </script>
 
 <div class="app-frame flex flex-col overflow-hidden pb-0!" {@attach hideBars}>
-  <main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-light">
+  <main data-page class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-light">
     {@render children()}
   </main>
   {#if !selecting}

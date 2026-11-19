@@ -1,6 +1,6 @@
 import type { MetaOutcome } from '#lib/browse/assetMeta.ts';
+import { peek } from '#lib/browse/peek.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { compare } from '#lib/stores/compare.svelte.ts';
 import { labelTagValue } from '#lib/stores/labels.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
@@ -8,9 +8,9 @@ import type { TagRef } from '#lib/types/asset.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   gridCurrent,
+  gridTargets,
   nextTargetLabel,
   nextTargetRating,
-  openMulti,
   rateAndAdvance
 } from './gridActions';
 
@@ -45,6 +45,17 @@ describe('grid actions', () => {
     selection.clear();
     browseView.setActive(null);
     browseView.closeLoupe();
+    peek.hide();
+  });
+
+  it('acts on the peeked photo instead of the selection', () => {
+    selection.replace(['a', 'b']);
+    peek.show('c');
+    expect(gridTargets()).toEqual(['c']);
+    expect(gridCurrent(ITEMS)).toBe('c');
+    expect(nextTargetRating(ITEMS, '5')).toBeNull();
+    peek.hide();
+    expect(gridTargets()).toEqual(['a', 'b']);
   });
 
   it('prefers the active photo when it is selected, else the first selected one', () => {
@@ -89,13 +100,5 @@ describe('grid actions', () => {
     expect(meta.setRating).toHaveBeenCalledTimes(2);
     expect([...selection.selected]).toEqual(['a', 'b']);
     expect(reveal).not.toHaveBeenCalled();
-  });
-
-  it('opens a comparison of the selection in the loupe', () => {
-    selection.replace(['a', 'c']);
-    openMulti('compare', ITEMS);
-    expect(browseView.loupeId).toBe('a');
-    expect(compare.mode).toBe('compare');
-    expect(compare.members).toEqual(['a', 'c']);
   });
 });

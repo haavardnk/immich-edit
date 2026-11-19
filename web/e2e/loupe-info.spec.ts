@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks, openLoupeFromGrid } from './helpers';
 import type { MockAlbum } from './searchMocks';
 import { openTileLoupe } from './touch';
 
@@ -44,7 +44,7 @@ function albums(): MockAlbum[] {
 async function openLoupe(page: Page, list: MockAlbum[] = albums()): Promise<void> {
   await installMocks(page, { assets: ASSETS, albums: list, metadataPushConsented: true });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
@@ -105,7 +105,7 @@ test('the info panel follows the photo and stays open across loupe visits', asyn
 
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
-  await page.getByLabel('Quick review').first().click();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('complementary', { name: 'Info' })).toBeVisible();
 });
 

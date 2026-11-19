@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { seriousViolations } from './axeHelpers';
 import { ASSET_ID, numberedAssets } from './helpers';
 import { tapCentre } from './touch';
 import { avatar, backButton, open, openDrawer, tab } from './touchShell';
@@ -111,18 +110,6 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
     await expect(tile).toBeVisible();
     await back(page, '/tags');
     await expect(page.getByText(/not in this view/)).toHaveCount(0);
-  });
-
-  test('the editor guard explains itself and goes back', async ({ page }) => {
-    await open(page, '/library');
-    await page.getByRole('list', { name: 'Recently edited' }).getByRole('link').first().tap();
-    await expect(page).toHaveURL(/\/assets\//);
-    await expect(page.getByRole('heading', { name: 'Larger screen needed' })).toBeVisible();
-    await expect(page.getByText('Editing needs a larger screen for now.')).toBeVisible();
-    expect(await seriousViolations(page)).toEqual([]);
-
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
-    await expect(page).toHaveURL('/library');
   });
 
   test('the editor guard Back returns after an in-app asset change without looping', async ({

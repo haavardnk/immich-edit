@@ -204,6 +204,14 @@ export const KEYBINDS = [
     label: 'Open the loupe'
   },
   {
+    id: 'peek',
+    keys: ['w'],
+    contexts: ['grid'],
+    group: 'Grid',
+    label: 'Hold to peek at the photo',
+    display: 'W (hold)'
+  },
+  {
     id: 'openEditor',
     keys: ['d', 'Enter'],
     contexts: ['grid', 'loupe'],

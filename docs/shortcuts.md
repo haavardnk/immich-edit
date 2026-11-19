@@ -56,6 +56,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift or Ctrl + drag from a gap`                                                                        | Add the boxed photos to the selection                            | Grid         |
 | `Shift+B`                                                                                                | Focus the selection actions                                      | Grid         |
 | `E` / `Space`                                                                                            | Open the loupe                                                   | Grid         |
+| `W`                                                                                                      | Hold to peek at the photo                                        | Grid         |
 | `D` / `Enter`                                                                                            | Open the editor                                                  | Grid, Loupe  |
 | `C`                                                                                                      | Compare the selection, or this photo and the next                | Grid, Loupe  |
 | `N`                                                                                                      | Survey the selection, or this photo and the next five            | Grid, Loupe  |

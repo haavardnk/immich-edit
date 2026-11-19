@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
+  import IconLink from '#lib/components/IconLink.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
   import RatingBadge from '#lib/components/browse/RatingBadge.svelte';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
@@ -15,14 +16,14 @@
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
   import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-  import { Icon, IconButton } from '@immich/ui';
+  import { Icon } from '@immich/ui';
   import {
     mdiHeart,
     mdiCircle,
     mdiCheck,
-    mdiEyeOutline,
     mdiCloseCircle,
     mdiContentDuplicate,
+    mdiPencilOutline,
     mdiTuneVariant
   } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
@@ -40,7 +41,6 @@
     onPreviewEnd,
     onActivate,
     onLoupe,
-    onOpen,
     onDeleteCopy,
     onRate
   }: {
@@ -56,7 +56,6 @@
     onPreviewEnd?: () => void;
     onActivate?: () => void;
     onLoupe?: () => void;
-    onOpen?: () => void;
     onDeleteCopy?: () => void;
     onRate?: (rating: number | null) => void;
   } = $props();
@@ -77,6 +76,13 @@
   const rowPinned = $derived(
     info === 'full' || (info === 'badges' && (copyBadge !== null || rating > 0))
   );
+  const hoverButton = {
+    size: 'small',
+    shape: 'round',
+    variant: 'ghost',
+    color: 'secondary',
+    class: 'text-white drop-shadow-md bg-black/40 hover:bg-black/70'
+  } as const;
   const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
   const markClass = $derived(info === 'none' ? hoverOnly : '');
   const nameClass = $derived(info === 'full' ? '' : hoverOnly);
@@ -88,6 +94,7 @@
         : 'opacity-0 group-hover:opacity-100 touch:hidden'
   );
   const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
+  const href = $derived(editorHref(asset.id, `${page.url.pathname}${page.url.search}`));
 
   function onClick(e: MouseEvent): void {
     if (held('extend', e)) {
@@ -105,15 +112,7 @@
       onToggle?.();
       return;
     }
-    onActivate?.();
-    if (!onOpen) return;
     e.preventDefault();
-    onOpen();
-  }
-
-  function onLoupeClick(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
     onActivate?.();
     onLoupe?.();
   }
@@ -133,7 +132,7 @@
   role="group"
   onpointerenter={onPreview}
   onpointerleave={onPreviewEnd}
-  class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-200"
+  class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-base"
   class:bg-light-100={!selected}
   class:bg-light-400={selected}
   class:rounded-md={selected}
@@ -143,10 +142,10 @@
   data-asset-id={asset.id}
 >
   <a
-    href={editorHref(asset.id, `${page.url.pathname}${page.url.search}`)}
+    {href}
     onclick={onClick}
     aria-label={asset.originalFileName}
-    class="block h-full w-full outline-none transition-[padding] duration-200 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+    class="block h-full w-full outline-none transition-[padding] duration-base focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
     class:p-2={selected}
     draggable="false"
   >
@@ -156,7 +155,7 @@
         alt=""
         loading="lazy"
         draggable="false"
-        class="h-full w-full bg-cover bg-center object-cover transition-[filter,transform] duration-200 group-hover:scale-[1.01]"
+        class="h-full w-full bg-cover bg-center object-cover transition-[filter,transform] duration-base group-hover:scale-[1.01]"
         style:transform={selected ? 'none' : undefined}
         style:background-image={placeholder}
         class:opacity-40={rejected}
@@ -172,7 +171,7 @@
     onclick={onCheckbox}
     aria-label={selected ? 'Deselect' : 'Select'}
     aria-pressed={selected}
-    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-150 hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checkClass}"
+    class="absolute top-2 left-2 flex size-6 items-center justify-center rounded-full border-2 border-white bg-black/35 text-white drop-shadow-md transition-[opacity,background-color,border-color,transform] duration-fast hover:scale-105 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checkClass}"
     class:border-primary={marked}
     class:bg-primary={marked}
   >
@@ -218,17 +217,13 @@
     <div
       class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 transition-opacity opacity-0 group-hover:opacity-100 touch:hidden"
     >
-      <IconButton
-        type="button"
-        size="small"
-        shape="round"
-        variant="ghost"
-        color="secondary"
-        class="text-white drop-shadow-md bg-black/40 hover:bg-black/70"
-        icon={mdiEyeOutline}
-        title={hint('Quick review', 'openLoupe')}
-        aria-label="Quick review"
-        onclick={onLoupeClick}
+      <IconLink
+        {...hoverButton}
+        icon={mdiPencilOutline}
+        {href}
+        tooltip={hint('Edit', 'openEditor')}
+        aria-label="Edit"
+        onclick={() => onActivate?.()}
       />
       {#if copyBadge && onDeleteCopy}
         <DeleteConfirmation
@@ -270,14 +265,14 @@
         data-testid="tile-name"
         class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
       >
-        <span class="truncate text-[10px] font-medium">{asset.originalFileName}</span>
+        <span class="truncate text-micro font-medium">{asset.originalFileName}</span>
         {#if taken}
-          <span class="truncate text-[9px] text-white/70">{taken}</span>
+          <span class="truncate text-nano text-white/70">{taken}</span>
         {/if}
       </span>
       {#if copyBadge}
-        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-[9px] text-white/75">
-          <Icon icon={mdiContentDuplicate} size="11px" aria-hidden="true" />
+        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-nano text-white/75">
+          <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
           <span class="truncate">{copyBadge}</span>
         </span>
       {/if}

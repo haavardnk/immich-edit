@@ -6,6 +6,7 @@ import {
   installMocks,
   makePng,
   numberedAssets,
+  openLoupeFromGrid,
   type InstallOpts
 } from './helpers';
 
@@ -29,8 +30,8 @@ async function openLoupe(
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await openLoupeFromGrid(page);
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
 }
 
@@ -372,4 +373,15 @@ test('j toggles the clipping overlay', async ({ page }) => {
 
   await page.keyboard.press('j');
   await expect(image).toHaveAttribute('src', /clip=false/);
+});
+
+test('the loupe actions menu shows every label in full beside its shortcut', async ({ page }) => {
+  await openLoupe(page);
+  await page.getByRole('button', { name: 'More loupe actions' }).click();
+  const labels = page.locator('[data-popover-content] [data-menu-row] span.truncate');
+  await expect(labels.filter({ hasText: 'Move to Immich trash' })).toBeVisible();
+  const clipped = await labels.evaluateAll((spans) =>
+    spans.filter((span) => span.scrollWidth > span.clientWidth).map((span) => span.textContent)
+  );
+  expect(clipped).toEqual([]);
 });

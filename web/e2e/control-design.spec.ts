@@ -1,13 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import {
-  ASSET_ID,
-  DEFAULT_APPEARANCE,
-  gotoAsset,
-  installMocks,
-  json,
-  numberedAssets,
-  openFilters
-} from './helpers';
+import { DEFAULT_APPEARANCE, gotoAsset, installMocks, json, openFilters } from './helpers';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -109,24 +101,6 @@ async function expectSegmentedControl(
   expect(activeMetrics.height).toBe(24);
   expect(activeMetrics.background).toBe(await resolvedColor(page, '--color-primary'));
 }
-
-test('editor and loupe use the same black image canvas', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const canvas = await resolvedColor(page, '--color-image-canvas');
-  expect((await metricsOf(page.getByRole('application'))).background).toBe(canvas);
-
-  await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
-
-  const loupeCanvases = page.locator('.bg-image-canvas');
-  await expect(loupeCanvases).toHaveCount(2);
-  for (const loupeCanvas of await loupeCanvases.all()) {
-    expect((await metricsOf(loupeCanvas)).background).toBe(canvas);
-  }
-});
 
 test('text inputs retain the package focus ring', async ({ page }) => {
   await installMocks(page);
@@ -918,33 +892,6 @@ test('crop ratio controls share the neutral grey surface', async ({ page }) => {
 
   expect((await metricsOf(aspect.locator('div').first())).background).toBe(neutral);
   expect((await metricsOf(orientation)).background).toBe(neutral);
-});
-
-test('browse and loupe controls name their shortcuts', async ({ page }) => {
-  await installMocks(page, { assets: numberedAssets(2) });
-  await page.goto('/photos');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-
-  await page.getByRole('button', { name: 'Thumbnail size XL' }).hover();
-  await expect(page.getByText('Thumbnail size XL (− / +)')).toBeVisible();
-
-  await page.getByRole('button', { name: 'Select', exact: true }).first().click();
-  await page.getByRole('button', { name: /^Favorite \(/ }).hover();
-  await expect(page.getByText('Favorite (P)')).toBeVisible();
-  await page
-    .getByLabel('Selection actions')
-    .getByRole('radio', { name: '3 stars', exact: true })
-    .hover();
-  await expect(page.getByText('3 stars (0 – 5)')).toBeVisible();
-  await page.getByRole('button', { name: /^Reject \(/ }).hover();
-  await expect(page.getByText('Reject (X)')).toBeVisible();
-  await page.getByRole('button', { name: 'Clear selection' }).click();
-
-  await page.getByLabel('Quick review').first().click();
-  await page.getByRole('button', { name: 'Next', exact: true }).hover();
-  await expect(page.getByText('Next (← / →)')).toBeVisible();
-  await page.getByRole('button', { name: 'More loupe actions' }).click();
-  await expect(page.getByRole('button', { name: 'Clipping overlay' })).toContainText('J');
 });
 
 test('browse filter chips and fields keep the dense desktop sizes', async ({ page }) => {

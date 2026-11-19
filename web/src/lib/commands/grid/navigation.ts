@@ -1,5 +1,6 @@
 import { surveyUnavailable } from '#lib/browse/compareEntry.ts';
 import { gridCurrent, openGridEditor, openMulti } from '#lib/browse/gridActions.ts';
+import { peek } from '#lib/browse/peek.svelte.ts';
 import { gridCommand } from '#lib/commands/grid/context.ts';
 import type { GridHost } from '#lib/commands/grid/gridHost.ts';
 import type { Command } from '#lib/commands/types.ts';
@@ -8,7 +9,12 @@ import { compare } from '#lib/stores/compare.svelte.ts';
 
 function withCurrent(host: GridHost, open: (id: string) => void): void {
   const id = gridCurrent(host.items());
+  peek.hide();
   if (id) open(id);
+}
+
+function peekTarget(host: GridHost): string | null {
+  return peek.hovered ?? gridCurrent(host.items());
 }
 
 function nothingCurrent(host: GridHost): boolean {
@@ -27,6 +33,16 @@ export const GRID_NAVIGATION_COMMANDS: readonly Command[] = [
     bind: 'openEditor',
     yields: nothingCurrent,
     run: (host) => withCurrent(host, openGridEditor)
+  }),
+  gridCommand({
+    id: 'grid.peek',
+    bind: 'peek',
+    yields: (host) => peekTarget(host) === null,
+    run: (host, trigger) => {
+      const id = peekTarget(host);
+      if (id && !trigger?.repeat) peek.show(id);
+    },
+    release: () => peek.hide()
   }),
   gridCommand({
     id: 'grid.compare',

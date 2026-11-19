@@ -24,7 +24,7 @@ async function openLoupe(page: Page, applied: MockTag[] = []): Promise<TagChange
     metadataPushConsented: true
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
   await openTileLoupe(page, page.locator('[role="group"][data-name]').first());
   await expect(page.getByRole('button', { name: /^Back/ })).toBeVisible();
   return changes;

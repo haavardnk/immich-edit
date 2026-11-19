@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks } from './helpers';
+import { ASSET_EXIF, ASSET_ID, ASSET_SUMMARY, installMocks, openLoupeFromGrid } from './helpers';
 
 const ASSETS = [
   { ...ASSET_SUMMARY, exifInfo: ASSET_EXIF },
@@ -23,8 +23,8 @@ async function openCompare(page: Page): Promise<void> {
     localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
   });
   await page.goto('/search?q=IMG');
-  await expect(page.locator(`a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
-  await page.getByLabel('Quick review').first().click();
+  await expect(page.locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)).toBeVisible();
+  await openLoupeFromGrid(page);
   await page.keyboard.press('c');
   await expect(page.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
