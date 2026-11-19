@@ -4,7 +4,8 @@
   import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
   import { setupStatus } from '#lib/api/auth.ts';
-  import { isBackendDown } from '#lib/api/client.ts';
+  import { isBackendDown, isImmichDown } from '#lib/api/client.ts';
+  import { pingImmich } from '#lib/api/immich.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { navHistory } from '#lib/stores/navHistory.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
@@ -12,7 +13,7 @@
   import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
-  import { isViewerPath } from '#lib/utils/route.ts';
+  import { isViewerPath, onEditorRoute } from '#lib/utils/route.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
@@ -23,6 +24,7 @@
   import '#lib/pwa/install.svelte.ts';
   import { checkForUpdate, installServiceWorker } from '#lib/pwa/serviceWorker.ts';
   import BackendUnavailable from '#lib/components/shell/BackendUnavailable.svelte';
+  import ImmichUnavailable from '#lib/components/shell/ImmichUnavailable.svelte';
   import Shell from '#lib/components/shell/Shell.svelte';
   import Toasts from '#lib/components/shell/Toasts.svelte';
   import AppTooltipProvider from '#lib/components/AppTooltipProvider.svelte';
@@ -33,7 +35,7 @@
   setLocale(navigator.language);
   appearance.apply();
 
-  let bootState = $state<'loading' | 'ready' | 'unreachable'>('loading');
+  let bootState = $state<'loading' | 'ready' | 'unreachable' | 'immich-down'>('loading');
   let configured = $state(false);
 
   const bare = $derived(page.url.pathname === '/login' || page.url.pathname === '/setup');
@@ -47,12 +49,19 @@
       if (configured && (await session.load())) {
         void appearance.load();
         void preferences.load();
-        await immichCapabilities.load();
+        await Promise.all([immichCapabilities.load(), pingImmich()]);
       }
       bootState = 'ready';
     } catch (err: unknown) {
-      bootState = isBackendDown(err) ? 'unreachable' : 'ready';
+      if (isBackendDown(err)) bootState = 'unreachable';
+      else if (isImmichDown(err)) bootState = 'immich-down';
+      else bootState = 'ready';
     }
+  }
+
+  async function immichAnswers(): Promise<boolean> {
+    await pingImmich();
+    return true;
   }
 
   onMount(boot);
@@ -71,6 +80,11 @@
   afterNavigate(navHistory.record);
 
   $effect(() => appearance.showScheme(appearance.scheme));
+  $effect(() => {
+    const editing = onEditorRoute() && layout.mode !== 'touch';
+    appearance.useEditorChrome(editing);
+    document.documentElement.classList.toggle('editor-chrome', editing);
+  });
   $effect(() => showLayout(layout.mode, layout.wide));
 
   $effect(() => {
@@ -108,6 +122,10 @@
   {:else if bootState === 'unreachable'}
     <div class="app-frame">
       <BackendUnavailable retry={boot} />
+    </div>
+  {:else if bootState === 'immich-down'}
+    <div class="app-frame">
+      <ImmichUnavailable probe={immichAnswers} retry={boot} admin={session.isAdmin} />
     </div>
   {:else if bare}
     <div class="app-frame">

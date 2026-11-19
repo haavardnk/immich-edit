@@ -20,8 +20,7 @@ export async function createVirtualCopy(
   await goto(editorHref(created.id, opts.returnPath));
   toasts.push(
     'success',
-    created.name ? `Created virtual copy "${created.name}"` : 'Created virtual copy',
-    { ttlMs: 3000 }
+    created.name ? `Created virtual copy "${created.name}"` : 'Created virtual copy'
   );
   return created.id;
 }

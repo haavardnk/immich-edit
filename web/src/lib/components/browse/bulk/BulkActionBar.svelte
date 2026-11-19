@@ -55,7 +55,7 @@
 </script>
 
 {#snippet divider()}
-  <span class="mx-1 h-5 w-px shrink-0 bg-dark/10 {ONE_ROW.divider}" aria-hidden="true"></span>
+  <span class="mx-1 h-5 w-px shrink-0 bg-hairline {ONE_ROW.divider}" aria-hidden="true"></span>
 {/snippet}
 
 {#snippet multiButton(mode: MultiMode)}
@@ -102,7 +102,7 @@
             <span class="truncate text-sm font-semibold">{scope.targetCount} selected</span>
           {/if}
           {#if scope.scope}
-            <span class="truncate text-[11px] text-dark/65">{scope.scope}</span>
+            <span class="truncate text-caption text-dark/65">{scope.scope}</span>
           {/if}
         </div>
         {#if scope.canSelectAll}
@@ -184,9 +184,9 @@
     </div>
 
     {#if band === 'tags' && scope.allOwned}
-      <BulkTagBand />
+      <BulkTagBand onDone={() => (band = null)} />
     {:else if band === 'albums'}
-      <BulkAlbumBand />
+      <BulkAlbumBand onDone={() => (band = null)} />
     {/if}
   </div>
 </div>

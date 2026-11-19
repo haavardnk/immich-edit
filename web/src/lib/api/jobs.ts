@@ -117,6 +117,10 @@ export function jobNeedsAttention(job: Job): boolean {
   return !isJobActive(job.status) && (job.failed > 0 || job.status === 'failed');
 }
 
+export function jobRetryable(job: Job): boolean {
+  return !isJobActive(job.status) && job.status !== 'cancelled' && job.failed > 0;
+}
+
 export function zipReady(job: Job): boolean {
   return job.kind === JOB_KINDS.downloadZip && job.status === 'completed' && job.completed > 0;
 }
@@ -131,6 +135,10 @@ export function getJob(id: string): Promise<JobDetail> {
 
 export function cancelJob(id: string): Promise<void> {
   return sendJson('POST', url`/api/jobs/${id}/cancel`, undefined);
+}
+
+export function retryJob(id: string): Promise<Job> {
+  return sendJson('POST', url`/api/jobs/${id}/retry`, undefined);
 }
 
 export function clearJobs(): Promise<void> {

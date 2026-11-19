@@ -99,12 +99,11 @@ test('setup fits mobile and remains accessible', async ({ page }) => {
   });
   await page.goto('/setup');
 
-  await expect(page.getByRole('heading', { name: 'Connect Immich' })).toBeVisible();
-  await expect(page.getByLabel('Immich URL')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Email & password' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
-  );
+  await expect(page.getByRole('heading', { name: 'Set up immich-edit' })).toBeVisible();
+  await page.getByLabel('Immich URL').fill('https://immich.example.com');
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('radio', { name: 'Email & password' })).toBeChecked();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)
   ).toBe(true);
@@ -212,13 +211,14 @@ test('admins can turn off automatic lens corrections', async ({ page }) => {
 
 async function expectBoundedJobsDrawer(
   page: Page,
-  viewport: { width: number; height: number }
+  viewport: { width: number; height: number },
+  downloadName: string
 ): Promise<void> {
   const drawer = jobsPanel(page);
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByText('completed', { exact: true })).toBeVisible();
-  await expect(drawer.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
-  const download = drawer.getByRole('link', { name: 'Download ZIP' });
+  await expect(drawer.getByText('Done, 2 photos', { exact: true })).toBeVisible();
+  await expect(drawer.getByRole('progressbar')).toHaveCount(0);
+  const download = drawer.getByRole('link', { name: downloadName });
   await expect(download).toBeVisible();
   await expect(download).not.toHaveAttribute('type');
 
@@ -251,7 +251,7 @@ test('jobs drawer stays bounded and restores focus on desktop', async ({ page })
   const trigger = page.getByRole('button', { name: 'Jobs', exact: true });
   await trigger.click();
 
-  await expectBoundedJobsDrawer(page, viewport);
+  await expectBoundedJobsDrawer(page, viewport, 'Download ZIP');
   await expect(trigger).toBeFocused();
 });
 
@@ -268,7 +268,7 @@ test('jobs drawer opened from the account drawer stays bounded on a phone', asyn
     .getByRole('button', { name: 'Jobs', exact: true })
     .click();
 
-  await expectBoundedJobsDrawer(page, viewport);
+  await expectBoundedJobsDrawer(page, viewport, 'Save ZIP');
   await expect(trigger).toBeFocused();
 });
 

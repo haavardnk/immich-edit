@@ -7,12 +7,14 @@ import {
   jobKindVerb,
   jobItemPreset,
   jobItemState,
+  jobDetail,
+  jobErrorsText,
   jobOutcome,
   jobProgress,
+  jobTime,
   jobsEtaText,
   jobsProgressFraction,
-  jobsProgressText,
-  jobsSummary
+  jobsProgressText
 } from './jobFormat';
 
 function job(patch: Partial<Job>): Job {
@@ -33,11 +35,6 @@ function job(patch: Partial<Job>): Job {
 }
 
 describe('jobFormat', () => {
-  it('summarises the active job count', () => {
-    expect(jobsSummary(0)).toBe('No active jobs');
-    expect(jobsSummary(2)).toBe('2 active');
-  });
-
   it('describes running jobs for the jobs pill and card', () => {
     expect(
       jobsProgressText([job({ kind: 'export_immich', total: 12, completed: 3, failed: 0 })])
@@ -146,5 +143,74 @@ describe('jobFormat', () => {
     expect(jobItemState({ ...done, result: { status: 'duplicate' } })).toBe('duplicate');
     expect(jobItemState({ ...done, result: { replaced_asset_id: 'old' } })).toBe('replaced');
     expect(jobItemState({ ...done, status: 'failed' })).toBe('failed');
+  });
+
+  const now = new Date('2026-01-01T10:30:00Z');
+  const clock = (iso: string): string =>
+    new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(
+      new Date(iso)
+    );
+
+  it('shows the time of day for today and the date before that', () => {
+    expect(jobTime('2026-01-01T10:00:00Z', now)).toBe(clock('2026-01-01T10:00:00Z'));
+    expect(jobTime('2025-12-24T10:00:00Z', now)).toBe(
+      new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(
+        new Date('2025-12-24T10:00:00Z')
+      )
+    );
+    expect(jobTime('soon', now)).toBeNull();
+  });
+
+  it('describes a running job by count, presets and time', () => {
+    const variants = { variants: [{ preset: 'Web' }, { preset: 'Print' }] };
+    expect(jobDetail(job({ params: variants }), now)).toEqual([
+      { text: '2 of 4', danger: false },
+      { text: '2 presets', danger: false },
+      { text: `started ${clock('2026-01-01T10:00:00Z')}`, danger: false },
+      { text: '1 failed', danger: true }
+    ]);
+    expect(jobDetail(job({ failed: 0, eta_secs: 90 }), now).map((part) => part.text)).toEqual([
+      '1 of 4',
+      '2 min left'
+    ]);
+  });
+
+  it('describes a finished job by outcome and when it ended', () => {
+    const ended = clock('2026-01-01T10:00:00Z');
+    expect(jobDetail(job({ status: 'completed', completed: 4, failed: 0 }), now)).toEqual([
+      { text: 'Done, 4 photos', danger: false },
+      { text: ended, danger: false }
+    ]);
+    expect(jobDetail(job({ status: 'completed', completed: 2, failed: 2 }), now)).toEqual([
+      { text: '2 of 4 failed', danger: true },
+      { text: ended, danger: false }
+    ]);
+    expect(jobDetail(job({ status: 'cancelled', failed: 0 }), now).map((p) => p.text)).toEqual([
+      'Cancelled',
+      '1 of 4 done',
+      ended
+    ]);
+  });
+
+  it('lists failed items with their preset for a bug report', () => {
+    const variants = job({
+      id: 'job-7',
+      status: 'completed',
+      completed: 1,
+      failed: 2,
+      total: 3,
+      params: { variants: [{ preset: 'Web' }, { preset: 'Print' }] }
+    });
+    const item = (patch: Partial<JobItem>): JobItem =>
+      ({ asset_id: 'asset-1', variant: 0, status: 'failed', result: null, ...patch }) as JobItem;
+    expect(
+      jobErrorsText(variants, [
+        item({ error: 'Upload timed out', result: { filename: 'a_web.jpg' } }),
+        item({ status: 'completed', error: null }),
+        item({ variant: 1, error: null })
+      ])
+    ).toBe(
+      'Download ZIP job-7: 2 of 3 failed\na_web.jpg (Web): Upload timed out\nasset-1 (Print): failed'
+    );
   });
 });

@@ -163,6 +163,30 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
       .toBe(0);
   });
 
+  test('dragging inside the crop moves the photo under a still frame', async ({ page }) => {
+    await openCrop(page);
+    await pickRatio(page, '1:1');
+    const frame = async () => {
+      const nw = await centreOf(page.getByRole('button', { name: 'resize nw' }));
+      const se = await centreOf(page.getByRole('button', { name: 'resize se' }));
+      return { x: Math.round((nw.x + se.x) / 2), y: Math.round((nw.y + se.y) / 2) };
+    };
+    const photo = async () =>
+      Math.round((await centreOf(page.locator('.editor-stage img').first())).x);
+    await expect.poll(frame).toEqual(await frame());
+    const still = await frame();
+    const before = await photo();
+
+    await touchDown(page, still);
+    await touchMoveTo(page, { x: still.x + 20, y: still.y });
+    await touchMoveTo(page, { x: still.x + 40, y: still.y });
+    expect(await frame()).toEqual(still);
+    expect(await photo()).toBeGreaterThan(before + 20);
+    await touchUp(page);
+    await expect.poll(frame).toEqual(still);
+    expect(await photo()).toBeGreaterThan(before + 20);
+  });
+
   test('panning the photo into an edge keeps a locked ratio', async ({ page }) => {
     await openCrop(page);
     await pickRatio(page, '1:1');

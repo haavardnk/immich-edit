@@ -36,6 +36,12 @@ export function isBackendDown(err: unknown): boolean {
   return err instanceof ApiError && err.code === 'unknown' && GATEWAY_STATUSES.has(err.status);
 }
 
+const IMMICH_DOWN_CODES = new Set(['upstream_unavailable', 'upstream_timeout']);
+
+export function isImmichDown(err: unknown): boolean {
+  return err instanceof ApiError && IMMICH_DOWN_CODES.has(err.code);
+}
+
 function redirectToLogin(): void {
   if (typeof window === 'undefined') return;
   if (window.location.pathname === '/login') return;

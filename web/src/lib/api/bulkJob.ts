@@ -14,7 +14,7 @@ export async function runBulkJob(
     jobs.track(job);
     return job;
   } catch (e) {
-    toasts.fail(error, e, 6000);
+    toasts.fail(error, e);
     return null;
   }
 }

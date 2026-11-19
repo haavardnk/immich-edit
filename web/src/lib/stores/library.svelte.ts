@@ -104,7 +104,7 @@ class LibraryStore {
       this.albums = byName([...this.albums, album]);
       return album;
     } catch (e: unknown) {
-      toasts.fail('Failed to create album', e, 8000);
+      toasts.fail('Failed to create album', e);
       return null;
     }
   };

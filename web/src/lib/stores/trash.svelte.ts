@@ -17,8 +17,6 @@ import { libraryChanged } from './libraryChange';
 import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
 
-const UNDO_TTL_MS = 12000;
-
 function neighbourOf(id: string, gone: ReadonlySet<string>): string | null {
   let next = browsing.nextOf(id);
   while (next && gone.has(next.id)) next = browsing.nextOf(next.id);
@@ -146,13 +144,12 @@ class TrashStore {
     if (trashed.length === 0 && deleted.length === 0) return false;
     const message = trashedMessage(trashed.length, deleted.length);
     if (trashed.length > 0) this.offerUndo(trashed, removal, message);
-    else toasts.push('success', message, { ttlMs: UNDO_TTL_MS });
+    else toasts.push('success', message);
     return true;
   }
 
   private offerUndo(ids: string[], removal: Removal, message: string): void {
     toasts.push('success', message, {
-      ttlMs: UNDO_TTL_MS,
       action: { label: 'Undo', run: () => void this.restore(ids, removal) }
     });
   }

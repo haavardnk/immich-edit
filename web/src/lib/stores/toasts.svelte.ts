@@ -27,12 +27,17 @@ export type Toast = {
 
 const MAX_VISIBLE = 3;
 
-const DEFAULT_TTL: Record<ToastKind, number> = {
-  info: 5000,
-  warn: 8000,
-  error: 12000,
-  success: 10000
+export const TOAST_TTL_MS: Record<ToastKind, number> = {
+  info: 3000,
+  success: 3000,
+  warn: 6000,
+  error: 8000
 };
+const ACTION_TTL_MS = 8000;
+
+function lifetime(kind: ToastKind, action: ToastAction | undefined): number {
+  return action ? Math.max(ACTION_TTL_MS, TOAST_TTL_MS[kind]) : TOAST_TTL_MS[kind];
+}
 
 function evictable(items: Toast[]): Toast | undefined {
   if (items.length <= MAX_VISIBLE) return undefined;
@@ -52,7 +57,7 @@ export class ToastStore {
     if (!action && last != null && now - last < 3000) return;
     this.recent.set(key, now);
     const id = this.nextId++;
-    const ttl = ttlMs ?? DEFAULT_TTL[kind];
+    const ttl = ttlMs ?? lifetime(kind, action);
     this.items = [...this.items, { id, kind, message, action, description, pinned, onDismiss }];
     for (let evicted = evictable(this.items); evicted; evicted = evictable(this.items)) {
       this.dismiss(evicted.id);
@@ -67,13 +72,13 @@ export class ToastStore {
     toast.onDismiss?.();
   };
 
-  fail = (context: string, e: unknown, ttlMs?: number): void => {
-    this.push('error', `${context}: ${errorMessage(e)}`, { ttlMs });
+  fail = (context: string, e: unknown): void => {
+    this.push('error', `${context}: ${errorMessage(e)}`);
   };
 
   tally = (failed: number, failure: string, success: string): void => {
-    if (failed > 0) this.push('warn', failure, { ttlMs: 6000 });
-    else this.push('success', success, { ttlMs: 4000 });
+    if (failed > 0) this.push('warn', failure);
+    else this.push('success', success);
   };
 }
 
