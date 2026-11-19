@@ -182,7 +182,7 @@ test.describe('albums page on the desktop', () => {
       route.fulfill(json({ ...SESSION_USER, is_admin: false }))
     );
     await page.goto('/settings');
-    await page.getByRole('button', { name: /^Account/ }).click();
+    await page.getByRole('button', { name: /^Account Review/ }).click();
     await expect(
       page.getByText('photos.example.net · Immich v3.1.0', { exact: true })
     ).toBeVisible();
