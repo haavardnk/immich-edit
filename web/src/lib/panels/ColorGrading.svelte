@@ -18,9 +18,11 @@
     type GradeRegion
   } from '#lib/editor/params/colorGrading.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
+  import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 
   type Mode = 'three_way' | 'global';
 
+  const REGIONS = Object.keys(GRADE_REGIONS) as GradeRegion[];
   const WHEELS: { key: Exclude<GradeRegion, 'global'>; size: number; cell: string }[] = [
     { key: 'midtones', size: 94, cell: 'col-span-2' },
     { key: 'shadows', size: 78, cell: '' },
@@ -30,6 +32,14 @@
   let mode = $state<Mode>('three_way');
   let activeRegion = $state<GradeRegion>('midtones');
   let adjustOpen = $state(false);
+
+  $effect(() => {
+    const region = REGIONS[settingSearch.revealedIn(Object.values(GRADE_REGIONS))];
+    if (!region) return;
+    mode = region === 'global' ? 'global' : 'three_way';
+    activeRegion = region;
+    adjustOpen = true;
+  });
 
   $effect(() => {
     if (mode === 'global') activeRegion = 'global';

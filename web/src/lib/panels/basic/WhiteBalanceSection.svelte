@@ -5,6 +5,7 @@
   import EditSlider from '#lib/components/editor/controls/EditSlider.svelte';
   import SectionHeader from '#lib/components/editor/controls/SectionHeader.svelte';
   import { commitSectionReset } from '#lib/components/editor/controls/paramReset.ts';
+  import { settingFilter } from '#lib/components/editor/controls/settingFilter.ts';
   import {
     KELVIN,
     SHIFT_TEMPERATURE,
@@ -23,6 +24,8 @@
     type Temperature
   } from '#lib/types/edits.ts';
 
+  const filter = settingFilter();
+  const shown = $derived(!filter || filter.shows('section:white_balance'));
   const wb = $derived(editor.edits.basic.white_balance);
   const asShot = $derived(editor.asShot);
   const pending = $derived(!asShot && !editor.asShotError);
@@ -53,74 +56,76 @@
   }
 </script>
 
-<SectionHeader
-  title="White Balance"
-  section="white_balance"
-  {modified}
-  onReset={() => commitSectionReset(WHITE_BALANCE)}
->
-  {#snippet actions()}
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color={editor.wbPicking ? 'primary' : 'secondary'}
-      icon={mdiEyedropperVariant}
-      title={hint('Pick a neutral area in the image', 'pickWhiteBalance')}
-      aria-label="Pick white balance"
-      aria-pressed={editor.wbPicking}
-      disabled={editor.wbBusy || !editor.assetId}
-      onclick={editor.toggleWbPicker}
+{#if shown}
+  <SectionHeader
+    title="White Balance"
+    section="white_balance"
+    {modified}
+    onReset={() => commitSectionReset(WHITE_BALANCE)}
+  >
+    {#snippet actions()}
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color={editor.wbPicking ? 'primary' : 'secondary'}
+        icon={mdiEyedropperVariant}
+        title={hint('Pick a neutral area in the image', 'pickWhiteBalance')}
+        aria-label="Pick white balance"
+        aria-pressed={editor.wbPicking}
+        disabled={editor.wbBusy || !editor.assetId}
+        onclick={editor.toggleWbPicker}
+      />
+      <IconButton
+        size="tiny"
+        variant="ghost"
+        color="secondary"
+        icon={mdiAutoFix}
+        title="Auto white balance"
+        aria-label="Auto white balance"
+        disabled={editor.wbBusy || !editor.assetId}
+        onclick={() => void editor.onAutoWhiteBalance()}
+      />
+    {/snippet}
+  </SectionHeader>
+  {#if kelvinMode && white}
+    {@const kelvin = Math.round(white.kelvin)}
+    {@const tint = Math.round(white.tint)}
+    <EditSlider
+      label="Temperature"
+      commitAction="Temperature"
+      value={kelvin}
+      range={KELVIN}
+      defaultValue={asShot?.kelvin ?? kelvin}
+      disabled={pending}
+      onLive={(v: number) => setWhite({ kelvin: v, tint })}
     />
-    <IconButton
-      size="tiny"
-      variant="ghost"
-      color="secondary"
-      icon={mdiAutoFix}
-      title="Auto white balance"
-      aria-label="Auto white balance"
-      disabled={editor.wbBusy || !editor.assetId}
-      onclick={() => void editor.onAutoWhiteBalance()}
+    <EditSlider
+      label="Tint"
+      commitAction="Tint"
+      value={tint}
+      range={TINT}
+      defaultValue={asShot?.tint ?? tint}
+      disabled={pending}
+      onLive={(v: number) => setWhite({ kelvin, tint: v })}
     />
-  {/snippet}
-</SectionHeader>
-{#if kelvinMode && white}
-  {@const kelvin = Math.round(white.kelvin)}
-  {@const tint = Math.round(white.tint)}
-  <EditSlider
-    label="Temperature"
-    commitAction="Temperature"
-    value={kelvin}
-    range={KELVIN}
-    defaultValue={asShot?.kelvin ?? kelvin}
-    disabled={pending}
-    onLive={(v: number) => setWhite({ kelvin: v, tint })}
-  />
-  <EditSlider
-    label="Tint"
-    commitAction="Tint"
-    value={tint}
-    range={TINT}
-    defaultValue={asShot?.tint ?? tint}
-    disabled={pending}
-    onLive={(v: number) => setWhite({ kelvin, tint: v })}
-  />
-{:else}
-  {@const temp = Math.round(shift?.temp ?? 0)}
-  {@const tint = Math.round(shift?.tint ?? 0)}
-  <EditSlider
-    label="Temperature"
-    commitAction="Temperature"
-    value={temp}
-    range={SHIFT_TEMPERATURE}
-    disabled={pending}
-    onLive={(v: number) => setShift(v, tint)}
-  />
-  <EditSlider
-    label="Tint"
-    commitAction="Tint"
-    value={tint}
-    range={SHIFT_TINT}
-    disabled={pending}
-    onLive={(v: number) => setShift(temp, v)}
-  />
+  {:else}
+    {@const temp = Math.round(shift?.temp ?? 0)}
+    {@const tint = Math.round(shift?.tint ?? 0)}
+    <EditSlider
+      label="Temperature"
+      commitAction="Temperature"
+      value={temp}
+      range={SHIFT_TEMPERATURE}
+      disabled={pending}
+      onLive={(v: number) => setShift(v, tint)}
+    />
+    <EditSlider
+      label="Tint"
+      commitAction="Tint"
+      value={tint}
+      range={SHIFT_TINT}
+      disabled={pending}
+      onLive={(v: number) => setShift(temp, v)}
+    />
+  {/if}
 {/if}

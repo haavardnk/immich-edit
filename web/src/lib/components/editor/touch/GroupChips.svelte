@@ -1,12 +1,9 @@
 <script lang="ts">
-  import { runCommand, commandLabel, commandTitle, isEnabled } from '#lib/commands/command.ts';
-  import { autoAdjust, resetDevelop } from '#lib/commands/editor/edits.ts';
   import { TOUCH_GROUPS } from '#lib/editor/params/catalog.ts';
   import type { TouchGroupId } from '#lib/editor/params/types.ts';
   import { modifiedTouchGroups } from '#lib/editor/modified.ts';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
-  import { IconButton } from '@immich/ui';
   import { Tabs } from 'bits-ui';
 
   let { grid = false, onretap }: { grid?: boolean; onretap?: () => void } = $props();
@@ -14,30 +11,7 @@
   const modified = $derived(modifiedTouchGroups(editor.edits));
 </script>
 
-<div class="flex shrink-0 items-center gap-1.5 {grid ? 'px-2 py-2' : 'px-3 py-1.5'}">
-  <IconButton
-    size="medium"
-    variant="ghost"
-    color="secondary"
-    shape="round"
-    icon={autoAdjust.icon}
-    title={commandTitle(autoAdjust)}
-    aria-label="Auto"
-    disabled={!isEnabled(autoAdjust)}
-    onclick={() => runCommand(autoAdjust)}
-  />
-  <IconButton
-    size="medium"
-    variant="ghost"
-    color="secondary"
-    shape="round"
-    icon={resetDevelop.icon}
-    title={commandTitle(resetDevelop)}
-    aria-label={commandLabel(resetDevelop)}
-    disabled={!isEnabled(resetDevelop)}
-    onclick={() => runCommand(resetDevelop)}
-  />
-  <div class="h-6 w-px shrink-0 bg-hairline"></div>
+{#snippet chips()}
   <Tabs.Root
     value={touchUi.group}
     onValueChange={(value) => touchUi.setGroup(value as TouchGroupId)}
@@ -46,7 +20,9 @@
   >
     <Tabs.List
       aria-label="Develop groups"
-      class={grid ? 'grid grid-cols-6 gap-1' : 'flex gap-1.5 overflow-x-auto scrollbar-hidden'}
+      class={grid
+        ? 'grid grid-cols-6 gap-1'
+        : 'flex gap-1.5 overflow-x-auto px-4 scrollbar-hidden fade-x'}
     >
       {#each TOUCH_GROUPS as group (group.id)}
         <Tabs.Trigger
@@ -72,4 +48,8 @@
       {/each}
     </Tabs.List>
   </Tabs.Root>
+{/snippet}
+
+<div class="flex shrink-0 items-center {grid ? 'px-2 py-2' : 'py-1.5'}">
+  {@render chips()}
 </div>

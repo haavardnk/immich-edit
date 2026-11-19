@@ -12,6 +12,7 @@ const CHORD_CHECKS = [
   '/src/lib/components/editor/ClickCanvas.svelte',
   '/src/lib/components/editor/MaskOverlay.svelte',
   '/src/lib/components/editor/MaskPolygonDraft.svelte',
+  '/src/lib/components/editor/desktop/CommandPalette.svelte',
   '/src/lib/components/shell/KeybindsHelp.svelte',
   '/src/lib/components/tags/TagPickerBody.svelte'
 ];

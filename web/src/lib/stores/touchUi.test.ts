@@ -64,6 +64,18 @@ describe('touch editor ui', () => {
     });
   });
 
+  it('opens search at the current view size, raising it from peek', async () => {
+    stubStorage();
+    const { touchUi } = await import('./touchUi.svelte');
+    touchUi.setDetent('expanded');
+    touchUi.openSearch();
+    expect(touchUi.detent).toBe('expanded');
+    touchUi.closeSearch();
+    touchUi.setDetent('peek');
+    touchUi.openSearch();
+    expect(touchUi.detent).toBe('expanded');
+  });
+
   it('drops unknown stored groups, views and detents', async () => {
     stubStorage({
       group: 'bogus',

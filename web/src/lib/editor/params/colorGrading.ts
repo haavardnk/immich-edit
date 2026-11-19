@@ -43,6 +43,7 @@ function regionParam(
     label,
     history: `${name} ${label}`,
     synonyms: ['color grading', 'split toning', name.toLowerCase()],
+    subgroup: name,
     ...range,
     liveGradient,
     get: (edits) => regionOf(edits, region)[key],

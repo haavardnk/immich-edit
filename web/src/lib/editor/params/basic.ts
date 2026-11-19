@@ -128,6 +128,7 @@ export const PRESENCE: SectionDef = {
 export const CURVES: SectionDef = {
   id: 'curves',
   title: 'Curves',
+  synonyms: ['tone curve', 'RGB curve', 'parametric'],
   rows: [],
   clear: (edits) => {
     edits.basic.curves = neutralCurves();
