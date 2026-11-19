@@ -10,7 +10,8 @@ export interface GridHost {
   move: (key: string, extend: boolean) => void;
   reveal: (id: string) => void;
   scrollTo: (id: string) => void;
-  focusBulkBar: () => void;
+  dragging: () => boolean;
+  cancelDrag: () => void;
   holdAnchor: (at: Point | null) => () => void;
 }
 

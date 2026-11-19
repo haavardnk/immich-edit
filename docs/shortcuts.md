@@ -52,6 +52,8 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Shift+F`                                                                                                | Show or hide the filter panel                                    | Grid         |
 | `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
 | `Esc`                                                                                                    | Clear the selection                                              | Grid         |
+| `Drag from a gap`                                                                                        | Box-select the photos it touches                                 | Grid         |
+| `Shift or Ctrl + drag from a gap`                                                                        | Add the boxed photos to the selection                            | Grid         |
 | `Shift+B`                                                                                                | Focus the selection actions                                      | Grid         |
 | `E` / `Space`                                                                                            | Open the loupe                                                   | Grid         |
 | `D` / `Enter`                                                                                            | Open the editor                                                  | Grid, Loupe  |

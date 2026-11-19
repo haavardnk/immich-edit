@@ -76,7 +76,7 @@ test('editor navigation walks past the last loaded page', async ({ page }) => {
 
 async function expectTileRevealed(page: Page, name: string): Promise<void> {
   const scroller = page.getByRole('main').locator('.overflow-y-auto').first();
-  const tile = page.locator(`[role="group"][title="${name}"]`);
+  const tile = page.locator(`[data-name="${name}"]`);
   await expect
     .poll(async () => {
       const [outer, inner] = await Promise.all([scroller.boundingBox(), tile.boundingBox()]);

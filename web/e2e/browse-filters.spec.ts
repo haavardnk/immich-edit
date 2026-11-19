@@ -228,7 +228,7 @@ for (const structuredSearch of [false, true]) {
     await expect(
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
     ).toHaveText(['≤ 2 stars']);
-    await page.getByRole('button', { name: 'Filters (active)' }).click();
+    await page.getByRole('button', { name: 'Filters (1 active)' }).click();
     await operator.click();
     await expect.poll(() => bodies.at(-1)?.filter).toMatchObject({ rating: { eq: 2 } });
   });

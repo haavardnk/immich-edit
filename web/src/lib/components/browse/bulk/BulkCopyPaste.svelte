@@ -2,9 +2,8 @@
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { clipboard, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
-  import { createResetEditsJob } from '#lib/api/jobs.ts';
-  import { runBulkJob } from '#lib/api/bulkJob.ts';
-  import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+  import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+  import { copyEditsFrom } from '#lib/browse/copyPaste.ts';
   import { Button } from '@immich/ui';
   import { mdiRestore, mdiContentCopy, mdiContentPaste } from '@mdi/js';
 
@@ -22,20 +21,6 @@
     await copyEditsFrom(copyId);
     busy = false;
   }
-
-  async function paste(): Promise<void> {
-    if (busy || !clipboard.has) return;
-    busy = true;
-    await pasteEditsTo([...selection.selected]);
-    busy = false;
-  }
-
-  async function reset(): Promise<void> {
-    if (busy || selection.count === 0) return;
-    busy = true;
-    await runBulkJob((target) => createResetEditsJob(target), 'Failed to queue reset');
-    busy = false;
-  }
 </script>
 
 <div class="flex items-center gap-1 px-3 py-1.5">
@@ -46,8 +31,8 @@
     class="h-6 flex-1 panel-action"
     leadingIcon={mdiRestore}
     title="Reset edits on selected assets to original"
-    disabled={busy || selection.count === 0}
-    onclick={() => void reset()}
+    disabled={bulkActions.metaBusy || selection.count === 0}
+    onclick={() => void bulkActions.resetEdits()}
   >
     Reset
   </Button>
@@ -74,8 +59,8 @@
     class="h-6 flex-1 panel-action"
     leadingIcon={mdiContentPaste}
     title={clipboard.has ? 'Paste edits to selected assets' : NOTHING_COPIED}
-    disabled={busy || !clipboard.has || selection.count === 0}
-    onclick={() => void paste()}
+    disabled={bulkActions.metaBusy || !clipboard.has || selection.count === 0}
+    onclick={() => void bulkActions.paste()}
   >
     Paste
   </Button>

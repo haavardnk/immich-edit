@@ -159,7 +159,7 @@ test('removing a selection from the open album drops its tiles', async ({ page }
   await expect(page.getByText('Removed 2 from Review album')).toBeVisible();
   expect(calls).toEqual([{ method: 'DELETE', ids: ASSETS.map((a) => a.id) }]);
   for (const asset of ASSETS) {
-    await expect(page.locator(`div[title="${asset.originalFileName}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-name="${asset.originalFileName}"]`)).toHaveCount(0);
   }
 });
 
@@ -214,8 +214,11 @@ test('grid shortcuts copy edits from one photo and paste them onto a selection',
     edits: [{ id: source.id, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' }]
   });
   await page.goto('/photos');
-  const tile = (name: string) => page.locator(`div[title="${name}"]`);
+  const tile = (name: string) => page.locator(`[data-name="${name}"]`);
   await expect(tile(source.originalFileName)).toBeVisible();
+  await expect(
+    tile(source.originalFileName).getByRole('img', { name: 'Edited', exact: true })
+  ).toBeVisible();
 
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ControlOrMeta+c');
@@ -242,7 +245,7 @@ test('one selected photo gets its name and an editor link instead of compare', a
   const [first] = ASSETS;
   if (!first) throw new Error('missing asset');
   await page
-    .locator(`div[title="${first.originalFileName}"]`)
+    .locator(`[data-name="${first.originalFileName}"]`)
     .getByRole('button', { name: 'Select' })
     .click();
 

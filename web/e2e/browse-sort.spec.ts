@@ -313,7 +313,7 @@ test('rating a photo in a folder sorted by rating keeps it in place', async ({ p
   await page.goto('/folders?path=%2Fphotos');
   await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
 
-  const tile = page.locator('div[title="IMG_0003.ARW"]');
+  const tile = page.locator('[data-name="IMG_0003.ARW"]');
   await tile.hover();
   await tile.getByRole('radio', { name: '5 stars' }).click();
   await expect(tile.getByRole('radio', { name: '5 stars' })).toBeChecked();

@@ -1,19 +1,18 @@
 <script lang="ts">
+  import FilterToggle from '#lib/components/browse/FilterToggle.svelte';
   import SortMenu from '#lib/components/browse/SortMenu.svelte';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { openFilterPanel } from '#lib/browse/filterPanel.ts';
   import { clickOrigin, resizeGrid } from '#lib/browse/gridResize.ts';
   import { EDIT_SORT_ICONS, EDIT_SORT_LABELS } from '#lib/browse/sortOptions.ts';
   import { GRID_SIZE_OPTIONS, tileInfoLabel } from '#lib/browse/viewOptions.ts';
   import { Button, IconButton } from '@immich/ui';
-  import { mdiClose, mdiFilterOutline, mdiTextBoxOutline } from '@mdi/js';
+  import { mdiClose, mdiTextBoxOutline } from '@mdi/js';
 
   let { sortBasis }: { sortBasis: 'capture' | 'edit' | null } = $props();
 
   const editSortLabel = $derived(EDIT_SORT_LABELS[browseControls.sortDir]);
-  const hasFilter = $derived(browseControls.isFiltered);
 
   function toggleDir(): void {
     browseControls.setSortDir(browseControls.sortDir === 'asc' ? 'desc' : 'asc');
@@ -75,14 +74,5 @@
 {/if}
 
 {#if !browseView.filtersOpen}
-  <IconButton
-    id="browse-filters-toggle"
-    size="small"
-    variant="ghost"
-    color={hasFilter ? 'primary' : 'secondary'}
-    icon={mdiFilterOutline}
-    title={hint('Filters', 'toggleFilters')}
-    aria-label={hasFilter ? 'Filters (active)' : 'Filters'}
-    onclick={openFilterPanel}
-  />
+  <FilterToggle size="small" />
 {/if}

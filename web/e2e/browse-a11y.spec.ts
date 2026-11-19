@@ -29,7 +29,7 @@ test('shift+b moves focus into the selection actions', async ({ page }) => {
   await page.goto('/photos');
 
   for (const name of ['IMG_0001.ARW', 'IMG_0002.ARW']) {
-    await page.locator(`div[title="${name}"]`).getByRole('button', { name: 'Select' }).click();
+    await page.locator(`[data-name="${name}"]`).getByRole('button', { name: 'Select' }).click();
   }
   await expect(page.getByText('2 selected')).toBeVisible();
   await page.keyboard.press('Shift+b');
@@ -43,9 +43,9 @@ test('grid selection previews and commits a shift range', async ({ page }) => {
   await installMocks(page, { assets: GRID_ASSETS.slice(0, 3) });
   await page.goto('/photos');
 
-  const firstTile = page.locator('div[title="IMG_0001.ARW"]');
-  const secondTile = page.locator('div[title="IMG_0002.ARW"]');
-  const thirdTile = page.locator('div[title="IMG_0003.ARW"]');
+  const firstTile = page.locator('[data-name="IMG_0001.ARW"]');
+  const secondTile = page.locator('[data-name="IMG_0002.ARW"]');
+  const thirdTile = page.locator('[data-name="IMG_0003.ARW"]');
   const firstSelector = firstTile.getByRole('button', { name: 'Select', exact: true });
 
   await expect(firstSelector).toHaveCSS('opacity', '0');
@@ -73,14 +73,14 @@ test('grid selection previews and commits a shift range', async ({ page }) => {
   await expect(page.locator('[data-range-preview="true"]')).toHaveCount(0);
 });
 
-test('compare and survey enforce their selection limits', async ({ page }) => {
+test('compare and survey take the first picks that fit', async ({ page }) => {
   await installMocks(page, { assets: GRID_ASSETS });
   await page.goto('/photos');
 
   const compare = page.getByRole('button', { name: 'Compare selected' });
   const survey = page.getByRole('button', { name: 'Survey selected' });
   const select = (name: string) =>
-    page.locator(`div[title="${name}"]`).getByRole('button', { name: 'Select', exact: true });
+    page.locator(`[data-name="${name}"]`).getByRole('button', { name: 'Select', exact: true });
 
   await select('IMG_0001.ARW').click();
   await expect(compare).toHaveCount(0);
@@ -88,15 +88,14 @@ test('compare and survey enforce their selection limits', async ({ page }) => {
 
   await select('IMG_0002.ARW').click();
   await expect(compare).toBeEnabled();
-  await expect(survey).toHaveCount(0);
-
-  await select('IMG_0003.ARW').click();
-  await expect(compare).toHaveCount(0);
   await expect(survey).toBeEnabled();
 
   await page.keyboard.press('ControlOrMeta+a');
   await expect(page.getByText('10 selected')).toBeVisible();
-  await expect(survey).toBeDisabled();
+  await survey.hover();
+  await expect(page.getByText(/^Survey the first 9/)).toBeVisible();
+  await survey.click();
+  await expect(page.getByRole('img', { name: /^IMG_\d+\.ARW$/ })).toHaveCount(9);
 });
 
 test('the library sidebar exposes the current page and section state', async ({ page }) => {

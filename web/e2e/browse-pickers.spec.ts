@@ -31,7 +31,7 @@ test('one camera pick narrows the lens list on flat search', async ({ page }) =>
 
   await expect(make).toHaveValue('SONY');
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).make).toEqual(['SONY']);
-  await expect(page.locator('div[title="IMG_0002.ARW"]')).toHaveCount(0);
+  await expect(page.locator('[data-name="IMG_0002.ARW"]')).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Lens' }).click();
   await expect(page.getByRole('option')).toHaveText(['FE 35mm F1.8', 'FE 85mm F1.8']);
 });
@@ -94,8 +94,8 @@ test('an unknown lens matches photos without one and excludes named lenses', asy
   await page.getByRole('option', { name: 'Unknown' }).click();
   await expect.poll(() => filter().lensModel).toEqual([null]);
   await expect(page).toHaveURL(/[?&]lens=(&|$)/);
-  await expect(page.locator(`div[title="${bare.originalFileName}"]`)).toHaveCount(1);
-  await expect(page.locator('div[title="IMG_0001.ARW"]')).toHaveCount(0);
+  await expect(page.locator(`[data-name="${bare.originalFileName}"]`)).toHaveCount(1);
+  await expect(page.locator('[data-name="IMG_0001.ARW"]')).toHaveCount(0);
   await page.getByRole('option', { name: 'FE 85mm F1.8' }).click();
   await expect.poll(() => filter().lensModel).toEqual(['FE 85mm F1.8']);
   await page.keyboard.press('Escape');
@@ -115,7 +115,7 @@ test('people match all, any or none of the picked people', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
   const people = () => (bodies.at(-1)?.filter as { people?: unknown }).people;
   const tile = (index: number) =>
-    page.locator(`div[title="${PAGED_ASSETS[index]!.originalFileName}"]`);
+    page.locator(`[data-name="${PAGED_ASSETS[index]!.originalFileName}"]`);
   await installMocks(page, {
     structuredSearch: true,
     assets: PAGED_ASSETS,
@@ -182,7 +182,7 @@ test('albums filter leaves out the page album', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
   const albums = () => (bodies.at(-1)?.filter as { albums?: unknown }).albums;
   const tile = (index: number) =>
-    page.locator(`div[title="${PAGED_ASSETS[index]!.originalFileName}"]`);
+    page.locator(`[data-name="${PAGED_ASSETS[index]!.originalFileName}"]`);
   await installMocks(page, {
     structuredSearch: true,
     assets: PAGED_ASSETS,
@@ -219,7 +219,7 @@ test('tags filter offers user tags and leaves out the page tag', async ({ page }
     ...asset,
     tags: [[rome], [oslo, reject], []][index]
   }));
-  const tile = (index: number) => page.locator(`div[title="${assets[index]!.originalFileName}"]`);
+  const tile = (index: number) => page.locator(`[data-name="${assets[index]!.originalFileName}"]`);
   await installMocks(page, {
     structuredSearch: true,
     assets,
@@ -272,7 +272,7 @@ test('a country narrows states and a state narrows cities', async ({ page }) => 
   await page.getByRole('combobox', { name: 'Country' }).click();
   await page.getByRole('option', { name: 'Norway' }).click();
   await expect.poll(() => filter().country).toEqual(['Norway']);
-  await expect(page.locator('div[title="IMG_0003.ARW"]')).toHaveCount(0);
+  await expect(page.locator('[data-name="IMG_0003.ARW"]')).toHaveCount(0);
 
   await page.getByRole('combobox', { name: 'State' }).click();
   await expect(page.getByRole('option')).toHaveText(['Oslo', 'Vestland']);

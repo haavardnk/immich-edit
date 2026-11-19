@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { coverageOf, favoriteMark } from '#lib/browse/bulk/bulkMarks.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiHeart, mdiHeartOutline } from '@mdi/js';
 
   interface Props {
     isFavorite: boolean;
@@ -13,20 +13,19 @@
 
   let { isFavorite, mixed = false, size = 'tiny', disabled = false, ontoggle }: Props = $props();
 
-  const label = $derived(
-    isFavorite && !mixed ? hint('Unfavorite', 'favorite') : hint('Favorite', 'favorite')
-  );
+  const mark = $derived(favoriteMark(coverageOf(isFavorite, mixed)));
+  const label = $derived(hint(mark.label, 'favorite'));
 </script>
 
 <IconButton
   {size}
   variant="ghost"
   color="secondary"
-  class={mixed ? 'text-red-400/50' : isFavorite ? 'text-red-400' : ''}
-  icon={isFavorite || mixed ? mdiHeart : mdiHeartOutline}
+  class={mark.tone}
+  icon={mark.icon}
   title={label}
   aria-label={label}
-  aria-pressed={mixed ? 'mixed' : isFavorite}
+  aria-pressed={mark.pressed}
   {disabled}
   onclick={ontoggle}
 />

@@ -86,7 +86,7 @@
       title={entry.title}
       subtitle={entry.subtitle}
       selected={entry.selected}
-      selectionActive={selection.active || locked}
+      selectionActive={selection.selecting || locked}
       busy={picking === entry.day.key}
       onSelect={(extend) => void selectDay(entry.day.key, extend)}
     />

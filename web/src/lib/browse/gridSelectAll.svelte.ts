@@ -25,7 +25,7 @@ export class GridSelectAll {
       const loadAll = this.#src.loadAll();
       if (loadAll && !(await loadAll(abort.signal))) return false;
       if (abort.signal.aborted) return false;
-      selection.selectLoaded(this.#src.items().map((asset) => asset.id));
+      selection.replace(this.#src.items().map((asset) => asset.id));
       return true;
     } finally {
       if (this.#abort === abort) {

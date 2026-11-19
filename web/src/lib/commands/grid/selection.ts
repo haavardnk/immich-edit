@@ -1,4 +1,6 @@
+import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
 import { gridCommand, type GridCommandSpec } from '#lib/commands/grid/context.ts';
+import { gridHost } from '#lib/commands/grid/gridHost.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
 
@@ -13,17 +15,28 @@ function move(id: string, bind: GridCommandSpec['bind']): Command {
 }
 
 export const GRID_SELECTION_COMMANDS: readonly Command[] = [
+  {
+    id: 'grid.cancelSelectAll',
+    contexts: ['grid'],
+    bind: 'gridClearSelection',
+    gate: 'outsideControls',
+    active: () => gridHost.get()?.selectingAll() ?? false,
+    run: () => gridHost.get()?.cancelSelectAll()
+  },
   gridCommand({
     id: 'grid.clearSelection',
     bind: 'gridClearSelection',
-    yields: () => !selection.active,
-    run: () => selection.clear()
+    yields: (host) => !selection.selecting && !host.dragging(),
+    run: (host) => {
+      if (host.dragging()) host.cancelDrag();
+      else selection.clear();
+    }
   }),
   gridCommand({
     id: 'grid.focusBulkBar',
     bind: 'focusBulkBar',
     yields: () => !selection.active,
-    run: (host) => host.focusBulkBar()
+    run: () => bulkActions.focusBar()
   }),
   gridCommand({
     id: 'grid.selectAll',

@@ -16,7 +16,8 @@ const SHARED_BINDS = [
   'resetEdits@editor',
   'loupeClose@loupe',
   'compareExit@compare',
-  'surveyExit@survey'
+  'surveyExit@survey',
+  'gridClearSelection@grid'
 ];
 
 const BINDS = KEYBINDS as readonly Keybind[];

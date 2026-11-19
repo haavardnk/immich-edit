@@ -5,6 +5,7 @@ import { presetEdits } from '#lib/edits/applyPreset.ts';
 import { LOOK_AMOUNT_FULL } from '#lib/edits/lookAmount.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
 import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
+import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
@@ -51,8 +52,10 @@ export function copyEdits(ctx: DevelopCtx): void {
     toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
     return;
   }
-  copyDialog.show($state.snapshot(ctx.edits) as Edits, () =>
-    toasts.push('success', 'Copied settings', { ttlMs: 3000 })
+  copyDialog.show(
+    $state.snapshot(ctx.edits) as Edits,
+    () => toasts.push('success', 'Copied settings', { ttlMs: 3000 }),
+    ctx.assetId ? (browsing.find(ctx.assetId)?.originalFileName ?? null) : null
   );
 }
 
