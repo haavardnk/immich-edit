@@ -9,7 +9,6 @@ import {
   canDropPane,
   leaveLoupeOnEditorPath,
   loupeFocusedId,
-  openInEditor,
   rateFocused,
   rateFocusedAndAdvance,
   unflagFocused
@@ -102,19 +101,13 @@ describe('loupe actions', () => {
     expect(browseView.loupeId).toBe('a');
   });
 
-  it('opens the focused photo in the editor with the current page to return to', () => {
-    openInEditor();
-    expect(goto).toHaveBeenCalledWith('/assets/a?from=%2Falbums%2Fa1%3Fsort%3Dasc');
-    expect(browseView.loupeId).toBeNull();
-  });
-
-  it.each([
-    ['the editor closes', '/assets/a', null, true],
-    ['a browse page keeps', '/albums/a1', 'a', false]
-  ])('navigating to %s the loupe', (_, path, open, returnsToLoupe) => {
-    browseView.consumeEditorReturnLoupe(null);
-    leaveLoupeOnEditorPath(path);
-    expect(browseView.loupeId).toBe(open);
-    expect(browseView.consumeEditorReturnLoupe('a')).toBe(returnsToLoupe);
-  });
+  it.each([['a browse page keeps', '/albums/a1', 'a', false]])(
+    'navigating to %s the loupe',
+    (_, path, open, returnsToLoupe) => {
+      browseView.consumeEditorReturnLoupe(null);
+      leaveLoupeOnEditorPath(path);
+      expect(browseView.loupeId).toBe(open);
+      expect(browseView.consumeEditorReturnLoupe('a')).toBe(returnsToLoupe);
+    }
+  );
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { FolderNode } from '#lib/stores/library.svelte.ts';
 import {
+  activeFolderPath,
+  allFolders,
   findFolder,
   folderCrumbs,
   folderHref,
@@ -62,5 +64,24 @@ describe('folder tree lookup', () => {
     expect(subfolders(TREE, '').map((node) => node.name)).toEqual(['photos', 'phone']);
     expect(subfolders(TREE, '/photos/2026').map((node) => node.name)).toEqual(['Norway']);
     expect(subfolders(TREE, '/missing')).toEqual([]);
+  });
+
+  it('lists every folder of the tree, parents before their children', () => {
+    expect(allFolders(TREE).map((node) => node.path)).toEqual([
+      '/photos',
+      '/photos/2026',
+      '/photos/2026/Norway',
+      '/phone'
+    ]);
+  });
+});
+
+describe('activeFolderPath', () => {
+  it('reads the folder only on the folders page', () => {
+    expect(activeFolderPath(new URL('http://x/folders?path=%2Fphotos%2F2026'))).toBe(
+      '/photos/2026'
+    );
+    expect(activeFolderPath(new URL('http://x/folders'))).toBeNull();
+    expect(activeFolderPath(new URL('http://x/photos?path=%2Fphotos'))).toBeNull();
   });
 });

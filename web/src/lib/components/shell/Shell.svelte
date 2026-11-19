@@ -34,7 +34,7 @@
   });
 
   $effect.pre(() => {
-    browseView.setFiltersCompact(layout.compact);
+    browseView.setCompact(layout.compact);
   });
 
   $effect(() => {

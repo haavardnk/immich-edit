@@ -1,12 +1,14 @@
 <script lang="ts">
-  import CheckboxRow from '#lib/components/CheckboxRow.svelte';
+  import Chip from '#lib/components/chips/Chip.svelte';
+  import ChipChoice from '#lib/components/chips/ChipChoice.svelte';
+  import FilterRow from '#lib/components/browse/filters/FilterRow.svelte';
   import {
     browseControls,
     type FilterKey,
     type RejectedFilter,
     type Visibility
   } from '#lib/stores/browseControls.svelte.ts';
-  import { Field, Select } from '@immich/ui';
+  import { mdiHeart, mdiHeartOutline } from '@mdi/js';
 
   let {
     favoriteLocked = false,
@@ -24,36 +26,36 @@
     { value: 'hide', label: 'Hide' },
     { value: 'only', label: 'Only' }
   ];
+
+  const favoriteOnly = $derived(browseControls.filters.favoriteOnly);
 </script>
 
 {#if supports('visibility')}
-  <Field label="Visibility" size="tiny">
-    <Select
-      size="tiny"
-      class="editor-compact-select editor-compact-field"
+  <FilterRow label="Show">
+    <ChipChoice
       options={visibilityOptions}
       value={browseControls.filters.visibility}
-      onChange={(v) => (browseControls.filters.visibility = v)}
+      label="Show"
+      onChange={(value) => (browseControls.filters.visibility = value)}
     />
-  </Field>
+  </FilterRow>
 {/if}
-
-<Field label="Rejected" size="tiny">
-  <Select
-    size="tiny"
-    class="editor-compact-select editor-compact-field"
+<FilterRow label="Rejected">
+  <ChipChoice
     options={rejectedOptions}
     value={browseControls.filters.rejected}
-    onChange={(v) => (browseControls.filters.rejected = v)}
+    label="Rejected"
+    onChange={(value) => (browseControls.filters.rejected = value)}
   />
-</Field>
-
+</FilterRow>
 {#if !favoriteLocked}
-  <div class="pt-1">
-    <CheckboxRow
-      label="Favorites only"
-      checked={browseControls.filters.favoriteOnly}
-      onChange={(checked) => (browseControls.filters.favoriteOnly = checked)}
-    />
-  </div>
+  <FilterRow>
+    <Chip
+      pressed={favoriteOnly}
+      onPressedChange={(pressed) => (browseControls.filters.favoriteOnly = pressed)}
+      icon={favoriteOnly ? mdiHeart : mdiHeartOutline}
+    >
+      Favorites only
+    </Chip>
+  </FilterRow>
 {/if}

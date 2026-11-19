@@ -219,7 +219,10 @@ describe('AssetGrid', () => {
   });
 
   it('toggles the filter panel with Shift+F', async () => {
-    const panel = mount(PanelHost, { target, props: { component: FilterPanel, props: {} } });
+    const panel = mount(PanelHost, {
+      target,
+      props: { component: FilterPanel, props: { sortBasis: 'capture', title: 'Photos' } }
+    });
     render();
     press('F', { shiftKey: true });
     expect(browseView.filtersOpen).toBe(true);
@@ -326,21 +329,6 @@ describe('AssetGrid', () => {
     expect(tags()?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[role="radio"]')?.disabled).toBe(true);
     expect(bar?.querySelector<HTMLButtonElement>('[aria-label="Albums"]')?.disabled).toBe(false);
-  });
-
-  it('marks edited photos in badges and name-and-date, never in hover-only', () => {
-    editedThumbs.upsert('b', 'h1', 'u1');
-    render();
-    const marked = (): boolean[] =>
-      tiles().map((tile) => tile.querySelector('[role="img"][aria-label="Edited"]') !== null);
-
-    expect(marked()).toEqual([false, true, false]);
-    browseView.setTileInfo('full');
-    flushSync();
-    expect(marked()).toEqual([false, true, false]);
-    browseView.setTileInfo('none');
-    flushSync();
-    expect(marked()).toEqual([false, false, false]);
   });
 
   it('steps the thumbnail size from the keyboard and shows the size HUD', () => {

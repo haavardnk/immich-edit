@@ -10,6 +10,7 @@ import {
   type GridSize
 } from '#lib/browse/gridSizes.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
+import { ui } from '#lib/stores/ui.svelte.ts';
 import type { TileAnchor } from '#lib/browse/gridZoom.ts';
 
 export type TileInfo = 'none' | 'badges' | 'full';
@@ -31,14 +32,16 @@ class BrowseViewStore {
   #chosenSize = $state<GridSize | null>(null);
   activeId = $state<string | null>(null);
   loupeId = $state<string | null>(null);
-  loupeInfoOpen = $state(false);
+  #infoDocked = $state(false);
+  #infoSheet = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
   tileInfo = $state<TileInfo>('badges');
   #filtersDocked = $state(false);
   #filtersSheet = $state(false);
-  #filtersCompact = $state(false);
+  #compact = $state(false);
   filterSections = $state<FilterSectionId[]>([]);
+  filterPage = $state<FilterSectionId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
   loupeReturn: { on: string; to: string } | null = null;
   lastGridPath = $state<string | null>(null);
@@ -50,7 +53,7 @@ class BrowseViewStore {
     if (isGridSize(size)) this.#chosenSize = size;
     if (typeof stored?.loupeAutoAdvance === 'boolean')
       this.loupeAutoAdvance = stored.loupeAutoAdvance;
-    if (typeof stored?.loupeInfoOpen === 'boolean') this.loupeInfoOpen = stored.loupeInfoOpen;
+    if (typeof stored?.loupeInfoOpen === 'boolean') this.#infoDocked = stored.loupeInfoOpen;
     if (stored?.tileInfo && TILE_INFO_ORDER.includes(stored.tileInfo))
       this.tileInfo = stored.tileInfo;
     if (typeof stored?.filtersOpen === 'boolean') this.#filtersDocked = stored.filtersOpen;
@@ -64,7 +67,7 @@ class BrowseViewStore {
       filterSections: this.filterSections,
       gridSizeChoice: this.#chosenSize ?? undefined,
       loupeAutoAdvance: this.loupeAutoAdvance,
-      loupeInfoOpen: this.loupeInfoOpen,
+      loupeInfoOpen: this.#infoDocked,
       tileInfo: this.tileInfo
     } satisfies Persisted);
   }
@@ -95,9 +98,33 @@ class BrowseViewStore {
     this.persist();
   }
 
-  toggleLoupeInfo(): void {
-    this.loupeInfoOpen = !this.loupeInfoOpen;
+  get loupeInfoOpen(): boolean {
+    return this.#compact ? this.#infoSheet : this.#infoDocked;
+  }
+
+  get loupeInfoSheet(): boolean {
+    return this.#compact && this.#infoSheet;
+  }
+
+  setLoupeInfoOpen(open: boolean): void {
+    if (this.#compact) {
+      this.#infoSheet = open;
+      return;
+    }
+    this.#infoDocked = open;
     this.persist();
+  }
+
+  toggleLoupeInfo(): void {
+    this.setLoupeInfoOpen(!this.loupeInfoOpen);
+  }
+
+  get loupeFilmstripShown(): boolean {
+    return !ui.loupeFilmstripCollapsed;
+  }
+
+  toggleLoupeFilmstrip(): void {
+    ui.toggleLoupeFilmstrip();
   }
 
   cycleTileInfo(): void {
@@ -112,11 +139,12 @@ class BrowseViewStore {
   }
 
   get filtersOpen(): boolean {
-    return this.#filtersCompact ? this.#filtersSheet : this.#filtersDocked;
+    return this.#compact ? this.#filtersSheet : this.#filtersDocked;
   }
 
   setFiltersOpen(open: boolean): void {
-    if (this.#filtersCompact) {
+    if (!open) this.filterPage = null;
+    if (this.#compact) {
       this.#filtersSheet = open;
       return;
     }
@@ -124,10 +152,11 @@ class BrowseViewStore {
     this.persist();
   }
 
-  setFiltersCompact(compact: boolean): void {
-    if (compact === this.#filtersCompact) return;
-    this.#filtersCompact = compact;
+  setCompact(compact: boolean): void {
+    if (compact === this.#compact) return;
+    this.#compact = compact;
     this.#filtersSheet = false;
+    this.#infoSheet = false;
   }
 
   setFilterSection(id: FilterSectionId, open: boolean): void {
@@ -167,7 +196,14 @@ class BrowseViewStore {
 
   leaveLoupeForEditor(id: string): void {
     this.editorReturnLoupeId = id;
-    this.closeLoupe();
+  }
+
+  get loupeBehindEditor(): boolean {
+    return this.loupeId !== null && this.loupeId === this.editorReturnLoupeId;
+  }
+
+  releaseLoupeBehindEditor(): void {
+    if (this.loupeBehindEditor) this.closeLoupe();
   }
 
   consumeEditorReturnLoupe(id: string | null): boolean {
@@ -179,6 +215,7 @@ class BrowseViewStore {
   closeLoupe(): void {
     if (this.loupeId) this.activeId = this.loupeId;
     this.loupeId = null;
+    this.#infoSheet = false;
     this.resetLoupeView();
     this.loupeTagsOpen = false;
   }

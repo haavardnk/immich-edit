@@ -2,6 +2,7 @@
   import FilterToggle from '#lib/components/browse/FilterToggle.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { closeOnBack } from '#lib/utils/backLayer.svelte.ts';
   import { Button, IconButton } from '@immich/ui';
@@ -25,7 +26,7 @@
   onclick={actions.clear}
 />
 <p
-  class="min-w-0 flex-1 ps-1 text-lg font-semibold whitespace-nowrap text-light-950"
+  class="min-w-0 flex-1 ps-1 text-title font-semibold whitespace-nowrap text-light-950"
   aria-live="polite"
 >
   {scope.targetCount} selected
@@ -35,7 +36,7 @@
     size="small"
     variant="ghost"
     color="primary"
-    class="h-11 shrink-0 px-3 text-[15px] font-semibold"
+    class="h-11 shrink-0 px-3 text-body font-semibold"
     loading={scope.selectingAll}
     disabled={actions.busy || scope.loadingMore}
     onclick={() => void actions.selectAll()}
@@ -43,4 +44,4 @@
     Select all
   </Button>
 {/if}
-<FilterToggle class="hidden wide:block" />
+<FilterToggle label={VIEW_AND_FILTERS} class="hidden wide:block" />

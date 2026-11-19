@@ -61,23 +61,41 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expectTab(page, 'Photos');
   });
 
-  test('the app bar shows the count, the filter badge and the view options', async ({ page }) => {
+  test('the app bar shows the count, the filter badge and one View & filters sheet', async ({
+    page
+  }) => {
     await open(page, '/photos?make=SONY', {
-      assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY' } }]
+      assets: [{ ...ASSET_SUMMARY, exifInfo: { make: 'SONY', model: 'ILCE-7M3' } }]
     });
 
     const bar = page.locator('header[data-app-bar]');
     await expect(bar.getByText(/^\d+ photos?$/)).toBeVisible();
-    await expect(bar.getByRole('button', { name: 'Filters (1 active)' })).toBeVisible();
+    await expect(bar.getByRole('button')).toHaveCount(3);
+    await expect(bar.getByRole('button', { name: 'Select photos' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'View options' })).toHaveCount(0);
     await expect(
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
     ).toHaveText(['Make: SONY']);
     await expectTargets(page.getByRole('button', { name: 'Remove Make: SONY' }), 44);
 
-    await bar.getByRole('button', { name: 'View options' }).tap();
-    const sheet = page.getByRole('dialog', { name: 'View options' });
+    await bar.getByRole('button', { name: 'View & filters (1 active)' }).tap();
+    const sheet = page.getByRole('dialog', { name: 'View & filters' });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('radiogroup', { name: 'Sort by' })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
+    const camera = sheet.getByRole('button', { name: 'Camera', exact: true });
+    await expect(camera).toHaveAccessibleDescription('SONY');
+    await expect(
+      sheet.getByRole('button', { name: 'Place', exact: true })
+    ).toHaveAccessibleDescription('');
+    await expect(sheet.getByRole('button', { name: /^Reset .* panel$/ })).toHaveCount(0);
+    await expectTargets(camera, 44);
+    await camera.tap();
+    const models = sheet.getByRole('group', { name: 'Models' }).locator('[data-filter-row]');
+    await expect(models).toHaveText(['ILCE-7M3']);
+    await expectTargets(models, 44);
+    await expect(
+      sheet.getByRole('radiogroup', { name: 'Sort by' }).getByRole('radio', { checked: true })
+    ).toHaveText('Taken');
     await sheet
       .getByRole('radiogroup', { name: 'Thumbnail size' })
       .getByRole('radio', { name: 'XL', exact: true })
@@ -90,7 +108,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
       .getByRole('radio', { name: 'Name and date' })
       .tap();
     await expect(page.getByTestId('tile-name').first()).toBeVisible();
-    await sheet.getByRole('button', { name: 'Done', exact: true }).tap();
+    await sheet.getByRole('button', { name: 'Close view & filters' }).tap();
     await expect(sheet).toBeHidden();
   });
 
@@ -135,22 +153,20 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
       await expect(tooltips).toHaveCount(0);
     };
 
-    const options = page
+    const filters = page
       .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'View options', exact: true });
-    await options.tap();
-    const sheet = page.getByRole('dialog', { name: 'View options' });
-    await expect(sheet).toBeVisible();
+      .getByRole('button', { name: 'View & filters', exact: true });
+    const filterSheet = page.getByRole('dialog', { name: 'View & filters' });
+    await filters.tap();
+    await expect(filterSheet).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(sheet).toBeHidden();
-    await expect(options).toBeFocused();
+    await expect(filterSheet).toBeHidden();
+    await expect(filters).toBeFocused();
     await expectNoTooltip();
 
-    const filters = page.getByRole('button', { name: /^Filters/ });
     await filters.tap();
-    const filterSheet = page.getByRole('dialog', { name: 'Filters' });
     await expect(filterSheet).toBeVisible();
-    await filterSheet.getByRole('button', { name: 'Close filters' }).tap();
+    await filterSheet.getByRole('button', { name: 'Close view & filters' }).tap();
     await expect(filterSheet).toBeHidden();
     await expect(filters).toBeFocused();
     await expectNoTooltip();
@@ -437,10 +453,13 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
 
     await expect(page.getByRole('button', { name: 'Jobs', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    await expect(
+      page.locator('main header').getByRole('button', { name: 'View & filters', exact: true })
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveCount(0);
+    await expect
+      .poll(async () => (await page.locator('[role="group"]').first().boundingBox())?.height ?? 0)
+      .toBeGreaterThan(130);
 
     await expect(page.getByText('Test User', { exact: true })).toBeVisible();
     await expect(page.getByText('photos.example.net', { exact: true })).toBeVisible();

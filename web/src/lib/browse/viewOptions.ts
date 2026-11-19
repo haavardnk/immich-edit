@@ -13,12 +13,14 @@ const TILE_INFO_LABELS: Readonly<Record<TileInfo, string>> = {
   full: 'name and date'
 };
 
+function tileInfoName(info: TileInfo): string {
+  const label = TILE_INFO_LABELS[info];
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+}
+
 export const TILE_INFO_OPTIONS: readonly { value: TileInfo; label: string }[] = (
   Object.keys(TILE_INFO_LABELS) as TileInfo[]
-).map((value) => {
-  const label = TILE_INFO_LABELS[value];
-  return { value, label: `${label.charAt(0).toUpperCase()}${label.slice(1)}` };
-});
+).map((value) => ({ value, label: tileInfoName(value) }));
 
 export function tileInfoLabel(info: TileInfo): string {
   return `Thumbnail info: ${TILE_INFO_LABELS[info]}`;

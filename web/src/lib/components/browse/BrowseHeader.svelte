@@ -2,7 +2,6 @@
   import BrowseBarActions from '#lib/components/browse/BrowseBarActions.svelte';
   import BrowseToolbar from '#lib/components/browse/BrowseToolbar.svelte';
   import FilterChipRow from '#lib/components/browse/FilterChipRow.svelte';
-  import SelectModeButton from '#lib/components/browse/SelectModeButton.svelte';
   import SelectionAppBar from '#lib/components/browse/bulk/SelectionAppBar.svelte';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -39,10 +38,7 @@
     <BrowseToolbar {sortBasis} />
   {/snippet}
   {#snippet touchActions()}
-    <SelectModeButton size="small" />
-  {/snippet}
-  {#snippet compactActions()}
-    <BrowseBarActions {sortBasis} />
+    <BrowseBarActions />
   {/snippet}
 </PageHeader>
 <FilterChipRow {onTrashRejected} />

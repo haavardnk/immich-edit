@@ -25,6 +25,12 @@ export const ID_LABELS: Record<IdFilterKey, string> = {
   tags: 'Tags'
 };
 
+export const ID_NOUNS: Record<IdFilterKey, { one: string; many: string }> = {
+  albums: { one: 'album', many: 'albums' },
+  people: { one: 'person', many: 'people' },
+  tags: { one: 'tag', many: 'tags' }
+};
+
 export const ID_SCOPES: Record<IdFilterKey, 'album' | 'person' | 'tag'> = {
   albums: 'album',
   people: 'person',

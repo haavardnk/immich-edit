@@ -59,7 +59,7 @@ test('the label filter asks the server for one color', async ({ page }) => {
   await expect(firstTile(page).getByRole('img', { name: 'Green label' })).toBeVisible();
 
   await openFilters(page, 'Rating & label');
-  await page.getByRole('radio', { name: 'Green label' }).click();
+  await page.getByRole('button', { name: 'Green label' }).click();
   await page.getByRole('button', { name: 'Close filter panel' }).click();
 
   const chips = page.getByRole('list', { name: 'Active filters' });
