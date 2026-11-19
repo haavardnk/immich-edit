@@ -102,6 +102,8 @@ pub struct AssetSummary {
     pub updated_at: Option<String>,
     #[serde(default)]
     pub checksum: Option<String>,
+    #[serde(default)]
+    pub thumbhash: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
     #[serde(rename = "exifInfo", default)]
@@ -143,6 +145,8 @@ pub struct AssetDetail {
     pub width: Option<u32>,
     #[serde(default)]
     pub checksum: Option<String>,
+    #[serde(default)]
+    pub thumbhash: Option<String>,
     #[serde(rename = "isFavorite", default)]
     pub is_favorite: bool,
     #[serde(rename = "isTrashed", default)]
@@ -387,5 +391,13 @@ mod tests {
         let asset: AssetSummary = serde_json::from_str(json).unwrap();
         assert_eq!(asset.tags.len(), 1);
         assert_eq!(asset.tags[0].value, "Reject");
+    }
+
+    #[test]
+    fn asset_summary_passes_the_thumbhash_through() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","thumbhash":"1QcSHQRnh493V4dIh4eXh1h4kJUI"}"#;
+        let asset: AssetSummary = serde_json::from_str(json).unwrap();
+        let out = serde_json::to_value(&asset).unwrap();
+        assert_eq!(out["thumbhash"], "1QcSHQRnh493V4dIh4eXh1h4kJUI");
     }
 }

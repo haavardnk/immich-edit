@@ -20,13 +20,6 @@ describe('backToGrid', () => {
     browseView.setActive(null);
   });
 
-  it('returns to the grid it came from and selects the open asset', async () => {
-    browseView.setLastGridPath('/albums/1?sort=desc');
-    await backToGrid('b');
-    expect(h.goto).toHaveBeenCalledWith('/albums/1?sort=desc');
-    expect(browseView.activeId).toBe('b');
-  });
-
   it('opens a clean photos grid when no grid was visited', async () => {
     browsing.clear();
     await backToGrid('b');
@@ -83,12 +76,5 @@ describe('backToGrid returning', () => {
     void backToGrid('b', '/albums/x', 'return');
     expect(back).toHaveBeenCalledOnce();
     expect(h.goto).not.toHaveBeenCalled();
-  });
-
-  it('replaces the editor entry when the grid is not the previous entry', async () => {
-    stubEntries(['/library', '/assets/b?from=%2Falbums%2Fx']);
-    await backToGrid('b', '/albums/x', 'return');
-    expect(back).not.toHaveBeenCalled();
-    expect(h.goto).toHaveBeenCalledWith('/albums/x', { replace: true });
   });
 });

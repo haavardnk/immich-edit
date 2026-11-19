@@ -40,6 +40,8 @@
     <LoupePane
       bind:this={paneRefs[id]}
       assetId={id}
+      thumbhash={paneAsset?.thumbhash}
+      checksum={paneAsset?.checksum}
       alt={paneAsset?.originalFileName ?? ''}
       view={compare.viewOf(id)}
       focused={id === focusedId}

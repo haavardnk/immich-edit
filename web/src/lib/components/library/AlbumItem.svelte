@@ -22,7 +22,7 @@
   <div class="no-callout h-8 w-8 flex-none overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
     {#if album.albumThumbnailAssetId}
       <img
-        src={assetThumbUrl(album.albumThumbnailAssetId)}
+        src={assetThumbUrl({ id: album.albumThumbnailAssetId })}
         alt=""
         loading="lazy"
         class="w-full h-full object-cover"
@@ -30,9 +30,9 @@
     {/if}
   </div>
   <div class="min-w-0 flex-1 pe-2">
-    <div data-truncate class="truncate text-[13px] leading-tight">
+    <div data-truncate class="truncate text-label leading-tight">
       <HighlightedText text={album.albumName} {query} />
     </div>
-    <div class="text-[10px] text-muted">{album.assetCount}</div>
+    <div class="text-micro text-muted">{album.assetCount}</div>
   </div>
 </TooltipLink>
