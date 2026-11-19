@@ -1,6 +1,7 @@
 import { autoEdits } from '#lib/api/edits.ts';
 import { AUTO_ACTIONS, pickAuto, type AutoScope } from '#lib/editor/autoScope.ts';
-import { applyCopySections } from '#lib/editor/copyPaste.ts';
+import { applyCopyTools, type CopySelection } from '#lib/editor/copyTools.ts';
+import { lastTouchedTool, type HistoryChange } from '#lib/editor/lastTouched.ts';
 import { keysFor } from '#lib/shortcuts/labels.ts';
 import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
@@ -39,7 +40,7 @@ export async function resetDevelop(ctx: DevelopCtx): Promise<void> {
   toasts.push('success', `Reset develop settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });
 }
 
-export function copyEdits(ctx: DevelopCtx): void {
+export function copyEdits(ctx: DevelopCtx, change: HistoryChange | null = null): void {
   if (isIdentity(ctx.edits)) {
     toasts.push('info', NO_EDITS_TO_COPY, { ttlMs: 3000 });
     return;
@@ -47,18 +48,33 @@ export function copyEdits(ctx: DevelopCtx): void {
   copyDialog.show(
     $state.snapshot(ctx.edits) as Edits,
     () => toasts.push('success', 'Copied settings', { ttlMs: 3000 }),
-    ctx.assetId ? (browsing.find(ctx.assetId)?.originalFileName ?? null) : null
+    ctx.assetId ? (browsing.find(ctx.assetId)?.originalFileName ?? null) : null,
+    lastTouchedTool(change)
   );
+}
+
+function clipboardOrToast(): ReturnType<typeof clipboard.snapshot> {
+  const snap = clipboard.snapshot();
+  if (!snap) toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
+  return snap;
 }
 
 export async function pasteEdits(ctx: DevelopCtx): Promise<void> {
   if (!editable(ctx)) return;
-  const snap = clipboard.snapshot();
-  if (!snap) {
-    toasts.push('info', NOTHING_COPIED, { ttlMs: 3000 });
-    return;
-  }
-  ctx.edits = applyCopySections(ctx.edits, snap.edits, snap.sections);
+  const snap = clipboardOrToast();
+  if (snap) await pasteTools(ctx, snap.edits, snap.tools);
+}
+
+export function pasteOnly(ctx: DevelopCtx): void {
+  if (!editable(ctx)) return;
+  const snap = clipboardOrToast();
+  if (!snap) return;
+  copyDialog.showPaste(snap, (tools) => void pasteTools(ctx, snap.edits, tools), clipboard.source);
+}
+
+async function pasteTools(ctx: DevelopCtx, edits: Edits, tools: CopySelection): Promise<void> {
+  if (!editable(ctx)) return;
+  ctx.edits = applyCopyTools($state.snapshot(ctx.edits) as Edits, edits, tools);
   ctx.onLive();
   await ctx.onCommit('Paste');
   toasts.push('success', `Pasted settings. Undo with ${keysFor('undo')}.`, { ttlMs: 3000 });

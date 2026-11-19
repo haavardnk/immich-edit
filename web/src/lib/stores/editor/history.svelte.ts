@@ -1,6 +1,7 @@
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { Edits } from '#lib/types/edits.ts';
 import { sameValue } from '#lib/utils/sameValue.ts';
+import type { HistoryChange } from '#lib/editor/lastTouched.ts';
 
 const MAX_HISTORY = 50;
 
@@ -66,6 +67,12 @@ export class EditHistory {
 
   get skipping(): boolean {
     return this.skip;
+  }
+
+  get lastChange(): HistoryChange | null {
+    const before = this.entries[this.cursor - 1];
+    const after = this.entries[this.cursor];
+    return before && after ? { before: before.edits, after: after.edits } : null;
   }
 
   push(edits: Edits, restore?: RestoreMarker): number | null {

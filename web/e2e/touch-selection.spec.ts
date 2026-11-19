@@ -403,6 +403,7 @@ test.describe('touch selection', () => {
     const paste = sheet.getByRole('button', { name: /^Paste edits/ });
     await expect(paste).toBeDisabled();
     await expect(paste).toContainText('Nothing copied');
+    await expect(sheet.getByRole('button', { name: 'Paste only…', exact: true })).toBeDisabled();
 
     await sheet.getByRole('button', { name: 'Cancel' }).tap();
     await expect(sheet).toHaveCount(0);

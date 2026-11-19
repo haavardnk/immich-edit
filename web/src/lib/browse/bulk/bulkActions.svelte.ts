@@ -8,7 +8,7 @@ import { addToAlbums, removeFromAlbum } from '#lib/browse/bulk/bulkAlbums.ts';
 import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
 import * as bulkMeta from '#lib/browse/bulkMeta.ts';
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
-import { pasteEditsTo } from '#lib/browse/copyPaste.ts';
+import { pasteEditsTo, pasteOnlyTo } from '#lib/browse/copyPaste.ts';
 import { openMulti } from '#lib/browse/gridActions.ts';
 import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
@@ -78,6 +78,10 @@ class BulkActions {
     this.run((ids) => removeFromAlbum(ids, album));
 
   paste = (): Promise<void> => this.run((ids) => pasteEditsTo(ids));
+
+  pasteOnly = (): void => {
+    if (!this.metaBusy) pasteOnlyTo([...selection.selected]);
+  };
 
   resetEdits = (): Promise<void> =>
     this.run((ids) =>

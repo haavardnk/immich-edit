@@ -196,6 +196,7 @@ test('the preset picker opens above the bulk dialog', async ({ page }) => {
   await selectBoth(page);
   await page.getByRole('button', { name: 'Edit and export selected' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit and export selected' });
+  await expect(dialog.getByRole('button', { name: 'Paste only…', exact: true })).toBeDisabled();
   const section = dialog.getByRole('button', { name: 'Presets', exact: true });
   if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
   await dialog.getByRole('combobox', { name: 'Select a preset…' }).click();

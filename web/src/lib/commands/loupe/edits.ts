@@ -1,4 +1,4 @@
-import { copyEditsFrom, pasteEditsTo } from '#lib/browse/copyPaste.ts';
+import { copyEditsFrom, pasteEditsTo, pasteOnlyTo } from '#lib/browse/copyPaste.ts';
 import { loupeFocusedId } from '#lib/browse/loupeActions.ts';
 import { loupeCommand } from '#lib/commands/loupe/context.ts';
 import type { Command } from '#lib/commands/types.ts';
@@ -30,6 +30,13 @@ export const LOUPE_EDIT_COMMANDS: readonly Command[] = [
     bind: 'pasteEdits',
     yields: () => !editable(),
     run: withFocused((id) => void pasteEditsTo([id]))
+  }),
+  loupeCommand({
+    id: 'loupe.pasteOnly',
+    contexts: ['loupe'],
+    bind: 'pasteOnly',
+    yields: () => !editable(),
+    run: withFocused((id) => pasteOnlyTo([id]))
   }),
   loupeCommand({
     id: 'loupe.virtualCopy',

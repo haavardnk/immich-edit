@@ -139,6 +139,7 @@ Shortcuts do not run while focus is in a text field or another typing control.
 | `Ctrl+Shift+R` | Reset develop settings, or geometry on the Geometry tab | Editor              |
 | `Ctrl+C`       | Copy edits                                              | Editor, Grid, Loupe |
 | `Ctrl+V`       | Paste edits                                             | Editor, Grid, Loupe |
+| `Ctrl+Shift+V` | Paste only some settings                                | Editor, Grid, Loupe |
 | `Shift+E`      | Open Export                                             | Editor              |
 | `Esc`          | Step out of the active tool, panel or fullscreen        | Editor              |
 
