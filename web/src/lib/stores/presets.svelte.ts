@@ -2,6 +2,7 @@ import {
   createPreset,
   deletePreset,
   listPresets,
+  setPresetFavorite,
   updatePreset,
   type Preset,
   type PresetInput
@@ -70,6 +71,15 @@ class PresetsStore {
     } catch (e) {
       toasts.fail('Failed to update preset', e, 8000);
       return null;
+    }
+  };
+
+  setFavorite = async (id: string, favorite: boolean): Promise<void> => {
+    try {
+      const updated = await setPresetFavorite(id, favorite);
+      this.presets = this.presets.map((p) => (p.id === id ? updated : p));
+    } catch (e) {
+      toasts.fail('Failed to update favourites', e, 8000);
     }
   };
 

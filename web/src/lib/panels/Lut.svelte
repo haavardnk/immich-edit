@@ -15,6 +15,7 @@
   import { ApiError } from '#lib/api/client.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { IconButton } from '@immich/ui';
+  import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
 
   let luts = $state<LutMeta[]>([]);
   let loaded = $state(false);
@@ -28,6 +29,13 @@
   $effect(() => {
     if (!loaded) void load();
   });
+
+  $effect(() => lutPreview.end);
+
+  function preview(lut: LutMeta | null): void {
+    if (lut) lutPreview.show(lut);
+    else lutPreview.end();
+  }
 
   async function load(): Promise<void> {
     try {
@@ -102,7 +110,9 @@
             .join(' + ')}
         placeholder="Select LUT…"
         hideSelected={false}
+        previewing={lutPreview.id}
         onSelectedChange={(ids) => select(ids.at(-1) ?? null)}
+        onPreview={preview}
       />
     </div>
     {#if selected && session.isAdmin}

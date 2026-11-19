@@ -30,6 +30,7 @@ vi.mock('#lib/api/preview.ts', async (original) => ({
 }));
 
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 function asset(): AssetDetail {
@@ -312,5 +313,21 @@ describe('editor history', () => {
     editor.unload();
     expect(editor.canUndo).toBe(false);
     expect(editor.canRedo).toBe(false);
+  });
+});
+
+describe('history step replacement', () => {
+  it('replaces a step only while it is the top one', () => {
+    const history = new EditHistory(
+      { edits: editsAt(0), onCommit: () => Promise.resolve(), onLive: () => undefined },
+      { restoreEntry: () => Promise.resolve(true), restoreSnapshot: () => Promise.resolve(true) }
+    );
+    const first = history.push(editsAt(0));
+    const second = history.push(editsAt(1));
+    expect(history.topStep).toBe(second);
+
+    expect(history.replaceStep(first!, editsAt(5))).toBe(false);
+    expect(history.replaceStep(second!, editsAt(2))).toBe(true);
+    expect(history.push(editsAt(2))).toBeNull();
   });
 });

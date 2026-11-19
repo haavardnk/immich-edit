@@ -200,6 +200,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
                 .put(routes::presets::update)
                 .delete(routes::presets::delete),
         )
+        .route("/presets/{id}/favorite", put(routes::presets::favorite))
         .route(
             "/export-presets",
             get(routes::export_presets::list).post(routes::export_presets::create),
@@ -210,16 +211,16 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         )
         .route("/export-outputs/query", post(routes::export_outputs::query))
         .route(
-            "/appearance",
-            get(routes::appearance::get).put(routes::appearance::update),
-        )
-        .route(
             "/saved-views",
             get(routes::saved_views::list).post(routes::saved_views::create),
         )
         .route(
             "/saved-views/{id}",
             put(routes::saved_views::update).delete(routes::saved_views::delete),
+        )
+        .route(
+            "/appearance",
+            get(routes::appearance::get).put(routes::appearance::update),
         )
         .route(
             "/preferences",

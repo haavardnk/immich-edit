@@ -27,7 +27,9 @@
   import { holdOriginal } from '#lib/commands/editor/view.ts';
   import TargetOverlay from './TargetOverlay.svelte';
   import PhotoPill from './PhotoPill.svelte';
+  import { presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import VersionHoldImage from './versions/VersionHoldImage.svelte';
+  import { lutPreview } from '#lib/stores/lutPreview.svelte.ts';
 
   let {
     ontap = () => {},
@@ -43,7 +45,10 @@
   let dragging = $state(false);
   const holdUrl = $derived(editor.versions.hold.url);
   const pill = $derived(
-    editor.versions.hold.pill ?? (editor.showingOriginal ? null : editor.historySteps.pill)
+    editor.versions.hold.pill ??
+      presetStrip.pill ??
+      lutPreview.pill ??
+      (editor.showingOriginal ? null : (editor.historySteps.pill ?? presetStrip.appliedPill))
   );
 
   const metrics = $derived(

@@ -38,9 +38,9 @@
 
   const SETTING_LIMIT = 8;
   const LIBRARY_LIMIT = 5;
-  const HEADING = 'px-3 pt-2.5 pb-1 text-[10px] font-semibold tracking-wide text-dark/65 uppercase';
+  const HEADING = 'section-label px-3 pt-2.5 pb-1 text-dark/65';
   const ROW =
-    'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-[13px] text-dark outline-none data-selected:bg-primary/12';
+    'flex h-9 cursor-pointer items-center gap-2.5 px-3 text-label text-dark outline-none data-selected:bg-primary/12';
 
   const SETTING_VALUE = 'setting:';
 
@@ -140,7 +140,7 @@
   }
 
   function applyPreset(preset: Preset): void {
-    void editor.applyPreset(preset.manifest, defaultApplyOptions(), preset.name);
+    void editor.applyPreset(preset, defaultApplyOptions());
   }
 </script>
 
@@ -161,12 +161,12 @@
         onkeydown={pinKey}
       >
         <div class="flex shrink-0 items-center gap-2 border-b border-hairline px-3">
-          <Icon icon={mdiMagnify} size="18px" class="text-dark/65" aria-hidden="true" />
+          <Icon icon={mdiMagnify} size="20px" class="text-dark/65" aria-hidden="true" />
           <Command.Input
             bind:value={query}
             aria-label="Search settings and actions"
             placeholder="Search settings, presets and actions"
-            class="h-11 min-w-0 flex-1 bg-transparent text-sm text-light-950 caret-primary outline-none placeholder:text-dark/50"
+            class="h-11 min-w-0 flex-1 bg-transparent text-sm text-light-950 caret-primary outline-none placeholder:text-dark/45"
           />
         </div>
         <Command.List class="min-h-0 flex-1 overflow-y-auto pb-1.5 scrollbar-hidden">
@@ -183,7 +183,7 @@
                     class={ROW}
                     onSelect={() => choose(() => revealDevelopSetting(setting))}
                   >
-                    <Icon icon={mdiTuneVariant} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiTuneVariant} size="16px" class="shrink-0 text-dark/65" />
                     <span class="shrink-0 text-light-950">
                       <HighlightText text={setting.label} range={highlight} />
                     </span>
@@ -193,12 +193,12 @@
                     {#if preferences.isPinned(setting.id)}
                       <Icon
                         icon={mdiPinOutline}
-                        size="13px"
+                        size="14px"
                         class="shrink-0 text-primary"
                         aria-label="Pinned"
                       />
                     {/if}
-                    <span class="shrink-0 font-mono text-[11px] text-dark/65 tabular-nums">
+                    <span class="shrink-0 font-mono text-caption text-dark/65 tabular-nums">
                       {settingValue(setting, editor.edits, editor.isRaw)}
                     </span>
                   </Command.Item>
@@ -218,7 +218,7 @@
                     onpointerenter={() => previewPreset(preset)}
                     onpointerleave={editor.endPresetPreview}
                   >
-                    <Icon icon={mdiViewGridOutline} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiViewGridOutline} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 truncate text-light-950">
                       <HighlightText text={preset.name} range={at} />
                     </span>
@@ -233,7 +233,7 @@
                     class={ROW}
                     onSelect={() => choose(() => commitLut(lut.id))}
                   >
-                    <Icon icon={mdiCubeOutline} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={mdiCubeOutline} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 truncate text-light-950">
                       <HighlightText text={lut.name} range={at} />
                     </span>
@@ -253,7 +253,7 @@
                     class={ROW}
                     onSelect={() => choose(action.run)}
                   >
-                    <Icon icon={action.icon} size="15px" class="shrink-0 text-dark/65" />
+                    <Icon icon={action.icon} size="16px" class="shrink-0 text-dark/65" />
                     <span class="min-w-0 flex-1 truncate text-light-950">
                       <HighlightText text={action.label} range={at} />
                     </span>
@@ -264,7 +264,7 @@
           {/if}
         </Command.List>
         <div
-          class="flex shrink-0 items-center gap-4 border-t border-hairline px-3 py-1.5 text-[11px] text-dark/65"
+          class="flex shrink-0 items-center gap-4 border-t border-hairline px-3 py-1.5 text-caption text-dark/65"
           aria-hidden="true"
         >
           <span><kbd class="font-mono">↑↓</kbd> move</span>
