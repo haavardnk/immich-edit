@@ -4,7 +4,7 @@ import { layout, layoutControls, renderLayout, settle } from '#lib/testing/layou
 import { neutralEdits, type Edits } from '#lib/types/edits.ts';
 import { flushSync } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import HistoryPopover from '../HistoryPopover.svelte';
+import HistoryPopover from '../history/HistoryPopover.svelte';
 import SnapshotList from './SnapshotList.svelte';
 import SnapshotsSheet from './SnapshotsSheet.svelte';
 

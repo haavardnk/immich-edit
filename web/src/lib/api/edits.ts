@@ -143,17 +143,20 @@ export interface EditHistoryEntry {
   edits: Edits | null;
   created_at: string;
   action: string | null;
+  undone: boolean;
 }
 
-export interface EditHistoryItem extends Omit<EditHistoryEntry, 'edits'> {
+export interface EditHistoryItem extends Omit<EditHistoryEntry, 'edits' | 'undone'> {
   manifest: EditManifest | null;
+  undone?: boolean;
 }
 
 export async function listEditHistory(assetId: string): Promise<EditHistoryEntry[]> {
   const items = await getJson<EditHistoryItem[]>(url`/api/assets/${assetId}/edits/history`);
-  return items.map(({ manifest, ...item }) => ({
+  return items.map(({ manifest, undone, ...item }) => ({
     ...item,
-    edits: manifest ? manifestToEdits(manifest) : null
+    edits: manifest ? manifestToEdits(manifest) : null,
+    undone: undone ?? false
   }));
 }
 

@@ -14,11 +14,13 @@ class ClipboardStore {
   private edits: Edits | null = null;
   private sections: CopySections = { ...ALL_COPY_SECTIONS };
   has = $state(false);
+  sectionCount = $state(0);
   source = $state<string | null>(null);
 
   copy = (edits: Edits, sections: CopySections, source: string | null = null): void => {
     this.edits = structuredClone(edits) as Edits;
     this.sections = { ...sections };
+    this.sectionCount = Object.values(sections).filter(Boolean).length;
     this.source = source;
     this.has = true;
   };
@@ -31,6 +33,7 @@ class ClipboardStore {
   clear = (): void => {
     this.edits = null;
     this.source = null;
+    this.sectionCount = 0;
     this.has = false;
   };
 }

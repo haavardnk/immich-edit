@@ -26,6 +26,8 @@
   import { runCommand } from '#lib/commands/command.ts';
   import { holdOriginal } from '#lib/commands/editor/view.ts';
   import TargetOverlay from './TargetOverlay.svelte';
+  import PhotoPill from './PhotoPill.svelte';
+  import VersionHoldImage from './versions/VersionHoldImage.svelte';
 
   let {
     ontap = () => {},
@@ -39,6 +41,10 @@
   const dpr = $derived(devicePixelRatio.current || 1);
   let baseNat = $state<{ w: number; h: number } | null>(null);
   let dragging = $state(false);
+  const holdUrl = $derived(editor.versions.hold.url);
+  const pill = $derived(
+    editor.versions.hold.pill ?? (editor.showingOriginal ? null : editor.historySteps.pill)
+  );
 
   const metrics = $derived(
     viewportMetrics(viewBox, baseNat ?? { w: 0, h: 0 }, editor.sourceLong, dpr)
@@ -216,5 +222,13 @@
         style="animation-delay: 300ms"
       ></div>
     </div>
+  {/if}
+  {#if holdUrl}
+    {#key holdUrl}
+      <VersionHoldImage url={holdUrl} alt={editor.asset?.originalFileName ?? ''} />
+    {/key}
+  {/if}
+  {#if pill}
+    <PhotoPill {...pill} class="[[data-arrangement=side]_&]:top-15" />
   {/if}
 </div>
