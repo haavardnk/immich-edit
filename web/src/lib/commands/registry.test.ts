@@ -185,7 +185,8 @@ describe('command registry', () => {
           'editor.beforeAfter',
           'editor.clipWarn',
           'editor.floatScope',
-          'app.greyCanvas'
+          'app.greyCanvas',
+          'editor.viewerWindow'
         ]
       ],
       EDITOR_MORE_MENU: [['editor.trash'], ['app.help']],
@@ -208,6 +209,7 @@ describe('command registry', () => {
           'editor.info',
           'editor.fullscreen',
           'app.greyCanvas',
+          'editor.viewerWindow',
           'app.help'
         ]
       ]

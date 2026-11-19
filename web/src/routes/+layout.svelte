@@ -12,6 +12,7 @@
   import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
   import { syncFilterUrl } from '#lib/browse/filterUrl.svelte.ts';
+  import { isViewerPath } from '#lib/utils/route.ts';
   import { installFocusPolicy } from '#lib/utils/pointerFocus.ts';
   import { listenForCommands } from '#lib/commands/listen.ts';
   import { installLayout, layout } from '#lib/device/layout.svelte.ts';
@@ -36,6 +37,7 @@
   let configured = $state(false);
 
   const bare = $derived(page.url.pathname === '/login' || page.url.pathname === '/setup');
+  const viewerWindow = $derived(isViewerPath(page.url.pathname));
 
   async function boot(): Promise<void> {
     bootState = 'loading';
@@ -108,6 +110,10 @@
       <BackendUnavailable retry={boot} />
     </div>
   {:else if bare}
+    <div class="app-frame">
+      {@render children()}
+    </div>
+  {:else if session.user && viewerWindow}
     <div class="app-frame">
       {@render children()}
     </div>

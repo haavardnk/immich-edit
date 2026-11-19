@@ -8,7 +8,8 @@ export const CONTEXT_STACKS = {
   compare: ['compare', 'global'],
   survey: ['survey', 'global'],
   loupe: ['loupe', 'global'],
-  grid: ['grid', 'global']
+  grid: ['grid', 'global'],
+  viewer: ['viewer']
 } as const satisfies Record<string, readonly KeybindContext[]>;
 
 export const CONTEXT_NAMES: Record<KeybindContext, string> = {
@@ -20,7 +21,8 @@ export const CONTEXT_NAMES: Record<KeybindContext, string> = {
   editor: 'Editor',
   geometry: 'Geometry',
   masks: 'Masks',
-  retouch: 'Retouch'
+  retouch: 'Retouch',
+  viewer: 'Viewer window'
 };
 
 const STACKS: readonly (readonly KeybindContext[])[] = Object.values(CONTEXT_STACKS);
