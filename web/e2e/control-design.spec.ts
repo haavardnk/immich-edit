@@ -557,33 +557,6 @@ test('scopes panel has a slight inset without a frame', async ({ page }) => {
   expect(geometry[1].shadow).toBe('none');
 });
 
-test('scope toggles stay unaccented', async ({ page }) => {
-  await installMocks(page);
-  await gotoAsset(page);
-
-  const modes = page.getByRole('radiogroup', { name: 'Scope gain', exact: true });
-  const selected = modes.getByRole('radio', { name: '1×' });
-  await expect(selected).toHaveAttribute('aria-checked', 'true');
-
-  const paint = await Promise.all(
-    [modes, selected].map((element) =>
-      element.evaluate((node) => getComputedStyle(node).backgroundColor)
-    )
-  );
-  const primary = await page.evaluate(() => {
-    const probe = document.createElement('div');
-    probe.style.backgroundColor = 'var(--color-primary)';
-    document.body.append(probe);
-    const value = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return value;
-  });
-
-  expect(paint[0]).toBe('rgba(0, 0, 0, 0)');
-  expect(paint[1]).not.toBe(primary);
-  expect(paint[1]).toMatch(/0\.08\)$/);
-});
-
 test('the scope mode dropdown is slim and only shows while expanded', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);

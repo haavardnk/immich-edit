@@ -168,7 +168,60 @@ describe('scopes store', () => {
       gain: 4,
       zoom: 2,
       pinned: true,
-      height: 180
+      height: 180,
+      floating: false,
+      corner: 'tl',
+      plot: 'parade'
     });
+  });
+
+  it('restores the floating scope and ignores an unknown corner', async () => {
+    stubStorage({ mode: 'histogram', floating: true, corner: 'br', plot: 'vectorscope' });
+
+    const { scopes } = await import('./scopes.svelte');
+    expect(scopes.floating).toBe(true);
+    expect(scopes.corner).toBe('br');
+    expect(scopes.plot).toBe('vectorscope');
+
+    vi.resetModules();
+    stubStorage({ mode: 'parade', corner: 'middle', plot: 'histogram' });
+    const reloaded = (await import('./scopes.svelte')).scopes;
+    expect(reloaded.corner).toBe('tl');
+    expect(reloaded.plot).toBe('parade');
+  });
+
+  it('cycles the floating scope between the histogram and the last plot', async () => {
+    const values = stubStorage({ mode: 'vectorscope' });
+
+    const { scopes } = await import('./scopes.svelte');
+    scopes.cycleFloating();
+    expect(scopes.mode).toBe('histogram');
+    scopes.cycleFloating();
+    expect(scopes.mode).toBe('vectorscope');
+
+    scopes.setMode('waveform');
+    scopes.setMode('histogram');
+    scopes.cycleFloating();
+    expect(scopes.mode).toBe('waveform');
+
+    scopes.setCorner('bl');
+    expect(JSON.parse(values.get(storageKey) ?? '{}').corner).toBe('bl');
+  });
+
+  it('keeps fetching for a floating scope while the panel is closed', async () => {
+    stubStorage({ mode: 'waveform' });
+
+    const { scopes } = await import('./scopes.svelte');
+    scopes.toggleFloating();
+    scopes.onMeta('asset-1', 'meta-1', true);
+    scopes.setPanelOpen(false);
+    expect(scopes.wants).toBe(true);
+    await vi.waitFor(() => expect(scopes.grid).not.toBeNull());
+
+    scopes.toggleFloating();
+    expect(scopes.wants).toBe(false);
+    scopes.setPanelOpen(true);
+    scopes.toggleFloating();
+    expect(getPreviewScope).toHaveBeenCalledTimes(2);
   });
 });

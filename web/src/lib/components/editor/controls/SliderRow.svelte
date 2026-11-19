@@ -17,6 +17,7 @@
   import { SliderSession } from './sliderSession.svelte';
   import { clampTo, nudgeValue } from './sliderStep';
   import { sliderWheel } from './sliderWheel';
+  import { sliderDrag } from '#lib/stores/sliderDrag.svelte.ts';
 
   const LABEL_SLOP = 3;
 
@@ -83,8 +84,14 @@
     commit: () => onCommit(commitAction),
     previewStart: () => onPreviewStart?.(),
     previewEnd: () => onPreviewEnd?.(),
-    dragStart: () => onDragStart?.(),
-    dragEnd: () => onDragEnd?.()
+    dragStart: () => {
+      sliderDrag.start(setting);
+      onDragStart?.();
+    },
+    dragEnd: () => {
+      sliderDrag.end();
+      onDragEnd?.();
+    }
   });
 
   $effect(() => {
@@ -244,7 +251,7 @@
       variant="ghost"
       color="secondary"
       size="tiny"
-      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-[11px] font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-[13px] {touch
+      class="h-6 min-w-0 justify-start gap-1.5 overflow-hidden p-0 text-caption font-medium text-dark/65 select-none hover:bg-transparent hover:text-dark touch:h-11 touch:text-label {touch
         ? ''
         : 'cursor-ew-resize'}"
       title={touch ? '' : 'Drag to adjust, double-click to reset'}
