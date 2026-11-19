@@ -132,6 +132,10 @@ export function makeLayer(name: string, kind: MaskComponentKind = defaultLinear(
   };
 }
 
+export function paintsWithBrush(component: MaskComponent): boolean {
+  return component.kind.kind === 'brush' && !component.generated;
+}
+
 export function makeGeneratedLayer(
   name: string,
   rasterId: string,

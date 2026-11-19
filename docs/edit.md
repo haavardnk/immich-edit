@@ -197,18 +197,26 @@ set of adjustments.
 
 To refine a mask, open **Refine** on it and use **Add**, **Subtract** or **Intersect** with
 another shape. For example, a **Sky** mask with a **Linear gradient** intersected keeps only the
-top of the sky. **Invert** edits everything outside the shapes instead. An AI click mask also has
-**Click refine**: press **Add** or **Remove** and click the photo to grow or trim it, then **Done**.
+top of the sky. **Invert** edits everything outside the shapes instead. **Click to select** and
+any AI or brush mask show **Include** and **Exclude**: pick one and click the photo to grow or trim
+the mask. Shift-click or right-click does the opposite for one click, and clicking a dot deletes
+it. Press **Done** or Esc when you are finished.
 A **Depth** mask starts with the whole photo selected. On its **Near → Far** slider, drag the
 right handle left to drop the farthest areas, such as the sky, and the left handle right to drop
 the closest ones. The positions are shares of the photo, not distances: 40 on the right handle
 keeps the nearest 40% of the pixels. While you drag, the selection shows in red. Edge
 cleanup, **Grow** and **Feather** apply when you let go.
 
-`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay. The
-overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
+`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay.
+`Shift+O` cycles how it shows: **Color**, **Color on black and white** (the photo turns grey under
+the colour) and **White on black** (the mask alone, white where it applies). The arrow beside the
+eye above the mask list picks the mode and the overlay colour; the colour follows your account to
+every device, and the mode stays with this device. The overlay steps aside while you drag an adjustment so you can judge the edit, and a brush stroke
 shows its paint while you draw. Masks lower in the list are applied on top of the
-ones above them, and **Duplicate layer** starts a new mask from an existing one.
+ones above them, and **Duplicate layer** starts a new mask from an existing one. Drag a mask or a
+shape by the handle on its left to reorder it, or focus the handle and use the arrow keys; the
+first shape starts the mask. Each mask row shows a small picture of what it covers, and holding the
+pointer over a mask or shape row shows its coverage on the photo.
 
 ## Remove spots and distractions
 

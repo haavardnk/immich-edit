@@ -24,6 +24,7 @@ function remote(fields: Partial<Preferences>): Preferences {
     desktopSections: null,
     touchSubviews: null,
     cropRatios: null,
+    maskOverlayColor: null,
     ...fields
   };
 }
@@ -41,6 +42,73 @@ beforeEach(() => {
 });
 
 describe('preferences', () => {
+  it('takes the account value once it loads', async () => {
+    const preferences = await freshStore();
+    expect(preferences.maskOverlayColor).toBeNull();
+    api.getPreferences.mockResolvedValue(remote({ maskOverlayColor: '#112233' }));
+    await preferences.load();
+    expect(preferences.maskOverlayColor).toBe('#112233');
+  });
+
+  it('keeps the default when the preferences do not load', async () => {
+    const preferences = await freshStore();
+    api.getPreferences.mockRejectedValue(new Error('offline'));
+    await preferences.load();
+    expect(preferences.maskOverlayColor).toBeNull();
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it('applies a choice at once and saves it', async () => {
+    const preferences = await freshStore();
+    api.patchPreferences.mockResolvedValue(remote({ maskOverlayColor: '#112233' }));
+    const saving = preferences.setMaskOverlayColor('#112233');
+    expect(preferences.maskOverlayColor).toBe('#112233');
+    await saving;
+    expect(api.patchPreferences).toHaveBeenCalledWith({ maskOverlayColor: '#112233' });
+  });
+
+  it('keeps a choice made while the account preferences load', async () => {
+    const preferences = await freshStore();
+    let answer: (value: Preferences) => void = () => {};
+    api.getPreferences.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    api.patchPreferences.mockResolvedValue(remote({ maskOverlayColor: '#112233' }));
+    const loading = preferences.load();
+    await preferences.setMaskOverlayColor('#112233');
+    answer(remote({ maskOverlayColor: '#445566' }));
+    await loading;
+    expect(preferences.maskOverlayColor).toBe('#112233');
+  });
+
+  it('reverts a choice the server refuses', async () => {
+    const preferences = await freshStore();
+    const error = new Error('refused');
+    api.patchPreferences.mockRejectedValue(error);
+    await preferences.setMaskOverlayColor('#112233');
+    expect(preferences.maskOverlayColor).toBeNull();
+    expect(fail).toHaveBeenCalledWith('Could not save preferences', error);
+  });
+
+  it('saves choices in order', async () => {
+    const preferences = await freshStore();
+    const order: string[] = [];
+    api.patchPreferences.mockImplementation(async (patch) => {
+      order.push(patch.maskOverlayColor ?? '');
+      return remote({ maskOverlayColor: patch.maskOverlayColor ?? null });
+    });
+    void preferences.setMaskOverlayColor('#112233');
+    await preferences.setMaskOverlayColor('#445566');
+    expect(order).toEqual(['#112233', '#445566']);
+    expect(preferences.maskOverlayColor).toBe('#445566');
+  });
+
+  it('forgets the account choice on sign-out', async () => {
+    const preferences = await freshStore();
+    api.getPreferences.mockResolvedValue(remote({ maskOverlayColor: '#112233' }));
+    await preferences.load();
+    preferences.reset();
+    expect(preferences.maskOverlayColor).toBeNull();
+  });
+
   it('shows no pins until the account answers, then the default set', async () => {
     const preferences = await freshStore();
     expect(preferences.pins).toEqual([]);
@@ -91,40 +159,6 @@ describe('preferences', () => {
     expect(preferences.pins).toHaveLength(MAX_PINNED_SETTINGS);
     expect(api.patchPreferences).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalled();
-  });
-
-  it('keeps pins chosen while the account preferences load', async () => {
-    const preferences = await freshStore();
-    let answer: (value: Preferences) => void = () => {};
-    api.getPreferences.mockReturnValue(new Promise((resolve) => (answer = resolve)));
-    api.patchPreferences.mockResolvedValue(remote({ pinnedSettings: null }));
-    const loading = preferences.load();
-    await preferences.togglePin('highlights');
-    answer(remote({ pinnedSettings: ['exposure'] }));
-    await loading;
-    expect(preferences.pins).toEqual(['highlights']);
-  });
-
-  it('saves pin changes in order', async () => {
-    const preferences = await freshStore();
-    const order: unknown[] = [];
-    api.patchPreferences.mockImplementation(async (patch) => {
-      order.push(patch.pinnedSettings);
-      return remote({ pinnedSettings: patch.pinnedSettings ?? null });
-    });
-    void preferences.togglePin('exposure');
-    await preferences.togglePin('contrast');
-    expect(order).toEqual([['exposure'], ['exposure', 'contrast']]);
-    expect(preferences.pins).toEqual(['exposure', 'contrast']);
-  });
-
-  it('forgets the account pins on sign-out', async () => {
-    const preferences = await freshStore();
-    api.getPreferences.mockResolvedValue(remote({ pinnedSettings: ['exposure'] }));
-    await preferences.load();
-    preferences.reset();
-    expect(preferences.pinnedSettings).toBeNull();
-    expect(preferences.pins).toEqual([]);
   });
 
   it('keeps shortcuts and section lists from the account', async () => {

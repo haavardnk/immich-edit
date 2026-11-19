@@ -22,15 +22,26 @@ export function imageRect(img: () => PreviewSurface | null): ImageRect {
     const el = img();
     if (!el) return;
     recompute();
-    const ro = new ResizeObserver(recompute);
+    let frame = 0;
+    const schedule = (): void => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(recompute);
+    };
+    const ro = new ResizeObserver(schedule);
     ro.observe(el);
     if (el.parentElement) ro.observe(el.parentElement);
-    el.addEventListener('load', recompute);
-    window.addEventListener('resize', recompute);
+    const moved = new MutationObserver(schedule);
+    moved.observe(el, { attributes: true, attributeFilter: ['style', 'class'] });
+    el.addEventListener('load', schedule);
+    el.addEventListener('transitionend', schedule);
+    window.addEventListener('resize', schedule);
     return () => {
+      cancelAnimationFrame(frame);
       ro.disconnect();
-      el.removeEventListener('load', recompute);
-      window.removeEventListener('resize', recompute);
+      moved.disconnect();
+      el.removeEventListener('load', schedule);
+      el.removeEventListener('transitionend', schedule);
+      window.removeEventListener('resize', schedule);
     };
   });
 

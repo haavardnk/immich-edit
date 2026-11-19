@@ -9,6 +9,7 @@ import {
 } from '#lib/editor/params/brush.ts';
 import type { KeybindId } from '#lib/shortcuts/table.ts';
 import { editor } from '#lib/stores/editor.svelte.ts';
+import { maskOverlay } from '#lib/stores/maskOverlay.svelte.ts';
 import { settingSearch } from '#lib/stores/settingSearch.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import type { MaskComponentKind } from '#lib/types/edits.ts';
@@ -115,6 +116,12 @@ export const TOOL_COMMANDS: readonly Command[] = [
     contexts: ['masks'],
     bind: 'maskOverlay',
     run: () => editor.toggleMaskOverlay()
+  },
+  {
+    id: 'masks.overlayMode',
+    contexts: ['masks'],
+    bind: 'maskOverlayMode',
+    run: () => maskOverlay.cycle()
   },
   {
     id: 'masks.addBrush',

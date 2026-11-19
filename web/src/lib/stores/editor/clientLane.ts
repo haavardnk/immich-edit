@@ -6,7 +6,7 @@ import type { RenderRequest } from '#lib/utils/viewGeometry.ts';
 export interface ClientJob {
   edits: Edits;
   view: RenderView;
-  purpose?: 'color-picker';
+  purpose?: 'range-picker';
   request?: RenderRequest;
 }
 

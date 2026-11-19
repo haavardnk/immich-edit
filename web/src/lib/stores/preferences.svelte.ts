@@ -35,6 +35,7 @@ class PreferencesStore implements Preferences {
   desktopSections = $state.raw<readonly SectionEntry[] | null>(null);
   touchSubviews = $state.raw<readonly SectionEntry[] | null>(null);
   cropRatios = $state.raw<readonly CropRatio[] | null>(null);
+  maskOverlayColor = $state<string | null>(null);
   pinsKnown = $state(false);
   #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
@@ -57,6 +58,7 @@ class PreferencesStore implements Preferences {
     if (!this.#chosen.has('desktopSections')) this.desktopSections = remote.desktopSections;
     if (!this.#chosen.has('touchSubviews')) this.touchSubviews = remote.touchSubviews;
     if (!this.#chosen.has('cropRatios')) this.cropRatios = remote.cropRatios;
+    if (!this.#chosen.has('maskOverlayColor')) this.maskOverlayColor = remote.maskOverlayColor;
   }
 
   reset(): void {
@@ -66,6 +68,7 @@ class PreferencesStore implements Preferences {
     this.desktopSections = null;
     this.touchSubviews = null;
     this.cropRatios = null;
+    this.maskOverlayColor = null;
     this.pinsKnown = false;
   }
 
@@ -77,13 +80,16 @@ class PreferencesStore implements Preferences {
   setTouchSubviews = (next: readonly SectionEntry[] | null): Promise<void> =>
     this.#write('touchSubviews', next);
 
+  setMaskOverlayColor = (next: string | null): Promise<void> =>
+    this.#write('maskOverlayColor', next);
+
   isPinned = (id: string): boolean => this.pins.includes(id);
 
   togglePin = (id: string): Promise<void> => {
     const pins = this.pins;
     if (pins.includes(id)) return this.#setPins(pins.filter((pin) => pin !== id));
     if (pins.length >= MAX_PINNED_SETTINGS) {
-      toasts.push('info', `Quick holds up to ${MAX_PINNED_SETTINGS} settings`, { ttlMs: 3000 });
+      toasts.push('info', `Quick holds up to ${MAX_PINNED_SETTINGS} settings`);
       return Promise.resolve();
     }
     return this.#setPins([...pins, id]);
@@ -94,7 +100,7 @@ class PreferencesStore implements Preferences {
     const next = longSideFirst(ratio);
     if (saved.some((entry) => sameRatio(entry, next))) return Promise.resolve();
     if (saved.length >= MAX_CROP_RATIOS) {
-      toasts.push('info', `You can save up to ${MAX_CROP_RATIOS} crop ratios`, { ttlMs: 3000 });
+      toasts.push('info', `You can save up to ${MAX_CROP_RATIOS} crop ratios`);
       return Promise.resolve();
     }
     return this.#write('cropRatios', [...saved, next]);

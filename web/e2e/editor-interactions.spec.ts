@@ -5,6 +5,7 @@ import {
   installMocks,
   makePng,
   NEUTRAL_RECORD,
+  recordViewPreviews,
   type PreviewRequest
 } from './helpers';
 
@@ -337,6 +338,21 @@ test('pending saves guard browser unload', async ({ page }) => {
   expect(await unloadPrevented()).toBe(false);
 });
 
+test('only sliders that drive a preview hint the alt drag', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+
+  await page.getByRole('button', { name: 'Detail', exact: true }).click();
+  const tooltip = page.locator('.tooltip-content');
+  await geometrySlider(page, 'Radius').hover();
+  await expect(tooltip).toHaveText(/^(⌥|Alt) \+ drag to preview$/);
+  await geometrySlider(page, 'Radius').dispatchEvent('pointerdown');
+  await expect(tooltip).toHaveCount(0);
+  await exposureSlider(page).hover();
+  await page.waitForTimeout(1000);
+  await expect(tooltip).toHaveCount(0);
+});
+
 test('the clipping overlay toggles from the editor menu at desktop width', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
@@ -448,7 +464,7 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
     )
     .toBe(true);
 
-  const picker = page.getByRole('button', { name: 'Pick color from image' });
+  const picker = page.getByRole('button', { name: 'Sample color from the photo' });
   const resetMask = page.getByRole('button', { name: 'Reset mask adjustments' });
   for (const control of [picker, resetMask]) {
     const bounds = await control.boundingBox();
@@ -484,12 +500,11 @@ test('color range eyedropper samples maskless preview', async ({ page }) => {
   expect(kind?.sample_rgb).toHaveLength(3);
   expect(kind?.sample_rgb).not.toEqual([0.5, 0.5, 0.5]);
   await expect(maskPreview).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Pick color from image' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  await expect(picker).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Sample mask color' })).toHaveCount(0);
+  await expect(picker).toHaveAttribute('aria-pressed', 'false');
 });
 
 for (const [tool, pressed] of [
@@ -522,7 +537,7 @@ for (const [tool, pressed] of [
 
 test('the mask weight hides for a held original without a new render', async ({ page }) => {
   const previews: PreviewRequest[] = [];
-  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await installMocks(page, { onPreview: recordViewPreviews(previews) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Masks' }).click();
@@ -555,13 +570,13 @@ test('color range eyedropper keeps the maskless preview through a clipping toggl
   page
 }) => {
   const previews: PreviewRequest[] = [];
-  await installMocks(page, { onPreview: (request) => previews.push(request) });
+  await installMocks(page, { onPreview: recordViewPreviews(previews) });
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Color range', exact: true }).click();
-  await page.getByRole('button', { name: 'Pick color from image' }).click();
+  await page.getByRole('button', { name: 'Sample color from the photo' }).click();
   const maskCount = (request: PreviewRequest | undefined): number =>
     ((request?.edits as { masks?: unknown[] } | undefined)?.masks ?? []).length;
   await expect.poll(() => previews.length > 0 && maskCount(previews.at(-1)) === 0).toBe(true);
@@ -757,13 +772,13 @@ test('mask rename commits when its field loses focus', async ({ page }) => {
   await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'New mask' }).click();
   await page.getByRole('button', { name: 'Linear gradient', exact: true }).click();
-  await page.getByRole('button', { name: 'Mask 1' }).dblclick();
+  await page.getByRole('button', { name: 'Mask 1', exact: true }).dblclick();
   const name = page.getByRole('textbox', { name: 'Mask name' });
   await expect(name).toBeFocused();
   await name.fill('Sky');
   await name.evaluate((input) => input.blur());
 
-  await expect(page.getByRole('button', { name: 'Sky' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sky', exact: true })).toBeVisible();
   await expect
     .poll(() => {
       const body = saves.at(-1) as {
@@ -1166,6 +1181,7 @@ test('ratio chips, the orientation button and a typed ratio drive the output siz
   await page.getByRole('button', { name: 'Switch to portrait' }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(4 / 5, 2);
   await expect(field).toHaveValue('4:5');
+  await page.mouse.move(0, 0);
 
   await chips.getByRole('radio', { name: '9:16', exact: true }).click();
   await expect.poll(() => cropRatio(page)).toBeCloseTo(9 / 16, 2);
