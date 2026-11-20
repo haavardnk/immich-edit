@@ -209,4 +209,34 @@ mod tests {
             panic!("colorless row rewritten: {raw}");
         }
     }
+
+    #[tokio::test]
+    async fn legacy_colored_masks_keep_an_array_through_every_migration() {
+        const LEGACY_COLORED: &str = r##"{"basic":{"wb_temp":12.0,"wb_tint":7},"masks":[{"id":"l1","color":"#ff9500","edits":{"wb_tint":4.0}},{"id":"l2","color":"#ff3b30","edits":{}}]}"##;
+        let opts = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        let migrator = sqlx::migrate!("./migrations");
+        migrator.run_to(23, &pool).await.unwrap();
+        let s = EditsStore { pool };
+        let id = seed(&s, LEGACY_COLORED).await.to_string();
+        migrator.run(&s.pool).await.unwrap();
+
+        let layers = serde_json::json!([
+            {"id": "l1", "edits": {"wb_tint": -4.0}},
+            {"id": "l2", "edits": {}}
+        ]);
+        for sql in [
+            "SELECT edits_json FROM edits WHERE asset_id = ?1",
+            "SELECT edits_json FROM edits_history WHERE asset_id = ?1",
+        ] {
+            let json = raw_json(&s, sql, &id).await;
+            if json["masks"] != layers {
+                panic!("masks: {json}");
+            }
+        }
+    }
 }
