@@ -153,13 +153,15 @@
             ? 'text-emerald-400'
             : health.immich_status.kind === 'api_key_rejected'
               ? 'text-amber-300'
-              : 'text-red-400'}>{health.immich_status.message}</span
+              : 'text-red-400'}
         >
-        <span class="font-mono text-dark/65"
-          >{health.immich_status.kind}{health.immich_status.status_code
+          {health.immich_status.message}
+        </span>
+        <span class="font-mono text-dark/65">
+          {health.immich_status.kind}{health.immich_status.status_code
             ? `/${health.immich_status.status_code}`
-            : ''}</span
-        >
+            : ''}
+        </span>
       </dd>
       <dt class="text-dark/65">DB ready</dt>
       <dd class={health.db_ready ? 'text-emerald-400' : 'text-red-400'}>
@@ -339,32 +341,40 @@
           class="text-primary hover:underline"
           href="https://haavardnk.github.io/immich-edit/deploy/"
           target="_blank"
-          rel="noopener">Deployment</a
+          rel="noopener"
         >
+          Deployment
+        </a>
       </li>
       <li>
         <a
           class="text-primary hover:underline"
           href="https://haavardnk.github.io/immich-edit/troubleshooting/"
           target="_blank"
-          rel="noopener">Troubleshooting</a
+          rel="noopener"
         >
+          Troubleshooting
+        </a>
       </li>
       <li>
         <a
           class="text-primary hover:underline"
           href="https://github.com/haavardnk/immich-edit/releases"
           target="_blank"
-          rel="noopener">Releases</a
+          rel="noopener"
         >
+          Releases
+        </a>
       </li>
       <li>
         <a
           class="text-primary hover:underline"
           href="https://github.com/haavardnk/immich-edit/issues/new/choose"
           target="_blank"
-          rel="noopener">Report an issue</a
+          rel="noopener"
         >
+          Report an issue
+        </a>
       </li>
     </ul>
   </section>

@@ -44,9 +44,9 @@
 </script>
 
 {#snippet localNetwork()}
-  <Link href={LOCAL_NETWORK_DOCS} class="text-primary"
-    >Enable browser previews on a local network</Link
-  >
+  <Link href={LOCAL_NETWORK_DOCS} class="text-primary">
+    Enable browser previews on a local network
+  </Link>
 {/snippet}
 
 <div class="flex flex-col gap-7 touch:gap-5">

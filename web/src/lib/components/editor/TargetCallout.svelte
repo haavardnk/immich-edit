@@ -72,9 +72,9 @@
 >
   {#if title}
     <span>
-      <b class="font-semibold">{title}</b>{#if action}<span class="text-white/80"
-          >{` · ${action}`}</span
-        >{/if}
+      <b class="font-semibold">{title}</b>{#if action}<span class="text-white/80">
+          {` · ${action}`}
+        </span>{/if}
     </span>
     {#if keys}
       <span class="text-white/60">{keys}</span>

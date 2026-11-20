@@ -160,8 +160,9 @@
         </span>
         <span
           class="pointer-events-none absolute inset-x-px bottom-px truncate rounded-b-sm bg-linear-to-t from-black/80 to-transparent px-1 pt-3 pb-0.5 text-left text-caption text-white/90 touch:static touch:bg-none touch:px-0.5 touch:pt-1 touch:pb-0 touch:text-center touch:text-xs touch:text-dark/80"
-          >{preset.name}</span
         >
+          {preset.name}
+        </span>
       </button>
     {/snippet}
   </ElementTooltip>

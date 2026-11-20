@@ -51,9 +51,9 @@
   >
     <span>{label}</span>
     {#if dot}
-      <span class="size-1.5 shrink-0 rounded-full bg-primary"
-        ><span class="sr-only">Modified</span></span
-      >
+      <span class="size-1.5 shrink-0 rounded-full bg-primary">
+        <span class="sr-only">Modified</span>
+      </span>
     {/if}
     {#if note}
       <span class="ms-auto shrink-0 text-caption text-dark/45 touch:text-label">{note}</span>

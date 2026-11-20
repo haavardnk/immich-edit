@@ -42,9 +42,9 @@
                 class="opacity-40 flex-none"
                 aria-hidden="true"
               />
-              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-label leading-tight"
-                ><HighlightedText text={t.name} {query} /></span
-              >
+              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-label leading-tight">
+                <HighlightedText text={t.name} {query} />
+              </span>
               {#if t.assetCount != null}
                 <span class="flex-none text-caption text-muted tabular-nums">{t.assetCount}</span>
               {/if}

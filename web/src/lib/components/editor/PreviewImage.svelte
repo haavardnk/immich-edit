@@ -51,8 +51,10 @@
       data-swap={swap}
       data-photo-layer
       class={className}
-      {style}>{alt}</canvas
+      {style}
     >
+      {alt}
+    </canvas>
   {/key}
 {:else if url}
   <img

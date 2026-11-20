@@ -74,9 +74,9 @@
         aria-invalid={error ? 'true' : undefined}
         oninput={(event: Event) => setWidth(readNumber(event))}
       />
-      <span class="text-caption text-dark/65 select-none touch:text-label" aria-hidden="true"
-        >×</span
-      >
+      <span class="text-caption text-dark/65 select-none touch:text-label" aria-hidden="true">
+        ×
+      </span>
       <TextInput
         type="number"
         compact
@@ -141,8 +141,10 @@
 {#if outputSize}
   <div class="panel-row h-7 items-center touch:hidden">
     <span class="editor-compact-label select-none">Size</span>
-    <span class="col-span-2 text-right font-mono text-micro tabular-nums text-dark/65 touch:text-xs"
-      >{fmtDim(outputSize.w, outputSize.h)} px</span
+    <span
+      class="col-span-2 text-right font-mono text-micro tabular-nums text-dark/65 touch:text-xs"
     >
+      {fmtDim(outputSize.w, outputSize.h)} px
+    </span>
   </div>
 {/if}

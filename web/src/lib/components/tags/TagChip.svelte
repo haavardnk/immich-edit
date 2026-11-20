@@ -30,8 +30,9 @@
     {#snippet child({ props })}
       <span {...props} class="flex min-w-0 items-center gap-1">
         {#if path.parent}
-          <span data-truncate class="min-w-0 shrink-[999] truncate text-dark/65">{path.parent}</span
-          >
+          <span data-truncate class="min-w-0 shrink-[999] truncate text-dark/65">
+            {path.parent}
+          </span>
           <span class="shrink-0 text-dark/65">/</span>
         {/if}
         <span data-truncate class="min-w-[3ch] truncate font-medium">{path.leaf}</span>

@@ -37,8 +37,8 @@
       <TruncationTooltip text={tagPathLabel(tag.value)}>
         {#snippet child({ props })}
           <span {...props} data-truncate class="min-w-0 truncate">
-            {#if path.parent}<span class="text-dark/65"
-                ><HighlightedText text={tagPathLabel(path.parent)} {query} /> /
+            {#if path.parent}<span class="text-dark/65">
+                <HighlightedText text={tagPathLabel(path.parent)} {query} /> /
               </span>{/if}<HighlightedText text={path.leaf} {query} />
           </span>
         {/snippet}

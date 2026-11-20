@@ -5,7 +5,8 @@
   const end = $derived(range?.[1] ?? text.length);
 </script>
 
-<span
-  >{text.slice(0, start)}<mark class="bg-transparent text-primary">{text.slice(start, end)}</mark
-  >{text.slice(end)}</span
->
+<span>
+  {text.slice(0, start)}<mark class="bg-transparent text-primary">
+    {text.slice(start, end)}
+  </mark>{text.slice(end)}
+</span>

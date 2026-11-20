@@ -170,9 +170,9 @@
           />
         </div>
         <Command.List class="min-h-0 flex-1 overflow-y-auto pb-1.5 scrollbar-hidden">
-          <Command.Empty class="px-3 py-6 text-center text-xs text-dark/65"
-            >No matches</Command.Empty
-          >
+          <Command.Empty class="px-3 py-6 text-center text-xs text-dark/65">
+            No matches
+          </Command.Empty>
           {#if settings.length > 0}
             <Command.Group>
               <Command.GroupHeading class={HEADING}>Settings</Command.GroupHeading>
@@ -187,9 +187,9 @@
                     <span class="shrink-0 text-light-950">
                       <HighlightText text={setting.label} range={highlight} />
                     </span>
-                    <span class="min-w-0 flex-1 truncate text-xs text-dark/65"
-                      >{setting.desktopPath}</span
-                    >
+                    <span class="min-w-0 flex-1 truncate text-xs text-dark/65">
+                      {setting.desktopPath}
+                    </span>
                     {#if preferences.isPinned(setting.id)}
                       <Icon
                         icon={mdiPinOutline}

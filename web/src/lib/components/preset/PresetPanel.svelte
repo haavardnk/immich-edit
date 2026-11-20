@@ -46,8 +46,10 @@
         variant="ghost"
         color="primary"
         onmousedown={(event: MouseEvent) => event.preventDefault()}
-        onclick={closeSearch}>Cancel</Button
+        onclick={closeSearch}
       >
+        Cancel
+      </Button>
     {:else}
       <div class="min-w-0 flex-1">
         {#if presets.presets.length > 0}
@@ -92,9 +94,9 @@
             </span>
           {/if}
         </button>
-        <span class="truncate text-center text-xs {applied ? 'text-dark/80' : 'text-light-950'}"
-          >None</span
-        >
+        <span class="truncate text-center text-xs {applied ? 'text-dark/80' : 'text-light-950'}">
+          None
+        </span>
       </li>
     {/if}
     {#each presetStrip.shown as preset (preset.id)}

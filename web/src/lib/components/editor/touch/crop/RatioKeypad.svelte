@@ -131,8 +131,10 @@
       ? 'bg-primary/22 text-light-950'
       : 'bg-ghost text-dark'}"
     aria-pressed={isPicked(ratio)}
-    onclick={() => pick(ratio)}>{ratioLabel(ratio)}</Button
+    onclick={() => pick(ratio)}
   >
+    {ratioLabel(ratio)}
+  </Button>
 {/snippet}
 
 {#snippet field(which: Side, label: string)}
@@ -141,8 +143,10 @@
   >
     <span
       class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-label text-dark/65"
-      aria-hidden="true">{label}</span
+      aria-hidden="true"
     >
+      {label}
+    </span>
     <TextInput
       inputmode="none"
       autocomplete="off"
@@ -163,8 +167,10 @@
     color="secondary"
     class="h-11 rounded-lg text-xl font-normal {extra}"
     onpointerdown={keep}
-    {onclick}>{label}</Button
+    {onclick}
   >
+    {label}
+  </Button>
 {/snippet}
 
 <section
@@ -189,8 +195,10 @@
       class="bg-ghost"
       leadingIcon={saved ? mdiBookmarkRemoveOutline : mdiBookmarkOutline}
       disabled={!savable}
-      onclick={toggleSave}>{saved ? 'Remove ratio' : 'Save ratio'}</Button
+      onclick={toggleSave}
     >
+      {saved ? 'Remove ratio' : 'Save ratio'}
+    </Button>
   </div>
   <div class="-mx-3 flex gap-1.5 overflow-x-auto px-3 scrollbar-hidden" aria-label="Presets">
     {#each PRESET_RATIOS as ratio (ratioKey(ratio))}
@@ -239,8 +247,9 @@
       {:else if index === 8}
         <span
           class="flex items-center justify-center text-center text-caption text-dark/65 tabular-nums"
-          >1 … 9999</span
         >
+          1 … 9999
+        </span>
       {/if}
     {/each}
     {@render key('Clear', clear, 'text-sm font-medium')}
@@ -251,7 +260,9 @@
       class="col-span-2 h-11 rounded-lg text-sm font-medium"
       onpointerdown={keep}
       disabled={!typed}
-      onclick={done}>Done</Button
+      onclick={done}
     >
+      Done
+    </Button>
   </div>
 </section>

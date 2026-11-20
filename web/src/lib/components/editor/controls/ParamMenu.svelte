@@ -53,9 +53,9 @@
   Reset {param.label}
 </ContextMenuItem>
 {#if !touch}
-  <ContextMenuItem icon={mdiContentCopy} onSelect={() => void copyValue()}
-    >Copy value</ContextMenuItem
-  >
+  <ContextMenuItem icon={mdiContentCopy} onSelect={() => void copyValue()}>
+    Copy value
+  </ContextMenuItem>
   {#if tool}
     {@const armed = tool}
     <ContextMenuItem

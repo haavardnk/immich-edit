@@ -6,6 +6,6 @@
   const parts = $derived(highlightParts(text, matchRanges(text, query)));
 </script>
 
-{#each parts as part, index (index)}{#if part.match}<mark class="bg-transparent text-primary"
-      >{part.text}</mark
-    >{:else}{part.text}{/if}{/each}
+{#each parts as part, index (index)}{#if part.match}<mark class="bg-transparent text-primary">
+      {part.text}
+    </mark>{:else}{part.text}{/if}{/each}

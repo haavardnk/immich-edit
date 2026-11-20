@@ -18,7 +18,7 @@
   >
     <img src={personThumbUrl(person.id)} alt="" loading="lazy" class="size-full object-cover" />
   </span>
-  <span data-truncate class="w-full truncate text-xs text-light-950"
-    ><HighlightedText text={name} {query} /></span
-  >
+  <span data-truncate class="w-full truncate text-xs text-light-950">
+    <HighlightedText text={name} {query} />
+  </span>
 </TooltipLink>

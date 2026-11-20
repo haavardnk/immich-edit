@@ -21,8 +21,10 @@
       color="secondary"
       leadingIcon={mdiClose}
       disabled={sess.guides.length === 0}
-      onclick={editor.clearUprightGuides}>Clear guides</Button
+      onclick={editor.clearUprightGuides}
     >
+      Clear guides
+    </Button>
   </div>
   <div class="text-caption text-dark/80"><GuideCounts guides={sess.guides} /></div>
   {#each status as line (line.text)}

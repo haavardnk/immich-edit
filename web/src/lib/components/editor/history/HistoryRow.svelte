@@ -108,8 +108,10 @@
             {#if info.delta}
               <span
                 class="shrink-0 font-mono text-dark/65 tabular-nums touch:hidden"
-                aria-hidden="true">{info.delta}</span
+                aria-hidden="true"
               >
+                {info.delta}
+              </span>
             {/if}
           </span>
           {#if info.delta}
@@ -117,8 +119,10 @@
               class="ml-auto hidden shrink-0 text-dark tabular-nums touch:inline {faded
                 ? 'opacity-50'
                 : ''}"
-              aria-hidden="true">{info.delta}</span
+              aria-hidden="true"
             >
+              {info.delta}
+            </span>
           {/if}
           <span
             class="ml-auto flex shrink-0 items-center justify-end gap-1.5 touch:w-20 {info.delta
@@ -131,17 +135,19 @@
                   ? 'font-semibold text-primary'
                   : step.current
                     ? 'text-dark/65 touch:text-primary'
-                    : 'text-dark/65'}">{tag}</span
+                    : 'text-dark/65'}"
               >
+                {tag}
+              </span>
             {/if}
             {#if step.undone}
               <Icon icon={mdiRedo} size="14px" class="shrink-0 text-dark/45" aria-hidden="true" />
             {/if}
           </span>
         </span>
-        <span class="text-micro text-dark/65 touch:hidden {faded ? 'opacity-50' : ''}"
-          >{formatWhen(entry.created_at)}</span
-        >
+        <span class="text-micro text-dark/65 touch:hidden {faded ? 'opacity-50' : ''}">
+          {formatWhen(entry.created_at)}
+        </span>
       </span>
     </Button>
     <IconButton

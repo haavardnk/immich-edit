@@ -26,9 +26,9 @@
   <SectionHeader title="Crop" modified={cropModified} onReset={resetCrop}>
     {#snippet actions()}
       {#if outputSize}
-        <span class="text-caption tabular-nums text-dark/65" data-testid="crop-output-size"
-          >{outputSize.w} × {outputSize.h} px</span
-        >
+        <span class="text-caption tabular-nums text-dark/65" data-testid="crop-output-size">
+          {outputSize.w} × {outputSize.h} px
+        </span>
       {/if}
       <IconButton
         size="tiny"

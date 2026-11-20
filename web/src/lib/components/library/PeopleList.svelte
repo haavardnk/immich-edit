@@ -43,9 +43,9 @@
                   class="w-full h-full object-cover"
                 />
               </div>
-              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-label leading-tight"
-                ><HighlightedText text={personName(p)} {query} /></span
-              >
+              <span data-truncate class="min-w-0 flex-1 truncate pe-2 text-label leading-tight">
+                <HighlightedText text={personName(p)} {query} />
+              </span>
               {#if p.assetCount != null}
                 <span class="flex-none text-caption text-muted tabular-nums">{p.assetCount}</span>
               {/if}

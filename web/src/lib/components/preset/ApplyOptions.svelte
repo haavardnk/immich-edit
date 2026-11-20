@@ -78,8 +78,9 @@
     />
     <span
       class="px-1 text-right font-mono text-micro tabular-nums text-dark/65 touch:rounded touch:bg-light-200 touch:py-1 touch:text-xs touch:text-dark"
-      >{value}%</span
     >
+      {value}%
+    </span>
   </div>
   {#if note}
     <p class="truncate text-caption text-dark/65 touch:text-label">{note}</p>

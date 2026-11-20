@@ -45,9 +45,9 @@
   aria-label="Quick pick"
   class="scrollbar-hidden flex flex-nowrap items-center gap-1.5 overflow-x-auto border-b border-hairline pb-3 touch:pb-2"
 >
-  <span class="me-1 shrink-0 text-caption text-dark/65 @max-[480px]:hidden touch:text-label"
-    >Quick pick</span
-  >
+  <span class="me-1 shrink-0 text-caption text-dark/65 @max-[480px]:hidden touch:text-label">
+    Quick pick
+  </span>
   {@render chip(
     'Last touched',
     mdiHistory,

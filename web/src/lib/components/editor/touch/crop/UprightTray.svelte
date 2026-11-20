@@ -37,10 +37,12 @@
       class="bg-ghost"
       leadingIcon={mdiDeleteOutline}
       disabled={sess.guides.length === 0}
-      onclick={editor.clearUprightGuides}>Clear guides</Button
+      onclick={editor.clearUprightGuides}
     >
-    <Button size="small" color="primary" shape="round" onclick={() => (ui.geometryTool = null)}
-      >Done drawing</Button
-    >
+      Clear guides
+    </Button>
+    <Button size="small" color="primary" shape="round" onclick={() => (ui.geometryTool = null)}>
+      Done drawing
+    </Button>
   </div>
 </section>

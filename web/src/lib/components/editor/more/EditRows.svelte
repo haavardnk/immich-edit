@@ -29,8 +29,9 @@
   onclick={() => run(pasteEdits)}
 >
   {#if clipboard.has && clipboard.source}
-    <span class="max-w-[45%] min-w-0 truncate text-label text-dark/65">from {clipboard.source}</span
-    >
+    <span class="max-w-[45%] min-w-0 truncate text-label text-dark/65">
+      from {clipboard.source}
+    </span>
   {/if}
 </MenuRow>
 <MenuRow
