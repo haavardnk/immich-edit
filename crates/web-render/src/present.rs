@@ -1,49 +1,33 @@
 use raw_pipeline::gpu::context::GpuContext;
+use raw_pipeline::gpu::readback::{copy_texture_to_buffer, make_readback_buffer};
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, CommandEncoder, CompositeAlphaMode,
-    CurrentSurfaceTexture, LoadOp, Operations, PipelineLayoutDescriptor, PresentMode,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-    ShaderStages, StoreOp, Surface, SurfaceColorSpace, SurfaceConfiguration, SurfaceTarget,
-    SurfaceTexture, Texture, TextureFormat, TextureSampleType, TextureUsages, TextureView,
-    TextureViewDescriptor, TextureViewDimension,
+    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, CommandEncoder, Extent3d, LoadOp,
+    Operations, PipelineLayoutDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, ShaderStages, StoreOp, Texture, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDescriptor,
+    TextureViewDimension,
 };
 
-pub struct Presenter {
-    canvas: web_sys::OffscreenCanvas,
-    surface: Surface<'static>,
-    format: TextureFormat,
+const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
+
+struct Target {
+    dims: (u32, u32),
+    texture: Texture,
+    buffer: Buffer,
+}
+
+pub struct FrameReader {
     layout: BindGroupLayout,
     pipeline: RenderPipeline,
-    configured: Option<(u32, u32, SurfaceColorSpace)>,
+    target: Option<Target>,
 }
 
-pub struct Target {
-    texture: SurfaceTexture,
-    pub view: TextureView,
-}
-
-impl Target {
-    pub fn present(self, ctx: &GpuContext) {
-        ctx.queue.present(self.texture);
-    }
-}
-
-impl Presenter {
-    pub fn new(ctx: &GpuContext, canvas: web_sys::OffscreenCanvas) -> Result<Self, String> {
-        let surface = ctx
-            .instance
-            .create_surface(SurfaceTarget::OffscreenCanvas(canvas.clone()))
-            .map_err(|e| format!("canvas surface: {e}"))?;
-        let format = surface
-            .get_capabilities(&ctx.adapter)
-            .formats
-            .into_iter()
-            .find(|f| matches!(f, TextureFormat::Bgra8Unorm | TextureFormat::Rgba8Unorm))
-            .ok_or("the canvas offers no 8-bit unorm format")?;
+impl FrameReader {
+    pub fn new(ctx: &GpuContext) -> Self {
         let device = &ctx.device;
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("present-bgl"),
+            label: Some("frame-bgl"),
             entries: &[BindGroupLayoutEntry {
                 binding: 0,
                 visibility: ShaderStages::FRAGMENT,
@@ -57,12 +41,12 @@ impl Presenter {
         });
         let module = device.create_shader_module(wgpu::include_wgsl!("blit.wgsl"));
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("present-layout"),
+            label: Some("frame-layout"),
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("present"),
+            label: Some("frame"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &module,
@@ -74,7 +58,7 @@ impl Presenter {
                 module: &module,
                 entry_point: Some("fs"),
                 compilation_options: Default::default(),
-                targets: &[Some(format.into())],
+                targets: &[Some(FORMAT.into())],
             }),
             primitive: Default::default(),
             depth_stencil: None,
@@ -82,106 +66,81 @@ impl Presenter {
             multiview_mask: None,
             cache: None,
         });
-        Ok(Self {
-            canvas,
-            surface,
-            format,
+        Self {
             layout,
             pipeline,
-            configured: None,
-        })
-    }
-
-    pub fn acquire(
-        &mut self,
-        ctx: &GpuContext,
-        (width, height): (u32, u32),
-        color_space: SurfaceColorSpace,
-    ) -> Result<Target, String> {
-        if self.configured != Some((width, height, color_space)) {
-            self.configure(ctx, width, height, color_space);
+            target: None,
         }
-        let texture = match self.surface.get_current_texture() {
-            CurrentSurfaceTexture::Success(t) | CurrentSurfaceTexture::Suboptimal(t) => t,
-            CurrentSurfaceTexture::Outdated | CurrentSurfaceTexture::Lost => {
-                self.configure(ctx, width, height, color_space);
-                match self.surface.get_current_texture() {
-                    CurrentSurfaceTexture::Success(t) | CurrentSurfaceTexture::Suboptimal(t) => t,
-                    _ => return Err("the canvas surface is unavailable".into()),
-                }
-            }
-            _ => return Err("the canvas surface is unavailable".into()),
-        };
-        let view = texture
-            .texture
-            .create_view(&TextureViewDescriptor::default());
-        Ok(Target { texture, view })
     }
 
-    pub fn bitmap(&self) -> Result<web_sys::ImageBitmap, String> {
-        self.canvas
-            .transfer_to_image_bitmap()
-            .map_err(|e| format!("frame bitmap: {e:?}"))
-    }
-
-    pub fn blit(
-        &self,
+    pub fn record(
+        &mut self,
         ctx: &GpuContext,
         encoder: &mut CommandEncoder,
         src: &Texture,
-        target: &TextureView,
-    ) {
+        dims: (u32, u32),
+    ) -> Buffer {
+        self.ensure(ctx, dims);
+        let target = self.target.as_ref().expect("ensure sets the frame target");
+        let view = target
+            .texture
+            .create_view(&TextureViewDescriptor::default());
         let src_view = src.create_view(&TextureViewDescriptor::default());
         let bind = ctx.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("present-bg"),
+            label: Some("frame-bg"),
             layout: &self.layout,
             entries: &[BindGroupEntry {
                 binding: 0,
                 resource: BindingResource::TextureView(&src_view),
             }],
         });
-        let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("present-pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: target,
-                depth_slice: None,
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Clear(wgpu::Color::BLACK),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            multiview_mask: None,
-        });
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &bind, &[]);
-        pass.draw(0..3, 0..1);
+        {
+            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("frame-pass"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: &view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(wgpu::Color::BLACK),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &bind, &[]);
+            pass.draw(0..3, 0..1);
+        }
+        copy_texture_to_buffer(encoder, &target.texture, &target.buffer, dims.0, dims.1);
+        target.buffer.clone()
     }
 
-    fn configure(
-        &mut self,
-        ctx: &GpuContext,
-        width: u32,
-        height: u32,
-        color_space: SurfaceColorSpace,
-    ) {
-        self.surface.configure(
-            &ctx.device,
-            &SurfaceConfiguration {
-                usage: TextureUsages::RENDER_ATTACHMENT,
-                format: self.format,
-                width,
-                height,
-                present_mode: PresentMode::Fifo,
-                desired_maximum_frame_latency: 2,
-                alpha_mode: CompositeAlphaMode::Opaque,
-                view_formats: Vec::new(),
-                color_space,
-            },
-        );
-        self.configured = Some((width, height, color_space));
+    fn ensure(&mut self, ctx: &GpuContext, dims: (u32, u32)) {
+        if self.target.as_ref().is_none_or(|t| t.dims != dims) {
+            let texture = ctx.device.create_texture(&TextureDescriptor {
+                label: Some("frame-target"),
+                size: Extent3d {
+                    width: dims.0,
+                    height: dims.1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: FORMAT,
+                usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let buffer = make_readback_buffer(&ctx.device, dims.0, dims.1);
+            self.target = Some(Target {
+                dims,
+                texture,
+                buffer,
+            });
+        }
     }
 }

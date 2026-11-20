@@ -15,8 +15,10 @@ interface Frame {
   height: number;
 }
 
+export type BenchmarkTarget = Pick<Renderer, 'set_synthetic_source' | 'drop_source' | 'render'>;
+
 export async function runBenchmark(
-  renderer: Renderer,
+  renderer: BenchmarkTarget,
   edge: number,
   now: () => number = () => performance.now()
 ): Promise<TickSample> {

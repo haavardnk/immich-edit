@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDispatcher, type Renderer, type Wasm } from './dispatch';
+import type { PixelFrame } from './framePixels';
 
 const bitmap = { close: () => {} } as unknown as ImageBitmap;
+const pixels = new Uint8Array(4 * 2 * 4);
+const made: PixelFrame[] = [];
+const makeBitmap = async (frame: PixelFrame): Promise<ImageBitmap> => {
+  made.push(frame);
+  return bitmap;
+};
 
 function fakeRenderer(): Renderer & { calls: string[] } {
   const calls: string[] = [];
@@ -30,7 +37,7 @@ function fakeRenderer(): Renderer & { calls: string[] } {
       calls.push(`render-start:${view}`);
       await new Promise((resolve) => setTimeout(resolve, 5));
       calls.push(`render-end:${edits}`);
-      return { bitmap, width: 4, height: 2 };
+      return { pixels, color_space: 'display-p3', width: 4, height: 2 };
     }
   };
 }
@@ -41,14 +48,14 @@ function wasmOf(renderer: Renderer): Wasm {
 
 describe('render dispatcher', () => {
   it('refuses calls before the renderer exists', async () => {
-    const dispatch = createDispatcher(async () => wasmOf(fakeRenderer()));
+    const dispatch = createDispatcher(async () => wasmOf(fakeRenderer()), makeBitmap);
     await expect(dispatch({ op: 'dropLut', id: 'x' })).rejects.toThrow('not been initialised');
   });
 
   it('maps every call onto the wasm renderer', async () => {
     const renderer = fakeRenderer();
     const load = vi.fn(async () => wasmOf(renderer));
-    const dispatch = createDispatcher(load);
+    const dispatch = createDispatcher(load, makeBitmap);
 
     expect(await dispatch({ op: 'init' })).toEqual({
       value: {
@@ -90,8 +97,9 @@ describe('render dispatcher', () => {
 
   it('runs calls one at a time so a render never overlaps another', async () => {
     const renderer = fakeRenderer();
-    const dispatch = createDispatcher(async () => wasmOf(renderer));
+    const dispatch = createDispatcher(async () => wasmOf(renderer), makeBitmap);
     await dispatch({ op: 'init' });
+    made.length = 0;
 
     const view = { max_edge: 64 };
     const [first] = await Promise.all([
@@ -101,6 +109,8 @@ describe('render dispatcher', () => {
     ]);
 
     expect(first.transfer).toEqual([bitmap]);
+    expect(first.value).toEqual({ bitmap, width: 4, height: 2 });
+    expect(made[0]).toEqual({ pixels, color_space: 'display-p3', width: 4, height: 2 });
     expect(renderer.calls).toEqual([
       'render-start:{"max_edge":64}',
       'render-end:{}',
@@ -112,7 +122,7 @@ describe('render dispatcher', () => {
 
   it('answers input queries without waiting behind a render', async () => {
     const renderer = fakeRenderer();
-    const dispatch = createDispatcher(async () => wasmOf(renderer));
+    const dispatch = createDispatcher(async () => wasmOf(renderer), makeBitmap);
     await dispatch({ op: 'init' });
 
     const render = dispatch({ op: 'render', edits: {} as never, view: { max_edge: 64 } });
@@ -128,7 +138,7 @@ describe('render dispatcher', () => {
     renderer.set_lut = () => {
       throw new Error('bad cube');
     };
-    const dispatch = createDispatcher(async () => wasmOf(renderer));
+    const dispatch = createDispatcher(async () => wasmOf(renderer), makeBitmap);
     await dispatch({ op: 'init' });
 
     await expect(dispatch({ op: 'setLut', id: 'l', bytes: new ArrayBuffer(1) })).rejects.toThrow(

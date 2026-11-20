@@ -7,7 +7,6 @@ use raw_pipeline::lut::LutMap;
 use raw_pipeline::mask_raster::RasterMap;
 use raw_pipeline::source::{context_key, window_key};
 use serde::Deserialize;
-use wgpu::SurfaceColorSpace;
 
 #[derive(Debug, PartialEq)]
 pub struct EditInputs {
@@ -76,10 +75,10 @@ impl RenderView {
         }
     }
 
-    pub fn canvas_color_space(&self) -> SurfaceColorSpace {
+    pub fn image_color_space(&self) -> &'static str {
         match self.output_color_space {
-            OutputColorSpace::SRgb => SurfaceColorSpace::Srgb,
-            OutputColorSpace::DisplayP3 => SurfaceColorSpace::DisplayP3,
+            OutputColorSpace::SRgb => "srgb",
+            OutputColorSpace::DisplayP3 => "display-p3",
         }
     }
 }
@@ -158,13 +157,10 @@ mod tests {
     }
 
     #[test]
-    fn canvas_color_space_follows_the_output_space() {
-        for (space, expected) in [
-            ("srgb", SurfaceColorSpace::Srgb),
-            ("displayp3", SurfaceColorSpace::DisplayP3),
-        ] {
+    fn image_color_space_follows_the_output_space() {
+        for (space, expected) in [("srgb", "srgb"), ("displayp3", "display-p3")] {
             let json = format!(r#"{{"max_edge":1,"output_color_space":"{space}"}}"#);
-            assert_eq!(view(&json).canvas_color_space(), expected, "{space}");
+            assert_eq!(view(&json).image_color_space(), expected, "{space}");
         }
     }
 

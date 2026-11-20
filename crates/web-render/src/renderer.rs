@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use raw_pipeline::dcp::DcpProfile;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::RenderOptions;
+use raw_pipeline::gpu::readback::read_rgba8_async;
 use raw_pipeline::gpu::{GpuRenderer, GpuRendererOptions, LinearSource};
 use raw_pipeline::lut::{CubeLut, LutMap};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
@@ -14,7 +15,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::js;
-use crate::present::Presenter;
+use crate::present::FrameReader;
 use crate::view::{EditInputs, RenderView};
 
 const TEXTURE_CACHE_MAX_BYTES: u64 = 512 * 1024 * 1024;
@@ -32,8 +33,8 @@ struct Inputs {
 
 struct Inner {
     gpu: GpuRenderer,
-    presenter: RefCell<Presenter>,
-    tile_presenter: RefCell<Presenter>,
+    reader: RefCell<FrameReader>,
+    tile_reader: RefCell<FrameReader>,
     inputs: RefCell<Inputs>,
     lost: Arc<Mutex<Option<String>>>,
 }
@@ -64,8 +65,13 @@ impl WebRenderer {
                 *sink.lock().unwrap_or_else(PoisonError::into_inner) =
                     Some(format!("{reason:?}, {message}"));
             });
-        let (presenter, tile_presenter) = gpu
-            .guarded(async { Ok((new_presenter(&gpu)?, new_presenter(&gpu)?)) })
+        let (reader, tile_reader) = gpu
+            .guarded(async {
+                Ok((
+                    FrameReader::new(gpu.context()),
+                    FrameReader::new(gpu.context()),
+                ))
+            })
             .await?;
         if let Some(reason) = device_lost(&lost).await {
             return Err(JsError::new(&format!("the GPU device was lost: {reason}")));
@@ -73,8 +79,8 @@ impl WebRenderer {
         Ok(Self {
             inner: Rc::new(Inner {
                 gpu,
-                presenter: RefCell::new(presenter),
-                tile_presenter: RefCell::new(tile_presenter),
+                reader: RefCell::new(reader),
+                tile_reader: RefCell::new(tile_reader),
                 inputs: RefCell::new(Inputs::default()),
                 lost,
             }),
@@ -231,27 +237,23 @@ async fn draw(
     view: &RenderView,
 ) -> PipelineResult<JsValue> {
     let ctx = inner.gpu.context();
-    let presenter = if view.roi.is_some() {
-        &inner.tile_presenter
+    let reader = if view.roi.is_some() {
+        &inner.tile_reader
     } else {
-        &inner.presenter
+        &inner.reader
     };
     let mut frame = inner.gpu.render_display(source, edits, opts)?;
-    let target = presenter
-        .borrow_mut()
-        .acquire(ctx, frame.dims(), view.canvas_color_space())
-        .map_err(PipelineError::Render)?;
-    frame.record(|encoder, texture| presenter.borrow().blit(ctx, encoder, texture, &target.view));
-    let meta = inner.gpu.read_display_meta(frame).await?;
-    target.present(ctx);
-    let bitmap = presenter.borrow().bitmap().map_err(PipelineError::Render)?;
-    Ok(js::frame(&meta, bitmap))
-}
-
-fn new_presenter(gpu: &GpuRenderer) -> PipelineResult<Presenter> {
-    let canvas = web_sys::OffscreenCanvas::new(1, 1)
-        .map_err(|e| PipelineError::Render(format!("offscreen canvas: {e:?}")))?;
-    Presenter::new(gpu.context(), canvas).map_err(PipelineError::Render)
+    let dims = frame.dims();
+    let mut pixels = None;
+    frame.record(|encoder, texture| {
+        pixels = Some(reader.borrow_mut().record(ctx, encoder, texture, dims));
+    });
+    let submitted = inner.gpu.submit_display(frame);
+    let buffer =
+        pixels.ok_or_else(|| PipelineError::Render("the frame was not recorded".into()))?;
+    let rgba = read_rgba8_async(&buffer, dims.0, dims.1).await?;
+    let meta = submitted.read_meta().await?;
+    Ok(js::frame(&meta, &rgba, view.image_color_space()))
 }
 
 async fn device_lost(lost: &Mutex<Option<String>>) -> Option<String> {
