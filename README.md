@@ -9,12 +9,10 @@ Originals remain unchanged, and go to the Immich trash only when you ask.
 > immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the upgrade notes
 > before upgrading.
 
-![immich-edit editor](docs/image/editor-v0_5.png)
+![immich-edit on desktop, tablet and phone](docs/image/banner-v0_8.png)
 
-_Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
-[Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y)._
 
-<!-- SCREENSHOT: Capture the app viewport at 2728x1530 with Develop > Basic open and Camera Profile and Presets collapsed. -->
+<!-- SCREENSHOT: captured from the maintainer's library on the dev server (album "Safari 2025", each photo developed with Auto and lens corrections on, account shown as Hanne Kristiansen at photos.example.net): desktop album grid 1440x900 sorted by rating, tablet editor 1180x820, phone editor 412x839, composed into a 1600x840 banner at scale 2. -->
 
 ## Documentation
 
