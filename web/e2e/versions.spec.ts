@@ -107,7 +107,7 @@ test.describe('versions on desktop', () => {
     await expect(pill(page)).toHaveText('Holding B&W · release to return to Original');
     await expect(held(page)).toHaveAttribute(
       'src',
-      new RegExp(`/api/assets/${COPY_2}/preview\\?max=1600&clip=false$`)
+      new RegExp(`/api/assets/${COPY_2}/preview\\?max=1600&clip=false&v=h2&r=[^&]*$`)
     );
     await expect(held(page)).not.toHaveClass(/opacity-0/);
     await expect(page.getByTestId('preview-image')).toBeAttached();
