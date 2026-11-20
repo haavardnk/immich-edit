@@ -5,6 +5,7 @@ import {
   ASSET_SUMMARY,
   installMocks,
   makePng,
+  NEUTRAL_RECORD,
   numberedAssets,
   openLoupeFromGrid,
   type InstallOpts
@@ -389,6 +390,25 @@ test('the grid never shows between the loupe and the editor', async ({ page }) =
   await page.getByRole('button', { name: /^Back/ }).first().click();
   await expect(page.locator('[data-loupe-root]')).toHaveCount(1);
   expect(await gaps()).toBe(0);
+});
+
+test('the loupe shows the saved edits after the editor', async ({ page }) => {
+  await openLoupe(page, {
+    editRecord: { ...NEUTRAL_RECORD, hash: 'hash-saved' }
+  });
+  const image = page.getByRole('img', { name: LOUPE_IMAGE });
+  await expect(image).not.toHaveAttribute('src', /v=/);
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  const saved = page.waitForRequest(
+    (req) => req.method() === 'PUT' && req.url().endsWith(`/api/assets/${ASSET_ID}/edits`)
+  );
+  await page.getByRole('slider', { name: 'Exposure', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await saved;
+  await page.getByRole('button', { name: /^Back/ }).first().click();
+
+  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toHaveAttribute('src', /v=hash-saved/);
 });
 
 test('j toggles the clipping overlay', async ({ page }) => {

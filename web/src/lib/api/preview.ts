@@ -1,4 +1,5 @@
 import { getJson, postForBlob, request, url } from './client';
+import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import type { Edits } from '#lib/types/edits.ts';
 import type { PreviewMeta, ScopeGrid, ScopeKind } from '#lib/types/preview.ts';
 import type { ColorSpaceOpt } from './export';
@@ -37,7 +38,9 @@ export function previewModeIsNone(m: PreviewMode): boolean {
 }
 
 export function persistedPreviewUrl(assetId: string, max: number, clipWarn = false): string {
-  return url`/api/assets/${assetId}/preview?max=${max}&clip=${clipWarn}`;
+  const base = url`/api/assets/${assetId}/preview?max=${max}&clip=${clipWarn}`;
+  const hash = editedThumbs.getHash(assetId);
+  return hash ? base + url`&v=${hash}&r=${editedThumbs.getRevision(assetId)}` : base;
 }
 
 export async function livePreview(
