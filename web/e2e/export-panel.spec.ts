@@ -154,7 +154,7 @@ test('filename token chips insert at the caret', async ({ page }) => {
   const chipBox = await chips.first().boundingBox();
   expect(Math.abs((chipBox?.x ?? 0) - (fieldBox?.x ?? -100))).toBeLessThan(2);
   await name.hover();
-  await expect(page.locator('.tooltip-content', { hasText: 'Original name' })).toBeVisible();
+  await expect(page.locator('[data-tooltip-content]', { hasText: 'Original name' })).toBeVisible();
 });
 
 test('a download carries the resize settings', async ({ page }) => {

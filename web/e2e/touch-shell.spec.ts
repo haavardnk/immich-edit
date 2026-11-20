@@ -146,7 +146,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
   test('taps and closing sheets leave no tooltip open', async ({ page }) => {
     await page.clock.install();
     await open(page, '/photos');
-    const tooltips = page.locator('.tooltip-content');
+    const tooltips = page.locator('[data-tooltip-content]');
     const expectNoTooltip = async () => {
       await page.clock.runFor(1000);
       await expect(tooltips).toBeHidden();
@@ -535,7 +535,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await page.setViewportSize({ width: 820, height: 1180 });
     await page.clock.install();
     await open(page, '/photos');
-    const tooltips = page.locator('.tooltip-content');
+    const tooltips = page.locator('[data-tooltip-content]');
 
     await tab(page, 'Library').tap();
     await expect(page).toHaveURL('/library');

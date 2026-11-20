@@ -136,7 +136,7 @@ test('browse popover triggers and filter controls show styled tooltips', async (
   await installMocks(page, { structuredSearch: true });
   await page.goto('/photos');
   const expectTooltip = async (target: Locator, text: string | RegExp) => {
-    const tooltip = page.locator('.tooltip-content', { hasText: text });
+    const tooltip = page.locator('[data-tooltip-content]', { hasText: text });
     await target.hover();
     await expect(tooltip).toBeVisible();
     await page.mouse.move(1, 1);

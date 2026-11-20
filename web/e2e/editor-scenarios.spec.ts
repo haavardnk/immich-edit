@@ -208,7 +208,9 @@ test('a popover closes on escape and on an outside click, returning focus', asyn
   await expect(zoomIn).toBeVisible();
   const original = page.getByRole('button', { name: /^Hold for original/ });
   await original.hover();
-  await expect(page.locator('.tooltip-content', { hasText: 'Hold for original' })).toBeVisible();
+  await expect(
+    page.locator('[data-tooltip-content]', { hasText: 'Hold for original' })
+  ).toBeVisible();
   await original.click();
   await expect(zoomIn).toBeHidden();
 });
@@ -476,7 +478,7 @@ test('the preset strip explains a disabled save and keeps failed thumbnails visi
   await expect(save).toBeDisabled();
   await save.locator('..').hover();
   await expect(
-    page.locator('.tooltip-content', { hasText: 'Edit the photo to save a preset' })
+    page.locator('[data-tooltip-content]', { hasText: 'Edit the photo to save a preset' })
   ).toBeVisible();
   const tile = strip.getByRole('button', { name: 'Apply test' });
   await expect(tile).toContainText('T');

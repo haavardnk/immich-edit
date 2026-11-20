@@ -73,7 +73,7 @@ test('select day picks the whole day, loading the part past the loaded end', asy
   const circle = friday.getByRole('button', { name: 'Select day' });
   await expect(circle).toHaveCSS('opacity', '1');
   await circle.hover();
-  await expect(page.locator('.tooltip-content', { hasText: 'Select day' })).toBeVisible();
+  await expect(page.locator('[data-tooltip-content]', { hasText: 'Select day' })).toBeVisible();
   await circle.click();
 
   await expect(bulkBar(page)).toContainText('5 selected');

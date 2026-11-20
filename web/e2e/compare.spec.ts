@@ -178,7 +178,7 @@ test.describe('compare on desktop', () => {
     const compare = list.getByRole('button', { name: 'Compare Warm v1' });
     await compare.hover();
     await expect(
-      page.locator('.tooltip-content', { hasText: 'Compare with current' })
+      page.locator('[data-tooltip-content]', { hasText: 'Compare with current' })
     ).toBeVisible();
     await compare.click();
 
