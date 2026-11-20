@@ -146,8 +146,10 @@
           class="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 rounded-full bg-editor-chrome/80 px-3 py-1 text-xs font-medium text-light-950 {arrangement ===
           'side'
             ? 'top-15'
-            : 'top-3'}">Original</span
+            : 'top-3'}"
         >
+          Original
+        </span>
       {/if}
       {#if chrome && arrangement === 'side'}
         <TouchEditorBar floating />

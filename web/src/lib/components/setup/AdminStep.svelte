@@ -52,8 +52,9 @@
 <form onsubmit={submit} class="flex flex-1 flex-col gap-4">
   <div class="flex items-center gap-2.5 rounded-lg bg-light-100 py-1.5 ps-3 pe-1.5 text-sm">
     <span aria-hidden="true" class="size-1.5 shrink-0 rounded-full bg-success"></span>
-    <span class="min-w-0 flex-1 truncate font-mono text-xs text-light-950" data-truncate>{url}</span
-    >
+    <span class="min-w-0 flex-1 truncate font-mono text-xs text-light-950" data-truncate>
+      {url}
+    </span>
     <Button
       type="button"
       size="tiny"

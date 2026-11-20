@@ -109,8 +109,9 @@
         <ScopePlot height={plotHeight} mini />
       {/if}
     </span>
-    <span class="pointer-events-none absolute top-1 left-2 text-caption text-white/90">{label}</span
-    >
+    <span class="pointer-events-none absolute top-1 left-2 text-caption text-white/90">
+      {label}
+    </span>
     <span class="pointer-events-none absolute top-2.25 right-2 flex gap-1" aria-hidden="true">
       <span
         class="size-1.25 rounded-full {scopes.mode === 'histogram' ? 'bg-white/95' : 'bg-white/35'}"

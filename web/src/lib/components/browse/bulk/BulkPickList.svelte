@@ -80,8 +80,9 @@
         {#if note}
           <span
             class="truncate text-caption touch:text-label {stage ? 'text-primary' : 'text-dark/65'}"
-            >{note}</span
           >
+            {note}
+          </span>
         {/if}
       </span>
     </label>

@@ -69,8 +69,10 @@
         pressed={ui.presetStrip}
         label={ui.presetStrip ? 'Hide presets' : 'Show presets'}
         title={hint(ui.presetStrip ? 'Hide presets' : 'Show presets', 'presetStrip')}
-        onclick={ui.togglePresetStrip}>Presets</BarToggle
+        onclick={ui.togglePresetStrip}
       >
+        Presets
+      </BarToggle>
       <BarToggle
         icon={mdiFilmstrip}
         pressed={hasFilmstrip && filmstripShown}
@@ -83,8 +85,10 @@
           ? 'No filmstrip available'
           : hint(filmstripShown ? 'Hide filmstrip' : 'Show filmstrip', 'filmstrip')}
         disabled={!hasFilmstrip}
-        onclick={ui.toggleEditorFilmstrip}>Filmstrip</BarToggle
+        onclick={ui.toggleEditorFilmstrip}
       >
+        Filmstrip
+      </BarToggle>
     </div>
   </div>
 </nav>

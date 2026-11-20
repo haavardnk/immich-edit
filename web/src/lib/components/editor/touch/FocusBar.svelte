@@ -49,9 +49,9 @@
 >
   <div class="flex items-baseline justify-center gap-2 pt-3 text-body font-medium text-light-950">
     {param.label}
-    <span class="font-mono text-sm text-primary tabular-nums" data-testid="focus-value"
-      >{param.format(value)}</span
-    >
+    <span class="font-mono text-sm text-primary tabular-nums" data-testid="focus-value">
+      {param.format(value)}
+    </span>
   </div>
   <Ruler
     {at}

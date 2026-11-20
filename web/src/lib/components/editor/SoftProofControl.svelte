@@ -27,8 +27,9 @@
               value="displayp3"
               disabled={!wideGamut.current}
               class="{segmented.text.radio} flex-1 data-disabled:opacity-40"
-              >Display P3</RadioGroup.Item
             >
+              Display P3
+            </RadioGroup.Item>
           </span>
         {/snippet}
       </ElementTooltip>

@@ -81,9 +81,9 @@
         class="pointer-events-none absolute right-14.5 -translate-y-1/2 rounded-lg bg-light-50 px-3 py-1.5 text-label font-medium whitespace-nowrap text-light-950 shadow-popover ring-1 ring-hairline"
         style:top="{scrub.previewAt * 100}%"
       >
-        {monthLabel(hovered.month)}<small class="ms-1.5 text-xs font-normal text-dark/65"
-          >{monthCountLabel(hovered)}</small
-        >
+        {monthLabel(hovered.month)}<small class="ms-1.5 text-xs font-normal text-dark/65">
+          {monthCountLabel(hovered)}
+        </small>
       </span>
     {/if}
   </div>

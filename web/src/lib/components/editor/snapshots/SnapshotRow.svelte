@@ -167,8 +167,9 @@
         {/if}
         <span class="flex min-w-0 flex-1 flex-col touch:gap-0.5">
           <span class="flex min-w-0 items-center gap-1.5">
-            <span class="truncate text-dark touch:text-base touch:font-medium">{snapshot.name}</span
-            >
+            <span class="truncate text-dark touch:text-base touch:font-medium">
+              {snapshot.name}
+            </span>
             {#if restored}
               <span class="section-label shrink-0 text-dark/65 touch:text-primary">Restored</span>
             {/if}

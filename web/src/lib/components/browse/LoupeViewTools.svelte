@@ -36,5 +36,7 @@
   pressed={shown}
   label={commandLabel(loupeFilmstrip)}
   title={commandTitle(loupeFilmstrip)}
-  onclick={() => runCommand(loupeFilmstrip)}>Filmstrip</BarToggle
+  onclick={() => runCommand(loupeFilmstrip)}
 >
+  Filmstrip
+</BarToggle>

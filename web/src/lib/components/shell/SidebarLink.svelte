@@ -28,7 +28,8 @@
   {#if showCount}
     <span
       class="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-xs text-dark/65 tabular-nums wide:right-3"
-      >{count}</span
     >
+      {count}
+    </span>
   {/if}
 </div>

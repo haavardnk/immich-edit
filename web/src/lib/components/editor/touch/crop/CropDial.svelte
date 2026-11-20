@@ -97,9 +97,9 @@
   <div class={['flex flex-col', fill && 'my-auto']}>
     <div class="flex items-baseline justify-center gap-2 text-body font-medium text-light-950">
       {dial.label}
-      <span class="font-mono text-sm text-primary tabular-nums" data-testid="crop-dial-value"
-        >{dial.range.format(value)}</span
-      >
+      <span class="font-mono text-sm text-primary tabular-nums" data-testid="crop-dial-value">
+        {dial.range.format(value)}
+      </span>
     </div>
     <Ruler {at} {origin} onstart={begin} onmove={move} onend={end} testid="crop-dial" />
   </div>

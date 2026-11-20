@@ -219,8 +219,10 @@
   </svg>
   <span
     class="pointer-events-none absolute top-3 left-1/2 z-20 w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs whitespace-nowrap text-white shadow-lg backdrop-blur-sm"
-    data-testid="upright-counts"><GuideCounts {guides} /></span
+    data-testid="upright-counts"
   >
+    <GuideCounts {guides} />
+  </span>
   {#each lines as line, i (i)}
     <span
       class="pointer-events-none absolute -translate-1/2 font-mono text-caption font-semibold text-shadow-sm {line.kind ===
@@ -228,8 +230,10 @@
         ? 'text-guide-vertical'
         : 'text-guide-horizontal'}"
       style="left: {line.tag[0]}px; top: {line.tag[1]}px;"
-      data-testid="upright-label">{line.label}</span
+      data-testid="upright-label"
     >
+      {line.label}
+    </span>
     {#each [['from', 'start'], ['to', 'end']] as const as [end, label] (end)}
       {@const [x, y] = line[end]}
       <button
@@ -263,7 +267,9 @@
       role="status"
       class="pointer-events-none absolute z-20 rounded-full bg-black/70 px-2 py-0.5 text-xs whitespace-nowrap text-white"
       style="left: {drawing.to[0] + 14}px; top: {drawing.to[1] + 10}px;"
-      data-testid="upright-hint">{hint}</span
+      data-testid="upright-hint"
     >
+      {hint}
+    </span>
   {/if}
 </div>

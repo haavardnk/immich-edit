@@ -5,5 +5,6 @@
 <span
   data-compare-label
   class="pointer-events-none absolute top-2.5 max-w-[45%] truncate rounded-full bg-black/55 px-2 py-0.5 text-caption font-medium text-white {className}"
-  >{text}</span
 >
+  {text}
+</span>

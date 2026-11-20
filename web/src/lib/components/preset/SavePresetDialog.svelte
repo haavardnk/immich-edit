@@ -73,9 +73,9 @@
       />
     </div>
     <div class="flex justify-end gap-2">
-      <Button type="button" size="small" variant="ghost" color="secondary" onclick={onClose}
-        >Cancel</Button
-      >
+      <Button type="button" size="small" variant="ghost" color="secondary" onclick={onClose}>
+        Cancel
+      </Button>
       <Button type="submit" size="small" disabled={!name.trim() || saving}>Save</Button>
     </div>
   </form>

@@ -70,15 +70,19 @@
           variant="ghost"
           color="secondary"
           class="touch:h-11"
-          onclick={close}>Cancel</Button
+          onclick={close}
         >
+          Cancel
+        </Button>
         <Button
           type="submit"
           size="small"
           class="touch:h-11"
           loading={creating}
-          disabled={!name.trim() || creating}>Create</Button
+          disabled={!name.trim() || creating}
         >
+          Create
+        </Button>
       </div>
     </form>
   </Dialog>

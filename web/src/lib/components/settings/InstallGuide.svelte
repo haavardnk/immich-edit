@@ -7,8 +7,10 @@
 {#snippet step(number: number)}
   <span
     class="grid size-6 flex-none place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary"
-    aria-hidden="true">{number}</span
+    aria-hidden="true"
   >
+    {number}
+  </span>
 {/snippet}
 
 <div class="space-y-4 text-sm text-light-950">
@@ -22,9 +24,9 @@
         {@render step(2)}<span>Choose <strong>Add to Home Screen</strong></span>
       </li>
       <li class="flex items-center gap-3">
-        {@render step(3)}<span
-          >Keep <strong>Open as Web App</strong> on and tap <strong>Add</strong></span
-        >
+        {@render step(3)}<span>
+          Keep <strong>Open as Web App</strong> on and tap <strong>Add</strong>
+        </span>
       </li>
     </ol>
   {:else if guide === 'safari-mac'}
@@ -47,9 +49,9 @@
         {@render step(1)}<span>Open the browser menu</span>
       </li>
       <li class="flex items-center gap-3">
-        {@render step(2)}<span
-          >Choose <strong>Install app</strong> or <strong>Add to Home screen</strong></span
-        >
+        {@render step(2)}<span>
+          Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>
+        </span>
       </li>
     </ol>
   {/if}

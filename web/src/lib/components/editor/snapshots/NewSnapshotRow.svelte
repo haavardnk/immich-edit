@@ -70,12 +70,15 @@
   >
     {@render plus()}
     <span class="flex min-w-0 flex-1 flex-col touch:gap-0.5">
-      <span class="truncate touch:text-base touch:font-medium touch:text-primary">New snapshot</span
-      >
+      <span class="truncate touch:text-base touch:font-medium touch:text-primary">
+        New snapshot
+      </span>
     </span>
     <kbd
       class="shrink-0 rounded border border-dark/15 px-1 font-mono text-micro text-dark/65 touch:hidden"
-      aria-hidden="true">{keysFor('newSnapshot')}</kbd
+      aria-hidden="true"
     >
+      {keysFor('newSnapshot')}
+    </kbd>
   </Button>
 {/if}

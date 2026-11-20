@@ -101,9 +101,9 @@
               <span class="max-w-full truncate text-body leading-5 text-light-950">
                 <HighlightText text={setting.label} range={highlight} />
               </span>
-              <span class="max-w-full truncate text-xs leading-4 text-dark/65"
-                >{setting.touch.path}</span
-              >
+              <span class="max-w-full truncate text-xs leading-4 text-dark/65">
+                {setting.touch.path}
+              </span>
             </span>
             <span class="shrink-0 font-mono text-xs text-dark tabular-nums">
               {settingValue(setting, editor.edits, editor.isRaw)}

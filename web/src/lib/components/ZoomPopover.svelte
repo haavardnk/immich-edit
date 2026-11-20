@@ -57,8 +57,10 @@
       class="min-w-12 px-1 font-mono tabular-nums text-light-950/65 hover:text-light-950 touch:h-11 touch:min-w-14 touch:text-sm"
       title=""
       aria-label="Zoom"
-      {...props}>{fitMode ? 'Fit' : percent}</Button
+      {...props}
     >
+      {fitMode ? 'Fit' : percent}
+    </Button>
   {/snippet}
   <IconButton
     size="tiny"
@@ -96,8 +98,10 @@
     class="min-w-10 px-2 font-mono"
     title="One source pixel per screen pixel"
     aria-pressed={atNative}
-    onclick={() => onZoom(100)}>1:1</Button
+    onclick={() => onZoom(100)}
   >
+    1:1
+  </Button>
   <div class="mx-0.5 h-5 w-px bg-hairline"></div>
   <IconButton
     size="tiny"
