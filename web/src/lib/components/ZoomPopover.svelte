@@ -56,7 +56,7 @@
       color={open ? 'primary' : 'secondary'}
       class="min-w-12 px-1 font-mono tabular-nums text-light-950/65 hover:text-light-950 touch:h-11 touch:min-w-14 touch:text-sm"
       title=""
-      aria-label="Zoom"
+      aria-label="Zoom {fitMode ? 'Fit' : percent}"
       {...props}
     >
       {fitMode ? 'Fit' : percent}

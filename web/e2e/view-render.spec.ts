@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { gotoAsset, installMocks, makePng, type PreviewRequest } from './helpers';
+import { gotoAsset, installMocks, makePng, type PreviewRequest, ZOOM_NAME } from './helpers';
 
 const SOURCE_W = 12000;
 const SOURCE_H = 8000;
@@ -13,7 +13,7 @@ function renderFor(req: PreviewRequest): Buffer {
 }
 
 async function setZoom(page: Page, clicks: number): Promise<void> {
-  const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+  const zoom = page.getByRole('button', { name: ZOOM_NAME });
   await zoom.click();
   const zoomIn = page.getByRole('button', { name: 'Zoom In', exact: true });
   for (let i = 0; i < clicks; i++) await zoomIn.click();
@@ -106,7 +106,7 @@ test.describe('view rendering', () => {
     await setZoom(page, 4);
     await expect(page.getByTestId('view-render')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Zoom', exact: true }).click();
+    await page.getByRole('button', { name: ZOOM_NAME }).click();
     await page.getByRole('button', { name: /Fit to screen/ }).click();
 
     await expect(page.getByTestId('view-render')).toHaveCount(1);
@@ -121,7 +121,7 @@ test.describe('view rendering', () => {
     await gotoAsset(page);
     await expect(page.getByTestId('view-render')).toBeVisible();
 
-    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    const zoom = page.getByRole('button', { name: ZOOM_NAME });
     await expect(zoom).toHaveText('Fit');
     const image = page.getByTestId('preview-image');
     const fitWidth = (await image.boundingBox())?.width ?? 0;
@@ -149,7 +149,7 @@ test.describe('view rendering', () => {
     await gotoAsset(page);
     await expect(page.getByTestId('view-render')).toBeVisible();
 
-    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    const zoom = page.getByRole('button', { name: ZOOM_NAME });
     await expect(zoom).toHaveText('Fit');
 
     await zoom.click();
@@ -207,7 +207,7 @@ test.describe('view rendering', () => {
     });
     await gotoAsset(page);
     await expect(page.getByTestId('view-render')).toBeVisible();
-    const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+    const zoom = page.getByRole('button', { name: ZOOM_NAME });
     await zoom.click();
     await page.getByRole('button', { name: '1:1', exact: true }).click();
     await expect(zoom).toHaveText('100%');

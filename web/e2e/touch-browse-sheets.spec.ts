@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { json, numberedAssets } from './helpers';
+import { json, numberedAssets, filterSection } from './helpers';
 import { avatar, mockLibrary, open, openDrawer, tabBar } from './touchShell';
 
 const GREEN = { id: 'tag-green', name: 'green', value: 'immich-edit/label/green' };
@@ -86,7 +86,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(sheet.getByRole('button', { name: 'Show 3 photos' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Reset all filters' })).toBeDisabled();
 
-    await sheet.getByRole('button', { name: 'Rating & label', exact: true }).tap();
+    await filterSection(sheet, 'Rating & label').tap();
     await sheet.getByRole('button', { name: 'Green label' }).tap();
     await expect(sheet.getByRole('button', { name: 'Show 1 photo' })).toBeVisible();
     await expect(count).toHaveText('1 photo');
@@ -105,9 +105,7 @@ test.describe('touch sheets on a phone', { tag: ['@touch', '@phone'] }, () => {
 
     await page.getByRole('button', { name: 'View & filters (1 active)' }).tap();
     await expect(
-      page
-        .getByRole('dialog', { name: 'View & filters' })
-        .getByRole('button', { name: 'Rating & label', exact: true })
+      filterSection(page.getByRole('dialog', { name: 'View & filters' }), 'Rating & label')
     ).toHaveAttribute('aria-expanded', 'true');
     await page
       .getByRole('dialog', { name: 'View & filters' })

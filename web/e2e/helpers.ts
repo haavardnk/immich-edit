@@ -79,6 +79,8 @@ export const JPEG_BLOB: Buffer = Buffer.from(
 );
 
 export const ASSET_ID = '00000000-0000-0000-0000-000000000001';
+export const ACCOUNT_NAME = /^Account( [A-Z0-9]{1,2})?$/;
+export const ZOOM_NAME = /^Zoom (Fit|\d+%)$/;
 export const SESSION_USER = {
   id: '00000000-0000-0000-0000-0000000000aa',
   email: 'user@example.com',
@@ -1003,7 +1005,7 @@ export async function gotoAsset(page: Page): Promise<void> {
 export async function openAccountMenu(page: Page): Promise<Locator> {
   await page
     .getByRole('navigation', { name: 'Global navigation' })
-    .getByRole('button', { name: 'Account', exact: true })
+    .getByRole('button', { name: ACCOUNT_NAME })
     .click();
   const menu = page
     .locator('[data-popover-content]')
@@ -1024,8 +1026,13 @@ export async function openFilters(page: Page, ...sections: string[]): Promise<Lo
   await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
   const name = /^(View & filters|Filters)$/;
   const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
-  for (const name of sections) await panel.getByRole('button', { name, exact: true }).click();
+  for (const title of sections) await filterSection(panel, title).click();
   return panel;
+}
+
+export function filterSection(scope: Page | Locator, title: string): Locator {
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return scope.getByRole('button', { name: new RegExp(`^${escaped}( |$)`) });
 }
 
 export async function focusRingClipped(target: Locator): Promise<string> {

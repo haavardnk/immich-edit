@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { filterGroup, filterRow } from './filterLists';
-import { installMocks, numberedAssets, openFilters } from './helpers';
+import { installMocks, numberedAssets, openFilters, filterSection } from './helpers';
 
 test('active filters stay visible as removable chips', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
@@ -136,14 +136,11 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   const panel = await openFilters(page);
   await expect(toggle).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close filter panel' })).toBeFocused();
-  await expect(panel.getByRole('button', { name: 'Library', exact: true })).toHaveAttribute(
-    'aria-expanded',
-    'false'
-  );
+  await expect(filterSection(panel, 'Library')).toHaveAttribute('aria-expanded', 'false');
   const resetAll = panel.getByRole('button', { name: 'Reset all filters' });
   await expect(resetAll).toBeDisabled();
-  await panel.getByRole('button', { name: 'Rating & label', exact: true }).click();
-  await panel.getByRole('button', { name: 'File', exact: true }).click();
+  await filterSection(panel, 'Rating & label').click();
+  await filterSection(panel, 'File').click();
   const filename = panel.getByRole('textbox', { name: 'Name contains' });
   await filename.fill('DSC');
   const threeStars = panel.getByRole('button', { name: '3 stars' });
@@ -151,14 +148,12 @@ test('the filter panel remembers its sections and resets them', async ({ page })
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
   await expect(chips).toHaveText(['≥ 3 stars', 'Name: DSC']);
   await expect(panel.getByRole('heading', { name: 'Filters' })).toContainText('2');
-  const rating = panel.getByRole('button', { name: 'Rating & label', exact: true });
-  await expect(rating).toHaveAccessibleDescription('');
+  const rating = filterSection(panel, 'Rating & label');
+  await expect(rating).toHaveAccessibleName('Rating & label');
   await rating.click();
-  await expect(rating).toHaveAccessibleDescription('≥ 3 stars');
+  await expect(rating).toHaveAccessibleName('Rating & label ≥ 3 stars');
   await rating.click();
-  await expect(
-    panel.getByRole('button', { name: 'Library', exact: true })
-  ).toHaveAccessibleDescription('');
+  await expect(filterSection(panel, 'Library')).toHaveAccessibleName('Library');
   await expect(panel.getByRole('button', { name: /^Reset .* panel$/ })).toHaveCount(0);
   await threeStars.click();
   await expect(chips).toHaveText(['Name: DSC']);
@@ -195,7 +190,7 @@ test('the date chips pick a year, a month, the added basis and a custom range', 
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
 
   const panel = await openFilters(page, 'Date');
-  const trigger = panel.getByRole('button', { name: 'Date', exact: true });
+  const trigger = filterSection(panel, 'Date');
   const years = panel.getByRole('group', { name: 'Year' });
   await expect(years.getByRole('button')).toHaveText(['2025', 'Custom']);
   await expect(panel.getByRole('group', { name: 'Month' })).toHaveCount(0);
@@ -209,7 +204,7 @@ test('the date chips pick a year, a month, the added basis and a custom range', 
   await months.getByRole('button', { name: 'Oct 2025' }).click();
   await expect(page).toHaveURL(/after=2025-10-01&before=2025-10-31/);
   await trigger.click();
-  await expect(trigger).toHaveAccessibleDescription('Oct 2025');
+  await expect(trigger).toHaveAccessibleName('Date Oct 2025');
   await trigger.click();
   await months.getByRole('button', { name: 'Oct 2025' }).click();
   await expect(chips).toHaveText(['2025']);

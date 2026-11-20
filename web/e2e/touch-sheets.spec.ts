@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openBrowse } from './browse';
-import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets } from './helpers';
+import { ASSET_EXIF, ASSET_SUMMARY, installMocks, numberedAssets, ACCOUNT_NAME } from './helpers';
 import { drag, longPress, openTileLoupe, tapCentre } from './touch';
 import { open } from './touchShell';
 
@@ -231,7 +231,7 @@ test.describe('touch sheets on WebKit', { tag: '@touch-smoke' }, () => {
     await expect(sheet).toBeHidden();
 
     await countSlideIns(page);
-    await page.getByRole('button', { name: 'Account', exact: true }).tap();
+    await page.getByRole('button', { name: ACCOUNT_NAME }).tap();
     await expect(page.getByRole('dialog', { name: 'Account' })).toBeVisible();
     await expect.poll(() => slideIns(page)).toBeGreaterThan(0);
   });

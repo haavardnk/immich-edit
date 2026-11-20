@@ -49,7 +49,7 @@ function layouts(subject: AssetDetail): Layout<'body' | 'editor bottom bar' | 'l
       {
         exclude: [
           button('Tags (Shift+T)'),
-          button('Zoom'),
+          button('Zoom Fit'),
           button('Show presets'),
           button('No filmstrip available')
         ]
@@ -72,7 +72,7 @@ function layouts(subject: AssetDetail): Layout<'body' | 'editor bottom bar' | 'l
         onZoom: noop,
         onFit: noop
       },
-      { exclude: [button('Tags (Shift+T)'), button('Zoom'), button('Collapse filmstrip')] }
+      { exclude: [button('Tags (Shift+T)'), button('Zoom Fit'), button('Collapse filmstrip')] }
     )
   ];
 }

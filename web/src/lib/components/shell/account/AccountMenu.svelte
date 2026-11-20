@@ -4,6 +4,7 @@
   import Popover from '#lib/components/Popover.svelte';
   import ThemeModeChoice from '#lib/components/settings/ThemeModeChoice.svelte';
   import AccountCard from '#lib/components/shell/account/AccountCard.svelte';
+  import { accountLabel } from '#lib/components/shell/account/accountLabel.ts';
   import { signOutFlow } from '#lib/auth/signOutFlow.svelte.ts';
   import { help } from '#lib/commands/app.ts';
   import { settingsHref } from '#lib/settings/pages.ts';
@@ -24,6 +25,7 @@
 
   const user = $derived(session.user);
   const name = $derived(user?.name || user?.email || '?');
+  const label = $derived(accountLabel(name));
 
   function setOpen(next: boolean): void {
     open = next;
@@ -63,7 +65,7 @@
       shape="round"
       class="size-10 p-0"
       title=""
-      aria-label="Account"
+      aria-label={label}
     >
       <Avatar size="small" class="size-8 text-label font-bold" {name} />
     </Button>
@@ -90,7 +92,6 @@
     <MenuRow
       icon={mdiKeyOutline}
       label="Signed-in devices"
-      aria-label="Signed-in devices"
       onclick={() => go(settingsHref('account', 'sessions'))}
     >
       {#if signedInDevices.count !== null}

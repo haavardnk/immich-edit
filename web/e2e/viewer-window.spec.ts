@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { ASSET_SUMMARY, gotoAsset, installMocks, type PreviewRequest } from './helpers';
+import { ASSET_SUMMARY, gotoAsset, installMocks, type PreviewRequest, ZOOM_NAME } from './helpers';
 
 const SECOND = {
   ...ASSET_SUMMARY,
@@ -57,7 +57,7 @@ test('the viewer window mirrors the editor and follows it', async ({ page, conte
     .toBe(true);
 
   await exposure(page).blur();
-  const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+  const zoom = page.getByRole('button', { name: ZOOM_NAME });
   await page.keyboard.press('z');
   await expect(zoom).toHaveText(/\d+%/);
   await expect

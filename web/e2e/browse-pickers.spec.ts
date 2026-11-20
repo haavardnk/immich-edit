@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { filterGroup, filterRow, rowNames } from './filterLists';
-import { installMocks, numberedAssets, openFilters } from './helpers';
+import { installMocks, numberedAssets, openFilters, filterSection } from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
@@ -39,9 +39,9 @@ test('one camera pick drills into its models and lenses on flat search', async (
   await filterRow(models, 'ILCE-7M3').click();
   await expect.poll(() => (bodies.at(-1)?.filter as ExifFilter).model).toEqual(['ILCE-7M3']);
   await expect.poll(() => rowNames(filterGroup(panel, 'Lenses'))).toEqual(['FE 35mm F1.8']);
-  const camera = panel.getByRole('button', { name: 'Camera', exact: true });
+  const camera = filterSection(panel, 'Camera');
   await camera.click();
-  await expect(camera).toHaveAccessibleDescription('SONY · ILCE-7M3');
+  await expect(camera).toHaveAccessibleName('Camera SONY · ILCE-7M3');
   await camera.click();
 
   await path.getByRole('button', { name: 'Makes' }).click();

@@ -12,7 +12,8 @@ import {
   openLoupeFromGrid,
   openPresetMenu,
   openPresetStrip,
-  presetAction
+  presetAction,
+  ZOOM_NAME
 } from './helpers';
 import { openExportTab } from './exportSections';
 
@@ -188,7 +189,7 @@ test('a popover closes on escape and on an outside click, returning focus', asyn
   await installMocks(page);
   await gotoAsset(page);
 
-  const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+  const zoom = page.getByRole('button', { name: ZOOM_NAME });
   const zoomIn = page.getByRole('button', { name: 'Zoom In' });
 
   await zoom.click();

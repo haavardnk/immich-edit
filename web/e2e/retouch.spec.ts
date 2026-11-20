@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, makePng, NEUTRAL_RECORD, PNG_64 } from './helpers';
+import {
+  ASSET_ID,
+  gotoAsset,
+  installMocks,
+  makePng,
+  NEUTRAL_RECORD,
+  PNG_64,
+  ZOOM_NAME
+} from './helpers';
 import { FULL_RETOUCH_RECORD } from './retouchRecords';
 
 const RETOUCH_RECORD = {
@@ -99,7 +107,7 @@ test('Alt and the wheel resize the retouch brush without setting a source', asyn
 
   await expect.poll(px).toBeGreaterThan(before);
   await expect(panel.getByText('Not set', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Zoom', exact: true })).toHaveText('Fit');
+  await expect(page.getByRole('button', { name: ZOOM_NAME })).toHaveText('Fit');
 });
 
 test('Sample arms a one-shot source pick', async ({ page }) => {
@@ -139,7 +147,7 @@ test('painting while zoomed in paints instead of panning', async ({ page }) => {
   await gotoAsset(page);
 
   await page.getByRole('tab', { name: 'Retouch' }).click();
-  const zoom = page.getByRole('button', { name: 'Zoom', exact: true });
+  const zoom = page.getByRole('button', { name: ZOOM_NAME });
   await zoom.click();
   await page.getByRole('button', { name: 'Zoom In', exact: true }).click();
   await page.getByRole('button', { name: 'Zoom In', exact: true }).click();

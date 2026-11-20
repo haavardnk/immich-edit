@@ -1,5 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, makePng, type PreviewRequest } from './helpers';
+import {
+  ASSET_ID,
+  gotoAsset,
+  installMocks,
+  makePng,
+  type PreviewRequest,
+  ZOOM_NAME
+} from './helpers';
 import { tapAt } from './touch';
 import { open } from './touchShell';
 
@@ -14,7 +21,7 @@ function renderFor(req: PreviewRequest): Buffer {
 }
 
 function zoomButton(page: Page): Locator {
-  return page.getByRole('button', { name: 'Zoom', exact: true });
+  return page.getByRole('button', { name: ZOOM_NAME });
 }
 
 async function boxOf(target: Locator): Promise<{ x: number; y: number; w: number; h: number }> {

@@ -8,7 +8,8 @@ import {
   openAccountMenu,
   SESSION_USER,
   settingsGroup,
-  settingsPages
+  settingsPages,
+  ACCOUNT_NAME
 } from './helpers';
 
 const JOB = {
@@ -261,7 +262,7 @@ test('jobs drawer opened from the account drawer stays bounded on a phone', asyn
   await installSecondaryMocks(page);
   await page.goto('/photos');
 
-  const trigger = page.getByRole('button', { name: 'Account', exact: true });
+  const trigger = page.getByRole('button', { name: ACCOUNT_NAME });
   await trigger.click();
   await page
     .getByRole('dialog', { name: 'Account' })

@@ -1,11 +1,13 @@
 <script lang="ts">
   import AttentionDot from '#lib/components/jobs/AttentionDot.svelte';
   import { accountDrawer } from '#lib/components/shell/account/accountDrawer.svelte.ts';
+  import { accountLabel } from '#lib/components/shell/account/accountLabel.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { session } from '#lib/stores/session.svelte.ts';
   import { Avatar, Button } from '@immich/ui';
 
   const name = $derived(session.user?.name || session.user?.email || '?');
+  const label = $derived(accountLabel(name));
 </script>
 
 <div class="relative shrink-0">
@@ -15,7 +17,7 @@
     shape="round"
     class="size-11 p-0"
     title="Account"
-    aria-label={jobs.attention ? 'Account, a job finished with failures' : 'Account'}
+    aria-label={jobs.attention ? `${label}, a job finished with failures` : label}
     aria-haspopup="dialog"
     aria-expanded={accountDrawer.open}
     onclick={accountDrawer.show}
