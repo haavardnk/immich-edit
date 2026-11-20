@@ -13,8 +13,9 @@ Use Docker Compose for a first installation.
 
 - A running Immich server reachable from the immich-edit container
 - Docker Engine with the `docker compose` plugin
-- A desktop browser for the editor. With WebGPU it can draw previews itself; on a plain
-  `http://` LAN address that takes [one extra step](rendering.md#browser-previews-on-a-local-network)
+- A browser on a computer, tablet or phone. With WebGPU the editor can draw previews itself; on a
+  plain `http://` LAN address that takes
+  [one extra step](rendering.md#browser-previews-on-a-local-network)
 - 8 GB RAM recommended for RAW rendering and local AI models
 
 ## Start the container
@@ -59,6 +60,13 @@ are registered with your identity provider; see [OAuth sign-in](oauth.md).
 
 Other users sign in with their own Immich account; each sees only their own edits, presets, and
 jobs.
+
+## Phones and tablets
+
+The same address works on a phone or tablet, with a touch layout; see
+[on a phone or tablet](cull.md#on-a-phone-or-tablet). **Install** beside **Install app** in
+**Settings** > **Preferences** adds immich-edit to the Home Screen or installs it on a computer. It
+needs an [HTTPS address](deploy.md#https-for-the-installed-app) with a trusted certificate.
 
 ## Next steps
 
