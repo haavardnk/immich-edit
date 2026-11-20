@@ -36,6 +36,7 @@ export default ts.config(
       'svelte/prefer-svelte-reactivity': 'off',
       'svelte/no-navigation-without-resolve': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-unsafe-class-instance-assignment': 'error',
       'no-restricted-syntax': [
         'error',
         {
