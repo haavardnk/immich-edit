@@ -8,334 +8,93 @@ permalink: /edit/
 
 # Edit a photo
 
-Every change saves by itself; the status in the bottom bar reads **Saving…** and then **Saved**.
-Edits are stored in immich-edit, so the original in Immich never changes, and you can always go
-back.
+Every change saves by itself, and the original in Immich never changes. Keys are listed on
+[keyboard shortcuts](shortcuts.md).
 
 ## Find your way around
 
-The tool rail on the right switches between five tools:
+The tool rail switches between **Develop**, **Masks**, **Retouch**, **Crop** and **Export** (see
+[export](export.md)). `←` and `→` move between photos and `G` goes back to the grid. `Ctrl+K`
+opens the command palette, which finds settings, presets and actions.
 
-| Tool | Key | Use it for |
-| --- | --- | --- |
-| **Develop** | `Shift+D` | Color, tone, detail and lens |
-| **Masks** | `Shift+M` | Adjustments that apply to part of the photo |
-| **Retouch** | `Shift+Q` | Removing dust, spots and distractions |
-| **Crop** | `Shift+R` | Crop, straighten, rotate and perspective |
-| **Export** | `Shift+E` | Downloading or uploading the result; see [export](export.md) |
-
-`←` and `→` move to the previous or next photo, and `G` goes back to the grid. `Tab` hides the
-side panels, `Shift+Tab` hides every panel, `Shift+S` hides the filmstrip, `Shift+P` swaps it for
-the presets strip, and `F` goes full screen. Keys with `Shift` open a tool or panel, plain letters
-act on the photo, and `Ctrl` (`⌘` on a Mac) runs commands such as undo, copy and paste.
+On a phone or tablet the same tools sit in a bar at the bottom with their controls in a tray, or
+in a side panel in landscape. **Share** in the top bar opens export, and **More editor actions**
+holds **History**, **Snapshots** and **Versions and copies**.
 
 ## Develop a photo
 
-**Develop** is a stack of panels. Working from the top down suits most photos:
+Work through **Develop** from the top:
 
-1. **Camera Profile** decides how the camera's colors are read. **Auto match** picks the profile for
-   your camera and is the right start for most RAW files. **Flat** gives a low-contrast base for
-   heavy grading.
-1. **Basic** does most of the work. **Auto**, at the top of **Develop** or `Ctrl+U`, sets white
-   balance, every **Tone** slider, **Clarity**, **Dehaze**, **Vibrance** and **Saturation** as a
-   starting point. It meters the photo as rendered with your profile, crop and lens corrections,
-   weights detected faces, keeps night scenes dark, and holds exposure back rather than blow out
-   bright areas. Then:
-   - **White Balance**: **Pick white balance** (`W`) and click something that should be neutral
-     gray, or drag a box over a larger gray area to use its average. While you hover or drag, a
-     card next to the pointer shows the **Temperature** and **Tint** the pick would set. Or use
-     **Auto white balance**, then fine-tune **Temperature** and **Tint**. Auto looks for surfaces
-     that could be neutral gray and stays near the camera's white when a scene has none, so warm
-     interiors and colorful subjects keep their mood. On RAW files the sliders show
-     the white in Kelvin, start at the camera's as-shot white, and reset to it; positive **Tint**
-     adds magenta. Other images use relative sliders centered on 0.
-   - **Tone**: set **Exposure** first, recover skies with **Highlights**, open up shadows with
-     **Shadows**, and set the end points with **Whites** and **Blacks**.
-   - **Presence**: **Texture** and **Clarity** add bite, **Dehaze** cuts haze, and **Vibrance**
-     boosts muted colors more gently than **Saturation** and spares skin tones. Both keep hue and
-     brightness, and **Vibrance** treats a color the same at any exposure. **Clarity** follows
-     strong edges, so high values do not leave bright or dark halos along outlines.
-1. **Curves**, **HSL** and **Color Grading** shape color and contrast further. Curves work on the
-   values you see, after the camera profile, so a point placed at the middle of the graph moves
-   middle gray on screen. **HSL** works on one color range at a time: **Hue** turns it,
-   **Saturation** mutes or boosts it without changing how bright it looks, and **Luminance**
-   brightens or darkens it by up to 1.5 stops. **Color Grading** tints shadows, midtones and
-   highlights, split by how bright each pixel looks. Its tints keep brightness and leave pure
-   black untouched, and each **Luminance** slider moves its range by up to 1.5 stops. **LUT**
-   applies a creative look from a `.cube` file, with an **Amount**.
-1. **Black & White** turns the photo monochrome; see [black and white](#black-and-white).
-1. **Detail** holds sharpening and noise reduction. Judge both at 100% zoom (`Z`).
-   **Capture Sharpening** restores the fine detail a RAW sensor blurs away, working only on
-   visible edges so smooth areas and noise stay untouched. **Corner Boost** sharpens harder towards
-   the corners for lenses that are softer there.
-   Noise reduction measures the noise in each photo, so the same settings suit a clean ISO 100
-   shot and a grainy ISO 12800 one.
-   - **AI Denoise** removes noise from a RAW photo with a neural network. The server runs it once
-     per photo at full resolution, which takes from seconds to a minute or two, and shows progress
-     under its sliders. The photo updates when it finishes, and the result is kept, so later edits
-     and exports reuse it. **Strength** blends between the original and the denoised photo.
-     **Detail** brings back fine luminance grain for a natural look while color noise stays
-     removed. It needs a model that an administrator installs; see
-     [models](administration.md#models).
-   - **Luminance** sets how much grain to remove. Its **Detail** keeps fine texture that stands
-     above the noise, and **Contrast** keeps more of the coarse grain so smooth areas don't look
-     plastic.
-   - **Color** removes color speckles. Its **Detail** keeps small colored edges, and
-     **Smoothness** also cleans up larger color blotches.
-1. **Lens Corrections** fixes distortion and vignetting from the lens profile of a RAW file.
-   An administrator can turn the automatic correction off under
-   [**Editing defaults**](administration.md#editing-defaults).
-   Phone and drone DNGs carry their own corrections, which always apply, so the automatic profile
-   stays off for them; you can still turn a profile on.
-   **Remove Chromatic Aberration** is off until you turn it on.
-1. **Lens Blur** blurs what lies in front of or behind your subject, like a wide aperture. Press
-   **Generate depth** once per photo; the server estimates how far away each part of the photo is
-   with the depth model, and the blur turns on. **Focal Range** picks the band of distance that
-   stays sharp, from the nearest part of the photo on the left to the farthest on the right.
-   **Amount** sets how strong the blur gets at the distance farthest from that band, **Bokeh**
-   sets the shape of out-of-focus highlights, and **Boost** makes those highlights brighter. Set
-   **Amount** above 0 to change the other three. The depth model is
-   installed by an administrator under [**Models**](administration.md#models).
-1. **Effects** adds a vignette and grain. Grain is strongest in the midtones and, like film, leaves
-   deep shadows and bright highlights clean.
+1. **Camera Profile**: **Auto match** suits most RAW files.
+1. **Basic**: **Auto** (`Ctrl+U`) sets white balance and tone as a starting point. Then adjust
+   **White Balance**, **Tone** (**Exposure** first) and **Presence**.
+1. **Curves**, **HSL**, **Color Grading** and **LUT** shape color and contrast.
+1. **Black & White**; see [black and white](#black-and-white).
+1. **Detail**: sharpening, noise reduction and **AI Denoise**. Judge them at 100% zoom (`Z`).
+1. **Lens Corrections** fixes distortion and vignetting from the lens profile.
+1. **Lens Blur** blurs the background from a depth map (**Generate depth**), and **Effects** adds
+   a vignette and grain.
 
-Presets have their own strip under the photo; see [reuse edits](#reuse-edits). Versions live in
-the toolbar; see [try variations](#try-variations).
+AI Denoise, Lens Blur and AI masks need models that an administrator installs; see
+[models](administration.md#models).
 
-### Sliders and panels
-
-- Double-click a slider's label to reset it.
-- Click a slider's value to type an exact number.
-- With a slider focused, `Shift+←` and `Shift+→` move it ten steps.
-- Hold `Alt` while dragging a slider that drives a mask or a radius to see what it covers.
-- A panel with changes shows a dot next to its name. Click the dot to reset the whole panel.
-- Press and hold a changed section's name, such as **Tone**, to see the photo without that section.
-- **Show modified only**, in the row at the top of **Develop**, hides every untouched panel.
-- **Customize sections** (`⋯`) at the end of that row reorders the panels: drag a row, or focus
-  its handle and press `↑` or `↓`. The eye hides a panel. A hidden panel still shows while it has
-  changes, and the settings filter and the command palette still find it. On a phone or tablet,
-  **More** > **Customize Develop** does the same for the tabs inside each group. Both layouts are
-  saved to your account.
+Double-click a slider's label to reset it, or click its value to type a number. Right-click a
+slider, or hold it on a touch screen, and choose **Pin to Quick** to keep it in the **Quick**
+panel. **Search settings** at the top of **Develop** finds any slider. **Adjust on photo** (`T`)
+in **HSL**, **Curves**, **Black & White** and **Color Grading** lets you drag on the photo to
+change the color or tone under the pointer.
 
 ### Black and white
 
-**Convert to Black & White** in the **Black & White** panel replaces the colors with their
-brightness. It runs after **Basic** and **HSL**, so their color changes still decide what each
-color turns into, and before **Color Grading** and **LUT**, which can tint the result.
-
-| Control | What it does |
-| --- | --- |
-| **Red**, **Yellow**, **Green**, **Aqua**, **Blue**, **Magenta** | Makes that color lighter or darker in the gray version, up to about 1.5 stops each way. Neutral grays never move, and faint colors move less than strong ones |
-| **Shadows** and **Highlights** wheels | Tint the dark and the light tones with a hue, at the chosen strength, without changing their brightness |
-| **Balance** | Moves the point where the shadow tint gives way to the highlight tint; positive values give the highlight tint more of the photo |
-
-Turning the conversion off keeps the mixer and tint settings, so you can compare color and black
-and white. The panel's dot resets all of them.
+**Convert to Black & White** turns the photo monochrome. The color sliders make each color lighter
+or darker in the gray version, and the **Shadows** and **Highlights** wheels tint it.
 
 ## Check your work
 
-| Control | What it does |
-| --- | --- |
-| **Hold for original**, or hold `\` or `<` | Shows the unedited photo while held |
-| **More editor actions** > **Compare**, or `Y` | Cycles a split view, a side-by-side view and off. The bar under the photo switches between the two views, sets the left side to the original, a snapshot or another version of the photo, and closes compare. Drag the split divider to move it; side by side zooms and pans both halves together. Phones in portrait have only the split. **Compare** on a snapshot in **Edit history** opens it beside the current edits |
-| **Navigator**, in the corner of a zoomed photo | Shows the whole photo with a box around the part on screen; drag the box, or press anywhere in it, to move the view. It hides again at fit |
-| **More editor actions** > **Clipping overlay**, or `J` | Marks pure black and pure white areas |
-| **More editor actions** > **Grey background** | Swaps the black surround for middle grey with no shadow around the photo, so the edges of the frame do not skew how bright the photo looks. The loupe has the same option under **More loupe actions**, and the choice is remembered |
-| **Scopes**, at the top of **Develop** | **Histogram**, **Waveform**, **Parade** and **Vectorscope**; **Pin scopes** fixes them above the panels |
-| **More editor actions** > **Scope overlay**, or `S` | Floats a small scope over the photo. Click it to switch between the histogram and the last other scope, and drag it to any corner. On a phone the same switch is **More** > **Histogram**, and the overlay fades while you drag a slider outside **Light** |
-| **More editor actions** > **Soft proof** | Previews the photo in a **Proof space**; **Show gamut warning** marks colors it cannot show |
-| **More editor actions** > **Info**, or `I` | Shows the camera, lens and exposure details |
-| **More editor actions** > **Fullscreen**, or `F` | Hides everything but the photo; `Esc` brings the chrome back |
+Hold **Hold for original**, `\` or `<` to see the unedited photo. `Y` cycles a split and a
+side-by-side compare against the original, a snapshot or another version. **More editor actions**
+has the clipping overlay (`J`), **Grey background**, the scope overlay (`S`) and **Soft proof**;
+the scopes sit at the top of **Develop**.
 
 ## Undo and history
 
-`Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes. **Edit history**, next to **Copy edits** at the top of
-**Develop**, lists every saved state, newest first, and marks the current one. Hover an entry to
-preview it on the photo, expand it to see what changed, and click it to jump to that state. The list
-stays open after a jump, and the message that confirms it has an **Undo** button. `Ctrl+Z` after a
-jump goes back to where you were. On a phone or tablet, open **More editor actions** > **History**
-and tap a step; the photo shows which step you are on.
-
-{: .note }
-Going back in **Edit history** keeps the newer entries. They are dimmed with a redo mark, and you
-can pick one of them to go forward again. Your next edit deletes them. Make a
-[virtual copy](#try-variations) if you want to keep both versions.
-
-**Reset** at the top of **Develop**, or `Ctrl+Shift+R`, returns every Develop panel to its default.
-It keeps the camera profile, the crop and rotation, masks and retouch strokes. A message confirms
-the reset and names the undo key. Reset the crop in
-**Crop**, and delete masks and strokes in their own tabs.
+`Ctrl+Z` undoes and `Ctrl+Shift+Z` redoes. **Edit history** lists every saved state; click one to
+jump back, and your next edit drops the newer ones. **New snapshot** (`Ctrl+Shift+S`) saves the
+current edits under a name. **Reset** (`Ctrl+Shift+R`) returns every Develop panel to its default.
 
 ## Adjust part of the photo
 
-**Masks** applies adjustments to one area. A mask is built from one or more shapes, and has its own
-set of adjustments.
+**Masks** applies adjustments to one area:
 
-1. Press **New**, or **Create a mask** on a photo without masks.
-1. Pick a shape:
-   - **Linear gradient** and **Radial gradient** fade out from a line or an ellipse; `L` and `R`
-     add one. Drag the handles on the photo. A linear gradient fades at right angles to its line
-     on any crop shape.
-     The small grip past the radial's side handle turns the ellipse, for a
-     tilted face or horizon. Hold `Shift` while dragging to keep a radial round, snap a linear
-     gradient to 45° steps, or move a polygon corner straight across or straight up and down.
-   - **Brush** paints the area by hand. `[` and `]` change the size, `{` and `}` the hardness, and
-     **Erase** takes paint away. On keyboards where these characters need `Alt`, `Option` or
-     `AltGr`, type them the usual way. Over the photo, `Alt` and scroll resize the brush and
-     `Alt+Shift` and scroll change its hardness.
-   - **Polygon** follows straight edges. Click to place corners and click the first one, or press
-     `Enter`, to close it. Its feather is the same width along every edge.
-   - **Luminance range** and **Color range** pick areas by brightness or by a color you sample.
-     They look past noise and grain, so the selection follows areas and edges instead of
-     speckling pixel by pixel. A new range mask opens with the mask overlay on, and so does a
-     color range after you sample; press the mask's overlay button to see the photo again.
-   - Under **AI**, **Subject**, **Background**, **People**, **Sky**, **Depth** and **Scene** find
-     the area for you. **Click to select** and **Box select** find an object you click or draw a box
-     around. These need a model that an administrator installs; see
-     [models](administration.md#models).
-1. Set the adjustments below the mask list. **Amount** fades the whole mask in or out.
+1. Press **New** and pick a shape: **Linear gradient**, **Radial gradient**, **Brush**,
+   **Polygon**, **Luminance range**, **Color range**, or an AI selection such as **Subject**,
+   **Sky** or **Click to select**.
+1. Set the mask's adjustments below the list.
 
-To refine a mask, open **Refine** on it and use **Add**, **Subtract** or **Intersect** with
-another shape. For example, a **Sky** mask with a **Linear gradient** intersected keeps only the
-top of the sky. **Invert** edits everything outside the shapes instead. **Click to select** and
-any AI or brush mask show **Include** and **Exclude**: pick one and click the photo to grow or trim
-the mask. Shift-click or right-click does the opposite for one click, and clicking a dot deletes
-it. Press **Done** or Esc when you are finished.
-A **Depth** mask starts with the whole photo selected. On its **Near → Far** slider, drag the
-right handle left to drop the farthest areas, such as the sky, and the left handle right to drop
-the closest ones. The positions are shares of the photo, not distances: 40 on the right handle
-keeps the nearest 40% of the pixels. While you drag, the selection shows in red. Edge
-cleanup, **Grow** and **Feather** apply when you let go.
-
-`O`, or the overlay button on a mask, shows or hides the selected mask as a red overlay.
-`Shift+O` cycles how it shows: **Color**, **Color on black and white** (the photo turns grey under
-the colour) and **White on black** (the mask alone, white where it applies). The arrow beside the
-eye above the mask list picks the mode and the overlay colour; the colour follows your account to
-every device, and the mode stays with this device. The overlay steps aside while you drag an
-adjustment so you can judge the edit, and a brush stroke shows its paint while you draw. Masks lower in the list are applied on top of the
-ones above them, and **Duplicate layer** starts a new mask from an existing one. Drag a mask or a
-shape by the handle on its left to reorder it, or focus the handle and use the arrow keys; the
-first shape starts the mask. Each mask row shows a small picture of what it covers, and holding the
-pointer over a mask or shape row shows its coverage on the photo.
-
-On a phone or tablet, **Masks** shows your masks as cards at the top of the tray. Tap **+** for a
-new mask, tap a card to select it, and tap its **⋯**, or touch and hold the card, to duplicate,
-invert, turn off, move or delete it. **Shapes** lists the selected mask's shapes with their mode;
-touch and hold a shape to see its coverage, and use its **⋯** to change the mode, invert, reorder
-or delete it. **Add**, **Subtract** and **Intersect** open the same tools as on a computer.
-**Adjust** holds the mask's sliders. The eye at the end of the cards opens the overlay mode and
-colour. A tablet in landscape shows the shapes and adjustments in one scrolling list.
+**Refine** combines shapes with **Add**, **Subtract** or **Intersect**, and **Invert** flips the
+mask. `O` shows the selected mask as an overlay.
 
 ## Remove spots and distractions
 
-1. Open **Retouch** and pick **Heal**, which blends the source's texture into the spot, or
-   **Clone**, which copies the source exactly.
-1. Hold `Alt` and click a clean area to set the source.
-1. Paint over the spot. The source follows the brush at the same offset.
-
-Drag a stroke's green circle to move its source. Click a stroke to select it, then drag it to move
-the stroke and its source together, so a stroke that landed a little off does not need repainting.
-The move stops where the stroke or its source would leave the photo.
-Set **Size**, **Hardness** and **Opacity** for the next stroke; `Alt` and scroll over the photo resize the brush too. `H` and `C` switch between heal and clone.
+Open **Retouch**, pick **Heal** or **Clone**, hold `Alt` and click a clean area as the source,
+then paint over the spot. Drag a stroke's circle to move its source.
 
 ## Crop and straighten
 
-**Crop** shows the whole photo while you work. Each change saves as soon as you let go, as its
-own step in the history, so `Cmd+Z` or `Ctrl+Z` takes back the last crop or rotation without
-leaving the tool. The tool stays open until you pick another one.
-
-- **Crop**: drag the frame, or pick an aspect ratio chip: **Original**, **Free**, **1:1**, **3:2**,
-  **4:3** or **16:9**, with **5:4** and **7:5** under **⋯**. **Ratio** takes any other shape, such
-  as `21:9`, `65:24` or a decimal like `2.39`. **Save ratio** adds it under **⋯** for every
-  photo, and **Remove ratio** takes it away again. The button beside **Ratio** swaps landscape and
-  portrait, so **5:4** becomes **4:5**. The size the crop keeps, in pixels of the original, shows
-  beside **Crop**, and on the photo with its ratio while you drag. Hold `Alt` while dragging a
-  handle to resize about the centre, and `Shift` to keep the shape of a free crop. `Ctrl` or `Cmd`
-  with the mouse wheel scales the crop, and with a drag inside it moves the photo under the crop.
-- **Crop guide**, or `O`, cycles the overlay between rule of thirds, golden ratio, golden spiral,
-  diagonals, golden triangle, a grid and none, and remembers your choice. **Turn guide**, or
-  `Shift+O`, turns and mirrors the spiral or triangle to point at your subject.
-- **Angle** straightens the horizon. To level it by eye, turn on **Straighten**, or press `A`, and
-  drag along a line that should be level or upright; drag inside the crop with the right mouse
-  button, or hold `Shift` and drag, to do the same without the button. **Rotate left 90°** and
-  **Rotate right 90°** in the bar at the top
-  turn the photo, and **Flip horizontal** and **Flip vertical** mirror it.
-- **Vertical** and **Horizontal** correct converging lines, and **Aspect** restores proportions
-  afterwards. **Corner handles** lets you drag the four corners onto a shape that
-  should be rectangular instead.
-- **Guided upright** sets **Angle**, **Vertical** and **Horizontal** from lines you draw, and
-  replaces any **Corner handles** adjustment. Turn it on and draw along at least two edges that
-  should be upright or level, such as the sides of a building or a horizon. A line within 35° of
-  upright counts as upright and one within 35° of level counts as level; anything between is
-  ignored. Up to two of each kind count, and a third replaces the oldest. One line of the other kind
-  also fixes any remaining slant. Upright lines show in blue as V1 and V2, level ones in amber as H1
-  and H2, with a count of each on the photo and in the panel. While you draw, a label beside the
-  pointer says which kind the line will be, or that it is too diagonal and will be dropped. Drag a
-  line's ends to adjust it, or click its **×** to remove it; **Clear guides** removes them all and
-  keeps the correction. The lines stay until you leave the tool, rotate or flip the photo, or reset.
-- The reset arrow beside **Crop** or **Transform** undoes just that section. **Reset** in the bar at
-  the top, or `Ctrl+Shift+R` on this tab, undoes everything in the tool and
-  leaves your develop settings alone.
-
-On a phone or tablet, **Crop** shows a dial under the photo for **Straighten**, **Vertical**,
-**Horizontal** and **Aspect**: drag it sideways, and touch and hold the selected chip to see the
-photo without that setting. The row below it picks the aspect ratio, rotates, flips, turns on
-**Level**, **Upright** or **Corners**, and resets the geometry; **Custom…** in the ratio list opens
-a keypad for width and height, and **More** holds rotate right, flip vertical, the crop guide and
-**Reset crop**. After each
-change the view zooms to fit the crop, and while you draw an upright line a magnifier shows the
-photo under your finger.
+**Crop** has aspect ratio chips (and **Ratio** for any other shape), **Angle** and **Straighten**
+(`A`) to level the horizon, rotate and flip buttons, and **Vertical** and **Horizontal** for
+converging lines. **Guided upright** sets them from lines you draw along edges that should be
+straight. **Crop guide** (`O`) cycles the overlay.
 
 ## Reuse edits
 
-**Copy edits** (`Ctrl+C`) opens **Copy settings**, where you check what to copy. Each Develop
-section has its own box, in panel order, so you can copy just **HSL** or just **White Balance**.
-**Modified only** checks the sections you changed on this photo, and **Last touched**
-checks only the one you changed last. **Geometry & crop**, **Masks** and **Retouch** start
-unchecked, because a crop or a mask rarely fits another photo. **Lens Blur** copies its settings
-but never its depth map, which belongs to one photo. Your choice is kept until you reload. Then
-open another photo and press **Paste edits** (`Ctrl+V`). **Paste only…** (`Ctrl+Shift+V`) shows the
-sections you copied so you can paste a few of them. A short message confirms each copy and paste,
-or says when there is nothing to copy or paste. To paste onto many photos at once, select them in
-the grid and press `Ctrl+V`, or use **Paste edits** in the selection bar's
-[**Edits**](export.md#export-many-photos) menu.
-
-A preset keeps a look for later. Presets live in a strip that takes the filmstrip's place: press
-`Shift+P` or **Presets** in the bottom bar to show it, and again to close it along with the
-filmstrip. `Shift+S` or **Filmstrip** beside it switches straight to the filmstrip. The strip
-shares the filmstrip's height, so drag the top edge of either to resize both. Each tile shows the
-current photo with that preset applied. Point at a tile to preview the look on the photo, and click
-it to apply. When your presets have more than one group, the group list left of the tiles filters them.
-The **Geometry & crop** and **Masks** checkboxes beside the tiles decide whether those come along.
-
-The first tile, **New preset**, saves the current look: it asks for a name and an optional group.
-Pick an existing group from the list, or type a new name.
-It reads **No edits yet** and stays disabled until you change something. **Import** below it
-adds presets from a file.
-
-Point at a preset tile and click the **⋯** in its corner, or right-click the tile, for its menu.
-**Edit…** renames or regroups the preset, **Export** downloads it as a `.json` file and **Export all
-presets** downloads every preset as one file. **Delete** asks you to confirm before it removes the
-preset. On a touch screen the **⋯** stays visible.
-
-**Amount** sets how strongly the preset applies, from 0% to 200%. At 100% you get the preset as
-saved. Lower values move each slider part of the way from its default toward the preset, and
-higher values push it further in the same direction, up to the slider's limit. Curves scale the
-same way, starting from a straight line, and a LUT's own amount scales too. Black & white mix,
-toning and balance scale while the conversion itself stays on. Choices rather than amounts, such
-as the camera profile, the LUT file, sharpening and lens corrections, come from the preset as
-saved. At 0% the look returns to defaults. Geometry and masks are never
-scaled. Double-click the slider to go back to 100%. The preview while pointing at a tile uses the
-same amount and checkboxes.
-
-**Import** reads an exported file and adds its presets to your library. A preset whose name is
-already in your library is skipped, so importing the same file twice adds nothing.
+**Copy edits** (`Ctrl+C`) lets you pick the sections to copy, and **Paste edits** (`Ctrl+V`)
+applies them to another photo, or to every photo selected in the grid. **Presets** (`Shift+P`)
+shows a strip of saved looks: point at one to preview, click to apply, and set **Amount** to
+apply it more or less strongly. **Save current as preset** saves the current look.
 
 ## Try variations
 
-The **More editor actions** menu (the three dots in the toolbar) lists the original and its
-virtual copies under **Versions**. **Create virtual copy**, or `Ctrl+'`, starts a new version with
-its own edits and history. Rename a version with the pencil on its row; delete it with the bin,
-then confirm. Press and hold another version's thumbnail, or hold `Space` on its focused row, to
-show that version on the photo until you let go.
-Culling and copies are covered in [browse and cull](cull.md#virtual-copies).
+**Versions** in **More editor actions** lists the original and its virtual copies. **Create
+virtual copy** (`Ctrl+'`) starts a new version with its own edits; hold another version to
+preview it. See also [virtual copies](cull.md#virtual-copies).

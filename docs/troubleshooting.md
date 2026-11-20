@@ -124,6 +124,13 @@ Diagnostics distinguishes these states:
 Smart search can fail while the rest of Immich works because it also depends on Immich machine
 learning. immich-edit falls back to filename search in that case.
 
+## The app does not install
+
+**Install app** reads **Needs HTTPS** on a plain `http://` address; install from an address in
+[HTTPS for the installed app](deploy.md#https-for-the-installed-app). When **Install** shows steps
+instead of installing, check that the certificate is trusted on the device and that the app is not
+already installed from that address. iPhone and iPad always use **Share** > **Add to Home Screen**.
+
 ## A file does not open or export
 
 ### `unsupported_format`
@@ -207,6 +214,13 @@ the GPU adapter and its limits, how long the renderer took to load, and the last
 
 Switching **Preview renderer** to another setting and back retries after a failure. Set it to
 **Server** to rule the browser out when a preview looks wrong.
+
+### On a phone or tablet
+
+The line under **Preview renderer** in **Settings** > **Preferences** says where previews come
+from. `WebGPU needs HTTPS or localhost` means the phone opened a plain `http://` address, which
+Safari on iPhone and iPad cannot allow; give the server an
+[HTTPS address](deploy.md#https-for-the-installed-app).
 
 ## Previews are slow or time out
 

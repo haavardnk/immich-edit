@@ -99,6 +99,11 @@ believed and the session cookie gets the `Secure` flag. See
 [trusted proxies](configuration.md#trusted-proxies). If you sign in with OAuth, also
 [register the HTTPS address](oauth.md#which-addresses-to-register).
 
+An app installed from Safari keeps its own cookies, so it asks you to sign in once more. A login
+proxy such as Cloudflare Access must let `/apple-touch-icon.png`, `/manifest.webmanifest`,
+`/favicon.svg`, `/icon-192.png`, `/icon-512.png` and `/icon-maskable-512.png` through without a
+sign-in, or iPhone and iPad install the app with a plain letter icon.
+
 ## GPU
 
 The container renders on the CPU until a GPU is passed through. See

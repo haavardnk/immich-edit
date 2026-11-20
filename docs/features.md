@@ -17,23 +17,39 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | --- | :---: | --- |
 | Browse timeline, archive, hidden assets, albums, favorites, folders, people, and tags | ✓ Yes | Uses the connected Immich library |
 | Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them from the open album |
+| Create Immich albums | ✓ Yes | **Create album** on the Albums page |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search when the server has smart search turned on |
 | File name, description, full path or folder, and OCR search | ✓ Yes | Searches Immich metadata like Immich's own search types; OCR needs OCR turned on in Immich |
 | Rating, favorite, not-in-any-album, untagged, no-people, albums, people, tags, date taken, date added, filename, file size, visibility, label, reject, camera, lens, and place filters | ✓ Yes | Available in browse and search views; camera and place pickers offer **Unknown** for photos without the value; albums, people and tags match all, any or none of the picked values on Immich 3.2, all of them before that; reject can show only rejects; no people needs Immich 3.2, as does the file size range outside folders and Edited; untagged skips photos with a color label or reject mark; Immich applies label and reject filters (**Hide** rejects and **No label** need Immich 3.2; context search applies them to the loaded photos, and offers no size range or rating range); folders and Edited offer no visibility filter; ratings match at least, at most (unrated included) or exactly on Immich 3.2, exactly before that; make, model and lens pickers narrow each other, as do country, state and city, and each takes several values on Immich 3.2, one before that; active filters show as removable chips; changing a filter clears the current selection; filters live in the page address, so reloads, Back and Forward, bookmarks and shared links keep them |
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
+| Filter panel summaries | ✓ Yes | Folded sections sum up their active filters, and **Reset** clears them all; on touch, **View & filters** also holds sort and thumbnails |
+| Filter long sidebar lists | ✓ Yes | A field above a long list, such as tags, narrows it by name |
+| Windowed timeline | ✓ Yes | The grid loads the part of the library you scroll or jump to |
+| Day headers | ✓ Yes | Grouped by capture day when sorted by date taken; a header selects its day |
+| Date scrubber | ✓ Yes | Jumps to any month in a grid sorted by date taken |
+| Saved views | ✓ Yes | **Save view** keeps filters, sort and thumbnail size under a name in your account |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the date (taken or added) and direction you pick; Immich 3.2 adds rating and file size sorts over the whole result, unrated and unsized photos last |
 | Map search filters | ✗ No | Use Immich for map search |
 | Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/`. Photos owned by another Immich user are read-only, as in Immich |
-| Edit descriptions, dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, and tags |
+| Edit descriptions | ✓ Yes | Your own photos, in the photo **Info** panel |
+| Edit dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, tags, and descriptions |
 | Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
+| Box selection | ✓ Yes | Drag from a gap between photos; desktop layout |
+| Touch selection | ✓ Yes | Press and hold a photo, or **Select photos** in the app bar |
+| Photo info panel | ✓ Yes | `I` in the loupe; a sheet on phones |
+| Rating feedback and auto-advance | ✓ Yes | With **Auto-advance** on, the loupe moves on after each rating |
+| Recent tags | ✓ Yes | `Alt` and `1` to `8` add a recent tag in the loupe |
+| Peek | ✓ Yes | Hold `W` over a tile to see the photo large |
+| Open a photo from the grid | ✓ Yes | A click or tap opens the loupe; **Edit** or `D` opens the editor |
 | Two-photo compare | ✓ Yes | Synchronized or independent zoom and pan |
 | Face-aware zoom | ✓ Yes | Steps through the faces Immich detected, then the sharpest region when there are none; see [look at photos](cull.md#look-at-photos) |
 | Actual-pixel zoom | ✓ Yes | Zoom percentages are percentages of the original file, so 100% puts one source pixel on one screen pixel. The zoom control reads `Fit` when the whole photo is on screen, and zooming out goes down to half of that with the photo centred |
 | Fullscreen viewing | ✓ Yes | `F` or **Fullscreen** in the loupe or editor **More** menu hides the chrome in loupe, compare, survey, and editor views |
-| Survey view | ✓ Yes | Up to nine photos |
+| Survey view | ✓ Yes | Up to nine photos; four on a tablet in portrait |
+| Survey view on phones | ✗ No | Phones offer compare instead |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
-| Create, rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
+| Rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Replace the original with the exported edit | ✓ Yes | Moves albums, shared links, favorite and stack to the upload and trashes the original; see [replace the original](export.md#replace-the-original) |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
@@ -81,6 +97,8 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | 3D LUT export | ✗ No | No `.cube` download or baking from current color edits |
 | Automatic RAW lens profiles | ✓ Yes | Distortion and vignette, with an instance-wide opt-out; chromatic aberration remains opt-in; skipped for DNGs that carry their own corrections |
 | Crop, rotate, and flip | ✓ Yes | Geometry controls; straighten by drawing a line along the horizon |
+| Crop ratios | ✓ Yes | Ratio chips, a typed custom ratio, and **Save ratio** |
+| Touch crop | ✓ Yes | A dial straightens the photo live, with a ratio sheet and a keypad |
 | Manual perspective correction | ✓ Yes | Keystone, aspect, and corner controls |
 | Guided upright | ✓ Yes | Solves angle and keystone from two to four drawn lines; see [edit](edit.md) |
 | Automatic upright | ✗ No | — |
@@ -122,6 +140,10 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Copy masks between photos | ✓ Yes | Opt in with **Masks** when copying edits |
 | Copy heal and clone strokes | ✓ Yes | Opt in with **Retouch** when copying edits |
 | Heal and clone | ✓ Yes | Parametric, non-destructive strokes |
+| Mask overlay modes | ✓ Yes | `Shift+O` cycles the overlay modes |
+| Mask list previews and order | ✓ Yes | Coverage thumbnails and drag to reorder |
+| Touch masks | ✓ Yes | Masks are edited from the tray |
+| Touch retouch | ✓ Yes | The first tap sets the source, then one finger paints |
 | Content-aware or AI object removal | ✗ No | Heal and clone require a source patch |
 | Generative fill or expand | ✗ No | No cloud or local generative model |
 | Automatic dust, spot, or distraction detection | ✗ No | Retouch strokes are placed manually |
@@ -132,9 +154,20 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Undo, redo, and saved history | ✓ Yes | History entries can be restored; closing or reloading during a pending save asks for confirmation |
+| Snapshots | ✓ Yes | Named states of a photo's edits; `Ctrl+Shift+S` saves one |
+| Versions panel | ✓ Yes | **Versions and copies** lists the photo's virtual copies |
 | Presets | ✓ Yes | Thumbnail strip with hover preview, save, apply at 0–200% amount, batch apply, and import or export as JSON |
+| Copy and paste by section | ✓ Yes | **Copy settings** and **Paste only…**, in the editor and on a grid selection |
 | Batch editing and export | ✓ Yes | Persistent background jobs |
-| Before and after view | ✓ Yes | Split view and hold-original control |
+| Before and after view | ✓ Yes | Split view, side by side, and hold-original control |
+| Compare with a snapshot or version | ✓ Yes | The left side shows the original, a snapshot or another version |
+| Command palette | ✓ Yes | `Ctrl+K` in the editor; desktop layout |
+| Develop settings search | ✓ Yes | **Search settings** narrows the panels to matching sliders |
+| Quick section | ✓ Yes | Pinned sliders at the top of Develop, saved to your account |
+| Targeted adjustment | ✓ Yes | **Adjust on photo** or `T` in HSL, Curves, Black & White and Color Grading |
+| Typed values and fine slider control | ✓ Yes | Typed values accept arithmetic; touch has a value keypad |
+| Develop section order and visibility | ✓ Yes | **Customize sections**, or **Customize Develop** on touch |
+| Custom keyboard shortcuts | ✓ Yes | Change keys in the `?` dialog; see [keyboard shortcuts](shortcuts.md) |
 | Per-section bypass and reset | ✓ Yes | Hold a modified section header to see the image without that section; a panel's modified dot resets the whole panel |
 | True 1:1 viewing | ✓ Yes | Source-resolution tiles, rendered in the browser when browser previews are active and on the server otherwise |
 | Editor and loupe filmstrips | ✓ Yes | Each view remembers its own visible or hidden state across reloads; navigation keeps loading the view past its first page; a bookmarked or pasted editor link gets its timeline neighbours |
@@ -143,6 +176,9 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Clipping and gamut warnings | ✓ Yes | Red, blue, and magenta overlays |
 | Neutral viewing background | ✓ Yes | Black or middle grey around the photo in the editor and loupe; remembered across reloads |
 | Waveform, RGB parade, and vectorscope | ✓ Yes | Computed from the rendered preview, with gain and vectorscope zoom; the Scopes section can be pinned open and resized |
+| Floating scope | ✓ Yes | `S` floats a scope over the photo in the editor |
+| Navigator | ✓ Yes | A thumbnail of the visible area while the editor is zoomed in |
+| Viewer window | ✓ Yes | **Open viewer window** follows the editor on a second display; desktop layout |
 | HDR or panorama merge | ✗ No | No multi-frame compositing |
 | Focus-stack merge | ✗ No | — |
 | Tethered capture | ✗ No | The library comes from Immich |
@@ -167,8 +203,14 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Selective metadata or GPS stripping | ✓ Yes | All, all but location, or none |
 | Export resize by dimensions, megapixels or percentage | ✓ Yes | Width × height, megapixels or a percentage, with an optional enlarge |
 | Output sharpening for screen or print | ✓ Yes | Screen, matte or glossy paper at low, standard or high, applied after the resize; paper uses the print resolution |
-| Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}` and `{seq}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
-| Export presets or recipes | ✓ Yes | Named, per-user export settings in both export panels; see [export](export.md#export-presets) |
+| Filename templates and sequence numbering | ✓ Yes | `{name}`, `{date}`, `{seq}` and `{preset}` tokens for downloads, ZIPs and Immich uploads, with collision numbering |
+| Export presets or recipes | ✓ Yes | Named, per-user export settings in every export panel and sheet; see [export](export.md#export-presets) |
+| Export with several presets at once | ✓ Yes | One job per destination; see [export with several presets](export.md#export-with-several-presets) |
+| Share an export | ✓ Yes | The device's share sheet, where the browser can share files; see [save, share or copy the file](export.md#save-share-or-copy-the-file) |
+| Share several photos at once | ✗ No | A batch download is one ZIP |
+| Copy an export to the clipboard | ✓ Yes | **Copy image** copies the rendered file as a PNG |
+| Upload conflict policy | ✓ Yes | Keep both, replace or skip; see [export a photo again](export.md#export-a-photo-again) |
+| Job retry, progress, and notifications | ✓ Yes | Retry failed photos and get a browser notification when a job ends |
 | JPEG chroma-subsampling control | ✗ No | Export uses 4:2:0 |
 | Export watermark | ✓ Yes | PNG from a shared library, with size, opacity, inset and one of nine positions |
 | Export to Immich | ✓ Yes | Can assign albums, tags, favorite state, and stack with the original; copies the original's Immich date, time zone, location, description and rating |
@@ -191,5 +233,12 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | CPU rendering fallback | ✓ Yes | Available on every supported deployment; renders what does not fit the GPU, within the [host memory budget](rendering.md#cpu-memory) |
 | Browser preview rendering | ✓ Yes | Browsers with WebGPU render editor previews locally when they measure [clearly faster](rendering.md#the-browser) than the server, or always when set to **Browser**, so most slider moves send nothing to the server; other browsers, and any browser renderer failure, use server previews. A plain `http://` LAN address needs [one extra step](rendering.md#browser-previews-on-a-local-network) |
 | Local AI inference | ✓ Yes | Models run on the server; no cloud service |
-| Full mobile editor | ✗ No | The editor requires a desktop-width viewport |
+| Phone layout | ✓ Yes | Portrait and landscape, with a tab bar; see [phones and tablets](getting-started.md#phones-and-tablets) |
+| Tablet layout | ✓ Yes | The touch layout, with a sidebar in landscape |
+| Layout choice | ✓ Yes | **Layout** under Settings › **Preferences**: **Auto**, **Desktop** or **Touch** |
+| Touch gestures | ✓ Yes | Swipe, pinch and press and hold in the grid, loupe and editor |
+| Installable app | ✓ Yes | Needs HTTPS; see [install the app](administration.md#install-the-app) |
+| Account menu | ✓ Yes | The avatar holds **Settings**, **Theme**, **Keyboard shortcuts** and **Sign out** |
+| Settings pages | ✓ Yes | **Preferences**, **Account**, **Administration** and **Diagnostics**; see [administration](administration.md) |
+| Unreachable server handling | ✓ Yes | A page names what is down and retries on its own |
 | Light, dark and system themes | ✓ Yes | Per user, with immich-edit and eleven other theme families and a choice of accent; see [appearance](administration.md#appearance) |

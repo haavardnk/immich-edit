@@ -8,225 +8,90 @@ permalink: /export/
 
 # Export
 
-An export renders the edited photo from the original at full resolution, on the server. It either
-downloads to your computer or uploads to Immich as a new photo next to the original.
+An export renders the edited photo from the original at full resolution on the server. It
+downloads to your device or uploads to Immich as a new photo next to the original.
 
 ## Export one photo
 
-1. Open **Export** in the editor, or press `Shift+E`.
-1. Choose **Download** or **To Immich**.
-1. Pick a **Format** and its options.
-1. Press the button at the bottom. It names the format, such as **Export JPEG** or
-   **Upload JPEG to Immich**.
+1. Open **Export** in the editor (`Shift+E`), or tap **Share** on a phone or tablet.
+1. Choose **Download** or **To Immich**, then a **Format** and its options.
+1. Press the button at the bottom, such as **Export JPEG** or **Upload JPEG to Immich**.
 
-The options are grouped into **File**, **Size**, **Watermark** and **Name**, plus **Immich** when
-you upload. The sections below follow the same order.
+The default is JPEG at quality 90 in sRGB with EXIF metadata.
 
-The defaults, JPEG at quality 90 in sRGB with EXIF metadata, suit sharing and viewing in Immich.
+### Save, share or copy the file
+
+A download waits in a card until you press **Save**. The card also offers **Copy image**,
+**Share** and **Upload to Immich**. **Save automatically** downloads every export as it renders.
 
 ## Format options
 
-| Option | Shown for | Notes |
-| --- | --- | --- |
-| **Format** | Always | **JPEG**, **PNG**, **WebP**, **AVIF**, **HEIC**, **TIFF** or **JPEG XL** |
-| **Quality** | JPEG, AVIF, HEIC, lossy WebP | 1 to 100. Each format keeps its own quality: 90 for JPEG, 85 for WebP, 65 for HEIC and 60 for AVIF until you change it, and switching back to a format brings back the value you last used there |
-| **Bit depth** | PNG, TIFF, JPEG XL | **16-bit** keeps smooth gradients through later editing elsewhere |
-| **Compression** | PNG, TIFF | Trades file size against save time; all choices are lossless |
-| **Lossless** | WebP | Off by default. Metadata is kept either way |
-| **Color space** | Always | **sRGB** for the web and most screens. **Display P3** keeps more saturated color for wide-gamut screens |
-| **Metadata** | Always | **All** copies camera, lens, date and location. **All but location** drops the GPS position, for sharing without saying where. **None** writes no EXIF. Every format embeds the EXIF its own way, so Immich reads it from any of them. Maker notes, embedded previews, thumbnails and the original's unique image ID are always left out, so Immich never mistakes the edit for the original. Color space, color profile, pixel size, orientation and software describe the exported file. In a JPEG, EXIF over 64 KB loses user comments first, then everything but capture, copyright and location; other formats keep it all |
-
-[Features](features.md#export-color-and-interoperability) lists what is and is not supported.
-[Compatibility](compatibility.md#image-input-and-export) lists the bit depths each format
-supports.
-
-When **Metadata** keeps anything but the original has no EXIF the export can read, the photo still
-exports, and the panel lists `Metadata not copied: no readable EXIF in the original` under the
-result.
+**Format** is **JPEG**, **PNG**, **WebP**, **AVIF**, **HEIC**, **TIFF** or **JPEG XL**, with
+**Quality**, **Bit depth** or **Compression** where they apply. **Color space** is **sRGB** or
+**Display P3**. **Metadata** copies **All**, **All but location** or **None** of the EXIF.
+[Features](features.md#export-color-and-interoperability) and
+[compatibility](compatibility.md#image-input-and-export) list what each format supports.
 
 ## Resize
 
-**Resize** starts at **Full size**, the edited photo's own resolution after the crop. The other
-choices scale the export:
-
-| Choice | You enter | Result |
-| --- | --- | --- |
-| **Dimensions** | Width × height in pixels | The photo fits inside that size and keeps its shape |
-| **Megapixels** | Megapixels | The photo keeps its shape and has about this many pixels in total |
-| **Percentage** | 1 to 400 | Both sides scale by this much; above 100 enlarges |
-
-In the editor, width and height are linked to the crop's shape. **Dimensions** starts at the
-crop's own size, and typing one side fills in the other, so the export comes out at exactly the
-size you see. In a bulk export the photos have different shapes, so the two numbers are a box each
-photo fits inside. Leave one side empty to limit only the other.
-
-**Don't enlarge** is on by default for **Dimensions** and **Megapixels**, so a photo that is
-already smaller than the size you ask for keeps its own size. Turn it off to scale small crops up;
-the enlarged photo is resampled once, at the end, after every edit. In the editor, the **Size**
-line under the resize options shows the size the export will have. The largest export is 65,535
-pixels on the long edge.
+**Resize** keeps **Full size** or scales to **Dimensions**, **Megapixels** or a **Percentage**.
+**Don't enlarge** keeps a smaller photo at its own size.
 
 ## Output sharpening
 
-Resizing and printing both soften a photo. Output sharpening, the **Sharpen** option, puts back
-what the output loses. It runs once, on the finished pixels, after the resize, so it matches the
-export's final size. It never touches the editor preview or the saved edit.
+**Sharpen** adds sharpening for the output after the resize: **Screen**, **Matte paper** or
+**Glossy paper**, at an **Amount**, with the **Print PPI** for paper. It never changes the saved
+edit.
 
-| Choice | Use it for |
-| --- | --- |
-| **None** | No extra sharpening (the default) |
-| **Screen** | Web, social media and phone or monitor viewing |
-| **Matte paper** | Matte and fine-art paper, which spreads ink the most |
-| **Glossy paper** | Glossy, lustre and other coated paper |
-
-**Amount** is **Low**, **Standard** or **High**. For the two paper choices, enter the
-**Print PPI** (print resolution) your print will have, from 72 to 1200 (300 by default). A higher
-resolution sharpens with a wider radius, because the same ink spread on paper covers more of the
-smaller printed pixels. Sharpening works on brightness only, so it does not add color fringes,
-and it never pushes a pixel past its neighbors, so edges do not get bright or dark halos. The
-Detail panel's Sharpen is still the place to sharpen the photo itself; output sharpening is for
-the output.
-
-## Watermark
-
-**Watermark** stamps a PNG from the shared watermark library onto the export, such as a logo, a
-signature or a copyright line saved with a transparent background. It goes on last, after the
-resize and output sharpening, so it is never resampled with the photo or sharpened. It never
-touches the editor preview or the saved edit.
-
-| Control | What it does |
-| --- | --- |
-| **Image** | **None** (the default) or a PNG from the library |
-| **Size** | The watermark's longer side as a share of the photo's shorter side, 1 to 100% (20% by default) |
-| **Opacity** | 1 to 100% (80% by default), on top of the PNG's own transparency |
-| **Inset** | Distance from the nearest edges as a share of the photo's shorter side, 0 to 50% (3% by default) |
-| **Position** | One of nine spots: a corner, the middle of an edge, or the center |
-
-Size and inset follow the photo's shorter side, so the watermark keeps its proportion in portrait
-and landscape photos and at every export size. Watermark PNGs are treated as sRGB, and a
-Display P3 export converts them so their colors still match.
-
-The library is shared by every user. Only an administrator can add or remove watermarks, with
-the **Import PNG watermark** and **Delete watermark** buttons beside the picker. A PNG may be up to
-16 MB and 4096 pixels on its longest side. Deleting a watermark removes it from the picker;
-exports already queued with it still finish.
+**Watermark** stamps a PNG from the shared library onto the export, with **Size**, **Opacity**,
+**Inset** and **Position**. Only an administrator can add watermarks.
 
 ## Name the file
 
-**Filename** takes a template that names every export, whether it downloads, goes into a ZIP or
-uploads to Immich. It starts as `{name}_edit`. Under the field you see the name the current photo
-will get, and the list of tokens while the field is focused.
-
-| Token | Becomes |
-| --- | --- |
-| `{name}` | The original's name without its extension |
-| `{date}` | The capture date as `YYYY-MM-DD`, from the camera's local time. A photo without one uses the file's date |
-| `{seq}` | The photo's place in the export, from 1. It gets leading zeros to match the count, so 120 photos run `001` to `120`. A single export is `1` |
-
-Text around the tokens is kept, so `{date}_{name}` gives `2024-05-01_IMG_0001.jpg` and
-`trip_{seq}` gives `trip_007.jpg`. The extension comes from the format. Characters that are
-not allowed in file names, such as `/`, `:` or `*`, are refused in the template and replaced by
-`_` when they come from the original's name. If a name is already taken, next to the original
-in Immich or earlier in the same ZIP, it gets `_2`, `_3` and so on. An unknown token or an
-unmatched brace shows an error under the field and blocks the export until you fix it.
+**Filename** is a template, `{name}_edit` by default. The tokens are `{name}`, `{date}`, `{seq}`
+and `{preset}`; the chips under the field insert them. A taken name gets `_2`, `_3` and so on.
 
 ## Upload to Immich
 
-**To Immich** adds these options:
+**To Immich** adds **Albums**, **Tags**, **Mark as favorite**, **Stack with original** and
+**Replace original**. The upload lands next to the original in the timeline and gets the date,
+place, description and rating Immich shows for the original.
 
-- **Albums** and **Tags** add the new photo to existing Immich albums and tags.
-- **Mark as favorite** favorites the new photo.
-- **Stack with original** stacks the new photo with the original in Immich. **Edit primary** shows
-  the edit on top of the stack, and **Original primary** keeps the original on top. Immich only
-  stacks your own photos, so the option is off and disabled for a photo another Immich user owns;
-  hovering it says why. In a batch that mixes your photos with someone else's, the upload stacks
-  yours and reports `Stacking skipped` for the others.
-- **Replace original** keeps only the edit; see [replace the original](#replace-the-original).
+### Export a photo again
 
-The new photo lands next to the original in the Immich timeline, dated by the original's capture
-time, even with **Metadata** set to **None**.
-
-The edit also gets the date, time zone, map location, description and star rating Immich shows for
-the original, including changes you made there. **All but location** leaves out the map location,
-and **None** copies none of them. The upload waits until Immich has read the new file, up to 30
-seconds, then copies the values, and Immich keeps them from then on. If Immich has not read it by
-then, the upload reports `Metadata copied before Immich read the upload`. A download holds only what
-the original file holds, so changes made in Immich reach uploads only. When Immich refuses the
-values, the upload still counts and reports `Metadata copy failed:` with Immich's reason.
-
-Immich refuses a file it already has. Uploading an identical export again reports
-`Not uploaded: identical asset already exists in Immich (matched by content hash)`.
-Change the edit or a format option to upload another one. A failed upload shows **Retry**.
-
-The edit stays in immich-edit after the upload. Change it later and export again for an updated
-file; the earlier upload stays in Immich until you delete it there.
+When a photo was uploaded before, a card offers **Keep both** (the default), or replacing or
+skipping the earlier export.
 
 ### Replace the original
 
-**Replace original** is for keeping only the finished photo in Immich. After the upload and every
-option above have gone through, the upload gets the original's albums, shared links and stack, and
-its favorite unless **Mark as favorite** is on; it also takes the original's place on top of a
-stack. Then the original goes to the Immich trash and the editor returns to the grid. **Undo** on
-the message, or restoring the original from the trash in Immich, brings the original back; the
-upload keeps what it was given. Immich does not move faces; it finds them again on the upload.
+**Replace original** keeps only the edit: the upload takes over the original's albums, shared
+links and stack, and the original goes to the Immich trash. **Undo** brings it back.
 
 {: .warning }
 Immich deletes a trashed original for good when its trash period ends, and a RAW original then
 survives only as the exported file. To edit the photo again, restore the original from the Immich
 trash first.
 
-The option is off again after every upload. It cannot be combined with **Stack with original**,
-and it is disabled for a photo another Immich user owns, while the Immich trash is turned off, and
-for a batch that holds two versions of one photo. When anything before it fails, such as an album
-Immich refuses or Immich taking more than 30 seconds to read the upload, the original stays and
-the upload reports `Original kept:` with the reason. Replacing a virtual copy's original takes the
-photo's other versions out of view with it. Signed in with an Immich API key, the key needs the
-`asset.copy` and `asset.delete` permissions.
-
 ## Export many photos
 
-1. [Select the photos](cull.md#choose-between-similar-shots) in the grid.
-1. Press **Export selected photos** in the selection bar, or `Shift+E`. The export panel opens
-   beside the grid, and you can still add or remove photos while it is open.
-1. Choose **Download** or **To Immich** and set the options as for a single photo.
-1. Press **Download** *count* **as** *format* **ZIP** or **Export** *count* **to Immich**. The
-   panel closes and **Jobs** opens in its place.
-
-On a phone or tablet, **Export** in the selection bar opens the same settings in a sheet.
-
-The export runs on the server as a job, so you can keep working or close the tab. A small card in
-the corner shows its progress and goes away a few seconds after a clean finish. If any photo fails,
-the card stays with a **Details** button, and **Jobs** in the top bar gets a red dot until you open
-it. **Jobs** lists every job with a count of running ones. Expand a job to see each photo, the
-reason any failed and any metadata a photo could not keep. The cancel button stops a running job. A
-finished ZIP job has a **Download ZIP** button, and its card a **Download** button. **Clear
-finished** tidies the list.
-
-**Edits** in the selection bar works on the whole selection too:
-
-- **Apply preset** applies a preset to every selected photo, at the **Amount** you choose, and
-  opens **Jobs**.
-- **Paste edits** applies the copied edits to every selected photo, and **Paste only…** asks which
-  sections to paste.
-- **Copy edits** takes the edits from a single selected photo and opens **Copy settings**.
-- **Reset edits** returns every selected photo to its original state.
-
-These also run as jobs. On a phone or tablet, **Apply preset**, **Paste edits**, **Paste only…**
-and **Reset edits** are under **More** in the selection bar.
+Select photos in the grid ([how](cull.md#choose-between-similar-shots)) and press **Export
+selected photos** (`Shift+E`). Set the options as for one photo and start the export; it runs as
+a job on the server, shown under **Jobs**, so you can keep working. A ZIP downloads when it is
+ready, and **Retry** runs failed photos again. **Edits** in the selection bar applies a preset,
+pastes or resets edits on every selected photo.
 
 ## Export presets
 
-**Export presets** at the top of both export panels saves the current format, metadata, resize, sharpening, watermark, filename and Immich settings under a name. Choosing a preset brings all of those settings back. Saving under an existing name replaces that preset. Albums or tags that no longer exist are dropped when a preset is applied. Presets belong to your account and are separate from Develop presets.
+**Export presets** saves the current export settings under a name (**Save current as…**) and
+brings them back with **Apply**. Presets belong to your account.
+
+### Export with several presets
+
+Tick several presets and press **Export with** *count* **presets** to export each photo once per
+preset.
 
 ## Large files and slow servers
 
-A full-resolution export decodes, renders and encodes the original in one request. On a server
-without a GPU a large RAW file can take minutes. If exports stop with `408 Request Timeout`, see
-[an export returns 408](troubleshooting.md#an-export-returns-408-request-timeout). If they stop
-with `This photo is too large for the server's memory`, see
+A full-resolution export of a large RAW file can take minutes on a server without a GPU. See
+[an export returns 408](troubleshooting.md#an-export-returns-408-request-timeout) and
 [a photo is too large](troubleshooting.md#a-photo-is-too-large-for-the-servers-memory).
-
-A photo with **AI Denoise** on waits for its full-resolution result before it exports. If the result
-is not ready within `EXPORT_TIMEOUT_SECS`, the export stops with `409 Conflict`; export again once
-the progress bar in **Detail** finishes. When AI Denoise cannot run, for example because its model
-is not installed, the photo exports without it and the export panel or job lists a warning.
