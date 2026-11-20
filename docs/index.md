@@ -11,12 +11,10 @@ A self-hosted, non-destructive RAW editor for an existing [Immich](https://immic
 It browses and culls your photos through Immich, keeps edits in its own database, and exports the
 results back to Immich. Originals are never changed.
 
-![The immich-edit editor with the Develop panels open](image/editor-v0_5.png)
+![immich-edit on desktop, tablet and phone](image/banner-v0_8.png)
 
-_Photo by [Simon Williams](https://unsplash.com/@simowilliams) on
-[Unsplash](https://unsplash.com/photos/multicolored-village-wallpaper-f6Fid_KXV4Y)._
 
-<!-- SCREENSHOT: Same image as README.md; capture the app viewport at 2728x1530 with Develop > Basic open and Camera Profile and Presets collapsed. -->
+<!-- SCREENSHOT: Same image as README.md; captured from the maintainer's library on the dev server (album "Safari 2025", each photo developed with Auto and lens corrections on, account shown as Hanne Kristiansen at photos.example.net): desktop album grid 1440x900 sorted by rating, tablet editor 1180x820, phone editor 412x839, composed into a 1600x840 banner at scale 2. -->
 
 ## Where to start
 
