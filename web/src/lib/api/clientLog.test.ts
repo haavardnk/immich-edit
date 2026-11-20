@@ -48,7 +48,7 @@ describe('reportClientError', () => {
     ]);
   });
 
-  it.each([
+  it.each<[string, (m: Module) => unknown]>([
     ['api error', (m: Module) => new m.ApiError(500, 'internal', 'nope')],
     ['network error', (m: Module) => new m.NetworkError('offline')],
     ['abort', () => new DOMException('aborted', 'AbortError')]
