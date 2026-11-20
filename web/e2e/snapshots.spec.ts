@@ -55,7 +55,7 @@ test.describe('snapshots on desktop', () => {
     await row(list, 'Before grading').hover();
     const rename = list.getByRole('button', { name: 'Rename Before grading' });
     await rename.hover();
-    await expect(page.locator('.tooltip-content', { hasText: 'Rename' })).toBeVisible();
+    await expect(page.locator('[data-tooltip-content]', { hasText: 'Rename' })).toBeVisible();
     await rename.click();
     await field.fill('Graded');
     await field.press('Enter');

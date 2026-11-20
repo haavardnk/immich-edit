@@ -161,7 +161,7 @@ test('AI denoise is disabled for non-raw assets', async ({ page }) => {
   await expect(page.getByRole('slider', { name: 'Strength' })).toBeDisabled();
   await page.getByText('AI Denoise', { exact: true }).hover();
   await expect(
-    page.locator('.tooltip-content', { hasText: 'Only available for raw files' })
+    page.locator('[data-tooltip-content]', { hasText: 'Only available for raw files' })
   ).toBeVisible();
   expect(starts).toBe(0);
 });

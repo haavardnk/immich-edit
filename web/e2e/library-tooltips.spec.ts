@@ -7,7 +7,7 @@ const LONG_PERSON = 'Ingrid Margrethe Kristoffersen-Halvorsen';
 const LONG_FOLDERS = [`/photos/${LONG}/${LONG}`, '/photos/2026/Bergen'];
 
 async function expectTooltipTwice(page: Page, target: Locator, text: string | RegExp) {
-  const tooltip = page.locator('.tooltip-content', { hasText: text });
+  const tooltip = page.locator('[data-tooltip-content]', { hasText: text });
   for (let pass = 0; pass < 2; pass++) {
     await target.hover();
     await expect(tooltip).toBeVisible();
@@ -101,7 +101,7 @@ test('names that fit show no tooltip', async ({ page }) => {
   await page.clock.install();
   await mockLongNames(page);
   const main = page.locator('main');
-  const tooltips = page.locator('.tooltip-content');
+  const tooltips = page.locator('[data-tooltip-content]');
 
   async function expectNoTooltip(target: Locator): Promise<void> {
     await target.hover();
@@ -120,7 +120,7 @@ test('names that fit show no tooltip', async ({ page }) => {
   await expectNoTooltip(albums.getByRole('link', { name: /^Family/ }));
   await albums.getByRole('link', { name: /^Lofoten winter/ }).hover();
   await page.clock.runFor(1500);
-  await expect(page.locator('.tooltip-content', { hasText: LONG })).toBeVisible();
+  await expect(page.locator('[data-tooltip-content]', { hasText: LONG })).toBeVisible();
   await page.mouse.move(1, 1);
 
   await page.goto(`/folders?path=${encodeURIComponent('/photos/2026')}`);

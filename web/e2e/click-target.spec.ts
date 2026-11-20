@@ -32,7 +32,7 @@ test('a click opens the loupe and the hover button the editor', async ({ page })
   await tile(page).hover();
   const edit = tile(page).getByRole('link', { name: 'Edit' });
   await edit.hover();
-  await expect(page.locator('.tooltip-content', { hasText: 'Edit' })).toBeVisible();
+  await expect(page.locator('[data-tooltip-content]', { hasText: 'Edit' })).toBeVisible();
   await edit.click();
   await expectEditor(page);
 });

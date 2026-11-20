@@ -343,7 +343,7 @@ test('only sliders that drive a preview hint the alt drag', async ({ page }) => 
   await gotoAsset(page);
 
   await page.getByRole('button', { name: 'Detail', exact: true }).click();
-  const tooltip = page.locator('.tooltip-content');
+  const tooltip = page.locator('[data-tooltip-content]');
   await geometrySlider(page, 'Radius').hover();
   await expect(tooltip).toHaveText(/^(⌥|Alt) \+ drag to preview$/);
   await geometrySlider(page, 'Radius').dispatchEvent('pointerdown');

@@ -217,7 +217,7 @@ test('an accent dot names its colour in an app tooltip', async ({ page }) => {
   const dot = page.getByRole('radiogroup', { name: 'Dark accent' }).getByRole('radio').nth(2);
   await expect(dot).not.toHaveAttribute('title');
   await dot.hover();
-  await expect(page.locator('.tooltip-content')).toHaveText('Blue');
+  await expect(page.locator('[data-tooltip-content]')).toHaveText('Blue');
 });
 
 test('a theme that inherits the package palette drops the violet fallback', async ({ page }) => {
