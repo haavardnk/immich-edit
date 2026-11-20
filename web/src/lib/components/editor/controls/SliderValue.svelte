@@ -134,7 +134,7 @@
       : modified
         ? 'bg-primary/10 text-primary'
         : 'text-dark/65'}"
-    aria-label="Edit {label} value"
+    aria-label="Edit {label} value {display}"
     onclick={open}
   >
     {display}

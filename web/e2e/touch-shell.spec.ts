@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { ASSET_SUMMARY, json, numberedAssets } from './helpers';
+import { ASSET_SUMMARY, json, numberedAssets, ACCOUNT_NAME, filterSection } from './helpers';
 import { drag, tapAt } from './touch';
 import {
   avatar,
@@ -82,11 +82,9 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     const sheet = page.getByRole('dialog', { name: 'View & filters' });
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
-    const camera = sheet.getByRole('button', { name: 'Camera', exact: true });
-    await expect(camera).toHaveAccessibleDescription('SONY');
-    await expect(
-      sheet.getByRole('button', { name: 'Place', exact: true })
-    ).toHaveAccessibleDescription('');
+    const camera = filterSection(sheet, 'Camera');
+    await expect(camera).toHaveAccessibleName('Camera SONY');
+    await expect(filterSection(sheet, 'Place')).toBeVisible();
     await expect(sheet.getByRole('button', { name: /^Reset .* panel$/ })).toHaveCount(0);
     await expectTargets(camera, 44);
     await camera.tap();
@@ -128,7 +126,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
 
     await panel.getByRole('button', { name: 'Close account menu' }).tap();
     await expect(panel).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: ACCOUNT_NAME })).toBeFocused();
 
     await openDrawer(page);
     const viewport = page.viewportSize();
@@ -140,7 +138,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     const y = (box?.y ?? 0) + (box?.height ?? 0) / 2;
     await drag(page, { x: 260, y }, { x: 20, y });
     await expect(drawer(page)).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: ACCOUNT_NAME })).toBeVisible();
   });
 
   test('taps and closing sheets leave no tooltip open', async ({ page }) => {
@@ -219,7 +217,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(page).toHaveURL('/settings');
     await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
     await expect(backButton(page)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: ACCOUNT_NAME })).toHaveCount(0);
     await expect(tabBar(page).locator('[aria-current="page"]')).toHaveCount(0);
   });
 
@@ -578,7 +576,7 @@ test.describe('touch browse shell on WebKit', { tag: '@touch-smoke' }, () => {
     expect((box?.y ?? Number.POSITIVE_INFINITY) + (box?.height ?? 0)).toBeLessThanOrEqual(height);
     await expectTab(page, 'Photos');
 
-    await page.getByRole('button', { name: 'Account', exact: true }).tap();
+    await page.getByRole('button', { name: ACCOUNT_NAME }).tap();
     const panel = drawer(page);
     await expect(panel).toBeVisible();
     await panel.getByRole('button', { name: 'Close account menu' }).tap();

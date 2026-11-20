@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { ASSET_ID, NEUTRAL_RECORD, gotoAsset, installMocks, json } from './helpers';
+import { ASSET_ID, NEUTRAL_RECORD, gotoAsset, installMocks, json, ZOOM_NAME } from './helpers';
 import { exposureManifest, mockSnapshots } from './snapshotMocks';
 import { mockLibrary } from './touchShell';
 
@@ -198,7 +198,7 @@ test.describe('compare on desktop', () => {
     await expect.poll(async () => placement(left, pane(page, 'left'))).toEqual(fitted);
 
     await page.keyboard.press('z');
-    await expect(page.getByRole('button', { name: 'Zoom', exact: true })).not.toHaveText('Fit');
+    await expect(page.getByRole('button', { name: ZOOM_NAME })).not.toHaveText('Fit');
     await expect
       .poll(async () => (await placement(right, pane(page, 'right')))?.w ?? 0)
       .toBeGreaterThan(fitted?.w ?? 0);

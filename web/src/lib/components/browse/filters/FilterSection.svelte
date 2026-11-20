@@ -3,7 +3,7 @@
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import { Icon } from '@immich/ui';
   import { mdiChevronDown } from '@mdi/js';
-  import { Collapsible, mergeProps } from 'bits-ui';
+  import { Collapsible } from 'bits-ui';
   import type { Snippet } from 'svelte';
 
   let {
@@ -22,7 +22,6 @@
     children: Snippet;
   } = $props();
 
-  const summaryId = $props.id();
   const folded = $derived(open ? undefined : summary);
 </script>
 
@@ -34,20 +33,13 @@
   <TruncationTooltip text={folded ?? ''}>
     {#snippet child({ props })}
       <Collapsible.Trigger
-        {...mergeProps(props, {
-          'aria-label': title,
-          'aria-describedby': folded === undefined ? undefined : summaryId
-        })}
+        {...props}
         class="group flex min-h-10 w-full items-center gap-2 py-1 pr-2.5 pl-4 text-left transition-colors outline-none select-none hover:bg-light-950/3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset data-[state=open]:bg-light-950/3 touch:min-h-13 touch:pr-1"
       >
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="text-sm font-medium text-light-950 touch:text-body">{title}</span>
           {#if folded !== undefined}
-            <span
-              id={summaryId}
-              data-truncate
-              class="truncate text-xs leading-snug text-primary touch:text-label"
-            >
+            <span data-truncate class="truncate text-xs leading-snug text-primary touch:text-label">
               {folded}
             </span>
           {/if}

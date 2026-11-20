@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_DETAIL, ASSET_ID, ASSET_SUMMARY, gotoAsset, installMocks, json } from './helpers';
+import {
+  ASSET_DETAIL,
+  ASSET_ID,
+  ASSET_SUMMARY,
+  gotoAsset,
+  installMocks,
+  json,
+  ACCOUNT_NAME
+} from './helpers';
 
 const TAGS = [
   { id: 'tag-1', value: 'Landscape' },
@@ -20,7 +28,7 @@ test('the shortcuts dialog opens from the keyboard and returns focus on close', 
 
   const trigger = page
     .getByRole('navigation', { name: 'Global navigation' })
-    .getByRole('button', { name: 'Account', exact: true });
+    .getByRole('button', { name: ACCOUNT_NAME });
   await trigger.focus();
   await page.keyboard.press('Enter');
   await expect

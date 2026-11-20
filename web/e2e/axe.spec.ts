@@ -6,7 +6,9 @@ import {
   gotoAsset,
   installMocks,
   openAccountMenu,
-  openFilters
+  openFilters,
+  ZOOM_NAME,
+  filterSection
 } from './helpers';
 import { openTileLoupe } from './touch';
 
@@ -62,10 +64,7 @@ test('open browse filters have no serious accessibility violations', async ({ pa
   await page.goto('/photos');
 
   await openFilters(page, 'Date', 'File', 'Camera', 'Place');
-  await expect(page.getByRole('button', { name: 'Place', exact: true })).toHaveAttribute(
-    'aria-expanded',
-    'true'
-  );
+  await expect(filterSection(page, 'Place')).toHaveAttribute('aria-expanded', 'true');
   expect(await audit(page)).toEqual([]);
 });
 
@@ -152,7 +151,7 @@ test('open shared overlays stay accessible and inside the viewport', async ({ pa
 
   await page.keyboard.press('Escape');
   await gotoAsset(page);
-  await page.getByRole('button', { name: 'Zoom', exact: true }).click();
+  await page.getByRole('button', { name: ZOOM_NAME }).click();
 
   const popover = page.getByRole('button', { name: 'Zoom In' }).locator('..');
   await expect(popover).toBeVisible();

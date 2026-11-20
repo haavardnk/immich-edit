@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { gotoAsset, installMocks, makeStripesPng } from './helpers';
+import { gotoAsset, installMocks, makeStripesPng, ZOOM_NAME } from './helpers';
 
 type SavedKind = {
   kind?: string;
@@ -63,7 +63,7 @@ test('Alt and the wheel resize the selected shape, with Shift its feather', asyn
 
   await expect(pill).toContainText('Feather');
   await expect.poll(() => lastKind(saves)?.feather ?? 0).toBeGreaterThan(start?.feather ?? 1);
-  await expect(page.getByRole('button', { name: 'Zoom', exact: true })).toHaveText('Fit');
+  await expect(page.getByRole('button', { name: ZOOM_NAME })).toHaveText('Fit');
 });
 
 test('a plain wheel over a selected shape leaves it alone', async ({ page }) => {

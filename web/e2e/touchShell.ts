@@ -1,6 +1,13 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { bulkBar, tile } from './browse';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets, type InstallOpts } from './helpers';
+import {
+  ASSET_SUMMARY,
+  installMocks,
+  json,
+  numberedAssets,
+  type InstallOpts,
+  ACCOUNT_NAME
+} from './helpers';
 import { tapCentre } from './touch';
 
 export const PEOPLE = [
@@ -51,7 +58,7 @@ export function drawer(page: Page): Locator {
 }
 
 export function avatar(page: Page): Locator {
-  return page.getByRole('button', { name: 'Account', exact: true });
+  return page.getByRole('button', { name: ACCOUNT_NAME });
 }
 
 export function appBar(page: Page): Locator {

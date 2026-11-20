@@ -130,8 +130,8 @@ describe('WideBrowseShell', () => {
     expect(target.textContent).toContain('photos.example.net');
     expect(target.textContent).not.toContain('localhost');
 
-    const [account] = labelled('Account');
-    expect(labelled('Account')).toHaveLength(1);
+    const [account] = labelled('Account H');
+    expect(labelled('Account H')).toHaveLength(1);
     account?.click();
     flushSync();
     expect(accountDrawer.open).toBe(true);

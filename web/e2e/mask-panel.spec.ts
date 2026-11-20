@@ -8,7 +8,8 @@ import {
   makePng,
   NEUTRAL_RECORD,
   recordViewPreviews,
-  type PreviewRequest
+  type PreviewRequest,
+  ZOOM_NAME
 } from './helpers';
 
 type SavedRadial = { center?: { x: number; y: number }; feather?: number };
@@ -100,7 +101,7 @@ test('Alt and the wheel resize the mask brush with a live cursor ring', async ({
 
   await expect.poll(ringWidth).toBeGreaterThan(startWidth);
   await expect(size).not.toHaveText(before ?? '');
-  await expect(page.getByRole('button', { name: 'Zoom', exact: true })).toHaveText('Fit');
+  await expect(page.getByRole('button', { name: ZOOM_NAME })).toHaveText('Fit');
 });
 
 test('arrow keys nudge the selected radial', async ({ page }) => {

@@ -20,6 +20,7 @@
   const custom = $derived(isCustomised(bind.id, preferences.shortcuts));
   const keys = $derived(keysFor(bind.id as KeybindId));
   const recording = $derived(recorder.id === bind.id);
+  const shown = $derived(recording ? 'Press keys…' : keys || 'None');
   const gives = $derived(
     keysOf(bind.id, preferences.shortcuts)
       .map((spec) => formatChord(spec))
@@ -41,7 +42,7 @@
     variant="ghost"
     color="secondary"
     class="h-auto justify-self-start rounded-md p-0 hover:bg-transparent"
-    aria-label="Change the shortcut for {bind.label}"
+    aria-label="Change the shortcut for {bind.label}, {shown}"
     data-shortcut={bind.id}
     onclick={() => recorder.start(bind.id)}
     onblur={leave}
@@ -54,7 +55,7 @@
           ? 'border-primary/60 bg-primary/10 text-primary'
           : 'text-dark hover:border-dark/40'}"
     >
-      {recording ? 'Press keys…' : keys || 'None'}
+      {shown}
     </Kbd>
   </Button>
 {:else}

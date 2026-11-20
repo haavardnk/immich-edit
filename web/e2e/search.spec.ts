@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ASSET_ID, installMocks, numberedAssets, openFilters } from './helpers';
+import { ASSET_ID, installMocks, numberedAssets, openFilters, filterSection } from './helpers';
 
 const TILE = `[role="group"] > a[href^="/assets/${ASSET_ID}?"]`;
 
@@ -196,7 +196,7 @@ test('smart search hides rejects in the browser and matches exact ratings', asyn
   await expect(page).not.toHaveURL(/rating/);
   expect(filters[0]?.rating).toBeUndefined();
   const panel = await openFilters(page, 'Library', 'Rating & label');
-  await expect(panel.getByRole('button', { name: 'File', exact: true })).toHaveCount(0);
+  await expect(filterSection(panel, 'File')).toHaveCount(0);
   await expect(panel.getByRole('radiogroup', { name: 'Rating match' })).toHaveCount(0);
   await panel
     .getByRole('radiogroup', { name: 'Rejected', exact: true })
