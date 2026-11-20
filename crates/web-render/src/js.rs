@@ -54,9 +54,10 @@ pub fn inputs(inputs: &EditInputs) -> JsValue {
     ])
 }
 
-pub fn frame(meta: &DisplayMeta, bitmap: web_sys::ImageBitmap) -> JsValue {
+pub fn frame(meta: &DisplayMeta, rgba: &[u8], color_space: &str) -> JsValue {
     let mut fields = vec![
-        ("bitmap", bitmap.into()),
+        ("pixels", Uint8Array::from(rgba).into()),
+        ("color_space", color_space.into()),
         ("width", meta.dims.0.into()),
         ("height", meta.dims.1.into()),
         ("source_w", meta.source_dims.0.into()),

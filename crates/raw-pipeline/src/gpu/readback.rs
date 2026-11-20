@@ -175,6 +175,23 @@ pub fn read_rgba8(
     Ok(out)
 }
 
+#[cfg(feature = "web")]
+pub async fn read_rgba8_async(buffer: &Buffer, width: u32, height: u32) -> PipelineResult<Vec<u8>> {
+    let padded = padded_row(width, 4) as usize;
+    let unpadded = (width * 4) as usize;
+    map_read(buffer).await?;
+    let slice = buffer.slice(..);
+    let data = mapped_range(&slice)?;
+    let mut out = Vec::with_capacity(unpadded * height as usize);
+    for row in 0..height as usize {
+        let start = row * padded;
+        out.extend_from_slice(&data[start..start + unpadded]);
+    }
+    drop(data);
+    buffer.unmap();
+    Ok(out)
+}
+
 #[cfg(feature = "native")]
 pub fn read_rgba16uint_as_rgb(
     ctx: &GpuContext,

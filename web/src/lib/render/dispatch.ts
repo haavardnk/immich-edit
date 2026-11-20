@@ -1,4 +1,5 @@
 import { runBenchmark } from './benchmark';
+import { pixelBitmap, withBitmap, type MakeBitmap } from './framePixels';
 import type { Call, GpuLimits, Started } from './protocol';
 
 export interface Renderer {
@@ -29,7 +30,10 @@ export interface Outcome {
   transfer: Transferable[];
 }
 
-export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
+export function createDispatcher(
+  load: Load,
+  makeBitmap: MakeBitmap = pixelBitmap
+): (call: Call) => Promise<Outcome> {
   let wasm: Wasm | null = null;
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -47,6 +51,8 @@ export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
       } satisfies Started;
     }
     const { renderer, inputs } = loaded();
+    const render = async (edits: string, view: string): Promise<unknown> =>
+      withBitmap(await renderer.render(edits, view), makeBitmap);
     switch (call.op) {
       case 'inputs':
         return inputs(JSON.stringify(call.edits), call.maxEdge);
@@ -67,9 +73,16 @@ export function createDispatcher(load: Load): (call: Call) => Promise<Outcome> {
       case 'setDcp':
         return renderer.set_dcp(call.bytes ? new Uint8Array(call.bytes) : undefined);
       case 'render':
-        return renderer.render(JSON.stringify(call.edits), JSON.stringify(call.view));
+        return render(JSON.stringify(call.edits), JSON.stringify(call.view));
       case 'benchmark':
-        return runBenchmark(renderer, call.edge);
+        return runBenchmark(
+          {
+            set_synthetic_source: (edge) => renderer.set_synthetic_source(edge),
+            drop_source: () => renderer.drop_source(),
+            render
+          },
+          call.edge
+        );
     }
   };
 

@@ -24,19 +24,15 @@
         const edits = JSON.stringify(spec.edits);
         const view = JSON.stringify(spec.view);
         const first = performance.now();
-        (await renderer.render(edits, view)).bitmap.close();
+        await renderer.render(edits, view);
         const firstRenderMs = performance.now() - first;
         const again = performance.now();
         const frame = await renderer.render(edits, view);
         const renderMs = performance.now() - again;
 
-        const bitmap = frame.bitmap;
-        const flat = new OffscreenCanvas(bitmap.width, bitmap.height);
-        const context = flat.getContext('2d');
-        context.drawImage(bitmap, 0, 0);
-        const rgba = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+        const rgba = frame.pixels;
         const expected = await bytes(`${name}/expected.rgb`);
-        const pixels = bitmap.width * bitmap.height;
+        const pixels = frame.width * frame.height;
         let sum = 0;
         let squares = 0;
         let max = 0;
@@ -50,8 +46,8 @@
         }
         return {
           adapter: renderer.adapter(),
-          width: bitmap.width,
-          height: bitmap.height,
+          width: frame.width,
+          height: frame.height,
           frame: [frame.width, frame.height],
           expected: [spec.width, spec.height],
           histogramCount: frame.histogram ? frame.histogram.l.reduce((a, b) => a + b, 0) : 0,
