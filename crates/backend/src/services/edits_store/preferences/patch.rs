@@ -4,12 +4,7 @@ use serde::de::{Error as _, Unexpected};
 use serde::{Deserialize, Deserializer};
 
 use super::{CropRatio, Preferences, SectionEntry};
-
-fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
-    deserializer: D,
-) -> Result<Option<T>, D::Error> {
-    T::deserialize(deserializer).map(Some)
-}
+use crate::patch_field::present;
 
 fn non_null<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,

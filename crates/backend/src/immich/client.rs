@@ -7,9 +7,9 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumPatch, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
+    AlbumPatch, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, NewTag, PeopleResponse,
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
-    TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
+    TagPatch, TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
@@ -316,6 +316,23 @@ impl ImmichClient {
 
     pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
         self.put_json("api/tags", body).await
+    }
+
+    pub async fn create_tag(&self, tag: &NewTag) -> ImmichResult<TagSummary> {
+        let url = self.url("api/tags")?;
+        let bytes = send_post_json(self.authed(self.http.post(url).json(tag))).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn update_tag(&self, id: Uuid, patch: &TagPatch) -> ImmichResult<TagSummary> {
+        let url = self.url(&format!("api/tags/{id}"))?;
+        let bytes = send(self.authed(self.http.put(url).json(patch))).await?;
+        parse_json(&bytes)
+    }
+
+    pub async fn delete_tag(&self, id: Uuid) -> ImmichResult<()> {
+        let url = self.url(&format!("api/tags/{id}"))?;
+        send(self.authed(self.http.delete(url))).await.map(|_| ())
     }
 
     pub async fn set_asset_tag(

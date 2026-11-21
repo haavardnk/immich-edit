@@ -32,6 +32,18 @@ async fn structured_search_needs_immich_3_2() {
 }
 
 #[tokio::test]
+async fn tag_rename_needs_immich_3_3() {
+    for (major, minor, supported) in [(3, 2, false), (3, 3, true), (4, 0, true)] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, major, minor, 0).await;
+        let body = capabilities(&server).await;
+        if body["tag_rename"] != supported {
+            panic!("{major}.{minor}: {body}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn search_modes_follow_immich_features() {
     for (features, smart, ocr) in [
         (Some((true, false)), true, false),

@@ -6,10 +6,12 @@ pub mod host;
 pub mod immich;
 pub mod lens_profile;
 pub mod names;
+pub mod patch_field;
 pub mod routes;
 pub mod safe_path;
 pub mod services;
 pub mod state;
+pub mod tag_rules;
 pub mod telemetry;
 
 use std::net::SocketAddr;

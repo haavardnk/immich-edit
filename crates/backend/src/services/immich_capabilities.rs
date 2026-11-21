@@ -12,11 +12,17 @@ const STRUCTURED_SEARCH: ServerVersion = ServerVersion {
     minor: 2,
     patch: 0,
 };
+const TAG_RENAME: ServerVersion = ServerVersion {
+    major: 3,
+    minor: 3,
+    patch: 0,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImmichCapabilities {
     pub version: Option<ServerVersion>,
     pub structured_search: bool,
+    pub tag_rename: bool,
     pub smart_search: bool,
     pub ocr: bool,
     pub trash: bool,
@@ -33,6 +39,7 @@ impl ImmichCapabilities {
         Self {
             version,
             structured_search: version.is_some_and(|v| v >= STRUCTURED_SEARCH),
+            tag_rename: version.is_some_and(|v| v >= TAG_RENAME),
             smart_search: features.is_none_or(|f| f.smart_search),
             ocr: features.is_none_or(|f| f.ocr),
             trash: features.is_some_and(|f| f.trash),
