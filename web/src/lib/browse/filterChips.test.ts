@@ -3,6 +3,7 @@ import {
   activeFilterChips,
   activeFilterCount,
   activeFilterValues,
+  photoCountBadge,
   photoCountLabel,
   showPhotosLabel,
   withoutFilter
@@ -165,6 +166,13 @@ describe('browse filter chips', () => {
     [1000, 12, '1000 photos, 12 hidden']
   ])('counts %i photos with %i hidden', (total, hidden, label) => {
     expect(photoCountLabel(total, hidden)).toBe(label);
+  });
+
+  it.each([
+    [1, 0, '1'],
+    [1000, 12, '1000 · 12 hidden']
+  ])('badges %i photos with %i hidden', (total, hidden, badge) => {
+    expect(photoCountBadge(total, hidden)).toBe(badge);
   });
 
   it.each([

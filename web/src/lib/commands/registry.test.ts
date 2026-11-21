@@ -152,6 +152,7 @@ describe('command registry', () => {
       LOUPE_VIEW_MODE_MENU: [['loupe.single', 'loupe.compare', 'loupe.survey']],
       LOUPE_MORE_MENU: [
         ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.setAlbumCover'],
         ['loupe.trash'],
         ['app.help']
       ],
@@ -159,6 +160,7 @@ describe('command registry', () => {
         ['loupe.autoAdvance'],
         ['loupe.zoom', 'loupe.filmstrip', 'loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
         ['loupe.compare', 'loupe.survey'],
+        ['loupe.setAlbumCover'],
         ['loupe.trash']
       ],
       LOUPE_PHONE_MULTI_MORE_MENU: [
@@ -171,11 +173,13 @@ describe('command registry', () => {
           'loupe.clipWarn',
           'app.greyCanvas'
         ],
+        ['loupe.setAlbumCover'],
         ['loupe.trash']
       ],
       LOUPE_WIDE_MORE_MENU: [
         ['loupe.autoAdvance'],
         ['loupe.fullscreen', 'loupe.clipWarn', 'app.greyCanvas'],
+        ['loupe.setAlbumCover'],
         ['loupe.trash']
       ],
       EDITOR_VERSION_MENU: [['editor.virtualCopy']],

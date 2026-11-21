@@ -299,3 +299,316 @@ async fn creating_an_album_surfaces_an_immich_refusal() {
         panic!("refused create returned {}", resp.status());
     }
 }
+
+#[tokio::test]
+async fn creating_an_album_sends_a_trimmed_description_and_omits_a_blank_one() {
+    for (sent, forwarded) in [
+        (
+            json!("  Fjords\nand rain "),
+            json!({ "albumName": "Norway", "description": "Fjords\nand rain" }),
+        ),
+        (json!("   "), json!({ "albumName": "Norway" })),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/albums"))
+            .and(matchers::body_json(forwarded.clone()))
+            .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+                "id": album_id(),
+                "albumName": "Norway",
+                "description": forwarded.get("description").cloned().unwrap_or(json!(""))
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let app = test_app(&server).await;
+        let resp = app
+            .oneshot(json_request(
+                "POST",
+                "/api/albums",
+                json!({ "albumName": "Norway", "description": sent }),
+            ))
+            .await
+            .unwrap();
+        if resp.status() != StatusCode::OK {
+            panic!("description {sent} returned {}", resp.status());
+        }
+    }
+}
+
+#[tokio::test]
+async fn album_detail_carries_description_dates_and_member_roles() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/albums/{}", album_id())))
+        .and(header("x-api-key", TEST_API_KEY))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": album_id(),
+            "albumName": "Family",
+            "description": "Summer at the lake",
+            "assetCount": 12,
+            "startDate": "2026-06-01T10:00:00.000Z",
+            "endDate": "2026-07-14T10:00:00.000Z",
+            "shared": true,
+            "albumUsers": [
+                { "user": { "id": member_user_id(), "name": "Ann", "email": "a@x" }, "role": "owner" },
+                { "user": { "id": test_user_id(), "name": "Bo", "email": "b@x" }, "role": "editor" }
+            ]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(get(&format!("/api/albums/{}", album_id())))
+        .await
+        .unwrap();
+    let album = body_json(resp).await;
+    let members = json!([
+        { "userId": member_user_id(), "name": "Ann", "role": "owner" },
+        { "userId": test_user_id(), "name": "Bo", "role": "editor" }
+    ]);
+    if album["description"] != "Summer at the lake"
+        || album["startDate"] != "2026-06-01T10:00:00.000Z"
+        || album["endDate"] != "2026-07-14T10:00:00.000Z"
+        || album["ownerId"] != json!(member_user_id())
+        || album["members"] != members
+    {
+        panic!("album: {album}");
+    }
+}
+
+#[tokio::test]
+async fn album_detail_defaults_description_and_members_when_absent() {
+    let server = MockServer::start().await;
+    mock_album_detail(&server).await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(get(&format!("/api/albums/{}", album_id())))
+        .await
+        .unwrap();
+    let album = body_json(resp).await;
+    if album["description"] != "" || album["members"] != json!([]) {
+        panic!("album: {album}");
+    }
+}
+
+async fn mock_album_patch(server: &MockServer, forwarded: Value) {
+    Mock::given(method("PATCH"))
+        .and(path(format!("/api/albums/{}", album_id())))
+        .and(header("x-api-key", TEST_API_KEY))
+        .and(matchers::body_json(forwarded))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": album_id(),
+            "albumName": "stale",
+            "assetCount": 0
+        })))
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn updating_an_album_patches_immich_and_returns_the_refetched_album() {
+    let server = MockServer::start().await;
+    mock_album_patch(
+        &server,
+        json!({
+            "albumName": "Norway",
+            "description": "",
+            "albumThumbnailAssetId": asset_id()
+        }),
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/albums/{}", album_id())))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": album_id(),
+            "albumName": "Norway",
+            "assetCount": 148,
+            "albumThumbnailAssetId": asset_id(),
+            "albumUsers": [{ "user": { "id": test_user_id() }, "role": "owner" }]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(json_request(
+            "PATCH",
+            &format!("/api/albums/{}", album_id()),
+            json!({
+                "albumName": " Norway ",
+                "description": "  ",
+                "albumThumbnailAssetId": format!("{}_1", asset_id())
+            }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let album = body_json(resp).await;
+    if album["albumName"] != "Norway"
+        || album["assetCount"] != 148
+        || album["members"][0]["role"] != "owner"
+    {
+        panic!("album: {album}");
+    }
+}
+
+#[tokio::test]
+async fn updating_an_album_forwards_only_the_fields_sent() {
+    let server = MockServer::start().await;
+    mock_album_patch(&server, json!({ "description": "Day one" })).await;
+    mock_album_detail(&server).await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(json_request(
+            "PATCH",
+            &format!("/api/albums/{}", album_id()),
+            json!({ "description": "Day one " }),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn updating_an_album_rejects_empty_unknown_or_invalid_fields_before_immich() {
+    for body in [
+        json!({}),
+        json!({ "order": "asc" }),
+        json!({ "albumName": "  " }),
+        json!({ "albumName": "x".repeat(81) }),
+        json!({ "description": "x".repeat(2001) }),
+        json!({ "description": "Day\u{7}" }),
+        json!({ "albumThumbnailAssetId": "not-an-id" }),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("PATCH"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .mount(&server)
+            .await;
+        let app = test_app(&server).await;
+        let resp = app
+            .oneshot(json_request(
+                "PATCH",
+                &format!("/api/albums/{}", album_id()),
+                body.clone(),
+            ))
+            .await
+            .unwrap();
+        if !resp.status().is_client_error() {
+            panic!("body {body} returned {}", resp.status());
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_immich_refusal_to_update_surfaces_without_a_refetch() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path(format!("/api/albums/{}", album_id())))
+        .respond_with(
+            ResponseTemplate::new(400)
+                .set_body_json(json!({ "message": "Invalid album thumbnail" })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/albums/{}", album_id())))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(json_request(
+            "PATCH",
+            &format!("/api/albums/{}", album_id()),
+            json!({ "albumThumbnailAssetId": asset_id() }),
+        ))
+        .await
+        .unwrap();
+    if resp.status().is_success() {
+        panic!("refused update returned {}", resp.status());
+    }
+}
+
+async fn mock_album_delete(server: &MockServer, uri: String, key: &str, status: u16) {
+    Mock::given(method("DELETE"))
+        .and(path(uri))
+        .and(header("x-api-key", key))
+        .respond_with(ResponseTemplate::new(status))
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn deleting_an_album_forwards_the_session_credential() {
+    let server = MockServer::start().await;
+    mock_album_delete(
+        &server,
+        format!("/api/albums/{}", album_id()),
+        TEST_API_KEY,
+        204,
+    )
+    .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(empty_request(
+            "DELETE",
+            &format!("/api/albums/{}", album_id()),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NO_CONTENT {
+        panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn leaving_an_album_removes_the_session_user_by_id() {
+    let server = MockServer::start().await;
+    let uri = format!("/api/albums/{}/user/{}", album_id(), member_user_id());
+    mock_album_delete(&server, uri, MEMBER_API_KEY, 200).await;
+    let (_admin, app) = two_owner_apps(&server).await;
+    let resp = app
+        .oneshot(empty_request(
+            "DELETE",
+            &format!("/api/albums/{}/membership", album_id()),
+        ))
+        .await
+        .unwrap();
+    if resp.status() != StatusCode::NO_CONTENT {
+        panic!("status {}", resp.status());
+    }
+}
+
+#[tokio::test]
+async fn an_immich_refusal_to_delete_or_leave_surfaces() {
+    for (route, upstream) in [
+        (
+            format!("/api/albums/{}", album_id()),
+            format!("/api/albums/{}", album_id()),
+        ),
+        (
+            format!("/api/albums/{}/membership", album_id()),
+            format!("/api/albums/{}/user/{}", album_id(), test_user_id()),
+        ),
+    ] {
+        let server = MockServer::start().await;
+        mock_album_delete(&server, upstream, TEST_API_KEY, 400).await;
+        let app = test_app(&server).await;
+        let resp = app.oneshot(empty_request("DELETE", &route)).await.unwrap();
+        if resp.status().is_success() {
+            panic!("refused {route} returned {}", resp.status());
+        }
+    }
+}

@@ -1,6 +1,7 @@
 import { assetAlbums } from '#lib/stores/assetAlbums.svelte.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
+import { album } from '#lib/testing/albums.ts';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { layout, layoutControls, settle, type ControlRef } from '#lib/testing/layoutParity.ts';
 import { reactiveValue } from '#lib/testing/reactiveValue.svelte.ts';
@@ -94,16 +95,7 @@ beforeEach(() => {
   h.setDescription.mockClear();
   h.albumsWithAsset.mockReset();
   h.albumsWithAsset.mockResolvedValue([
-    {
-      id: 'al1',
-      albumName: 'Lofoten 2026',
-      assetCount: 148,
-      albumThumbnailAssetId: null,
-      updatedAt: null,
-      ownerId: null,
-      shared: false,
-      endDate: null
-    }
+    album('al1', { albumName: 'Lofoten 2026', assetCount: 148 })
   ]);
   vi.stubGlobal(
     'fetch',

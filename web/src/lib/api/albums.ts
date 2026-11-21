@@ -1,20 +1,32 @@
 import { getJson, sendJson, url } from './client';
-import type { AlbumDetail, AlbumSummary } from '#lib/types/album.ts';
+import type { AlbumPatch, AlbumSummary } from '#lib/types/album.ts';
 
 export function listAlbums(): Promise<AlbumSummary[]> {
   return getJson('/api/albums');
 }
 
-export function createAlbum(albumName: string): Promise<AlbumSummary> {
-  return sendJson('POST', '/api/albums', { albumName });
+export function createAlbum(albumName: string, description = ''): Promise<AlbumSummary> {
+  return sendJson('POST', '/api/albums', description ? { albumName, description } : { albumName });
 }
 
 export function albumsWithAsset(assetId: string): Promise<AlbumSummary[]> {
   return getJson(url`/api/albums?assetId=${assetId}`);
 }
 
-export function getAlbum(id: string): Promise<AlbumDetail> {
+export function getAlbum(id: string): Promise<AlbumSummary> {
   return getJson(url`/api/albums/${id}`);
+}
+
+export function updateAlbum(id: string, patch: AlbumPatch): Promise<AlbumSummary> {
+  return sendJson('PATCH', url`/api/albums/${id}`, patch);
+}
+
+export function deleteAlbum(id: string): Promise<void> {
+  return sendJson('DELETE', url`/api/albums/${id}`, undefined);
+}
+
+export function leaveAlbum(id: string): Promise<void> {
+  return sendJson('DELETE', url`/api/albums/${id}/membership`, undefined);
 }
 
 export interface AlbumAssetResult {

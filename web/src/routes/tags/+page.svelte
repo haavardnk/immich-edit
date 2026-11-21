@@ -5,10 +5,11 @@
   import PageFrame from '#lib/components/shell/PageFrame.svelte';
   import { userTags } from '#lib/browse/managedTags.ts';
   import { library } from '#lib/stores/library.svelte.ts';
-  import { countOf } from '#lib/utils/plural.ts';
+
+  const TAG_NOUN = { one: 'tag', many: 'tags' };
 
   const count = $derived(
-    library.isLoaded('tags') ? countOf(userTags(library.tags).length, 'tag') : undefined
+    library.isLoaded('tags') ? { value: userTags(library.tags).length, noun: TAG_NOUN } : undefined
   );
 
   onMount(() => {

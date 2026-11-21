@@ -173,6 +173,10 @@ export function photoCountLabel(total: number, hidden: number): string {
   return hidden > 0 ? `${photos}, ${hidden} hidden` : photos;
 }
 
+export function photoCountBadge(total: number, hidden: number): string {
+  return hidden > 0 ? `${total} · ${hidden} hidden` : `${total}`;
+}
+
 export function showPhotosLabel(total: number | undefined): string {
   return total === undefined ? 'Show photos' : `Show ${countOf(total, 'photo')}`;
 }

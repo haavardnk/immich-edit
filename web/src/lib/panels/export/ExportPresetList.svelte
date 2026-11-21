@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ExportPreset } from '#lib/api/exportPresets.ts';
   import Notice from '#lib/components/Notice.svelte';
+  import TextInput from '#lib/components/TextInput.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import { Badge, Button, Checkbox, IconButton } from '@immich/ui';
   import { mdiContentSaveOutline, mdiDeleteOutline } from '@mdi/js';
@@ -126,13 +127,17 @@
   <Notice color="info" message={SAVE_ONLY_REASON} class="mx-3 mb-2" />
 {/if}
 <form class="flex items-center gap-1 border-t border-hairline p-2" onsubmit={save}>
-  <input
-    bind:value={name}
-    maxlength={80}
-    placeholder="Save current as…"
-    aria-label="Export preset name"
-    class="min-w-0 flex-1 rounded border border-dark/15 bg-transparent px-2 py-1 text-xs touch:h-11 touch:text-body"
-  />
+  <div class="min-w-0 flex-1">
+    <TextInput
+      bind:value={name}
+      compact
+      color="neutral"
+      maxlength={80}
+      placeholder="Save current as…"
+      aria-label="Export preset name"
+      class="[&_input]:h-7 [&_input]:py-0 [&_input]:text-xs touch:[&_input]:h-11 touch:[&_input]:text-body"
+    />
+  </div>
   <IconButton
     type="submit"
     size="small"

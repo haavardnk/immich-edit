@@ -5,12 +5,14 @@
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { bulkEdits, type BulkEditAction } from '#lib/browse/bulk/bulkEdits.svelte.ts';
   import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
+  import { editableViewedAlbum } from '#lib/browse/viewedAlbum.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
   import {
     mdiCompare,
     mdiContentDuplicate,
     mdiImageAlbum,
+    mdiMinusBoxOutline,
     mdiTagOutline,
     mdiTrashCanOutline,
     mdiViewGridOutline
@@ -31,6 +33,7 @@
   const empty = $derived(scope.count === 0);
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
+  const removable = $derived(editableViewedAlbum());
 
   function owned(run: () => void): () => void {
     return () => {
@@ -103,6 +106,14 @@
     disabled={busy}
     onclick={() => void actions.createCopies()}
   />
+  {#if removable}
+    <MenuRow
+      icon={mdiMinusBoxOutline}
+      label="Remove from album"
+      disabled={busy}
+      onclick={() => void actions.removeFromAlbum(removable)}
+    />
+  {/if}
   <MenuRow
     icon={mdiTrashCanOutline}
     label="Move to trash"

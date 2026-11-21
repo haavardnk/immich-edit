@@ -39,7 +39,7 @@ test('the sidebar tag list filters by name and Escape clears it', async ({ page 
   await expect(page.getByText('1 selected')).toBeVisible();
 
   const sidebar = page.getByRole('complementary', { name: 'Library' });
-  await sidebar.getByRole('button', { name: /^Tags/ }).click();
+  await sidebar.getByRole('button', { name: 'Show tags' }).click();
   const field = sidebar.getByRole('textbox', { name: 'Filter tags' });
   await expectFiltered(sidebar, field);
   await field.press('ArrowDown');

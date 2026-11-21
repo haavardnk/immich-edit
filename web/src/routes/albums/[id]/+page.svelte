@@ -8,6 +8,10 @@
   import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import AlbumMeta from '#lib/components/library/AlbumMeta.svelte';
+  import AlbumMoreButton from '#lib/components/library/AlbumMoreButton.svelte';
+
+  const ALBUMS = { href: '/albums', label: 'Albums' };
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: id } }) });
@@ -29,6 +33,7 @@
 
 <BrowsePage
   {feed}
+  parent={ALBUMS}
   title={album.current?.albumName ?? 'Album'}
   loading={album.loading && !album.current}
   loadingLabel="Loading album…"
@@ -40,4 +45,15 @@
     void feed.fetchPage(true);
   }}
   emptyTitle="This album is empty"
-/>
+>
+  {#snippet titleActions()}
+    {#if album.current}
+      <AlbumMoreButton album={album.current} place="page" />
+    {/if}
+  {/snippet}
+  {#snippet lead()}
+    {#if album.current}
+      <AlbumMeta album={album.current} />
+    {/if}
+  {/snippet}
+</BrowsePage>

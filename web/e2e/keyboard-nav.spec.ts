@@ -72,7 +72,7 @@ test('the sidebar section trigger toggles with the keyboard', async ({ page }) =
   await installMocks(page);
   await page.goto('/photos');
 
-  const albums = page.getByRole('button', { name: /^Albums/ });
+  const albums = page.getByRole('button', { name: /^(Show|Hide) albums$/ });
   await albums.focus();
   await expect(albums).toHaveAttribute('aria-expanded', 'false');
 

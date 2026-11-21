@@ -12,6 +12,7 @@
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
   import { NOT_OWNER_TRASH } from '#lib/browse/bulk/bulkMarks.ts';
+  import { editableViewedAlbum } from '#lib/browse/viewedAlbum.ts';
   import DisabledReason from '#lib/components/DisabledReason.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
@@ -28,6 +29,7 @@
     mdiCompare,
     mdiExportVariant,
     mdiImageEditOutline,
+    mdiMinusBoxOutline,
     mdiTrashCanOutline,
     mdiViewGridOutline
   } from '@mdi/js';
@@ -38,6 +40,7 @@
   const actions = bulkActions;
   const photos = $derived(scope.targetCount === 1 ? 'this photo' : 'selected photos');
   const exporting = $derived(bulkExportDock.open);
+  const removable = $derived(editableViewedAlbum());
 
   function multiTitle(mode: MultiMode): string {
     const detail = multiDetail(mode, scope.count, compare.paneLimit);
@@ -158,6 +161,19 @@
           onclick={bulkExportDock.toggle}
         />
         {@render divider()}
+        {#if removable}
+          <IconButton
+            size="medium"
+            variant="ghost"
+            color="secondary"
+            class="shrink-0"
+            icon={mdiMinusBoxOutline}
+            title={`Remove ${photos} from ${removable.albumName}`}
+            aria-label="Remove from album"
+            disabled={actions.metaBusy || scope.count === 0}
+            onclick={() => void actions.removeFromAlbum(removable)}
+          />
+        {/if}
         <DisabledReason locked={!scope.trashable} reason={NOT_OWNER_TRASH} class="flex shrink-0">
           <IconButton
             size="medium"

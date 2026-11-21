@@ -1,21 +1,31 @@
 import type { AssetType, ExifInfo, TagRef } from './asset';
 
+export type AlbumRole = 'owner' | 'editor' | 'viewer';
+
+export interface AlbumMember {
+  userId: string;
+  name: string;
+  role: AlbumRole;
+}
+
 export interface AlbumSummary {
   id: string;
   albumName: string;
+  description: string;
   assetCount: number;
   albumThumbnailAssetId: string | null;
   updatedAt: string | null;
   ownerId: string | null;
   shared: boolean;
+  startDate: string | null;
   endDate: string | null;
+  members: AlbumMember[];
 }
 
-export interface AlbumDetail {
-  id: string;
-  albumName: string;
-  assetCount: number;
-  updatedAt: string | null;
+export interface AlbumPatch {
+  albumName?: string;
+  description?: string;
+  albumThumbnailAssetId?: string;
 }
 
 export interface AssetSummary {

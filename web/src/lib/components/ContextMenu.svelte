@@ -13,12 +13,14 @@
     trigger,
     children,
     disabled = false,
-    title
+    title,
+    subtitle
   }: {
     trigger: Snippet<[Record<string, unknown>]>;
     children: Snippet;
     disabled?: boolean;
     title?: string;
+    subtitle?: string;
   } = $props();
 
   function nativeFocus(props: Record<string, unknown>): Record<string, unknown> {
@@ -60,6 +62,7 @@
       onExited={sheet.exited}
       title={title ?? 'Actions'}
       caption={title !== undefined}
+      {subtitle}
     >
       {@render children()}
     </ActionSheet>

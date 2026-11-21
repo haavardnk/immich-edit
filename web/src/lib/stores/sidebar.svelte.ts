@@ -33,11 +33,6 @@ class SidebarStore {
     return open;
   }
 
-  reveal(pathname: string): void {
-    const id = sectionForPath(pathname);
-    if (id && !this.isOpen(id)) this.write([...this.expanded, id]);
-  }
-
   private write(expanded: SidebarSectionId[]): void {
     this.expanded = expanded;
     writeStored(STORAGE_KEY, { expanded } satisfies Persisted);

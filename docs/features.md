@@ -16,8 +16,8 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Browse timeline, archive, hidden assets, albums, favorites, folders, people, and tags | ✓ Yes | Uses the connected Immich library |
-| Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them from the open album |
-| Create Immich albums | ✓ Yes | **Create album** on the Albums page |
+| Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them; on an album you own or edit, **Remove from album** takes the selection out with **Undo**, and Immich keeps photos an editor does not own |
+| Create Immich albums | ✓ Yes | **Create album** on the Albums page, with an optional description |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search when the server has smart search turned on |
 | File name, description, full path or folder, and OCR search | ✓ Yes | Searches Immich metadata like Immich's own search types; OCR needs OCR turned on in Immich |
 | Rating, favorite, not-in-any-album, untagged, no-people, albums, people, tags, date taken, date added, filename, file size, visibility, label, reject, camera, lens, and place filters | ✓ Yes | Available in browse and search views; camera and place pickers offer **Unknown** for photos without the value; albums, people and tags match all, any or none of the picked values on Immich 3.2, all of them before that; reject can show only rejects; no people needs Immich 3.2, as does the file size range outside folders and Edited; untagged skips photos with a color label or reject mark; Immich applies label and reject filters (**Hide** rejects and **No label** need Immich 3.2; context search applies them to the loaded photos, and offers no size range or rating range); folders and Edited offer no visibility filter; ratings match at least, at most (unrated included) or exactly on Immich 3.2, exactly before that; make, model and lens pickers narrow each other, as do country, state and city, and each takes several values on Immich 3.2, one before that; active filters show as removable chips; changing a filter clears the current selection; filters live in the page address, so reloads, Back and Forward, bookmarks and shared links keep them |
@@ -49,7 +49,8 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Survey view on phones | ✗ No | Phones offer compare instead |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
-| Rename, delete, or share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
+| Rename, describe, set the cover of, delete, or leave Immich albums | ✓ Yes | **Album actions** (⋯) on an album card or the album page, right-click, or a long press on touch; owners and editors rename and describe, owners delete, other members leave; photos stay in the library; owners and editors pick the cover with **Set as album cover** in the loupe's ⋯ menu |
+| Share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Replace the original with the exported edit | ✓ Yes | Moves albums, shared links, favorite and stack to the upload and trashes the original; see [replace the original](export.md#replace-the-original) |
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |

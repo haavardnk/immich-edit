@@ -10,11 +10,13 @@
     title,
     count,
     actions,
+    titleActions,
     bar
   }: {
     title: string;
     count?: string;
     actions?: Snippet;
+    titleActions?: Snippet;
     bar?: Snippet;
   } = $props();
 </script>
@@ -39,6 +41,7 @@
       {/if}
     </div>
     {@render actions?.()}
+    {@render titleActions?.()}
   </div>
   {#if bar}
     <div class="flex items-center gap-2 px-3 pb-2">

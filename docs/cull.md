@@ -14,9 +14,14 @@ here as soon as Immich has it. Keys are listed on [keyboard shortcuts](shortcuts
 ## Find photos
 
 The sidebar has **Photos**, **People**, **Favorites**, **Albums**, **Tags**, **Folders** and
-**Edited** (the photos you changed here). The search box searches your library; **Search by**
-picks **Context** (smart search), **File name**, **Description**, **Full path or folder** or
-**OCR**.
+**Edited** (the photos you changed here). **People**, **Albums**, **Tags** and **Folders** open
+their overview page; the arrow beside each lists them in the sidebar. The search box searches your
+library; **Search by** picks **Context** (smart search), **File name**, **Description**, **Full path
+or folder** or **OCR**.
+
+**Album actions** (⋯ on an album, or right-click it) renames an album, edits its description,
+deletes it or leaves one shared with you. The photos stay in your library. In an album you own or
+edit, **Set as album cover** in the loupe's ⋯ menu makes the photo on screen its cover.
 
 **Filters** (`Shift+F`) opens the filter panel: **Library**, **Rating & label**, **People**,
 **Albums**, **Tags**, **Date**, **Camera**, **Place** and **File**. **Reset** clears them all, and
@@ -64,7 +69,8 @@ selected, press `C` (**Compare selected**) to see them side by side; with up to 
 The selection bar sets favorite, rating, reject and label on every selected photo, and has
 **Create virtual copy**, **Edits** (apply a preset, paste or reset), **Tags**, **Albums**,
 **Export selected photos** (see [export many photos](export.md#export-many-photos)) and **Move to
-Immich trash**. `Ctrl+C` and `Ctrl+V` copy one photo's edits and paste them onto the selection.
+Immich trash**. On an album you own or edit it also has **Remove from album**, with **Undo**.
+`Ctrl+C` and `Ctrl+V` copy one photo's edits and paste them onto the selection.
 
 ## On a phone or tablet
 

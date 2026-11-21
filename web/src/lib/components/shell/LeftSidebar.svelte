@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { library } from '#lib/stores/library.svelte.ts';
   import { savedViews } from '#lib/stores/savedViews.svelte.ts';
-  import { sidebar, type SidebarSectionId } from '#lib/stores/sidebar.svelte.ts';
+  import { sectionForPath, sidebar, type SidebarSectionId } from '#lib/stores/sidebar.svelte.ts';
   import AlbumList from '#lib/components/library/AlbumList.svelte';
   import PeopleList from '#lib/components/library/PeopleList.svelte';
   import TagList from '#lib/components/library/TagList.svelte';
@@ -22,11 +22,7 @@
   }
 
   const currentPath = $derived(page.url.pathname);
-
-  $effect(() => {
-    const path = currentPath;
-    untrack(() => sidebar.reveal(path));
-  });
+  const within = $derived(sectionForPath(currentPath));
 
   onMount(() => {
     void library.load();
@@ -49,12 +45,14 @@
       active={currentPath === '/photos'}
     />
     <SidebarSection
+      href={people.href}
+      active={currentPath === people.href}
       icon={people.icon}
       label={people.label}
       count={people.count()}
+      within={within === 'people'}
       expanded={sidebar.isOpen('people')}
       onToggle={() => toggleSection('people')}
-      more={{ href: people.href, label: 'See all people' }}
     >
       <PeopleList />
     </SidebarSection>
@@ -67,32 +65,38 @@
       active={currentPath === favorites.href}
     />
     <SidebarSection
+      href="/albums"
+      active={currentPath === '/albums'}
       icon={mdiImageAlbum}
       label="Albums"
       count={library.albums.length}
+      within={within === 'albums'}
       expanded={sidebar.isOpen('albums')}
       onToggle={() => toggleSection('albums')}
-      more={{ href: '/albums', label: 'See all albums' }}
     >
       <AlbumList />
     </SidebarSection>
     <SidebarSection
+      href={tags.href}
+      active={currentPath === tags.href}
       icon={tags.icon}
       label={tags.label}
       count={tags.count()}
+      within={within === 'tags'}
       expanded={sidebar.isOpen('tags')}
       onToggle={() => toggleSection('tags')}
-      more={{ href: tags.href, label: 'See all tags' }}
     >
       <TagList />
     </SidebarSection>
     <SidebarSection
+      href={folders.href}
+      active={currentPath === folders.href}
       icon={folders.icon}
       label={folders.label}
       count={folders.count()}
+      within={within === 'folders'}
       expanded={sidebar.isOpen('folders')}
       onToggle={() => toggleSection('folders')}
-      more={{ href: folders.href, label: 'Browse folders' }}
     >
       <FolderTree nodes={library.folderTree} />
     </SidebarSection>

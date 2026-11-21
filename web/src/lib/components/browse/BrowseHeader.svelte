@@ -5,27 +5,35 @@
   import SelectionAppBar from '#lib/components/browse/bulk/SelectionAppBar.svelte';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { photoCountLabel } from '#lib/browse/filterChips.ts';
+  import { photoCountBadge, photoCountLabel } from '#lib/browse/filterChips.ts';
+  import type { PageParent } from '#lib/components/shell/pageParent.ts';
   import type { Snippet } from 'svelte';
 
   let {
     title,
+    parent,
     totalCount,
     hiddenCount = 0,
     sortBasis = 'capture',
     bar,
+    titleActions,
     onTrashRejected
   }: {
     title: string;
+    parent?: PageParent;
     totalCount?: number;
     hiddenCount?: number;
     sortBasis?: 'capture' | 'edit' | null;
     bar?: Snippet;
+    titleActions?: Snippet;
     onTrashRejected?: () => Promise<void>;
   } = $props();
 
   const count = $derived(
     totalCount === undefined ? undefined : photoCountLabel(totalCount, hiddenCount)
+  );
+  const badge = $derived(
+    totalCount === undefined ? undefined : photoCountBadge(totalCount, hiddenCount)
   );
 </script>
 
@@ -33,7 +41,15 @@
   <SelectionAppBar />
 {/snippet}
 
-<PageHeader {title} {count} {bar} selecting={bulkScope.selecting ? selectionBar : undefined}>
+<PageHeader
+  {badge}
+  {title}
+  {parent}
+  {count}
+  {bar}
+  {titleActions}
+  selecting={bulkScope.selecting ? selectionBar : undefined}
+>
   {#snippet actions()}
     <BrowseToolbar {sortBasis} />
   {/snippet}

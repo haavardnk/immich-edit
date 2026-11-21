@@ -169,7 +169,16 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             "/albums",
             get(routes::albums::list).post(routes::albums::create),
         )
-        .route("/albums/{id}", get(routes::albums::detail))
+        .route(
+            "/albums/{id}",
+            get(routes::albums::detail)
+                .patch(routes::albums::update)
+                .delete(routes::albums::delete),
+        )
+        .route(
+            "/albums/{id}/membership",
+            axum::routing::delete(routes::albums::leave),
+        )
         .route(
             "/albums/{id}/assets",
             put(routes::albums::add_assets).delete(routes::albums::remove_assets),

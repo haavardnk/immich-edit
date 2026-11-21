@@ -24,9 +24,9 @@
   let passwordVisible = $state(false);
 
   const inputClass = $derived(
-    `[&_input]:caret-primary ${
+    `[&_input]:caret-primary ring-0 focus-within:ring-1 focus-within:ring-primary has-user-invalid:ring-1 ${
       color === 'neutral'
-        ? 'bg-light-200! ring-0 transition-colors hover:bg-light-300! focus-within:bg-light-200! focus-within:ring-1 focus-within:ring-primary'
+        ? 'bg-light-200! transition-colors hover:bg-light-300! focus-within:bg-light-200!'
         : color === 'primary'
           ? 'bg-gray-100! dark:bg-gray-800! transition-colors hover:bg-gray-200! dark:hover:bg-gray-700! focus-within:bg-primary/10! dark:focus-within:bg-primary/10!'
           : 'focus-within:bg-primary/10!'

@@ -51,6 +51,7 @@ function render(): void {
 
 beforeEach(() => {
   monthCounts.months = [];
+  monthCounts.loaded = false;
   target = document.createElement('div');
   document.body.appendChild(target);
 });
@@ -73,6 +74,29 @@ describe('DateScrubber', () => {
     expect(rail?.getAttribute('aria-valuetext')).toBe('October 2026');
     expect(rail?.getAttribute('aria-valuemax')).toBe('1');
     expect(target.querySelector('[data-testid="date-thumb"]')).toBeNull();
+  });
+
+  it('holds the rail width on desktop until the months arrive', async () => {
+    let answer: (value: { months: { month: string; count: number }[] }) => void = () => {};
+    api.searchMonths.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    render();
+    expect(target.querySelector('[data-testid="date-rail-slot"]')).not.toBeNull();
+    expect(target.querySelector('[data-testid="date-rail"]')).toBeNull();
+
+    answer({ months: [{ month: '2026-10', count: 3 }] });
+    await vi.waitFor(() =>
+      expect(
+        target.querySelector('[data-testid="date-rail-slot"] [data-testid="date-rail"]')
+      ).not.toBeNull()
+    );
+  });
+
+  it('drops the rail slot when no month has photos', async () => {
+    api.searchMonths.mockResolvedValueOnce({ months: [] });
+    render();
+    await vi.waitFor(() =>
+      expect(target.querySelector('[data-testid="date-rail-slot"]')).toBeNull()
+    );
   });
 
   it('shows the scroll thumb on touch', async () => {
