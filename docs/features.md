@@ -49,7 +49,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Survey view on phones | ✗ No | Phones offer compare instead |
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
-| Rename, describe, delete, or leave Immich albums | ✓ Yes | **Album actions** (⋯) on an album card or the album page, right-click, or a long press on touch; owners and editors rename and describe, owners delete, other members leave; photos stay in the library |
+| Rename, describe, set the cover of, delete, or leave Immich albums | ✓ Yes | **Album actions** (⋯) on an album card or the album page, right-click, or a long press on touch; owners and editors rename and describe, owners delete, other members leave; photos stay in the library; owners and editors pick the cover with **Set as album cover** in the loupe's ⋯ menu |
 | Share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Replace the original with the exported edit | ✓ Yes | Moves albums, shared links, favorite and stack to the upload and trashes the original; see [replace the original](export.md#replace-the-original) |
