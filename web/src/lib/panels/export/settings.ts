@@ -1,6 +1,4 @@
 import { library } from '#lib/stores/library.svelte.ts';
-import { listAlbums } from '#lib/api/albums.ts';
-import { listTags } from '#lib/api/tags.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import {
   DEFAULT_FILENAME_TEMPLATE,
@@ -399,8 +397,8 @@ export function immichOptions(
   return {
     ...base,
     filenameTemplate: replaceOriginal ? ORIGINAL_FILENAME_TEMPLATE : base.filenameTemplate,
-    albumIds: f.albumIds,
-    tagIds: f.tagIds,
+    albumIds: liveIds(f.albumIds, 'albums'),
+    tagIds: liveIds(f.tagIds, 'tags'),
     favorite: f.favorite,
     stackWithOriginal: stackable && !replaceOriginal && f.stackWithOriginal,
     stackPrimary: f.stackPrimary,
@@ -409,47 +407,26 @@ export function immichOptions(
   };
 }
 
-let albumsRequested = false;
-let tagsRequested = false;
-let albumsLoaded = false;
-let tagsLoaded = false;
-
 export function albumNames(ids: readonly string[]): string[] {
   return library.albums.filter((album) => ids.includes(album.id)).map((album) => album.albumName);
 }
 
+function liveIds(ids: readonly string[], view: 'albums' | 'tags'): string[] {
+  if (!library.isLoaded(view)) return [...ids];
+  const known: readonly { id: string }[] = view === 'albums' ? library.albums : library.tags;
+  return ids.filter((id) => known.some((entry) => entry.id === id));
+}
+
 export function pruneLibraryIds(form: ExportFormValues): void {
-  if (albumsLoaded)
-    form.albumIds = form.albumIds.filter((id) => library.albums.some((album) => album.id === id));
-  if (tagsLoaded)
-    form.tagIds = form.tagIds.filter((id) => library.tags.some((tag) => tag.id === id));
+  form.albumIds = liveIds(form.albumIds, 'albums');
+  form.tagIds = liveIds(form.tagIds, 'tags');
 }
 
 export function ensureLibraryLoaded(form: ExportFormValues): void {
-  if (!albumsRequested) {
-    albumsRequested = true;
-    void listAlbums()
-      .then((a) => {
-        library.albums = a.sort((x, y) => x.albumName.localeCompare(y.albumName));
-        albumsLoaded = true;
-        pruneLibraryIds(form);
-      })
-      .catch((e: unknown) => {
-        albumsRequested = false;
-        toasts.fail('albums', e);
-      });
-  }
-  if (!tagsRequested) {
-    tagsRequested = true;
-    void listTags()
-      .then((t) => {
-        library.tags = t;
-        tagsLoaded = true;
-        pruneLibraryIds(form);
-      })
-      .catch((e: unknown) => {
-        tagsRequested = false;
-        toasts.fail('tags', e);
-      });
+  for (const view of ['albums', 'tags'] as const) {
+    library
+      .ensure(view)
+      .then(() => pruneLibraryIds(form))
+      .catch((e: unknown) => toasts.fail(view, e));
   }
 }

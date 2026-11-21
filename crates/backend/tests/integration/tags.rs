@@ -24,6 +24,23 @@ async fn tags_upsert_proxies_to_immich() {
 }
 
 #[tokio::test]
+async fn tags_upsert_rejects_an_empty_blank_or_unknown_body_before_immich() {
+    for body in [
+        json!({ "tags": [] }),
+        json!({ "tags": ["Film", "  "] }),
+        json!({ "tags": ["Film"], "color": "#fff" }),
+        json!({ "values": ["Film"] }),
+    ] {
+        let server = MockServer::start().await;
+        never(&server, "PUT").await;
+        let (status, _) = send(&server, "PUT", "/api/tags", Some(body.clone())).await;
+        if !status.is_client_error() {
+            panic!("{body} returned {status}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn tags_list_includes_asset_counts() {
     let server = MockServer::start().await;
     mock_tag_list_with_stats(&server, 42).await;

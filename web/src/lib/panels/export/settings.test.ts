@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   baseOptions,
   changeFormat,
@@ -11,6 +11,13 @@ import {
   type ExportFormValues
 } from './settings';
 import type { ExportFormat } from '#lib/api/export.ts';
+import { library } from '#lib/stores/library.svelte.ts';
+
+vi.mock('#lib/api/tags.ts', () => ({
+  listTags: vi
+    .fn()
+    .mockResolvedValue([{ id: 'kept', name: 'Film', value: 'Film', createdAt: null }])
+}));
 
 function form(patch: Partial<ExportFormValues> = {}): ExportFormValues {
   return { ...defaultExportForm(), ...patch };
@@ -273,5 +280,16 @@ describe('changeFormat', () => {
     changeFormat(f, 'avif');
     expect(f.quality).toBe(45);
     expect(f.qualities).toEqual({ jpeg: 90, avif: 45 });
+  });
+});
+
+describe('immichOptions library ids', () => {
+  it('drops a tag that is gone from the loaded library and keeps ids it cannot check', async () => {
+    expect(immichOptions(form({ tagIds: ['kept', 'deleted'] })).tagIds).toEqual([
+      'kept',
+      'deleted'
+    ]);
+    await library.ensure('tags');
+    expect(immichOptions(form({ tagIds: ['kept', 'deleted'] })).tagIds).toEqual(['kept']);
   });
 });
