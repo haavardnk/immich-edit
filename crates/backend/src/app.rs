@@ -185,7 +185,16 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         )
         .route("/people", get(routes::people::list))
         .route("/people/{id}/thumb", get(routes::people::thumbnail))
-        .route("/tags", get(routes::tags::list).put(routes::tags::upsert))
+        .route(
+            "/tags",
+            get(routes::tags::list)
+                .put(routes::tags::upsert)
+                .post(routes::tags::create),
+        )
+        .route(
+            "/tags/{tag_id}",
+            patch(routes::tags::update).delete(routes::tags::delete),
+        )
         .route(
             "/tags/{tag_id}/assets/{asset_id}",
             put(routes::tags::tag_asset).delete(routes::tags::untag_asset),

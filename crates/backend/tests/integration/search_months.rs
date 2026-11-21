@@ -7,7 +7,7 @@ use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Days, NaiveDate, Utc};
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::matchers::path_regex;
+use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn at(raw: &str) -> DateTime<Utc> {
@@ -299,6 +299,14 @@ async fn swap_membership_through(
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
         .mount(&server)
         .await;
+        Mock::given(method("GET"))
+            .and(path("/api/tags"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!([{ "id": TAG, "name": "Trip", "value": "Trip" }])),
+            )
+            .mount(&server)
+            .await;
         let before = months(&app, filter.clone()).await;
         {
             let mut photos = shelf.lock().unwrap();
@@ -342,6 +350,17 @@ async fn deleting_or_leaving_an_album_recounts_the_album_months() {
         })
         .await;
     }
+}
+
+#[tokio::test]
+async fn deleting_a_tag_recounts_the_tag_months() {
+    let uri = format!("/api/tags/{TAG}");
+    let filter = json!({ "tags": { "all": [TAG] } });
+    let request = || empty_request("DELETE", &uri);
+    swap_membership_through(&request, StatusCode::NO_CONTENT, filter, |photo| {
+        &mut photo.tagged
+    })
+    .await;
 }
 
 #[tokio::test]

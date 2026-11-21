@@ -9,6 +9,10 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::search::searcher;
 use crate::state::AppState;
 
+mod manage;
+
+pub use manage::{create, delete, update};
+
 pub async fn list(
     State(state): State<AppState>,
     ctx: AuthCtx,

@@ -46,6 +46,7 @@ pub struct ImmichCapabilitiesBody {
     pub immich_version: Option<String>,
     pub external_host: Option<String>,
     pub structured_search: bool,
+    pub tag_rename: bool,
     pub smart_search: bool,
     pub ocr: bool,
     pub trash: bool,
@@ -60,6 +61,7 @@ pub async fn immich_capabilities(
     Json(ImmichCapabilitiesBody {
         immich_version: caps.version.map(|version| version.to_string()),
         structured_search: caps.structured_search,
+        tag_rename: caps.tag_rename,
         smart_search: caps.smart_search,
         ocr: caps.ocr,
         trash: caps.trash,

@@ -4,8 +4,10 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 
 mod album;
+mod tag;
 
 pub use album::{AlbumMember, AlbumPatch, AlbumRole, AlbumSummary};
+pub use tag::{NewTag, TagPatch, TagSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetSummary {
@@ -218,29 +220,6 @@ pub struct PeopleResponse {
     pub total: u32,
     #[serde(rename = "hasNextPage", default)]
     pub has_next_page: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TagSummary {
-    pub id: Uuid,
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub value: String,
-    #[serde(rename = "parentId", default)]
-    pub parent_id: Option<Uuid>,
-    #[serde(default)]
-    pub color: Option<String>,
-    #[serde(rename = "createdAt", default)]
-    pub created_at: Option<String>,
-    #[serde(rename = "updatedAt", default)]
-    pub updated_at: Option<String>,
-    #[serde(
-        rename = "assetCount",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub asset_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

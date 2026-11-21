@@ -302,6 +302,39 @@ pub fn tag_id() -> Uuid {
     Uuid::parse_str("33333333-aaaa-bbbb-cccc-000000000003").unwrap()
 }
 
+pub fn child_tag_id() -> Uuid {
+    Uuid::parse_str("33333333-aaaa-bbbb-cccc-000000000004").unwrap()
+}
+
+pub fn managed_tag_id() -> Uuid {
+    Uuid::parse_str("33333333-aaaa-bbbb-cccc-000000000005").unwrap()
+}
+
+pub async fn mock_tag_tree(server: &MockServer) {
+    let managed_root = "33333333-aaaa-bbbb-cccc-000000000006";
+    Mock::given(method("GET"))
+        .and(path("/api/tags"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            { "id": tag_id(), "name": "Travel", "value": "Travel" },
+            {
+                "id": child_tag_id(),
+                "name": "Norway",
+                "value": "Travel/Norway",
+                "parentId": tag_id(),
+                "color": "#3e8ed0"
+            },
+            { "id": managed_root, "name": "immich-edit", "value": "immich-edit" },
+            {
+                "id": managed_tag_id(),
+                "name": "reject",
+                "value": "immich-edit/reject",
+                "parentId": managed_root
+            }
+        ])))
+        .mount(server)
+        .await;
+}
+
 pub async fn mock_tag_asset(server: &MockServer) {
     Mock::given(method("PUT"))
         .and(path(format!("/api/tags/{}/assets", tag_id())))
