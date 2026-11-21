@@ -183,7 +183,7 @@ mod tests {
     }
 
     async fn fetch(server: Server, len: usize) -> (ImmichResult<Bytes>, Vec<u8>, usize) {
-        let body: Vec<u8> = (0..len).map(|i| (i * 31 % 251) as u8).collect();
+        let body: Vec<u8> = Vec::from_fn(len, |i| (i * 31 % 251) as u8);
         let mock = MockServer::start().await;
         Mock::given(method("GET"))
             .respond_with(Original {

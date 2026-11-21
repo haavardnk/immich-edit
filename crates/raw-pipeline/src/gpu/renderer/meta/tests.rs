@@ -29,23 +29,19 @@ impl Pixels {
 
 fn synthetic(width: u32, height: u32) -> Pixels {
     let count = (width * height) as usize;
-    let display = (0..count)
-        .map(|i| match i % 7 {
-            0 => {
-                let k = (i / 7 % 256) as u8;
-                [k, k, k]
-            }
-            _ => [(i * 37) as u8, (i * 101 + 13) as u8, (i * 59 + 200) as u8],
-        })
-        .collect();
-    let linear = (0..count)
-        .map(|i| {
-            let edge = (i % 256) as f32 / 255.0;
-            let wide = (i * 7919 % 1400) as f32 / 1000.0 - 0.1;
-            let f16 = |v: f32| half::f16::from_f32(v).to_f32();
-            [f16(edge), f16(wide), f16(1.0 - wide)]
-        })
-        .collect();
+    let display = Vec::from_fn(count, |i| match i % 7 {
+        0 => {
+            let k = (i / 7 % 256) as u8;
+            [k, k, k]
+        }
+        _ => [(i * 37) as u8, (i * 101 + 13) as u8, (i * 59 + 200) as u8],
+    });
+    let linear = Vec::from_fn(count, |i| {
+        let edge = (i % 256) as f32 / 255.0;
+        let wide = (i * 7919 % 1400) as f32 / 1000.0 - 0.1;
+        let f16 = |v: f32| half::f16::from_f32(v).to_f32();
+        [f16(edge), f16(wide), f16(1.0 - wide)]
+    });
     Pixels { display, linear }
 }
 

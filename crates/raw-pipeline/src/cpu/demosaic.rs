@@ -351,27 +351,23 @@ impl XtransTaps {
             let y = (phase / XTRANS_DIM) as i32 + dy + XTRANS_DIM as i32;
             xtrans_channel(pattern, x as usize, y as usize)
         };
-        let green = (0..XTRANS_LEN)
-            .map(|phase| {
-                GREEN_NEIGHBORS
-                    .iter()
-                    .filter(|&&(dx, dy, _)| channel_at(phase, dx, dy) == 1)
-                    .map(|&(dx, dy, wgt)| (offset(dx, dy), wgt))
+        let green = Vec::from_fn(XTRANS_LEN, |phase| {
+            GREEN_NEIGHBORS
+                .iter()
+                .filter(|&&(dx, dy, _)| channel_at(phase, dx, dy) == 1)
+                .map(|&(dx, dy, wgt)| (offset(dx, dy), wgt))
+                .collect()
+        });
+        let window = (-2i32..=2).flat_map(|dy| (-2i32..=2).map(move |dx| (dx, dy)));
+        let chroma = Vec::from_fn(XTRANS_LEN, |phase| {
+            [0usize, 2].map(|ch| {
+                window
+                    .clone()
+                    .filter(|&(dx, dy)| channel_at(phase, dx, dy) == ch)
+                    .map(|(dx, dy)| (offset(dx, dy), 1.0 / ((dx * dx + dy * dy) as f32)))
                     .collect()
             })
-            .collect();
-        let window = (-2i32..=2).flat_map(|dy| (-2i32..=2).map(move |dx| (dx, dy)));
-        let chroma = (0..XTRANS_LEN)
-            .map(|phase| {
-                [0usize, 2].map(|ch| {
-                    window
-                        .clone()
-                        .filter(|&(dx, dy)| channel_at(phase, dx, dy) == ch)
-                        .map(|(dx, dy)| (offset(dx, dy), 1.0 / ((dx * dx + dy * dy) as f32)))
-                        .collect()
-                })
-            })
-            .collect();
+        });
         Self { green, chroma }
     }
 }
@@ -553,9 +549,9 @@ mod tests {
     fn mhc_rows_match_the_per_pixel_formula_bit_for_bit() {
         let w = 37;
         let h = 29;
-        let data: Vec<f32> = (0..w * h)
-            .map(|i| ((i as u32).wrapping_mul(2_654_435_761) >> 12) as f32 / 1_048_576.0)
-            .collect();
+        let data: Vec<f32> = Vec::from_fn(w * h, |i| {
+            ((i as u32).wrapping_mul(2_654_435_761) >> 12) as f32 / 1_048_576.0
+        });
         for pattern in ["RGGB", "BGGR", "GRBG", "GBRG"] {
             let cfa = parse_cfa(pattern);
             let out = malvar_he_cutler(&data, w, h, pattern);
@@ -581,21 +577,19 @@ mod tests {
     const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 
     fn xtrans_reference(data: &[f32], w: usize, h: usize, pattern: &[u8; XTRANS_LEN]) -> Vec<f32> {
-        let green: Vec<f32> = (0..w * h)
-            .map(|i| {
-                let x = i % w;
-                let y = i / w;
-                if xtrans_channel(pattern, x, y) == 1 {
-                    return data[i];
-                }
-                let (sum, weight) = xtrans_green_edge(data, w, h, pattern, x, y);
-                if weight > 0.0 {
-                    (sum / weight).clamp(0.0, RAW_LINEAR_CEILING)
-                } else {
-                    data[i]
-                }
-            })
-            .collect();
+        let green: Vec<f32> = Vec::from_fn(w * h, |i| {
+            let x = i % w;
+            let y = i / w;
+            if xtrans_channel(pattern, x, y) == 1 {
+                return data[i];
+            }
+            let (sum, weight) = xtrans_green_edge(data, w, h, pattern, x, y);
+            if weight > 0.0 {
+                (sum / weight).clamp(0.0, RAW_LINEAR_CEILING)
+            } else {
+                data[i]
+            }
+        });
         let mut out = vec![0.0; w * h * 3];
         for (i, px) in out.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let x = i % w;
@@ -617,9 +611,9 @@ mod tests {
     fn xtrans_tap_tables_match_the_per_pixel_formula_bit_for_bit() {
         let w = 29;
         let h = 31;
-        let data: Vec<f32> = (0..w * h)
-            .map(|i| ((i as u32).wrapping_mul(2_654_435_761) >> 12) as f32 / 1_048_576.0)
-            .collect();
+        let data: Vec<f32> = Vec::from_fn(w * h, |i| {
+            ((i as u32).wrapping_mul(2_654_435_761) >> 12) as f32 / 1_048_576.0
+        });
         for (sx, sy) in [(0, 0), (1, 0), (3, 2), (5, 5)] {
             let Some(pattern) = parse_xtrans(&shifted_xtrans(sx, sy)) else {
                 panic!("shifted pattern {sx},{sy} did not parse");
@@ -632,9 +626,7 @@ mod tests {
 
     fn xtrans_mosaic(color: [f32; 3], w: usize, h: usize) -> (Vec<f32>, [u8; XTRANS_LEN]) {
         let pattern = parse_xtrans(XTRANS).expect("valid pattern");
-        let data = (0..w * h)
-            .map(|i| color[xtrans_channel(&pattern, i % w, i / w)])
-            .collect();
+        let data = Vec::from_fn(w * h, |i| color[xtrans_channel(&pattern, i % w, i / w)]);
         (data, pattern)
     }
 
@@ -657,14 +649,10 @@ mod tests {
         let h = 19;
         for (pattern, block) in bayer.into_iter().chain(xtrans) {
             let data: Vec<f32> = match parse_xtrans(&pattern) {
-                Some(p) => (0..w * h)
-                    .map(|i| color[xtrans_channel(&p, i % w, i / w)])
-                    .collect(),
+                Some(p) => Vec::from_fn(w * h, |i| color[xtrans_channel(&p, i % w, i / w)]),
                 None => {
                     let cfa = parse_cfa(&pattern);
-                    (0..w * h)
-                        .map(|i| color[cfa_channel(&cfa, i % w, i / w)])
-                        .collect()
+                    Vec::from_fn(w * h, |i| color[cfa_channel(&cfa, i % w, i / w)])
                 }
             };
             let out = superpixel(&data, w, h, &pattern, block);

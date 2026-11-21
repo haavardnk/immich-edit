@@ -675,13 +675,11 @@ fn dithered(base: f32, x: usize) -> f32 {
 #[test]
 fn selector_smooths_noise_and_keeps_edges() {
     let width = 2048;
-    let display: Vec<[f32; 3]> = (0..width * 4)
-        .map(|i| {
-            let x = i % width;
-            let base = if x < width / 2 { 0.3 } else { 0.7 };
-            [dithered(base, x); 3]
-        })
-        .collect();
+    let display: Vec<[f32; 3]> = Vec::from_fn(width * 4, |i| {
+        let x = i % width;
+        let base = if x < width / 2 { 0.3 } else { 0.7 };
+        [dithered(base, x); 3]
+    });
     let smoothed = super::selector::smooth_selector(display.clone(), width, 4);
     let row = &smoothed[width..2 * width];
     let spread = row[100..900]

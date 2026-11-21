@@ -65,9 +65,9 @@ impl CaptureSigma {
             return vec![gaussian_kernel(self.centre)];
         }
         let step = (self.corner - self.centre) / (SIGMA_LEVELS - 1) as f32;
-        (0..SIGMA_LEVELS)
-            .map(|level| gaussian_kernel(self.centre + step * level as f32))
-            .collect()
+        Vec::from_fn(SIGMA_LEVELS, |level| {
+            gaussian_kernel(self.centre + step * level as f32)
+        })
     }
 
     pub fn hash_key(&self, h: &mut impl Hasher) {

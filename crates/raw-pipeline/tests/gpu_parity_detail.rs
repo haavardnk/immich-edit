@@ -557,18 +557,16 @@ fn smoothed_plane(frame: &RawFrame, key: u64, lift: f32) -> Arc<DenoisePlane> {
         let y = y.clamp(0, h as isize - 1) as usize;
         rgb[(y * w + x) * 3 + c]
     };
-    let smoothed: Vec<f32> = (0..w * h * 3)
-        .map(|i| {
-            let c = i % 3;
-            let x = ((i / 3) % w) as isize;
-            let y = ((i / 3) / w) as isize;
-            let sum: f32 = (-2..=2)
-                .flat_map(|dy| (-2..=2).map(move |dx| (dx, dy)))
-                .map(|(dx, dy)| at(x + dx, y + dy, c))
-                .sum();
-            sum / 25.0 + lift
-        })
-        .collect();
+    let smoothed: Vec<f32> = Vec::from_fn(w * h * 3, |i| {
+        let c = i % 3;
+        let x = ((i / 3) % w) as isize;
+        let y = ((i / 3) / w) as isize;
+        let sum: f32 = (-2..=2)
+            .flat_map(|dy| (-2..=2).map(move |dx| (dx, dy)))
+            .map(|(dx, dy)| at(x + dx, y + dy, c))
+            .sum();
+        sum / 25.0 + lift
+    });
     denoise_plane(frame, key, &smoothed)
 }
 

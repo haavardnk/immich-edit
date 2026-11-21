@@ -1,3 +1,5 @@
+use std::mem::DropGuard;
+
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, State};
@@ -14,7 +16,7 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::routes::preview::{clamp_max, parse_roi};
 use crate::services::render::{RenderError, RenderIdentity, SourceRequest};
-use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
+use crate::services::render_queue::{RenderKey, RenderLane, cancel_on_drop};
 use crate::state::AppState;
 
 pub const SOURCE_CONTENT_TYPE: &str = "application/vnd.immich-edit.source";
@@ -102,9 +104,9 @@ pub async fn post_source(
         request,
         Some(token.clone()),
     );
-    let guard = CancelOnDrop::new(token);
+    let guard = cancel_on_drop(token);
     let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
-    guard.disarm();
+    DropGuard::dismiss(guard);
     let source = match result {
         Some(Ok(source)) => source,
         Some(Err(e)) => return Err(e.into()),

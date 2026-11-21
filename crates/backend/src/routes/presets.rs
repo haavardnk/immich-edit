@@ -1,3 +1,5 @@
+use std::mem::DropGuard;
+
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -16,7 +18,7 @@ use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::edit_merge::{MergeSections, merge_edits};
 use crate::services::edits_store::PresetRecord;
 use crate::services::render::RenderIdentity;
-use crate::services::render_queue::{CancelOnDrop, RenderPriority};
+use crate::services::render_queue::{RenderPriority, cancel_on_drop};
 use crate::state::AppState;
 
 const MAX_PRESET_NAME_LEN: usize = 80;
@@ -199,7 +201,7 @@ pub async fn thumb(
         ..Default::default()
     };
     let token = CancelTracker::new().next();
-    let guard = CancelOnDrop::new(token.clone());
+    let guard = cancel_on_drop(token.clone());
     let work = state.render.render(
         RenderIdentity::from(&ctx),
         ctx.immich.clone(),
@@ -213,7 +215,7 @@ pub async fn thumb(
         .run(RenderPriority::Background, work)
         .await
         .ok_or(AppError::Superseded)??;
-    guard.disarm();
+    DropGuard::dismiss(guard);
     let mut resp = Response::new(Body::from(rendered.bytes));
     resp.headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));

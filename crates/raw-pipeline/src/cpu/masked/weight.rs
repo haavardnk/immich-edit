@@ -35,7 +35,7 @@ fn polygon_weight(points: &[(f32, f32)], u: f32, v: f32, feather: f32) -> f32 {
         if (yi > v) != (yj > v) {
             let t = (v - yi) / (yj - yi);
             if u < xi + t * (xj - xi) {
-                inside = !inside;
+                inside.toggle();
             }
         }
         nearest = nearest.min(point_segment_distance(u, v, xi, yi, xj, yj));

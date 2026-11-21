@@ -142,7 +142,7 @@ mod tests {
     }
 
     fn ids(n: usize) -> Vec<String> {
-        (0..n).map(|_| Uuid::new_v4().to_string()).collect()
+        Vec::from_fn(n, |_| Uuid::new_v4().to_string())
     }
 
     #[test]
@@ -201,7 +201,7 @@ mod tests {
 
     #[test]
     fn a_lookup_takes_at_most_sixteen_presets() {
-        let names = |n: usize| -> Vec<String> { (0..n).map(|i| format!("P{i}")).collect() };
+        let names = |n: usize| -> Vec<String> { Vec::from_fn(n, |i| format!("P{i}")) };
 
         assert_eq!(
             rejection(json!({ "asset_ids": ids(1), "presets": names(17) })),

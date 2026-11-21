@@ -62,7 +62,7 @@ pub fn read(data: &[u8]) -> Option<Metadata> {
 }
 
 fn exif_block(block: &[u8]) -> Option<Metadata> {
-    parse_tiff(block.strip_prefix(b"Exif\0\0").unwrap_or(block))
+    parse_tiff(block.trim_prefix(b"Exif\0\0"))
 }
 
 fn exif_after_offset(block: &[u8]) -> Option<Metadata> {

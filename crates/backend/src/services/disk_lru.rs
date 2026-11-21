@@ -154,9 +154,7 @@ mod tests {
     async fn recording_past_the_cap_evicts_the_least_recent_file() {
         let dir = tempfile::tempdir().unwrap();
         let lru = DiskLru::open(dir.path(), "bin", 1).unwrap();
-        let paths: Vec<PathBuf> = (0..3)
-            .map(|i| dir.path().join(format!("{i}.bin")))
-            .collect();
+        let paths: Vec<PathBuf> = Vec::from_fn(3, |i| dir.path().join(format!("{i}.bin")));
         for path in &paths[..2] {
             std::fs::write(path, vec![0u8; 400 * 1024]).unwrap();
             lru.record(path.clone(), 400 * 1024).await;

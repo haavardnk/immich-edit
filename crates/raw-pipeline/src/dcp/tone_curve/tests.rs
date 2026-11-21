@@ -23,12 +23,10 @@ fn reference_eval(curve: &[[f32; 2]], x: f32) -> f32 {
 }
 
 fn sampled(n: usize, warp: impl Fn(f32) -> f32) -> Vec<[f32; 2]> {
-    (0..n)
-        .map(|i| {
-            let x = warp(i as f32 / (n - 1) as f32);
-            [x, x.sqrt()]
-        })
-        .collect()
+    Vec::from_fn(n, |i| {
+        let x = warp(i as f32 / (n - 1) as f32);
+        [x, x.sqrt()]
+    })
 }
 
 #[test]

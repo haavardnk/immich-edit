@@ -394,16 +394,14 @@ fn clarity_protects_clipped_highlights_and_crushed_shadows() {
 #[test]
 fn dehaze_atmosphere_is_resolution_invariant() {
     let pattern = |w: usize, h: usize| -> Vec<f32> {
-        (0..w * h * 3)
-            .map(|i| {
-                let px = i / 3;
-                let x = (px % w) as f32 / w as f32;
-                let y = (px / w) as f32 / h as f32;
-                let haze = 0.55 + 0.35 * y;
-                let detail = ((x * 47.0).sin() * (y * 31.0).cos()).abs() * 0.25;
-                (haze + detail).min(1.0)
-            })
-            .collect()
+        Vec::from_fn(w * h * 3, |i| {
+            let px = i / 3;
+            let x = (px % w) as f32 / w as f32;
+            let y = (px / w) as f32 / h as f32;
+            let haze = 0.55 + 0.35 * y;
+            let detail = ((x * 47.0).sin() * (y * 31.0).cos()).abs() * 0.25;
+            (haze + detail).min(1.0)
+        })
     };
     let big = crate::cpu::dehaze::atmosphere_for_render(&pattern(1200, 900), 1200, 900);
     let small = crate::cpu::dehaze::atmosphere_for_render(&pattern(600, 450), 600, 450);
@@ -493,9 +491,7 @@ fn dehaze_negative_fogs_hazy_regions_before_clear_shadows() {
     let w: usize = 384;
     let h: usize = 64;
     let bands = [0.03f32, 0.5, 0.9];
-    let buf: Vec<f32> = (0..w * h * 3)
-        .map(|i| bands[(i / 3 % w) * bands.len() / w])
-        .collect();
+    let buf: Vec<f32> = Vec::from_fn(w * h * 3, |i| bands[(i / 3 % w) * bands.len() / w]);
     let atm = crate::cpu::dehaze::atmosphere_for_render(&buf, w, h);
     let probes = [(h / 2 * w + w / 6) * 3, (h / 2 * w + w / 2) * 3];
     let mut prev = [0.0f32; 2];

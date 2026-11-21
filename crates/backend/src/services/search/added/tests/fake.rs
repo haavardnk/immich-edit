@@ -125,16 +125,12 @@ impl Respond for FakeImmich {
 
 pub fn library(count: usize, pick: Pick) -> Vec<Asset> {
     let base = Utc.with_ymd_and_hms(2024, 1, 20, 8, 0, 0).unwrap();
-    (0..count)
-        .map(|i| Asset {
-            at: base
-                + TimeDelta::days(2 * i as i64)
-                + TimeDelta::microseconds(1_234_567 * i as i64),
-            id: Uuid::new_v4(),
-            picked: pick(i),
-            partner: false,
-        })
-        .collect()
+    Vec::from_fn(count, |i| Asset {
+        at: base + TimeDelta::days(2 * i as i64) + TimeDelta::microseconds(1_234_567 * i as i64),
+        id: Uuid::new_v4(),
+        picked: pick(i),
+        partner: false,
+    })
 }
 
 pub async fn serve(assets: &[Asset]) -> (MockServer, Searcher) {

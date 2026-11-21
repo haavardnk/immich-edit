@@ -50,21 +50,17 @@ impl Weights {
                 ((i / width) as f32 + 0.5) / height as f32,
             ]
         };
-        let centre: Vec<f32> = (0..n)
-            .map(|i| {
-                let [u, v] = uv(i);
-                let d2 = (u - 0.5).powi(2) + (v - 0.5).powi(2);
-                1.0 + CENTRE_GAIN * (-d2 / (2.0 * CENTRE_SIGMA * CENTRE_SIGMA)).exp()
-            })
-            .collect();
-        let face: Vec<f32> = (0..n)
-            .map(|i| {
-                ellipses
-                    .iter()
-                    .map(|e| e.membership(uv(i)))
-                    .fold(0.0, f32::max)
-            })
-            .collect();
+        let centre: Vec<f32> = Vec::from_fn(n, |i| {
+            let [u, v] = uv(i);
+            let d2 = (u - 0.5).powi(2) + (v - 0.5).powi(2);
+            1.0 + CENTRE_GAIN * (-d2 / (2.0 * CENTRE_SIGMA * CENTRE_SIGMA)).exp()
+        });
+        let face: Vec<f32> = Vec::from_fn(n, |i| {
+            ellipses
+                .iter()
+                .map(|e| e.membership(uv(i)))
+                .fold(0.0, f32::max)
+        });
         let centre_total: f64 = centre.iter().map(|&c| f64::from(c)).sum();
         let face_total: f64 = face.iter().map(|&f| f64::from(f)).sum();
         let share = if face_total > 0.0 {

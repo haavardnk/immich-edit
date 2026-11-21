@@ -375,23 +375,19 @@ mod tests {
 
     fn grained(side: usize, e: &EffectsEdits, output_scale: f32) -> Vec<f32> {
         let field = GrainField::new(e, None, (side, side), output_scale);
-        (0..side * side)
-            .map(|i| field.at(i % side, i / side))
-            .collect()
+        Vec::from_fn(side * side, |i| field.at(i % side, i / side))
     }
 
     fn box_downscale(full: &[f32], side: usize, k: usize) -> Vec<f32> {
         let out = side / k;
-        (0..out * out)
-            .map(|i| {
-                let oy = i / out;
-                let ox = i % out;
-                let sum: f32 = (0..k * k)
-                    .map(|j| full[(oy * k + j / k) * side + ox * k + j % k])
-                    .sum();
-                sum / (k * k) as f32
-            })
-            .collect()
+        Vec::from_fn(out * out, |i| {
+            let oy = i / out;
+            let ox = i % out;
+            let sum: f32 = (0..k * k)
+                .map(|j| full[(oy * k + j / k) * side + ox * k + j % k])
+                .sum();
+            sum / (k * k) as f32
+        })
     }
 
     fn std_dev(v: &[f32]) -> f32 {

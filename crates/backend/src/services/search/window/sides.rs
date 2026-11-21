@@ -67,9 +67,9 @@ mod tests {
     use super::*;
 
     fn assets(count: usize) -> Vec<AssetSummary> {
-        (0..count)
-            .map(|_| serde_json::from_value(json!({ "id": Uuid::new_v4() })).unwrap())
-            .collect()
+        Vec::from_fn(count, |_| {
+            serde_json::from_value(json!({ "id": Uuid::new_v4() })).unwrap()
+        })
     }
 
     fn ids(assets: &[AssetSummary]) -> Vec<Uuid> {

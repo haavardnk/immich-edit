@@ -1,3 +1,4 @@
+use std::mem::DropGuard;
 use std::time::Duration;
 
 use axum::Json;
@@ -18,7 +19,7 @@ use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::preview_meta::PreviewMeta;
 use crate::services::preview_scopes::ScopeKind;
 use crate::services::render::{RenderError, RenderIdentity, TimedRender};
-use crate::services::render_queue::{CancelOnDrop, RenderKey, RenderLane};
+use crate::services::render_queue::{RenderKey, RenderLane, cancel_on_drop};
 use crate::state::AppState;
 
 const META_HEADER: &str = "x-preview-meta-id";
@@ -245,9 +246,9 @@ async fn render_to_response(
         opts,
         Some(token.clone()),
     );
-    let guard = CancelOnDrop::new(token);
+    let guard = cancel_on_drop(token);
     let result = state.queue.enqueue::<_, _, RenderError>(key, work).await;
-    guard.disarm();
+    DropGuard::dismiss(guard);
     let TimedRender {
         image: rendered,
         wall,

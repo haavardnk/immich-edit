@@ -11,12 +11,10 @@ fn hash(i: usize) -> f32 {
 }
 
 fn textured(w: usize, h: usize) -> Vec<f32> {
-    (0..w * h)
-        .map(|i| {
-            let (x, y) = ((i % w) as f32, (i / w) as f32);
-            0.2 + 0.1 * (x * 0.07).sin() * (y * 0.05).cos() + 0.01 * hash(i)
-        })
-        .collect()
+    Vec::from_fn(w * h, |i| {
+        let (x, y) = ((i % w) as f32, (i / w) as f32);
+        0.2 + 0.1 * (x * 0.07).sin() * (y * 0.05).cos() + 0.01 * hash(i)
+    })
 }
 
 fn star(data: &mut [f32], w: usize, center: [f32; 2], sigma: f32, peak: f32) {

@@ -81,7 +81,7 @@ fn ai_denoise_textures_stay_inside_the_texture_budget() {
     let Some(renderer) = try_renderer_with(texture_cache(BUDGET)) else {
         return;
     };
-    let frames: Vec<RawFrame> = (0..6).map(|_| as_raw(noisy_frame(96, 64))).collect();
+    let frames: Vec<RawFrame> = Vec::from_fn(6, |_| as_raw(noisy_frame(96, 64)));
     let edits = ai_denoise_edits(80.0, 20.0, 0.0);
     for (key, frame) in (51..).zip(&frames) {
         renderer
@@ -109,7 +109,7 @@ fn stage_textures_stay_inside_the_texture_budget() {
     let Some(renderer) = try_renderer_with(texture_cache(BUDGET)) else {
         return;
     };
-    let frames: Vec<RawFrame> = (0..6).map(|_| synthetic_frame(96, 64)).collect();
+    let frames: Vec<RawFrame> = Vec::from_fn(6, |_| synthetic_frame(96, 64));
     let edits = nr_edits();
     let opts = rgb8_opts(96);
     for frame in &frames {
@@ -131,7 +131,7 @@ fn a_large_budget_keeps_more_than_two_stage_textures() {
     let Some(renderer) = try_renderer() else {
         return;
     };
-    let frames: Vec<RawFrame> = (0..4).map(|_| synthetic_frame(96, 64)).collect();
+    let frames: Vec<RawFrame> = Vec::from_fn(4, |_| synthetic_frame(96, 64));
     let edits = nr_edits();
     let opts = rgb8_opts(96);
 

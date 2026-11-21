@@ -95,9 +95,7 @@ mod tests {
     fn refined_depth_snaps_to_the_image_edge() {
         let (w, h) = (96usize, 32usize);
         let edge = 48usize;
-        let guide: Vec<f32> = (0..w * h)
-            .map(|i| if i % w < edge { 0.8 } else { 0.2 })
-            .collect();
+        let guide: Vec<f32> = Vec::from_fn(w * h, |i| if i % w < edge { 0.8 } else { 0.2 });
         let coarse: Vec<f32> = (0..w * h)
             .map(|i| (((i % w) as f32 - edge as f32 + 12.0) / 24.0).clamp(0.0, 1.0))
             .map(|t| 1.0 - t)

@@ -71,7 +71,7 @@ fn map_covers_its_half_open_rect_at_its_pitch() {
 fn map_plane_uses_the_absolute_plane_index() {
     let shared = map([0, 0, 1, 1], [1, 2], [1, 1], [1, 1], vec![2.0]);
     assert_eq!(
-        (0..4).map(|p| shared.map_plane(p)).collect::<Vec<_>>(),
+        Vec::from_fn(4, |p| shared.map_plane(p)),
         vec![None, Some(0), Some(0), None]
     );
     let split = map([0, 0, 1, 1], [0, 3], [1, 1], [1, 1], vec![2.0, 3.0, 4.0]);
@@ -195,9 +195,8 @@ fn gains_after_the_warp_are_evaluated_where_the_warp_moves_each_site() {
 fn stacked_gains_stay_finite() {
     let huge = map([0, 0, 2, 2], [0, 1], [1, 1], [1, 1], vec![1000.0]);
     let zero = map([0, 0, 2, 2], [0, 1], [1, 1], [1, 1], vec![0.0]);
-    let mut ops: Vec<(OpcodeList, Gain)> = (0..40)
-        .map(|_| (OpcodeList::Two, Gain::Map(huge.clone())))
-        .collect();
+    let mut ops: Vec<(OpcodeList, Gain)> =
+        Vec::from_fn(40, |_| (OpcodeList::Two, Gain::Map(huge.clone())));
     ops.push((OpcodeList::Two, Gain::Map(zero)));
     let mut rgb = vec![1.0f32; 2 * 2 * 3];
     gains(ops).apply_rgb(&mut rgb, 2, 2, None);

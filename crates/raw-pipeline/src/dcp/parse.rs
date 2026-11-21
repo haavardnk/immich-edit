@@ -272,12 +272,8 @@ impl<'a> Tiff<'a> {
         let base = self.value_base(e)?;
         let n = e.count as usize;
         let out = match e.typ {
-            3 => (0..n)
-                .map(|i| read_u16(self.data, base + i * 2, self.le) as u32)
-                .collect(),
-            4 => (0..n)
-                .map(|i| read_u32(self.data, base + i * 4, self.le))
-                .collect(),
+            3 => Vec::from_fn(n, |i| read_u16(self.data, base + i * 2, self.le) as u32),
+            4 => Vec::from_fn(n, |i| read_u32(self.data, base + i * 4, self.le)),
             _ => return None,
         };
         Some(out)
@@ -287,29 +283,21 @@ impl<'a> Tiff<'a> {
         let base = self.value_base(e)?;
         let n = e.count as usize;
         let out = match e.typ {
-            3 => (0..n)
-                .map(|i| read_u16(self.data, base + i * 2, self.le) as f32)
-                .collect(),
-            4 => (0..n)
-                .map(|i| read_u32(self.data, base + i * 4, self.le) as f32)
-                .collect(),
-            5 => (0..n)
-                .map(|i| {
-                    let num = read_u32(self.data, base + i * 8, self.le) as f32;
-                    let den = read_u32(self.data, base + i * 8 + 4, self.le) as f32;
-                    if den == 0.0 { 0.0 } else { num / den }
-                })
-                .collect(),
-            10 => (0..n)
-                .map(|i| {
-                    let num = read_i32(self.data, base + i * 8, self.le) as f32;
-                    let den = read_i32(self.data, base + i * 8 + 4, self.le) as f32;
-                    if den == 0.0 { 0.0 } else { num / den }
-                })
-                .collect(),
-            11 => (0..n)
-                .map(|i| f32::from_bits(read_u32(self.data, base + i * 4, self.le)))
-                .collect(),
+            3 => Vec::from_fn(n, |i| read_u16(self.data, base + i * 2, self.le) as f32),
+            4 => Vec::from_fn(n, |i| read_u32(self.data, base + i * 4, self.le) as f32),
+            5 => Vec::from_fn(n, |i| {
+                let num = read_u32(self.data, base + i * 8, self.le) as f32;
+                let den = read_u32(self.data, base + i * 8 + 4, self.le) as f32;
+                if den == 0.0 { 0.0 } else { num / den }
+            }),
+            10 => Vec::from_fn(n, |i| {
+                let num = read_i32(self.data, base + i * 8, self.le) as f32;
+                let den = read_i32(self.data, base + i * 8 + 4, self.le) as f32;
+                if den == 0.0 { 0.0 } else { num / den }
+            }),
+            11 => Vec::from_fn(n, |i| {
+                f32::from_bits(read_u32(self.data, base + i * 4, self.le))
+            }),
             _ => return None,
         };
         Some(out)

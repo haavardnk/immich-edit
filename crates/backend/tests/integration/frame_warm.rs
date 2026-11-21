@@ -173,7 +173,7 @@ async fn warm_takes_one_or_two_assets() {
     let server = MockServer::start().await;
     let app = seed_and_wrap(&server, test_state(&server).await).await;
     for count in [0, 3] {
-        let ids: Vec<Uuid> = (0..count).map(|_| Uuid::new_v4()).collect();
+        let ids: Vec<Uuid> = Vec::from_fn(count, |_| Uuid::new_v4());
         let resp = app.clone().oneshot(warm(&ids)).await.unwrap();
         if resp.status() != StatusCode::BAD_REQUEST {
             panic!("{count} ids answered {}", resp.status());

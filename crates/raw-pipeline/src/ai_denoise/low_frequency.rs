@@ -43,20 +43,18 @@ impl Grid {
     }
 
     fn smoothed(&self) -> Self {
-        let cells = (0..self.rows * self.cols)
-            .map(|cell| {
-                let (gy, gx) = (cell / self.cols, cell % self.cols);
-                let ys = gy.saturating_sub(1)..=(gy + 1).min(self.rows - 1);
-                let xs = gx.saturating_sub(1)..=(gx + 1).min(self.cols - 1);
-                let count = (ys.clone().count() * xs.clone().count()) as f32;
-                let sum = ys
-                    .flat_map(|y| xs.clone().map(move |x| y * self.cols + x))
-                    .fold([0.0f32; 3], |acc, i| {
-                        std::array::from_fn(|c| acc[c] + self.cells[i][c])
-                    });
-                sum.map(|s| s / count)
-            })
-            .collect();
+        let cells = Vec::from_fn(self.rows * self.cols, |cell| {
+            let (gy, gx) = (cell / self.cols, cell % self.cols);
+            let ys = gy.saturating_sub(1)..=(gy + 1).min(self.rows - 1);
+            let xs = gx.saturating_sub(1)..=(gx + 1).min(self.cols - 1);
+            let count = (ys.clone().count() * xs.clone().count()) as f32;
+            let sum = ys
+                .flat_map(|y| xs.clone().map(move |x| y * self.cols + x))
+                .fold([0.0f32; 3], |acc, i| {
+                    std::array::from_fn(|c| acc[c] + self.cells[i][c])
+                });
+            sum.map(|s| s / count)
+        });
         Self { cells, ..*self }
     }
 

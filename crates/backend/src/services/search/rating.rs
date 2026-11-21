@@ -245,9 +245,7 @@ mod tests {
     #[tokio::test]
     async fn rating_window_matches_the_full_feed_around_the_anchor() {
         let stars = [None, Some(-1), Some(1), Some(3), Some(3), Some(5)];
-        let assets: Vec<Rated> = (0..60)
-            .map(|i| (stars[i % stars.len()], Uuid::new_v4()))
-            .collect();
+        let assets: Vec<Rated> = Vec::from_fn(60, |i| (stars[i % stars.len()], Uuid::new_v4()));
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/search/metadata"))

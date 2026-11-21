@@ -225,9 +225,9 @@ mod tests {
             })
             .collect();
         let mut image = LinearImage::new(rgb, SIZE, SIZE);
-        let depth: Vec<u8> = (0..SIZE * SIZE)
-            .map(|i| if inside(i % SIZE, i / SIZE) { 255 } else { 100 })
-            .collect();
+        let depth: Vec<u8> = Vec::from_fn(SIZE * SIZE, |i| {
+            if inside(i % SIZE, i / SIZE) { 255 } else { 100 }
+        });
         let rasters = RasterMap::from([(
             "depth".to_string(),
             Arc::new(MaskRaster::new(SIZE as u32, SIZE as u32, depth).unwrap()),

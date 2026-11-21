@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn bindings_are_bounded() {
-        let keys: Vec<String> = (0..17).map(|n| format!("F{n}")).collect();
+        let keys: Vec<String> = Vec::from_fn(17, |n| format!("F{n}"));
         let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
         assert!(shortcuts(&bind(&[("gridExtend", &keys[..16])])).is_ok());
         assert!(

@@ -151,8 +151,8 @@ async fn ten_thousand_photos_are_counted_in_one_lookup() {
 async fn a_lookup_refuses_bad_ids_and_too_many_presets() {
     let conflicts = Conflicts::start(true).await;
     let one = [master().to_string()];
-    let presets: Vec<String> = (0..17).map(|i| format!("P{i}")).collect();
-    let too_many: Vec<String> = (0..10_001).map(|_| Uuid::new_v4().to_string()).collect();
+    let presets: Vec<String> = Vec::from_fn(17, |i| format!("P{i}"));
+    let too_many: Vec<String> = Vec::from_fn(10_001, |_| Uuid::new_v4().to_string());
 
     for body in [
         json!({ "asset_ids": ["not-a-uuid"] }),

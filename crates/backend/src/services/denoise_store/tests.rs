@@ -176,12 +176,10 @@ async fn a_plane_larger_than_the_budget_is_refused() {
     let k = key(11);
     let (w, h) = (800, 800);
     let mut seed = 0x9e37_79b9_u32;
-    let noise = (0..w * h * 3)
-        .map(|_| {
-            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            0x3000 + (seed >> 22) as u16
-        })
-        .collect();
+    let noise = Vec::from_fn(w * h * 3, |_| {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        0x3000 + (seed >> 22) as u16
+    });
     let large = DenoisePlane::new(k.plane_id(), w, h, noise).unwrap();
     let ticket = store.ticket(k.owner).await;
     let error = store.put(k.clone(), large, ticket).await.unwrap_err();
