@@ -1,3 +1,4 @@
+import { album as albumFixture } from '#lib/testing/albums.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,18 +9,10 @@ const h = vi.hoisted(() => ({
 vi.mock('#lib/api/albums.ts', () => ({ albumsWithAsset: h.albumsWithAsset }));
 
 const A = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const B = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
 function album(id: string, albumName: string): AlbumSummary {
-  return {
-    id,
-    albumName,
-    assetCount: 1,
-    albumThumbnailAssetId: null,
-    updatedAt: null,
-    ownerId: null,
-    shared: false,
-    endDate: null
-  };
+  return albumFixture(id, { albumName, assetCount: 1 });
 }
 
 beforeEach(() => {
@@ -65,6 +58,21 @@ describe('asset albums', () => {
     answer([album('1', 'Old')]);
     await Promise.all([stale, fresh]);
     expect(albums.albumsOf(A)?.map((a) => a.id)).toEqual(['2']);
+  });
+
+  it('forgets every photo and drops loads still running on clear', async () => {
+    let answer: (albums: AlbumSummary[]) => void = () => {};
+    h.albumsWithAsset
+      .mockResolvedValueOnce([album('1', 'Bergen')])
+      .mockImplementationOnce(() => new Promise((done) => (answer = done)));
+    const albums = await store();
+    await albums.ensure(A);
+    const running = albums.ensure(B);
+    albums.clear();
+    answer([album('2', 'Gone')]);
+    await running;
+    expect(albums.albumsOf(A)).toBeNull();
+    expect(albums.albumsOf(B)).toBeNull();
   });
 
   it('keeps a failure until a retry', async () => {

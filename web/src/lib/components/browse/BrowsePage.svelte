@@ -36,6 +36,7 @@
     toolbar,
     emptyAction,
     bar,
+    titleActions,
     lead
   }: {
     title: string;
@@ -57,6 +58,7 @@
     toolbar?: Snippet;
     emptyAction?: Snippet;
     bar?: Snippet;
+    titleActions?: Snippet;
     lead?: Snippet;
   } = $props();
 
@@ -126,6 +128,7 @@
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}
         {bar}
+        {titleActions}
         onTrashRejected={trashRejects && assets.length > hiddenCount ? trashRejected : undefined}
       />
       {@render toolbar?.()}

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openBulkEdits, openBulkExport } from './browse';
-import { installMocks, json, numberedAssets } from './helpers';
+import { installMocks, json, mockAlbumSummary, numberedAssets } from './helpers';
 
 const ASSETS = numberedAssets(2);
 
@@ -112,12 +112,12 @@ test('the bulk bar rates and then clears the rating of a selection', async ({ pa
   await expect(bar.getByRole('radio', { name: '3 stars', exact: true })).not.toBeChecked();
 });
 
-const ALBUM = {
+const ALBUM = mockAlbumSummary({
   id: 'album-1',
   albumName: 'Review album',
-  assetCount: 2,
+  assetIds: ['a', 'b'],
   updatedAt: '2024-01-01T00:00:00Z'
-};
+});
 
 async function installAlbumMocks(page: Page): Promise<Array<{ method: string; ids: string[] }>> {
   const calls: Array<{ method: string; ids: string[] }> = [];

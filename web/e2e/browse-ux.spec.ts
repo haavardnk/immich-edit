@@ -1,17 +1,24 @@
 import { expect, test, type Locator } from '@playwright/test';
-import { ASSET_SUMMARY, installMocks, json, numberedAssets, openFilters } from './helpers';
+import {
+  ASSET_SUMMARY,
+  installMocks,
+  json,
+  mockAlbumSummary,
+  numberedAssets,
+  openFilters
+} from './helpers';
 
 const PAGED_ASSETS = numberedAssets(3);
 
 test('a cold album link keeps the albums section folded and leads back to the grid', async ({
   page
 }) => {
-  const album = {
+  const album = mockAlbumSummary({
     id: 'album-1',
     albumName: 'Review album',
-    assetCount: 1,
+    assetIds: ['a'],
     updatedAt: '2024-01-01T00:00:00Z'
-  };
+  });
   await installMocks(page);
   await page.route('**/api/albums', (route) => route.fulfill(json([album])));
   await page.route('**/api/albums/album-1', (route) => route.fulfill(json(album)));

@@ -47,6 +47,10 @@ class AssetAlbumsStore {
     return this.ensure(id);
   }
 
+  clear(): void {
+    this.forget([...Object.keys(this.#entries), ...this.#pending.keys()]);
+  }
+
   forget(ids: readonly string[]): void {
     const keys = new Set(ids.map(sourceId));
     if (keys.size === 0) return;

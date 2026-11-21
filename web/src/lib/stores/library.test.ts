@@ -3,6 +3,7 @@ import { createAlbum, listAlbums } from '#lib/api/albums.ts';
 import { listPeople, type PersonSummary } from '#lib/api/people.ts';
 import { folderPaths } from '#lib/api/folders.ts';
 import { searchStatistics } from '#lib/api/search.ts';
+import { album as albumFixture } from '#lib/testing/albums.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
 
 vi.mock('#lib/api/people.ts', () => ({ listPeople: vi.fn() }));
@@ -27,16 +28,7 @@ const person: PersonSummary = {
 };
 
 function album(albumName: string): AlbumSummary {
-  return {
-    id: albumName,
-    albumName,
-    assetCount: 0,
-    albumThumbnailAssetId: null,
-    updatedAt: null,
-    ownerId: 'user-me',
-    shared: false,
-    endDate: null
-  };
+  return albumFixture(albumName, { ownerId: 'user-me' });
 }
 
 async function load() {
@@ -120,15 +112,26 @@ describe('creating an album', () => {
     const library = await load();
     await library.ensure('albums');
 
-    const created = await library.createAlbum('Lofoten');
+    const created = await library.createAlbum('Lofoten', 'Winter light');
 
-    expect(createAlbum).toHaveBeenCalledWith('Lofoten');
+    expect(createAlbum).toHaveBeenCalledWith('Lofoten', 'Winter light');
     expect(created?.albumName).toBe('Lofoten');
     expect(library.albums.map((entry) => entry.albumName)).toEqual([
       'Archive',
       'Lofoten',
       'Norway'
     ]);
+  });
+
+  it('replaces an updated album and drops a removed one', async () => {
+    vi.mocked(listAlbums).mockResolvedValueOnce([album('Archive'), album('Norway')]);
+    const library = await load();
+    await library.ensure('albums');
+
+    library.putAlbum({ ...album('Norway'), albumName: 'Bergen' });
+    library.dropAlbum('Archive');
+
+    expect(library.albums.map((entry) => entry.albumName)).toEqual(['Bergen']);
   });
 
   it('reports a refused create and leaves the list alone', async () => {

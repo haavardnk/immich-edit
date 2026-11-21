@@ -29,7 +29,10 @@ test('the not-in-album filter is offered outside albums only', async ({ page }) 
   const bodies: Array<Record<string, unknown>> = [];
   const filterAt = (index: number) =>
     bodies.at(index)?.filter as { notInAlbum?: boolean; scope?: unknown } | undefined;
-  await installMocks(page, { onMetadata: (body) => void bodies.push(body) });
+  await installMocks(page, {
+    albums: [{ id: 'album-1', albumName: 'Review album', assetIds: [] }],
+    onMetadata: (body) => void bodies.push(body)
+  });
   await page.goto('/photos');
 
   const panel = await openFilters(page, 'Library', 'Albums');
