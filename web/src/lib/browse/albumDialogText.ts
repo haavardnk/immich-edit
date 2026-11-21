@@ -1,15 +1,8 @@
 import { otherMembers } from '#lib/browse/albumRole.ts';
 import { albumPhotos, ownerName } from '#lib/browse/albumSharing.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
+import type { DialogText, DialogTextPart } from '#lib/browse/dialogText.ts';
 import { countOf } from '#lib/utils/plural.ts';
-
-export type AlbumTextPart = string | { strong: string };
-
-export interface AlbumDialogText {
-  title: string;
-  confirm: string;
-  lines: AlbumTextPart[][];
-}
 
 export type AlbumConfirmKind = 'delete' | 'leave';
 
@@ -23,9 +16,9 @@ function firstName(name: string): string {
   return name.split(/\s+/)[0] ?? name;
 }
 
-export function deleteAlbumText(album: AlbumSummary, userId: string | null): AlbumDialogText {
+export function deleteAlbumText(album: AlbumSummary, userId: string | null): DialogText {
   const others = otherMembers(album, userId);
-  const lines: AlbumTextPart[][] = [
+  const lines: DialogTextPart[][] = [
     ['Immich deletes the album ', { strong: album.albumName }, keptPhotos(album.assetCount)]
   ];
   if (others > 0) {
@@ -37,7 +30,7 @@ export function deleteAlbumText(album: AlbumSummary, userId: string | null): Alb
   return { title: 'Delete album', confirm: 'Delete album', lines };
 }
 
-export function leaveAlbumText(album: AlbumSummary): AlbumDialogText {
+export function leaveAlbumText(album: AlbumSummary): DialogText {
   const owner = ownerName(album);
   const by = owner ? `, shared by ${owner}` : '';
   const short = owner ? firstName(owner) : 'the owner';

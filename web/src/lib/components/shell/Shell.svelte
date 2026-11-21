@@ -14,6 +14,8 @@
   import JobsTabStatus from '#lib/components/jobs/JobsTabStatus.svelte';
   import AlbumConfirmDialog from '#lib/components/library/AlbumConfirmDialog.svelte';
   import AlbumDetailsDialog from '#lib/components/library/AlbumDetailsDialog.svelte';
+  import TagConfirmDialog from '#lib/components/library/TagConfirmDialog.svelte';
+  import TagDetailsDialog from '#lib/components/library/TagDetailsDialog.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
@@ -93,6 +95,8 @@
 <TrashDialog />
 <AlbumDetailsDialog />
 <AlbumConfirmDialog />
+<TagDetailsDialog />
+<TagConfirmDialog />
 <JobsOverlay />
 <JobsTabStatus />
 <SignOutConfirm />

@@ -19,6 +19,7 @@ vi.mock('#lib/api/immich.ts', () => ({
   getImmichCapabilities: vi.fn().mockResolvedValue({
     immich_version: '3.3.0',
     structured_search: true,
+    tag_rename: true,
     smart_search: true,
     ocr: true,
     trash: false,

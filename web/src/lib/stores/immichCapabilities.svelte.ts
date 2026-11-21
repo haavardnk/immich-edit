@@ -2,6 +2,7 @@ import { getImmichCapabilities } from '#lib/api/immich.ts';
 
 class ImmichCapabilitiesStore {
   structuredSearch = $state(false);
+  tagRename = $state(false);
   smartSearch = $state(true);
   ocr = $state(true);
   trash = $state(false);
@@ -13,6 +14,7 @@ class ImmichCapabilitiesStore {
     try {
       const capabilities = await getImmichCapabilities();
       this.structuredSearch = capabilities.structured_search;
+      this.tagRename = capabilities.tag_rename;
       this.smartSearch = capabilities.smart_search;
       this.ocr = capabilities.ocr;
       this.trash = capabilities.trash;
@@ -21,6 +23,7 @@ class ImmichCapabilitiesStore {
       this.version = capabilities.immich_version;
     } catch {
       this.structuredSearch = false;
+      this.tagRename = false;
     }
   };
 }

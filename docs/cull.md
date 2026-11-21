@@ -24,6 +24,10 @@ its sub-tags, the filter keeps each match under its parents, and the page sorts 
 count. A tag's count includes its sub-tags, and its page shows its path and its sub-tags. The
 `immich-edit/` tags behind rejects and labels are not listed.
 
+**Create tag** (+) adds a tag, and **Tag actions** (⋯, a right-click or a long press) renames a
+tag, changes its color, adds a sub-tag or deletes it. Deleting removes the tag and its sub-tags
+from every photo; the photos stay in your library. Renaming needs Immich 3.3 or later.
+
 **Album actions** (⋯ on an album, or right-click it) renames an album, edits its description,
 deletes it or leaves one shared with you. The photos stay in your library. In an album you own or
 edit, **Set as album cover** in the loupe's ⋯ menu makes the photo on screen its cover.

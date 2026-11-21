@@ -1,17 +1,14 @@
 import type { AlbumPatch, AlbumSummary } from '#lib/types/album.ts';
+import { charCount } from '#lib/utils/charCount.ts';
+import { displayNameTooLong } from '#lib/utils/displayName.ts';
 
-export const ALBUM_NAME_MAX = 80;
 export const ALBUM_DESCRIPTION_MAX = 2000;
-
-export function charCount(text: string): number {
-  return Array.from(text).length;
-}
 
 export function validAlbumDetails(name: string, description: string): boolean {
   const trimmed = name.trim();
   return (
     trimmed.length > 0 &&
-    charCount(trimmed) <= ALBUM_NAME_MAX &&
+    !displayNameTooLong(trimmed) &&
     charCount(description.trim()) <= ALBUM_DESCRIPTION_MAX
   );
 }

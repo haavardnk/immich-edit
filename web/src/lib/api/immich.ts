@@ -4,6 +4,7 @@ export interface ImmichCapabilities {
   immich_version: string | null;
   external_host: string | null;
   structured_search: boolean;
+  tag_rename: boolean;
   smart_search: boolean;
   ocr: boolean;
   trash: boolean;

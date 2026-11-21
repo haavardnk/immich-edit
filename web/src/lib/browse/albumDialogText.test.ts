@@ -1,13 +1,14 @@
 import { album } from '#lib/testing/albums.ts';
 import type { AlbumMember } from '#lib/types/album.ts';
 import { describe, expect, it } from 'vitest';
-import { deleteAlbumText, leaveAlbumText, type AlbumTextPart } from './albumDialogText';
+import type { DialogTextPart } from '#lib/browse/dialogText.ts';
+import { deleteAlbumText, leaveAlbumText } from './albumDialogText';
 
 const ME = 'user-me';
 const ANNE: AlbumMember = { userId: 'user-anne', name: 'Anne Berg', role: 'owner' };
 const MINE: AlbumMember = { userId: ME, name: 'Me', role: 'owner' };
 
-function plain(lines: AlbumTextPart[][]): string[] {
+function plain(lines: DialogTextPart[][]): string[] {
   return lines.map((line) =>
     line.map((part) => (typeof part === 'string' ? part : `*${part.strong}*`)).join('')
   );

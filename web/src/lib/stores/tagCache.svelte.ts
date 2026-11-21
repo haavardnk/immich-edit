@@ -35,6 +35,11 @@ class TagCache {
     }
   }
 
+  clear(): void {
+    this.#cache = {};
+    this.#order = [];
+  }
+
   update(id: string, change: TagChange): void {
     const tags = this.#cache[id];
     if (tags) this.set(id, change(tags));

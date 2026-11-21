@@ -51,6 +51,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Virtual copies | ✓ Yes | Independent local edits without duplicating the original |
 | Color labels | ✓ Yes | Red, yellow, green, blue and purple, one per photo; `6` to `9` set the first four; see [rate, reject and label](cull.md#rate-reject-and-label) |
 | Rename, describe, set the cover of, delete, or leave Immich albums | ✓ Yes | **Album actions** (⋯) on an album card or the album page, right-click, or a long press on touch; owners and editors rename and describe, owners delete, other members leave; photos stay in the library; owners and editors pick the cover with **Set as album cover** in the loupe's ⋯ menu |
+| Create, rename, recolor, or delete Immich tags | ✓ Yes | **Create tag** (+) on **Tags**, or **Tag actions** (⋯) on a tag, its page, a right-click or a long press on touch: **Rename** and **Change color** share one dialog, **New sub-tag** creates a tag inside it, and **Delete tag** removes the tag and its sub-tags from every photo; renaming needs Immich 3.3, and tags cannot move to another parent or merge |
 | Share Immich albums | ✗ No | Existing albums can receive photos and exported edits |
 | Stack an exported edit with its original | ✓ Yes | Either asset can be the stack primary |
 | Replace the original with the exported edit | ✓ Yes | Moves albums, shared links, favorite and stack to the upload and trashes the original; see [replace the original](export.md#replace-the-original) |

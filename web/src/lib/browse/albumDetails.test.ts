@@ -1,24 +1,18 @@
 import { album } from '#lib/testing/albums.ts';
 import { describe, expect, it } from 'vitest';
-import {
-  ALBUM_DESCRIPTION_MAX,
-  ALBUM_NAME_MAX,
-  albumDetailsPatch,
-  charCount,
-  validAlbumDetails
-} from './albumDetails';
+import { ALBUM_DESCRIPTION_MAX, albumDetailsPatch, validAlbumDetails } from './albumDetails';
+import { DISPLAY_NAME_MAX } from '#lib/utils/displayName.ts';
 
 describe('validAlbumDetails', () => {
   it('needs a name within the caps', () => {
     expect(validAlbumDetails('Norway', '')).toBe(true);
     expect(validAlbumDetails('   ', '')).toBe(false);
-    expect(validAlbumDetails('n'.repeat(ALBUM_NAME_MAX), '')).toBe(true);
-    expect(validAlbumDetails('n'.repeat(ALBUM_NAME_MAX + 1), '')).toBe(false);
+    expect(validAlbumDetails('n'.repeat(DISPLAY_NAME_MAX), '')).toBe(true);
+    expect(validAlbumDetails('n'.repeat(DISPLAY_NAME_MAX + 1), '')).toBe(false);
     expect(validAlbumDetails('Norway', 'd'.repeat(ALBUM_DESCRIPTION_MAX + 1))).toBe(false);
   });
 
   it('counts characters, not UTF-16 units', () => {
-    expect(charCount('🏔️')).toBe(2);
     expect(validAlbumDetails('Norway', '🏔'.repeat(ALBUM_DESCRIPTION_MAX))).toBe(true);
   });
 });
