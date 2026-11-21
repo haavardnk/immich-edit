@@ -24,6 +24,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Thumbnail size and info controls | ✓ Yes | Four remembered sizes remain available on narrow screens; thumbnails show nothing, badges, or badges with filename and date without hovering |
 | Filter panel summaries | ✓ Yes | Folded sections sum up their active filters, and **Reset** clears them all; on touch, **View & filters** also holds sort and thumbnails |
 | Filter long sidebar lists | ✓ Yes | A field above a long list, such as tags, narrows it by name |
+| Tag tree | ✓ Yes | Tags show as a tree in the sidebar and on **Tags**, with their Immich color, photo counts that include sub-tags, and a sort by name or photo count; a tag page shows its path and sub-tags |
 | Windowed timeline | ✓ Yes | The grid loads the part of the library you scroll or jump to |
 | Day headers | ✓ Yes | Grouped by capture day when sorted by date taken; a header selects its day |
 | Date scrubber | ✓ Yes | Jumps to any month in a grid sorted by date taken |

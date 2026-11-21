@@ -33,7 +33,7 @@
 
 <BrowsePage
   {feed}
-  parent={ALBUMS}
+  parents={[ALBUMS]}
   title={album.current?.albumName ?? 'Album'}
   loading={album.loading && !album.current}
   loadingLabel="Loading album…"

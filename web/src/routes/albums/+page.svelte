@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import AlbumCard from '#lib/components/library/AlbumCard.svelte';
-  import AlbumSortMenu from '#lib/components/library/AlbumSortMenu.svelte';
   import ChoiceChips from '#lib/components/ChoiceChips.svelte';
   import CreateAlbum from '#lib/components/library/CreateAlbum.svelte';
   import LibraryLoad from '#lib/components/library/LibraryLoad.svelte';
   import ListFilterField from '#lib/components/library/ListFilterField.svelte';
   import ListFilterResults from '#lib/components/library/ListFilterResults.svelte';
+  import ListSortMenu from '#lib/components/library/ListSortMenu.svelte';
   import PageFrame from '#lib/components/shell/PageFrame.svelte';
   import { ALBUM_SCOPES, albumsInScope, type AlbumScope } from '#lib/browse/albumScope.ts';
-  import { sortAlbums, type AlbumSort } from '#lib/browse/albumSort.ts';
+  import { ALBUM_SORTS, sortAlbums, type AlbumSort } from '#lib/browse/albumSort.ts';
   import { ListFilterState } from '#lib/browse/listFilter.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { library } from '#lib/stores/library.svelte.ts';
@@ -37,7 +37,12 @@
 </script>
 
 {#snippet actions()}
-  <AlbumSortMenu value={sort} onChange={(next) => (sort = next)} />
+  <ListSortMenu
+    noun="albums"
+    options={ALBUM_SORTS}
+    value={sort}
+    onChange={(next) => (sort = next)}
+  />
   <CreateAlbum />
 {/snippet}
 

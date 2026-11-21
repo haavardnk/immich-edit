@@ -1,16 +1,24 @@
 import type { TagSummary } from '#lib/api/tags.ts';
 import {
+  ancestorKeys,
+  branchKeys,
   buildTagTree,
   chipTagPath,
   descendantCount,
+  findTagNode,
   hasExactTag,
+  matchedRows,
   matchTags,
   mixedPaths,
+  sortTagTree,
   splitTagValue,
+  tagAncestors,
   tagCheck,
   tagPathLabel,
   tagRows,
-  type TagNode
+  treeRows,
+  type TagNode,
+  type TagTreeRow
 } from '#lib/browse/tagTree.ts';
 import { describe, expect, it } from 'vitest';
 
@@ -152,5 +160,78 @@ describe('hasExactTag', () => {
   it('compares the whole value without case', () => {
     expect(hasExactTag(TAGS, ' subjects/FJORD ')).toBe(true);
     expect(hasExactTag(TAGS, 'Fjord')).toBe(false);
+  });
+});
+
+function counted(id: string, value: string, assetCount: number): TagSummary {
+  return { ...tag(id, value), assetCount };
+}
+
+function names(rows: readonly TagTreeRow[]): string[] {
+  return rows.map(({ node, depth, open, forced, dimmed }) =>
+    [' '.repeat(depth * 2), node.name, open ? (forced ? ' =' : ' v') : '', dimmed ? ' ~' : ''].join(
+      ''
+    )
+  );
+}
+
+describe('tagAncestors', () => {
+  it('lists the tags above a tag from the top down and skips missing levels', () => {
+    const senja = TAGS.find((t) => t.id === 'senja');
+    if (!senja) throw new Error('senja missing');
+    expect(tagAncestors(TAGS, senja).map((t) => t.id)).toEqual(['places', 'norway']);
+    const orphan = tag('orphan', 'Gone/Orphan');
+    expect(tagAncestors(TAGS, orphan)).toEqual([]);
+  });
+});
+
+describe('library tree', () => {
+  const tree = buildTagTree(TAGS);
+  const openOnly =
+    (...keys: string[]) =>
+    (key: string): boolean =>
+      keys.includes(key);
+
+  it('sorts siblings by photo count within their parent, names breaking ties', () => {
+    const sorted = sortTagTree(
+      buildTagTree([
+        counted('b', 'B', 5),
+        counted('a', 'A', 5),
+        counted('c', 'C', 9),
+        counted('c1', 'C/One', 1),
+        counted('c2', 'C/Two', 4)
+      ]),
+      'count'
+    );
+    expect(sorted.map((node) => node.name)).toEqual(['C', 'A', 'B']);
+    expect(sorted[0]?.children.map((node) => node.name)).toEqual(['Two', 'One']);
+  });
+
+  it('lists rows under open branches only', () => {
+    expect(names(treeRows(tree, openOnly('places')))).toEqual([
+      'aurora',
+      'Places v',
+      '  Iceland',
+      '  Norway',
+      'Subjects'
+    ]);
+  });
+
+  it('keys branches by tag id and finds the ancestors of a tag', () => {
+    expect(branchKeys(tree)).toEqual(['places', 'norway', 'subjects']);
+    expect(ancestorKeys(tree, 'senja')).toEqual(['places', 'norway']);
+    expect(ancestorKeys(tree, 'aurora')).toEqual([]);
+    expect(ancestorKeys(tree, 'missing')).toBeNull();
+    expect(findTagNode(tree, 'norway')?.children.length).toBe(2);
+  });
+
+  it('shows matches under dimmed open ancestors and keeps a matched parent folded', () => {
+    const rows = matchedRows(tree, new Set(['senja', 'norway', 'subjects']), openOnly());
+    expect(names(rows)).toEqual(['Places = ~', '  Norway =', '    Senja', 'Subjects']);
+  });
+
+  it('unfolds a matched parent the user opened while filtering', () => {
+    const rows = matchedRows(tree, new Set(['subjects']), openOnly('subjects'));
+    expect(names(rows)).toEqual(['Subjects v', '  Fjord']);
   });
 });

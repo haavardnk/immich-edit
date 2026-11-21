@@ -18,7 +18,8 @@
 
   let {
     title,
-    parent,
+    parents,
+    context,
     assets: listed = [],
     loading: pageLoading = false,
     feed,
@@ -40,7 +41,8 @@
     lead
   }: {
     title: string;
-    parent?: PageParent;
+    parents?: readonly PageParent[];
+    context?: string;
     assets?: AssetSummary[];
     loading?: boolean;
     feed?: BrowseFeed;
@@ -123,7 +125,8 @@
     {:else}
       <BrowseHeader
         {title}
-        {parent}
+        {parents}
+        {context}
         totalCount={headerTotal}
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}

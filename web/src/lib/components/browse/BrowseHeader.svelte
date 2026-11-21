@@ -11,7 +11,8 @@
 
   let {
     title,
-    parent,
+    parents,
+    context,
     totalCount,
     hiddenCount = 0,
     sortBasis = 'capture',
@@ -20,7 +21,8 @@
     onTrashRejected
   }: {
     title: string;
-    parent?: PageParent;
+    parents?: readonly PageParent[];
+    context?: string;
     totalCount?: number;
     hiddenCount?: number;
     sortBasis?: 'capture' | 'edit' | null;
@@ -44,7 +46,8 @@
 <PageHeader
   {badge}
   {title}
-  {parent}
+  {parents}
+  {context}
   {count}
   {bar}
   {titleActions}

@@ -8,7 +8,8 @@
 
   let {
     title,
-    parent,
+    parents = [],
+    context,
     count,
     badge,
     actions,
@@ -20,7 +21,8 @@
     selecting
   }: {
     title: string;
-    parent?: PageParent;
+    parents?: readonly PageParent[];
+    context?: string;
     count?: string;
     badge?: string;
     actions?: Snippet;
@@ -34,6 +36,7 @@
 
   const headerActions = $derived(layout.mode === 'touch' ? (touchActions ?? actions) : actions);
   const appBarActions = $derived(compactActions ?? touchActions);
+  const appBarLine = $derived([context, count].filter(Boolean).join(' · ') || undefined);
 </script>
 
 {#if selecting && layout.mode === 'touch'}
@@ -42,7 +45,7 @@
     {@render selecting()}
   </header>
 {:else if layout.compact}
-  <TouchAppBar {title} {count} actions={appBarActions} {titleActions} {bar} />
+  <TouchAppBar {title} count={appBarLine} actions={appBarActions} {titleActions} {bar} />
   {#if toolbar}
     <div class="flex shrink-0 flex-wrap items-center gap-2 px-4 py-1 sm:px-5">
       {@render toolbar()}
@@ -53,7 +56,7 @@
     class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5"
   >
     <div class="flex min-w-0 items-center gap-2 {toolbar ? 'shrink-0' : 'flex-1'}">
-      {#if parent}
+      {#each parents as parent (parent.href)}
         <a
           href={parent.href}
           class="shrink-0 rounded text-sm text-dark/65 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-primary"
@@ -66,7 +69,7 @@
           class="-mx-1 shrink-0 text-dark/45"
           aria-hidden="true"
         />
-      {/if}
+      {/each}
       <h1 class="truncate text-sm font-semibold text-light-950">{title}</h1>
       {#if count}
         <p
