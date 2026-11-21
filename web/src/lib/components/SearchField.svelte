@@ -46,23 +46,21 @@
 {/snippet}
 
 {#snippet clearButton(disabled: boolean)}
-  {#if value}
-    <IconButton
-      size="tiny"
-      shape="round"
-      variant="ghost"
-      color="secondary"
-      class="me-1"
-      icon={mdiCloseCircle}
-      title="Clear"
-      aria-label="Clear {label.toLowerCase()}"
-      {disabled}
-      onclick={() => {
-        set('');
-        ref?.focus();
-      }}
-    />
-  {/if}
+  <IconButton
+    size="tiny"
+    shape="round"
+    variant="ghost"
+    color="secondary"
+    class="me-1"
+    icon={mdiCloseCircle}
+    title="Clear"
+    aria-label="Clear {label.toLowerCase()}"
+    {disabled}
+    onclick={() => {
+      set('');
+      ref?.focus();
+    }}
+  />
 {/snippet}
 
 <TextInput
@@ -75,7 +73,7 @@
   {placeholder}
   aria-label={label}
   leadingIcon={searchIcon}
-  trailingIcon={clearButton}
+  trailingIcon={value ? clearButton : undefined}
   class="rounded-lg {inputSize}"
   oninput={(event: Event) => set((event.currentTarget as HTMLInputElement).value)}
   onkeydown={keydown}
