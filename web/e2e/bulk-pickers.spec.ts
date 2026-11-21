@@ -67,6 +67,27 @@ test('the album checklist stages adds and removals and applies them together', a
   await expect(page.locator('[data-bulk-pick]')).toHaveCount(0);
 });
 
+test('the albums page counts the photos just added to an album', async ({ page }) => {
+  await installMocks(page, {
+    assets: [FIRST, SECOND],
+    metadataPushConsented: true,
+    albums: [{ id: 'album-1', albumName: 'Test', assetIds: [] }]
+  });
+  await page.goto('/albums');
+  const card = page.getByRole('link', { name: /^Test/ });
+  await expect(card).toContainText('0 photos');
+  await page.getByRole('link', { name: 'Photos', exact: true }).click();
+  await pick(page, FIRST.originalFileName);
+  await pick(page, SECOND.originalFileName);
+  await page.getByRole('button', { name: 'Albums', exact: true }).click();
+  await row(page, 'Test').click();
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(page.getByText('Updated albums for 2 photos')).toBeVisible();
+
+  await page.getByRole('link', { name: /^Albums \d+$/ }).click();
+  await expect(card).toContainText('2 photos');
+});
+
 test('the tag checklist searches, adds one tag and removes another', async ({ page }) => {
   const changes: Array<{ tagId: string; assetId: string; added: boolean }> = [];
   await installMocks(page, {

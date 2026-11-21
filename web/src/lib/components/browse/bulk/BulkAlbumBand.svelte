@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { page } from '$app/state';
   import { listAlbums } from '#lib/api/albums.ts';
   import { assetThumbUrl } from '#lib/api/assets.ts';
   import { albumMembership } from '#lib/browse/bulk/albumMembership.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { nextStage, type Stage } from '#lib/browse/bulk/pickStage.ts';
   import { sourceId } from '#lib/browse/assetKey.ts';
+  import { viewedAlbumId } from '#lib/browse/viewedAlbum.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
@@ -22,7 +22,7 @@
 
   const ids = $derived([...selection.selected]);
   const total = $derived(new Set(ids.map(sourceId)).size);
-  const viewing = $derived(page.route.id === '/albums/[id]' ? (page.params.id ?? null) : null);
+  const viewing = $derived(viewedAlbumId());
   const items = $derived<PickItem[]>(
     albums.map((album) => ({
       id: album.id,

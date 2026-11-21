@@ -5,7 +5,7 @@ import {
   type ApplyPresetOptions,
   type Job
 } from '#lib/api/jobs.ts';
-import { changeAlbums } from '#lib/browse/bulk/bulkAlbums.ts';
+import { changeAlbums, removeFromViewedAlbum } from '#lib/browse/bulk/bulkAlbums.ts';
 import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
 import * as bulkMeta from '#lib/browse/bulkMeta.ts';
 import type { MultiMode } from '#lib/browse/compareEntry.ts';
@@ -17,6 +17,7 @@ import { selection } from '#lib/stores/selection.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
+import type { AlbumSummary } from '#lib/types/album.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 import { firstFocusable } from '#lib/utils/focusable.ts';
 import type { Attachment } from 'svelte/attachments';
@@ -69,6 +70,9 @@ class BulkActions {
     remove: readonly string[],
     viewing: string | null
   ): Promise<boolean> => this.#report((ids) => changeAlbums(ids, add, remove, viewing));
+
+  removeFromAlbum = (target: AlbumSummary): Promise<boolean> =>
+    this.#report((ids) => removeFromViewedAlbum(target, ids));
 
   changeTags = async (add: TagRef[], remove: TagRef[]): Promise<boolean> => {
     for (const tag of add) recentTags.record(tag);

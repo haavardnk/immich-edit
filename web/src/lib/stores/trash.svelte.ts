@@ -10,35 +10,11 @@ import {
   type TrashPlan,
   type TrashTarget
 } from '#lib/browse/trash.ts';
-import { browseView } from './browseView.svelte';
 import { browsing, type Removal } from './browsing.svelte';
 import { immichCapabilities } from './immichCapabilities.svelte';
 import { libraryChanged } from './libraryChange';
-import { selection } from './selection.svelte';
 import { toasts } from './toasts.svelte';
-
-function neighbourOf(id: string, gone: ReadonlySet<string>): string | null {
-  let next = browsing.nextOf(id);
-  while (next && gone.has(next.id)) next = browsing.nextOf(next.id);
-  if (next) return next.id;
-  let prev = browsing.prevOf(id);
-  while (prev && gone.has(prev.id)) prev = browsing.prevOf(prev.id);
-  return prev?.id ?? null;
-}
-
-function dropFromView(ids: ReadonlySet<string>): Removal {
-  const loupe = browseView.loupeId;
-  if (loupe && ids.has(loupe)) {
-    const next = neighbourOf(loupe, ids);
-    if (next) browseView.openLoupe(next);
-    else browseView.closeLoupe();
-  }
-  const active = browseView.activeId;
-  if (active && ids.has(active)) browseView.setActive(neighbourOf(active, ids));
-  selection.forget(ids);
-  libraryChanged();
-  return browsing.removeMany(ids);
-}
+import { dropFromView } from './viewRemoval';
 
 function withVersions(masters: readonly string[]): Set<string> {
   const trashed = new Set(masters);
