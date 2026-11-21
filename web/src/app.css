@@ -421,6 +421,11 @@
   border-color: var(--immich-ui-light-200);
 }
 
+[data-select-trigger]:not(:focus-visible),
+[data-date-field-input]:not(:focus-within) {
+  --tw-ring-shadow: 0 0 #0000;
+}
+
 .model-select [data-select-trigger] > div {
   background-color: var(--immich-ui-light-100);
 }

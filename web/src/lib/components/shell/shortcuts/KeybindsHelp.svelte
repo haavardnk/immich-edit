@@ -88,7 +88,7 @@
           placeholder="Filter shortcuts"
           aria-label="Filter shortcuts"
           leadingIcon={searchIcon}
-          class="bg-light-200! ring-transparent! focus-within:bg-light-200! focus-within:ring-primary!"
+          color="neutral"
         />
       </div>
       <Button

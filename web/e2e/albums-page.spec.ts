@@ -146,6 +146,30 @@ async function cancelWhileCreating(page: Page, press: (target: Locator) => Promi
   await expect(page).toHaveURL('/albums');
 }
 
+function placeholderFits(input: Locator): Promise<boolean> {
+  return input.evaluate((field: HTMLInputElement) => {
+    const probe = document.createElement('span');
+    probe.style.font = getComputedStyle(field).font;
+    probe.style.position = 'absolute';
+    probe.textContent = field.placeholder;
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return field.clientWidth >= width;
+  });
+}
+
+async function openManyAlbums(page: Page): Promise<void> {
+  const many: MockAlbum[] = Array.from({ length: 13 }, (_, i) => ({
+    id: `album-${i}`,
+    albumName: `Album ${i}`,
+    assetIds: ['a']
+  }));
+  await installMocks(page, { albums: many });
+  await page.goto('/albums');
+  await expect(page.getByRole('textbox', { name: 'Filter albums' })).toBeVisible();
+}
+
 test.describe('albums page on the desktop', () => {
   const click = (target: Locator) => target.click();
 
@@ -171,13 +195,7 @@ test.describe('albums page on the desktop', () => {
   });
 
   test('the title, count, chips and filter share one centred header row', async ({ page }) => {
-    const many: MockAlbum[] = Array.from({ length: 13 }, (_, i) => ({
-      id: `album-${i}`,
-      albumName: `Album ${i}`,
-      assetIds: ['a']
-    }));
-    await installMocks(page, { albums: many });
-    await page.goto('/albums');
+    await openManyAlbums(page);
     const header = page.locator('main header');
     const parts = [
       header.getByRole('heading', { name: 'Albums', level: 1 }),
@@ -193,6 +211,9 @@ test.describe('albums page on the desktop', () => {
       expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - middle)).toBeLessThanOrEqual(1);
     }
     await expect(header.getByText('13 albums', { exact: true })).toBeAttached();
+    const chips = await parts[2].boundingBox();
+    const field = await parts[3].locator('..').boundingBox();
+    expect(field?.height).toBe(chips?.height);
   });
 
   test('closing the dialog while the album is created stays on the albums page', async ({
@@ -242,6 +263,16 @@ test.describe('albums page on touch', { tag: '@touch' }, () => {
     await cancelWhileCreating(page, tap);
   });
 
+  test('the filter field matches the chips and fits its placeholder', async ({ page }) => {
+    await openManyAlbums(page);
+    const pill = await chip(page, 'All').boundingBox();
+    const input = page.getByRole('textbox', { name: 'Filter albums' });
+    const field = await input.locator('..').boundingBox();
+    expect(field?.height).toBe(pill?.height);
+    expect((await input.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect(await placeholderFits(input)).toBe(true);
+  });
+
   test('the account drawer names the Immich server for a non-admin', async ({ page }) => {
     await openAlbums(page, false);
     const panel = await openDrawer(page);
@@ -252,8 +283,39 @@ test.describe('albums page on touch', { tag: '@touch' }, () => {
   });
 });
 
+test.describe('albums page in phone portrait', { tag: ['@touch', '@phone'] }, () => {
+  test('the filter takes its own row, flush with the grid edges', async ({ page }) => {
+    await openManyAlbums(page);
+    const input = page.getByRole('textbox', { name: 'Filter albums' });
+    const field = await input.locator('..').boundingBox();
+    const edges = await cards(page).evaluateAll((links) => {
+      const boxes = links.map((link) => link.getBoundingClientRect());
+      return [
+        Math.min(...boxes.map((box) => box.left)),
+        Math.max(...boxes.map((box) => box.right))
+      ];
+    });
+    expect(Math.abs((field?.x ?? 0) - edges[0])).toBeLessThanOrEqual(1);
+    expect(Math.abs((field?.x ?? 0) + (field?.width ?? 0) - edges[1])).toBeLessThanOrEqual(1);
+    const pill = await chip(page, 'All').boundingBox();
+    expect(field?.y ?? 0).toBeGreaterThan((pill?.y ?? 0) + (pill?.height ?? 0));
+  });
+});
+
 test.describe('albums page in phone landscape', { tag: ['@touch', '@phone'] }, () => {
   test.use({ viewport: { width: 915, height: 412 } });
+
+  test('the filter shares the chip row and fits its placeholder', async ({ page }) => {
+    await openManyAlbums(page);
+    const pill = await chip(page, 'All').boundingBox();
+    const input = page.getByRole('textbox', { name: 'Filter albums' });
+    const field = await input.locator('..').boundingBox();
+    expect((field?.y ?? 0) + (field?.height ?? 0) / 2).toBeCloseTo(
+      (pill?.y ?? 0) + (pill?.height ?? 0) / 2,
+      0
+    );
+    expect(await placeholderFits(input)).toBe(true);
+  });
 
   test('keeps the chips, sort and plus button', async ({ page }) => {
     await openAlbums(page);
