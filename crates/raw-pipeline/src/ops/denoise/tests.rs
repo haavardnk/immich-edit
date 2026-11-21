@@ -21,14 +21,12 @@ fn gaussian(seed: u32) -> impl FnMut() -> f32 {
 
 fn noisy_image(w: usize, h: usize, sigma: f32) -> LinearImage {
     let mut gauss = gaussian(0x1234_5678);
-    let rgb = (0..w * h * 3)
-        .map(|i| {
-            let x = (i / 3) % w;
-            let base = if x < w / 2 { 0.2 } else { 0.6 };
-            let tint = [1.0, 0.8, 0.5][i % 3];
-            (base * tint + gauss() * sigma).max(0.0)
-        })
-        .collect();
+    let rgb = Vec::from_fn(w * h * 3, |i| {
+        let x = (i / 3) % w;
+        let base = if x < w / 2 { 0.2 } else { 0.6 };
+        let tint = [1.0, 0.8, 0.5][i % 3];
+        (base * tint + gauss() * sigma).max(0.0)
+    });
     LinearImage::new(rgb, w, h)
 }
 
@@ -42,9 +40,7 @@ fn atrous_matches_clamped_reference() {
         (9, 7, 2),
         (37, 29, 8),
     ] {
-        let src: Vec<f32> = (0..w * h)
-            .map(|i| ((i * 7919) % 97) as f32 / 97.0)
-            .collect();
+        let src: Vec<f32> = Vec::from_fn(w * h, |i| ((i * 7919) % 97) as f32 / 97.0);
         let mut dst = vec![0.0; w * h];
         let mut tmp = vec![0.0; w * h];
         atrous::smooth(&src, &mut dst, &mut tmp, w, h, step);

@@ -124,9 +124,9 @@ pub fn guided_filter(
     }
     let mean_a = box_blur(&a, w, h, radius);
     let mean_b = box_blur(&b, w, h, radius);
-    (0..w * h)
-        .map(|i| (mean_a[i] * guide[i] + mean_b[i]).clamp(0.0, 1.0))
-        .collect()
+    Vec::from_fn(w * h, |i| {
+        (mean_a[i] * guide[i] + mean_b[i]).clamp(0.0, 1.0)
+    })
 }
 
 fn edt_1d(f: &[f32], out: &mut [f32], v: &mut [usize], z: &mut [f32]) {
@@ -207,13 +207,11 @@ pub fn grow(mask: &[f32], w: usize, h: usize, pixels: f32) -> Vec<f32> {
     let outside: Vec<bool> = inside.iter().map(|v| !*v).collect();
     let d_out = distance_transform(&inside, w, h);
     let d_in = distance_transform(&outside, w, h);
-    (0..w * h)
-        .map(|i| {
-            let signed = if inside[i] { -d_in[i] } else { d_out[i] };
-            let shifted = signed - pixels;
-            (0.5 - shifted).clamp(0.0, 1.0)
-        })
-        .collect()
+    Vec::from_fn(w * h, |i| {
+        let signed = if inside[i] { -d_in[i] } else { d_out[i] };
+        let shifted = signed - pixels;
+        (0.5 - shifted).clamp(0.0, 1.0)
+    })
 }
 
 pub fn bake(prob: &[f32], guide: &[f32], w: usize, h: usize, params: BakeParams) -> Vec<u8> {
@@ -244,9 +242,7 @@ mod tests {
     use super::*;
 
     fn step_mask(w: usize, h: usize) -> Vec<f32> {
-        (0..w * h)
-            .map(|i| if (i % w) < w / 2 { 1.0 } else { 0.0 })
-            .collect()
+        Vec::from_fn(w * h, |i| if (i % w) < w / 2 { 1.0 } else { 0.0 })
     }
 
     #[test]
@@ -279,7 +275,7 @@ mod tests {
     fn distance_transform_is_zero_inside() {
         let w = 8;
         let h = 8;
-        let binary: Vec<bool> = (0..w * h).map(|i| i % w == 0).collect();
+        let binary: Vec<bool> = Vec::from_fn(w * h, |i| i % w == 0);
         let d = distance_transform(&binary, w, h);
         assert!(d[0].abs() < 1e-5);
         assert!((d[3] - 3.0).abs() < 1e-4);
@@ -356,18 +352,14 @@ mod tests {
         const LOW: usize = 256;
         let radius = 0.3 * n as f32;
         let centre = n as f32 / 2.0;
-        let truth: Vec<f32> = (0..n * n)
-            .map(|i| {
-                let x = (i % n) as f32 + 0.5 - centre;
-                let y = (i / n) as f32 + 0.5 - centre;
-                let edge = radius * (1.0 + 0.08 * (y.atan2(x) * 7.0).sin());
-                if x.hypot(y) < edge { 1.0 } else { 0.0 }
-            })
-            .collect();
+        let truth: Vec<f32> = Vec::from_fn(n * n, |i| {
+            let x = (i % n) as f32 + 0.5 - centre;
+            let y = (i / n) as f32 + 0.5 - centre;
+            let edge = radius * (1.0 + 0.08 * (y.atan2(x) * 7.0).sin());
+            if x.hypot(y) < edge { 1.0 } else { 0.0 }
+        });
         let noise = |i: usize| ((i.wrapping_mul(2_654_435_761) >> 7) % 1000) as f32 / 1000.0 - 0.5;
-        let guide = (0..n * n)
-            .map(|i| 0.3 + 0.35 * truth[i] + 0.04 * noise(i))
-            .collect();
+        let guide = Vec::from_fn(n * n, |i| 0.3 + 0.35 * truth[i] + 0.04 * noise(i));
         let cell = n / LOW;
         let mut coverage = vec![0.0f32; LOW * LOW];
         truth.iter().enumerate().for_each(|(i, v)| {

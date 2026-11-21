@@ -134,9 +134,9 @@ mod tests {
     fn pinned_settings_are_unique_and_bounded() {
         assert!(pinned_settings(&[]).is_ok());
         assert!(pinned_settings(&ids(&["exposure", "contrast"])).is_ok());
-        let full: Vec<String> = (0..64).map(|n| format!("s{n}")).collect();
+        let full: Vec<String> = Vec::from_fn(64, |n| format!("s{n}"));
         assert!(pinned_settings(&full).is_ok());
-        let over: Vec<String> = (0..65).map(|n| format!("s{n}")).collect();
+        let over: Vec<String> = Vec::from_fn(65, |n| format!("s{n}"));
         assert!(
             pinned_settings(&over)
                 .unwrap_err()
@@ -154,7 +154,7 @@ mod tests {
     fn section_lists_are_unique_bounded_and_name_their_field() {
         assert!(section_list("touch_subviews", &sections(&["light", "color"])).is_ok());
         assert!(section_list("touch_subviews", &[]).is_ok());
-        let over: Vec<String> = (0..65).map(|n| format!("v{n}")).collect();
+        let over: Vec<String> = Vec::from_fn(65, |n| format!("v{n}"));
         let over: Vec<&str> = over.iter().map(String::as_str).collect();
         assert!(
             section_list("desktop_sections", &sections(&over))

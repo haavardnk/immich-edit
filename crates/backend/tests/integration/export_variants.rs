@@ -17,9 +17,9 @@ async fn zip_names(app: axum::Router, job_id: Uuid) -> Vec<String> {
     let resp = app.oneshot(download_request(job_id)).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(body_bytes(resp).await)).unwrap();
-    let mut names: Vec<String> = (0..archive.len())
-        .map(|i| archive.by_index(i).unwrap().name().unwrap().to_string())
-        .collect();
+    let mut names: Vec<String> = Vec::from_fn(archive.len(), |i| {
+        archive.by_index(i).unwrap().name().unwrap().to_string()
+    });
     names.sort();
     names
 }
@@ -163,9 +163,7 @@ async fn variant_jobs_reject_malformed_variants() {
     let app = test_app(&server).await;
     let web = || preset_variant("Web", json!({}));
     let many = |n: usize| -> Vec<Value> {
-        (0..n)
-            .map(|i| preset_variant(&format!("P{i}"), json!({})))
-            .collect()
+        Vec::from_fn(n, |i| preset_variant(&format!("P{i}"), json!({})))
     };
     for (kind, params, message) in [
         (
@@ -246,7 +244,7 @@ async fn variant_jobs_reject_malformed_variants() {
 async fn presets_count_against_the_item_limit() {
     let server = MockServer::start().await;
     let app = test_app(&server).await;
-    let ids: Vec<String> = (0..5_001).map(|_| Uuid::new_v4().to_string()).collect();
+    let ids: Vec<String> = Vec::from_fn(5_001, |_| Uuid::new_v4().to_string());
 
     let resp = app
         .oneshot(create_job_request("download_zip", web_and_print(), &ids))

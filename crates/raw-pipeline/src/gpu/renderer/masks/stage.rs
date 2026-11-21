@@ -129,7 +129,7 @@ impl GpuRenderer {
                 accum_in_alt,
             };
             self.encode_mask_layer(encoder, &stage, &views, job, retained);
-            accum_in_alt = !accum_in_alt;
+            accum_in_alt.toggle();
         }
         if accum_in_alt {
             copy_texture(encoder, &accum_alt, &p.linear_texture, out_dims);

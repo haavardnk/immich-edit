@@ -55,9 +55,9 @@ fn ramp(t: usize, core: usize, overlap: usize, open_start: bool, open_end: bool)
 fn axis_weights(origin: usize, len: usize, core: usize, overlap: usize) -> Vec<f32> {
     let open_start = origin == 0;
     let open_end = origin + core >= len;
-    (0..core.min(len - origin))
-        .map(|t| ramp(t, core, overlap, open_start, open_end))
-        .collect()
+    Vec::from_fn(core.min(len - origin), |t| {
+        ramp(t, core, overlap, open_start, open_end)
+    })
 }
 
 fn extract(
@@ -69,8 +69,8 @@ fn extract(
 ) -> Vec<f32> {
     let plane = edge * edge;
     let at = |origin: usize, t: usize| origin as isize + t as isize - margin as isize;
-    let rows: Vec<usize> = (0..edge).map(|ty| mirror(at(oy, ty), height)).collect();
-    let cols: Vec<usize> = (0..edge).map(|tx| mirror(at(ox, tx), width)).collect();
+    let rows: Vec<usize> = Vec::from_fn(edge, |ty| mirror(at(oy, ty), height));
+    let cols: Vec<usize> = Vec::from_fn(edge, |tx| mirror(at(ox, tx), width));
     let mut chw = vec![0.0f32; 3 * plane];
     for (ty, &sy) in rows.iter().enumerate() {
         for (tx, &sx) in cols.iter().enumerate() {
@@ -204,14 +204,12 @@ mod tests {
         let (edge, margin) = (16, 3);
         let marked = |t: &[f32]| {
             let plane = edge * edge;
-            Ok((0..t.len())
-                .map(|i| {
-                    let (y, x) = ((i % plane) / edge, i % edge);
-                    let inside = (margin..edge - margin).contains(&x)
-                        && (margin..edge - margin).contains(&y);
-                    if inside { 0.0 } else { 1.0 }
-                })
-                .collect())
+            Ok(Vec::from_fn(t.len(), |i| {
+                let (y, x) = ((i % plane) / edge, i % edge);
+                let inside =
+                    (margin..edge - margin).contains(&x) && (margin..edge - margin).contains(&y);
+                if inside { 0.0 } else { 1.0 }
+            }))
         };
         for (width, height) in [(9, 5), (40, 23), (61, 61)] {
             let rgb = ramp_image(width, height);

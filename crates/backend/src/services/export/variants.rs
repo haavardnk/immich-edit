@@ -333,9 +333,7 @@ mod tests {
     #[test]
     fn a_job_takes_one_to_sixteen_variants() {
         let many = |n: usize| -> Value {
-            let list: Vec<Value> = (0..n)
-                .map(|i| variant(&format!("P{i}"), json!({})))
-                .collect();
+            let list: Vec<Value> = Vec::from_fn(n, |i| variant(&format!("P{i}"), json!({})));
             json!({ "variants": list })
         };
 

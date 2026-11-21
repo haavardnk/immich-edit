@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, State};
@@ -218,7 +216,7 @@ pub async fn events(
     State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+) -> Result<Sse<impl Stream<Item = Result<Event, !>>>, AppError> {
     let job = owned_job(&state, &ctx, id).await?;
     let rx = state.jobs.subscribe();
     let snapshot = tokio_stream::once(Ok(job_event(&job)));

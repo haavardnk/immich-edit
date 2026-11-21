@@ -188,7 +188,7 @@ mod tests {
     #[tokio::test]
     async fn thousands_of_ids_stay_one_query() {
         let s = store().await;
-        let mut assets: Vec<AssetKey> = (0..10_000).map(|_| key()).collect();
+        let mut assets: Vec<AssetKey> = Vec::from_fn(10_000, |_| key());
         let tracked = assets[9_999];
         track(&s, O, tracked, "").await;
         assets.push(tracked);

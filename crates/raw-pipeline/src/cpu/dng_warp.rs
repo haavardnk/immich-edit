@@ -36,12 +36,10 @@ mod tests {
     use crate::geom::dng_warp::WarpPlane;
 
     fn ramp(w: usize, h: usize) -> LinearImage {
-        let rgb = (0..w * h * 3)
-            .map(|i| {
-                let p = i / 3;
-                0.1 + 0.6 * (p % w) as f32 / w as f32 + 0.2 * (p / w) as f32 / h as f32
-            })
-            .collect();
+        let rgb = Vec::from_fn(w * h * 3, |i| {
+            let p = i / 3;
+            0.1 + 0.6 * (p % w) as f32 / w as f32 + 0.2 * (p / w) as f32 / h as f32
+        });
         LinearImage::new(rgb, w, h)
     }
 

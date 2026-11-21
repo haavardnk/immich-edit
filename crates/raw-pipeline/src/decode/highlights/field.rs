@@ -23,7 +23,7 @@ fn scan<T: Send>(
     (0..height.div_ceil(CELL))
         .into_par_iter()
         .flat_map_iter(|cy| {
-            let mut row: Vec<T> = (0..cw).map(|_| init()).collect();
+            let mut row: Vec<T> = Vec::from_fn(cw, |_| init());
             let ys = cy * CELL..((cy + 1) * CELL).min(height);
             for (y, x) in ys.flat_map(|y| (0..width).map(move |x| (y, x))) {
                 visit(&mut row, x, y);
@@ -34,14 +34,12 @@ fn scan<T: Send>(
 }
 
 fn dilate(mask: &[bool], width: usize, height: usize) -> Vec<bool> {
-    (0..width * height)
-        .map(|i| {
-            let (x, y) = (i % width, i / width);
-            let xs = x.saturating_sub(1)..=(x + 1).min(width - 1);
-            (y.saturating_sub(1)..=(y + 1).min(height - 1))
-                .any(|yy| xs.clone().any(|xx| mask[yy * width + xx]))
-        })
-        .collect()
+    Vec::from_fn(width * height, |i| {
+        let (x, y) = (i % width, i / width);
+        let xs = x.saturating_sub(1)..=(x + 1).min(width - 1);
+        (y.saturating_sub(1)..=(y + 1).min(height - 1))
+            .any(|yy| xs.clone().any(|xx| mask[yy * width + xx]))
+    })
 }
 
 fn box_rows(src: &[Cell], width: usize, radius: usize) -> Vec<Cell> {
@@ -67,9 +65,7 @@ fn box_rows(src: &[Cell], width: usize, radius: usize) -> Vec<Cell> {
 }
 
 fn transpose(src: &[Cell], width: usize, height: usize) -> Vec<Cell> {
-    (0..width * height)
-        .map(|i| src[(i % height) * width + i / height])
-        .collect()
+    Vec::from_fn(width * height, |i| src[(i % height) * width + i / height])
 }
 
 fn blur(cells: &[Cell], width: usize, height: usize, radius: usize) -> Vec<Cell> {

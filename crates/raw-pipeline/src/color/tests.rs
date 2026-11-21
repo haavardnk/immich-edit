@@ -42,9 +42,9 @@ fn prophoto_roundtrip_is_identity() {
 fn huesat_sampling_wraps_between_the_last_and_first_hue_bin() {
     let hue_div = 4usize;
     let sat_div = 2usize;
-    let data: Vec<[f32; 3]> = (0..hue_div * sat_div)
-        .map(|i| [(i % hue_div) as f32 * 10.0, 1.0, 1.0])
-        .collect();
+    let data: Vec<[f32; 3]> = Vec::from_fn(hue_div * sat_div, |i| {
+        [(i % hue_div) as f32 * 10.0, 1.0, 1.0]
+    });
     let map = HueSatMap {
         hue_div: hue_div as u32,
         sat_div: sat_div as u32,

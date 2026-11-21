@@ -235,22 +235,18 @@ fn clipped_grid(
     if grid.iter().all(|b| *b == 0) {
         return None;
     }
-    let horizontal: Vec<u8> = (0..gw * gh)
-        .map(|i| {
-            let (y, x) = (i / gw, i % gw);
-            let lo = x.saturating_sub(DILATE);
-            let hi = (x + DILATE).min(gw - 1);
-            grid[y * gw + lo..=y * gw + hi].iter().fold(0, |a, b| a | b)
-        })
-        .collect();
-    let bits = (0..gw * gh)
-        .map(|i| {
-            let (y, x) = (i / gw, i % gw);
-            let lo = y.saturating_sub(DILATE);
-            let hi = (y + DILATE).min(gh - 1);
-            (lo..=hi).fold(0, |a, yy| a | horizontal[yy * gw + x])
-        })
-        .collect();
+    let horizontal: Vec<u8> = Vec::from_fn(gw * gh, |i| {
+        let (y, x) = (i / gw, i % gw);
+        let lo = x.saturating_sub(DILATE);
+        let hi = (x + DILATE).min(gw - 1);
+        grid[y * gw + lo..=y * gw + hi].iter().fold(0, |a, b| a | b)
+    });
+    let bits = Vec::from_fn(gw * gh, |i| {
+        let (y, x) = (i / gw, i % gw);
+        let lo = y.saturating_sub(DILATE);
+        let hi = (y + DILATE).min(gh - 1);
+        (lo..=hi).fold(0, |a, yy| a | horizontal[yy * gw + x])
+    });
     Some(Grid { width: gw, bits })
 }
 

@@ -135,13 +135,11 @@ mod tests {
     use super::*;
 
     fn ramp(w: usize, h: usize) -> LinearImage {
-        let rgb = (0..w * h * 3)
-            .map(|i| {
-                let p = i / 3;
-                let (x, y) = ((p % w) as f32, (p / w) as f32);
-                0.1 + 0.5 * x / w as f32 + 0.3 * y / h as f32 + 0.05 * (i % 3) as f32
-            })
-            .collect();
+        let rgb = Vec::from_fn(w * h * 3, |i| {
+            let p = i / 3;
+            let (x, y) = ((p % w) as f32, (p / w) as f32);
+            0.1 + 0.5 * x / w as f32 + 0.3 * y / h as f32 + 0.05 * (i % 3) as f32
+        });
         LinearImage::new(rgb, w, h)
     }
 

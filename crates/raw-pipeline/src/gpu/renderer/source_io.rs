@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn texels_round_trip_through_readback() {
         let (w, h) = (5usize, 3usize);
-        let rgb: Vec<u16> = (0..w * h * 3).map(|i| (i * 997 % 0x7c00) as u16).collect();
+        let rgb: Vec<u16> = Vec::from_fn(w * h * 3, |i| (i * 997 % 0x7c00) as u16);
         for (format, alpha) in [
             (
                 TextureFormat::Rgba16Float,

@@ -1,3 +1,4 @@
+use std::mem::DropGuard;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,27 +14,8 @@ use crate::asset_key::AssetKey;
 const TRACKER_CAP: usize = 1024;
 const LATEST_CAP: usize = 1024;
 
-pub struct CancelOnDrop {
-    token: CancelToken,
-    armed: bool,
-}
-
-impl CancelOnDrop {
-    pub fn new(token: CancelToken) -> Self {
-        Self { token, armed: true }
-    }
-
-    pub fn disarm(mut self) {
-        self.armed = false;
-    }
-}
-
-impl Drop for CancelOnDrop {
-    fn drop(&mut self) {
-        if self.armed {
-            self.token.cancel();
-        }
-    }
+pub fn cancel_on_drop(token: CancelToken) -> DropGuard<CancelToken, fn(CancelToken)> {
+    DropGuard::new(token, |token| token.cancel())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
@@ -257,18 +239,18 @@ mod tests {
         let tracker = q.tracker(id).await;
 
         let abandoned = tracker.next();
-        drop(CancelOnDrop::new(abandoned.clone()));
+        drop(cancel_on_drop(abandoned.clone()));
         if !abandoned.is_cancelled() {
             panic!("dropping an armed guard should cancel the token");
         }
 
         let kept = tracker.next();
-        CancelOnDrop::new(kept.clone()).disarm();
+        DropGuard::dismiss(cancel_on_drop(kept.clone()));
         if kept.is_cancelled() {
             panic!("a disarmed guard should leave the token alive");
         }
 
-        let superseded = CancelOnDrop::new(kept);
+        let superseded = cancel_on_drop(kept);
         let newest = tracker.next();
         drop(superseded);
         if newest.is_cancelled() {

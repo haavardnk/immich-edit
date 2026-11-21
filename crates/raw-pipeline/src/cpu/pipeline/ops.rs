@@ -165,8 +165,7 @@ pub(super) fn run_pipeline_ops_inner(
         .map(|l| l.edits.sharpen.unwrap_or(0.0) as f32)
         .collect();
     let mut segment = FusedSegment::default();
-    let mut layer_segments: Vec<FusedSegment> =
-        (0..n_layers).map(|_| FusedSegment::default()).collect();
+    let mut layer_segments: Vec<FusedSegment> = Vec::from_fn(n_layers, |_| FusedSegment::default());
     let mut layer_images: Vec<LinearImage> = Vec::new();
     let mut lens_warp =
         LensWarpParams::from_edits(&edits.lens, image.width as u32, image.height as u32);

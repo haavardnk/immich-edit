@@ -18,16 +18,14 @@ fn scene_raw(x: usize, c: usize, scene: [f32; 3], peak: f32) -> f32 {
 
 fn mosaic(pattern: &str, scene: [f32; 3], peak: f32, saturation: f32) -> (Vec<f32>, Vec<f32>) {
     let (dim, table) = cfa_block(pattern);
-    let truth: Vec<f32> = (0..WIDTH * HEIGHT)
-        .map(|i| {
-            scene_raw(
-                i % WIDTH,
-                table[(i / WIDTH % dim) * dim + i % WIDTH % dim],
-                scene,
-                peak,
-            )
-        })
-        .collect();
+    let truth: Vec<f32> = Vec::from_fn(WIDTH * HEIGHT, |i| {
+        scene_raw(
+            i % WIDTH,
+            table[(i / WIDTH % dim) * dim + i % WIDTH % dim],
+            scene,
+            peak,
+        )
+    });
     let clipped = truth.iter().map(|v| v.min(saturation)).collect();
     (truth, clipped)
 }
@@ -104,9 +102,9 @@ fn unclipped_mosaic_is_untouched() {
 
 #[test]
 fn rgb_recovers_clipped_green() {
-    let truth: Vec<f32> = (0..WIDTH * HEIGHT * 3)
-        .map(|i| scene_raw(i / 3 % WIDTH, i % 3, SCENE, 1.95))
-        .collect();
+    let truth: Vec<f32> = Vec::from_fn(WIDTH * HEIGHT * 3, |i| {
+        scene_raw(i / 3 % WIDTH, i % 3, SCENE, 1.95)
+    });
     let mut out: Vec<f32> = truth.iter().map(|v| v.min(1.0)).collect();
     reconstruct_rgb(&mut out, WIDTH, HEIGHT, WB_RAW);
     for i in (1..out.len()).step_by(3) {
@@ -151,13 +149,11 @@ fn bright_core_on_darker_surface_turns_neutral() {
     let wall = [1.8, 1.08, 0.63];
     let core = [3.0; 3];
     for pattern in ["RGGB", XTRANS] {
-        let mut out: Vec<f32> = (0..WIDTH * HEIGHT)
-            .map(|i| {
-                let c = color_at(pattern, i);
-                let scene = if i % WIDTH < WIDTH / 2 { wall } else { core };
-                (scene[c] / WB[c]).min(1.0)
-            })
-            .collect();
+        let mut out: Vec<f32> = Vec::from_fn(WIDTH * HEIGHT, |i| {
+            let c = color_at(pattern, i);
+            let scene = if i % WIDTH < WIDTH / 2 { wall } else { core };
+            (scene[c] / WB[c]).min(1.0)
+        });
         reconstruct_mosaic(&mut out, WIDTH, HEIGHT, pattern, WB_RAW);
         let mut sum = [0.0f32; 3];
         let mut count = [0.0f32; 3];
@@ -177,13 +173,11 @@ fn bright_core_on_darker_surface_turns_neutral() {
 }
 
 fn surfaces(pattern: &str, scenes: [[f32; 3]; 3]) -> Vec<f32> {
-    let mut out: Vec<f32> = (0..WIDTH * HEIGHT)
-        .map(|i| {
-            let c = color_at(pattern, i);
-            let texture = 1.0 - 0.1 * ((i * 7919) % 1000) as f32 / 1000.0;
-            (texture * scenes[i % WIDTH * 3 / WIDTH][c] / WB[c]).min(1.0)
-        })
-        .collect();
+    let mut out: Vec<f32> = Vec::from_fn(WIDTH * HEIGHT, |i| {
+        let c = color_at(pattern, i);
+        let texture = 1.0 - 0.1 * ((i * 7919) % 1000) as f32 / 1000.0;
+        (texture * scenes[i % WIDTH * 3 / WIDTH][c] / WB[c]).min(1.0)
+    });
     reconstruct_mosaic(&mut out, WIDTH, HEIGHT, pattern, WB_RAW);
     out
 }
@@ -235,13 +229,11 @@ fn blurred_white_core_on_colored_wall_stays_white() {
     let wall = [1.45, 1.12, 0.85];
     let core = [2.4; 3];
     for pattern in ["RGGB", XTRANS] {
-        let mut out: Vec<f32> = (0..WIDTH * HEIGHT)
-            .map(|i| {
-                let c = color_at(pattern, i);
-                let t = ((i % WIDTH) as f32 - 32.0).clamp(0.0, 32.0) / 32.0;
-                ((wall[c] + (core[c] - wall[c]) * t) / WB[c]).min(1.0)
-            })
-            .collect();
+        let mut out: Vec<f32> = Vec::from_fn(WIDTH * HEIGHT, |i| {
+            let c = color_at(pattern, i);
+            let t = ((i % WIDTH) as f32 - 32.0).clamp(0.0, 32.0) / 32.0;
+            ((wall[c] + (core[c] - wall[c]) * t) / WB[c]).min(1.0)
+        });
         reconstruct_mosaic(&mut out, WIDTH, HEIGHT, pattern, WB_RAW);
         let mean = mean_level(pattern, &out, 72..WIDTH);
         let ratios = mean.map(|m| m / mean[0]);

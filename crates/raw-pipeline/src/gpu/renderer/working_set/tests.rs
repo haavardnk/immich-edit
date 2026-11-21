@@ -143,13 +143,11 @@ fn full_edits() -> Edits {
 }
 
 fn sharp_mosaic(width: usize, height: usize) -> RawFrame {
-    let data = (0..width * height)
-        .map(|i| {
-            let (x, y) = (i % width, i / width);
-            let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 1000;
-            0.2 + 0.5 * (x as f32 / width as f32) + hash as f32 / 20_000.0
-        })
-        .collect();
+    let data = Vec::from_fn(width * height, |i| {
+        let (x, y) = (i % width, i / width);
+        let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 1000;
+        0.2 + 0.5 * (x as f32 / width as f32) + hash as f32 / 20_000.0
+    });
     let mut frame = checker_frame();
     frame.meta.width = width;
     frame.meta.height = height;

@@ -112,9 +112,7 @@ mod tests {
     use super::*;
 
     fn ramp(w: usize, h: usize) -> Vec<f32> {
-        (0..w * h)
-            .map(|i| ((i * 37 % 101) as f32) / 101.0)
-            .collect()
+        Vec::from_fn(w * h, |i| ((i * 37 % 101) as f32) / 101.0)
     }
 
     fn brute_box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {

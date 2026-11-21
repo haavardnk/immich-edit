@@ -444,7 +444,7 @@ async fn malformed_searches_are_rejected_before_immich() {
 
 #[tokio::test]
 async fn suggestions_fan_out_over_the_closest_selected_parent() {
-    let many_makes: Vec<String> = (0..21).map(|n| format!("make {n}")).collect();
+    let many_makes: Vec<String> = Vec::from_fn(21, |n| format!("make {n}"));
     let cases = [
         (
             json!({ "field": "lensModel", "make": ["SONY"], "model": ["ILCE-7M3", "X-T5"] }),

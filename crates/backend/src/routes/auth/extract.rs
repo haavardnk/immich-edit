@@ -62,7 +62,7 @@ impl<S: Send + Sync> FromRequestParts<S> for AdminCtx {
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for ClientMeta {
-    type Rejection = std::convert::Infallible;
+    type Rejection = !;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         Ok(parts

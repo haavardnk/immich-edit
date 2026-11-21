@@ -27,13 +27,11 @@ static COUNTING: Counting = Counting;
 
 fn sharp_mosaic(width: usize, height: usize, cfa: &str) -> RawFrame {
     let mut frame = synthetic_bayer_frame(width, height, cfa);
-    frame.data = (0..width * height)
-        .map(|i| {
-            let (x, y) = (i % width, i / width);
-            let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 1000;
-            0.2 + 0.5 * (x as f32 / width as f32) + hash as f32 / 2_000.0
-        })
-        .collect();
+    frame.data = Vec::from_fn(width * height, |i| {
+        let (x, y) = (i % width, i / width);
+        let hash = (x.wrapping_mul(73_856_093) ^ y.wrapping_mul(19_349_663)) % 1000;
+        0.2 + 0.5 * (x as f32 / width as f32) + hash as f32 / 2_000.0
+    });
     frame.meta.is_raw = true;
     frame.meta.capture_sigma = Some(0.8);
     frame
@@ -295,14 +293,12 @@ fn the_estimate_covers_the_measured_peak_of_cpu_renders() {
 
 fn noise<T>(len: usize, sample: impl Fn(u32) -> T) -> Vec<T> {
     let mut state = 0x9e37_79b9u32;
-    (0..len)
-        .map(|_| {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            sample(state)
-        })
-        .collect()
+    Vec::from_fn(len, |_| {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        sample(state)
+    })
 }
 
 fn rust_encoded_formats() -> Vec<OutputFormat> {

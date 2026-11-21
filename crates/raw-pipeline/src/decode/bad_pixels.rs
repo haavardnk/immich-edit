@@ -20,22 +20,20 @@ impl Rings {
             (-RING_RADIUS..=RING_RADIUS)
                 .flat_map(|dy| (-RING_RADIUS..=RING_RADIUS).map(move |dx| [dx, dy]))
         };
-        let offsets = (0..dim * dim)
-            .map(|phase| {
-                let px = phase % dim;
-                let py = phase / dim;
-                let base = dim * 4;
-                let color = cfa.color(px, py);
-                window()
-                    .filter(|&[dx, dy]| (dx, dy) != (0, 0))
-                    .filter(|&[dx, dy]| {
-                        let x = (base as isize + px as isize + dx) as usize;
-                        let y = (base as isize + py as isize + dy) as usize;
-                        cfa.color(x, y) == color
-                    })
-                    .collect()
-            })
-            .collect();
+        let offsets = Vec::from_fn(dim * dim, |phase| {
+            let px = phase % dim;
+            let py = phase / dim;
+            let base = dim * 4;
+            let color = cfa.color(px, py);
+            window()
+                .filter(|&[dx, dy]| (dx, dy) != (0, 0))
+                .filter(|&[dx, dy]| {
+                    let x = (base as isize + px as isize + dx) as usize;
+                    let y = (base as isize + py as isize + dy) as usize;
+                    cfa.color(x, y) == color
+                })
+                .collect()
+        });
         Self { dim, offsets }
     }
 

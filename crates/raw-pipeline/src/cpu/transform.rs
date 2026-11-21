@@ -148,9 +148,7 @@ mod tests {
     #[test]
     fn resize_matches_across_thread_counts() {
         let (w, h) = (640usize, 480usize);
-        let src: Vec<f32> = (0..w * h * 3)
-            .map(|i| ((i * 7919) % 1024) as f32 / 1023.0)
-            .collect();
+        let src: Vec<f32> = Vec::from_fn(w * h * 3, |i| ((i * 7919) % 1024) as f32 / 1023.0);
         let run = |threads: usize| {
             rayon::ThreadPoolBuilder::new()
                 .num_threads(threads)

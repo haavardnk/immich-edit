@@ -11,13 +11,11 @@ type Outline = (Vec<String>, Value, Value);
 
 fn photos(count: usize, tie: usize) -> Vec<Photo> {
     let base = Utc.with_ymd_and_hms(2024, 5, 1, 12, 0, 0).unwrap();
-    (0..count)
-        .map(|i| Photo {
-            id: Uuid::new_v4(),
-            taken: base + TimeDelta::seconds((i / tie) as i64),
-            ..Photo::default()
-        })
-        .collect()
+    Vec::from_fn(count, |i| Photo {
+        id: Uuid::new_v4(),
+        taken: base + TimeDelta::seconds((i / tie) as i64),
+        ..Photo::default()
+    })
 }
 
 async fn library(minor: u64, photos: Vec<Photo>) -> (MockServer, axum::Router) {

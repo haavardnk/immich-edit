@@ -52,7 +52,7 @@ fn blur_rgb(rgb: &[f32], w: usize, h: usize, sigma: CaptureSigma) -> Vec<f32> {
     let psf = Psf::new(sigma, w, h);
     let mut out = rgb.to_vec();
     for c in 0..3 {
-        let plane: Vec<f32> = (0..w * h).map(|i| rgb[i * 3 + c]).collect();
+        let plane: Vec<f32> = Vec::from_fn(w * h, |i| rgb[i * 3 + c]);
         let mut dst = vec![0.0f32; w * h];
         convolve_with(&plane, &mut dst, w, h, &psf, |_, acc, row| {
             row.copy_from_slice(acc)
@@ -73,9 +73,7 @@ fn rmse(a: &[f32], b: &[f32]) -> f32 {
 fn banded_convolution_matches_direct_blur() {
     let w = 37;
     let h = 64 * 2 + 13;
-    let src: Vec<f32> = (0..w * h)
-        .map(|i| ((i * 7919) % 101) as f32 / 101.0)
-        .collect();
+    let src: Vec<f32> = Vec::from_fn(w * h, |i| ((i * 7919) % 101) as f32 / 101.0);
     let half_diag = half_diagonal(w, h);
     for sigma in [
         CaptureSigma::uniform(1.3),
@@ -128,9 +126,7 @@ fn banded_convolution_matches_direct_blur() {
 fn local_extreme_uses_each_pixel_radius() {
     let w = 41;
     let h = 64 + 29;
-    let src: Vec<f32> = (0..w * h)
-        .map(|i| ((i * 104_729) % 97) as f32 / 97.0)
-        .collect();
+    let src: Vec<f32> = Vec::from_fn(w * h, |i| ((i * 104_729) % 97) as f32 / 97.0);
     let sigma = CaptureSigma {
         centre: 0.3,
         corner: 2.0,
@@ -209,7 +205,7 @@ fn contrast_gate_follows_lightness() {
     for (low, high, opens) in [(0.020f32, 0.026f32, true), (0.70, 0.72, false)] {
         let rgb = gray(w, h, |x, _| if x < w / 2 { low } else { high });
         let image = LinearImage::new(rgb, w, h);
-        let lum: Vec<f32> = (0..w * h).map(|i| image.rgb[i * 3]).collect();
+        let lum: Vec<f32> = Vec::from_fn(w * h, |i| image.rgb[i * 3]);
         let light: Vec<f32> = lum.iter().map(|v| v.cbrt()).collect();
         let blend = build_blend(&image, &lum, &light, w, h);
         let edge = blend[8 * w + w / 2];
