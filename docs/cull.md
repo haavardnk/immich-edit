@@ -20,7 +20,8 @@ library; **Search by** picks **Context** (smart search), **File name**, **Descri
 or folder** or **OCR**.
 
 **Album actions** (⋯ on an album, or right-click it) renames an album, edits its description,
-deletes it or leaves one shared with you. The photos stay in your library.
+deletes it or leaves one shared with you. The photos stay in your library. In an album you own or
+edit, **Set as album cover** in the loupe's ⋯ menu makes the photo on screen its cover.
 
 **Filters** (`Shift+F`) opens the filter panel: **Library**, **Rating & label**, **People**,
 **Albums**, **Tags**, **Date**, **Camera**, **Place** and **File**. **Reset** clears them all, and

@@ -13,6 +13,7 @@ import { GRID_NAVIGATION_COMMANDS } from '#lib/commands/grid/navigation.ts';
 import { GRID_SELECTION_COMMANDS } from '#lib/commands/grid/selection.ts';
 import { GRID_VIEW_COMMANDS } from '#lib/commands/grid/view.ts';
 import { createKeyDispatcher } from '#lib/commands/keys.ts';
+import { LOUPE_ALBUM_COMMANDS } from '#lib/commands/loupe/album.ts';
 import { LOUPE_CULLING_COMMANDS } from '#lib/commands/loupe/culling.ts';
 import { LOUPE_DISMISS_COMMANDS } from '#lib/commands/loupe/dismiss.ts';
 import { LOUPE_EDIT_COMMANDS } from '#lib/commands/loupe/edits.ts';
@@ -37,6 +38,7 @@ export const COMMANDS: readonly Command[] = [
   ...LOUPE_PANE_COMMANDS,
   ...LOUPE_EDIT_COMMANDS,
   ...LOUPE_CULLING_COMMANDS,
+  ...LOUPE_ALBUM_COMMANDS,
   ...GRID_VIEW_COMMANDS,
   ...GRID_SELECTION_COMMANDS,
   ...GRID_NAVIGATION_COMMANDS,

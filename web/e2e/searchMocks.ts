@@ -140,6 +140,7 @@ export interface MockAlbum {
   startDate?: string;
   endDate?: string;
   description?: string;
+  albumThumbnailAssetId?: string;
   members?: MockAlbumMember[];
 }
 

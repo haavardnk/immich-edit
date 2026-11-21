@@ -20,6 +20,7 @@ import {
   holdOriginal,
   viewerWindow
 } from '#lib/commands/editor/view.ts';
+import { loupeSetAlbumCover } from '#lib/commands/loupe/album.ts';
 import { loupeTrash } from '#lib/commands/loupe/culling.ts';
 import { loupeCompare, loupeSingle, loupeSurvey } from '#lib/commands/loupe/navigation.ts';
 import {
@@ -38,6 +39,7 @@ export const LOUPE_VIEW_MODE_MENU: Menu = [[loupeSingle, loupeCompare, loupeSurv
 
 export const LOUPE_MORE_MENU: Menu = [
   [loupeFullscreen, loupeClipWarn, greyCanvas],
+  [loupeSetAlbumCover],
   [loupeTrash],
   [help]
 ];
@@ -54,18 +56,21 @@ export const LOUPE_PHONE_MORE_MENU: Menu = [
   [loupeAutoAdvance],
   LOUPE_PHONE_VIEW,
   [loupeCompare, loupeSurvey],
+  [loupeSetAlbumCover],
   [loupeTrash]
 ];
 
 export const LOUPE_PHONE_MULTI_MORE_MENU: Menu = [
   [loupeAutoAdvance],
   [loupeInfo, ...LOUPE_PHONE_VIEW],
+  [loupeSetAlbumCover],
   [loupeTrash]
 ];
 
 export const LOUPE_WIDE_MORE_MENU: Menu = [
   [loupeAutoAdvance],
   [loupeFullscreen, loupeClipWarn, greyCanvas],
+  [loupeSetAlbumCover],
   [loupeTrash]
 ];
 
