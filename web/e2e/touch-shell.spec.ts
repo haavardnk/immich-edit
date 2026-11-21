@@ -506,8 +506,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await page.goto('/albums');
     await expect(page.getByRole('list', { name: 'Albums' }).getByRole('link')).toHaveCount(2);
 
-    await page.getByRole('button', { name: /^People/ }).tap();
-    await page.getByRole('link', { name: 'See all people' }).tap();
+    await page.getByRole('link', { name: /^People/ }).tap();
     await expect(page).toHaveURL('/people');
     await expect(page.getByRole('list', { name: 'People' }).getByRole('link')).toHaveText([
       'Ingrid',

@@ -8,6 +8,7 @@
   import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import { COLLECTIONS } from '#lib/components/library/collections.ts';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { tag: id } }) });
@@ -27,4 +28,10 @@
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowsePage {feed} {title} loadingLabel="Loading tag…" emptyTitle="No photos with this tag" />
+<BrowsePage
+  {feed}
+  parent={COLLECTIONS.tags}
+  {title}
+  loadingLabel="Loading tag…"
+  emptyTitle="No photos with this tag"
+/>

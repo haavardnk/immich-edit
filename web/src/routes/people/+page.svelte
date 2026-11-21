@@ -6,7 +6,8 @@
   import PageFrame from '#lib/components/shell/PageFrame.svelte';
   import { library } from '#lib/stores/library.svelte.ts';
   import { personName } from '#lib/api/people.ts';
-  import { countOf } from '#lib/utils/plural.ts';
+
+  const PEOPLE_NOUN = { one: 'person', many: 'people' };
 
   const loaded = $derived(library.isLoaded('people'));
 
@@ -17,7 +18,7 @@
 
 <PageFrame
   title="People"
-  count={loaded ? countOf(library.people.length, 'person', 'people') : undefined}
+  count={loaded ? { value: library.people.length, noun: PEOPLE_NOUN } : undefined}
 >
   <LibraryLoad view="people" label="people">
     {#if library.people.length === 0}
@@ -26,7 +27,7 @@
       <ListFilter
         items={library.people}
         nameOf={personName}
-        noun={{ one: 'person', many: 'people' }}
+        noun={PEOPLE_NOUN}
         class="px-4 sm:px-5"
       >
         {#snippet children(visible, query)}

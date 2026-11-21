@@ -70,11 +70,11 @@ async function narrowByOwner(page: Page, press: (target: Locator) => Promise<voi
   await press(chip(page, 'Mine'));
   await expect(chip(page, 'Mine')).toHaveAttribute('aria-pressed', 'true');
   await expectAlbums(page, ['Norway 2026', 'Portfolio picks', 'Archive']);
-  await expect(page.getByText('3 albums', { exact: true })).toBeVisible();
+  await expect(page.getByText('3 albums', { exact: true })).toBeAttached();
 
   await press(chip(page, 'Shared with me'));
   await expectAlbums(page, ['Family']);
-  await expect(page.getByText('1 album', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 album', { exact: true })).toBeAttached();
 
   await press(chip(page, 'All'));
   await expectAlbums(page, ['Norway 2026', 'Family', 'Portfolio picks', 'Archive']);
@@ -162,11 +162,37 @@ test.describe('albums page on the desktop', () => {
   test('the plus button creates an album and opens it', async ({ page }) => {
     await openAlbums(page);
     await createAlbum(page, click);
-    await expect(
-      page
-        .getByRole('complementary', { name: 'Library' })
-        .getByRole('link', { name: /^Lofoten winter/ })
-    ).toHaveAttribute('href', '/albums/album-5');
+    const sidebar = page.getByRole('complementary', { name: 'Library' });
+    await sidebar.getByRole('button', { name: 'Show albums' }).click();
+    await expect(sidebar.getByRole('link', { name: /^Lofoten winter/ })).toHaveAttribute(
+      'href',
+      '/albums/album-5'
+    );
+  });
+
+  test('the title, count, chips and filter share one centred header row', async ({ page }) => {
+    const many: MockAlbum[] = Array.from({ length: 13 }, (_, i) => ({
+      id: `album-${i}`,
+      albumName: `Album ${i}`,
+      assetIds: ['a']
+    }));
+    await installMocks(page, { albums: many });
+    await page.goto('/albums');
+    const header = page.locator('main header');
+    const parts = [
+      header.getByRole('heading', { name: 'Albums', level: 1 }),
+      header.getByText('13', { exact: true }),
+      header.getByRole('group', { name: 'Show albums' }),
+      header.getByRole('textbox', { name: 'Filter albums' }),
+      header.getByRole('button', { name: 'Create album', exact: true })
+    ];
+    const row = await header.boundingBox();
+    const middle = (row?.y ?? 0) + (row?.height ?? 0) / 2;
+    for (const part of parts) {
+      const box = await part.boundingBox();
+      expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - middle)).toBeLessThanOrEqual(1);
+    }
+    await expect(header.getByText('13 albums', { exact: true })).toBeAttached();
   });
 
   test('closing the dialog while the album is created stays on the albums page', async ({

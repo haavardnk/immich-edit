@@ -37,13 +37,12 @@ describe('sidebar sections', () => {
     expect(sidebar.expanded).toEqual(['people', 'tags']);
   });
 
-  it('persists toggles and reveals the section that owns a page', async () => {
+  it('persists toggles', async () => {
     const values = stubStorage();
     const { sidebar } = await import('./sidebar.svelte');
 
     expect(sidebar.toggle('tags')).toBe(true);
-    sidebar.reveal('/albums/a1');
-    sidebar.reveal('/albums/a2');
+    expect(sidebar.toggle('albums')).toBe(true);
     expect(sidebar.toggle('tags')).toBe(false);
 
     expect(JSON.parse(values.get(storageKey) ?? '')).toEqual({ expanded: ['albums'] });
