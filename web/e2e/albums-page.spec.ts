@@ -146,6 +146,17 @@ async function cancelWhileCreating(page: Page, press: (target: Locator) => Promi
   await expect(page).toHaveURL('/albums');
 }
 
+async function openManyAlbums(page: Page): Promise<void> {
+  const many: MockAlbum[] = Array.from({ length: 13 }, (_, i) => ({
+    id: `album-${i}`,
+    albumName: `Album ${i}`,
+    assetIds: ['a']
+  }));
+  await installMocks(page, { albums: many });
+  await page.goto('/albums');
+  await expect(page.getByRole('textbox', { name: 'Filter albums' })).toBeVisible();
+}
+
 test.describe('albums page on the desktop', () => {
   const click = (target: Locator) => target.click();
 
@@ -171,13 +182,7 @@ test.describe('albums page on the desktop', () => {
   });
 
   test('the title, count, chips and filter share one centred header row', async ({ page }) => {
-    const many: MockAlbum[] = Array.from({ length: 13 }, (_, i) => ({
-      id: `album-${i}`,
-      albumName: `Album ${i}`,
-      assetIds: ['a']
-    }));
-    await installMocks(page, { albums: many });
-    await page.goto('/albums');
+    await openManyAlbums(page);
     const header = page.locator('main header');
     const parts = [
       header.getByRole('heading', { name: 'Albums', level: 1 }),
@@ -193,6 +198,9 @@ test.describe('albums page on the desktop', () => {
       expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - middle)).toBeLessThanOrEqual(1);
     }
     await expect(header.getByText('13 albums', { exact: true })).toBeAttached();
+    const chips = await parts[2].boundingBox();
+    const field = await parts[3].locator('..').boundingBox();
+    expect(field?.height).toBe(chips?.height);
   });
 
   test('closing the dialog while the album is created stays on the albums page', async ({
@@ -240,6 +248,22 @@ test.describe('albums page on touch', { tag: '@touch' }, () => {
   }) => {
     await openAlbums(page);
     await cancelWhileCreating(page, tap);
+  });
+
+  test('the filter field is as tall as the chips and keeps a full tap target', async ({ page }) => {
+    await openManyAlbums(page);
+    const chip = await page
+      .getByRole('group', { name: 'Show albums' })
+      .getByRole('button', { name: 'All', exact: true })
+      .boundingBox();
+    const input = page.getByRole('textbox', { name: 'Filter albums' });
+    const field = await input.locator('..').boundingBox();
+    expect(field?.height).toBe(chip?.height);
+    expect((field?.y ?? 0) + (field?.height ?? 0) / 2).toBeCloseTo(
+      (chip?.y ?? 0) + (chip?.height ?? 0) / 2,
+      0
+    );
+    expect((await input.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   });
 
   test('the account drawer names the Immich server for a non-admin', async ({ page }) => {

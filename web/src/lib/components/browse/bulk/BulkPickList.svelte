@@ -98,7 +98,7 @@
 
 <div class="flex flex-1 flex-col" data-bulk-pick>
   <div class="sticky top-0 z-10 bg-light-100 touch:bg-light-50 px-3 pt-2 pb-1 touch:px-0">
-    <SearchField bind:value={query} label={searchLabel} compact={false} onkeydown={applyOnEnter} />
+    <SearchField bind:value={query} label={searchLabel} onkeydown={applyOnEnter} />
   </div>
   {@render lead?.()}
   {#if held.length > 0}

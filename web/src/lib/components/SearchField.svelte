@@ -1,5 +1,6 @@
 <script lang="ts">
   import TextInput from '#lib/components/TextInput.svelte';
+  import { SEARCH_FIELD_SIZES, type SearchFieldSize } from '#lib/components/searchFieldSize.ts';
   import { Icon, IconButton } from '@immich/ui';
   import { mdiCloseCircle, mdiMagnify } from '@mdi/js';
 
@@ -8,7 +9,7 @@
     ref = $bindable(null),
     label,
     placeholder = label,
-    compact = false,
+    size = 'default',
     oninput,
     onkeydown
   }: {
@@ -16,16 +17,12 @@
     ref?: HTMLInputElement | null;
     label: string;
     placeholder?: string;
-    compact?: boolean;
+    size?: SearchFieldSize;
     oninput?: (value: string) => void;
     onkeydown?: (event: KeyboardEvent) => void;
   } = $props();
 
-  const inputSize = $derived(
-    compact
-      ? '[&_input]:h-6 [&_input]:text-caption'
-      : '[&_input]:h-7.5 [&_input]:text-label touch:[&_input]:h-11 touch:[&_input]:text-body'
-  );
+  const inputSize = $derived(SEARCH_FIELD_SIZES[size]);
 
   function set(next: string): void {
     value = next;
@@ -73,12 +70,13 @@
   {value}
   type="text"
   size="tiny"
+  color="neutral"
   autocomplete="off"
   {placeholder}
   aria-label={label}
   leadingIcon={searchIcon}
   trailingIcon={clearButton}
-  class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! {inputSize}"
+  class="rounded-lg {inputSize}"
   oninput={(event: Event) => set((event.currentTarget as HTMLInputElement).value)}
   onkeydown={keydown}
 />

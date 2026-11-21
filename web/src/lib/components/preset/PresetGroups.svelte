@@ -24,7 +24,7 @@
   <div class="flex w-48 flex-none flex-col gap-1" style:height="{ui.filmstripHeight}px">
     <div class="flex items-center gap-0.5">
       <div class="min-w-0 flex-1">
-        <SearchField bind:value={presetStrip.query} label="Search presets" compact />
+        <SearchField bind:value={presetStrip.query} label="Search presets" size="compact" />
       </div>
       {@render actions?.()}
     </div>

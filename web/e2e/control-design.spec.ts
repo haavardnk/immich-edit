@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { unfoldExport } from './exportSections';
 import {
   ASSET_ID,
   DEFAULT_APPEARANCE,
@@ -8,7 +9,6 @@ import {
   openAccountMenu,
   openLoupeFromGrid
 } from './helpers';
-import { unfoldExport } from './exportSections';
 
 const PACKAGE_TINY_CONTROL_HEIGHT = 36;
 const PACKAGE_SMALL_CONTROL_HEIGHT = 40;
@@ -85,6 +85,15 @@ async function expectPrimaryFocusRing(page: Page, input: Locator): Promise<void>
     .toBe(true);
 }
 
+async function expectNoRestingRing(surface: Locator): Promise<void> {
+  await expect
+    .poll(async () => {
+      const lengths = (await metricsOf(surface)).boxShadow.match(/-?\d+(?:\.\d+)?px/g) ?? [];
+      return lengths.every((length) => Number.parseFloat(length) === 0);
+    })
+    .toBe(true);
+}
+
 test('editor and loupe use the same black image canvas', async ({ page }) => {
   await installMocks(page);
   await gotoAsset(page);
@@ -113,6 +122,25 @@ test('text inputs retain the package focus ring', async ({ page }) => {
   await page.getByRole('radio', { name: 'To Immich' }).click();
   await unfoldExport(page.getByRole('tabpanel'));
   await expectPrimaryFocusRing(page, page.getByLabel('Filename', { exact: true }));
+});
+
+test('text fields and selects rest without a ring', async ({ page }) => {
+  await installMocks(page);
+  await gotoAsset(page);
+  const search = page.getByRole('textbox', { name: 'Search settings', exact: true });
+  await expectNoRestingRing(containerOf(search));
+  await expectPrimaryFocusRing(page, search);
+
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await unfoldExport(page.getByRole('tabpanel'));
+  await expectNoRestingRing(page.getByRole('tabpanel').locator('[data-select-trigger]').first());
+
+  await page.getByRole('button', { name: 'Export presets' }).click();
+  const presetName = page.getByRole('textbox', { name: 'Export preset name' });
+  await expect(presetName).toBeFocused();
+  await presetName.blur();
+  await expectNoRestingRing(containerOf(presetName));
+  await expectPrimaryFocusRing(page, presetName);
 });
 
 function milliseconds(duration: string): number {
@@ -149,6 +177,7 @@ test('auth fields use the shared borderless input', async ({ page }) => {
   await expect(email).toBeVisible();
   await expectFieldSurface(page, await metricsOf(emailSurface), PACKAGE_SMALL_CONTROL_HEIGHT);
   expect((await metricsOf(email)).fontSize).toBe('14px');
+  await expectNoRestingRing(emailSurface);
 
   await expectPrimaryFocusRing(page, email);
   const focusedBackground = await resolvedBackground(page, 'bg-primary/10');

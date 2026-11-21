@@ -52,7 +52,7 @@
   </div>
   <ListFilterField
     {filter}
-    compact={!layout.compact}
+    size="toolbar"
     class="ms-auto min-w-24 {layout.compact ? 'flex-1' : 'w-56 shrink'}"
   />
 {/snippet}
