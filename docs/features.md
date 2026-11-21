@@ -16,7 +16,7 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Browse timeline, archive, hidden assets, albums, favorites, folders, people, and tags | ✓ Yes | Uses the connected Immich library |
-| Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them from the open album |
+| Album browsing and membership | ✓ Yes | Albums come from Immich; the selection bar adds photos to albums and removes them; on an album you own or edit, **Remove from album** takes the selection out with **Undo**, and Immich keeps photos an editor does not own |
 | Create Immich albums | ✓ Yes | **Create album** on the Albums page, with an optional description |
 | Contextual smart search | ✓ Yes | Uses Immich CLIP search when the server has smart search turned on |
 | File name, description, full path or folder, and OCR search | ✓ Yes | Searches Immich metadata like Immich's own search types; OCR needs OCR turned on in Immich |

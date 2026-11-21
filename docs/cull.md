@@ -68,7 +68,8 @@ selected, press `C` (**Compare selected**) to see them side by side; with up to 
 The selection bar sets favorite, rating, reject and label on every selected photo, and has
 **Create virtual copy**, **Edits** (apply a preset, paste or reset), **Tags**, **Albums**,
 **Export selected photos** (see [export many photos](export.md#export-many-photos)) and **Move to
-Immich trash**. `Ctrl+C` and `Ctrl+V` copy one photo's edits and paste them onto the selection.
+Immich trash**. On an album you own or edit it also has **Remove from album**, with **Undo**.
+`Ctrl+C` and `Ctrl+V` copy one photo's edits and paste them onto the selection.
 
 ## On a phone or tablet
 

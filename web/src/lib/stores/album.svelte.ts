@@ -43,6 +43,17 @@ class AlbumStore {
     }
   };
 
+  refresh = async (id: string): Promise<void> => {
+    let fresh: AlbumSummary;
+    try {
+      fresh = await getAlbum(id);
+    } catch {
+      return;
+    }
+    library.putAlbum(fresh);
+    if (this.current?.id === id) this.current = fresh;
+  };
+
   remove = (album: AlbumSummary): Promise<boolean> => this.drop(album, deleteAlbum, 'Delete album');
 
   leave = (album: AlbumSummary): Promise<boolean> => this.drop(album, leaveAlbum, 'Leave album');
