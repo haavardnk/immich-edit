@@ -61,12 +61,13 @@
     bind:value={name}
     type="text"
     size="tiny"
+    color="neutral"
     autocomplete="off"
     aria-label={label}
     aria-invalid={error !== null}
     aria-describedby={error ? errorId : undefined}
     {onkeydown}
-    class="rounded-lg bg-light-100! ring-1 ring-primary/20! focus-within:bg-light-100! focus-within:ring-primary! [&_input]:h-8 [&_input]:text-label touch:[&_input]:h-11 touch:[&_input]:text-body"
+    class="rounded-lg [&_input]:h-8 [&_input]:text-label touch:[&_input]:h-11 touch:[&_input]:text-body"
   />
   {#if error}
     <p id={errorId} class="text-xs text-danger-800 touch:text-label">{error}</p>

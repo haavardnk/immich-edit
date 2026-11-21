@@ -5,7 +5,7 @@
   import { ownsAsset } from '#lib/browse/ownership.ts';
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
   import type { AssetSummary } from '#lib/types/album.ts';
-  import { Textarea } from '@immich/ui';
+  import TextArea from '#lib/components/TextArea.svelte';
   import { untrack } from 'svelte';
 
   type Draft = { id: string; text: string };
@@ -59,7 +59,7 @@
 {#if owned || saved !== ''}
   <InfoSection title="Description">
     {#if owned}
-      <Textarea
+      <TextArea
         bind:ref={field}
         value={draft}
         size="small"
@@ -67,7 +67,7 @@
         grow
         aria-label="Description"
         placeholder="Add a description"
-        class="max-h-40 bg-light-950/6! text-label ring-hairline! touch:text-body"
+        class="max-h-40 text-label touch:text-body"
         {oninput}
         onblur={() => void commit(edit)}
         {onkeydown}

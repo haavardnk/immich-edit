@@ -42,7 +42,7 @@
 {:else if layout.compact}
   <TouchAppBar {title} {count} actions={appBarActions} {bar} />
   {#if toolbar}
-    <div class="flex shrink-0 items-center gap-2 px-3 py-1">
+    <div class="flex shrink-0 flex-wrap items-center gap-2 px-4 py-1 sm:px-5">
       {@render toolbar()}
     </div>
   {/if}
