@@ -8,6 +8,7 @@ import {
   type MetaTarget
 } from '#lib/browse/assetMeta.ts';
 import { toTagRef } from '#lib/browse/managedTags.ts';
+import { library } from '#lib/stores/library.svelte.ts';
 import { tagCache } from '#lib/stores/tagCache.svelte.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 
@@ -37,7 +38,11 @@ export async function createAndAddTag(target: MetaTarget, value: string): Promis
 
 async function createTag(value: string): Promise<TagRef | null> {
   const [created] = await upsertTags([value]);
-  return created ? toTagRef(created) : null;
+  if (!created) return null;
+  await library.ensureTags().catch(() => undefined);
+  library.putTag(created);
+  if (value.includes('/')) void library.refreshTags().catch(() => undefined);
+  return toTagRef(created);
 }
 
 function tagChange(

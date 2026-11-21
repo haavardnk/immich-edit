@@ -118,3 +118,19 @@ test.describe('the tags sheet on touch', { tag: '@touch' }, () => {
     await expect(sheet).toBeHidden();
   });
 });
+
+test('a tag created in the picker shows in the sidebar tree at once', async ({ page }) => {
+  await openLoupe(page);
+  await rail(page).getByRole('button', { name: 'Tags (Shift+T)' }).click();
+  const picker = page.locator('[data-popover-content]');
+  const field = picker.getByRole('textbox', { name: 'Add tags…' });
+  await field.fill('Svalbard');
+  await field.press('Enter');
+  await expect(rail(page).getByRole('button', { name: 'Remove Svalbard' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /^Back/ })).toHaveCount(0);
+  const sidebar = page.getByRole('complementary', { name: 'Library' });
+  await sidebar.getByRole('button', { name: 'Show tags' }).click();
+  await expect(sidebar.getByRole('link', { name: /^Svalbard/ })).toBeVisible();
+});

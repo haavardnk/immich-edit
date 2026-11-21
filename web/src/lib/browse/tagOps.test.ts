@@ -7,13 +7,15 @@ const h = vi.hoisted(() => ({
   addTagToAsset: vi.fn((_tagId: string, _assetId: string) => Promise.resolve()),
   removeTagFromAsset: vi.fn((_tagId: string, _assetId: string) => Promise.resolve()),
   upsertTags: vi.fn((_values: string[]): Promise<TagSummary[]> => Promise.resolve([])),
+  listTags: vi.fn((): Promise<TagSummary[]> => Promise.resolve([])),
   consent: { value: true }
 }));
 
 vi.mock('#lib/api/tags.ts', () => ({
   addTagToAsset: h.addTagToAsset,
   removeTagFromAsset: h.removeTagFromAsset,
-  upsertTags: h.upsertTags
+  upsertTags: h.upsertTags,
+  listTags: h.listTags
 }));
 vi.mock('#lib/api/assets.ts', () => ({ updateAsset: vi.fn(() => Promise.resolve()) }));
 vi.mock('#lib/stores/metadataConsent.svelte.ts', () => ({
@@ -35,6 +37,7 @@ import {
 } from '#lib/browse/assetMeta.ts';
 import { addTag, createAndAddTag, removeTag } from '#lib/browse/tagOps.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
+import { library } from '#lib/stores/library.svelte.ts';
 import { rejected } from '#lib/stores/rejected.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 
@@ -66,6 +69,9 @@ beforeEach(() => {
   h.removeTagFromAsset.mockResolvedValue();
   h.upsertTags.mockReset();
   h.upsertTags.mockResolvedValue([]);
+  h.listTags.mockReset();
+  h.listTags.mockResolvedValue([]);
+  library.tags = [];
   session.clear();
   rejected.reset();
   browsing.set([asset('a')]);
@@ -125,6 +131,16 @@ describe('createAndAddTag', () => {
     );
     expect(h.upsertTags).toHaveBeenCalledWith(['sunset']);
     expect(tagIds()).toEqual(['t1']);
+    expect(library.tags.map((tag) => tag.id)).toEqual(['t1']);
+  });
+
+  it('reloads the list when a nested value may have created its parents', async () => {
+    const svalbard = { id: 't3', name: 'Svalbard', value: 'Travel/Svalbard', createdAt: null };
+    const travel = { id: 't4', name: 'Travel', value: 'Travel', createdAt: null };
+    h.upsertTags.mockResolvedValueOnce([svalbard]);
+    h.listTags.mockResolvedValue([travel, svalbard]);
+    await createAndAddTag(browseTarget('a'), 'Travel/Svalbard');
+    await vi.waitFor(() => expect(library.tags.map((tag) => tag.id)).toEqual(['t4', 't3']));
   });
 
   it('reports a tag Immich cannot create', async () => {
