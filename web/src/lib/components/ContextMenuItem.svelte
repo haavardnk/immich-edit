@@ -11,6 +11,7 @@
     detail,
     icon,
     disabled = false,
+    danger = false,
     onSelect,
     children
   }: {
@@ -18,6 +19,7 @@
     detail?: string;
     icon?: string;
     disabled?: boolean;
+    danger?: boolean;
     onSelect: () => void;
     children: Snippet;
   } = $props();
@@ -32,7 +34,7 @@
 {/snippet}
 
 {#if layout.mode === 'touch'}
-  <MenuRow {icon} {disabled} onclick={onSelect}>
+  <MenuRow {icon} {disabled} {danger} onclick={onSelect}>
     <span class="min-w-0 flex-1 truncate">{@render children()}</span>
     {@render trailing()}
   </MenuRow>
@@ -43,7 +45,9 @@
         {...props}
         {disabled}
         {onSelect}
-        class="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 data-highlighted:bg-light-950/10"
+        class="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-xs outline-none select-none data-disabled:cursor-default data-disabled:opacity-40 {danger
+          ? 'text-danger data-highlighted:bg-danger/10'
+          : 'data-highlighted:bg-light-950/10'}"
       >
         {#if icon}
           <Icon {icon} size="14px" class="shrink-0 opacity-70" aria-hidden="true" />

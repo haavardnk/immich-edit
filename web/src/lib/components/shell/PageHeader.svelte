@@ -12,6 +12,7 @@
     count,
     badge,
     actions,
+    titleActions,
     touchActions,
     compactActions,
     bar,
@@ -23,6 +24,7 @@
     count?: string;
     badge?: string;
     actions?: Snippet;
+    titleActions?: Snippet;
     touchActions?: Snippet;
     compactActions?: Snippet;
     bar?: Snippet;
@@ -40,7 +42,7 @@
     {@render selecting()}
   </header>
 {:else if layout.compact}
-  <TouchAppBar {title} {count} actions={appBarActions} {bar} />
+  <TouchAppBar {title} {count} actions={appBarActions} {titleActions} {bar} />
   {#if toolbar}
     <div class="flex shrink-0 flex-wrap items-center gap-2 px-4 py-1 sm:px-5">
       {@render toolbar()}
@@ -78,6 +80,7 @@
           {/if}
         </p>
       {/if}
+      {@render titleActions?.()}
     </div>
     {#if toolbar}
       <div class="flex min-w-0 flex-1 items-center gap-3">

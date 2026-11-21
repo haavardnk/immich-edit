@@ -98,16 +98,24 @@ class LibraryStore {
     this.ensure(view).catch(() => undefined);
   };
 
-  createAlbum = async (name: string): Promise<AlbumSummary | null> => {
+  createAlbum = async (name: string, description = ''): Promise<AlbumSummary | null> => {
     try {
-      const album = await createAlbum(name);
-      this.albums = byName([...this.albums, album]);
+      const album = await createAlbum(name, description);
+      this.putAlbum(album);
       return album;
     } catch (e: unknown) {
       toasts.fail('Failed to create album', e);
       return null;
     }
   };
+
+  putAlbum(album: AlbumSummary): void {
+    this.albums = byName([...this.albums.filter(({ id }) => id !== album.id), album]);
+  }
+
+  dropAlbum(id: string): void {
+    this.albums = this.albums.filter((album) => album.id !== id);
+  }
 
   ensureTags(): Promise<void> {
     return this.ensure('tags');

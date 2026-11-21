@@ -33,8 +33,8 @@ const ALBUMS: MockAlbum[] = [
   { id: 'album-empty', albumName: 'Archive', assetIds: [], updatedAt: '2026-08-01T00:00:00Z' }
 ];
 
-async function openAlbums(page: Page, isAdmin = true): Promise<void> {
-  await installMocks(page, { albums: ALBUMS });
+async function openAlbums(page: Page, isAdmin = true, consented = true): Promise<void> {
+  await installMocks(page, { albums: ALBUMS, metadataPushConsented: consented });
   await page.route('**/api/auth/me', (route) =>
     route.fulfill(json({ ...SESSION_USER, is_admin: isAdmin }))
   );
@@ -165,7 +165,7 @@ async function openManyAlbums(page: Page): Promise<void> {
     albumName: `Album ${i}`,
     assetIds: ['a']
   }));
-  await installMocks(page, { albums: many });
+  await installMocks(page, { albums: many, metadataPushConsented: true });
   await page.goto('/albums');
   await expect(page.getByRole('textbox', { name: 'Filter albums' })).toBeVisible();
 }
@@ -221,6 +221,19 @@ test.describe('albums page on the desktop', () => {
   }) => {
     await openAlbums(page);
     await cancelWhileCreating(page, click);
+  });
+
+  test('creating an album asks to sync metadata to Immich first', async ({ page }) => {
+    await openAlbums(page, true, false);
+    await page.getByRole('button', { name: 'Create album', exact: true }).click();
+    const consent = page.getByRole('dialog', { name: 'Sync metadata to Immich' });
+    await expect(consent).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Create album' })).toHaveCount(0);
+    await consent.getByRole('button', { name: 'Sync to Immich', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Create album' })).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: 'Create album' }).getByRole('textbox', { name: 'Name' })
+    ).toBeFocused();
   });
 
   test('account settings name the Immich server for a non-admin', async ({ page }) => {

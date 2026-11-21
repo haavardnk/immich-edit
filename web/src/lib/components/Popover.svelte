@@ -97,6 +97,7 @@
       onExited={sheet.exited}
       title={title ?? 'Menu'}
       caption={title !== undefined}
+      {subtitle}
       data-popover-content
     >
       {@render children()}

@@ -1,20 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { AlbumSummary } from '#lib/types/album.ts';
+import { album as albumFixture } from '#lib/testing/albums.ts';
 import { ALBUM_SCOPES, albumsInScope } from './albumScope';
 
 const ME = 'user-me';
 
-function album(albumName: string, ownerId: string | null, shared: boolean): AlbumSummary {
-  return {
-    id: albumName,
-    albumName,
-    assetCount: 1,
-    albumThumbnailAssetId: null,
-    updatedAt: null,
-    ownerId,
-    shared,
-    endDate: null
-  };
+function album(albumName: string, ownerId: string | null, shared: boolean) {
+  return albumFixture(albumName, { assetCount: 1, ownerId, shared });
 }
 
 const ALBUMS = [

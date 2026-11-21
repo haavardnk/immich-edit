@@ -13,6 +13,7 @@
     onOpenChange,
     title,
     caption = false,
+    subtitle,
     onExited,
     children,
     ...rest
@@ -22,6 +23,7 @@
     onExited?: () => void;
     title: string;
     caption?: boolean;
+    subtitle?: string;
     children: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'title'> = $props();
 
@@ -128,13 +130,20 @@
           {@attach frameRef}
         >
           <div class="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-light-100 text-dark">
-            <Dialog.Title
-              class={caption
-                ? 'flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-label font-normal text-dark/65'
-                : 'sr-only'}
-            >
-              {title}
-            </Dialog.Title>
+            {#if caption && subtitle}
+              <div class="flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-label">
+                <Dialog.Title class="truncate font-semibold text-light-950">{title}</Dialog.Title>
+                <Dialog.Description class="truncate text-dark/65">{subtitle}</Dialog.Description>
+              </div>
+            {:else}
+              <Dialog.Title
+                class={caption
+                  ? 'flex-none border-b border-hairline px-4 pt-3 pb-2 text-center text-label font-normal text-dark/65'
+                  : 'sr-only'}
+              >
+                {title}
+              </Dialog.Title>
+            {/if}
             <div
               class="flex min-h-0 flex-col overflow-y-auto overscroll-contain"
               {@attach closeAfterRow}

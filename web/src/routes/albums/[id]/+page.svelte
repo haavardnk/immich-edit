@@ -8,6 +8,8 @@
   import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import AlbumMeta from '#lib/components/library/AlbumMeta.svelte';
+  import AlbumMoreButton from '#lib/components/library/AlbumMoreButton.svelte';
 
   const ALBUMS = { href: '/albums', label: 'Albums' };
 
@@ -43,4 +45,15 @@
     void feed.fetchPage(true);
   }}
   emptyTitle="This album is empty"
-/>
+>
+  {#snippet titleActions()}
+    {#if album.current}
+      <AlbumMoreButton album={album.current} place="page" />
+    {/if}
+  {/snippet}
+  {#snippet lead()}
+    {#if album.current}
+      <AlbumMeta album={album.current} />
+    {/if}
+  {/snippet}
+</BrowsePage>
