@@ -37,7 +37,7 @@
 <div
   {...scrub.slider}
   data-testid="date-rail"
-  class="relative z-10 w-13 shrink-0 cursor-pointer touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+  class="relative z-10 flex-1 cursor-pointer touch-none select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
   {...drag.on()}
   onpointerleave={() => scrub.leave()}
 >

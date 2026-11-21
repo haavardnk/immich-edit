@@ -13,10 +13,14 @@
   $effect(() => monthCounts.watch(feed.currentFilter()));
 </script>
 
-{#if scrub.model.months.length > 0}
-  {#if layout.mode === 'touch'}
+{#if layout.mode === 'touch'}
+  {#if scrub.model.months.length > 0}
     <DateThumb {scrub} {scroller} />
-  {:else}
-    <DateRail {scrub} />
   {/if}
+{:else if scrub.model.months.length > 0 || !monthCounts.loaded}
+  <div class="flex w-13 shrink-0" data-testid="date-rail-slot">
+    {#if scrub.model.months.length > 0}
+      <DateRail {scrub} />
+    {/if}
+  </div>
 {/if}
