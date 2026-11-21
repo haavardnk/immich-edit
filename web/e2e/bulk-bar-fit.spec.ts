@@ -118,6 +118,24 @@ for (const { width, filters, roomy } of LAYOUTS) {
   });
 }
 
+test('an album bar keeps Remove from album inside the bar at 1024 with the filter panel open', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.clock.setFixedTime(new Date('2026-11-05T12:00:00Z'));
+  const album = { id: 'album-norway', albumName: 'Norway 2026', assetIds: ASSETS.map((a) => a.id) };
+  await installMocks(page, { assets: ASSETS, albums: [album], metadataPushConsented: true });
+  await smallPages(page, 30);
+  await page.goto('/albums/album-norway');
+  await expect(page.getByTestId('day-header').first()).toBeVisible();
+  await openFilters(page);
+  const tiles = page.locator('[role="group"][data-name]');
+  for (const index of [0, 1])
+    await pick(page, (await tiles.nth(index).getAttribute('data-name')) ?? '');
+  await expect(bulkBar(page).getByRole('button', { name: 'Remove from album' })).toBeVisible();
+  await expectBarFits(page, false);
+});
+
 test('a narrow column folds the stars and the organise group into menus', async ({ page }) => {
   await openPhotos(page, 1024, true);
   await pick(page, 'IMG_0001.ARW');

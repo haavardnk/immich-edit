@@ -609,6 +609,14 @@ export async function installMocks(
         )
       );
     }
+    const albumMembers = albums.find((album) => p === `/api/albums/${album.id}/assets`);
+    if (albumMembers && (method === 'PUT' || method === 'DELETE')) {
+      const ids = (req.postDataJSON() as { ids: string[] }).ids;
+      const kept = albumMembers.assetIds.filter((id) => !ids.includes(id));
+      const assetIds = method === 'PUT' ? [...kept, ...ids] : kept;
+      albums.splice(albums.indexOf(albumMembers), 1, { ...albumMembers, assetIds });
+      return route.fulfill(json(ids.map((id) => ({ id, success: true }))));
+    }
     const albumDetail = albums.find((album) => p === `/api/albums/${album.id}`);
     if (albumDetail && method === 'GET') return route.fulfill(json(mockAlbumSummary(albumDetail)));
     if (albumDetail && method === 'PATCH') {
