@@ -7,7 +7,7 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumDetail, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
+    AlbumPatch, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, PeopleResponse,
     PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
     TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
 };
@@ -177,13 +177,37 @@ impl ImmichClient {
             .await
     }
 
-    pub async fn create_album(&self, name: &str) -> ImmichResult<AlbumSummary> {
-        self.post_json("api/albums", &serde_json::json!({ "albumName": name }))
-            .await
+    pub async fn create_album(
+        &self,
+        name: &str,
+        description: Option<&str>,
+    ) -> ImmichResult<AlbumSummary> {
+        let mut body = serde_json::json!({ "albumName": name });
+        if let Some(description) = description {
+            body["description"] = description.into();
+        }
+        self.post_json("api/albums", &body).await
     }
 
-    pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumDetail> {
+    pub async fn album(&self, id: Uuid) -> ImmichResult<AlbumSummary> {
         self.get_json(&format!("api/albums/{id}")).await
+    }
+
+    pub async fn update_album(&self, id: Uuid, patch: &AlbumPatch) -> ImmichResult<()> {
+        let url = self.url(&format!("api/albums/{id}"))?;
+        send(self.authed(self.http.patch(url).json(patch)))
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn delete_album(&self, id: Uuid) -> ImmichResult<()> {
+        let url = self.url(&format!("api/albums/{id}"))?;
+        send(self.authed(self.http.delete(url))).await.map(|_| ())
+    }
+
+    pub async fn leave_album(&self, id: Uuid, user: Uuid) -> ImmichResult<()> {
+        let url = self.url(&format!("api/albums/{id}/user/{user}"))?;
+        send(self.authed(self.http.delete(url))).await.map(|_| ())
     }
 
     pub async fn asset(&self, id: Uuid) -> ImmichResult<AssetDetail> {
