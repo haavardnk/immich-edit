@@ -173,6 +173,7 @@ test('visible feedback has accessible live-region semantics', async ({ page }) =
   const toast = page.getByRole('status').filter({ hasText: message });
   await expect(toast).toBeVisible();
   await expect(toast).toHaveAttribute('aria-live', 'polite');
+  await expect(toast).toHaveCSS('opacity', '1');
   expect(await audit(page)).toEqual([]);
 });
 
