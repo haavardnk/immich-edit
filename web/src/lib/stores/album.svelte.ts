@@ -29,7 +29,11 @@ class AlbumStore {
     }
   }
 
-  update = async (id: string, patch: AlbumPatch): Promise<AlbumSummary | null> => {
+  update = async (
+    id: string,
+    patch: AlbumPatch,
+    failure = 'Save album details'
+  ): Promise<AlbumSummary | null> => {
     if (!(await metadataConsent.gate())) return null;
     try {
       const updated = await updateAlbum(id, patch);
@@ -38,7 +42,7 @@ class AlbumStore {
       if (patch.albumName !== undefined) assetAlbums.clear();
       return updated;
     } catch (e) {
-      toasts.fail('Save album details', e);
+      toasts.fail(failure, e);
       return null;
     }
   };

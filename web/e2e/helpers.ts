@@ -307,7 +307,7 @@ export function mockAlbumSummary(album: MockAlbum) {
     albumName: album.albumName,
     description: album.description ?? '',
     assetCount: album.assetIds.length,
-    albumThumbnailAssetId: null,
+    albumThumbnailAssetId: album.albumThumbnailAssetId ?? null,
     updatedAt: album.updatedAt ?? null,
     ownerId: album.ownerId ?? SESSION_USER.id,
     shared: album.shared ?? false,
