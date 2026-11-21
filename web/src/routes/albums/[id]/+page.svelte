@@ -9,6 +9,8 @@
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
 
+  const ALBUMS = { href: '/albums', label: 'Albums' };
+
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { album: id } }) });
 
@@ -29,6 +31,7 @@
 
 <BrowsePage
   {feed}
+  parent={ALBUMS}
   title={album.current?.albumName ?? 'Album'}
   loading={album.loading && !album.current}
   loadingLabel="Loading album…"

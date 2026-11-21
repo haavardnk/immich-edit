@@ -2,7 +2,9 @@
   import { page } from '$app/state';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
   import { gridPath } from '#lib/browse/gridReturn.ts';
+  import type { ListNoun } from '#lib/browse/listFilter.ts';
   import { rememberScroll } from '#lib/navigation/scrollMemory.ts';
+  import { countOf } from '#lib/utils/plural.ts';
   import type { Snippet } from 'svelte';
 
   let {
@@ -13,18 +15,25 @@
     children
   }: {
     title: string;
-    count?: string;
+    count?: { value: number; noun: ListNoun };
     actions?: Snippet;
     toolbar?: Snippet;
     children: Snippet;
   } = $props();
 
   const scrollKey = gridPath(page.url);
+  const label = $derived(count && countOf(count.value, count.noun.one, count.noun.many));
 </script>
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PageHeader {title} {count} {actions} compactActions={actions} />
-  {@render toolbar?.()}
+  <PageHeader
+    {title}
+    count={label}
+    badge={count && String(count.value)}
+    {actions}
+    compactActions={actions}
+    {toolbar}
+  />
   <div
     class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden"
     data-testid="page-scroller"

@@ -12,11 +12,13 @@
   import { trash } from '#lib/stores/trash.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
+  import type { PageParent } from '#lib/components/shell/pageParent.ts';
   import { Button, LoadingSpinner } from '@immich/ui';
   import { onMount, type Snippet } from 'svelte';
 
   let {
     title,
+    parent,
     assets: listed = [],
     loading: pageLoading = false,
     feed,
@@ -37,6 +39,7 @@
     lead
   }: {
     title: string;
+    parent?: PageParent;
     assets?: AssetSummary[];
     loading?: boolean;
     feed?: BrowseFeed;
@@ -118,6 +121,7 @@
     {:else}
       <BrowseHeader
         {title}
+        {parent}
         totalCount={headerTotal}
         hiddenCount={countLoaded ? 0 : hiddenCount}
         {sortBasis}

@@ -109,10 +109,38 @@ test('the library sidebar exposes the current page and section state', async ({ 
     'page'
   );
 
-  const albums = page.getByRole('button', { name: /^Albums/ });
+  const albums = page.getByRole('button', { name: /^(Show|Hide) albums$/ });
   await expect(albums).toHaveAttribute('aria-expanded', 'false');
   await albums.click();
   await expect(albums).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('a sidebar section label opens its index page while the chevron alone folds it', async ({
+  page
+}) => {
+  await installMocks(page);
+  await page.goto('/photos');
+  const sidebar = page.getByRole('complementary', { name: 'Library' });
+
+  const toggle = sidebar.getByRole('button', { name: 'Show albums' });
+  await toggle.hover();
+  await expect(page.locator('[data-tooltip-content]', { hasText: 'Show albums' })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: /^See all/ })).toHaveCount(0);
+
+  const albums = sidebar.getByRole('link', { name: /^Albums/ });
+  await albums.click();
+  await expect(page).toHaveURL('/albums');
+  await expect(albums).toHaveAttribute('aria-current', 'page');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+  for (const [label, url] of [
+    ['People', '/people'],
+    ['Tags', '/tags'],
+    ['Folders', '/folders']
+  ] as const) {
+    await sidebar.getByRole('link', { name: new RegExp(`^${label}`) }).click();
+    await expect(page).toHaveURL(url);
+  }
 });
 
 test('collection rows expose current state only on their own route', async ({ page }) => {
@@ -134,13 +162,19 @@ test('collection rows expose current state only on their own route', async ({ pa
   );
 
   await page.goto('/tags/shared-id');
-  await expect(page.getByRole('button', { name: /^Tags/ })).toHaveAttribute(
+  const sidebar = page.getByRole('complementary', { name: 'Library' });
+  const tags = sidebar.getByRole('link', { name: /^Tags/ });
+  await expect(sidebar.getByRole('button', { name: 'Show tags' })).toHaveAttribute(
     'aria-expanded',
-    'true'
+    'false'
   );
-  await expect(page.getByRole('link', { name: 'Travel' })).toHaveAttribute('aria-current', 'page');
+  await expect(tags).toHaveAttribute('aria-current', 'location');
 
-  await page.getByRole('button', { name: /^Albums/ }).click();
+  await sidebar.getByRole('button', { name: 'Show tags' }).click();
+  await expect(page.getByRole('link', { name: 'Travel' })).toHaveAttribute('aria-current', 'page');
+  await expect(tags).toHaveAttribute('aria-current', 'location');
+
+  await page.getByRole('button', { name: 'Show albums' }).click();
   await expect(page.getByRole('link', { name: /Trips/ })).not.toHaveAttribute(
     'aria-current',
     'page'

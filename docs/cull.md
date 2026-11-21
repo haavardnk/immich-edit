@@ -14,9 +14,10 @@ here as soon as Immich has it. Keys are listed on [keyboard shortcuts](shortcuts
 ## Find photos
 
 The sidebar has **Photos**, **People**, **Favorites**, **Albums**, **Tags**, **Folders** and
-**Edited** (the photos you changed here). The search box searches your library; **Search by**
-picks **Context** (smart search), **File name**, **Description**, **Full path or folder** or
-**OCR**.
+**Edited** (the photos you changed here). **People**, **Albums**, **Tags** and **Folders** open
+their overview page; the arrow beside each lists them in the sidebar. The search box searches your
+library; **Search by** picks **Context** (smart search), **File name**, **Description**, **Full path
+or folder** or **OCR**.
 
 **Filters** (`Shift+F`) opens the filter panel: **Library**, **Rating & label**, **People**,
 **Albums**, **Tags**, **Date**, **Camera**, **Place** and **File**. **Reset** clears them all, and

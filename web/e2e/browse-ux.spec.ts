@@ -3,7 +3,9 @@ import { ASSET_SUMMARY, installMocks, json, numberedAssets, openFilters } from '
 
 const PAGED_ASSETS = numberedAssets(3);
 
-test('a cold album link opens the albums section at the current album', async ({ page }) => {
+test('a cold album link keeps the albums section folded and leads back to the grid', async ({
+  page
+}) => {
   const album = {
     id: 'album-1',
     albumName: 'Review album',
@@ -17,9 +19,22 @@ test('a cold album link opens the albums section at the current album', async ({
   await page.goto('/albums/album-1');
 
   const sidebar = page.getByRole('complementary', { name: 'Library' });
-  const link = sidebar.getByRole('link', { name: /Review album/ });
-  await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: 'Review album', level: 1 })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Show albums' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+  await expect(sidebar.getByRole('link', { name: /Review album/ })).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: /^Albums/ })).toHaveAttribute(
+    'aria-current',
+    'location'
+  );
+
+  await page.getByRole('main').getByRole('link', { name: 'Albums', exact: true }).click();
+  await expect(page).toHaveURL('/albums');
+  await expect(page.getByRole('list', { name: 'Albums' }).getByRole('link')).toHaveText([
+    /Review album/
+  ]);
 });
 
 test('each thumbnail info mode shows more than the last', async ({ page }) => {

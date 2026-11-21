@@ -27,7 +27,7 @@
   />
   {#if showCount}
     <span
-      class="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 text-xs text-dark/65 tabular-nums wide:right-3"
+      class="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-xs text-dark/65 tabular-nums touch:right-13"
     >
       {count}
     </span>

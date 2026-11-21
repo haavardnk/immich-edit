@@ -7,6 +7,7 @@
   import { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
   import { resumeId } from '#lib/browse/gridReturn.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import { COLLECTIONS } from '#lib/components/library/collections.ts';
 
   const id = $derived(page.params.id as string);
   const feed = new BrowseFeed({ baseFilter: () => ({ scope: { person: id } }) });
@@ -25,4 +26,10 @@
   $effect(() => feed.watchFilterChange());
 </script>
 
-<BrowsePage {feed} {title} loadingLabel="Loading photos…" emptyTitle="No photos for this person" />
+<BrowsePage
+  {feed}
+  parent={COLLECTIONS.people}
+  {title}
+  loadingLabel="Loading photos…"
+  emptyTitle="No photos for this person"
+/>
