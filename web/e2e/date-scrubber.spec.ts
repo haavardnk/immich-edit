@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
-import { installMocks } from './helpers';
+import { installMocks, numberedAssets } from './helpers';
 import {
   dayHeader,
   datedAssets,
@@ -146,6 +146,28 @@ test('the rail scrolls inside a library that spans one month', async ({ page }) 
   await page.mouse.click(box.x + box.width / 2, track.y + track.height * 0.76);
   await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
   await expect(page.locator('[data-name="IMG_0001.ARW"]')).not.toBeInViewport();
+});
+
+test('the grid keeps its tile sizes while the month counts load', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installMocks(page, { assets: numberedAssets(24) });
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/search/months', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto('/photos');
+  const tile = page.locator('[data-name="IMG_0001.ARW"]');
+  await expect(tile).toBeVisible();
+  const before = await tile.boundingBox();
+
+  release();
+  await expect(page.getByRole('slider', { name: 'Timeline' })).toBeVisible();
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+  );
+  expect(await tile.boundingBox()).toEqual(before);
 });
 
 test('a keyboard step on the rail moves one month', async ({ page }) => {
