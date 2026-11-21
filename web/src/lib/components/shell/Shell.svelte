@@ -12,6 +12,8 @@
   import SignOutConfirm from './SignOutConfirm.svelte';
   import JobsOverlay from '#lib/components/jobs/JobsOverlay.svelte';
   import JobsTabStatus from '#lib/components/jobs/JobsTabStatus.svelte';
+  import AlbumConfirmDialog from '#lib/components/library/AlbumConfirmDialog.svelte';
+  import AlbumDetailsDialog from '#lib/components/library/AlbumDetailsDialog.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
@@ -89,6 +91,8 @@
 <CopyDialog />
 <MetadataConsentDialog />
 <TrashDialog />
+<AlbumDetailsDialog />
+<AlbumConfirmDialog />
 <JobsOverlay />
 <JobsTabStatus />
 <SignOutConfirm />

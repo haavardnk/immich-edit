@@ -16,6 +16,7 @@
     hiddenCount = 0,
     sortBasis = 'capture',
     bar,
+    titleActions,
     onTrashRejected
   }: {
     title: string;
@@ -24,6 +25,7 @@
     hiddenCount?: number;
     sortBasis?: 'capture' | 'edit' | null;
     bar?: Snippet;
+    titleActions?: Snippet;
     onTrashRejected?: () => Promise<void>;
   } = $props();
 
@@ -45,6 +47,7 @@
   {parent}
   {count}
   {bar}
+  {titleActions}
   selecting={bulkScope.selecting ? selectionBar : undefined}
 >
   {#snippet actions()}

@@ -19,6 +19,9 @@ their overview page; the arrow beside each lists them in the sidebar. The search
 library; **Search by** picks **Context** (smart search), **File name**, **Description**, **Full path
 or folder** or **OCR**.
 
+**Album actions** (⋯ on an album, or right-click it) renames an album, edits its description,
+deletes it or leaves one shared with you. The photos stay in your library.
+
 **Filters** (`Shift+F`) opens the filter panel: **Library**, **Rating & label**, **People**,
 **Albums**, **Tags**, **Date**, **Camera**, **Place** and **File**. **Reset** clears them all, and
 each active filter shows as a chip you can remove. Filters live in the page address, so a reload

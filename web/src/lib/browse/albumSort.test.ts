@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AlbumSummary } from '#lib/types/album.ts';
+import { album as albumFixture } from '#lib/testing/albums.ts';
 import { ALBUM_SORTS, sortAlbums } from './albumSort';
 
 function album(
@@ -7,17 +8,8 @@ function album(
   assetCount: number,
   updatedAt: string | null,
   endDate: string | null
-): AlbumSummary {
-  return {
-    id: albumName,
-    albumName,
-    assetCount,
-    albumThumbnailAssetId: null,
-    updatedAt,
-    ownerId: null,
-    shared: false,
-    endDate
-  };
+) {
+  return albumFixture(albumName, { assetCount, updatedAt, endDate });
 }
 
 const ALBUMS = [

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installMocks, json } from './helpers';
+import { installMocks, json, mockAlbumSummary } from './helpers';
 
 const ROUTES = [
   { path: '/photos', text: 'Photos' },
@@ -20,12 +20,14 @@ async function installRouteMocks(page: Page): Promise<void> {
   await installMocks(page);
   await page.route('**/api/albums/album-1', (route) =>
     route.fulfill(
-      json({
-        id: 'album-1',
-        albumName: 'Review album',
-        assetCount: 1,
-        updatedAt: '2024-01-01T00:00:00Z'
-      })
+      json(
+        mockAlbumSummary({
+          id: 'album-1',
+          albumName: 'Review album',
+          assetIds: ['a'],
+          updatedAt: '2024-01-01T00:00:00Z'
+        })
+      )
     )
   );
 }

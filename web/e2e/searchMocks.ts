@@ -137,7 +137,16 @@ export interface MockAlbum {
   ownerId?: string;
   shared?: boolean;
   updatedAt?: string;
+  startDate?: string;
   endDate?: string;
+  description?: string;
+  members?: MockAlbumMember[];
+}
+
+export interface MockAlbumMember {
+  userId: string;
+  name: string;
+  role: 'owner' | 'editor' | 'viewer';
 }
 
 export function matchesIds(ids: string[], set: IdSet | undefined): boolean {

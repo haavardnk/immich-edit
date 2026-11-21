@@ -12,6 +12,7 @@ import {
   type IdSet,
   type ManagedFilter,
   type MockAlbum,
+  type MockAlbumMember,
   type MockPerson
 } from './searchMocks';
 
@@ -288,6 +289,34 @@ export interface MockSavedView {
   updated_at: string;
 }
 
+function mockAlbumMembers(album: MockAlbum): MockAlbumMember[] {
+  if (album.members) return album.members;
+  const ownerId = album.ownerId ?? SESSION_USER.id;
+  if (ownerId === SESSION_USER.id) {
+    return [{ userId: ownerId, name: SESSION_USER.name, role: 'owner' }];
+  }
+  return [
+    { userId: ownerId, name: 'Anne Berg', role: 'owner' },
+    { userId: SESSION_USER.id, name: SESSION_USER.name, role: 'viewer' }
+  ];
+}
+
+export function mockAlbumSummary(album: MockAlbum) {
+  return {
+    id: album.id,
+    albumName: album.albumName,
+    description: album.description ?? '',
+    assetCount: album.assetIds.length,
+    albumThumbnailAssetId: null,
+    updatedAt: album.updatedAt ?? null,
+    ownerId: album.ownerId ?? SESSION_USER.id,
+    shared: album.shared ?? false,
+    startDate: album.startDate ?? null,
+    endDate: album.endDate ?? null,
+    members: mockAlbumMembers(album)
+  };
+}
+
 export async function installMocks(
   page: Page | BrowserContext,
   opts: InstallOpts = {}
@@ -327,16 +356,6 @@ export async function installMocks(
     assetTags.get(id) ?? fallback ?? [];
   const people = opts.people ?? [];
   const albums = [...(opts.albums ?? [])];
-  const albumSummary = (album: MockAlbum) => ({
-    id: album.id,
-    albumName: album.albumName,
-    assetCount: album.assetIds.length,
-    albumThumbnailAssetId: null,
-    updatedAt: album.updatedAt ?? null,
-    ownerId: album.ownerId ?? SESSION_USER.id,
-    shared: album.shared ?? false,
-    endDate: album.endDate ?? null
-  });
   const matchesPeople = (id: string, set: IdSet | undefined): boolean =>
     matchesIds(
       people.filter((person) => person.assetIds.includes(id)).map((person) => person.id),
@@ -567,23 +586,45 @@ export async function installMocks(
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
     if (p === '/api/albums' && method === 'POST') {
-      const { albumName } = req.postDataJSON() as { albumName: string };
-      const album = { id: `album-${albums.length + 1}`, albumName: albumName.trim(), assetIds: [] };
+      const { albumName, description } = req.postDataJSON() as {
+        albumName: string;
+        description?: string;
+      };
+      const album = {
+        id: `album-${albums.length + 1}`,
+        albumName: albumName.trim(),
+        description,
+        assetIds: []
+      };
       albums.push(album);
-      return route.fulfill(json(albumSummary(album)));
+      return route.fulfill(json(mockAlbumSummary(album)));
     }
     if (p === '/api/albums') {
       const holding = url.searchParams.get('assetId')?.split('_')[0];
       return route.fulfill(
         json(
-          albums.filter(({ assetIds }) => !holding || assetIds.includes(holding)).map(albumSummary)
+          albums
+            .filter(({ assetIds }) => !holding || assetIds.includes(holding))
+            .map(mockAlbumSummary)
         )
       );
     }
     const albumDetail = albums.find((album) => p === `/api/albums/${album.id}`);
-    if (albumDetail && method === 'GET') {
-      const { id, albumName, assetCount, updatedAt } = albumSummary(albumDetail);
-      return route.fulfill(json({ id, albumName, assetCount, updatedAt }));
+    if (albumDetail && method === 'GET') return route.fulfill(json(mockAlbumSummary(albumDetail)));
+    if (albumDetail && method === 'PATCH') {
+      const patch = req.postDataJSON() as Partial<MockAlbum>;
+      const updated = { ...albumDetail, ...patch };
+      albums.splice(albums.indexOf(albumDetail), 1, updated);
+      return route.fulfill(json(mockAlbumSummary(updated)));
+    }
+    const albumGone = albums.find(
+      (album) =>
+        (method === 'DELETE' && p === `/api/albums/${album.id}`) ||
+        (method === 'DELETE' && p === `/api/albums/${album.id}/membership`)
+    );
+    if (albumGone) {
+      albums.splice(albums.indexOf(albumGone), 1);
+      return route.fulfill({ status: 204, body: '' });
     }
     if (p === '/api/tags') {
       if (method === 'PUT') {
