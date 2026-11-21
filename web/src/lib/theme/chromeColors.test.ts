@@ -135,6 +135,19 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/panels/MaskRangeControls.svelte': ['rgb(']
 };
 
+const TAG_COLORS: Record<string, string[]> = {
+  '/src/lib/browse/tagColor.ts': [
+    '#12a594',
+    '#3e8ed0',
+    '#46a758',
+    '#8e4ec6',
+    '#d6409f',
+    '#e5484d',
+    '#f5c542',
+    '#f76b15'
+  ]
+};
+
 const SCRIMS: Record<string, string[]> = {
   '/src/lib/components/sheet/SheetScrim.svelte': ['bg-black/20', 'bg-black/60']
 };
@@ -156,7 +169,7 @@ describe('chrome colours', () => {
       .filter(([, literals]) => literals.length > 0)
   );
 
-  it('use theme tokens outside image surfaces and scrims', () => {
-    expect(found).toEqual({ ...IMAGE_SURFACES, ...SCRIMS });
+  it('use theme tokens outside image surfaces, scrims and tag colors', () => {
+    expect(found).toEqual({ ...IMAGE_SURFACES, ...SCRIMS, ...TAG_COLORS });
   });
 });

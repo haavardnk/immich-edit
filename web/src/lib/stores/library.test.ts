@@ -3,6 +3,7 @@ import { createAlbum, listAlbums } from '#lib/api/albums.ts';
 import { listPeople, type PersonSummary } from '#lib/api/people.ts';
 import { folderPaths } from '#lib/api/folders.ts';
 import { searchStatistics } from '#lib/api/search.ts';
+import { listTags, type TagSummary } from '#lib/api/tags.ts';
 import { album as albumFixture } from '#lib/testing/albums.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
 
@@ -147,5 +148,40 @@ describe('creating an album', () => {
     expect(toasts.items.map((toast) => toast.message)).toContain(
       'Failed to create album: Forbidden'
     );
+  });
+});
+
+describe('tags', () => {
+  const tag = (id: string, value: string): TagSummary => ({
+    id,
+    name: value,
+    value,
+    createdAt: null
+  });
+
+  it('adds or replaces one tag without a reload', async () => {
+    vi.mocked(listTags).mockResolvedValueOnce([tag('a', 'Film')]);
+    const library = await load();
+    await library.ensure('tags');
+
+    library.putTag(tag('b', 'Travel'));
+    library.putTag({ ...tag('a', 'Film'), color: '#e5484d' });
+
+    expect(library.tags.map(({ id, color }) => [id, color ?? null])).toEqual([
+      ['b', null],
+      ['a', '#e5484d']
+    ]);
+  });
+
+  it('reloads the whole list after a rename or delete', async () => {
+    vi.mocked(listTags).mockResolvedValueOnce([tag('a', 'Film')]);
+    const library = await load();
+    await library.ensure('tags');
+    vi.mocked(listTags).mockResolvedValueOnce([tag('a', 'Movies')]);
+
+    await library.refreshTags();
+
+    expect(library.tags.map((entry) => entry.value)).toEqual(['Movies']);
+    expect(library.isLoaded('tags')).toBe(true);
   });
 });

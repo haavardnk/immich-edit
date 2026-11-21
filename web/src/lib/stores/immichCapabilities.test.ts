@@ -9,6 +9,7 @@ function capabilities(extra: Partial<ImmichCapabilities>): ImmichCapabilities {
     immich_version: '3.2.2',
     external_host: 'photos.example.net',
     structured_search: true,
+    tag_rename: false,
     smart_search: true,
     ocr: true,
     trash: true,
@@ -35,5 +36,16 @@ describe('immich server identity', () => {
     vi.mocked(getImmichCapabilities).mockResolvedValueOnce(capabilities({ external_host: null }));
     await immichCapabilities.load();
     expect(immichCapabilities.externalHost).toBeNull();
+  });
+});
+
+describe('tag rename', () => {
+  it('follows the server and turns off when capabilities fail', async () => {
+    vi.mocked(getImmichCapabilities).mockResolvedValueOnce(capabilities({ tag_rename: true }));
+    await immichCapabilities.load();
+    expect(immichCapabilities.tagRename).toBe(true);
+    vi.mocked(getImmichCapabilities).mockRejectedValueOnce(new Error('offline'));
+    await immichCapabilities.load();
+    expect(immichCapabilities.tagRename).toBe(false);
   });
 });

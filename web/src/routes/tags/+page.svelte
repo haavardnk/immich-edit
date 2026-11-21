@@ -18,9 +18,10 @@
   } from '#lib/browse/tagTree.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { library } from '#lib/stores/library.svelte.ts';
+  import { tagActions } from '#lib/stores/tagActions.svelte.ts';
   import { tagTreeOpen } from '#lib/stores/tagTreeOpen.svelte.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiUnfoldLessHorizontal, mdiUnfoldMoreHorizontal } from '@mdi/js';
+  import { mdiPlus, mdiUnfoldLessHorizontal, mdiUnfoldMoreHorizontal } from '@mdi/js';
 
   const TAG_NOUN = { one: 'tag', many: 'tags' };
 
@@ -64,6 +65,16 @@
     />
   {/if}
   <ListSortMenu noun="tags" options={TAG_SORTS} value={sort} onChange={(next) => (sort = next)} />
+  <IconButton
+    size="small"
+    variant="ghost"
+    color="secondary"
+    class="touch:size-11"
+    icon={mdiPlus}
+    title="Create tag"
+    aria-label="Create tag"
+    onclick={() => void tagActions.create()}
+  />
 {/snippet}
 
 {#snippet filterField()}

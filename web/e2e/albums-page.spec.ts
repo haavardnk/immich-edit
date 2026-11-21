@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { installMocks, json, SESSION_USER } from './helpers';
+import { apiRequest, installMocks, json, SESSION_USER } from './helpers';
 import type { MockAlbum } from './searchMocks';
 import { drawer, openDrawer } from './touchShell';
 
@@ -104,9 +104,7 @@ async function createAlbum(page: Page, press: (target: Locator) => Promise<void>
   await expect(create).toBeDisabled();
 
   await name.fill('  Lofoten winter ');
-  const request = page.waitForRequest(
-    (req) => req.method() === 'POST' && new URL(req.url()).pathname === '/api/albums'
-  );
+  const request = apiRequest(page, 'POST', '/api/albums');
   await press(create);
   expect((await request).postDataJSON()).toEqual({ albumName: 'Lofoten winter' });
   await expect(dialog).toBeHidden();

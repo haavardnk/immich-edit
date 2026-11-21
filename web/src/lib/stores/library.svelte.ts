@@ -121,6 +121,15 @@ class LibraryStore {
     return this.ensure('tags');
   }
 
+  putTag(tag: TagSummary): void {
+    this.tags = [...this.tags.filter(({ id }) => id !== tag.id), tag];
+  }
+
+  async refreshTags(): Promise<void> {
+    this.tags = await listTags();
+    recentTags.keep(this.tags);
+  }
+
   async loadView(v: LibraryView): Promise<void> {
     this.view = v;
     await this.ensure(v).catch(() => undefined);

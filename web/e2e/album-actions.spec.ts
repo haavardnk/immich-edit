@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { installMocks } from './helpers';
+import { apiRequest, installMocks } from './helpers';
 import type { MockAlbum } from './searchMocks';
 import { longPressUntil } from './touch';
 
@@ -41,12 +41,6 @@ function card(page: Page, name: string): Locator {
   return page.getByRole('list', { name: 'Albums' }).getByRole('listitem').filter({ hasText: name });
 }
 
-function albumRequest(page: Page, method: string, path: string) {
-  return page.waitForRequest(
-    (req) => req.method() === method && new URL(req.url()).pathname === path
-  );
-}
-
 function popover(page: Page): Locator {
   return page.locator('[data-popover-content]');
 }
@@ -71,7 +65,7 @@ async function confirmDelete(page: Page, press: (target: Locator) => Promise<voi
   const dialog = page.getByRole('dialog', { name: 'Delete album' });
   await expect(dialog).toContainText('Immich deletes the album Archive. It has no photos.');
   await expect(dialog).toContainText('This cannot be undone.');
-  const request = albumRequest(page, 'DELETE', '/api/albums/album-empty');
+  const request = apiRequest(page, 'DELETE', '/api/albums/album-empty');
   await press(dialog.getByRole('button', { name: 'Delete album', exact: true }));
   await request;
   await expect(dialog).toBeHidden();
@@ -141,7 +135,7 @@ test.describe('album actions on the desktop', () => {
     const save = dialog.getByRole('button', { name: 'Save', exact: true });
     await expect(save).toBeDisabled();
     await name.fill(' Norway 2027 ');
-    const request = albumRequest(page, 'PATCH', '/api/albums/album-norway');
+    const request = apiRequest(page, 'PATCH', '/api/albums/album-norway');
     await save.click();
     expect((await request).postDataJSON()).toEqual({ albumName: 'Norway 2027' });
     await expect(dialog).toBeHidden();
@@ -163,7 +157,7 @@ test.describe('album actions on the desktop', () => {
     await expect(dialog).toContainText('0 / 2000');
     await description.fill(LONG_DESCRIPTION);
     await expect(dialog).toContainText(`${LONG_DESCRIPTION.length} / 2000`);
-    const request = albumRequest(page, 'PATCH', '/api/albums/album-norway');
+    const request = apiRequest(page, 'PATCH', '/api/albums/album-norway');
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     expect((await request).postDataJSON()).toEqual({ description: LONG_DESCRIPTION });
     await expect(dialog).toBeHidden();
@@ -193,7 +187,7 @@ test.describe('album actions on the desktop', () => {
     await page.locator('main header').getByRole('button', { name: 'Album actions' }).click();
     await popover(page).getByRole('button', { name: 'Delete album' }).click();
     const dialog = page.getByRole('dialog', { name: 'Delete album' });
-    const request = albumRequest(page, 'DELETE', '/api/albums/album-empty');
+    const request = apiRequest(page, 'DELETE', '/api/albums/album-empty');
     await dialog.getByRole('button', { name: 'Delete album', exact: true }).click();
     await request;
     await expect(page).toHaveURL('/albums');
@@ -212,7 +206,7 @@ test.describe('album actions on the desktop', () => {
     const dialog = page.getByRole('dialog', { name: 'Leave album' });
     await expect(dialog).toContainText('You leave Family, shared by Anne Berg.');
     await expect(dialog).toContainText('Only Anne can invite you back.');
-    const request = albumRequest(page, 'DELETE', '/api/albums/album-family/membership');
+    const request = apiRequest(page, 'DELETE', '/api/albums/album-family/membership');
     await dialog.getByRole('button', { name: 'Leave album', exact: true }).click();
     await request;
     await expect(page).toHaveURL('/albums');
@@ -251,7 +245,7 @@ test.describe('album actions on a phone', { tag: ['@touch', '@phone'] }, () => {
     const name = dialog.getByRole('textbox', { name: 'Name' });
     await expect(name).toBeFocused();
     await name.fill('Norway 2027');
-    const request = albumRequest(page, 'PATCH', '/api/albums/album-norway');
+    const request = apiRequest(page, 'PATCH', '/api/albums/album-norway');
     await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
     expect((await request).postDataJSON()).toEqual({ albumName: 'Norway 2027' });
     await expect(page.getByRole('heading', { name: 'Norway 2027', level: 1 })).toBeVisible();

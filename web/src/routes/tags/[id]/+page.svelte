@@ -18,6 +18,7 @@
   import { resumeId } from '#lib/browse/gridReturn.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import BrowsePage from '#lib/components/browse/BrowsePage.svelte';
+  import TagMoreButton from '#lib/components/library/TagMoreButton.svelte';
   import TagSubtags from '#lib/components/library/TagSubtags.svelte';
   import { COLLECTIONS } from '#lib/components/library/collections.ts';
 
@@ -65,6 +66,11 @@
   loadingLabel="Loading tag…"
   emptyTitle="No photos with this tag"
 >
+  {#snippet titleActions()}
+    {#if node}
+      <TagMoreButton {node} place="page" />
+    {/if}
+  {/snippet}
   {#snippet lead()}
     {#if node}
       <TagSubtags nodes={node.children} />

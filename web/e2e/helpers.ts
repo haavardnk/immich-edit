@@ -1,4 +1,11 @@
-import { expect, type BrowserContext, type Locator, type Page, type Route } from '@playwright/test';
+import {
+  expect,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type Request,
+  type Route
+} from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import type { ExifInfo } from '../src/lib/types/asset';
 import type { EditRecord } from '../src/lib/types/edits';
@@ -162,6 +169,12 @@ export function json(data: unknown, status = 200): Parameters<Route['fulfill']>[
   return { status, contentType: 'application/json', body: JSON.stringify(data) };
 }
 
+export function apiRequest(page: Page, method: string, path: string): Promise<Request> {
+  return page.waitForRequest(
+    (req) => req.method() === method && new URL(req.url()).pathname === path
+  );
+}
+
 export function png(): Parameters<Route['fulfill']>[0] {
   return { status: 200, contentType: 'image/png', body: PNG_1X1 };
 }
@@ -264,6 +277,7 @@ export interface InstallOpts {
   albums?: MockAlbum[];
   onTagAsset?: (change: { tagId: string; assetId: string; added: boolean }) => void;
   structuredSearch?: boolean;
+  tagRename?: boolean;
   smartSearch?: boolean;
   ocr?: boolean;
   trash?: boolean;
@@ -516,6 +530,7 @@ export async function installMocks(
           immich_version: structured ? '3.2.2' : '3.1.0',
           external_host: 'photos.example.net',
           structured_search: structured,
+          tag_rename: opts.tagRename ?? false,
           smart_search: opts.smartSearch ?? true,
           ocr: opts.ocr ?? true,
           trash: opts.trash ?? true,
@@ -640,6 +655,38 @@ export async function installMocks(
     if (albumGone) {
       albums.splice(albums.indexOf(albumGone), 1);
       return route.fulfill({ status: 204, body: '' });
+    }
+    if (p === '/api/tags' && method === 'POST') {
+      const body = req.postDataJSON() as { name: string; parentId?: string; color?: string };
+      const parent = tagList.find((t) => t.id === body.parentId);
+      const created: MockTag = {
+        id: `mock-tag-${tagList.length + 1}`,
+        name: body.name,
+        value: parent ? `${parent.value}/${body.name}` : body.name,
+        parentId: parent?.id ?? null,
+        color: body.color ?? null,
+        assetCount: 0
+      };
+      tagList.push(created);
+      return route.fulfill(json({ ...created, createdAt: null }));
+    }
+    const targetTag = tagList.find((t) => p === `/api/tags/${t.id}`);
+    if (targetTag && (method === 'PATCH' || method === 'DELETE')) {
+      const branch = (t: MockTag): boolean =>
+        t.id === targetTag.id || t.value.startsWith(`${targetTag.value}/`);
+      if (method === 'DELETE') {
+        tagList.splice(0, tagList.length, ...tagList.filter((t) => !branch(t)));
+        return route.fulfill({ status: 204, body: '' });
+      }
+      const patch = req.postDataJSON() as { name?: string; color?: string | null };
+      if (patch.color !== undefined) targetTag.color = patch.color;
+      if (patch.name !== undefined) {
+        const from = targetTag.value;
+        const to = `${from.slice(0, from.length - targetTag.name.length)}${patch.name}`;
+        for (const t of tagList.filter(branch)) t.value = `${to}${t.value.slice(from.length)}`;
+        targetTag.name = patch.name;
+      }
+      return route.fulfill(json({ ...targetTag, createdAt: null }));
     }
     if (p === '/api/tags') {
       if (method === 'PUT') {
