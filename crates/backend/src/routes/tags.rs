@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, State};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::asset_key::AssetKey;
@@ -30,12 +31,22 @@ pub async fn list(
     Ok(Json(tags))
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpsertTagsBody {
+    tags: Vec<String>,
+}
+
 pub async fn upsert(
     State(state): State<AppState>,
     ctx: AuthCtx,
-    Json(body): Json<serde_json::Value>,
+    Json(body): Json<UpsertTagsBody>,
 ) -> Result<Json<Vec<TagSummary>>, AppError> {
-    let tags = ctx.immich.upsert_tags(&body).await?;
+    let values: Vec<&str> = body.tags.iter().map(|value| value.trim()).collect();
+    if values.is_empty() || values.iter().any(|value| value.is_empty()) {
+        return Err(AppError::BadRequest("tag values required".into()));
+    }
+    let tags = ctx.immich.upsert_tags(&values).await?;
     state
         .tag_counts
         .clear_tenant(ctx.owner, ctx.server_epoch)

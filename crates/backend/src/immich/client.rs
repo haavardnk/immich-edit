@@ -314,8 +314,9 @@ impl ImmichClient {
             .map(|_| ())
     }
 
-    pub async fn upsert_tags(&self, body: &serde_json::Value) -> ImmichResult<Vec<TagSummary>> {
-        self.put_json("api/tags", body).await
+    pub async fn upsert_tags(&self, values: &[&str]) -> ImmichResult<Vec<TagSummary>> {
+        self.put_json("api/tags", &serde_json::json!({ "tags": values }))
+            .await
     }
 
     pub async fn create_tag(&self, tag: &NewTag) -> ImmichResult<TagSummary> {

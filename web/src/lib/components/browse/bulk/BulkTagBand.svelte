@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import { listTags, type TagSummary } from '#lib/api/tags.ts';
   import Chip from '#lib/components/chips/Chip.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { nextStage, type Stage } from '#lib/browse/bulk/pickStage.ts';
-  import { isManagedTag, toTagRef } from '#lib/browse/managedTags.ts';
+  import { toTagRef, userTags } from '#lib/browse/managedTags.ts';
+  import { library } from '#lib/stores/library.svelte.ts';
   import { recentTags } from '#lib/stores/recentTags.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { mdiTagOutline } from '@mdi/js';
@@ -14,7 +14,7 @@
 
   let { onDone }: { onDone?: () => void } = $props();
 
-  let tags = $state<TagSummary[]>([]);
+  const tags = $derived(userTags(library.tags).sort((a, b) => a.value.localeCompare(b.value)));
   const stages = new SvelteMap<string, Stage>();
 
   const total = $derived(bulkScope.count);
@@ -35,13 +35,7 @@
   }
 
   onMount(() => {
-    listTags()
-      .then((items) => {
-        tags = items
-          .filter((tag) => !isManagedTag(toTagRef(tag)))
-          .sort((a, b) => a.value.localeCompare(b.value));
-      })
-      .catch((e: unknown) => toasts.fail('Failed to load tags', e));
+    library.ensureTags().catch((e: unknown) => toasts.fail('Failed to load tags', e));
   });
 
   function toggle(id: string): void {
