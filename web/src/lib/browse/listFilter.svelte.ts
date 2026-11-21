@@ -10,11 +10,12 @@ export class ListFilterState<T> {
   #items: () => readonly T[];
   #nameOf: (item: T) => string;
   #noun: () => ListNoun;
+  #always: boolean;
 
   query = $state('');
   rows = $state<HTMLElement | null>(null);
 
-  readonly available = $derived.by(() => listFilterShown(this.#items().length));
+  readonly available = $derived.by(() => this.#always || listFilterShown(this.#items().length));
   readonly needle = $derived(this.available ? this.query.trim() : '');
   readonly visible = $derived.by(() =>
     this.needle ? filterByName(this.#items(), this.needle, this.#nameOf) : this.#items()
@@ -23,10 +24,16 @@ export class ListFilterState<T> {
     this.needle ? listFilterStatus(this.visible.length, this.#items().length, this.#noun()) : ''
   );
 
-  constructor(items: () => readonly T[], nameOf: (item: T) => string, noun: () => ListNoun) {
+  constructor(
+    items: () => readonly T[],
+    nameOf: (item: T) => string,
+    noun: () => ListNoun,
+    { always = false }: { always?: boolean } = {}
+  ) {
     this.#items = items;
     this.#nameOf = nameOf;
     this.#noun = noun;
+    this.#always = always;
   }
 
   get label(): string {

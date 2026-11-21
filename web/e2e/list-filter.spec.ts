@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { numberedAssets } from './helpers';
 import { mockLibrary, open } from './touchShell';
 
-const MATCHES = ['Iceland', 'Finland', 'landscape', 'Lantern'];
+const MATCHES = ['Finland', 'Iceland', 'landscape', 'Lantern'];
 const NAMES = [
   ...MATCHES,
   ...['Aurora', 'Bergen', 'Coast', 'Dawn', 'Fjord', 'Glacier', 'Harbour', 'Ice', 'Moss', 'Snow']

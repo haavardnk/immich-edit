@@ -3,7 +3,7 @@ import { LIST_FILTER_MIN } from '#lib/browse/listFilter.ts';
 import { library } from '#lib/stores/library.svelte.ts';
 import { layout, renderLayout, settle } from '#lib/testing/layoutParity.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import TagList from './TagList.svelte';
+import TagSidebarTree from './TagSidebarTree.svelte';
 
 vi.mock('$app/state', () => ({
   page: { url: new URL('http://localhost/photos'), params: {} }
@@ -22,7 +22,7 @@ let cleanup: (() => Promise<void>) | null = null;
 
 async function render(count: number): Promise<HTMLElement> {
   library.tags = tags(count);
-  cleanup = renderLayout(layout('tags', TagList, {}));
+  cleanup = renderLayout(layout('tags', TagSidebarTree, {}));
   await settle();
   return document.body;
 }
@@ -78,7 +78,7 @@ describe('ListFilter', () => {
     if (!input) throw new Error('field missing');
     expect(status(root)).toBe('');
     await type(input, 'LAN');
-    expect(rowNames(root)).toEqual(['Iceland', 'Finland', 'landscape', 'Lantern']);
+    expect(rowNames(root)).toEqual(['Finland', 'Iceland', 'landscape', 'Lantern']);
     expect([...root.querySelectorAll('mark')].map((mark) => mark.textContent)).toEqual([
       'lan',
       'lan',

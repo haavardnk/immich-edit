@@ -19,6 +19,11 @@ their overview page; the arrow beside each lists them in the sidebar. The search
 library; **Search by** picks **Context** (smart search), **File name**, **Description**, **Full path
 or folder** or **OCR**.
 
+**Tags** shows your tags as a tree, in the sidebar and on its page: the arrow beside a tag opens
+its sub-tags, the filter keeps each match under its parents, and the page sorts by name or photo
+count. A tag's count includes its sub-tags, and its page shows its path and its sub-tags. The
+`immich-edit/` tags behind rejects and labels are not listed.
+
 **Album actions** (⋯ on an album, or right-click it) renames an album, edits its description,
 deletes it or leaves one shared with you. The photos stay in your library. In an album you own or
 edit, **Set as album cover** in the loupe's ⋯ menu makes the photo on screen its cover.

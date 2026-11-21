@@ -6,7 +6,7 @@
   import { sectionForPath, sidebar, type SidebarSectionId } from '#lib/stores/sidebar.svelte.ts';
   import AlbumList from '#lib/components/library/AlbumList.svelte';
   import PeopleList from '#lib/components/library/PeopleList.svelte';
-  import TagList from '#lib/components/library/TagList.svelte';
+  import TagSidebarTree from '#lib/components/library/TagSidebarTree.svelte';
   import FolderTree from '#lib/components/library/FolderTree.svelte';
   import SavedViewList from '#lib/components/savedViews/SavedViewList.svelte';
   import SidebarLink from './SidebarLink.svelte';
@@ -86,7 +86,7 @@
       expanded={sidebar.isOpen('tags')}
       onToggle={() => toggleSection('tags')}
     >
-      <TagList />
+      <TagSidebarTree />
     </SidebarSection>
     <SidebarSection
       href={folders.href}

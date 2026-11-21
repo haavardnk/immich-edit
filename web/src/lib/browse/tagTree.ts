@@ -36,6 +36,15 @@ export function chipTagPath(value: string): TagChipPath {
   return { parent: direct, leaf, shortened: direct !== parent };
 }
 
+export function tagAncestors(tags: readonly TagSummary[], tag: TagSummary): TagSummary[] {
+  const names = tag.value.split('/').filter((name) => name !== '');
+  return names.slice(0, -1).flatMap((_, index) => {
+    const value = names.slice(0, index + 1).join('/');
+    const found = tags.find((candidate) => candidate.value === value);
+    return found ? [found] : [];
+  });
+}
+
 export function tagPathLabel(value: string): string {
   return value
     .split('/')
@@ -65,9 +74,99 @@ export function buildTagTree(tags: readonly TagSummary[]): TagNode[] {
   return root.children;
 }
 
+function byName(a: TagNode, b: TagNode): number {
+  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+}
+
 function sortNodes(nodes: TagNode[]): void {
-  nodes.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  nodes.sort(byName);
   for (const node of nodes) sortNodes(node.children);
+}
+
+export type TagSort = 'name' | 'count';
+
+export const TAG_SORTS: readonly { value: TagSort; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'count', label: 'Photo count' }
+];
+
+function photosOf(node: TagNode): number {
+  return node.tag?.assetCount ?? 0;
+}
+
+const NODE_ORDER: Readonly<Record<TagSort, (a: TagNode, b: TagNode) => number>> = {
+  name: byName,
+  count: (a, b) => photosOf(b) - photosOf(a) || byName(a, b)
+};
+
+export function sortTagTree(nodes: readonly TagNode[], sort: TagSort): TagNode[] {
+  return [...nodes]
+    .sort(NODE_ORDER[sort])
+    .map((node) => ({ ...node, children: sortTagTree(node.children, sort) }));
+}
+
+export function tagNodeKey(node: TagNode): string {
+  return node.tag?.id ?? node.path;
+}
+
+export function branchKeys(nodes: readonly TagNode[]): string[] {
+  return nodes.flatMap((node) =>
+    node.children.length > 0 ? [tagNodeKey(node), ...branchKeys(node.children)] : []
+  );
+}
+
+export function ancestorKeys(nodes: readonly TagNode[], tagId: string): string[] | null {
+  for (const node of nodes) {
+    if (node.tag?.id === tagId) return [];
+    const below = ancestorKeys(node.children, tagId);
+    if (below) return [tagNodeKey(node), ...below];
+  }
+  return null;
+}
+
+export function findTagNode(nodes: readonly TagNode[], tagId: string): TagNode | null {
+  for (const node of nodes) {
+    if (node.tag?.id === tagId) return node;
+    const below = findTagNode(node.children, tagId);
+    if (below) return below;
+  }
+  return null;
+}
+
+export interface TagTreeRow {
+  node: TagNode;
+  depth: number;
+  open: boolean;
+  forced: boolean;
+  dimmed: boolean;
+}
+
+type IsOpen = (key: string) => boolean;
+
+export function treeRows(nodes: readonly TagNode[], isOpen: IsOpen, depth = 0): TagTreeRow[] {
+  return nodes.flatMap((node) => {
+    const open = node.children.length > 0 && isOpen(tagNodeKey(node));
+    const below = open ? treeRows(node.children, isOpen, depth + 1) : [];
+    return [{ node, depth, open, forced: false, dimmed: false }, ...below];
+  });
+}
+
+export function matchedRows(
+  nodes: readonly TagNode[],
+  matched: ReadonlySet<string>,
+  isOpen: IsOpen,
+  depth = 0
+): TagTreeRow[] {
+  return nodes.flatMap((node) => {
+    const hit = node.tag !== null && matched.has(node.tag.id);
+    const unfolded = hit && node.children.length > 0 && isOpen(tagNodeKey(node));
+    const below = unfolded
+      ? treeRows(node.children, isOpen, depth + 1)
+      : matchedRows(node.children, matched, isOpen, depth + 1);
+    if (!hit && below.length === 0) return [];
+    const open = below.length > 0;
+    return [{ node, depth, open, forced: open && !unfolded, dimmed: !hit }, ...below];
+  });
 }
 
 export function mixedPaths(nodes: readonly TagNode[], applied: ReadonlySet<string>): Set<string> {

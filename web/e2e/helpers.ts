@@ -103,7 +103,14 @@ export const ASSET_SUMMARY = {
 
 export const ASSET_EXIF = { exifImageWidth: 6000, exifImageHeight: 4000 };
 
-export type MockTag = { id: string; name: string; value: string };
+export type MockTag = {
+  id: string;
+  name: string;
+  value: string;
+  parentId?: string | null;
+  color?: string | null;
+  assetCount?: number;
+};
 
 export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   exifInfo: Partial<ExifInfo> | null;

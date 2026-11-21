@@ -28,7 +28,7 @@
 
 <BrowsePage
   {feed}
-  parent={COLLECTIONS.people}
+  parents={[COLLECTIONS.people]}
   {title}
   loadingLabel="Loading photos…"
   emptyTitle="No photos for this person"
