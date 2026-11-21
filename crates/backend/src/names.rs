@@ -1,4 +1,5 @@
 const MAX_NAME_CHARS: usize = 80;
+const MAX_DESCRIPTION_CHARS: usize = 2000;
 
 pub fn display_name(raw: &str, label: &str) -> Result<String, String> {
     let name = raw.trim();
@@ -12,6 +13,25 @@ pub fn display_name(raw: &str, label: &str) -> Result<String, String> {
         return Err(format!("{label} must not contain control characters"));
     }
     Ok(name.to_string())
+}
+
+pub fn album_description(raw: &str) -> Result<Option<String>, String> {
+    let description = raw.trim();
+    if description.is_empty() {
+        return Ok(None);
+    }
+    if description.chars().count() > MAX_DESCRIPTION_CHARS {
+        return Err(format!(
+            "description longer than {MAX_DESCRIPTION_CHARS} characters"
+        ));
+    }
+    if description
+        .chars()
+        .any(|c| c.is_control() && c != '\n' && c != '\t')
+    {
+        return Err("description must not contain control characters".into());
+    }
+    Ok(Some(description.to_string()))
 }
 
 #[cfg(test)]
@@ -64,5 +84,39 @@ mod tests {
             );
         }
         assert!(display_name("Ferien – Nordsee 🌊", "album name").is_ok());
+    }
+
+    #[test]
+    fn a_blank_description_clears_it() {
+        for blank in ["", "  ", "\n\t"] {
+            assert_eq!(album_description(blank).unwrap(), None);
+        }
+    }
+
+    #[test]
+    fn a_description_keeps_line_breaks_and_tabs() {
+        assert_eq!(
+            album_description(" Day one\n\tbeach ").unwrap().as_deref(),
+            Some("Day one\n\tbeach")
+        );
+    }
+
+    #[test]
+    fn a_description_counts_characters_up_to_2000() {
+        assert!(album_description(&"é".repeat(2000)).is_ok());
+        assert_eq!(
+            album_description(&"é".repeat(2001)).unwrap_err(),
+            "description longer than 2000 characters"
+        );
+    }
+
+    #[test]
+    fn a_description_refuses_other_control_characters() {
+        for description in ["Day\rone", "Day\u{7}", "\u{1b}[31mDay"] {
+            assert_eq!(
+                album_description(description).unwrap_err(),
+                "description must not contain control characters"
+            );
+        }
     }
 }

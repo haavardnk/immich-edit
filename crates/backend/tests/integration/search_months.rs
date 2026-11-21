@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use crate::common::search_library::{ALBUM, Photo, Shelf, TAG, mount, mount_slow};
 use crate::common::*;
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use chrono::{DateTime, Days, NaiveDate, Utc};
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -283,7 +284,8 @@ async fn a_date_edit_that_keeps_the_total_recounts() {
 }
 
 async fn swap_membership_through(
-    route: (&str, &str),
+    request: &dyn Fn() -> Request<Body>,
+    answered: StatusCode,
     filter: Value,
     membership: fn(&mut Photo) -> &mut bool,
 ) {
@@ -291,33 +293,25 @@ async fn swap_membership_through(
         let mut start = photos(&["2024-01-10T00:00:00.000Z", "2024-03-10T00:00:00.000Z"]);
         *membership(&mut start[0]) = true;
         let (server, app, shelf) = library(minor, start).await;
-        Mock::given(path_regex(r"^/api/(albums|tags)/[^/]+/assets$"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
-            .mount(&server)
-            .await;
+        Mock::given(path_regex(
+            r"^/api/(albums|tags)/[^/]+(/assets|/user/[^/]+)?$",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
         let before = months(&app, filter.clone()).await;
         {
             let mut photos = shelf.lock().unwrap();
             *membership(&mut photos[0]) = false;
             *membership(&mut photos[1]) = true;
         }
-        let (verb, uri) = route;
-        let resp = app
-            .clone()
-            .oneshot(json_request(
-                verb,
-                uri,
-                json!({ "ids": [uuid::Uuid::nil()] }),
-            ))
-            .await
-            .unwrap();
+        let sent = request();
+        let route = format!("{} {}", sent.method(), sent.uri());
+        let resp = app.clone().oneshot(sent).await.unwrap();
         let status = resp.status();
         let after = months(&app, filter.clone()).await;
-        if before != single("2024-01", 1)
-            || status != StatusCode::OK
-            || after != single("2024-03", 1)
-        {
-            panic!("3.{minor} {verb} {uri} gave {before} then {status} {after}");
+        if before != single("2024-01", 1) || status != answered || after != single("2024-03", 1) {
+            panic!("3.{minor} {route} gave {before} then {status} {after}");
         }
     }
 }
@@ -327,7 +321,26 @@ async fn an_album_membership_change_recounts_the_album_months() {
     let uri = format!("/api/albums/{ALBUM}/assets");
     let filter = json!({ "albums": { "all": [ALBUM] } });
     for verb in ["PUT", "DELETE"] {
-        swap_membership_through((verb, &uri), filter.clone(), |photo| &mut photo.in_album).await;
+        let request = || json_request(verb, &uri, json!({ "ids": [uuid::Uuid::nil()] }));
+        swap_membership_through(&request, StatusCode::OK, filter.clone(), |photo| {
+            &mut photo.in_album
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn deleting_or_leaving_an_album_recounts_the_album_months() {
+    let filter = json!({ "albums": { "all": [ALBUM] } });
+    for uri in [
+        format!("/api/albums/{ALBUM}"),
+        format!("/api/albums/{ALBUM}/membership"),
+    ] {
+        let request = || empty_request("DELETE", &uri);
+        swap_membership_through(&request, StatusCode::NO_CONTENT, filter.clone(), |photo| {
+            &mut photo.in_album
+        })
+        .await;
     }
 }
 
@@ -336,7 +349,11 @@ async fn a_tag_change_recounts_the_tag_months() {
     let uri = format!("/api/tags/{TAG}/assets/{}", uuid::Uuid::nil());
     let filter = json!({ "tags": { "all": [TAG] } });
     for verb in ["PUT", "DELETE"] {
-        swap_membership_through((verb, &uri), filter.clone(), |photo| &mut photo.tagged).await;
+        let request = || json_request(verb, &uri, json!({ "ids": [uuid::Uuid::nil()] }));
+        swap_membership_through(&request, StatusCode::OK, filter.clone(), |photo| {
+            &mut photo.tagged
+        })
+        .await;
     }
 }
 
