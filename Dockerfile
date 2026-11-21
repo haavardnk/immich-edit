@@ -1,10 +1,9 @@
 ARG TESTS=run
 
-FROM rust:1.99-trixie AS wasm
+FROM rust:1.100-trixie AS wasm
 WORKDIR /build
 COPY rust-toolchain.toml Cargo.lock ./
-RUN rustup target add wasm32-unknown-unknown && \
-    cargo install wasm-bindgen-cli --locked --version \
+RUN cargo install wasm-bindgen-cli --locked --version \
     "$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')"
 COPY Cargo.toml ./
 COPY .cargo/ .cargo/
@@ -23,7 +22,7 @@ COPY --from=wasm /build/web/src/lib/wasm/ src/lib/wasm/
 RUN npm version --no-git-tag-version --allow-same-version "$APP_VERSION" && \
     npm run build
 
-FROM rust:1.99-trixie AS chef
+FROM rust:1.100-trixie AS chef
 RUN cargo install cargo-chef cargo-edit --locked
 WORKDIR /build
 COPY .cargo/ .cargo/

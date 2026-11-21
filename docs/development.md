@@ -32,10 +32,10 @@ The default backend build includes local AI-mask inference and downloads ONNX Ru
 the first build. Use `--no-default-features` to compile the backend without ML routes.
 
 The frontend needs the browser renderer in `web/src/lib/wasm`, which is generated and ignored by
-Git. It needs the wasm target and the `wasm-bindgen` CLI at the version in `Cargo.lock`:
+Git. `rust-toolchain.toml` installs the wasm target with the pinned toolchain; the `wasm-bindgen` CLI
+must match the version in `Cargo.lock`:
 
 ```shell
-rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --locked --version <the wasm-bindgen version in Cargo.lock>
 ```
 
