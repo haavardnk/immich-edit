@@ -123,6 +123,12 @@ export type MockPlace = { name: string; detail: string | null; lat: number; lon:
 
 export type MockPlaceName = { city: string | null; state: string | null; country: string | null };
 
+export type MockMapSettings = {
+  styleLight: string | null;
+  styleDark: string | null;
+  geocoderUrl: string;
+};
+
 export type MockTag = {
   id: string;
   name: string;
@@ -291,6 +297,8 @@ export interface InstallOpts {
   onLocation?: (body: { ids: string[]; latitude: number; longitude: number }) => void;
   mapPlaces?: MockPlace[];
   placeName?: MockPlaceName | null;
+  mapSettings?: MockMapSettings;
+  onMapSettings?: (body: MockMapSettings) => void;
   tags?: MockTag[];
   people?: MockPerson[];
   albums?: MockAlbum[];
@@ -393,6 +401,11 @@ export async function installMocks(
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
   const mapMarkers: MockMapMarker[] = [...(opts.mapMarkers ?? [])];
+  let mapSettings: MockMapSettings = opts.mapSettings ?? {
+    styleLight: null,
+    styleDark: null,
+    geocoderUrl: 'https://photon.komoot.io'
+  };
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
   const people = opts.people ?? [];
@@ -780,6 +793,13 @@ export async function installMocks(
     }
     if (p === '/api/map/reverse-geocode') {
       return route.fulfill(json(opts.placeName ?? null));
+    }
+    if (p === '/api/admin/map-settings') {
+      if (method === 'PUT') {
+        mapSettings = req.postDataJSON() as MockMapSettings;
+        opts.onMapSettings?.(mapSettings);
+      }
+      return route.fulfill(json(mapSettings));
     }
     if (p === '/api/assets/location' && method === 'PUT') {
       const body = req.postDataJSON() as { ids: string[]; latitude: number; longitude: number };
