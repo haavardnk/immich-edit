@@ -1,0 +1,52 @@
+---
+const { banner } = Astro.locals.starlightRoute.entry.data;
+const version = process.env.DOCS_VERSION ?? 'main';
+const rootBase = '/immich-edit';
+const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
+---
+
+{banner && <div class="sl-banner" data-pagefind-ignore set:html={banner.content} />}
+
+<div
+  class="sl-banner ie-version-banner"
+  data-pagefind-ignore
+  data-ie-version={version}
+  data-ie-root={rootBase}
+  data-ie-base={currentBase}
+  hidden
+></div>
+
+<script>
+  const el = document.querySelector<HTMLElement>('.ie-version-banner');
+  if (el) {
+    const version = el.dataset.ieVersion ?? 'main';
+    const rootBase = el.dataset.ieRoot ?? '/immich-edit';
+    const currentBase = el.dataset.ieBase ?? rootBase;
+    const relPath = window.location.pathname.startsWith(currentBase)
+      ? window.location.pathname.slice(currentBase.length)
+      : '/';
+    const latestHref = `${rootBase}${relPath.startsWith('/') ? relPath : '/'}`;
+
+    const show = (html: string) => {
+      el.innerHTML = html;
+      el.hidden = false;
+    };
+
+    if (version === 'main') {
+      show(
+        `Unreleased <code>main</code> documentation. <a href="${rootBase}/">View the latest release</a>.`
+      );
+    } else if (version !== 'latest') {
+      fetch(`${rootBase}/versions.json`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { latest?: string } | null) => {
+          if (data?.latest && data.latest !== version) {
+            show(
+              `Viewing docs for <code>${version}</code>. <a href="${latestHref}">Switch to latest (${data.latest})</a>.`
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }
+</script>

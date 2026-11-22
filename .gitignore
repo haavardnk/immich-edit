@@ -43,5 +43,4 @@ crates/ml/examples/
 crates/raw-pipeline/examples/
 
 # Local documentation preview output
-_site/
-docs/.jekyll-cache/
+docs/.astro/

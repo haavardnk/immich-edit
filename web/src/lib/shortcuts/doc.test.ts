@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderShortcutsDoc } from './doc';
 
-const DOC_PATH = fileURLToPath(new URL('../../../../docs/shortcuts.md', import.meta.url));
+const DOC_PATH = fileURLToPath(
+  new URL('../../../../docs/src/content/docs/reference/shortcuts.md', import.meta.url)
+);
 
 describe('shortcut documentation', () => {
   it('matches the keybind registry', () => {

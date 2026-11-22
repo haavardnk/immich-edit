@@ -1,0 +1,110 @@
+:root {
+  --sl-font: 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+  --sl-font-mono: 'Google Sans Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --sl-color-white: #fafafa;
+  --sl-color-gray-1: #dbdbdb;
+  --sl-color-gray-2: #b5b5b8;
+  --sl-color-gray-3: #8c8c92;
+  --sl-color-gray-4: #404046;
+  --sl-color-gray-5: #26262a;
+  --sl-color-gray-6: #17171a;
+  --sl-color-black: #0b0b0d;
+
+  --sl-color-bg: #0b0b0d;
+  --sl-color-bg-nav: #0d0d0f;
+  --sl-color-bg-sidebar: #0d0d0f;
+  --sl-color-bg-inline-code: #17171a;
+  --sl-color-hairline: rgba(250, 250, 250, 0.08);
+  --sl-color-hairline-light: rgba(250, 250, 250, 0.08);
+
+  --sl-color-accent-low: rgba(183, 161, 251, 0.14);
+  --sl-color-accent: #b7a1fb;
+  --sl-color-accent-high: #ddd2fe;
+
+  --sl-color-banner-bg: #1d1b24;
+  --sl-color-banner-text: #fafafa;
+}
+
+:root[data-theme='light'] {
+  --sl-color-white: #18181b;
+  --sl-color-gray-1: #27272a;
+  --sl-color-gray-2: #3f3f46;
+  --sl-color-gray-3: #71717a;
+  --sl-color-gray-4: #a1a1aa;
+  --sl-color-gray-5: #e4e4e7;
+  --sl-color-gray-6: #f4f4f5;
+  --sl-color-gray-7: #fafafa;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg: #fafafa;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f4f4f5;
+  --sl-color-bg-inline-code: #ececf0;
+  --sl-color-hairline: rgba(24, 24, 27, 0.09);
+  --sl-color-hairline-light: rgba(24, 24, 27, 0.09);
+
+  --sl-color-accent-low: rgba(109, 74, 255, 0.1);
+  --sl-color-accent: #6d4aff;
+  --sl-color-accent-high: #4c2fd6;
+
+  --sl-color-banner-bg: #f0ecff;
+  --sl-color-banner-text: #27272a;
+}
+
+.site-title {
+  gap: 0.6rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.site-title img {
+  height: 1.55rem;
+  width: auto;
+}
+
+.sl-markdown-content img {
+  border-radius: 12px;
+  border: 1px solid var(--sl-color-hairline);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] .sl-markdown-content img {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
+}
+
+.hero {
+  padding-block: clamp(2rem, 5vw, 4rem);
+}
+
+.hero h1 {
+  letter-spacing: -0.025em;
+}
+
+.hero-banner {
+  margin-block: 1.5rem 2.5rem;
+}
+
+.hero-banner img {
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  border: 1px solid var(--sl-color-hairline);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  font-size: 0.92rem;
+}
+
+.sl-markdown-content th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.sl-banner {
+  border-bottom: 1px solid var(--sl-color-accent-low);
+  font-size: 0.88rem;
+}

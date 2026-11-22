@@ -1,28 +1,17 @@
 ---
-layout: default
 title: Keyboard shortcuts
-parent: Use the editor
-nav_order: 4
-permalink: /shortcuts/
+description: Default keyboard shortcuts and how to customize them in immich-edit.
 ---
 
-<!-- Generated from web/src/lib/shortcuts/table.ts. Run `npm run docs:shortcuts` in web/ to update. -->
+Press `?` anywhere to open this list as a searchable dialog. On macOS, press Command wherever a
+shortcut says `Ctrl`.
 
-# Keyboard shortcuts
+Click any key in the dialog to rebind it; conflicting keys can be swapped. Ranges, arrow keys,
+`Esc`, and pointer gestures stay fixed. Custom bindings save to your account.
 
-Press `?` anywhere in immich-edit to open the same list as a searchable dialog. On macOS, press
-Command wherever a shortcut below says `Ctrl`.
-
-The keys below are the defaults. In that dialog, click a key and press a new one to change it; if
-the new key already runs something else, you can swap the two. Ranges, arrow keys, `Esc` and
-pointer gestures stay fixed. Your shortcuts are saved to your account and work on every device
-with a keyboard.
-
-`Shift` with a letter opens a tool, panel or strip, a plain letter acts on the photo, and `Ctrl`
-runs a command. Symbol keys such as `[`, `{` and `\` work however your keyboard layout types
-them, including with `Option` or `AltGr`.
-
-Shortcuts do not run while focus is in a text field or another typing control.
+`Shift` + letter opens a tool or panel, a plain letter acts on the photo, and `Ctrl` runs a
+command. Symbol keys (`[`, `{`, `\`) work on any keyboard layout. Shortcuts do not run while
+typing in a text field.
 
 ## General
 
