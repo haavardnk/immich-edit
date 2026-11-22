@@ -151,6 +151,10 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             "/admin/render-defaults",
             get(routes::admin::render_defaults).put(routes::admin::set_render_defaults),
         )
+        .route(
+            "/admin/map-settings",
+            get(routes::map::settings).put(routes::map::update_settings),
+        )
         .route("/setup/status", get(routes::setup::status))
         .route("/setup/complete", post(routes::setup::complete))
         .route("/setup/providers", get(routes::setup::oauth::providers))
@@ -259,6 +263,11 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             "/assets/{id}",
             get(routes::assets::detail).put(routes::assets::update),
         )
+        .route("/assets/summaries", post(routes::assets::summaries))
+        .route("/map/config", get(routes::map::config))
+        .route("/map/markers", get(routes::map::markers))
+        .route("/map/reverse-geocode", get(routes::map::reverse_geocode))
+        .route("/map/search", get(routes::map::search))
         .route("/trash", post(routes::trash::trash))
         .route("/trash/restore", post(routes::trash::restore))
         .route("/assets/{id}/thumb", get(routes::assets::thumbnail))

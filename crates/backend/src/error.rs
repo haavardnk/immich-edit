@@ -216,6 +216,18 @@ impl From<crate::services::denoise::DenoiseError> for AppError {
     }
 }
 
+impl From<crate::services::map::GeocodeError> for AppError {
+    fn from(err: crate::services::map::GeocodeError) -> Self {
+        use crate::services::map::GeocodeError as E;
+        match err {
+            E::Off => Self::Conflict(err.to_string()),
+            E::BadQuery => Self::BadRequest(err.to_string()),
+            E::Throttled => Self::RateLimited(Some(60)),
+            E::Upstream(_) => Self::UpstreamUnavailable,
+        }
+    }
+}
+
 macro_rules! internal_from {
     ($ty:path, $ctx:literal) => {
         impl From<$ty> for AppError {

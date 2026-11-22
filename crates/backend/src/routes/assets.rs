@@ -13,6 +13,10 @@ use crate::routes::auth::AuthCtx;
 use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::blob_store::content_hash;
 
+mod batch;
+
+pub use batch::summaries;
+
 const THUMB_ETAG_LEN: usize = 32;
 
 pub async fn detail(ctx: AuthCtx, Path(id): Path<AssetKey>) -> Result<Json<AssetDetail>, AppError> {

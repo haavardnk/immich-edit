@@ -1,6 +1,8 @@
 use chrono::Utc;
 use sqlx::{Row, SqlitePool};
 
+use crate::services::map::MapSettings;
+
 #[derive(Debug, thiserror::Error)]
 pub enum InstanceStoreError {
     #[error("db: {0}")]
@@ -15,6 +17,7 @@ pub struct InstanceConfig {
     pub immich_url: Option<String>,
     pub configured_at: Option<String>,
     pub lens_auto: bool,
+    pub map: MapSettings,
 }
 
 impl InstanceConfig {
@@ -35,8 +38,8 @@ impl InstanceStore {
 
     pub async fn get(&self) -> Result<InstanceConfig, InstanceStoreError> {
         let row = sqlx::query(
-            "SELECT server_epoch, immich_url, configured_at, lens_auto FROM instance_config \
-             WHERE id = 1",
+            "SELECT server_epoch, immich_url, configured_at, lens_auto, map_style_light, \
+             map_style_dark, geocoder_url FROM instance_config WHERE id = 1",
         )
         .fetch_one(&self.pool)
         .await?;
@@ -45,7 +48,25 @@ impl InstanceStore {
             immich_url: row.get("immich_url"),
             configured_at: row.get("configured_at"),
             lens_auto: row.get::<i64, _>("lens_auto") != 0,
+            map: MapSettings {
+                style_light: row.get("map_style_light"),
+                style_dark: row.get("map_style_dark"),
+                geocoder_url: row.get("geocoder_url"),
+            },
         })
+    }
+
+    pub async fn set_map_settings(&self, map: &MapSettings) -> Result<(), InstanceStoreError> {
+        sqlx::query(
+            "UPDATE instance_config SET map_style_light = ?1, map_style_dark = ?2, \
+             geocoder_url = ?3 WHERE id = 1",
+        )
+        .bind(&map.style_light)
+        .bind(&map.style_dark)
+        .bind(&map.geocoder_url)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     pub async fn set_lens_auto(&self, enabled: bool) -> Result<(), InstanceStoreError> {

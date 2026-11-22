@@ -24,6 +24,7 @@ pub mod health;
 pub mod jobs;
 pub mod lens_profile;
 pub mod luts;
+pub mod map;
 #[cfg(feature = "ml")]
 pub mod masks;
 #[cfg(feature = "ml")]

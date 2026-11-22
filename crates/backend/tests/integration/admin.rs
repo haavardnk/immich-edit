@@ -3,22 +3,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 use uuid::Uuid;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn mock_me(server: &MockServer, id: Uuid, is_admin: bool) {
-    Mock::given(method("GET"))
-        .and(path("/api/users/me"))
-        .and(header("x-api-key", TEST_API_KEY))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "id": id,
-            "email": "admin@test.local",
-            "name": "Admin",
-            "isAdmin": is_admin,
-        })))
-        .mount(server)
-        .await;
-}
 
 fn access_request(id: Uuid, enabled: bool) -> Request<Body> {
     Request::builder()

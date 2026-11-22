@@ -157,7 +157,7 @@ pub async fn rebind(
     Ok(response)
 }
 
-async fn require_fresh_admin(admin: &AdminCtx) -> Result<(), AppError> {
+pub(crate) async fn require_fresh_admin(admin: &AdminCtx) -> Result<(), AppError> {
     let user = match admin.0.immich.me().await {
         Ok(user) => user,
         Err(err) if err.is_unreachable() => {
