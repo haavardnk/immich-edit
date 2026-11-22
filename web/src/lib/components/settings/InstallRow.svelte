@@ -2,11 +2,12 @@
   import Dialog from '#lib/components/Dialog.svelte';
   import InstallGuide from '#lib/components/settings/InstallGuide.svelte';
   import SettingsRow from '#lib/components/settings/SettingsRow.svelte';
-  import type { InstallGuide as Guide } from '#lib/pwa/installState.ts';
+  import { docsUrl } from '#lib/docs.ts';
   import { install } from '#lib/pwa/install.svelte.ts';
+  import type { InstallGuide as Guide } from '#lib/pwa/installState.ts';
   import { Button, Link } from '@immich/ui';
 
-  const HTTPS_DOCS = 'https://haavardnk.github.io/immich-edit/deploy/#https-for-the-installed-app';
+  const HTTPS_DOCS = docsUrl('hosting/deployment/#https-for-the-installed-app');
 
   const TITLES: Record<Guide, string> = {
     ios: 'Add immich-edit to your Home Screen',

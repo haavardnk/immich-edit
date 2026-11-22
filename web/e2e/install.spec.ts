@@ -243,7 +243,7 @@ test.describe('install entry', () => {
     await expect(installGroup(page).getByText('Needs HTTPS.', { exact: false })).toBeVisible();
     await expect(page.getByRole('link', { name: 'How to set up HTTPS' })).toHaveAttribute(
       'href',
-      /\/deploy\/#https-for-the-installed-app$/
+      /\/hosting\/deployment\/#https-for-the-installed-app$/
     );
     await expect(installButton(page)).toBeHidden();
   });

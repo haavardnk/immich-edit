@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/haavardnk/immich-edit/discussions/categories/q-a
     about: Setup help and usage questions.
   - name: Troubleshooting
-    url: https://haavardnk.github.io/immich-edit/troubleshooting/
+    url: https://haavardnk.github.io/immich-edit/hosting/troubleshooting/
     about: Fixes for common setup, GPU and connection problems.
   - name: Security issue
     url: https://github.com/haavardnk/immich-edit/security/advisories/new
