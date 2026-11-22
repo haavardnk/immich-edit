@@ -28,6 +28,13 @@ pub struct ImmichCapabilities {
     pub trash: bool,
     pub trash_days: Option<u32>,
     pub external_host: Option<String>,
+    pub map_light_style: Option<String>,
+    pub map_dark_style: Option<String>,
+}
+
+fn style_url(raw: Option<&String>) -> Option<String> {
+    raw.map(|url| url.trim().to_string())
+        .filter(|url| !url.is_empty())
 }
 
 impl ImmichCapabilities {
@@ -47,6 +54,8 @@ impl ImmichCapabilities {
             external_host: config
                 .and_then(|c| c.external_domain.as_deref())
                 .and_then(external_host),
+            map_light_style: style_url(config.and_then(|c| c.map_light_style_url.as_ref())),
+            map_dark_style: style_url(config.and_then(|c| c.map_dark_style_url.as_ref())),
         }
     }
 }

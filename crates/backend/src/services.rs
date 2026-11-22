@@ -3,7 +3,6 @@ pub mod asset_counts;
 pub mod auth_store;
 pub mod blob_store;
 pub mod cleanup;
-pub mod client_log_limiter;
 pub mod copy_expand;
 pub mod credentials;
 pub mod crypto;
@@ -26,6 +25,7 @@ pub mod keyed_lock;
 pub mod login_limiter;
 pub mod login_session;
 pub mod lut_store;
+pub mod map;
 #[cfg(feature = "ml")]
 pub mod mask_scene;
 #[cfg(feature = "ml")]
@@ -38,6 +38,7 @@ pub mod model_install;
 pub mod model_store;
 pub mod oauth_flow;
 pub mod oauth_providers;
+pub mod owner_window;
 pub mod paste_edits;
 pub mod preview_meta;
 pub mod preview_scopes;

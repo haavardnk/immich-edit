@@ -1,13 +1,20 @@
+use std::time::Duration;
+
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use serde::Deserialize;
 
 use crate::routes::auth::AuthCtx;
-use crate::services::client_log_limiter::Admission;
+use crate::services::owner_window::{Admission, OwnerWindow};
 use crate::state::AppState;
 
 pub const BODY_LIMIT: usize = 16 * 1024;
+const REPORTS_PER_MINUTE: u32 = 30;
+
+pub fn report_window() -> OwnerWindow {
+    OwnerWindow::new(REPORTS_PER_MINUTE, Duration::from_secs(60))
+}
 const MAX_MESSAGE: usize = 2000;
 const MAX_STACK: usize = 8000;
 const MAX_ROUTE: usize = 512;

@@ -7,9 +7,10 @@ use url::Url;
 use uuid::Uuid;
 
 use super::dto::{
-    AlbumPatch, AlbumSummary, AssetDetail, AssetFace, BulkIdResponse, NewTag, PeopleResponse,
-    PersonSummary, SearchAssets, SearchResponse, SearchStatistics, ServerVersion, StackDetail,
-    TagPatch, TagSummary, TimeBucket, TimeBucketAssets, UploadResponse,
+    AlbumPatch, AlbumSummary, AssetDetail, AssetFace, AssetSummary, BulkIdResponse, MapMarker,
+    NewTag, PeopleResponse, PersonSummary, PlaceName, SearchAssets, SearchResponse,
+    SearchStatistics, ServerVersion, StackDetail, TagPatch, TagSummary, TimeBucket,
+    TimeBucketAssets, UploadResponse,
 };
 use super::original::{self, Split};
 use super::{ImmichError, ImmichResult};
@@ -208,6 +209,23 @@ impl ImmichClient {
     pub async fn leave_album(&self, id: Uuid, user: Uuid) -> ImmichResult<()> {
         let url = self.url(&format!("api/albums/{id}/user/{user}"))?;
         send(self.authed(self.http.delete(url))).await.map(|_| ())
+    }
+
+    pub async fn asset_summary(&self, id: Uuid) -> ImmichResult<AssetSummary> {
+        self.get_json(&format!("api/assets/{id}")).await
+    }
+
+    pub async fn map_markers(&self, query: &[(&str, String)]) -> ImmichResult<Vec<MapMarker>> {
+        let pairs: Vec<(&str, &str)> = query.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        self.get_json_query("api/map/markers", &pairs).await
+    }
+
+    pub async fn reverse_geocode(&self, lat: f64, lon: f64) -> ImmichResult<Option<PlaceName>> {
+        let (lat, lon) = (lat.to_string(), lon.to_string());
+        let places: Vec<PlaceName> = self
+            .get_json_query("api/map/reverse-geocode", &[("lat", &lat), ("lon", &lon)])
+            .await?;
+        Ok(places.into_iter().next())
     }
 
     pub async fn asset(&self, id: Uuid) -> ImmichResult<AssetDetail> {
@@ -594,6 +612,10 @@ pub struct ServerConfig {
     pub trash_days: Option<u32>,
     #[serde(default)]
     pub external_domain: Option<String>,
+    #[serde(default)]
+    pub map_dark_style_url: Option<String>,
+    #[serde(default)]
+    pub map_light_style_url: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

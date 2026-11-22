@@ -5,7 +5,6 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::services::asset_counts::AssetCountCache;
 use crate::services::auth_store::AuthStore;
-use crate::services::client_log_limiter::ClientLogLimiter;
 use crate::services::crypto::InstanceCrypto;
 use crate::services::dcp_store::DcpStore;
 #[cfg(feature = "ml")]
@@ -21,6 +20,7 @@ use crate::services::job_store::JobStore;
 use crate::services::keyed_lock::KeyedLocks;
 use crate::services::login_limiter::LoginLimiter;
 use crate::services::lut_store::LutStore;
+use crate::services::map::MapService;
 #[cfg(feature = "ml")]
 use crate::services::ml_runtime::InferencePermits;
 #[cfg(feature = "ml")]
@@ -28,6 +28,7 @@ use crate::services::model_install::ModelInstaller;
 #[cfg(feature = "ml")]
 use crate::services::model_store::ModelStore;
 use crate::services::oauth_providers::ProviderCache;
+use crate::services::owner_window::OwnerWindow;
 use crate::services::preview_meta::PreviewMetaStore;
 use crate::services::preview_scopes::PreviewScopeStore;
 use crate::services::raster_store::RasterStore;
@@ -46,7 +47,7 @@ pub struct AppState {
     pub instance: InstanceStore,
     pub auth: AuthStore,
     pub login_limiter: Arc<LoginLimiter>,
-    pub client_log_limiter: Arc<ClientLogLimiter>,
+    pub client_log_limiter: Arc<OwnerWindow>,
     pub providers: ProviderCache,
     pub capabilities: CapabilityCache,
     pub edits: EditsStore,
@@ -71,6 +72,7 @@ pub struct AppState {
     pub tag_counts: AssetCountCache,
     pub people_counts: AssetCountCache,
     pub search_caches: SearchCaches,
+    pub map: MapService,
     pub stack_locks: KeyedLocks<(Uuid, Uuid)>,
     pub export_output_locks: KeyedLocks<(Uuid, String, String)>,
 }
@@ -182,7 +184,7 @@ impl AppState {
             instance,
             auth,
             login_limiter,
-            client_log_limiter: Arc::default(),
+            client_log_limiter: Arc::new(crate::routes::client_log::report_window()),
             providers: ProviderCache::new(),
             capabilities: CapabilityCache::new(),
             edits,
@@ -207,6 +209,7 @@ impl AppState {
             tag_counts: AssetCountCache::new(Scope::Tag),
             people_counts: AssetCountCache::new(Scope::Person),
             search_caches: SearchCaches::default(),
+            map: MapService::new(instance_cfg.map.clone()),
             stack_locks: KeyedLocks::default(),
             export_output_locks: KeyedLocks::default(),
         })

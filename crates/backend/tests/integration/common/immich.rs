@@ -400,3 +400,17 @@ pub async fn mock_people_list_with_stats(server: &MockServer, count: u64) {
         .mount(server)
         .await;
 }
+
+pub async fn mock_me(server: &MockServer, id: Uuid, is_admin: bool) {
+    Mock::given(method("GET"))
+        .and(path("/api/users/me"))
+        .and(header("x-api-key", TEST_API_KEY))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": id,
+            "email": "admin@test.local",
+            "name": "Admin",
+            "isAdmin": is_admin,
+        })))
+        .mount(server)
+        .await;
+}

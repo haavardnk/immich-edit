@@ -48,6 +48,7 @@ mod jobs_retry;
 mod lens_profile;
 mod logging;
 mod login_rate_limit;
+mod map;
 mod middleware;
 #[cfg(feature = "ml")]
 mod models;

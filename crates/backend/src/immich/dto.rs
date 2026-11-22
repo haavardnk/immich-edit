@@ -4,9 +4,11 @@ use uuid::Uuid;
 use crate::asset_key::AssetKey;
 
 mod album;
+mod map;
 mod tag;
 
 pub use album::{AlbumMember, AlbumPatch, AlbumRole, AlbumSummary};
+pub use map::{MapMarker, PlaceName};
 pub use tag::{NewTag, TagPatch, TagSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
