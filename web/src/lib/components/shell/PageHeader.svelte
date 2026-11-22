@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { PageParent } from '#lib/components/shell/pageParent.ts';
   import TouchAppBar from '#lib/components/shell/touch/TouchAppBar.svelte';
+  import WideSidebarToggle from '#lib/components/shell/wide/WideSidebarToggle.svelte';
+  import { wideSidebar } from '#lib/components/shell/wide/wideSidebar.svelte.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { Icon } from '@immich/ui';
   import { mdiChevronRight } from '@mdi/js';
@@ -37,6 +39,7 @@
   const headerActions = $derived(layout.mode === 'touch' ? (touchActions ?? actions) : actions);
   const appBarActions = $derived(compactActions ?? touchActions);
   const appBarLine = $derived([context, count].filter(Boolean).join(' · ') || undefined);
+  const sidebarToggle = $derived(layout.wide && !layout.compact && !wideSidebar.open);
 </script>
 
 {#if selecting && layout.mode === 'touch'}
@@ -53,8 +56,13 @@
   {/if}
 {:else}
   <header
-    class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5"
+    class="flex h-12 shrink-0 items-center gap-3 border-b border-hairline bg-light px-3 sm:px-5 {sidebarToggle
+      ? 'ps-1.5 sm:ps-1.5'
+      : ''}"
   >
+    {#if sidebarToggle}
+      <WideSidebarToggle />
+    {/if}
     <div class="flex min-w-0 items-center gap-2 {toolbar ? 'shrink-0' : 'flex-1'}">
       {#each parents as parent (parent.href)}
         <a
