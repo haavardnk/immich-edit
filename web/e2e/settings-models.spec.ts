@@ -33,6 +33,11 @@ async function installSettingsMocks(
     if (p === '/api/auth/me') return route.fulfill(json(SESSION_USER));
     if (p === '/api/auth/sessions') return route.fulfill(json({ sessions: [] }));
     if (p === '/api/export-presets') return route.fulfill(json([]));
+    if (p === '/api/admin/map-settings') {
+      return route.fulfill(
+        json({ styleLight: null, styleDark: null, geocoderUrl: 'https://photon.komoot.io' })
+      );
+    }
     if (p === '/api/masks/models')
       return route.fulfill(
         json({ runtime: 'cpu', enabled: true, models: models(), active: {}, semantic_classes: [] })

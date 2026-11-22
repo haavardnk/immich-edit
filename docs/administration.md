@@ -117,6 +117,21 @@ that photo. Turn the setting off to leave those photos uncorrected until someone
 **Enable Profile Corrections** on. Photos where a user already made that choice keep it either way.
 Previews, exports, and edited thumbnails pick up the change on their next render.
 
+## Map
+
+**Administration** > **Map** picks where map tiles and place search come from. Neither needs an
+API key.
+
+- **Map style** follows the style set in Immich's own map settings, by default Immich's tile
+  server. **Custom** takes MapLibre style URLs, such as `https://tiles.openfreemap.org/styles/dark`
+  or a self-hosted Protomaps style; a single URL serves both light and dark themes. Viewers'
+  browsers load tiles from that server directly.
+- **Place search** is the [Photon](https://github.com/komoot/photon) server used to find places by
+  name, by default the public `https://photon.komoot.io`. Searches go through immich-edit, so the
+  Photon server does not see viewers' addresses. Clear the field to turn search off.
+
+Place names for a new location come from Immich's own reverse geocoding, which sends nothing out.
+
 ## Immich instance
 
 **Administration** > **Server** > **Immich instance** shows the Immich server immich-edit is bound

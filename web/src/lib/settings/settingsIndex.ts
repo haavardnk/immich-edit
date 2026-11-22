@@ -120,6 +120,14 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
     anchor: 'lens-auto'
   },
   {
+    id: 'map',
+    page: 'administration',
+    title: 'Map',
+    detail: 'Map style and place search server',
+    keywords: ['map', 'tiles', 'style', 'geocoder', 'photon', 'place', 'location', 'gps'],
+    anchor: 'map-settings'
+  },
+  {
     id: 'instance',
     page: 'administration',
     title: 'Immich instance',
