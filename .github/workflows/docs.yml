@@ -1,0 +1,109 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref (branch or tag) to build and publish
+        required: false
+        default: main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target ref
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ref="${{ inputs.ref }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            ref="${{ github.ref_name }}"
+          else
+            ref="main"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          if [[ "$ref" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - run: npm ci
+        working-directory: docs
+
+      - name: Build versioned site
+        working-directory: docs
+        env:
+          DOCS_BASE: /immich-edit/${{ steps.target.outputs.ref }}
+          DOCS_VERSION: ${{ steps.target.outputs.ref }}
+        run: |
+          npm run build
+          mv dist ../dist-version
+
+      - name: Build root site
+        if: steps.target.outputs.is_stable == 'true' || steps.target.outputs.ref == 'main'
+        working-directory: docs
+        env:
+          DOCS_BASE: /immich-edit
+          DOCS_VERSION: ${{ steps.target.outputs.ref }}
+        run: |
+          npm run build
+          mv dist ../dist-root
+
+      - name: Checkout gh-pages
+        shell: bash
+        run: |
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add ../gh-pages origin/gh-pages
+            git -C ../gh-pages checkout -B gh-pages
+          else
+            git worktree add --orphan -b gh-pages ../gh-pages
+          fi
+
+      - name: Stage deployment
+        shell: bash
+        run: |
+          chmod +x docs/scripts/deploy.sh
+          if [ -d dist-root ]; then
+            docs/scripts/deploy.sh "${{ steps.target.outputs.ref }}" dist-version ../gh-pages dist-root
+          else
+            docs/scripts/deploy.sh "${{ steps.target.outputs.ref }}" dist-version ../gh-pages
+          fi
+
+      - name: Publish to gh-pages
+        shell: bash
+        run: |
+          git -C ../gh-pages config user.name "github-actions[bot]"
+          git -C ../gh-pages config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C ../gh-pages add -A
+          if ! git -C ../gh-pages diff --cached --quiet; then
+            git -C ../gh-pages commit -m "docs: publish ${{ steps.target.outputs.ref }}"
+            git -C ../gh-pages push origin gh-pages
+          fi
