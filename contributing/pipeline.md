@@ -1,11 +1,3 @@
----
-layout: default
-title: Render pipeline
-parent: Contribute
-nav_order: 3
-permalink: /pipeline/
----
-
 # Render pipeline
 
 This page defines render-stage and CPU/GPU ownership. Update it when an operator changes stage,

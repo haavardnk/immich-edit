@@ -1,11 +1,3 @@
----
-layout: default
-title: Attributions
-parent: Contribute
-nav_order: 4
-permalink: /attributions/
----
-
 # Attributions
 
 immich-edit builds on these projects:

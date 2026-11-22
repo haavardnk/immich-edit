@@ -1,11 +1,3 @@
----
-layout: default
-title: Development
-parent: Contribute
-nav_order: 1
-permalink: /development/
----
-
 # Development
 
 ## Requirements
@@ -87,21 +79,14 @@ WEB_DIR=web/build cargo run -p immich-edit-backend
 
 ## Preview the documentation
 
-Install the local Pages dependencies once:
-
 ```shell
-gem install --user-install jekyll jekyll-remote-theme jekyll-relative-links
-gem install --user-install just-the-docs -v 0.12.0
+cd docs
+npm ci
+npm run dev
 ```
 
-Run the site from the repository root:
-
-```shell
-PATH="$(ruby -r rubygems -e 'print Gem.user_dir')/bin:$PATH" \
-  jekyll serve --source docs --livereload
-```
-
-Open `http://127.0.0.1:4000/immich-edit/`.
+Open `http://localhost:4321/immich-edit/`. Run `npm run build` in `docs/` to verify links and
+anchors with `starlight-links-validator`.
 
 ## Test changes
 
@@ -172,9 +157,9 @@ one into a test binary.
 Local scratch files under `crates/ml/examples` and `crates/raw-pipeline/examples` are ignored and can
 break `--all-targets`. Do not add dependencies only to compile a scratch file.
 
-`docs/shortcuts.md` is generated from the `KEYBINDS` registry in `web/src/lib/shortcuts/table.ts`. After
-changing a shortcut run `npm run docs:shortcuts` in `web/` instead of editing the page;
-`npm run test:unit` fails while the page and the registry disagree.
+`docs/src/content/docs/reference/shortcuts.md` is generated from the `KEYBINDS` registry in
+`web/src/lib/shortcuts/table.ts`. After changing a shortcut run `npm run docs:shortcuts` in `web/`
+instead of editing the page; `npm run test:unit` fails while the page and the registry disagree.
 
 ## Change the product
 
