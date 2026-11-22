@@ -6,10 +6,16 @@ export interface ExposureCell {
   value: string;
 }
 
+export interface GeoPoint {
+  lat: number;
+  lon: number;
+}
+
 export interface Place {
   name: string;
   region: string | null;
-  mapUrl: string | null;
+  point: GeoPoint | null;
+  coordinates: string | null;
 }
 
 export interface InfoSubject extends Dated {
@@ -53,14 +59,9 @@ export function placeOf(exif: ExifInfo | null): Place | null {
   return {
     name,
     region: region === '' ? null : region,
-    mapUrl: coords ? mapUrl(coords.lat, coords.lon) : null
+    point: coords,
+    coordinates: coords ? coordinateLabel(coords.lat, coords.lon) : null
   };
-}
-
-export function mapUrl(lat: number, lon: number): string {
-  const y = lat.toFixed(5);
-  const x = lon.toFixed(5);
-  return `https://www.openstreetmap.org/?mlat=${y}&mlon=${x}#map=14/${y}/${x}`;
 }
 
 export function takenLabel(asset: Dated): string | null {
@@ -82,7 +83,7 @@ export function takenLabel(asset: Dated): string | null {
   return `${day} · ${time}`;
 }
 
-function coordinates(exif: ExifInfo): { lat: number; lon: number } | null {
+export function coordinates(exif: Pick<ExifInfo, 'latitude' | 'longitude'>): GeoPoint | null {
   const lat = exif.latitude;
   const lon = exif.longitude;
   if (typeof lat !== 'number' || typeof lon !== 'number') return null;
@@ -91,7 +92,7 @@ function coordinates(exif: ExifInfo): { lat: number; lon: number } | null {
   return { lat, lon };
 }
 
-function coordinateLabel(lat: number, lon: number): string {
+export function coordinateLabel(lat: number, lon: number): string {
   const ns = lat >= 0 ? 'N' : 'S';
   const ew = lon >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(4)}° ${ns}, ${Math.abs(lon).toFixed(4)}° ${ew}`;

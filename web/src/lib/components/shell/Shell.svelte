@@ -16,13 +16,14 @@
   import AlbumDetailsDialog from '#lib/components/library/AlbumDetailsDialog.svelte';
   import TagConfirmDialog from '#lib/components/library/TagConfirmDialog.svelte';
   import TagDetailsDialog from '#lib/components/library/TagDetailsDialog.svelte';
+  import LocationPickerDialog from '#lib/components/map/LocationPickerDialog.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
   import { browsing } from '#lib/stores/browsing.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
-  import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
+  import { leaveLoupeOnNavigate } from '#lib/browse/loupeActions.ts';
   import { zoomOut } from '#lib/browse/loupeZoom.ts';
   import { enteringEditor, handoffId, holdPhoto } from '#lib/browse/photoHandoff.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
@@ -47,7 +48,9 @@
   onNavigate((navigation) => {
     peek.hide();
     holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
-    if (navigation.to) leaveLoupeOnEditorPath(navigation.to.url.pathname);
+    if (navigation.to) {
+      leaveLoupeOnNavigate(navigation.from?.url, navigation.to.url);
+    }
     if (enteringEditor(navigation.from?.url, navigation.to?.url)) {
       ui.startEditing(layout.mode === 'touch');
       touchUi.startDevelop();
@@ -97,6 +100,7 @@
 <AlbumConfirmDialog />
 <TagDetailsDialog />
 <TagConfirmDialog />
+<LocationPickerDialog />
 <JobsOverlay />
 <JobsTabStatus />
 <SignOutConfirm />

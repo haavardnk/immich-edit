@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   canDropPane,
   dropFocusedPane,
-  leaveLoupeOnEditorPath,
+  leaveLoupeOnNavigate,
   loupeFocusedId,
   openInEditor,
   rateFocused,
@@ -189,11 +189,18 @@ describe('loupe actions', () => {
 
   it.each([
     ['the editor keeps until it draws', '/assets/a', 'a', true],
-    ['a browse page keeps', '/albums/a1', 'a', false]
+    ['the same address keeps', '/albums/a1', 'a', false],
+    ['another address on the page closes', '/albums/a1?sort=asc', null, false],
+    ['another page closes', '/map', null, false]
   ])('navigating to %s the loupe', (_, path, open, returnsToLoupe) => {
     browseView.consumeEditorReturnLoupe(null);
-    leaveLoupeOnEditorPath(path);
+    leaveLoupeOnNavigate(new URL('http://x/albums/a1'), new URL(`http://x${path}`));
     expect(browseView.loupeId).toBe(open);
     expect(browseView.consumeEditorReturnLoupe('a')).toBe(returnsToLoupe);
+  });
+
+  it('leaves the loupe alone when the editor hands back to it', () => {
+    leaveLoupeOnNavigate(new URL('http://x/assets/a'), new URL('http://x/albums/a1'));
+    expect(browseView.loupeId).toBe('a');
   });
 });

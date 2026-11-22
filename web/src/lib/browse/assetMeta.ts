@@ -255,7 +255,7 @@ function markRejected(id: string, tag: TagRef, value: boolean): void {
   else rejected.remove(id);
 }
 
-function withExif(exif: ExifInfo | null, change: Partial<ExifInfo>): ExifInfo {
+export function withExif(exif: ExifInfo | null, change: Partial<ExifInfo>): ExifInfo {
   if (exif) return { ...exif, ...change };
   return {
     make: null,

@@ -15,7 +15,7 @@
   import { COLLECTIONS } from '#lib/components/library/collections.ts';
   import { mdiImageMultipleOutline, mdiImageAlbum } from '@mdi/js';
 
-  const { favorites, people, tags, folders, edited } = COLLECTIONS;
+  const { favorites, map, people, tags, folders, edited } = COLLECTIONS;
 
   function toggleSection(id: SidebarSectionId): void {
     if (sidebar.toggle(id)) void library.loadView(id);
@@ -56,6 +56,12 @@
     >
       <PeopleList />
     </SidebarSection>
+    <SidebarLink
+      href={map.href}
+      icon={map.icon}
+      label={map.label}
+      active={currentPath === map.href}
+    />
     <div class="mx-4 my-3 h-px bg-hairline"></div>
     <SidebarLink
       href={favorites.href}

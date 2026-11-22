@@ -68,10 +68,12 @@ test('the info panel docks beside the photo with its details', async ({ page, co
     await expect(panel).toContainText(value);
   }
   await expect(panel).toContainText('Vestland, Norway');
-  await expect(panel.getByRole('link', { name: 'Open in map' })).toHaveAttribute(
+  await expect(panel.getByRole('link', { name: 'Open Bergen on the map' })).toHaveAttribute(
     'href',
-    /^https:\/\/www\.openstreetmap\.org\/\?mlat=60\.39000&mlon=5\.32000/
+    '/map?at=60.39000,5.32000,14.00'
   );
+  await expect(panel.getByRole('region', { name: 'Map of Bergen' })).toBeVisible();
+  await expect(panel.locator('.maplibregl-compact-show')).toHaveCount(0);
   const albums = panel.getByRole('list', { name: 'Albums with this photo' });
   await expect(albums.getByRole('listitem')).toHaveText([/Bergen 2026/, /Best of autumn/]);
   await expect(panel).toContainText(PATH);

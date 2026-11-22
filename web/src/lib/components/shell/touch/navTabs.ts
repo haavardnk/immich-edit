@@ -20,7 +20,10 @@ const TAB_ROOTS: readonly { tab: NavTabId; roots: readonly string[] }[] = [
   { tab: 'photos', roots: ['/photos'] },
   { tab: 'albums', roots: ['/albums'] },
   { tab: 'search', roots: ['/search'] },
-  { tab: 'library', roots: ['/library', '/favorites', '/people', '/tags', '/folders', '/edited'] }
+  {
+    tab: 'library',
+    roots: ['/library', '/favorites', '/map', '/people', '/tags', '/folders', '/edited']
+  }
 ];
 
 function within(pathname: string, root: string): boolean {

@@ -10,7 +10,13 @@ const PARENTS: readonly { within: string; parent: string }[] = [
   { within: '/settings', parent: '/settings' }
 ];
 
-const LIBRARY_PAGES: ReadonlySet<string> = new Set(['/favorites', '/edited', '/people', '/tags']);
+const LIBRARY_PAGES: ReadonlySet<string> = new Set([
+  '/favorites',
+  '/map',
+  '/edited',
+  '/people',
+  '/tags'
+]);
 
 function folderParent(url: ReadonlyURL): string {
   const path = url.searchParams.get('path');
@@ -23,4 +29,10 @@ export function backParent(url: ReadonlyURL): string {
   if (LIBRARY_PAGES.has(pathname)) return '/library';
   const nested = PARENTS.find(({ within }) => pathname.startsWith(`${within}/`));
   return nested?.parent ?? HOME;
+}
+
+const LEAVE_PAGE: ReadonlySet<string> = new Set(['/map']);
+
+export function backSkips(current: string, previous: string): boolean {
+  return LEAVE_PAGE.has(current) && previous === current;
 }

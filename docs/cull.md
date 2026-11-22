@@ -88,6 +88,35 @@ Phones and tablets in portrait get a tab bar with **Photos**, **Albums**, **Sear
 selecting, and swipe in the loupe. **Settings** > **Preferences** > **Layout** picks a layout
 yourself; see [this device](administration.md#this-device).
 
+## Places and the map
+
+**Map** in the library shows every photo that has a location, grouped by area until you zoom in.
+The panel beside it lists the photos in view. Click a group to zoom to it and list only its
+photos; double-click a group or photo to select it. **No location** lists photos without one.
+**Favorites** and **Any date** narrow the map and both lists, and **Fit all photos** zooms out to
+all of them. The panel button next to it hides or shows the panel, and its edge can be dragged
+to resize it. On a phone, the pill at the bottom opens the list in a sheet; tapping a group opens
+it too, and moving the map closes it.
+
+Drag photos from the panel onto the map to place them there; dragging a selected photo places the
+whole selection. On a phone, press and hold a photo in the sheet and drag it up out of the sheet;
+the sheet steps aside and you place the photo, and anything else selected, on the map. To move a
+photo or a group on the map, press and hold it, then drag; press Escape to put it back. A quick
+drag on a marker pans the map instead. Every drop asks before it changes anything: **Move** or
+**Place** confirms, and **Cancel** or Escape leaves the photos where they were. **Undo** in the
+toast puts moved photos back. Selected
+photos can also be placed with **Location** in the selection bar.
+
+The photo **Info** panel shows a small map for a photo with a location. Click it to open
+**Map** there. **Set location** or **Edit location** opens a map where you search for a place or
+move the pin; on touch, move the map under the pin. **Copy location** and **Paste location** carry
+a location between photos. **Location** in the selection bar sets it for every selected photo you
+own. **Undo** in the toast puts the old locations back.
+
+{: .note }
+Immich can change a location but cannot remove one, so **Undo** leaves the new location on photos
+that had none.
+
 ## Delete photos
 
 **Move to Immich trash** sends photos you own to the Immich trash, after asking; **Undo** brings

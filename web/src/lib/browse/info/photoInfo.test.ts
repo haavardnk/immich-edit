@@ -2,7 +2,6 @@ import {
   detailRows,
   exposureCells,
   fileType,
-  mapUrl,
   placeOf,
   takenLabel
 } from '#lib/browse/info/photoInfo.ts';
@@ -104,28 +103,24 @@ describe('place', () => {
     ).toEqual({
       name: 'Bergen',
       region: 'Vestland, Norway',
-      mapUrl: mapUrl(60.39, 5.32)
+      point: { lat: 60.39, lon: 5.32 },
+      coordinates: '60.3900° N, 5.3200° E'
     });
   });
 
-  it('falls back to the coordinates and has no map link without them', () => {
+  it('falls back to the coordinates and has no point without them', () => {
     expect(placeOf(exif({ latitude: -33.8568, longitude: 151.2153 }))?.name).toBe(
       '33.8568° S, 151.2153° E'
     );
     expect(placeOf(exif({ country: 'Norway' }))).toEqual({
       name: 'Norway',
       region: null,
-      mapUrl: null
+      point: null,
+      coordinates: null
     });
     expect(placeOf(exif({ latitude: 95, longitude: 10 }))).toBeNull();
     expect(placeOf(exif({}))).toBeNull();
     expect(placeOf(null)).toBeNull();
-  });
-
-  it('links to OpenStreetMap at the photo', () => {
-    expect(mapUrl(60.391263, 5.322054)).toBe(
-      'https://www.openstreetmap.org/?mlat=60.39126&mlon=5.32205#map=14/60.39126/5.32205'
-    );
   });
 });
 

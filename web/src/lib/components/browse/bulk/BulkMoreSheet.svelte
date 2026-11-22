@@ -8,10 +8,13 @@
   import { editableViewedAlbum } from '#lib/browse/viewedAlbum.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
+  import { locationPicker } from '#lib/stores/locationPicker.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
   import {
     mdiCompare,
     mdiContentDuplicate,
     mdiImageAlbum,
+    mdiMapMarkerOutline,
     mdiMinusBoxOutline,
     mdiTagOutline,
     mdiTrashCanOutline,
@@ -86,6 +89,17 @@
     aria-disabled={shared || undefined}
     disabled={busy}
     onclick={owned(() => onPick('tags'))}
+  />
+  <MenuRow
+    icon={mdiMapMarkerOutline}
+    label="Location"
+    class={shared ? 'opacity-50' : ''}
+    aria-disabled={shared || undefined}
+    disabled={busy}
+    onclick={owned(() => {
+      onOpenChange(false);
+      void locationPicker.openIds([...selection.selected]);
+    })}
   />
   <MenuRow
     icon={bulkEdits.applyPreset.icon}

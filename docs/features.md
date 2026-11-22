@@ -30,10 +30,10 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Date scrubber | ✓ Yes | Jumps to any month in a grid sorted by date taken |
 | Saved views | ✓ Yes | **Save view** keeps filters, sort and thumbnail size under a name in your account |
 | Per-view sort order | ✓ Yes | Timelines open newest first, albums, people, tags, and folders oldest first, and each remembers the date (taken or added) and direction you pick; Immich 3.2 adds rating and file size sorts over the whole result, unrated and unsized photos last |
-| Map search filters | ✗ No | Use Immich for map search |
 | Ratings, favorites, tags, color labels, and reject marks | ✓ Yes | Writes metadata to Immich after consent; labels and reject are Immich tags under `immich-edit/`. Photos owned by another Immich user are read-only, as in Immich |
 | Edit descriptions | ✓ Yes | Your own photos, in the photo **Info** panel |
-| Edit dates, locations, or EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, tags, and descriptions |
+| Set photo locations | ✓ Yes | One photo or a selection, by place search or by moving a pin, plus copy and paste; see [places and the map](cull.md#places-and-the-map). A location can be moved but not removed |
+| Edit dates or other EXIF fields | ✗ No | Metadata writes are limited to ratings, favorites, tags, descriptions, and locations |
 | Multi-select and batch actions | ✓ Yes | **Select all** selects every photo in the result, not only the loaded page; see [act on a selection](cull.md#act-on-a-selection) |
 | Box selection | ✓ Yes | Drag from a gap between photos; desktop layout |
 | Touch selection | ✓ Yes | Press and hold a photo, or **Select photos** in the app bar |
@@ -58,7 +58,9 @@ imply planned support. [Use the editor](use.md) explains how to use what is here
 | Browse, create, or reorganize arbitrary Immich stacks | ✗ No | Export stacking is the only stack operation |
 | Move photos to the Immich trash | ✓ Yes | Owned photos only, with **Undo**; refused while the Immich trash is off; see [delete photos](cull.md#delete-photos) |
 | Archive, empty the trash, or delete assets for good | ✗ No | Restore older deletions from the trash in Immich |
-| Map and location browsing | ✗ No | — |
+| Map of geotagged photos | ✓ Yes | **Map** in the library, with favorites and date filters; photo **Info** shows a small map |
+| Drag photos onto the map | ✓ Yes | From the map panel, including photos without a location; drag a photo on the map to move it, after a press and hold on touch |
+| GPX track matching and saved locations | ✗ No | — |
 | Immich memories | ✗ No | — |
 | Partner sharing and public share links | ✗ No | Use Immich for sharing |
 

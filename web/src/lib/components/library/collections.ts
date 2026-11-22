@@ -4,11 +4,12 @@ import {
   mdiAccountOutline,
   mdiFolderOutline,
   mdiHeartOutline,
+  mdiMapOutline,
   mdiPencilOutline,
   mdiTagMultipleOutline
 } from '@mdi/js';
 
-type CollectionId = 'favorites' | 'people' | 'tags' | 'folders' | 'edited';
+type CollectionId = 'favorites' | 'map' | 'people' | 'tags' | 'folders' | 'edited';
 
 type Collection = {
   id: CollectionId;
@@ -25,6 +26,13 @@ export const COLLECTIONS: Readonly<Record<CollectionId, Collection>> = {
     href: '/favorites',
     icon: mdiHeartOutline,
     count: () => library.favoritesCount
+  },
+  map: {
+    id: 'map',
+    label: 'Map',
+    href: '/map',
+    icon: mdiMapOutline,
+    count: () => null
   },
   people: {
     id: 'people',
@@ -59,6 +67,7 @@ export const COLLECTIONS: Readonly<Record<CollectionId, Collection>> = {
 export const COLLECTION_ORDER: readonly CollectionId[] = [
   'favorites',
   'people',
+  'map',
   'tags',
   'folders',
   'edited'
