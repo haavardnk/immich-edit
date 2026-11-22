@@ -85,8 +85,10 @@ Immich trash**. On an album you own or edit it also has **Remove from album**, w
 
 Phones and tablets in portrait get a tab bar with **Photos**, **Albums**, **Search** and
 **Library**; **View & filters** holds the sort and filters. Tap a photo to open it, hold to start
-selecting, and swipe in the loupe. **Settings** > **Preferences** > **Layout** picks a layout
-yourself; see [this device](administration.md#this-device).
+selecting, and swipe in the loupe. Tablets in landscape keep the sidebar; the sidebar button
+next to the wordmark hides it, and the same button at the start of the page header brings it
+back. **Settings** > **Preferences** > **Layout** picks a layout yourself; see
+[this device](administration.md#this-device).
 
 ## Places and the map
 
