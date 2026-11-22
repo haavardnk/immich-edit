@@ -152,3 +152,20 @@ jobs:
         working-directory: web
       - run: xvfb-run -a npm run test:e2e
         working-directory: web
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
+      - run: npm run build
+        working-directory: docs
+        env:
+          DOCS_BASE: /immich-edit
+          DOCS_VERSION: main
