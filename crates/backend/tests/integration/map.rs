@@ -2,7 +2,7 @@ use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::matchers::{method, path, query_param};
+use wiremock::matchers::{body_json as body_is, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn send(
@@ -213,6 +213,52 @@ async fn place_search_proxies_photon_once_per_query_and_can_be_off() {
     let (status, json) = send(&app, "GET", "/api/map/search?q=Bryggen", None).await;
     if status != StatusCode::CONFLICT || json["message"] != "place search is off" {
         panic!("off: {status} {json}");
+    }
+}
+
+#[tokio::test]
+async fn a_location_goes_to_every_source_photo_in_one_update() {
+    let server = MockServer::start().await;
+    let asset = asset_id();
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .and(body_is(
+            json!({ "ids": [asset], "latitude": 60.3975, "longitude": 5.324 }),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let body =
+        json!({ "ids": [asset, format!("{asset}_1")], "latitude": 60.3975, "longitude": 5.324 });
+    let (status, json) = send(&app, "PUT", "/api/assets/location", Some(body)).await;
+    if status != StatusCode::NO_CONTENT {
+        panic!("{status}: {json}");
+    }
+}
+
+#[tokio::test]
+async fn a_location_is_checked_before_immich() {
+    let server = MockServer::start().await;
+    Mock::given(method("PUT"))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(0)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let asset = asset_id();
+    for body in [
+        json!({ "ids": [], "latitude": 1.0, "longitude": 1.0 }),
+        json!({ "ids": [asset], "latitude": 90.5, "longitude": 1.0 }),
+        json!({ "ids": [asset], "latitude": 1.0 }),
+        json!({ "ids": [asset], "latitude": 1.0, "longitude": 1.0, "city": "Oslo" }),
+        json!({ "ids": vec![asset; 1001], "latitude": 1.0, "longitude": 1.0 }),
+    ] {
+        let (status, _) = send(&app, "PUT", "/api/assets/location", Some(body.clone())).await;
+        if !status.is_client_error() {
+            panic!("{body}: {status}");
+        }
     }
 }
 
