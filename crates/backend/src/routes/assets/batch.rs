@@ -1,4 +1,5 @@
 use axum::Json;
+use axum::http::StatusCode;
 use futures_util::future::join_all;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -8,7 +9,9 @@ use crate::error::AppError;
 use crate::immich::ImmichError;
 use crate::immich::dto::AssetSummary;
 use crate::routes::auth::AuthCtx;
+use crate::routes::map::checked_point;
 
+const MAX_LOCATION_ASSETS: usize = 1000;
 const MAX_SUMMARIES: usize = 100;
 const SUMMARY_CONCURRENCY: usize = 8;
 
@@ -26,6 +29,25 @@ fn sources(ids: &[AssetKey], max: usize) -> Result<Vec<Uuid>, AppError> {
         }
     }
     Ok(sources)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocationBody {
+    ids: Vec<AssetKey>,
+    latitude: f64,
+    longitude: f64,
+}
+
+pub async fn location(
+    ctx: AuthCtx,
+    Json(body): Json<LocationBody>,
+) -> Result<StatusCode, AppError> {
+    let (latitude, longitude) = checked_point(body.latitude, body.longitude)?;
+    let ids = sources(&body.ids, MAX_LOCATION_ASSETS)?;
+    let update = serde_json::json!({ "ids": ids, "latitude": latitude, "longitude": longitude });
+    ctx.immich.update_assets(&update).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]

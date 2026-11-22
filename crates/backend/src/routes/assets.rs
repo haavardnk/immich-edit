@@ -15,7 +15,7 @@ use crate::services::blob_store::content_hash;
 
 mod batch;
 
-pub use batch::summaries;
+pub use batch::{location, summaries};
 
 const THUMB_ETAG_LEN: usize = 32;
 
