@@ -1,0 +1,37 @@
+---
+title: immich-edit
+description: Self-hosted, non-destructive RAW photo editor for Immich.
+template: splash
+hero:
+  tagline: Self-hosted, non-destructive RAW editing for your Immich library.
+  actions:
+    - text: Install
+      link: start/install/
+      icon: right-arrow
+    - text: Start editing
+      link: editing/workspace/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import banner from '../../assets/banner.png';
+
+<div class="hero-banner">
+  <Image src={banner} alt="immich-edit running on desktop, tablet, and phone" />
+</div>
+
+<CardGrid>
+  <Card title="Edit photos" icon="pencil">
+    Browse, cull, geotag, develop RAW files, mask locally, and export back to Immich. Originals
+    stay untouched. [Explore the editing guide](editing/workspace.md).
+  </Card>
+  <Card title="Self-host" icon="setting">
+    Run with Docker Compose behind a reverse proxy, enable GPU passthrough, connect Immich OAuth,
+    and manage AI models. [Open hosting docs](hosting/deployment.md).
+  </Card>
+  <Card title="Reference" icon="open-book">
+    Check supported RAW cameras, export formats, capabilities, and customizable keyboard shortcuts.
+    [Browse reference](reference/features.md).
+  </Card>
+</CardGrid>

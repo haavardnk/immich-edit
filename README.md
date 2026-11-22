@@ -1,38 +1,32 @@
 # <img src="web/static/favicon.svg" width="24" height="24" alt=""> immich-edit
 
-A self-hosted, non-destructive RAW editor for an existing
-[Immich](https://immich.app/) library. It browses assets through Immich, decodes and exports on the
-server, draws live previews in the browser when WebGPU is available, and stores edits locally.
-Originals remain unchanged, and go to the Immich trash only when you ask.
+Self-hosted, non-destructive RAW photo editor for your [Immich](https://immich.app/) library. Browse
+and cull through Immich, edit with live GPU previews on desktop, tablet, or phone, and export back
+to Immich without touching originals.
 
 > [!WARNING]
-> immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the upgrade notes
-> before upgrading.
+> immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the
+> [upgrade notes](https://haavardnk.github.io/immich-edit/hosting/backup-and-upgrade/) before
+> upgrading.
 
-![immich-edit on desktop, tablet and phone](docs/image/banner-v0_8.png)
-
-
-<!-- SCREENSHOT: captured from the maintainer's library on the dev server (album "Safari 2025", each photo developed with Auto and lens corrections on, account shown as Hanne Kristiansen at photos.example.net): desktop album grid 1440x900 sorted by rating, tablet editor 1180x820, phone editor 412x839, composed into a 1600x840 banner at scale 2. -->
+![immich-edit on desktop, tablet, and phone](docs/image/banner-v0_8.png)
 
 ## Documentation
 
-- [Getting started](https://haavardnk.github.io/immich-edit/getting-started/)
-- [Use the editor](https://haavardnk.github.io/immich-edit/use/): culling, editing and exporting
-- [Run the server](https://haavardnk.github.io/immich-edit/operate/): HTTPS, GPU passthrough,
-  OAuth, configuration and backups
-- [Troubleshooting](https://haavardnk.github.io/immich-edit/troubleshooting/)
-- [Feature matrix](https://haavardnk.github.io/immich-edit/features/)
+Full documentation lives at **[haavardnk.github.io/immich-edit](https://haavardnk.github.io/immich-edit/)**:
 
-## Project
+- [Install](https://haavardnk.github.io/immich-edit/start/install/) — Docker Compose setup and first sign-in
+- [Editing guide](https://haavardnk.github.io/immich-edit/editing/workspace/) — workspace, culling, map, Develop, masks, presets, and export
+- [Self-hosting](https://haavardnk.github.io/immich-edit/hosting/deployment/) — reverse proxy, GPU passthrough, OAuth, configuration, and backups
+- [Troubleshooting](https://haavardnk.github.io/immich-edit/hosting/troubleshooting/) — fixes for setup, GPU, and connection issues
+- [Features & formats](https://haavardnk.github.io/immich-edit/reference/features/) — supported capabilities, RAW cameras, and shortcuts
 
-Ask usage and setup questions in
-[GitHub Discussions](https://github.com/haavardnk/immich-edit/discussions). Use
-[GitHub Issues](https://github.com/haavardnk/immich-edit/issues) for reproducible bugs and feature
-requests. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. Report vulnerabilities
-through [GitHub Security Advisories](https://github.com/haavardnk/immich-edit/security/advisories/new).
+## Community & License
 
-Community support is best effort, with no response-time guarantee.
+- Questions and setup help: [GitHub Discussions](https://github.com/haavardnk/immich-edit/discussions)
+- Bugs and feature requests: [GitHub Issues](https://github.com/haavardnk/immich-edit/issues)
+- Security vulnerabilities: [Security Advisories](https://github.com/haavardnk/immich-edit/security/advisories/new)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Licensed under [AGPL-3.0-only](LICENSE).
-See the [attributions](https://haavardnk.github.io/immich-edit/attributions/) for projects and
-bundled camera profiles used by immich-edit.
+Community support is best effort with no response-time guarantee. Licensed under
+[AGPL-3.0-only](LICENSE); third-party credits in [contributing/attributions.md](contributing/attributions.md).

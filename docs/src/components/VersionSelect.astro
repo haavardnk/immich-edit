@@ -1,0 +1,89 @@
+---
+const version = process.env.DOCS_VERSION ?? 'main';
+const rootBase = '/immich-edit';
+const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
+---
+
+<div
+  class="ie-version-wrap"
+  data-ie-version={version}
+  data-ie-root={rootBase}
+  data-ie-base={currentBase}
+>
+  <select class="ie-version-select" aria-label="Documentation version">
+    <option value={currentBase} selected>{version}</option>
+  </select>
+</div>
+
+<script>
+  const wraps = document.querySelectorAll<HTMLElement>('.ie-version-wrap');
+  for (const wrap of wraps) {
+    const select = wrap.querySelector<HTMLSelectElement>('select');
+    if (!select) continue;
+    const currentVersion = wrap.dataset.ieVersion ?? 'main';
+    const rootBase = wrap.dataset.ieRoot ?? '/immich-edit';
+    const currentBase = wrap.dataset.ieBase ?? rootBase;
+
+    fetch(`${rootBase}/versions.json`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { latest?: string; versions?: { id: string; label: string; base: string }[] } | null) => {
+        if (!data?.versions?.length) return;
+        select.innerHTML = '';
+        for (const item of data.versions) {
+          const opt = document.createElement('option');
+          opt.value = item.base;
+          opt.textContent = item.label;
+          if (item.id === currentVersion || item.base === currentBase) {
+            opt.selected = true;
+          }
+          select.append(opt);
+        }
+      })
+      .catch(() => {});
+
+    select.addEventListener('change', async () => {
+      const targetBase = select.value.replace(/\/+$/, '');
+      const relPath = window.location.pathname.startsWith(currentBase)
+        ? window.location.pathname.slice(currentBase.length)
+        : '/';
+      const targetUrl = `${targetBase}${relPath.startsWith('/') ? relPath : `/${relPath}`}${window.location.hash}`;
+      try {
+        const res = await fetch(targetUrl, { method: 'HEAD' });
+        window.location.assign(res.ok ? targetUrl : `${targetBase}/`);
+      } catch {
+        window.location.assign(`${targetBase}/`);
+      }
+    });
+  }
+</script>
+
+<style>
+  .ie-version-wrap {
+    display: inline-flex;
+    align-items: center;
+  }
+  .ie-version-select {
+    appearance: none;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-1);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.45rem;
+    padding: 0.28rem 1.75rem 0.28rem 0.65rem;
+    font-size: 0.82rem;
+    font-family: var(--sl-font-mono);
+    line-height: 1.3;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--sl-color-gray-3) 50%),
+      linear-gradient(135deg, var(--sl-color-gray-3) 50%, transparent 50%);
+    background-position:
+      calc(100% - 12px) 50%,
+      calc(100% - 7px) 50%;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+  }
+  .ie-version-select:hover {
+    border-color: var(--sl-color-accent);
+  }
+</style>
