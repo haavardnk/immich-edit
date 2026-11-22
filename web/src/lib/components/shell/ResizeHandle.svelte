@@ -53,6 +53,14 @@
     }
   });
 
+  const handlers = resize.on();
+
+  function grab(event: PointerEvent): void {
+    event.preventDefault();
+    window.getSelection()?.removeAllRanges();
+    handlers.onpointerdown(event);
+  }
+
   function resizeWithKeyboard(event: KeyboardEvent): void {
     const amount = held('coarse', event) ? shiftStep : step;
     const towardStart = orientation === 'horizontal' ? 'ArrowLeft' : 'ArrowUp';
@@ -77,7 +85,8 @@
   aria-valuemin={min}
   aria-valuemax={max}
   aria-valuenow={value}
-  class="touch-none {className} {dragging ? activeClass : ''}"
-  {...resize.on()}
+  class="touch-none select-none {className} {dragging ? activeClass : ''}"
+  {...handlers}
+  onpointerdown={grab}
   onkeydown={resizeWithKeyboard}
 ></div>
