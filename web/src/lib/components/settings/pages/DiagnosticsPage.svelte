@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
-    getHealth,
     getDebugTimings,
-    type HealthInfo,
+    getHealth,
     type DebugTimings,
+    type HealthInfo,
     type LatencyStats
   } from '#lib/api/diagnostics.ts';
   import Notice from '#lib/components/Notice.svelte';
@@ -18,9 +17,11 @@
     perMegapixel
   } from '#lib/diagnostics/format.ts';
   import { buildSupportBundle } from '#lib/diagnostics/supportBundle.ts';
+  import { docsUrl } from '#lib/docs.ts';
   import { renderer } from '#lib/stores/renderer.svelte.ts';
   import { errorMessage } from '#lib/utils/errors.ts';
   import { Button, Heading, LoadingSpinner, Text } from '@immich/ui';
+  import { onMount } from 'svelte';
 
   let health = $state<HealthInfo | null>(null);
   let timings = $state<DebugTimings | null>(null);
@@ -339,7 +340,7 @@
       <li>
         <a
           class="text-primary hover:underline"
-          href="https://haavardnk.github.io/immich-edit/deploy/"
+          href={docsUrl('hosting/deployment/')}
           target="_blank"
           rel="noopener"
         >
@@ -349,7 +350,7 @@
       <li>
         <a
           class="text-primary hover:underline"
-          href="https://haavardnk.github.io/immich-edit/troubleshooting/"
+          href={docsUrl('hosting/troubleshooting/')}
           target="_blank"
           rel="noopener"
         >

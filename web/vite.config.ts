@@ -1,9 +1,14 @@
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
 
 const scaleAwareMerge = fileURLToPath(new URL('./src/lib/theme/tailwindMerge.ts', import.meta.url));
 
@@ -18,6 +23,9 @@ const immichUiMerge: Plugin = {
 const backend = process.env.IMMICH_EDIT_BACKEND ?? 'http://127.0.0.1:8088';
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version)
+  },
   plugins: [
     immichUiMerge,
     tailwindcss(),

@@ -8,19 +8,19 @@
   import { layout } from '#lib/device/layout.svelte.ts';
   import { LAYOUT_CHOICE_LABELS, LAYOUT_CHOICES } from '#lib/device/layoutRules.ts';
   import { layoutHint } from '#lib/device/status.ts';
+  import { docsUrl } from '#lib/docs.ts';
   import { exportSettings } from '#lib/panels/export/exportSettings.svelte.ts';
   import { appearance } from '#lib/stores/appearance.svelte.ts';
   import {
-    RENDERER_CHOICE_LABELS,
     renderer,
+    RENDERER_CHOICE_LABELS,
     type RendererChoice
   } from '#lib/stores/renderer.svelte.ts';
   import { rendererStatus } from '#lib/stores/rendererStatus.ts';
   import type { Scheme } from '#lib/theme/types.ts';
   import { Link, Switch } from '@immich/ui';
 
-  const LOCAL_NETWORK_DOCS =
-    'https://haavardnk.github.io/immich-edit/rendering/#browser-previews-on-a-local-network';
+  const LOCAL_NETWORK_DOCS = docsUrl('hosting/rendering/#browser-previews-on-a-local-network');
 
   const SCHEME_LABELS: Readonly<Record<Scheme, string>> = { light: 'Light', dark: 'Dark' };
 
