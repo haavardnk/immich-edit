@@ -58,6 +58,10 @@ class BrowsingStore {
     this.pager = pager;
   }
 
+  isFeed(assets: AssetSummary[], pager: BrowsePager): boolean {
+    return this.assets === assets && this.pager === pager;
+  }
+
   clear(): void {
     this.list += 1;
     this.assets = [];

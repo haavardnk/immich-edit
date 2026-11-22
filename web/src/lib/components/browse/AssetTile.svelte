@@ -11,6 +11,8 @@
   import { assetPlaceholder, assetThumbUrl } from '#lib/api/assets.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
   import { isRejected } from '#lib/browse/reject.ts';
+  import { tileDrag } from '#lib/browse/tileDrag.ts';
+  import { layout } from '#lib/device/layout.svelte.ts';
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
@@ -126,10 +128,16 @@
     }
     onToggle?.();
   }
+
+  const drag = tileDrag();
+  const draggable = $derived(drag !== null && layout.mode !== 'touch');
 </script>
 
 <div
   role="group"
+  draggable={draggable || undefined}
+  ondragstart={draggable ? (event) => drag?.start(asset, event) : undefined}
+  ondragend={draggable ? () => drag?.end() : undefined}
   onpointerenter={onPreview}
   onpointerleave={onPreviewEnd}
   class="group no-callout relative isolate block h-full w-full overflow-hidden transition-[background-color,border-radius] duration-base"

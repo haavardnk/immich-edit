@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { backParent } from './backParent';
+import { backParent, backSkips } from './backParent';
 
 describe('backParent', () => {
   it.each([
     ['/favorites', '/library'],
+    ['/map', '/library'],
     ['/edited', '/library'],
     ['/people', '/library'],
     ['/tags', '/library'],
@@ -19,5 +20,11 @@ describe('backParent', () => {
     ['/somewhere', '/photos']
   ])('goes back from %s to %s', (from, parent) => {
     expect(backParent(new URL(from, 'http://localhost'))).toBe(parent);
+  });
+
+  it('leaves the map for its parent instead of an earlier map view', () => {
+    expect(backSkips('/map', '/map')).toBe(true);
+    expect(backSkips('/map', '/library')).toBe(false);
+    expect(backSkips('/albums/a1', '/albums/a1')).toBe(false);
   });
 });

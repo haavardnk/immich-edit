@@ -31,6 +31,7 @@
     closeLabel = 'close',
     header,
     footer,
+    lift = 0,
     bodyClass = '',
     peek = false,
     onExited,
@@ -53,6 +54,7 @@
     closeLabel?: string;
     header?: Snippet;
     footer?: Snippet;
+    lift?: number;
     bodyClass?: string;
     peek?: boolean;
     children: Snippet;
@@ -220,7 +222,7 @@
       <div
         class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+var(--sheet-gap))]"
         style:top="{inset.top}px"
-        style:bottom="{inset.bottom}px"
+        style:bottom="{inset.bottom + lift}px"
       >
         <div class="flex min-h-0 flex-1 flex-col justify-end" bind:clientHeight={available}>
           <Dialog.Content
@@ -310,7 +312,9 @@
                     </div>
                   </div>
                   <div
-                    class={inset.bottom > 0 ? 'flex-none' : 'flex-none pb-(--safe-bottom)'}
+                    class={inset.bottom > 0 || lift > 0
+                      ? 'flex-none'
+                      : 'flex-none pb-(--safe-bottom)'}
                     bind:offsetHeight={bottomHeight}
                   >
                     {#if footer}

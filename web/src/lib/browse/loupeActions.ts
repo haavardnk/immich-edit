@@ -145,9 +145,17 @@ export function trashFocused(): void {
   void trash.request([asset]);
 }
 
-export function leaveLoupeOnEditorPath(pathname: string): void {
+type Place = Pick<URL, 'pathname' | 'search'>;
+
+export function leaveLoupeOnNavigate(from: Place | undefined, to: Place): void {
   const id = loupeFocusedId();
-  if (id && isEditorPath(pathname)) browseView.leaveLoupeForEditor(id);
+  if (!id) return;
+  if (isEditorPath(to.pathname)) {
+    browseView.leaveLoupeForEditor(id);
+    return;
+  }
+  if (!from || isEditorPath(from.pathname) || browseView.loupeBehindEditor) return;
+  if (from.pathname !== to.pathname || from.search !== to.search) browseView.closeLoupe();
 }
 
 export function openInEditor(id: string | null = loupeFocusedId()): void {

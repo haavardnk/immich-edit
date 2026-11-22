@@ -110,6 +110,19 @@ export const ASSET_SUMMARY = {
 
 export const ASSET_EXIF = { exifImageWidth: 6000, exifImageHeight: 4000 };
 
+export type MockMapMarker = {
+  id: string;
+  lat: number;
+  lon: number;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+};
+
+export type MockPlace = { name: string; detail: string | null; lat: number; lon: number };
+
+export type MockPlaceName = { city: string | null; state: string | null; country: string | null };
+
 export type MockTag = {
   id: string;
   name: string;
@@ -272,6 +285,12 @@ export interface InstallOpts {
   previewMeta?: Record<string, unknown>;
   faces?: Array<Record<string, number>>;
   renderer?: 'auto' | 'browser' | 'server';
+  mapMarkers?: MockMapMarker[];
+  mapStyle?: string | null;
+  mapSearch?: boolean;
+  onLocation?: (body: { ids: string[]; latitude: number; longitude: number }) => void;
+  mapPlaces?: MockPlace[];
+  placeName?: MockPlaceName | null;
   tags?: MockTag[];
   people?: MockPerson[];
   albums?: MockAlbum[];
@@ -373,6 +392,7 @@ export async function installMocks(
   const trashed = new Set<string>();
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
+  const mapMarkers: MockMapMarker[] = [...(opts.mapMarkers ?? [])];
   const tagsOf = (id: string, fallback: MockTag[] | undefined): MockTag[] =>
     assetTags.get(id) ?? fallback ?? [];
   const people = opts.people ?? [];
@@ -720,6 +740,69 @@ export async function installMocks(
       );
       opts.onTagAsset?.({ tagId, assetId, added });
       return route.fulfill(json({}));
+    }
+    if (p === '/api/map/config') {
+      const style = opts.mapStyle ?? null;
+      return route.fulfill(
+        json({
+          light: style,
+          dark: style,
+          source: style ? 'custom' : 'none',
+          search: opts.mapSearch ?? false
+        })
+      );
+    }
+    if (p === '/api/map/markers') {
+      const favorite = url.searchParams.get('favorite') === 'true';
+      const markers = mapMarkers.filter(
+        (marker) => !favorite || assets.find((a) => a.id === marker.id)?.isFavorite
+      );
+      return route.fulfill(
+        json(markers.map((m) => ({ city: null, state: null, country: null, ...m })))
+      );
+    }
+    if (p === '/api/assets/summaries' && method === 'POST') {
+      const ids = (req.postDataJSON() as { ids: string[] }).ids;
+      return route.fulfill(
+        json(
+          ids.flatMap((id) => {
+            const found = assets.find((a) => a.id === id);
+            return found ? [{ ...found, tags: tagsOf(found.id, found.tags) }] : [];
+          })
+        )
+      );
+    }
+    if (p === '/api/map/search') {
+      const q = (url.searchParams.get('q') ?? '').toLowerCase();
+      return route.fulfill(
+        json((opts.mapPlaces ?? []).filter((place) => place.name.toLowerCase().includes(q)))
+      );
+    }
+    if (p === '/api/map/reverse-geocode') {
+      return route.fulfill(json(opts.placeName ?? null));
+    }
+    if (p === '/api/assets/location' && method === 'PUT') {
+      const body = req.postDataJSON() as { ids: string[]; latitude: number; longitude: number };
+      opts.onLocation?.(body);
+      const place = opts.placeName ?? null;
+      for (const id of body.ids) {
+        const asset = assets.find((a) => a.id === id);
+        if (asset) {
+          asset.exifInfo = {
+            ...asset.exifInfo,
+            latitude: body.latitude,
+            longitude: body.longitude,
+            city: place?.city ?? null,
+            state: place?.state ?? null,
+            country: place?.country ?? null
+          };
+        }
+        const marker = { id, lat: body.latitude, lon: body.longitude, ...place };
+        const index = mapMarkers.findIndex((m) => m.id === id);
+        if (index === -1) mapMarkers.push(marker);
+        else mapMarkers[index] = marker;
+      }
+      return route.fulfill({ status: 204, body: '' });
     }
     if (p === '/api/people') {
       return route.fulfill(

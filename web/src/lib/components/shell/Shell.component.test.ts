@@ -1,6 +1,6 @@
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { layoutState, resetLayout } from '#lib/testing/layoutMock.ts';
-import { leaveLoupeOnEditorPath } from '#lib/browse/loupeActions.ts';
+import { leaveLoupeOnNavigate } from '#lib/browse/loupeActions.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { jobs } from '#lib/stores/jobs.svelte.ts';
@@ -31,7 +31,7 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('#lib/browse/loupeActions.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#lib/browse/loupeActions.ts')>()),
-  leaveLoupeOnEditorPath: vi.fn()
+  leaveLoupeOnNavigate: vi.fn()
 }));
 
 type ShellProps = { children: Snippet };
@@ -86,7 +86,7 @@ afterEach(() => {
   target.remove();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  vi.mocked(leaveLoupeOnEditorPath).mockClear();
+  vi.mocked(leaveLoupeOnNavigate).mockClear();
 });
 
 describe('Shell', () => {
@@ -155,7 +155,10 @@ describe('Shell', () => {
     navigate('/assets/a1');
     navigate(null);
 
-    expect(leaveLoupeOnEditorPath).toHaveBeenCalledOnce();
-    expect(leaveLoupeOnEditorPath).toHaveBeenCalledWith('/assets/a1');
+    expect(leaveLoupeOnNavigate).toHaveBeenCalledOnce();
+    expect(leaveLoupeOnNavigate).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ pathname: '/assets/a1' })
+    );
   });
 });

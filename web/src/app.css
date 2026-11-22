@@ -804,3 +804,17 @@ body:has([data-combobox-content][data-side='top']) .editor-compact-combobox-open
     transition: none;
   }
 }
+
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: color-mix(in oklab, var(--immich-ui-light-100) 85%, transparent);
+  color: color-mix(in oklab, var(--immich-ui-light-950) 70%, transparent);
+  font-size: 10px;
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+  background-color: var(--immich-ui-light-100);
+}

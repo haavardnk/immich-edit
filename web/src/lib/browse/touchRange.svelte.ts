@@ -1,6 +1,7 @@
 import type { AssetGridLayout } from '#lib/browse/assetGridLayout.ts';
 import { edgeScroller } from '#lib/browse/edgeScroll.ts';
 import { tileIndexAt } from '#lib/browse/gridHit.ts';
+import type { TouchPlace } from '#lib/browse/tileDrag.ts';
 import { assetIndexAt } from '#lib/browse/gridZoom.ts';
 import { clickGuard } from '#lib/gestures/clickGuard.ts';
 import { longPressRecognizer } from '#lib/gestures/longPress.ts';
@@ -17,6 +18,7 @@ export type TouchRangeSource = {
   pad: number;
   root: () => HTMLElement | null;
   scroller: () => HTMLElement | null;
+  place?: TouchPlace | null;
 };
 
 export class TouchRange {
@@ -30,6 +32,7 @@ export class TouchRange {
   #src: TouchRangeSource;
   #client: Point | null = null;
   #origin: string | null = null;
+  #placing = false;
   #guard = clickGuard();
   #edge = edgeScroller(
     () => this.#src.scroller(),
@@ -58,6 +61,8 @@ export class TouchRange {
   }
 
   cancel = (): void => {
+    if (this.#placing) this.#src.place?.cancel();
+    this.#placing = false;
     this.#client = null;
     this.#origin = null;
     this.target = null;
@@ -84,11 +89,30 @@ export class TouchRange {
   #move(point: Point): void {
     if (!this.#client) return;
     this.#client = point;
+    const place = this.#src.place;
+    if (this.#placing) {
+      place?.move(point);
+      return;
+    }
+    if (place?.escapes(point)) {
+      this.#placing = true;
+      this.target = null;
+      this.#edge.stop();
+      place.begin([...selection.selected], point);
+      return;
+    }
     this.#edge.track(point.y);
     this.#track();
   }
 
   #end(): void {
+    const client = this.#client;
+    if (this.#placing && client) {
+      this.#placing = false;
+      this.#src.place?.drop(client);
+      this.cancel();
+      return;
+    }
     const target = this.target;
     if (target && target !== this.#origin) selection.range(this.#ids(), target);
     this.cancel();

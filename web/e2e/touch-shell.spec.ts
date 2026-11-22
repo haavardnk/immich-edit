@@ -240,6 +240,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expect(collections.getByRole('link')).toHaveText([
       /^\s*Favorites/,
       /^\s*People\s*2/,
+      /^\s*Map/,
       /^\s*Tags\s*1/,
       /^\s*Folders\s*3/,
       /^\s*Edited\s*5/
@@ -494,7 +495,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await expect(page.locator('html')).toHaveAttribute('data-wide');
     await expect(page.locator('[aria-label="Global navigation"]')).toHaveCount(0);
     await expect(tabBar(page)).toHaveCount(0);
-    await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(5);
+    await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(6);
 
     const field = page.getByRole('search').getByRole('textbox', { name: 'Search your photos' });
     await field.tap();
@@ -525,7 +526,7 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await expect(page).toHaveURL('/settings');
 
     await tab(page, 'Library').tap();
-    await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(5);
+    await expect(page.getByRole('list', { name: 'Collections' }).getByRole('link')).toHaveCount(6);
   });
 
   test('a mouse hover after a tap still shows tooltips', async ({ page }) => {

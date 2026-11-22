@@ -1,49 +1,55 @@
 <script lang="ts">
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
+  import InfoPlaceActions from '#lib/components/browse/info/InfoPlaceActions.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
+  import MiniMap from '#lib/components/map/MiniMap.svelte';
   import { placeOf } from '#lib/browse/info/photoInfo.ts';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
-  import { Icon } from '@immich/ui';
-  import { mdiMapOutline } from '@mdi/js';
 
   let { asset }: { asset: AssetSummary } = $props();
 
   const place = $derived(placeOf(asset.exifInfo));
+  const detail = $derived.by(() => {
+    if (!place) return null;
+    const parts = [place.region, place.coordinates === place.name ? null : place.coordinates];
+    const text = parts.filter((part): part is string => part !== null).join(' · ');
+    return text === '' ? null : text;
+  });
 </script>
 
-{#if place}
+{#if place || ownsAsset(asset)}
   <InfoSection title="Place">
-    <div class="flex min-w-0 flex-col gap-0.5">
-      <TruncationTooltip text={place.name}>
-        {#snippet child({ props })}
-          <span
-            {...props}
-            class="truncate text-label font-semibold text-light-950/90 touch:text-base"
-          >
-            {place.name}
-          </span>
-        {/snippet}
-      </TruncationTooltip>
-      {#if place.region}
-        <TruncationTooltip text={place.region}>
+    {#if place?.point}
+      <div class="mb-2">
+        <MiniMap point={place.point} label={place.name} />
+      </div>
+    {/if}
+    {#if place}
+      <div class="flex min-w-0 flex-col gap-0.5">
+        <TruncationTooltip text={place.name}>
           {#snippet child({ props })}
-            <span {...props} class="truncate text-xs text-light-950/65 touch:text-sm">
-              {place.region}
+            <span
+              {...props}
+              class="truncate text-label font-semibold text-light-950/90 touch:text-base"
+            >
+              {place.name}
             </span>
           {/snippet}
         </TruncationTooltip>
-      {/if}
-      {#if place.mapUrl}
-        <a
-          href={place.mapUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="mt-1 inline-flex w-fit items-center gap-1 rounded text-xs text-primary hover:underline touch:min-h-11 touch:text-sm"
-        >
-          <Icon icon={mdiMapOutline} size="14px" aria-hidden="true" />
-          Open in map
-        </a>
-      {/if}
-    </div>
+        {#if detail}
+          <TruncationTooltip text={detail}>
+            {#snippet child({ props })}
+              <span {...props} class="truncate text-xs text-light-950/65 touch:text-sm">
+                {detail}
+              </span>
+            {/snippet}
+          </TruncationTooltip>
+        {/if}
+      </div>
+    {:else}
+      <p class="text-xs text-light-950/65 touch:text-sm">No location</p>
+    {/if}
+    <InfoPlaceActions {asset} />
   </InfoSection>
 {/if}

@@ -23,6 +23,7 @@
   import { gridPinch, watchGridZoom } from '#lib/browse/gridPinch.ts';
   import { TouchRange } from '#lib/browse/touchRange.svelte.ts';
   import { gestures } from '#lib/gestures/gestures.ts';
+  import { tileDrag } from '#lib/browse/tileDrag.ts';
 
   let {
     assets,
@@ -30,6 +31,7 @@
     loadingMore = false,
     loadingPrevious = false,
     dayHeaders = false,
+    rowHeight,
     onLoadMore,
     onLoadPrevious,
     onLoadAll
@@ -39,6 +41,7 @@
     loadingMore?: boolean;
     loadingPrevious?: boolean;
     dayHeaders?: boolean;
+    rowHeight?: number;
     onLoadMore?: () => void;
     onLoadPrevious?: () => void;
     onLoadAll?: (signal: AbortSignal) => Promise<boolean>;
@@ -68,7 +71,7 @@
   const layout = $derived.by(() => {
     const geometry = createDayGridLayout(items, days, {
       width: Math.max(0, scroll.width - PAD * 2),
-      rowHeight: browseView.rowHeight,
+      rowHeight: rowHeight ?? browseView.rowHeight,
       rowTolerance: browseView.rowTolerance,
       gap: GAP,
       headerHeight: browseView.dayHeaderHeight
@@ -114,7 +117,8 @@
     layout: () => layout,
     pad: PAD,
     root: () => root ?? null,
-    scroller: () => scroll.parent
+    scroller: () => scroll.parent,
+    place: tileDrag()?.touch ?? null
   });
 
   const rangeBox = $derived.by(() => {

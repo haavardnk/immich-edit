@@ -7,12 +7,15 @@
   import { ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
+  import { locationPicker } from '#lib/stores/locationPicker.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiChevronRight,
     mdiContentDuplicate,
     mdiDotsHorizontal,
     mdiImageAlbum,
+    mdiMapMarkerOutline,
     mdiTagOutline,
     mdiTuneVariant
   } from '@mdi/js';
@@ -76,6 +79,15 @@
     pressed: band === 'albums',
     disabled: actions.metaBusy,
     run: () => onBand(band === 'albums' ? null : 'albums')
+  });
+
+  const locationTool: Tool = $derived({
+    label: 'Location',
+    tooltip: 'Set location',
+    icon: mdiMapMarkerOutline,
+    ownerOnly: true,
+    disabled: actions.metaBusy,
+    run: () => void locationPicker.openIds([...selection.selected])
   });
 
   function pick(tool: Tool): void {
@@ -149,6 +161,7 @@
   </BulkEditsMenu>
   {@render barTool(tagsTool)}
   {@render barTool(albumsTool)}
+  {@render barTool(locationTool)}
 </div>
 <Popover
   open={menu}
@@ -193,5 +206,6 @@
     </BulkEditsMenu>
     {@render row(tagsTool)}
     {@render row(albumsTool)}
+    {@render row(locationTool)}
   </div>
 </Popover>
