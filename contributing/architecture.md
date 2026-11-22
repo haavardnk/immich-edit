@@ -1,11 +1,3 @@
----
-layout: default
-title: Architecture
-parent: Contribute
-nav_order: 2
-permalink: /architecture/
----
-
 # Architecture
 
 immich-edit is a static browser app backed by one Rust process. Immich remains the source of
@@ -77,8 +69,9 @@ Browser -> local /api route -> per-user Immich client -> Immich
 ```
 
 The frontend never fetches Immich directly. Backend routes proxy library data and originals, persist
-local state, and map Immich failures to typed local errors. [Rendering](rendering.md) describes the
-server and browser split for operators; the sections below describe its implementation.
+local state, and map Immich failures to typed local errors. The public
+[Rendering](https://haavardnk.github.io/immich-edit/hosting/rendering/) guide describes the server
+and browser split for operators; the sections below describe its implementation.
 
 ## Preview rendering
 
@@ -108,7 +101,8 @@ The viewer measures its visible frame, device-pixel ratio, and source limit. It 
 visible ROI and draws that tile over the stable full-frame preview. Any edit invalidates the tile.
 
 When the browser has WebGPU and the preview renderer setting picks it (**Browser**, or **Fastest**
-when the browser measured clearly quicker; see [rendering](rendering.md#the-browser)), the
+when the browser measured clearly quicker; see
+[rendering](https://haavardnk.github.io/immich-edit/hosting/rendering/)), the
 base preview renders in a worker (`web/src/lib/render`). The worker asks the wasm renderer for the
 sensor-stage key and the rasters and LUT an edit needs; a changed key fetches a new source while
 the last one keeps rendering, so only sensor-stage edits (noise reduction, capture sharpening,

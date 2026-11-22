@@ -2,9 +2,9 @@
 
 Before changing code, read:
 
-- [Development](https://haavardnk.github.io/immich-edit/development/)
-- [Architecture](https://haavardnk.github.io/immich-edit/architecture/)
-- [Render pipeline](https://haavardnk.github.io/immich-edit/pipeline/) for pixel or shader changes
+- [Development](contributing/development.md)
+- [Architecture](contributing/architecture.md)
+- [Render pipeline](contributing/pipeline.md) for pixel or shader changes
 
 ## Pull requests
 
@@ -16,7 +16,7 @@ Before changing code, read:
   `cargo clippy --workspace --lib --bins --tests -- -D warnings`; frontend changes run
   `npm run lint`, `npm run check` and `npm run test:unit` in `web/`. Pick the test command for the
   area you touched from the table in
-  [Development](https://haavardnk.github.io/immich-edit/development/#test-changes), and run the
+  [Development](contributing/development.md#test-changes), and run the
   Playwright specifications covering any user flow you changed.
 - Include local GPU evidence for shader, GPU pass, device, or CPU/GPU parity changes.
 - Use a conventional commit title of at most 50 characters. CI rejects longer ones.
