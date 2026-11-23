@@ -79,11 +79,14 @@ test('the wheel adjusts a row only after the pointer rests on it', async ({ page
 });
 
 test('a wheel that arrives with the pointer scrolls the panel instead', async ({ page }) => {
+  await page.clock.install();
   await installMocks(page);
   await page.setViewportSize({ width: 1280, height: 560 });
   await gotoAsset(page);
 
   const contrast = page.getByRole('slider', { name: 'Contrast', exact: true });
+  await expect(contrast).toBeVisible();
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);
   await contrast.hover();
   const before = await scrollerTop(contrast);
   await page.mouse.wheel(0, 120);
