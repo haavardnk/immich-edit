@@ -6,20 +6,20 @@ to Immich without touching originals.
 
 > [!WARNING]
 > immich-edit is under active `0.x` development. Back up `DATA_DIR` and read the
-> [upgrade notes](https://haavardnk.github.io/immich-edit/hosting/backup-and-upgrade/) before
+> [upgrade notes](https://immich-edit.iridiumlab.dev/hosting/backup-and-upgrade/) before
 > upgrading.
 
 ![immich-edit on desktop, tablet, and phone](docs/src/assets/banner.png)
 
 ## Documentation
 
-Full documentation lives at **[haavardnk.github.io/immich-edit](https://haavardnk.github.io/immich-edit/)**:
+Full documentation lives at **[immich-edit.iridiumlab.dev](https://immich-edit.iridiumlab.dev/)**:
 
-- [Install](https://haavardnk.github.io/immich-edit/start/install/) — Docker Compose setup and first sign-in
-- [Editing guide](https://haavardnk.github.io/immich-edit/editing/workspace/) — workspace, culling, map, Develop, masks, presets, and export
-- [Self-hosting](https://haavardnk.github.io/immich-edit/hosting/deployment/) — reverse proxy, GPU passthrough, OAuth, configuration, and backups
-- [Troubleshooting](https://haavardnk.github.io/immich-edit/hosting/troubleshooting/) — fixes for setup, GPU, and connection issues
-- [Features & formats](https://haavardnk.github.io/immich-edit/reference/features/) — supported capabilities, RAW cameras, and shortcuts
+- [Install](https://immich-edit.iridiumlab.dev/start/install/) — Docker Compose setup and first sign-in
+- [Editing guide](https://immich-edit.iridiumlab.dev/editing/workspace/) — workspace, culling, map, Develop, masks, presets, and export
+- [Self-hosting](https://immich-edit.iridiumlab.dev/hosting/deployment/) — reverse proxy, GPU passthrough, OAuth, configuration, and backups
+- [Troubleshooting](https://immich-edit.iridiumlab.dev/hosting/troubleshooting/) — fixes for setup, GPU, and connection issues
+- [Features & formats](https://immich-edit.iridiumlab.dev/reference/features/) — supported capabilities, RAW cameras, and shortcuts
 
 ## Community & License
 

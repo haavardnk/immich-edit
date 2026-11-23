@@ -5,10 +5,14 @@ TARGET_VERSION="${1:?target version required}"
 DIST_DIR="${2:?dist dir required}"
 GH_PAGES_DIR="${3:?gh-pages dir required}"
 ROOT_DIST_DIR="${4:-}"
-ROOT_BASE="${ROOT_BASE:-/immich-edit}"
+ROOT_BASE="${ROOT_BASE:-}"
+CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-immich-edit.iridiumlab.dev}"
 
 mkdir -p "$GH_PAGES_DIR"
 touch "$GH_PAGES_DIR/.nojekyll"
+if [ -n "$CUSTOM_DOMAIN" ]; then
+  printf '%s\n' "$CUSTOM_DOMAIN" > "$GH_PAGES_DIR/CNAME"
+fi
 
 rm -rf "$GH_PAGES_DIR/$TARGET_VERSION"
 mkdir -p "$GH_PAGES_DIR/$TARGET_VERSION"
@@ -43,7 +47,7 @@ if [ -n "$ROOT_DIST_DIR" ] && { [ "$TARGET_VERSION" = "$LATEST" ] || { [ -z "$LA
     [ -e "$entry" ] || continue
     name="$(basename "$entry")"
     case "$name" in
-      .git|.nojekyll|versions.json|main|v[0-9]*)
+      .git|.nojekyll|CNAME|versions.json|main|v[0-9]*)
         continue
         ;;
       *)
@@ -81,7 +85,7 @@ const tags = entries
   .map((x) => ({
     id: x.id,
     label: x.id === latest ? `${x.id} (latest)` : x.id,
-    base: x.id === latest ? rootBase : `${rootBase}/${x.id}`
+    base: x.id === latest ? (rootBase || "/") : `${rootBase}/${x.id}`
   }));
 const versions = [...tags];
 if (entries.some((d) => d.name === "main")) {
