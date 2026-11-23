@@ -8,7 +8,7 @@
     },
     {
       "id": "main",
-      "label": "main (dev)",
+      "label": "main (edge)",
       "base": "/main"
     }
   ]
