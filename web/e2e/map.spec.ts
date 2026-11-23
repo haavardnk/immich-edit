@@ -167,7 +167,7 @@ test('double-clicking a group marks and unmarks its photos without moving the ma
   const url = page.url();
   const centre = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
   await page.mouse.click(centre.x, centre.y);
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(100);
   await page.mouse.click(centre.x, centre.y);
   await expect(stack(page)).toHaveAttribute('data-marked', 'all');
   await page.waitForTimeout(900);
