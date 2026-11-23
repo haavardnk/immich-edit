@@ -7,6 +7,7 @@ import type {
   SearchSort,
   SearchWindow,
   SmartQuery,
+  SortDir,
   SuggestionQuery,
   WindowReach
 } from '#lib/types/search.ts';
@@ -28,6 +29,22 @@ export async function searchFirst(filter: BrowseFilter, sort: SearchSort): Promi
   return page.items[0]?.id ?? null;
 }
 
+export async function searchLocate(
+  filter: BrowseFilter,
+  direction: SortDir,
+  month: string,
+  offset: number
+): Promise<string | null> {
+  const found = await sendJson<{ assetId: string | null }>(
+    'POST',
+    '/api/search/locate',
+    { filter, direction, month, offset },
+    undefined,
+    { silent: true }
+  );
+  return found.assetId;
+}
+
 export function searchWindow(
   assetId: string,
   filter: BrowseFilter,
@@ -37,6 +54,17 @@ export function searchWindow(
   return sendJson('POST', '/api/search/window', { assetId, filter, sort, ...reach }, undefined, {
     silent: true
   });
+}
+
+export async function searchCounts(filter: BrowseFilter, edges: string[]): Promise<number[]> {
+  const found = await sendJson<{ counts: number[] }>(
+    'POST',
+    '/api/search/counts',
+    { filter, edges },
+    undefined,
+    { silent: true }
+  );
+  return Array.isArray(found.counts) ? found.counts : [];
 }
 
 export function searchMonths(filter: BrowseFilter): Promise<{ months: MonthCount[] }> {

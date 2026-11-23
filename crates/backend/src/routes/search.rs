@@ -8,8 +8,10 @@ use crate::immich::dto::SearchStatistics;
 use crate::routes::auth::AuthCtx;
 use crate::services::copy_expand::expand_assets;
 use crate::services::search::filter::BrowseFilter;
+use crate::services::search::locate::{self, LocateQuery, Located};
 use crate::services::search::months::{self, MonthCounts};
 use crate::services::search::query::{CountQuery, PageQuery, SmartQuery, Sort};
+use crate::services::search::spans::{self, SpanCounts, SpanQuery};
 use crate::services::search::suggestions::{self, SuggestionQuery};
 use crate::services::search::window::{self, Reach, Window};
 use crate::services::search::{SearchPage, Searcher};
@@ -79,6 +81,24 @@ pub async fn months(
     let searcher = searcher(&state, &ctx).await;
     let counts = months::count(&searcher, &query.filter).await?;
     Ok(Json(counts))
+}
+
+pub async fn locate(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Json(query): Json<LocateQuery>,
+) -> Result<Json<Located>, AppError> {
+    let searcher = searcher(&state, &ctx).await;
+    Ok(Json(locate::photo_at(&searcher, &query).await?))
+}
+
+pub async fn counts(
+    State(state): State<AppState>,
+    ctx: AuthCtx,
+    Json(query): Json<SpanQuery>,
+) -> Result<Json<SpanCounts>, AppError> {
+    let searcher = searcher(&state, &ctx).await;
+    Ok(Json(spans::count(&searcher, &query).await?))
 }
 
 pub async fn suggestions(

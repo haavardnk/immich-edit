@@ -1,6 +1,7 @@
 <script lang="ts">
   import { trackFraction, type DateScrub } from '#lib/browse/dateScrub.svelte.ts';
-  import { monthLabel, spaced, yearMarks } from '#lib/browse/scrubberModel.ts';
+  import { spaced, yearMarks } from '#lib/browse/scrubberModel.ts';
+  import { scrubLabel } from '#lib/browse/scrubDays.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { observeSize } from '#lib/actions/observeSize.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
@@ -17,7 +18,7 @@
 
   const at = $derived(scrub.dragging ? scrub.previewAt : scrub.markAt);
   const years = $derived(spaced(yearMarks(scrub.model), height, 28));
-  const month = $derived(scrub.month(scrub.preview));
+  const label = $derived(scrubLabel(scrub.previewDay, scrub.month(scrub.preview)));
 
   function measure(): void {
     height = track?.clientHeight ?? 0;
@@ -81,14 +82,14 @@
         {year.label}
       </span>
     {/each}
-    {#if month && at !== null}
+    {#if label && at !== null}
       <span
         data-testid="date-thumb-bubble"
         class="absolute right-6 -translate-y-1/2 rounded-full bg-light-50 px-3.5 py-2 text-sm font-semibold whitespace-nowrap text-light-950 shadow-popover ring-1 ring-hairline"
         style:top="{at * 100}%"
         aria-hidden="true"
       >
-        {monthLabel(month.month)}
+        {label.title}
       </span>
     {/if}
   {/if}

@@ -1,5 +1,4 @@
-import type { BrowseFilter, MonthCount, SortDir } from '#lib/types/search.ts';
-import { countOf } from '#lib/utils/plural.ts';
+import type { MonthCount, SortDir } from '#lib/types/search.ts';
 
 export type ScrubMonth = {
   month: string;
@@ -16,6 +15,8 @@ export type ScrubPoint = { index: number; within: number };
 export type ScrubMark = { label: string; at: number };
 
 export type LoadedPhoto = { id: string; exact: boolean };
+
+export type MonthAnchor = { month: string; offset: number; id: string };
 
 type Dated = { id: string; fileCreatedAt: string | null; copyOf?: string };
 
@@ -141,30 +142,45 @@ export function monthLabel(month: string): string {
   return date.toLocaleDateString('en-GB', { timeZone: 'UTC', month: 'long', year: 'numeric' });
 }
 
-export function monthCountLabel(month: Pick<ScrubMonth, 'count'>): string {
-  return countOf(month.count, 'photo');
-}
-
 export function photoOffset(model: ScrubModel, point: ScrubPoint): number {
   const month = model.months[point.index];
   if (!month) return 0;
   return Math.min(month.count - 1, Math.max(0, Math.floor(point.within * month.count)));
 }
 
+function originalsBetween(items: readonly Dated[], from: number, to: number): number {
+  return items.slice(from, to).filter((item) => !item.copyOf).length;
+}
+
+function monthBase(
+  items: readonly Dated[],
+  start: number,
+  hasPrevious: boolean,
+  anchor: MonthAnchor | null
+): number | null {
+  if (start > 0 || !hasPrevious) return 0;
+  const at = anchor ? items.findIndex((item) => item.id === anchor.id) : -1;
+  if (!anchor || at < start || utcMonth(items[at]?.fileCreatedAt) !== anchor.month) return null;
+  return anchor.offset - originalsBetween(items, start, at);
+}
+
 export function loadedPhotoAt(
   items: readonly Dated[],
   month: string,
   offset: number,
-  hasPrevious: boolean
+  hasPrevious: boolean,
+  anchor: MonthAnchor | null = null
 ): LoadedPhoto | null {
   const start = items.findIndex((item) => utcMonth(item.fileCreatedAt) === month);
-  if (start < 0 || (start === 0 && hasPrevious)) return null;
-  let seen = 0;
+  if (start < 0) return null;
+  const base = monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null);
+  if (base === null) return null;
+  let seen = base;
   let last: string | null = null;
   for (const item of items.slice(start)) {
     if (utcMonth(item.fileCreatedAt) !== month) return last ? { id: last, exact: true } : null;
     if (item.copyOf) continue;
-    if (seen === offset) return { id: item.id, exact: true };
+    if (seen >= offset) return { id: item.id, exact: seen === offset };
     seen += 1;
     last = item.id;
   }
@@ -174,36 +190,17 @@ export function loadedPhotoAt(
 export function visibleMonth(
   model: ScrubModel,
   items: readonly Dated[],
-  topIndex: number
+  topIndex: number,
+  hasPrevious = false,
+  anchor: MonthAnchor | null = null
 ): ScrubPoint | null {
   const month = utcMonth(items[topIndex]?.fileCreatedAt);
   const index = model.months.findIndex((entry) => entry.month === month);
   const entry = model.months[index];
-  if (!entry) return null;
-  let before = 0;
-  for (let at = topIndex - 1; at >= 0; at -= 1) {
-    const item = items[at];
-    if (!item || utcMonth(item.fileCreatedAt) !== month) break;
-    if (!item.copyOf) before += 1;
-  }
-  return { index, within: Math.min(1, before / entry.count) };
-}
-
-export function anchorFilter(
-  filter: BrowseFilter,
-  month: string,
-  direction: SortDir
-): BrowseFilter {
-  const match = MONTH_KEY.exec(month);
-  if (!match) return filter;
-  const year = Number(match[1]);
-  const index = Number(match[2]) - 1;
-  if (direction === 'desc') {
-    const end = new Date(Date.UTC(year, index + 1, 1) - 1).toISOString();
-    const takenBefore = filter.takenBefore && filter.takenBefore < end ? filter.takenBefore : end;
-    return { ...filter, takenBefore };
-  }
-  const start = new Date(Date.UTC(year, index, 1)).toISOString();
-  const takenAfter = filter.takenAfter && filter.takenAfter > start ? filter.takenAfter : start;
-  return { ...filter, takenAfter };
+  if (!entry || !month) return null;
+  let start = topIndex;
+  while (start > 0 && utcMonth(items[start - 1]?.fileCreatedAt) === month) start -= 1;
+  const base = monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null) ?? 0;
+  const before = base + originalsBetween(items, start, topIndex);
+  return { index, within: Math.min(1, Math.max(0, before / entry.count)) };
 }

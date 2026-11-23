@@ -7,10 +7,13 @@ import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { DateScrub, KEY_IDLE_MS, type ScrubFeed } from './dateScrub.svelte';
 import { gridViewport } from './gridViewport.svelte';
+import { dayKey } from './dayGroups';
+import { localDays } from './scrubDays';
 
-const searchFirst = vi.hoisted(() => vi.fn());
+const searchLocate = vi.hoisted(() => vi.fn());
+const searchCounts = vi.hoisted(() => vi.fn());
 
-vi.mock('#lib/api/search.ts', () => ({ searchFirst, searchMonths: vi.fn() }));
+vi.mock('#lib/api/search.ts', () => ({ searchLocate, searchCounts, searchMonths: vi.fn() }));
 
 function photo(id: string, fileCreatedAt: string): AssetSummary {
   return { id, fileCreatedAt, exifInfo: null } as AssetSummary;
@@ -19,7 +22,9 @@ function photo(id: string, fileCreatedAt: string): AssetSummary {
 const scrollTo = vi.fn();
 let detach = (): void => {};
 
-function feed(hasPrevious = false): ScrubFeed & { jumpTo: ReturnType<typeof vi.fn> } {
+type FakeFeed = ScrubFeed & { hasPrevious: boolean; jumpTo: ReturnType<typeof vi.fn> };
+
+function feed(hasPrevious = false): FakeFeed {
   return {
     hasPrevious,
     currentFilter: () => ({ favorite: true }),
@@ -57,7 +62,8 @@ beforeEach(() => {
 afterEach(() => {
   detach();
   scrollTo.mockReset();
-  searchFirst.mockReset();
+  searchLocate.mockReset();
+  searchCounts.mockReset();
   toasts.items = [];
   gridViewport.setTop(null);
 });
@@ -82,30 +88,55 @@ describe('DateScrub', () => {
     scrub.end(false);
     await vi.waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(4));
     expect(scrollTo).toHaveBeenLastCalledWith('d');
-    expect(searchFirst).not.toHaveBeenCalled();
+    expect(searchLocate).not.toHaveBeenCalled();
     expect(source.jumpTo).not.toHaveBeenCalled();
   });
 
-  it('pages a month in from its furthest loaded photo when the target is not loaded', async () => {
-    monthCounts.months = [{ month: '2026-10', count: 8 }];
-    browsing.set([photo('a', '2026-10-20T00:00:00Z'), photo('b', '2026-10-19T00:00:00Z')]);
+  it('locates an unloaded photo deep in a month and keeps seeking around it', async () => {
+    monthCounts.months = [{ month: '2026-10', count: 9000 }];
+    browsing.set([photo('a', '2026-10-31T00:00:00Z'), photo('b', '2026-10-30T00:00:00Z')]);
     const source = feed();
-    source.jumpTo.mockImplementation(async (id: string) => {
-      if (id === 'b') {
-        browsing.set(
-          ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name, at) =>
-            photo(name, `2026-10-${20 - at}T00:00:00Z`)
-          )
-        );
-      }
+    source.jumpTo.mockImplementation(async () => {
+      source.hasPrevious = true;
+      browsing.set(['w', 'x', 'y', 'z'].map((name, at) => photo(name, `2026-10-15T00:00:0${at}Z`)));
       return true;
     });
+    searchLocate.mockResolvedValue('x');
     const scrub = new DateScrub(() => source);
-    expect(await scrub.go(0, 6)).toBe(true);
-    expect(source.jumpTo).toHaveBeenCalledOnce();
-    expect(source.jumpTo).toHaveBeenCalledWith('b', { failure: 'Jump to date' });
-    expect(scrollTo).toHaveBeenLastCalledWith('g');
-    expect(searchFirst).not.toHaveBeenCalled();
+    scrub.begin(0.5);
+    expect(scrollTo).toHaveBeenLastCalledWith('b');
+    scrub.end(false);
+    await vi.waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith('x'));
+    expect(searchLocate).toHaveBeenCalledWith({ favorite: true }, 'desc', '2026-10', 4500);
+    expect(source.jumpTo).toHaveBeenCalledWith('x', { failure: 'Jump to date' });
+    gridViewport.setTop('y');
+    expect(scrub.visible).toEqual({ index: 0, within: 4501 / 9000 });
+    scrub.begin(4502.5 / 9000);
+    expect(scrollTo).toHaveBeenLastCalledWith('z');
+    scrub.end(false);
+    await Promise.resolve();
+    expect(searchLocate).toHaveBeenCalledOnce();
+  });
+
+  it('names the day under the pointer from day counts or the loaded photo', async () => {
+    const january = localDays('2024-01');
+    searchCounts.mockImplementation(async (_filter: unknown, edges: string[]) =>
+      edges.slice(1).map((_, at) => (at === 9 ? 3 : at === 20 ? 1 : 0))
+    );
+    const scrub = new DateScrub(() => feed());
+    scrub.hover(0.6);
+    expect(scrub.month(scrub.preview)?.month).toBe('2024-01');
+    expect(scrub.previewDay).toBeNull();
+    await vi.waitFor(() => expect(scrub.previewDay).toEqual({ key: january?.keys[20], count: 1 }));
+    expect(searchCounts).toHaveBeenCalledWith({ favorite: true }, january?.edges);
+    scrub.hover(0.99);
+    expect(scrub.previewDay).toEqual({ key: january?.keys[9], count: 3 });
+    scrub.hover(0.05);
+    const first = browsing.visible[0];
+    await vi.waitFor(() => expect(searchCounts).toHaveBeenCalledTimes(2));
+    expect(scrub.previewDay?.key).toBe(first ? dayKey(first) : null);
+    scrub.hover(0.62);
+    expect(searchCounts).toHaveBeenCalledTimes(2);
   });
 
   it('marks the month of the top visible photo', () => {
@@ -123,8 +154,8 @@ describe('DateScrub', () => {
     expect(scrollTo).toHaveBeenLastCalledWith('c');
     scrub.drag(0.8);
     expect(scrub.month(scrub.preview)?.month).toBe('2024-01');
-    expect(searchFirst).not.toHaveBeenCalled();
-    searchFirst.mockResolvedValue('z');
+    expect(searchLocate).not.toHaveBeenCalled();
+    searchLocate.mockResolvedValue('z');
     const source = feed();
     const released = new DateScrub(() => source);
     released.begin(0.8);
@@ -132,23 +163,32 @@ describe('DateScrub', () => {
     await vi.waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith('z'));
     expect(released.preview).toBeNull();
     expect(source.jumpTo).toHaveBeenCalledWith('z', { failure: 'Jump to date' });
-    expect(searchFirst).toHaveBeenCalledWith(
-      { favorite: true, takenBefore: '2024-01-31T23:59:59.999Z' },
-      { field: 'taken', direction: 'desc' }
-    );
+    expect(searchLocate).toHaveBeenCalledWith({ favorite: true }, 'desc', '2024-01', 2);
   });
 
   it('jumps when a month is cut off at the near end of the window', async () => {
-    searchFirst.mockResolvedValue('a');
+    searchLocate.mockResolvedValue('a');
     const source = feed(true);
     const scrub = new DateScrub(() => source);
     expect(await scrub.go(0)).toBe(true);
     expect(source.jumpTo).toHaveBeenCalledWith('a', { failure: 'Jump to date' });
   });
 
+  it('drops a slow jump when a new drag starts', async () => {
+    let answer = (_value: unknown): void => undefined;
+    searchLocate.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    const source = feed();
+    const scrub = new DateScrub(() => source);
+    const slow = scrub.go(2);
+    scrub.begin(0.1);
+    answer('z');
+    expect(await slow).toBe(false);
+    expect(source.jumpTo).not.toHaveBeenCalled();
+  });
+
   it('drops a slow jump overtaken by a newer one', async () => {
     let answer = (_value: unknown): void => undefined;
-    searchFirst.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    searchLocate.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
     const source = feed();
     const scrub = new DateScrub(() => source);
     const slow = scrub.go(2);
@@ -159,7 +199,7 @@ describe('DateScrub', () => {
   });
 
   it('steps months and years from the keyboard', async () => {
-    searchFirst.mockResolvedValue(null);
+    searchLocate.mockResolvedValue(null);
     const scrub = new DateScrub(() => feed());
     gridViewport.setTop('a');
     expect(scrub.key('ArrowDown')).toBe(true);
@@ -172,33 +212,33 @@ describe('DateScrub', () => {
     expect(scrub.key('x')).toBe(false);
     scrub.release();
     expect(scrub.index).toBe(0);
-    expect(searchFirst).not.toHaveBeenCalled();
+    expect(searchLocate).not.toHaveBeenCalled();
   });
 
   it('searches once for held keys after they settle', async () => {
     vi.useFakeTimers();
     try {
-      searchFirst.mockResolvedValue('z');
+      searchLocate.mockResolvedValue('z');
       const source = feed();
       const scrub = new DateScrub(() => source);
       gridViewport.setTop('a');
       scrub.key('End');
       scrub.key('End');
       scrub.key('End');
-      expect(searchFirst).not.toHaveBeenCalled();
+      expect(searchLocate).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(KEY_IDLE_MS);
-      expect(searchFirst).toHaveBeenCalledOnce();
+      expect(searchLocate).toHaveBeenCalledOnce();
       expect(source.jumpTo).toHaveBeenCalledOnce();
       scrub.key('PageDown');
       scrub.keyUp();
-      expect(searchFirst).toHaveBeenCalledTimes(2);
+      expect(searchLocate).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it('reports a failed date search', async () => {
-    searchFirst.mockRejectedValue(new Error('down'));
+    searchLocate.mockRejectedValue(new Error('down'));
     const scrub = new DateScrub(() => feed());
     expect(await scrub.go(2)).toBe(false);
     expect(toasts.items.map((toast) => toast.message)).toEqual(['Jump to date: down']);

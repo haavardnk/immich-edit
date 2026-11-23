@@ -19,7 +19,8 @@ use crate::services::search::filter::BrowseFilter;
 use crate::services::search::query::{Direction, PageQuery, Sort, SortField};
 use crate::services::single_flight::SingleFlight;
 use crate::services::ttl_cache::TtlCache;
-use calendar::{Month, Span, year_span};
+use calendar::year_span;
+pub(super) use calendar::{Month, Span};
 
 const CACHE_CAP: NonZeroUsize = NonZeroUsize::new(64).unwrap();
 const CACHE_TTL: Duration = Duration::from_secs(300);
@@ -229,7 +230,7 @@ async fn edge(
     Ok(Some(taken))
 }
 
-async fn counts(
+pub(super) async fn counts(
     searcher: &Searcher,
     filter: &BrowseFilter,
     spans: Vec<Span>,
@@ -244,10 +245,10 @@ async fn counts(
         .await
 }
 
-fn within(filter: &BrowseFilter, (start, end): Span) -> BrowseFilter {
+pub(super) fn within(filter: &BrowseFilter, (start, end): Span) -> BrowseFilter {
     BrowseFilter {
         taken_after: Some(filter.taken_after.map_or(start, |after| after.max(start))),
-        taken_until: Some(end),
+        taken_until: Some(filter.taken_until.map_or(end, |until| until.min(end))),
         ..filter.clone()
     }
 }
@@ -285,6 +286,20 @@ mod tests {
             );
             if kept != (Some(start), taken_before, Some(april), true) {
                 panic!("bounded filter kept {kept:?}");
+            }
+        }
+        let picked_until = Utc.with_ymd_and_hms(2024, 3, 15, 0, 0, 0).unwrap();
+        for (until, kept) in [
+            (picked_until, picked_until),
+            (april + TimeDelta::days(3), april),
+        ] {
+            let filter = BrowseFilter {
+                taken_until: Some(until),
+                ..BrowseFilter::default()
+            };
+            let bounded = within(&filter, (march, april)).taken_until;
+            if bounded != Some(kept) {
+                panic!("a picked end of {until} was bounded to {bounded:?}");
             }
         }
     }

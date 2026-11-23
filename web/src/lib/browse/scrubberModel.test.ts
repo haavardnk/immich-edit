@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  anchorFilter,
   fractionOf,
   loadedPhotoAt,
   monthAt,
-  monthCountLabel,
   monthLabel,
   photoOffset,
   railMarks,
@@ -128,10 +126,8 @@ describe('keyboard steps', () => {
 });
 
 describe('labels', () => {
-  it('names a month and its count', () => {
+  it('names a month', () => {
     expect(monthLabel('2025-07')).toBe('July 2025');
-    expect(monthCountLabel({ count: 26 })).toBe('26 photos');
-    expect(monthCountLabel({ count: 1 })).toBe('1 photo');
   });
 
   it('reads the UTC month of fileCreatedAt', () => {
@@ -188,24 +184,39 @@ describe('loaded photos', () => {
   });
 });
 
-describe('anchorFilter', () => {
-  it('ends a newest-first search at the last moment of the month', () => {
-    expect(anchorFilter({ favorite: true }, '2025-02', 'desc')).toEqual({
-      favorite: true,
-      takenBefore: '2025-02-28T23:59:59.999Z'
+describe('a window inside a large month', () => {
+  const window = [
+    { id: 'p1', fileCreatedAt: '2026-10-20T00:00:00Z' },
+    { id: 'p2', fileCreatedAt: '2026-10-19T00:00:00Z' },
+    { id: 'p2_1', fileCreatedAt: '2026-10-19T00:00:00Z', copyOf: 'p2' },
+    { id: 'p3', fileCreatedAt: '2026-10-18T00:00:00Z' },
+    { id: 'p4', fileCreatedAt: '2026-10-17T00:00:00Z' }
+  ];
+  const anchor = { month: '2026-10', offset: 5000, id: 'p3' };
+
+  it('counts offsets from a located photo when the month start is not loaded', () => {
+    expect(loadedPhotoAt(window, '2026-10', 4998, true, anchor)).toEqual({ id: 'p1', exact: true });
+    expect(loadedPhotoAt(window, '2026-10', 5001, true, anchor)).toEqual({ id: 'p4', exact: true });
+    expect(loadedPhotoAt(window, '2026-10', 6000, true, anchor)).toEqual({
+      id: 'p4',
+      exact: false
+    });
+    expect(loadedPhotoAt(window, '2026-10', 100, true, anchor)).toEqual({
+      id: 'p1',
+      exact: false
     });
   });
 
-  it('starts an oldest-first search at the first moment of the month', () => {
-    expect(anchorFilter({}, '2025-12', 'asc')).toEqual({ takenAfter: '2025-12-01T00:00:00.000Z' });
+  it('ignores an anchor from another month or one that is no longer loaded', () => {
+    expect(
+      loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, month: '2026-09' })
+    ).toBeNull();
+    expect(loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, id: 'gone' })).toBeNull();
   });
 
-  it('keeps a tighter date filter', () => {
-    expect(
-      anchorFilter({ takenBefore: '2025-02-10T00:00:00.000Z' }, '2025-02', 'desc').takenBefore
-    ).toBe('2025-02-10T00:00:00.000Z');
-    expect(
-      anchorFilter({ takenAfter: '2025-12-20T00:00:00.000Z' }, '2025-12', 'asc').takenAfter
-    ).toBe('2025-12-20T00:00:00.000Z');
+  it('marks the visible photo at its place in the month', () => {
+    const model = scrubModel([{ month: '2026-10', count: 10000 }], 'desc');
+    expect(visibleMonth(model, window, 3, true, anchor)).toEqual({ index: 0, within: 0.5 });
+    expect(visibleMonth(model, window, 3, true, null)).toEqual({ index: 0, within: 0.0002 });
   });
 });

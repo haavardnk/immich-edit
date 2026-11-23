@@ -50,6 +50,8 @@ const SEARCH_BODY_KEYS: Record<string, Set<string>> = {
   '/api/search/statistics': new Set(['filter']),
   '/api/search/window': new Set(['assetId', 'radius', 'before', 'after', 'filter', 'sort']),
   '/api/search/months': new Set(['filter']),
+  '/api/search/locate': new Set(['filter', 'direction', 'month', 'offset']),
+  '/api/search/counts': new Set(['filter', 'edges']),
   '/api/search/suggestions': new Set(['field', 'make', 'model', 'country', 'state'])
 };
 

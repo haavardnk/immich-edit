@@ -416,19 +416,38 @@ async fn malformed_searches_are_rejected_before_immich() {
     mock_server_version(&server, 3, 2, 2).await;
     let app = test_app(&server).await;
     let flat_cursor = URL_SAFE_NO_PAD.encode(br#"{"kind":"page","page":2}"#);
-    for body in [
-        json!({ "albumIds": [album_id()], "size": 10 }),
-        json!({ "filter": {}, "size": 10, "cursor": "garbage!" }),
-        json!({ "filter": {}, "size": 0 }),
-        json!({ "filter": {}, "size": 10, "cursor": flat_cursor }),
+    for (route, body) in [
+        (
+            "/api/search/metadata",
+            json!({ "albumIds": [album_id()], "size": 10 }),
+        ),
+        (
+            "/api/search/metadata",
+            json!({ "filter": {}, "size": 10, "cursor": "garbage!" }),
+        ),
+        ("/api/search/metadata", json!({ "filter": {}, "size": 0 })),
+        (
+            "/api/search/metadata",
+            json!({ "filter": {}, "size": 10, "cursor": flat_cursor }),
+        ),
+        (
+            "/api/search/locate",
+            json!({ "filter": {}, "month": "2024-13", "offset": 0 }),
+        ),
+        ("/api/search/locate", json!({ "month": "2024-03" })),
+        (
+            "/api/search/counts",
+            json!({ "edges": ["2024-03-02T00:00:00Z", "2024-03-01T00:00:00Z"] }),
+        ),
+        ("/api/search/counts", json!({ "edges": ["2024-03-01"] })),
     ] {
         let resp = app
             .clone()
-            .oneshot(json_request("POST", "/api/search/metadata", body.clone()))
+            .oneshot(json_request("POST", route, body.clone()))
             .await
             .unwrap();
         if !resp.status().is_client_error() {
-            panic!("{body} gave {}", resp.status());
+            panic!("{route} {body} gave {}", resp.status());
         }
     }
     let reached = server

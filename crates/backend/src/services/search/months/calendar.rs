@@ -18,6 +18,16 @@ impl Month {
         }
     }
 
+    pub fn parse(label: &str) -> Option<Self> {
+        let (year, month) = label.split_once('-')?;
+        if year.len() != 4 || month.len() != 2 {
+            return None;
+        }
+        let year = year.parse().ok()?;
+        let month = month.parse().ok()?;
+        (1..=12).contains(&month).then_some(Self { year, month })
+    }
+
     pub fn year(self) -> i32 {
         self.year
     }
@@ -133,6 +143,21 @@ mod tests {
         let span = year_span(2020).ok();
         if span != Some((at(2020, 1, 1), at(2021, 1, 1))) {
             panic!("year spanned {span:?}");
+        }
+    }
+
+    #[test]
+    fn a_label_parses_back_to_its_month_and_malformed_labels_are_rejected() {
+        let month = Month::of(at(2024, 2, 10));
+        if Month::parse(&month.label()) != Some(month) {
+            panic!("{} did not parse back", month.label());
+        }
+        for label in [
+            "2024-13", "2024-00", "2024-2", "24-02", "2024/02", "", "abcd-02",
+        ] {
+            if Month::parse(label).is_some() {
+                panic!("{label:?} parsed");
+            }
         }
     }
 
