@@ -146,9 +146,7 @@
     </div>
   {/snippet}
 
-  {#if mapConfig.search}
-    <PlaceSearch onPick={pickPlace} />
-  {/if}
+  <PlaceSearch onPick={pickPlace} photon={mapConfig.search} />
   <div class="relative h-85 overflow-hidden rounded-lg border border-hairline touch:h-[50vh]">
     <MapCanvas
       class="size-full"

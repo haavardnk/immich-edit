@@ -28,6 +28,9 @@ in bulk, so a location can be moved but not removed):
 
 - **Single photo**: open **Photo info** (`I`) to see the mini map, then choose **Set location** or
   **Edit location**. Search by place name or drag the pin, then select **Save**.
+- **Coordinates and map links**: paste coordinates (`60.3913, 5.3221` or `60°23'29"N 5°19'20"E`)
+  or a Google Maps, Apple Maps, OpenStreetMap or `geo:` link into the search field and choose
+  **Go to**. They are read in your browser, so this works even when place search is turned off.
 - **Multiple photos**: select photos in the grid and open **Location** in the bulk bar (or the
   **More** sheet on touch), then **Choose on map**.
 - **Drag onto the map**: drag tiles from the map panel — including the **No location** tab — onto
