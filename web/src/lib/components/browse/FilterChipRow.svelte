@@ -3,6 +3,7 @@
   import { LABEL_TEXT } from '#lib/stores/labels.ts';
   import { activeFilterChips, withoutFilter } from '#lib/browse/filterChips.ts';
   import { idName } from '#lib/browse/idOptions.ts';
+  import { chipRemovable } from '#lib/components/chips/chipStyles.ts';
   import { Button, Icon, IconButton } from '@immich/ui';
   import { mdiCircle, mdiClose, mdiTrashCanOutline } from '@mdi/js';
 
@@ -34,10 +35,7 @@
     class="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-hairline bg-light px-3 py-1.5 sm:px-5 touch:border-b-0 touch:px-3 touch:pt-1 touch:pb-2"
   >
     {#each chips as chip (chip.key)}
-      <span
-        role="listitem"
-        class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary-200 pl-2.5 text-caption whitespace-nowrap touch:h-8 touch:pl-3 touch:text-xs"
-      >
+      <span role="listitem" class={chipRemovable}>
         {#if chip.color}
           <Icon icon={mdiCircle} size="12px" class={LABEL_TEXT[chip.color]} aria-hidden="true" />
         {/if}
@@ -46,7 +44,7 @@
           size="tiny"
           variant="ghost"
           color="secondary"
-          class="opacity-60 hover:opacity-100 touch:-my-1.5 touch:size-11"
+          class="me-0.5 shrink-0 opacity-60 hover:opacity-100 touch:-my-1 touch:me-0 touch:size-11"
           icon={mdiClose}
           title={`Remove ${chip.label}`}
           aria-label={`Remove ${chip.label}`}

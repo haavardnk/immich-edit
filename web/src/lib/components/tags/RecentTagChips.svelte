@@ -1,10 +1,11 @@
 <script lang="ts">
   import { recentTagChord } from '#lib/browse/recentTags.ts';
   import { splitTagValue } from '#lib/browse/tagTree.ts';
+  import Chip from '#lib/components/chips/Chip.svelte';
   import SectionHeading from '#lib/components/SectionHeading.svelte';
   import { keysFor } from '#lib/shortcuts/labels.ts';
   import type { TagRef } from '#lib/types/asset.ts';
-  import { Button, Icon } from '@immich/ui';
+  import { Icon } from '@immich/ui';
   import { mdiCheck, mdiPlus } from '@mdi/js';
 
   let {
@@ -38,19 +39,13 @@
   <div class="flex flex-wrap gap-1.5 px-4 pb-1 sm:px-5">
     {#each tags as tag, index (tag.id)}
       {@const on = applied.has(tag.id)}
-      <Button
-        size="tiny"
-        variant="ghost"
-        color="secondary"
-        shape="round"
-        class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1 h-6 max-w-full gap-1.5 px-2 text-caption font-normal touch:h-9 touch:px-3 touch:text-sm {on
-          ? 'bg-primary/15 hover:bg-primary/25'
-          : 'bg-light-200'}"
-        aria-label={tag.value}
-        aria-pressed={on}
+      <Chip
+        pressed={on}
+        onPressedChange={(next) => onToggle(tag, next)}
+        label={tag.value}
         title={tooltip(tag, index)}
         {disabled}
-        onclick={() => onToggle(tag, !on)}
+        class="max-w-full gap-1.5"
       >
         {#if numbered}
           <span
@@ -70,7 +65,7 @@
           />
         {/if}
         <span class="min-w-0 truncate">{splitTagValue(tag.value).leaf}</span>
-      </Button>
+      </Chip>
     {/each}
   </div>
 </section>

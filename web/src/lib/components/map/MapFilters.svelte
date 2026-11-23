@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { MarkerFilter } from '#lib/api/map.ts';
   import Chip from '#lib/components/chips/Chip.svelte';
-  import { chipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chip } from '#lib/components/chips/chipStyles.ts';
   import Popover from '#lib/components/Popover.svelte';
   import { Button, DatePicker, Field, Icon } from '@immich/ui';
   import { mdiCalendarRange, mdiHeartOutline } from '@mdi/js';
@@ -55,7 +55,7 @@
         {...props}
         type="button"
         aria-pressed={Boolean(filter.after || filter.before)}
-        class={chipTone.value}
+        class={chip}
       >
         <Icon icon={mdiCalendarRange} size="1.15em" class="shrink-0" aria-hidden="true" />
         {dateLabel}

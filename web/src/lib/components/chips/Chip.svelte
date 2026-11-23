@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { chipTone, type ChipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chip } from '#lib/components/chips/chipStyles.ts';
+  import { twMerge } from '#lib/theme/tailwindMerge.ts';
   import { Icon } from '@immich/ui';
   import { Toggle } from 'bits-ui';
   import type { Snippet } from 'svelte';
@@ -7,18 +8,18 @@
   let {
     pressed,
     onPressedChange,
-    tone = 'value',
     icon,
     label,
+    title,
     disabled = false,
     class: className = '',
     children
   }: {
     pressed: boolean;
     onPressedChange: (pressed: boolean) => void;
-    tone?: ChipTone;
     icon?: string;
     label?: string;
+    title?: string;
     disabled?: boolean;
     class?: string;
     children?: Snippet;
@@ -29,7 +30,8 @@
   bind:pressed={() => pressed, onPressedChange}
   {disabled}
   aria-label={label}
-  class="{chipTone[tone]} {className}"
+  {title}
+  class={twMerge(chip, className)}
 >
   {#if icon}
     <Icon {icon} size="1.15em" class="shrink-0" aria-hidden="true" />

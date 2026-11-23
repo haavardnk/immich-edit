@@ -1,6 +1,6 @@
 <script lang="ts">
   import ChipChoice from '#lib/components/chips/ChipChoice.svelte';
-  import { chipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chipFill } from '#lib/components/chips/chipStyles.ts';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import Popover from '#lib/components/Popover.svelte';
   import type { CropRatio } from '#lib/api/preferences.ts';
@@ -97,7 +97,7 @@
 <div class="relative min-w-0" {@attach measure}>
   <ChipChoice
     label="Aspect ratio"
-    tone="dense"
+    fill
     options={options.slice(0, shown)}
     value={aspectKey(draftAspect())}
     onChange={pick}
@@ -116,7 +116,7 @@
             size="tiny"
             variant="ghost"
             color="secondary"
-            class={chipTone.dense}
+            class={chipFill}
             aria-label="More ratios"
             aria-pressed={moreActive}
           >
@@ -136,8 +136,8 @@
     class="pointer-events-none invisible absolute top-0 left-0 flex w-max gap-1 touch:gap-1.5"
   >
     {#each options as option (option.value)}
-      <span class={chipTone.dense}>{option.label}</span>
+      <span class={chipFill}>{option.label}</span>
     {/each}
-    <span class={chipTone.dense}><Icon icon={mdiDotsHorizontal} size="1.15em" /></span>
+    <span class={chipFill}><Icon icon={mdiDotsHorizontal} size="1.15em" /></span>
   </div>
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CropRatio } from '#lib/api/preferences.ts';
+  import Chip from '#lib/components/chips/Chip.svelte';
   import TextInput from '#lib/components/TextInput.svelte';
   import { editor } from '#lib/stores/editor.svelte.ts';
   import { preferences } from '#lib/stores/preferences.svelte.ts';
@@ -122,19 +123,9 @@
 </script>
 
 {#snippet chip(ratio: CropRatio)}
-  <Button
-    size="small"
-    variant="ghost"
-    color="secondary"
-    shape="round"
-    class="shrink-0 px-3.5 text-sm font-normal {isPicked(ratio)
-      ? 'bg-primary/22 text-light-950'
-      : 'bg-ghost text-dark'}"
-    aria-pressed={isPicked(ratio)}
-    onclick={() => pick(ratio)}
-  >
+  <Chip pressed={isPicked(ratio)} onPressedChange={() => pick(ratio)}>
     {ratioLabel(ratio)}
-  </Button>
+  </Chip>
 {/snippet}
 
 {#snippet field(which: Side, label: string)}

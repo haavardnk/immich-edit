@@ -1,5 +1,6 @@
 <script lang="ts">
   import { chipTagPath, tagPathLabel } from '#lib/browse/tagTree.ts';
+  import { chipRemovable } from '#lib/components/chips/chipStyles.ts';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
   import type { TagRef } from '#lib/types/asset.ts';
   import { IconButton } from '@immich/ui';
@@ -20,9 +21,7 @@
   const path = $derived(chipTagPath(tag.value));
 </script>
 
-<span
-  class="inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-full bg-primary-200 pl-2 text-caption whitespace-nowrap touch:h-9 touch:pl-3 touch:text-sm"
->
+<span class={chipRemovable}>
   {#if tag.color}
     <span class="size-2 shrink-0 rounded-full" style:background-color={tag.color}></span>
   {/if}
@@ -35,19 +34,19 @@
           </span>
           <span class="shrink-0 text-dark/65">/</span>
         {/if}
-        <span data-truncate class="min-w-[3ch] truncate font-medium">{path.leaf}</span>
+        <span data-truncate class="min-w-[3ch] truncate">{path.leaf}</span>
       </span>
     {/snippet}
   </TruncationTooltip>
   {#if ruler}
-    <span class="size-6 shrink-0 touch:size-9"></span>
+    <span class="me-0.5 size-6 shrink-0 touch:me-0 touch:size-9"></span>
   {:else}
     <IconButton
       size="tiny"
       variant="ghost"
       color="secondary"
       shape="round"
-      class="shrink-0 opacity-50 hover:text-red-400 hover:opacity-100 touch:size-9"
+      class="me-0.5 shrink-0 opacity-50 hover:text-red-400 hover:opacity-100 touch:size-9 touch:me-0"
       icon={mdiClose}
       title="Remove {tag.value}"
       aria-label="Remove {tag.value}"
