@@ -11,6 +11,9 @@ Each photo supports up to 8 mask layers (up to 8 shapes per layer, 32 shapes tot
 layer has its own exposure, tone, white balance, saturation, vibrance, texture, clarity, and
 sharpening sliders.
 
+<!-- SCREENSHOT: capture.cjs masks-desktop + compose.cjs masks-desktop -->
+![Desktop Masks panel with overlay toggle and AI and manual mask tools](../../../assets/shots/masks-desktop.png)
+
 ### Build a mask
 
 Start a layer with an AI selection or a manual shape, then refine it with **Add**, **Subtract**,
@@ -55,3 +58,6 @@ Open **Crop** (`Shift+R`) to frame, level, and correct perspective:
 - **Perspective & Guided upright**: adjust vertical/horizontal keystone and aspect, drag four
   **Corner handles**, or toggle **Guided upright** and draw 2–4 vertical (blue) and horizontal
   (amber) lines to solve perspective automatically.
+
+<!-- SCREENSHOT: capture.cjs crop-desktop + compose.cjs crop-desktop -->
+![Desktop Crop and Transform panel with crop overlay, aspect ratios, and Guided upright](../../../assets/shots/crop-desktop.png)

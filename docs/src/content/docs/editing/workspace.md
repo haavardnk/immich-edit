@@ -19,6 +19,12 @@ settings across every device.
 Override the automatic layout per browser under **Settings** > **Preferences** > **Layout**
 (**Auto**, **Desktop**, or **Touch**).
 
+<!-- SCREENSHOT: capture.cjs workspace-desktop + compose.cjs workspace-desktop -->
+![Desktop editor workspace with top toolbar, preview canvas, and Develop inspector](../../../assets/shots/workspace-desktop.png)
+
+<!-- SCREENSHOT: capture.cjs editor-tablet + compose.cjs editor-tablet -->
+![Tablet landscape editor with right tool rail and touch-sized sliders](../../../assets/shots/editor-tablet.png)
+
 ## Find tools fast
 
 - **Command palette** (`Ctrl+K` on desktop): jump to any slider, preview presets or LUTs on hover,
@@ -29,6 +35,9 @@ Override the automatic layout per browser under **Settings** > **Preferences** >
   Quick** to keep favorite controls at the top of **Develop** across devices.
 - **Customize sections**: reorder or hide **Develop** panels from the `⋯` menu in the panel header
   (**Customize Develop** on touch). Hidden panels still appear whenever they hold active edits.
+
+<!-- SCREENSHOT: capture.cjs palette-desktop + compose.cjs palette-desktop -->
+![Desktop command palette and floating Scope overlay over the editor canvas](../../../assets/shots/palette-desktop.png)
 
 ## Viewing and proofing tools
 

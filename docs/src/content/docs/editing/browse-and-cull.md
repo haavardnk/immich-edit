@@ -21,6 +21,9 @@ Browse **Photos**, **Albums**, **People**, **Tags**, **Folders**, **Map**, **Fav
 - **Timeline tools**: day headers select an entire day; the date scrubber jumps to any month. Hold
   `W` over any grid tile to peek at a larger preview.
 
+<!-- SCREENSHOT: capture.cjs browse-desktop + compose.cjs browse-desktop -->
+![Desktop library grid with sidebar, filter bar, and multi-select culling](../../../assets/shots/browse-desktop.png)
+
 ## Albums and tags
 
 - **Albums**: create, rename, describe, delete, or leave Immich albums from **Album actions** (`⋯`),
@@ -39,6 +42,9 @@ Click or tap a photo to open the loupe, then cull with keyboard or touch control
 - Turn on **Auto-advance** in the loupe to move to the next photo after each rating.
 - Press `Alt+1`–`8` in the loupe to apply recent tags quickly.
 - Press `I` for **Photo info** (EXIF, description editing, mini map, and tags).
+
+<!-- SCREENSHOT: capture.cjs browse-phone + loupe-phone + compose.cjs browse-touch -->
+![Phone grid and loupe views for touch browsing, rating, and culling](../../../assets/shots/browse-touch.png)
 
 ## Compare, survey, and virtual copies
 

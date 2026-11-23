@@ -44,3 +44,6 @@ editor actions** on touch:
 - Press `Y` to cycle **Split view**, **Side by side**, and off.
 - Choose what appears on the "before" side: the original file, any saved **Snapshot**, or another
   **Version**.
+
+<!-- SCREENSHOT: capture.cjs compare-desktop + compose.cjs compare-desktop -->
+![Desktop split-view before and after compare with Presets, Copy/Paste, and History controls](../../../assets/shots/compare-desktop.png)
