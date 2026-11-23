@@ -1,19 +1,12 @@
 import { copyEditsFrom, pasteEditsTo, pasteOnlyTo } from '#lib/browse/copyPaste.ts';
 import { loupeFocusedId } from '#lib/browse/loupeActions.ts';
-import { loupeCommand } from '#lib/commands/loupe/context.ts';
+import { loupeCommand, withFocused } from '#lib/commands/loupe/context.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { virtualCopies } from '#lib/stores/virtualCopies.svelte.ts';
 import { hasTextSelection } from '#lib/shortcuts/targets.ts';
 
 function editable(): string | null {
   return hasTextSelection() ? null : loupeFocusedId();
-}
-
-function withFocused(run: (id: string) => void): () => void {
-  return () => {
-    const id = loupeFocusedId();
-    if (id) run(id);
-  };
 }
 
 export const LOUPE_EDIT_COMMANDS: readonly Command[] = [

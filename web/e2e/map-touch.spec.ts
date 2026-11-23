@@ -292,6 +292,10 @@ test.describe('map on touch', { tag: '@touch' }, () => {
       .getByRole('dialog', { name: 'More actions' })
       .getByRole('button', { name: 'Location' })
       .tap();
+    await page
+      .getByRole('dialog', { name: 'Location' })
+      .getByRole('button', { name: 'Choose on map…' })
+      .tap();
     const dialog = page.getByRole('dialog', { name: 'Set location' });
     await expect(dialog).toContainText('Move the map under the pin');
     const map = dialog.getByRole('region', { name: 'Location map' });

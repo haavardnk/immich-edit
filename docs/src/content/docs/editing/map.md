@@ -28,13 +28,15 @@ in bulk, so a location can be moved but not removed):
 
 - **Single photo**: open **Photo info** (`I`) to see the mini map, then choose **Set location** or
   **Edit location**. Search by place name or drag the pin, then select **Save**.
-- **Multiple photos**: select photos in the grid and choose **Set location** from the bulk bar (or
-  the **More** sheet on touch).
+- **Multiple photos**: select photos in the grid and open **Location** in the bulk bar (or the
+  **More** sheet on touch), then **Choose on map**.
 - **Drag onto the map**: drag tiles from the map panel — including the **No location** tab — onto
   the map to geotag them, or drag an existing marker to refine its position (press and hold first
   on touch).
-- **Copy and paste**: use **Copy location** and **Paste location** in **Photo info** to transfer
-  coordinates between shots from the same spot.
+- **Copy and paste**: copy a photo's location from **Photo info**, the **Location** menu or with
+  `Alt+Shift+C`, then paste it onto any selection with **Paste location** or `Alt+Shift+V`. The
+  copied place lasts until you close the tab, and its coordinates also land on the system clipboard
+  as text for other apps.
 
 <!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
 ![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)

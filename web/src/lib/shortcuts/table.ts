@@ -651,6 +651,20 @@ export const KEYBINDS = [
     label: 'Paste only some settings'
   },
   {
+    id: 'copyLocation',
+    keys: ['Alt+Shift+c'],
+    contexts: ['grid', 'loupe'],
+    group: 'Grid',
+    label: 'Copy location'
+  },
+  {
+    id: 'pasteLocation',
+    keys: ['Alt+Shift+v'],
+    contexts: ['grid', 'loupe'],
+    group: 'Grid',
+    label: 'Paste location'
+  },
+  {
     id: 'openExport',
     keys: ['Shift+e'],
     contexts: ['editor', 'grid'],

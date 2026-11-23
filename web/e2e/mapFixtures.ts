@@ -46,6 +46,13 @@ export async function openTray(page: Page): Promise<void> {
   await expect(page.locator(PHOTOS).first()).toBeVisible();
 }
 
+export async function chooseOnMap(page: Page): Promise<void> {
+  await page
+    .getByRole('group', { name: 'Location' })
+    .getByRole('button', { name: 'Choose on map…' })
+    .click();
+}
+
 export async function confirmDrop(page: Page, verb: 'Move' | 'Place'): Promise<void> {
   const card = page.locator('[data-drop-confirm]');
   await expect(card).toBeVisible();

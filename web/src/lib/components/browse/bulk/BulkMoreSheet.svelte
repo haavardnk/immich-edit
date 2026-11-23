@@ -1,15 +1,15 @@
 <script lang="ts">
   import MenuRow from '#lib/components/MenuRow.svelte';
+  import BulkActionRow from '#lib/components/browse/bulk/BulkActionRow.svelte';
   import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { bulkEdits, type BulkEditAction } from '#lib/browse/bulk/bulkEdits.svelte.ts';
+  import { bulkEdits } from '#lib/browse/bulk/bulkEdits.svelte.ts';
+  import type { BulkMenuAction } from '#lib/browse/bulk/bulkMenu.ts';
   import { multiDetail } from '#lib/browse/bulk/bulkRules.ts';
   import { editableViewedAlbum } from '#lib/browse/viewedAlbum.ts';
   import type { MultiMode } from '#lib/browse/compareEntry.ts';
   import { compare } from '#lib/stores/compare.svelte.ts';
-  import { locationPicker } from '#lib/stores/locationPicker.svelte.ts';
-  import { selection } from '#lib/stores/selection.svelte.ts';
   import {
     mdiCompare,
     mdiContentDuplicate,
@@ -28,7 +28,7 @@
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onPick: (sheet: 'album' | 'tags' | 'preset') => void;
+    onPick: (sheet: 'album' | 'tags' | 'location' | 'preset') => void;
   } = $props();
 
   const scope = bulkScope;
@@ -37,6 +37,10 @@
   const busy = $derived(empty || actions.metaBusy);
   const shared = $derived(!scope.allOwned);
   const removable = $derived(editableViewedAlbum());
+
+  function runAction(action: BulkMenuAction): void {
+    action.run();
+  }
 
   function owned(run: () => void): () => void {
     return () => {
@@ -49,18 +53,6 @@
   {#if text}
     <span class="shrink-0 text-label text-dark/65">{text}</span>
   {/if}
-{/snippet}
-
-{#snippet editRow(action: BulkEditAction)}
-  <MenuRow
-    icon={action.icon}
-    label={action.label}
-    aria-label={action.label}
-    disabled={action.disabled}
-    onclick={action.run}
-  >
-    {@render detail(action.detail)}
-  </MenuRow>
 {/snippet}
 
 {#snippet multiRow(mode: MultiMode)}
@@ -96,10 +88,7 @@
     class={shared ? 'opacity-50' : ''}
     aria-disabled={shared || undefined}
     disabled={busy}
-    onclick={owned(() => {
-      onOpenChange(false);
-      void locationPicker.openIds([...selection.selected]);
-    })}
+    onclick={owned(() => onPick('location'))}
   />
   <MenuRow
     icon={bulkEdits.applyPreset.icon}
@@ -107,9 +96,9 @@
     disabled={bulkEdits.applyPreset.disabled}
     onclick={() => onPick('preset')}
   />
-  {@render editRow(bulkEdits.paste)}
-  {@render editRow(bulkEdits.pasteOnly)}
-  {@render editRow(bulkEdits.reset)}
+  <BulkActionRow action={bulkEdits.paste} onPick={runAction} />
+  <BulkActionRow action={bulkEdits.pasteOnly} onPick={runAction} />
+  <BulkActionRow action={bulkEdits.reset} onPick={runAction} />
   {@render multiRow('compare')}
   {#if compare.surveyAvailable}
     {@render multiRow('survey')}

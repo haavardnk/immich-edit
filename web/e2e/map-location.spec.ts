@@ -8,6 +8,7 @@ import {
   GEILO,
   BERGEN,
   type LocationWrite,
+  chooseOnMap,
   confirmDrop,
   PLACED,
   openPlacing,
@@ -30,6 +31,7 @@ test('the location picker searches a place and saves it', async ({ page }) => {
   await pick(page, 'IMG_0005.ARW');
   await pick(page, 'IMG_0004.ARW');
   await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
   await expect(dialog).toContainText('2 photos');
@@ -72,6 +74,7 @@ test('a selection on the map moves to its new location', async ({ page }) => {
   await tile.hover();
   await tile.getByRole('button', { name: 'Select', exact: true }).click();
   await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await chooseOnMap(page);
   const dialog = page.getByRole('dialog', { name: /^(Set|Edit) location$/ });
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('geil');
   await dialog.getByRole('list', { name: 'Places' }).getByRole('button', { name: /Geilo/ }).click();
