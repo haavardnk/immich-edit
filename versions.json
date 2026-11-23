@@ -1,6 +1,11 @@
 {
-  "latest": null,
+  "latest": "v0.8.1",
   "versions": [
+    {
+      "id": "v0.8.1",
+      "label": "v0.8.1 (latest)",
+      "base": "/"
+    },
     {
       "id": "main",
       "label": "main (dev)",
