@@ -60,7 +60,7 @@ jobs:
       - name: Build versioned site
         working-directory: docs
         env:
-          DOCS_BASE: /immich-edit/${{ steps.target.outputs.ref }}
+          DOCS_BASE: /${{ steps.target.outputs.ref }}
           DOCS_VERSION: ${{ steps.target.outputs.ref }}
         run: |
           npm run build
@@ -70,7 +70,7 @@ jobs:
         if: steps.target.outputs.is_stable == 'true' || steps.target.outputs.ref == 'main'
         working-directory: docs
         env:
-          DOCS_BASE: /immich-edit
+          DOCS_BASE: /
           DOCS_VERSION: ${{ steps.target.outputs.ref }}
         run: |
           npm run build

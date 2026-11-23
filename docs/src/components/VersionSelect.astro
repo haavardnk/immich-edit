@@ -1,7 +1,7 @@
 ---
 const version = process.env.DOCS_VERSION ?? 'main';
-const rootBase = '/immich-edit';
-const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
+const rootBase = '';
+const currentBase = (process.env.DOCS_BASE ?? '/').replace(/\/+$/, '');
 ---
 
 <div
@@ -11,7 +11,7 @@ const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
   data-ie-base={currentBase}
 >
   <select class="ie-version-select" aria-label="Documentation version">
-    <option value={currentBase} selected>{version}</option>
+    <option value={currentBase || '/'} selected>{version}</option>
   </select>
 </div>
 
@@ -21,8 +21,8 @@ const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
     const select = wrap.querySelector<HTMLSelectElement>('select');
     if (!select) continue;
     const currentVersion = wrap.dataset.ieVersion ?? 'main';
-    const rootBase = wrap.dataset.ieRoot ?? '/immich-edit';
-    const currentBase = wrap.dataset.ieBase ?? rootBase;
+    const rootBase = (wrap.dataset.ieRoot ?? '').replace(/\/+$/, '');
+    const currentBase = (wrap.dataset.ieBase ?? rootBase).replace(/\/+$/, '');
 
     fetch(`${rootBase}/versions.json`)
       .then((res) => (res.ok ? res.json() : null))
@@ -33,7 +33,8 @@ const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
           const opt = document.createElement('option');
           opt.value = item.base;
           opt.textContent = item.label;
-          if (item.id === currentVersion || item.base === currentBase) {
+          const itemBase = item.base.replace(/\/+$/, '');
+          if (item.id === currentVersion || itemBase === currentBase) {
             opt.selected = true;
           }
           select.append(opt);
@@ -43,9 +44,10 @@ const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
 
     select.addEventListener('change', async () => {
       const targetBase = select.value.replace(/\/+$/, '');
-      const relPath = window.location.pathname.startsWith(currentBase)
-        ? window.location.pathname.slice(currentBase.length)
-        : '/';
+      const relPath =
+        currentBase && window.location.pathname.startsWith(currentBase)
+          ? window.location.pathname.slice(currentBase.length)
+          : window.location.pathname;
       const targetUrl = `${targetBase}${relPath.startsWith('/') ? relPath : `/${relPath}`}${window.location.hash}`;
       try {
         const res = await fetch(targetUrl, { method: 'HEAD' });

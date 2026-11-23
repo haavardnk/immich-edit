@@ -55,4 +55,4 @@ your identity provider. See [OAuth sign-in](../hosting/oauth.md).
   [Deployment](../hosting/deployment.md).
 - Pass through a Linux GPU for fast server renders and exports:
   [GPU passthrough](../hosting/gpu.md).
-- Ready to edit? Walk through your [first edit](first-edit.md).
+- Ready to edit? Open the [Workspace guide](../editing/workspace.md).

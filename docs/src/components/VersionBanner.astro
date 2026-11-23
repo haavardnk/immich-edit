@@ -1,8 +1,8 @@
 ---
 const { banner } = Astro.locals.starlightRoute.entry.data;
 const version = process.env.DOCS_VERSION ?? 'main';
-const rootBase = '/immich-edit';
-const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
+const rootBase = '';
+const currentBase = (process.env.DOCS_BASE ?? '/').replace(/\/+$/, '');
 ---
 
 {banner && <div class="sl-banner" data-pagefind-ignore set:html={banner.content} />}
@@ -20,12 +20,13 @@ const currentBase = (process.env.DOCS_BASE ?? rootBase).replace(/\/+$/, '');
   const el = document.querySelector<HTMLElement>('.ie-version-banner');
   if (el) {
     const version = el.dataset.ieVersion ?? 'main';
-    const rootBase = el.dataset.ieRoot ?? '/immich-edit';
-    const currentBase = el.dataset.ieBase ?? rootBase;
-    const relPath = window.location.pathname.startsWith(currentBase)
-      ? window.location.pathname.slice(currentBase.length)
-      : '/';
-    const latestHref = `${rootBase}${relPath.startsWith('/') ? relPath : '/'}`;
+    const rootBase = (el.dataset.ieRoot ?? '').replace(/\/+$/, '');
+    const currentBase = (el.dataset.ieBase ?? rootBase).replace(/\/+$/, '');
+    const relPath =
+      currentBase && window.location.pathname.startsWith(currentBase)
+        ? window.location.pathname.slice(currentBase.length)
+        : window.location.pathname;
+    const latestHref = `${rootBase}${relPath.startsWith('/') ? relPath : `/${relPath}`}`;
 
     const show = (html: string) => {
       el.innerHTML = html;

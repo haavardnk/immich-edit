@@ -1,4 +1,4 @@
-const DOCS_ORIGIN = 'https://haavardnk.github.io/immich-edit';
+const DOCS_ORIGIN = 'https://immich-edit.iridiumlab.dev';
 
 export function docsUrl(path = '', version = __APP_VERSION__): string {
   const segment =

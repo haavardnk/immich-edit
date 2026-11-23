@@ -2,6 +2,10 @@
   --sl-font: 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
   --sl-font-mono: 'Google Sans Code', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  --sl-content-width: 62rem;
+  --sl-sidebar-width: 16.5rem;
+  --sl-right-sidebar-width: 15rem;
+
   --sl-color-white: #fafafa;
   --sl-color-gray-1: #dbdbdb;
   --sl-color-gray-2: #b5b5b8;
@@ -99,7 +103,7 @@
 }
 
 .hero-banner {
-  margin-block: 1.5rem 2.5rem;
+  margin-block: 0.5rem 2.5rem;
 }
 
 .hero-banner img {
@@ -108,6 +112,32 @@
   border-radius: 18px;
   border: 1px solid var(--sl-color-hairline);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.hero-actions .sl-link-button {
+  margin: 0;
+}
+
+body:has(.hero-banner) {
+  --sl-content-width: 74rem;
+}
+
+body:has(.hero-banner) .content-panel:has(h1#_top) {
+  display: none;
+}
+
+body:has(.hero-banner) .content-panel:has(.hero-banner) {
+  border-top: none;
+  padding-top: 0.75rem;
 }
 
 .sl-markdown-content table {
@@ -124,4 +154,62 @@
 .sl-banner {
   border-bottom: 1px solid var(--sl-color-accent-low);
   font-size: 0.88rem;
+  text-align: center;
+  padding-inline: 1rem;
+}
+
+.ie-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2.5rem, 5vw, 4.5rem);
+  margin-block: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.ie-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+  align-items: center;
+  gap: clamp(1.5rem, 3.5vw, 3rem);
+}
+
+.ie-feature-reverse .ie-feature-copy {
+  order: 2;
+}
+
+.ie-feature-copy h2 {
+  margin-top: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+  letter-spacing: -0.02em;
+}
+
+.ie-feature-copy p {
+  color: var(--sl-color-gray-2);
+  line-height: 1.65;
+  margin-block: 0.75rem 1rem;
+}
+
+.ie-feature-copy a {
+  font-weight: 500;
+  color: var(--sl-color-accent);
+  text-decoration: none;
+}
+
+.ie-feature-copy a:hover {
+  text-decoration: underline;
+}
+
+.ie-feature-media img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@media (max-width: 56rem) {
+  .ie-feature {
+    grid-template-columns: 1fr;
+  }
+
+  .ie-feature-reverse .ie-feature-copy {
+    order: 0;
+  }
 }

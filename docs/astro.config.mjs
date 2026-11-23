@@ -3,31 +3,32 @@ import rehypeRelativeMarkdownLinks from "astro-rehype-relative-markdown-links";
 import { defineConfig } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
 
-const rawBase = process.env.DOCS_BASE ?? "/immich-edit";
+const rawBase = process.env.DOCS_BASE ?? "/";
 const base = rawBase === "/" ? "/" : rawBase.replace(/\/+$/, "");
+const prefix = base === "/" ? "" : base;
 
 export default defineConfig({
-  site: "https://haavardnk.github.io",
+  site: "https://immich-edit.iridiumlab.dev",
   base,
   trailingSlash: "always",
   redirects: {
-    "/getting-started/": `${base}/start/install/`,
-    "/use/": `${base}/editing/workspace/`,
-    "/cull/": `${base}/editing/browse-and-cull/`,
-    "/edit/": `${base}/editing/develop/`,
-    "/export/": `${base}/editing/export/`,
-    "/operate/": `${base}/hosting/deployment/`,
-    "/deploy/": `${base}/hosting/deployment/`,
-    "/gpu-passthrough/": `${base}/hosting/gpu/`,
-    "/rendering/": `${base}/hosting/rendering/`,
-    "/oauth/": `${base}/hosting/oauth/`,
-    "/configuration/": `${base}/hosting/configuration/`,
-    "/administration/": `${base}/hosting/administration/`,
-    "/backup-and-upgrade/": `${base}/hosting/backup-and-upgrade/`,
-    "/troubleshooting/": `${base}/hosting/troubleshooting/`,
-    "/features/": `${base}/reference/features/`,
-    "/compatibility/": `${base}/reference/formats/`,
-    "/shortcuts/": `${base}/reference/shortcuts/`,
+    "/getting-started/": `${prefix}/start/install/`,
+    "/use/": `${prefix}/editing/workspace/`,
+    "/cull/": `${prefix}/editing/browse-and-cull/`,
+    "/edit/": `${prefix}/editing/develop/`,
+    "/export/": `${prefix}/editing/export/`,
+    "/operate/": `${prefix}/hosting/deployment/`,
+    "/deploy/": `${prefix}/hosting/deployment/`,
+    "/gpu-passthrough/": `${prefix}/hosting/gpu/`,
+    "/rendering/": `${prefix}/hosting/rendering/`,
+    "/oauth/": `${prefix}/hosting/oauth/`,
+    "/configuration/": `${prefix}/hosting/configuration/`,
+    "/administration/": `${prefix}/hosting/administration/`,
+    "/backup-and-upgrade/": `${prefix}/hosting/backup-and-upgrade/`,
+    "/troubleshooting/": `${prefix}/hosting/troubleshooting/`,
+    "/features/": `${prefix}/reference/features/`,
+    "/compatibility/": `${prefix}/reference/formats/`,
+    "/shortcuts/": `${prefix}/reference/shortcuts/`,
   },
   markdown: {
     rehypePlugins: [
@@ -66,7 +67,7 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start",
-          items: [{ slug: "start/install" }, { slug: "start/first-edit" }],
+          items: [{ slug: "start/install" }],
         },
         {
           label: "Editing",

@@ -167,5 +167,5 @@ jobs:
       - run: npm run build
         working-directory: docs
         env:
-          DOCS_BASE: /immich-edit
+          DOCS_BASE: /
           DOCS_VERSION: main

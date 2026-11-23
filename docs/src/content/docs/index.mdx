@@ -2,29 +2,73 @@
 title: immich-edit
 description: Self-hosted, non-destructive RAW photo editor for Immich.
 template: splash
-hero:
-  tagline: Self-hosted, non-destructive RAW editing for your Immich library.
-  actions:
-    - text: Install
-      link: start/install/
-      icon: right-arrow
-    - text: Start editing
-      link: editing/workspace/
-      variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import banner from '../../assets/banner.png';
+import developShot from '../../assets/shots/develop-desktop.png';
+import masksShot from '../../assets/shots/masks-desktop.png';
+import mapShot from '../../assets/shots/map-desktop.png';
 
 <div class="hero-banner">
   <Image src={banner} alt="immich-edit running on desktop, tablet, and phone" />
+  <div class="hero-actions">
+    <LinkButton href="start/install/" icon="right-arrow">Install</LinkButton>
+    <LinkButton href="editing/workspace/" variant="minimal">Explore docs</LinkButton>
+  </div>
 </div>
+
+<section class="ie-showcase">
+  <div class="ie-feature">
+    <div class="ie-feature-copy">
+      <h2>Non-destructive RAW editing</h2>
+      <p>
+        Develop camera RAWs with DCP profiles, live GPU previews, curves, HSL, color grading, lens
+        corrections, and AI denoise. Originals stay untouched in Immich, and exports upload back as
+        new assets, stacks, or replacements.
+      </p>
+      <a href="editing/develop/">Develop guide →</a>
+    </div>
+    <div class="ie-feature-media">
+      <Image src={developShot} alt="Desktop Develop panel with live histogram and tone sliders" />
+    </div>
+  </div>
+
+  <div class="ie-feature ie-feature-reverse">
+    <div class="ie-feature-copy">
+      <h2>Local AI masks and geometry</h2>
+      <p>
+        Isolate subjects, skies, people, or depth ranges with on-server ONNX models, refine with
+        brushes, gradients, and range masks, and fix horizons or perspective with Guided upright.
+      </p>
+      <a href="editing/masks-and-retouch/">Masks, retouch, and crop →</a>
+    </div>
+    <div class="ie-feature-media">
+      <Image src={masksShot} alt="AI Subject mask overlay with per-mask adjustments" />
+    </div>
+  </div>
+
+  <div class="ie-feature">
+    <div class="ie-feature-copy">
+      <h2>Browse, cull, and geotag</h2>
+      <p>
+        Rate, reject, tag, compare side by side, and explore your library on an interactive map
+        across desktop, tablet, and phone — syncing ratings, favorites, albums, tags, and locations
+        straight back to Immich.
+      </p>
+      <a href="editing/browse-and-cull/">Browse and cull →</a>
+    </div>
+    <div class="ie-feature-media">
+      <Image src={mapShot} alt="Map view with photo clusters and photos in view panel" />
+    </div>
+  </div>
+</section>
 
 <CardGrid>
   <Card title="Quick start" icon="rocket">
-    Deploy with Docker Compose, connect to your Immich server, and make your first non-destructive
-    edit in minutes. [Install immich-edit](start/install.md).
+    Deploy with Docker Compose, connect to your Immich server, and claim your instance in minutes.
+    [Install immich-edit](start/install.md).
   </Card>
   <Card title="Edit photos" icon="pencil">
     Browse, cull, geotag, develop RAW files, mask locally, and export back to Immich. Originals
