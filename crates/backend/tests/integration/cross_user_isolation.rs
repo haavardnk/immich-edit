@@ -890,6 +890,84 @@ async fn saved_views_are_scoped_to_the_owner() {
 }
 
 #[tokio::test]
+async fn places_are_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    let (admin, member) = two_owner_apps(&server).await;
+
+    let place = body_json(
+        expect_status(
+            &admin,
+            json_request(
+                "POST",
+                "/api/places",
+                serde_json::json!({ "name": "Home", "lat": 60.39, "lon": 5.32 }),
+            ),
+            StatusCode::OK,
+            "owner create place",
+        )
+        .await,
+    )
+    .await;
+    let place_id = place["id"].as_str().expect("place id").to_string();
+    expect_status(
+        &admin,
+        json_request(
+            "POST",
+            "/api/places/recent",
+            serde_json::json!({ "lat": 60.39, "lon": 5.32 }),
+        ),
+        StatusCode::OK,
+        "owner remember place",
+    )
+    .await;
+
+    let listed =
+        body_json(expect_status(&member, get("/api/places"), StatusCode::OK, "member list").await)
+            .await;
+    if listed != serde_json::json!({ "saved": [], "recent": [] }) {
+        panic!("member listed the owner's places: {listed}");
+    }
+    expect_status(
+        &member,
+        json_request(
+            "PUT",
+            &format!("/api/places/{place_id}"),
+            serde_json::json!({ "name": "stolen", "lat": 1.0, "lon": 1.0 }),
+        ),
+        StatusCode::NOT_FOUND,
+        "member update place",
+    )
+    .await;
+    for (method, uri) in [
+        ("POST", format!("/api/places/{place_id}/used")),
+        ("DELETE", format!("/api/places/{place_id}")),
+        ("DELETE", "/api/places/recent".to_string()),
+    ] {
+        expect_status(
+            &member,
+            empty_request(method, &uri),
+            if method == "DELETE" && uri.ends_with("recent") {
+                StatusCode::NO_CONTENT
+            } else {
+                StatusCode::NOT_FOUND
+            },
+            "member place call",
+        )
+        .await;
+    }
+
+    let owned =
+        body_json(expect_status(&admin, get("/api/places"), StatusCode::OK, "owner list").await)
+            .await;
+    if owned["saved"].as_array().map(Vec::len) != Some(1)
+        || owned["saved"][0] != place
+        || owned["recent"].as_array().map(Vec::len) != Some(1)
+    {
+        panic!("owner places after member calls: {owned}");
+    }
+}
+
+#[tokio::test]
 async fn snapshots_are_scoped_to_the_owner() {
     let server = MockServer::start().await;
     let id = asset_id();

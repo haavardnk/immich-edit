@@ -303,8 +303,8 @@ test.describe('map on touch', { tag: '@touch' }, () => {
     const box = (await map.boundingBox())!;
     const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     await drag(page, centre, { x: centre.x - 60, y: centre.y - 40 }, { settleMs: 50 });
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
-    await dialog.getByRole('button', { name: 'Save' }).tap();
+    await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
     await expect(dialog).toHaveCount(0);
     expect(writes).toHaveLength(1);
     expect(writes[0]!.ids).toHaveLength(2);

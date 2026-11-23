@@ -53,6 +53,7 @@ mod middleware;
 #[cfg(feature = "ml")]
 mod models;
 mod people;
+mod places;
 mod preferences;
 mod presets;
 mod preview;

@@ -235,6 +235,19 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         )
         .route("/export-outputs/query", post(routes::export_outputs::query))
         .route(
+            "/places",
+            get(routes::places::list).post(routes::places::create),
+        )
+        .route(
+            "/places/recent",
+            post(routes::places::remember).delete(routes::places::clear_recent),
+        )
+        .route(
+            "/places/{id}",
+            put(routes::places::update).delete(routes::places::delete),
+        )
+        .route("/places/{id}/used", post(routes::places::used))
+        .route(
             "/saved-views",
             get(routes::saved_views::list).post(routes::saved_views::create),
         )

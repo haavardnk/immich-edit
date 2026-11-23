@@ -12,7 +12,7 @@ pub(super) const ASSET_TABLES: [&str; 6] = [
     "export_outputs",
 ];
 
-const OWNER_TABLES: [&str; 2] = ["presets", "saved_views"];
+const OWNER_TABLES: [&str; 4] = ["presets", "saved_views", "saved_places", "recent_places"];
 
 impl EditsStore {
     pub async fn purge_owner(&self, owner: Uuid) -> Result<(), EditsStoreError> {
