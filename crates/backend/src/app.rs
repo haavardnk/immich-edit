@@ -210,6 +210,8 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
         .route("/search/statistics", post(routes::search::statistics))
         .route("/search/months", post(routes::search::months))
         .route("/search/window", post(routes::search::window))
+        .route("/search/locate", post(routes::search::locate))
+        .route("/search/counts", post(routes::search::counts))
         .route("/search/suggestions", post(routes::search::suggestions))
         .route("/edits", get(routes::edits::list))
         .route(

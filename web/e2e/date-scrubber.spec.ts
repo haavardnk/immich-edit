@@ -76,9 +76,7 @@ async function jumpToJuly(page: Page, log: PageLog): Promise<void> {
   await page.mouse.down();
   await page.mouse.up();
   await expect(dayHeader(page, 'Sunday 20 July 2025')).toBeVisible();
-  expect(log.metadata.find((body) => body.size === 1)?.filter).toMatchObject({
-    takenBefore: '2025-07-31T23:59:59.999Z'
-  });
+  expect(log.locates.at(-1)).toMatchObject({ month: '2025-07', offset: 0, direction: 'desc' });
   expect(log.windows.at(-1)).toMatchObject({
     assetId: ASSETS[JULY * 10]?.id,
     before: 100,
@@ -86,7 +84,9 @@ async function jumpToJuly(page: Page, log: PageLog): Promise<void> {
   });
 }
 
-test('the rail shows years, a hover bubble and the visible range', async ({ page }) => {
+test('the rail shows years, a hover bubble with the day and the visible range', async ({
+  page
+}) => {
   await openTimeline(page);
   const rail = page.getByRole('slider', { name: 'Timeline' });
   await expect(rail).toHaveAttribute('aria-valuetext', 'October 2026');
@@ -94,10 +94,10 @@ test('the rail shows years, a hover bubble and the visible range', async ({ page
   await expect(rail).toContainText('2025');
   await expect(page.getByTestId('date-rail-mark')).toBeVisible();
 
-  const point = await railPoint(page, JULY);
+  const point = await railPoint(page, JULY, 0.55);
   await page.mouse.move(point.x, point.y);
   const bubble = page.getByTestId('date-rail-bubble');
-  await expect(bubble).toHaveText(/July 2025\s*10 photos/);
+  await expect(bubble).toHaveText(/Tuesday 15 July 2025\s*1 photo$/);
   const bubbleBox = await bubble.boundingBox();
   const railBox = await rail.boundingBox();
   expect((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0)).toBeLessThan(railBox?.x ?? 0);
@@ -146,6 +146,42 @@ test('the rail scrolls inside a library that spans one month', async ({ page }) 
   await page.mouse.click(box.x + box.width / 2, track.y + track.height * 0.76);
   await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
   await expect(page.locator('[data-name="IMG_0001.ARW"]')).not.toBeInViewport();
+});
+
+test('the rail seeks photos deep inside a month larger than the loaded window', async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installMocks(page, { assets: ONE_MONTH });
+  const log = await smallPages(page, 20);
+  await page.goto('/photos');
+  const rail = page.getByRole('slider', { name: 'Timeline' });
+  await expect(rail).toHaveAttribute('aria-valuetext', 'October 2026');
+  const box = await rail.boundingBox();
+  const track = await page.getByTestId('date-rail-track').boundingBox();
+  if (!box || !track) throw new Error('no rail');
+  const clickAt = (within: number) =>
+    page.mouse.click(box.x + box.width / 2, track.y + track.height * within);
+  const markAt = async (): Promise<number> => {
+    const mark = await page.getByTestId('date-rail-mark').boundingBox();
+    return ((mark?.y ?? 0) + (mark?.height ?? 0) / 2 - track.y) / track.height;
+  };
+
+  await page.mouse.move(box.x + box.width / 2, track.y + track.height * 0.76);
+  await expect(page.getByTestId('date-rail-bubble')).toHaveText(/^Saturday 10 October\s*5 photos$/);
+  await clickAt(0.76);
+  await expect(page.locator(`[data-name="${DEEP}"]`)).toBeInViewport();
+  await expect(page.locator('[data-name="IMG_0001.ARW"]')).toHaveCount(0);
+  expect(log.locates.at(-1)).toMatchObject({ month: '2026-10' });
+  expect(Math.abs(Number(log.locates.at(-1)?.offset) - 91)).toBeLessThanOrEqual(1);
+  await expect.poll(markAt).toBeGreaterThan(0.6);
+
+  await clickAt(0.4);
+  await expect(page.locator('[data-name="IMG_0049.ARW"]')).toBeInViewport();
+  await expect(page.locator(`[data-name="${DEEP}"]`)).not.toBeInViewport();
+  expect(Math.abs(Number(log.locates.at(-1)?.offset) - 48)).toBeLessThanOrEqual(1);
+  await expect.poll(markAt).toBeLessThan(0.55);
+  await expect.poll(markAt).toBeGreaterThan(0.25);
 });
 
 test('the grid keeps its tile sizes while the month counts load', async ({ page }) => {
@@ -269,7 +305,7 @@ test('the editor round trip after a jump returns to the same photos without pagi
 });
 
 test.describe('touch scrubber', () => {
-  test('@touch dragging the thumb shows the month and jumps on release', async ({ page }) => {
+  test('@touch dragging the thumb shows the day and jumps on release', async ({ page }) => {
     await open(page, '/photos', { assets: ASSETS });
     const log = await smallPages(page, 30);
     await page.reload();
@@ -288,7 +324,7 @@ test.describe('touch scrubber', () => {
     for (let step = 1; step <= 8; step += 1) {
       await touchMoveTo(page, { x: start.x, y: start.y + ((target.y - start.y) * step) / 8 });
     }
-    await expect(page.getByTestId('date-thumb-bubble')).toHaveText('July 2025');
+    await expect(page.getByTestId('date-thumb-bubble')).toHaveText('Sunday 20 July 2025');
     await expect(page.getByTestId('date-thumb-track')).toContainText('2025');
     await touchUp(page);
 

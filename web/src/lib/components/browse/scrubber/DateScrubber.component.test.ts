@@ -17,7 +17,8 @@ const api = vi.hoisted(() => ({
       { month: '2025-07', count: 1 }
     ]
   })),
-  searchFirst: vi.fn(async (): Promise<string | null> => null)
+  searchLocate: vi.fn(async (): Promise<string | null> => null),
+  searchCounts: vi.fn(async (): Promise<number[]> => [])
 }));
 
 vi.mock('#lib/api/search.ts', () => api);
@@ -115,11 +116,13 @@ describe('DateScrubber', () => {
     rail?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     flushSync();
     expect(rail?.getAttribute('aria-valuetext')).toBe('July 2025');
-    expect(api.searchFirst).not.toHaveBeenCalled();
+    expect(api.searchLocate).not.toHaveBeenCalled();
     rail?.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', bubbles: true }));
-    expect(api.searchFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ takenBefore: '2025-07-31T23:59:59.999Z' }),
-      expect.objectContaining({ field: 'taken' })
+    expect(api.searchLocate).toHaveBeenCalledWith(
+      expect.objectContaining({ filename: expect.any(String) }),
+      'desc',
+      '2025-07',
+      0
     );
   });
 });

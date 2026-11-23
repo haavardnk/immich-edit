@@ -37,16 +37,24 @@ export function monthlyShots(months: number, perMonth: number): Shot[] {
   return shots;
 }
 
-export type PageLog = { windows: Record<string, unknown>[]; metadata: Record<string, unknown>[] };
+export type PageLog = {
+  windows: Record<string, unknown>[];
+  metadata: Record<string, unknown>[];
+  locates: Record<string, unknown>[];
+};
 
 export async function smallPages(page: Page, size: number): Promise<PageLog> {
-  const log: PageLog = { windows: [], metadata: [] };
+  const log: PageLog = { windows: [], metadata: [], locates: [] };
   const cap = (value: unknown): number => Math.min(size, typeof value === 'number' ? value : size);
   await page.route('**/api/search/metadata', async (route) => {
     const body = (route.request().postDataJSON() as Record<string, unknown>) ?? {};
     log.metadata.push(body);
     if (body.size === 1) return route.fallback();
     return route.fallback({ postData: JSON.stringify({ ...body, size }) });
+  });
+  await page.route('**/api/search/locate', async (route) => {
+    log.locates.push((route.request().postDataJSON() as Record<string, unknown>) ?? {});
+    return route.fallback();
   });
   await page.route('**/api/search/window', async (route) => {
     const body = (route.request().postDataJSON() as Record<string, unknown>) ?? {};

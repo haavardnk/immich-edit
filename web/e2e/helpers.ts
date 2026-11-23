@@ -540,6 +540,31 @@ export async function installMocks(
     };
   };
 
+  const searchLocate = (body: Record<string, unknown>) => {
+    const sort = { field: 'taken', direction: body.direction === 'asc' ? 'asc' : 'desc' };
+    const month = String(body.month);
+    const inMonth = masterRuns(matching({ ...body, sort, size: undefined }, assets)).filter(
+      (run) => new Date(run[0]?.fileCreatedAt ?? 0).toISOString().slice(0, 7) === month
+    );
+    const offset = typeof body.offset === 'number' ? body.offset : 0;
+    return { assetId: inMonth[Math.min(offset, inMonth.length - 1)]?.[0]?.id ?? null };
+  };
+
+  const searchCounts = (body: Record<string, unknown>) => {
+    const edges = (Array.isArray(body.edges) ? body.edges : []).map((edge) =>
+      Date.parse(String(edge))
+    );
+    const taken = matching({ ...body, sort: undefined, size: undefined }, assets)
+      .filter((a) => !a.copyOf)
+      .map((a) => Date.parse(a.fileCreatedAt));
+    return {
+      counts: edges.slice(1).map((end, at) => {
+        const start = edges[at] ?? end;
+        return taken.filter((t) => t >= start && t < end).length;
+      })
+    };
+  };
+
   await page.route('**/api/**', async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -625,6 +650,16 @@ export async function installMocks(
     if (p === '/api/search/window') {
       return route.fulfill(
         json(searchWindow((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
+    }
+    if (p === '/api/search/counts') {
+      return route.fulfill(
+        json(searchCounts((req.postDataJSON() as Record<string, unknown>) ?? {}))
+      );
+    }
+    if (p === '/api/search/locate') {
+      return route.fulfill(
+        json(searchLocate((req.postDataJSON() as Record<string, unknown>) ?? {}))
       );
     }
     if (p === '/api/search/months') {

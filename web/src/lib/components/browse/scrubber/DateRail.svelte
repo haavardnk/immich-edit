@@ -1,6 +1,7 @@
 <script lang="ts">
   import { trackFraction, type DateScrub } from '#lib/browse/dateScrub.svelte.ts';
-  import { monthCountLabel, monthLabel, railMarks } from '#lib/browse/scrubberModel.ts';
+  import { railMarks } from '#lib/browse/scrubberModel.ts';
+  import { scrubLabel } from '#lib/browse/scrubDays.ts';
   import { pointerDrag } from '#lib/gestures/drag.ts';
   import { observeSize } from '#lib/actions/observeSize.ts';
 
@@ -14,6 +15,7 @@
 
   const marks = $derived(railMarks(scrub.model, height, 24, 10));
   const hovered = $derived(scrub.month(scrub.preview));
+  const label = $derived(scrubLabel(scrub.previewDay, hovered));
 
   function measure(): void {
     height = track?.clientHeight ?? 0;
@@ -71,7 +73,7 @@
         style:top="{scrub.markAt * 100}%"
       ></span>
     {/if}
-    {#if scrub.previewAt !== null && hovered}
+    {#if scrub.previewAt !== null && label}
       <span
         class="absolute right-0 h-0.5 w-13 -translate-y-1/2 bg-light-950"
         style:top="{scrub.previewAt * 100}%"
@@ -81,9 +83,9 @@
         class="pointer-events-none absolute right-14.5 -translate-y-1/2 rounded-lg bg-light-50 px-3 py-1.5 text-label font-medium whitespace-nowrap text-light-950 shadow-popover ring-1 ring-hairline"
         style:top="{scrub.previewAt * 100}%"
       >
-        {monthLabel(hovered.month)}<small class="ms-1.5 text-xs font-normal text-dark/65">
-          {monthCountLabel(hovered)}
-        </small>
+        {label.title}{#if label.count}<small class="ms-1.5 text-xs font-normal text-dark/65">
+            {label.count}
+          </small>{/if}
       </span>
     {/if}
   </div>
