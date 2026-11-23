@@ -1,0 +1,10 @@
+{
+  "latest": null,
+  "versions": [
+    {
+      "id": "main",
+      "label": "main (dev)",
+      "base": "/main"
+    }
+  ]
+}
