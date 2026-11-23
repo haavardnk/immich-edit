@@ -382,7 +382,7 @@ export async function installMocks(
       localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
     });
   }
-  const assets = opts.assets ?? [ASSET_SUMMARY];
+  const assets = structuredClone(opts.assets ?? [ASSET_SUMMARY]);
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets = [...(opts.exportPresets ?? [])];
