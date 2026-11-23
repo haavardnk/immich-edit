@@ -89,7 +89,7 @@ const tags = entries
   }));
 const versions = [...tags];
 if (entries.some((d) => d.name === "main")) {
-  versions.push({ id: "main", label: "main (dev)", base: `${rootBase}/main` });
+  versions.push({ id: "main", label: "main (edge)", base: `${rootBase}/main` });
 }
 fs.writeFileSync(
   path.join(dir, "versions.json"),
