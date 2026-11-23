@@ -4,6 +4,7 @@ import {
   resolveAssets,
   type GeoLocation
 } from '#lib/browse/locationOps.ts';
+import { locationClipboard } from '#lib/stores/locationClipboard.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 
@@ -15,12 +16,12 @@ export interface LocationRequest {
 class LocationPickerStore {
   request = $state<LocationRequest | null>(null);
   saving = $state(false);
-  copied = $state<GeoLocation | null>(null);
 
   open = (assets: readonly AssetSummary[]): void => {
     if (assets.length === 0) return;
     const start =
-      assets.map((asset) => locationOf(asset.exifInfo)).find((at) => at !== null) ?? this.copied;
+      assets.map((asset) => locationOf(asset.exifInfo)).find((at) => at !== null) ??
+      locationClipboard.copied;
     this.request = { assets: [...assets], start };
   };
 
@@ -45,14 +46,6 @@ class LocationPickerStore {
     } finally {
       this.saving = false;
     }
-  };
-
-  copy = (asset: AssetSummary): void => {
-    this.copied = locationOf(asset.exifInfo);
-  };
-
-  paste = async (assets: readonly AssetSummary[]): Promise<void> => {
-    if (this.copied) await applyLocation(assets, this.copied);
   };
 }
 

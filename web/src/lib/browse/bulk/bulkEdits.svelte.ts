@@ -1,8 +1,8 @@
 import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+import type { BulkMenuAction, BulkMenuRow } from '#lib/browse/bulk/bulkMenu.ts';
 import { fileStem } from '#lib/browse/bulk/bulkRules.ts';
 import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
 import { copyEditsFrom } from '#lib/browse/copyPaste.ts';
-import type { KeybindId } from '#lib/shortcuts/table.ts';
 import { clipboard, NO_EDITS_TO_COPY, NOTHING_COPIED } from '#lib/stores/clipboard.svelte.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
@@ -16,18 +16,6 @@ import {
 
 export const SELECT_ONE_PHOTO = 'Select one photo';
 
-export interface BulkEditRow {
-  label: string;
-  icon: string;
-  bind: KeybindId | null;
-  detail: string | null;
-  disabled: boolean;
-}
-
-export interface BulkEditAction extends BulkEditRow {
-  run: () => void;
-}
-
 function copyReason(id: string | null): string | null {
   if (id === null) return SELECT_ONE_PHOTO;
   return editedThumbs.getHash(id) === undefined ? NO_EDITS_TO_COPY : null;
@@ -40,7 +28,7 @@ class BulkEdits {
   readonly #copyReason = $derived(copyReason(this.#copyId));
   readonly #edited = $derived([...selection.selected].some((id) => editedThumbs.has(id)));
 
-  readonly applyPreset: BulkEditRow = $derived({
+  readonly applyPreset: BulkMenuRow = $derived({
     label: 'Apply preset',
     icon: mdiViewGridPlusOutline,
     bind: null,
@@ -48,7 +36,7 @@ class BulkEdits {
     disabled: this.#blocked
   });
 
-  readonly paste: BulkEditAction = $derived({
+  readonly paste: BulkMenuAction = $derived({
     label: 'Paste edits',
     icon: mdiContentPaste,
     bind: 'pasteEdits',
@@ -57,7 +45,7 @@ class BulkEdits {
     run: () => void bulkActions.paste()
   });
 
-  readonly pasteOnly: BulkEditAction = $derived({
+  readonly pasteOnly: BulkMenuAction = $derived({
     label: 'Paste only…',
     icon: mdiClipboardCheckOutline,
     bind: 'pasteOnly',
@@ -66,7 +54,7 @@ class BulkEdits {
     run: bulkActions.pasteOnly
   });
 
-  readonly copy: BulkEditAction = $derived({
+  readonly copy: BulkMenuAction = $derived({
     label: 'Copy edits',
     icon: mdiContentCopy,
     bind: 'copyEdits',
@@ -77,7 +65,7 @@ class BulkEdits {
     }
   });
 
-  readonly reset: BulkEditAction = $derived({
+  readonly reset: BulkMenuAction = $derived({
     label: 'Reset edits',
     icon: mdiRestore,
     bind: null,

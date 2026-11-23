@@ -3,12 +3,11 @@
   import MenuRow from '#lib/components/MenuRow.svelte';
   import Popover from '#lib/components/Popover.svelte';
   import BulkEditsMenu from '#lib/components/browse/bulk/BulkEditsMenu.svelte';
+  import BulkLocationMenu from '#lib/components/browse/bulk/BulkLocationMenu.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
-  import { locationPicker } from '#lib/stores/locationPicker.svelte.ts';
-  import { selection } from '#lib/stores/selection.svelte.ts';
   import { Icon, IconButton } from '@immich/ui';
   import {
     mdiChevronRight,
@@ -44,6 +43,7 @@
 
   let menu = $state(false);
   let edits = $state<'bar' | 'menu' | null>(null);
+  let location = $state<'bar' | 'menu' | null>(null);
 
   const scope = bulkScope;
   const actions = bulkActions;
@@ -81,14 +81,10 @@
     run: () => onBand(band === 'albums' ? null : 'albums')
   });
 
-  const locationTool: Tool = $derived({
-    label: 'Location',
-    tooltip: 'Set location',
-    icon: mdiMapMarkerOutline,
-    ownerOnly: true,
-    disabled: actions.metaBusy,
-    run: () => void locationPicker.openIds([...selection.selected])
-  });
+  function openLocation(where: 'bar' | 'menu', open: boolean): void {
+    if (open && !actions.ownedOrExplain()) return;
+    location = open ? where : null;
+  }
 
   function pick(tool: Tool): void {
     menu = false;
@@ -99,6 +95,7 @@
   function setMenu(open: boolean): void {
     menu = open;
     if (!open && edits === 'menu') edits = null;
+    if (!open && location === 'menu') location = null;
   }
 </script>
 
@@ -161,7 +158,26 @@
   </BulkEditsMenu>
   {@render barTool(tagsTool)}
   {@render barTool(albumsTool)}
-  {@render barTool(locationTool)}
+  <DisabledReason locked={shared} reason={scope.notOwnedReason} class="flex">
+    <BulkLocationMenu
+      open={location === 'bar'}
+      onOpenChange={(open) => openLocation('bar', open)}
+      tooltip="Location"
+    >
+      {#snippet trigger(props)}
+        <IconButton
+          {...props}
+          size="medium"
+          variant={location === 'bar' ? 'filled' : 'ghost'}
+          color={location === 'bar' ? 'primary' : 'secondary'}
+          icon={mdiMapMarkerOutline}
+          title=""
+          aria-label="Location"
+          disabled={actions.metaBusy || shared}
+        />
+      {/snippet}
+    </BulkLocationMenu>
+  </DisabledReason>
 </div>
 <Popover
   open={menu}
@@ -206,6 +222,26 @@
     </BulkEditsMenu>
     {@render row(tagsTool)}
     {@render row(albumsTool)}
-    {@render row(locationTool)}
+    <BulkLocationMenu
+      open={location === 'menu'}
+      anchor="right"
+      onOpenChange={(open) => openLocation('menu', open)}
+      onDone={() => (menu = false)}
+    >
+      {#snippet trigger(props)}
+        <MenuRow
+          {...props}
+          icon={mdiMapMarkerOutline}
+          label="Location"
+          aria-label="Location"
+          class={shared ? 'opacity-50' : ''}
+          aria-disabled={shared || undefined}
+          pressed={location === 'menu'}
+          disabled={actions.metaBusy}
+        >
+          <Icon icon={mdiChevronRight} size="14px" class="shrink-0 opacity-70" aria-hidden="true" />
+        </MenuRow>
+      {/snippet}
+    </BulkLocationMenu>
   </div>
 </Popover>
