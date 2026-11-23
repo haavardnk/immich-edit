@@ -21,6 +21,7 @@
   --sl-color-accent-low: rgba(183, 161, 251, 0.14);
   --sl-color-accent: #b7a1fb;
   --sl-color-accent-high: #ddd2fe;
+  --sl-color-text-invert: #0b0b0d;
 
   --sl-color-banner-bg: #1d1b24;
   --sl-color-banner-text: #fafafa;
@@ -44,12 +45,28 @@
   --sl-color-hairline: rgba(24, 24, 27, 0.09);
   --sl-color-hairline-light: rgba(24, 24, 27, 0.09);
 
-  --sl-color-accent-low: rgba(109, 74, 255, 0.1);
+  --sl-color-accent-low: rgba(109, 74, 255, 0.12);
   --sl-color-accent: #6d4aff;
   --sl-color-accent-high: #4c2fd6;
+  --sl-color-text-invert: #ffffff;
 
   --sl-color-banner-bg: #f0ecff;
   --sl-color-banner-text: #27272a;
+}
+
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover,
+.sidebar-content a[aria-current='page']:focus {
+  background-color: var(--sl-color-accent-low);
+  color: var(--sl-color-accent);
+  font-weight: 600;
+}
+
+:root[data-theme='light'] .sidebar-content a[aria-current='page'],
+:root[data-theme='light'] .sidebar-content a[aria-current='page']:hover,
+:root[data-theme='light'] .sidebar-content a[aria-current='page']:focus {
+  background-color: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
 }
 
 .site-title {

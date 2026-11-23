@@ -15,6 +15,12 @@ geotagged library and assign missing locations.
   and portrait tablets, drag the bottom sheet up to browse them.
 - Open any photo in the loupe or editor and return directly to your map position.
 
+<!-- SCREENSHOT: capture.cjs map-desktop + compose.cjs map-desktop -->
+![Desktop map view with date filter, photo clusters, and photos-in-view panel](../../../assets/shots/map-desktop.png)
+
+<!-- SCREENSHOT: capture.cjs map-phone + compose.cjs map-phone -->
+![Phone map view with clusters and expandable bottom sheet](../../../assets/shots/map-phone.png)
+
 ## Set or move locations
 
 Locations can be set or updated on photos you own (Immich does not support clearing GPS coordinates
@@ -29,6 +35,9 @@ in bulk, so a location can be moved but not removed):
   on touch).
 - **Copy and paste**: use **Copy location** and **Paste location** in **Photo info** to transfer
   coordinates between shots from the same spot.
+
+<!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
+![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)
 
 ## Tiles and privacy
 

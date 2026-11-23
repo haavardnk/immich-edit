@@ -19,6 +19,12 @@ without that section. Click a panel's modified dot to reset the whole panel.
    detected faces); **Auto Tone** adjusts tone only. On desktop, hover the histogram to drag
    **Blacks**, **Shadows**, **Exposure**, **Highlights**, and **Whites** directly.
 
+<!-- SCREENSHOT: capture.cjs develop-desktop + compose.cjs develop-desktop -->
+![Desktop Develop panel with Search settings, histogram, Quick pins, and tone sliders](../../../assets/shots/develop-desktop.png)
+
+<!-- SCREENSHOT: capture.cjs editor-phone + editor-phone-landscape + compose.cjs develop-touch -->
+![Phone Develop editor in portrait and landscape orientations](../../../assets/shots/develop-touch.png)
+
 ## Color, curves, and black & white
 
 - **Curves**: edit composite RGB, individual R/G/B channels, or Luma. Hold `Alt` while dragging for

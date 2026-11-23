@@ -13,6 +13,9 @@ Open **Settings** from the avatar menu. Press `/` inside Settings to search any 
 - **Diagnostics**: live server, GPU, browser renderer, codec, latency, cache, and redacted config
   status, with **Copy support bundle** for bug reports.
 
+<!-- SCREENSHOT: capture.cjs admin-desktop + compose.cjs admin-desktop -->
+![Settings Administration page showing Immich instance, Map settings, Users, and AI models](../../../assets/shots/admin-desktop.png)
+
 ## Users and security
 
 Users sign in with Immich (OAuth, password, or API key). Local edits, history, presets, jobs, and

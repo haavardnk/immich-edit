@@ -9,7 +9,7 @@ to Immich without touching originals.
 > [upgrade notes](https://haavardnk.github.io/immich-edit/hosting/backup-and-upgrade/) before
 > upgrading.
 
-![immich-edit on desktop, tablet, and phone](docs/image/banner-v0_8.png)
+![immich-edit on desktop, tablet, and phone](docs/src/assets/banner.png)
 
 ## Documentation
 

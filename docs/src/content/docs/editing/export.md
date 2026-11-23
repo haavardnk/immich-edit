@@ -20,6 +20,9 @@ files on the server, either for one photo or a grid selection.
   and 9-point placement.
 - **Filenames**: format output names with `{name}`, `{date}`, `{seq}`, and `{preset}` tokens.
 
+<!-- SCREENSHOT: capture.cjs export-desktop + compose.cjs export-desktop -->
+![Desktop Export panel with Immich upload toggle, file format options, and presets](../../../assets/shots/export-desktop.png)
+
 ## Destinations
 
 ### Upload to Immich
