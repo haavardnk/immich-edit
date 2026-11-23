@@ -2,7 +2,7 @@
   import type { CopyHints } from '#lib/editor/copyRows.ts';
   import { TOOL_LABELS, selectedTools, type CopyTool } from '#lib/editor/copyTools.ts';
   import { copyDialog } from '#lib/stores/copyDialog.svelte.ts';
-  import { Button } from '@immich/ui';
+  import Chip from '#lib/components/chips/Chip.svelte';
   import { mdiCheck, mdiHistory } from '@mdi/js';
 
   let { hints }: { hints: CopyHints } = $props();
@@ -20,24 +20,17 @@
 
 {#snippet chip(label: string, icon: string, tools: readonly CopyTool[], detail?: string)}
   {@const pressed = tools.length > 0 && only(tools)}
-  <Button
-    size="tiny"
-    shape="round"
-    variant="ghost"
-    color={pressed ? 'primary' : 'secondary'}
-    class="relative touch:before:absolute touch:before:inset-x-0 touch:before:-inset-y-1 h-7 shrink-0 gap-1 px-2.5 text-caption touch:h-9 touch:px-3 touch:text-label {pressed
-      ? 'bg-primary/15'
-      : 'bg-ghost'}"
-    leadingIcon={icon}
-    aria-pressed={pressed}
+  <Chip
+    {pressed}
+    {icon}
     disabled={tools.length === 0}
-    onclick={() => copyDialog.pickOnly(tools)}
+    onPressedChange={() => copyDialog.pickOnly(tools)}
   >
     {label}
     {#if detail}
       <span class="text-dark/65">· {detail}</span>
     {/if}
-  </Button>
+  </Chip>
 {/snippet}
 
 <div

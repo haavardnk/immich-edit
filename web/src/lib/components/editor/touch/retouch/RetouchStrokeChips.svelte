@@ -41,16 +41,16 @@
         {@const active = editor.activeRetouchId === stroke.id}
         <div
           data-stroke-id={stroke.id}
-          class="flex h-12 shrink-0 items-center rounded-xl border pe-1 transition-colors {active
-            ? 'border-primary bg-primary/10'
-            : 'border-transparent bg-ghost'}"
+          class="flex h-12 shrink-0 items-center rounded-xl pe-1 transition-colors {active
+            ? 'bg-primary/22 text-light-950'
+            : 'bg-ghost'}"
         >
           <Button
             type="button"
             size="medium"
             variant="ghost"
             color="secondary"
-            class="h-full gap-2 rounded-xl ps-3 pe-1.5 text-sm font-normal text-dark hover:bg-transparent {stroke.enabled
+            class="h-full gap-2 rounded-xl ps-3 pe-1.5 text-sm text-current hover:bg-transparent {stroke.enabled
               ? ''
               : 'opacity-50'}"
             leadingIcon={RETOUCH_MODE_ICON[stroke.mode]}

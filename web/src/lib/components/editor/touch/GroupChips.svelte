@@ -9,7 +9,9 @@
   import { Icon } from '@immich/ui';
   import { mdiPinOutline } from '@mdi/js';
   import { Tabs } from 'bits-ui';
-  import { CHIP, CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
+  import { chip as chipLook } from '#lib/components/chips/chipStyles.ts';
+  import { CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
+  import { twMerge } from '#lib/theme/tailwindMerge.ts';
   import { orderedTouchViews } from '#lib/stores/developSections.svelte.ts';
 
   let { grid = false, onretap }: { grid?: boolean; onretap?: () => void } = $props();
@@ -53,7 +55,10 @@
             event.stopPropagation();
             onretap();
           }}
-          class="{CHIP} {grid ? 'min-w-0 rounded-lg px-1 text-xs' : ''}"
+          class={twMerge(
+            chipLook,
+            grid && 'min-w-0 rounded-lg px-1 text-xs touch:px-1 touch:text-xs'
+          )}
         >
           {#if chip.id === QUICK_GROUP && !grid}
             <Icon icon={mdiPinOutline} size="16px" class="-me-0.5" aria-hidden="true" />

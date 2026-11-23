@@ -5,7 +5,8 @@
     positionOf,
     valueAt
   } from '#lib/components/editor/controls/relativeDrag.ts';
-  import { CHIP, CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
+  import { chip } from '#lib/components/chips/chipStyles.ts';
+  import { CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
   import Ruler from '#lib/components/editor/touch/Ruler.svelte';
   import { PERSPECTIVE, STRAIGHTEN } from '#lib/editor/params/geometry.ts';
   import type { ParamRange } from '#lib/editor/params/types.ts';
@@ -76,7 +77,7 @@
       {#each ORDER as id (id)}
         <Tabs.Trigger
           value={id}
-          class={CHIP}
+          class={chip}
           onpointerdown={() => hold(id)}
           onpointerup={() => releaseDial(editor)}
           onpointercancel={() => releaseDial(editor)}

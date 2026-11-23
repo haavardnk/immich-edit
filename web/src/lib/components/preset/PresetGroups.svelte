@@ -1,7 +1,8 @@
 <script lang="ts">
   import SearchField from '#lib/components/SearchField.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
-  import { CHIP, CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
+  import { chip } from '#lib/components/chips/chipStyles.ts';
+  import { CHIP_ROW } from '#lib/components/editor/touch/chips.ts';
   import { FAVOURITE_PRESETS, presetStrip } from '#lib/stores/presetStrip.svelte.ts';
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { Icon } from '@immich/ui';
@@ -16,7 +17,7 @@
   <Tabs.Root value={presetStrip.group} onValueChange={presetStrip.pick} activationMode="manual">
     <Tabs.List aria-label="Preset groups" class={CHIP_ROW}>
       {#each presetStrip.groupOptions as option (option.key)}
-        <Tabs.Trigger value={option.key} class={CHIP}>{option.label}</Tabs.Trigger>
+        <Tabs.Trigger value={option.key} class={chip}>{option.label}</Tabs.Trigger>
       {/each}
     </Tabs.List>
   </Tabs.Root>

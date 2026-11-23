@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import { chipRow, chipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chipMore, chipRow } from '#lib/components/chips/chipStyles.ts';
   import type { Snippet } from 'svelte';
 
   let {
@@ -35,7 +35,7 @@
     {@render chip(item)}
   {/each}
   {#if hidden > 0}
-    <button type="button" class={chipTone.more} onclick={() => (expanded = true)}>
+    <button type="button" class={chipMore} onclick={() => (expanded = true)}>
       +{hidden} more
     </button>
   {/if}

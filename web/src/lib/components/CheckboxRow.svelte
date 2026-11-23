@@ -25,7 +25,7 @@
   const id = $props.id();
   const looks = {
     row: 'touch:h-11 touch:gap-2.5 touch:text-label',
-    chip: 'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3 touch:text-label touch:text-dark'
+    chip: 'touch:h-9 touch:gap-2 touch:rounded-full touch:bg-ghost touch:px-3.5 touch:text-sm touch:font-medium touch:text-dark'
   };
 </script>
 

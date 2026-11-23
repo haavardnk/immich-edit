@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends string">
-  import { chipRow, chipTone, type ChipTone } from '#lib/components/chips/chipStyles.ts';
+  import { chip, chipFill, chipRow } from '#lib/components/chips/chipStyles.ts';
   import { Icon } from '@immich/ui';
   import { RadioGroup } from 'bits-ui';
   import type { Snippet } from 'svelte';
@@ -11,14 +11,14 @@
     value,
     label,
     onChange,
-    tone = 'value',
+    fill = false,
     children
   }: {
     options: readonly Option[];
     value: T;
     label: string;
     onChange: (value: T) => void;
-    tone?: Extract<ChipTone, 'value' | 'dense'>;
+    fill?: boolean;
     children?: Snippet;
   } = $props();
 
@@ -32,10 +32,10 @@
   bind:value={() => value, pick}
   orientation="horizontal"
   aria-label={label}
-  class={chipRow}
+  class={fill ? 'flex gap-1 touch:gap-1.5' : chipRow}
 >
   {#each options as option (option.value)}
-    <RadioGroup.Item value={option.value} class={chipTone[tone]}>
+    <RadioGroup.Item value={option.value} class={fill ? chipFill : chip}>
       {#if option.icon}
         <Icon icon={option.icon} size="1.15em" class="shrink-0" aria-hidden="true" />
       {/if}

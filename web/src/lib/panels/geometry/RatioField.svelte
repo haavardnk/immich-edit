@@ -46,8 +46,8 @@
   }
 </script>
 
-<div class="flex items-center gap-1.5">
-  <div class="w-36 min-w-0 shrink">
+<div class="flex items-center gap-1">
+  <div class="min-w-0 flex-1">
     <TextInput
       compact
       color="neutral"
