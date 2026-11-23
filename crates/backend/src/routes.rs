@@ -30,6 +30,7 @@ pub mod masks;
 #[cfg(feature = "ml")]
 pub mod models;
 pub mod people;
+pub mod places;
 pub mod preferences;
 pub mod presets;
 pub mod preview;

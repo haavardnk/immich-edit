@@ -6,6 +6,7 @@ import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { locationsMoved } from '#lib/map/locationMoves.ts';
 import { metadataConsent } from '#lib/stores/metadataConsent.svelte.ts';
+import { places } from '#lib/stores/places.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { ExifInfo } from '#lib/types/asset.ts';
@@ -123,6 +124,7 @@ export async function applyLocation(
     return false;
   }
   libraryChanged();
+  places.noteUse(to);
   toasts.push(
     'success',
     owned.length === 1 ? 'Location set' : `Location set for ${countOf(owned.length, 'photo')}`,

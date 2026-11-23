@@ -35,7 +35,7 @@ test('the location picker searches a place and saves it', async ({ page }) => {
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
   await expect(dialog).toContainText('2 photos');
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('bryg');
   await dialog
     .getByRole('list', { name: 'Places' })
@@ -44,7 +44,7 @@ test('the location picker searches a place and saves it', async ({ page }) => {
   await expect(
     dialog.getByRole('status').filter({ hasText: 'Bergen, Vestland, Norway' })
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Save' }).click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
   expect(writes).toEqual(
@@ -78,8 +78,8 @@ test('a selection on the map moves to its new location', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: /^(Set|Edit) location$/ });
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('geil');
   await dialog.getByRole('list', { name: 'Places' }).getByRole('button', { name: /Geilo/ }).click();
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
-  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(panel).not.toContainText('Oslo');
   await expect(panel).toContainText('Geilo');
@@ -261,7 +261,7 @@ test('a pasted map link places photos without a place search server', async ({ p
   await expect(
     dialog.getByRole('status').filter({ hasText: 'Bergen, Vestland, Norway' })
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Save' }).click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
   expect(writes).toEqual([{ ids: [ASSETS[4]!.id], latitude: 60.3913, longitude: 5.3221 }]);

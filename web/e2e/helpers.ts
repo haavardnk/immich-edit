@@ -22,6 +22,7 @@ import {
   type MockAlbumMember,
   type MockPerson
 } from './searchMocks';
+import { PlacesMock, type MockPlaces } from './placesMocks';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -317,6 +318,7 @@ export interface InstallOpts {
   touchSubviews?: { id: string; hidden: boolean }[] | null;
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
+  places?: MockPlaces | PlacesMock;
   metadataPushConsented?: boolean;
 }
 
@@ -388,6 +390,7 @@ export async function installMocks(
   const exportPresets = [...(opts.exportPresets ?? [])];
   const savedViews: MockSavedView[] = [...(opts.savedViews ?? [])];
   let savedViewSeq = savedViews.length;
+  const places = opts.places instanceof PlacesMock ? opts.places : new PlacesMock(opts.places);
   let appearance: MockAppearance = opts.appearance ?? DEFAULT_APPEARANCE;
   let preferences: Record<string, unknown> = {
     pinned_settings: opts.pinnedSettings === undefined ? [] : opts.pinnedSettings,
@@ -836,6 +839,7 @@ export async function installMocks(
         json((opts.mapPlaces ?? []).filter((place) => place.name.toLowerCase().includes(q)))
       );
     }
+    if (await places.handle(route, req, p, method)) return;
     if (p === '/api/map/reverse-geocode') {
       return route.fulfill(json(opts.placeName ?? null));
     }

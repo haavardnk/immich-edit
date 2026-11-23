@@ -41,6 +41,14 @@ in bulk, so a location can be moved but not removed):
   copied place lasts until you close the tab, and its coordinates also land on the system clipboard
   as text for other apps.
 
+## Saved and recent places
+
+- **Save a place**: in the location picker, select the star beside the place name, give it a
+  name and choose **Save place**. The star stays filled whenever the pin sits on a saved place.
+- **Use a place**: focus the search field to see your saved places and the last places you set,
+  or type part of a name. The **Location** menu in the bulk bar lists them too, so a selection
+  can be placed in one click.
+
 <!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
 ![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)
 
