@@ -1,4 +1,10 @@
-import { assetSummaries, reverseGeocode, setAssetLocation, type PlaceName } from '#lib/api/map.ts';
+import {
+  assetSummaries,
+  reverseGeocode,
+  setAssetLocation,
+  setAssetLocations,
+  type PlaceName
+} from '#lib/api/map.ts';
 import { withExif } from '#lib/browse/assetMeta.ts';
 import { ownsAsset } from '#lib/browse/ownership.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
@@ -68,21 +74,32 @@ async function write(ids: readonly string[], to: GeoLocation): Promise<void> {
   locationsMoved(sources.map((id) => ({ id, lat: to.lat, lon: to.lon, place: to.place })));
 }
 
-async function undo(previous: readonly Previous[], to: GeoLocation): Promise<void> {
+export interface Placement {
+  id: string;
+  to: GeoLocation;
+}
+
+async function writeEach(placements: readonly Placement[]): Promise<Set<string>> {
+  const bySource = new Map(placements.map((placement) => [sourceId(placement.id), placement]));
+  const { failed } = await setAssetLocations(
+    [...bySource].map(([id, { to }]) => ({ id, latitude: to.lat, longitude: to.lon }))
+  );
+  const refused = new Set(failed);
+  locationsMoved(
+    [...bySource]
+      .filter(([id]) => !refused.has(id))
+      .map(([id, { to }]) => ({ id, lat: to.lat, lon: to.lon, place: to.place }))
+  );
+  return refused;
+}
+
+async function undo(previous: readonly Previous[]): Promise<void> {
   const back = previous.flatMap(({ id, exif }) => {
     const before = locationOf(exif);
-    return before ? [{ id, before, exif }] : [];
+    return before ? [{ id, to: before, exif }] : [];
   });
-  const groups = new Map<string, { location: GeoLocation; ids: string[]; exif: Previous[] }>();
-  for (const { id, before, exif } of back) {
-    const key = `${before.lat},${before.lon}`;
-    const group = groups.get(key) ?? { location: before, ids: [], exif: [] };
-    group.ids.push(id);
-    group.exif.push({ id, exif });
-    groups.set(key, group);
-  }
   try {
-    for (const group of groups.values()) await write(group.ids, group.location);
+    if (back.length > 0) await writeEach(back);
   } catch (error) {
     toasts.fail('Undo location', error);
     return;
@@ -94,23 +111,65 @@ async function undo(previous: readonly Previous[], to: GeoLocation): Promise<voi
     toasts.push(
       'warn',
       `${countOf(kept, 'photo')} had no location before and ${kept === 1 ? 'keeps' : 'keep'} the new one`,
-      {
-        description: `Immich cannot remove a location. It stays at ${to.lat.toFixed(4)}, ${to.lon.toFixed(4)}.`
-      }
+      { description: 'Immich cannot remove a location.' }
     );
   }
+}
+
+async function ownedWithConsent(assets: readonly AssetSummary[]): Promise<LocationPlan | null> {
+  const plan = planLocation(assets);
+  if (plan.owned.length === 0) {
+    toasts.push('warn', 'Another Immich user owns these photos');
+    return null;
+  }
+  return (await metadataConsent.gate()) ? plan : null;
+}
+
+function refusedLine(refused: number): string | undefined {
+  return refused > 0 ? `${countOf(refused, 'photo')} owned by someone else kept theirs` : undefined;
+}
+
+export async function applyLocations(
+  assets: readonly AssetSummary[],
+  targets: ReadonlyMap<string, GeoLocation>
+): Promise<boolean> {
+  const plan = await ownedWithConsent(assets.filter((asset) => targets.has(asset.id)));
+  if (!plan) return false;
+  const previous: Previous[] = plan.owned.map((asset) => ({ id: asset.id, exif: asset.exifInfo }));
+  const placements = plan.owned.flatMap((asset) => {
+    const to = targets.get(asset.id);
+    return to ? [{ id: asset.id, to }] : [];
+  });
+  for (const { id, to } of placements) {
+    const asset = plan.owned.find((owned) => owned.id === id);
+    browsing.patch(id, { exifInfo: located(asset?.exifInfo ?? null, to) });
+  }
+  let failed: Set<string>;
+  try {
+    failed = await writeEach(placements);
+  } catch (error) {
+    restore(previous);
+    toasts.fail('Set locations', error);
+    return false;
+  }
+  restore(previous.filter(({ id }) => failed.has(sourceId(id))));
+  const written = previous.filter(({ id }) => !failed.has(sourceId(id)));
+  libraryChanged();
+  const refused = plan.refused + previous.length - written.length;
+  toasts.push('success', `Placed ${countOf(written.length, 'photo')}`, {
+    description: refusedLine(refused),
+    action: { label: 'Undo', run: () => void undo(written) }
+  });
+  return written.length > 0;
 }
 
 export async function applyLocation(
   assets: readonly AssetSummary[],
   to: GeoLocation
 ): Promise<boolean> {
-  const { owned, refused } = planLocation(assets);
-  if (owned.length === 0) {
-    toasts.push('warn', 'Another Immich user owns these photos');
-    return false;
-  }
-  if (!(await metadataConsent.gate())) return false;
+  const plan = await ownedWithConsent(assets);
+  if (!plan) return false;
+  const { owned, refused } = plan;
   const previous: Previous[] = owned.map((asset) => ({ id: asset.id, exif: asset.exifInfo }));
   for (const asset of owned) browsing.patch(asset.id, { exifInfo: located(asset.exifInfo, to) });
   try {
@@ -129,9 +188,8 @@ export async function applyLocation(
     'success',
     owned.length === 1 ? 'Location set' : `Location set for ${countOf(owned.length, 'photo')}`,
     {
-      description:
-        refused > 0 ? `${countOf(refused, 'photo')} owned by someone else kept theirs` : undefined,
-      action: { label: 'Undo', run: () => void undo(previous, to) }
+      description: refusedLine(refused),
+      action: { label: 'Undo', run: () => void undo(previous) }
     }
   );
   return true;

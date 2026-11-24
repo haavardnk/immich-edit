@@ -10,13 +10,21 @@ import {
   pasteLocationTo
 } from '#lib/browse/locationCopy.ts';
 import { locationOf, placeAt } from '#lib/browse/locationOps.ts';
+import { matchTrackFor } from '#lib/browse/trackEntry.ts';
 import type { RecentPlace, SavedPlace } from '#lib/api/places.ts';
 import { locationOfSpot } from '#lib/geotag/spots.ts';
 import { locationClipboard } from '#lib/stores/locationClipboard.svelte.ts';
 import { locationPicker } from '#lib/stores/locationPicker.svelte.ts';
 import { places } from '#lib/stores/places.svelte.ts';
 import { selection } from '#lib/stores/selection.svelte.ts';
-import { mdiContentCopy, mdiContentPaste, mdiHistory, mdiMapMarkerOutline, mdiStar } from '@mdi/js';
+import {
+  mdiContentCopy,
+  mdiContentPaste,
+  mdiHistory,
+  mdiMapMarkerOutline,
+  mdiMapMarkerPath,
+  mdiStar
+} from '@mdi/js';
 
 const MENU_SAVED = 5;
 const MENU_RECENT = 3;
@@ -83,6 +91,15 @@ class BulkLocation {
       };
     })
   );
+
+  readonly track: BulkMenuAction = $derived({
+    label: 'Match to a track…',
+    icon: mdiMapMarkerPath,
+    bind: null,
+    detail: null,
+    disabled: this.#blocked,
+    run: () => void matchTrackFor([...selection.selected])
+  });
 
   readonly copy: BulkMenuAction = $derived({
     label: 'Copy location',

@@ -1,4 +1,10 @@
-import { applyLocation, locationOf, planLocation } from '#lib/browse/locationOps.ts';
+import {
+  applyLocation,
+  applyLocations,
+  locationOf,
+  planLocation,
+  type GeoLocation
+} from '#lib/browse/locationOps.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
@@ -7,10 +13,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   setAssetLocation: vi.fn((_ids: string[], _lat: number, _lon: number) => Promise.resolve()),
+  setAssetLocations: vi.fn((_items: unknown[]) => Promise.resolve({ failed: [] as string[] })),
   consent: { value: true }
 }));
 
-vi.mock('#lib/api/map.ts', () => ({ setAssetLocation: h.setAssetLocation }));
+vi.mock('#lib/api/map.ts', () => ({
+  setAssetLocation: h.setAssetLocation,
+  setAssetLocations: h.setAssetLocations
+}));
 vi.mock('#lib/stores/metadataConsent.svelte.ts', () => ({
   metadataConsent: { gate: () => Promise.resolve(h.consent.value) }
 }));
@@ -38,6 +48,8 @@ function mine(
 beforeEach(() => {
   h.setAssetLocation.mockReset();
   h.setAssetLocation.mockResolvedValue();
+  h.setAssetLocations.mockReset();
+  h.setAssetLocations.mockResolvedValue({ failed: [] });
   h.consent.value = true;
   session.set({ id: ME, email: 'me@x', name: 'Me', is_admin: false, auth_kind: 'password' });
   toasts.items = [];
@@ -66,7 +78,39 @@ describe('location operations', () => {
     expect(toast?.message).toBe('Location set for 2 photos');
     toast?.action?.run();
     await vi.waitFor(() => expect(browsing.find('b')?.exifInfo?.city).toBe('Oslo'));
-    expect(h.setAssetLocation).toHaveBeenLastCalledWith(['b'], 59.9, 10.7);
+    expect(h.setAssetLocations).toHaveBeenLastCalledWith([
+      { id: 'b', latitude: 59.9, longitude: 10.7 }
+    ]);
+  });
+
+  it('places each photo at its own point and rolls back the ones Immich refused', async () => {
+    const a = mine('a');
+    const b = mine('b', { latitude: 59.9, longitude: 10.7, city: 'Oslo' });
+    const c = mine('c');
+    browsing.set([a, b, c]);
+    h.setAssetLocations.mockResolvedValueOnce({ failed: ['c'] });
+    const voss = { lat: 60.63, lon: 6.41, place: { city: 'Voss', state: null, country: null } };
+    const placed = await applyLocations(
+      [a, b, c],
+      new Map<string, GeoLocation>([
+        ['a', BERGEN],
+        ['b', voss],
+        ['c', voss]
+      ])
+    );
+    expect(placed).toBe(true);
+    expect(h.setAssetLocations).toHaveBeenCalledWith([
+      { id: 'a', latitude: 60.39, longitude: 5.32 },
+      { id: 'b', latitude: 60.63, longitude: 6.41 },
+      { id: 'c', latitude: 60.63, longitude: 6.41 }
+    ]);
+    expect(browsing.find('b')?.exifInfo?.city).toBe('Voss');
+    expect(browsing.find('c')?.exifInfo).toBeNull();
+    const toast = toasts.items.at(-1);
+    expect(toast?.message).toBe('Placed 2 photos');
+    expect(toast?.description).toBe('1 photo owned by someone else kept theirs');
+    toast?.action?.run();
+    await vi.waitFor(() => expect(browsing.find('b')?.exifInfo?.city).toBe('Oslo'));
   });
 
   it('puts the old values back when Immich refuses', async () => {

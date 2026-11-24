@@ -4,6 +4,7 @@ export interface ScreenPoint {
   x: number;
   y: number;
   width: number;
+  height: number;
 }
 
 export function followPoint(
@@ -13,7 +14,8 @@ export function followPoint(
 ): () => void {
   const place = (): void => {
     const projected = map.project([at.lon, at.lat]);
-    onPoint({ x: projected.x, y: projected.y, width: map.getContainer().clientWidth });
+    const box = map.getContainer();
+    onPoint({ x: projected.x, y: projected.y, width: box.clientWidth, height: box.clientHeight });
   };
   place();
   map.on('move', place);

@@ -121,3 +121,37 @@ export async function openStack(page: Page, writes: LocationWrite[] = []): Promi
 export function stack(page: Page) {
   return page.locator(`[data-map-cluster="2"], [data-map-photo="${STACK[0]!.id}"]`);
 }
+
+export async function pointOnMap(
+  page: Page,
+  lat: number,
+  lon: number
+): Promise<{ x: number; y: number }> {
+  let seen = '';
+  await expect
+    .poll(
+      async () => {
+        const at = new URL(page.url()).searchParams.get('at') ?? '';
+        const settled = at !== '' && at === seen;
+        seen = at;
+        return settled;
+      },
+      { intervals: [400] }
+    )
+    .toBe(true);
+  const [centerLat, centerLon, zoom] = seen.split(',').map(Number) as [number, number, number];
+  const world = 512 * 2 ** zoom;
+  const x = (value: number): number => ((value + 180) / 360) * world;
+  const y = (value: number): number => {
+    const rad = (value * Math.PI) / 180;
+    return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * world;
+  };
+  const box = (await page
+    .getByRole('region', { name: 'Map of your photos' })
+    .locator('canvas')
+    .boundingBox())!;
+  return {
+    x: box.x + box.width / 2 + x(lon) - x(centerLon),
+    y: box.y + box.height / 2 + y(lat) - y(centerLat)
+  };
+}

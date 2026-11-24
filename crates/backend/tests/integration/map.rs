@@ -289,6 +289,100 @@ async fn a_location_is_checked_before_immich() {
 }
 
 #[tokio::test]
+async fn per_photo_locations_group_photos_that_share_a_point() {
+    let server = MockServer::start().await;
+    let (a, b, c) = (
+        uuid::Uuid::from_u128(0xb1),
+        uuid::Uuid::from_u128(0xb2),
+        uuid::Uuid::from_u128(0xb3),
+    );
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .and(body_is(
+            json!({ "ids": [a, c], "latitude": 60.39, "longitude": 5.32 }),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .and(body_is(
+            json!({ "ids": [b], "latitude": 60.63, "longitude": 6.41 }),
+        ))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let body = json!({ "items": [
+        { "id": a, "latitude": 60.39, "longitude": 5.32 },
+        { "id": b, "latitude": 60.63, "longitude": 6.41 },
+        { "id": format!("{a}_1"), "latitude": 1.0, "longitude": 1.0 },
+        { "id": c, "latitude": 60.39, "longitude": 5.32 }
+    ] });
+    let (status, json) = send(&app, "PUT", "/api/assets/locations", Some(body)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json, json!({ "failed": [] }));
+}
+
+#[tokio::test]
+async fn per_photo_locations_report_the_photos_immich_refused() {
+    let server = MockServer::start().await;
+    let (mine, theirs) = (uuid::Uuid::from_u128(0xc1), uuid::Uuid::from_u128(0xc2));
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .and(body_is(
+            json!({ "ids": [theirs], "latitude": 2.0, "longitude": 2.0 }),
+        ))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({ "message": "no access" })))
+        .mount(&server)
+        .await;
+    Mock::given(method("PUT"))
+        .and(path("/api/assets"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let body = json!({ "items": [
+        { "id": mine, "latitude": 1.0, "longitude": 1.0 },
+        { "id": theirs, "latitude": 2.0, "longitude": 2.0 }
+    ] });
+    let (status, json) = send(&app, "PUT", "/api/assets/locations", Some(body)).await;
+    assert_eq!(status, StatusCode::OK, "{json}");
+    assert_eq!(json, json!({ "failed": [theirs] }));
+
+    let only = json!({ "items": [{ "id": theirs, "latitude": 2.0, "longitude": 2.0 }] });
+    let (status, _) = send(&app, "PUT", "/api/assets/locations", Some(only)).await;
+    assert!(status.is_client_error(), "{status}");
+}
+
+#[tokio::test]
+async fn per_photo_locations_are_checked_before_immich() {
+    let server = MockServer::start().await;
+    Mock::given(method("PUT"))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(0)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let asset = asset_id();
+    let item = json!({ "id": asset, "latitude": 1.0, "longitude": 1.0 });
+    for body in [
+        json!({ "items": [] }),
+        json!({ "items": [item, { "id": asset, "latitude": 91.0, "longitude": 1.0 }] }),
+        json!({ "items": [{ "id": asset, "latitude": 1.0 }] }),
+        json!({ "items": vec![item; 1001] }),
+        json!({ "ids": [asset] }),
+    ] {
+        let (status, _) = send(&app, "PUT", "/api/assets/locations", Some(body.clone())).await;
+        if !status.is_client_error() {
+            panic!("{body}: {status}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn summaries_keep_the_order_and_skip_photos_gone_from_immich() {
     let server = MockServer::start().await;
     let first = uuid::Uuid::from_u128(0xa1);
