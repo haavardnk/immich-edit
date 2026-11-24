@@ -12,7 +12,9 @@
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { FLY_MAX_MS } from '#lib/map/motion.ts';
   import { placePin } from '#lib/map/pin.ts';
+  import { PlaceStars } from '#lib/map/placeStars.ts';
   import { locationPicker, type LocationRequest } from '#lib/stores/locationPicker.svelte.ts';
+  import { places } from '#lib/stores/places.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiMapMarkerOutline } from '@mdi/js';
@@ -35,6 +37,7 @@
   let lib: typeof import('maplibre-gl') | null = null;
   let naming = 0;
   let pickedName = $state<string | null>(null);
+  let stars = $state.raw<PlaceStars | null>(null);
 
   const title = $derived(single && located === 1 ? 'Edit location' : 'Set location');
   const subtitle = single ? single.originalFileName : countOf(initial.assets.length, 'photo');
@@ -83,6 +86,10 @@
   function ready(target: MapLibreMap, maplibre: typeof import('maplibre-gl')): () => void {
     map = target;
     lib = maplibre;
+    const starLayer = new PlaceStars(target, maplibre, (place) =>
+      pickPlace({ name: place.name, detail: '', lat: place.lat, lon: place.lon })
+    );
+    stars = starLayer;
     if (touch) {
       target.on('moveend', () => {
         const center = target.getCenter();
@@ -96,6 +103,8 @@
       target.on('click', (event) => moveTo(event.lngLat.lat, event.lngLat.lng));
     }
     return () => {
+      starLayer.destroy();
+      stars = null;
       pin?.remove();
       pin = null;
       map = null;
@@ -111,6 +120,12 @@
   function save(): void {
     if (at) void locationPicker.save(at);
   }
+
+  $effect(() => {
+    const layer = stars;
+    const list = places.saved;
+    if (layer) untrack(() => layer.set(list));
+  });
 
   onMount(() => {
     void mapConfig.ensure().catch(() => undefined);

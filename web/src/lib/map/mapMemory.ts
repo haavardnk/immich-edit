@@ -7,11 +7,12 @@ export interface MapMemory {
   filter: MarkerFilter;
   tab: MapTab;
   panel: boolean | null;
+  stars: boolean;
 }
 
 const FILTER_KEYS = ['favorite', 'after', 'before'] as const;
 
-const FRESH: MapMemory = { view: null, filter: {}, tab: 'view', panel: null };
+const FRESH: MapMemory = { view: null, filter: {}, tab: 'view', panel: null, stars: true };
 
 export const mapMemory: MapMemory = { ...FRESH };
 

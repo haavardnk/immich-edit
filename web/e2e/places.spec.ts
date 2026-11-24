@@ -55,7 +55,7 @@ test('saved and recent places are offered before typing and place photos', async
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('vos');
   await expect(saved.getByRole('button')).toHaveText([/Hytta.*Voss/]);
   await saved.getByRole('button', { name: /Hytta/ }).click();
-  await expect(dialog.getByRole('button', { name: 'Saved place' })).toHaveAttribute(
+  await expect(dialog.getByRole('button', { name: 'Saved place', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
@@ -88,7 +88,7 @@ test('the star in the picker saves the spot as a named place', async ({ page }) 
   await name.press('Enter');
 
   await expect(page.getByText('Saved Bryggen')).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Saved place' })).toHaveAttribute(
+  await expect(dialog.getByRole('button', { name: 'Saved place', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true'
   );

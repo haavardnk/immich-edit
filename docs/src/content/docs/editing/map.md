@@ -48,6 +48,9 @@ in bulk, so a location can be moved but not removed):
 - **Use a place**: focus the search field to see your saved places and the last places you set,
   or type part of a name. The **Location** menu in the bulk bar lists them too, so a selection
   can be placed in one click.
+- **On the map**: saved places show as stars (toggle them with the star in the map header).
+  Photos dropped within a finger's width of a star land exactly on it, and selecting a star copies
+  its location or places the selected photos there.
 
 <!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
 ![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)
