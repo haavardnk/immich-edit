@@ -37,13 +37,16 @@ function tileOf(id: string): Tile | null {
   };
 }
 
+function backdropNow(): number {
+  const scrim = document.querySelector(SCRIM);
+  return scrim ? Number(getComputedStyle(scrim).opacity) : 1;
+}
+
 function snapshot(id: string): Shot | null {
   const image = [...document.querySelectorAll(SOURCE)].reverse().find(loaded);
   if (!image) return null;
   const box = containBox(boxOf(image), image.naturalWidth / image.naturalHeight);
-  const scrim = document.querySelector(SCRIM);
-  const backdrop = scrim ? Number(getComputedStyle(scrim).opacity) : 1;
-  return { id, box, picture: copyPicture(image), backdrop };
+  return { id, box, picture: copyPicture(image), backdrop: backdropNow() };
 }
 
 function hide(tile: Tile, motion: KeyframeAnimationOptions): void {
@@ -111,12 +114,27 @@ type Origin = { box: Box; backdrop: number; place: () => HTMLElement };
 function originOf(id: string, loupe: Shot | null): Origin | null {
   const handed = takePhoto(id);
   if (handed) {
-    return { box: handed.box, backdrop: 1, place: () => placeGhost(handed.picture, handed.box) };
+    const track = document.querySelector(TRACK);
+    const box = track ? containBox(boxOf(track), handed.ratio) : handed.box;
+    return { box, backdrop: 1, place: () => placeGhost(handed.picture, box) };
   }
   const shot = loupe ?? snapshot(id);
-  return shot
-    ? { box: shot.box, backdrop: shot.backdrop, place: () => placeGhost(shot.picture, shot.box) }
-    : null;
+  if (shot) {
+    return {
+      box: shot.box,
+      backdrop: shot.backdrop,
+      place: () => placeGhost(shot.picture, shot.box)
+    };
+  }
+  return fromTile(id);
+}
+
+function fromTile(id: string): Origin | null {
+  const tile = tileOf(id);
+  const track = document.querySelector(TRACK);
+  if (!tile || !track) return null;
+  const box = containBox(boxOf(track), tile.ratio);
+  return { box, backdrop: backdropNow(), place: () => ghost(tile.image, box) };
 }
 
 export function zoomOut(id: string): void {

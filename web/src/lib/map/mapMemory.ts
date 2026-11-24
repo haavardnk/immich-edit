@@ -1,6 +1,6 @@
 import type { MarkerFilter } from '#lib/api/map.ts';
 import { parseView, readMapFilter, type MapView } from '#lib/map/mapArea.ts';
-import type { MapTab } from '#lib/map/mapPage.svelte.ts';
+import { forgetMapPage, type MapTab } from '#lib/map/mapPage.svelte.ts';
 
 export interface MapMemory {
   view: MapView | null;
@@ -20,6 +20,7 @@ export const MAP_EXITS: ReadonlySet<string> = new Set(['/library']);
 
 export function forgetMap(): void {
   Object.assign(mapMemory, FRESH);
+  forgetMapPage();
 }
 
 export function mapStart(

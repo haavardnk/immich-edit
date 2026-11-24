@@ -29,3 +29,13 @@ describe('resumeId', () => {
     expect(resumeId(photos)).toBe('top');
   });
 });
+
+describe('gridPath', () => {
+  it('keeps the map list the same grid wherever the camera is', () => {
+    expect(gridPath(new URL('http://app.test/map?at=60.1,6.7,12.00&favorite=true'))).toBe(
+      '/map?favorite=true'
+    );
+    expect(gridPath(new URL('http://app.test/map?at=10.8,41.2,1.93'))).toBe('/map');
+    expect(gridPath(new URL('http://app.test/search?q=a%20b'))).toBe('/search?q=a%20b');
+  });
+});

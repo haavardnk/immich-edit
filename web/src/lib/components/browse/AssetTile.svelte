@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/state';
+  import { currentPath } from '#lib/utils/route.ts';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
   import StarRating from '#lib/components/StarRating.svelte';
@@ -96,7 +96,7 @@
         : 'opacity-0 group-hover:opacity-100 touch:hidden'
   );
   const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
-  const href = $derived(editorHref(asset.id, `${page.url.pathname}${page.url.search}`));
+  const href = $derived(editorHref(asset.id, currentPath()));
 
   function onClick(e: MouseEvent): void {
     if (held('extend', e)) {

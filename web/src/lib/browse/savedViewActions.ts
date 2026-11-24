@@ -8,14 +8,14 @@ import { browseControls, type SortFamily } from '#lib/stores/browseControls.svel
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { goto } from '$app/navigation';
-import { page } from '$app/state';
+import { currentPath, liveUrl } from '#lib/utils/route.ts';
 
 function familyOf(url: URL): SortFamily | null {
   return matchBrowseRoute(url)?.family ?? null;
 }
 
 export function currentViewUrl(): string | null {
-  const canonical = withFilterParams(page.url, browseControls.filters);
+  const canonical = withFilterParams(liveUrl(), browseControls.filters);
   const sorted = familyOf(canonical) !== null;
   return savedViewUrl(
     canonical.pathname + canonical.search,
@@ -30,10 +30,7 @@ export function currentViewName(title: string): string {
 
 export function isCurrentView(url: string): boolean {
   const target = parseSavedViewUrl(url);
-  return (
-    target !== null &&
-    savedViewPath(target.path) === savedViewPath(page.url.pathname + page.url.search)
-  );
+  return target !== null && savedViewPath(target.path) === savedViewPath(currentPath());
 }
 
 export async function openSavedView(url: string): Promise<void> {
@@ -43,7 +40,7 @@ export async function openSavedView(url: string): Promise<void> {
     return;
   }
   if (target.size) browseView.setGridSize(target.size);
-  const family = familyOf(new URL(target.path, page.url.href));
+  const family = familyOf(new URL(target.path, liveUrl().href));
   const current = isCurrentView(url);
   if (target.sort && family) {
     if (current) browseControls.applySort(target.sort, family);
