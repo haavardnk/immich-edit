@@ -16,6 +16,7 @@ export function unplacedFilter(filter: MarkerFilter): BrowseFilter {
   const dates = markerQuery(filter);
   return {
     visibility: 'timeline',
+    imagesOnly: true,
     country: [null],
     favorite: filter.favorite || undefined,
     takenAfter: dates.after,

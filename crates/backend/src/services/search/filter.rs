@@ -17,6 +17,8 @@ pub struct BrowseFilter {
     pub tags: IdSet,
     pub visibility: Option<Visibility>,
     pub images_only: bool,
+    #[serde(skip)]
+    pub videos_only: bool,
     pub rating: Option<RatingMatch>,
     pub filename: Option<String>,
     pub description: Option<String>,
@@ -74,6 +76,16 @@ impl BrowseFilter {
             [self.added_after, low].into_iter().flatten().max(),
             [self.added_before, high].into_iter().flatten().min(),
         )
+    }
+
+    pub fn asset_type(&self) -> Option<&'static str> {
+        if self.images_only {
+            Some("IMAGE")
+        } else if self.videos_only {
+            Some("VIDEO")
+        } else {
+            None
+        }
     }
 }
 

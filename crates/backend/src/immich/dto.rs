@@ -107,6 +107,10 @@ impl AssetDetail {
     pub fn owned_by_other(&self, user: Uuid) -> bool {
         self.owner_id.is_some_and(|owner| owner != user)
     }
+
+    pub fn is_image(&self) -> bool {
+        self.asset_type == "IMAGE"
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

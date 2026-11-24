@@ -14,6 +14,7 @@ pub mod suggestions;
 mod tags;
 pub mod window;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -29,7 +30,7 @@ pub use caches::SearchCaches;
 use cursor::Cursor;
 use filter::BrowseFilter;
 use ids::Ids;
-use query::{PageQuery, SmartQuery, SortField, check_size};
+use query::{MAX_SIZE, PageQuery, SmartQuery, Sort, SortField, check_size};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -188,6 +189,29 @@ impl Searcher {
         };
         let found = self.immich.search_metadata(&body).await?;
         Ok(found.items.into_iter().next())
+    }
+
+    pub async fn video_ids(&self, filter: BrowseFilter) -> Result<HashSet<Uuid>, AppError> {
+        let mut query = PageQuery {
+            filter: BrowseFilter {
+                images_only: false,
+                videos_only: true,
+                ..filter
+            },
+            sort: Sort::default(),
+            size: MAX_SIZE,
+            cursor: None,
+            with_exif: false,
+        };
+        let mut ids = HashSet::new();
+        loop {
+            let page = self.metadata_page(&query).await?;
+            ids.extend(page.items.iter().map(|asset| asset.id.source()));
+            let Some(cursor) = page.next_cursor else {
+                return Ok(ids);
+            };
+            query.cursor = Some(cursor);
+        }
     }
 
     async fn ids(&self, filter: &BrowseFilter) -> Result<Option<Ids>, AppError> {

@@ -3,7 +3,8 @@ use axum::body::Body;
 use axum::http::{HeaderValue, Request, StatusCode};
 use serde_json::json;
 use tower::ServiceExt;
-use wiremock::MockServer;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn luma_dc_quantizer(jpeg: &[u8]) -> u8 {
     let mut at = 2;
@@ -98,6 +99,37 @@ async fn live_previews_encode_lighter_than_persisted_ones() {
     let quantizers = (luma_dc_quantizer(&persisted), luma_dc_quantizer(&live));
     if quantizers != (2, 3) {
         panic!("expected quality 95 then 90 (luma DC 2 then 3), got {quantizers:?}");
+    }
+}
+
+#[tokio::test]
+async fn live_preview_rejects_a_video_as_unsupported() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_original(&server, id).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{id}")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": id,
+            "originalFileName": "clip.mp4",
+            "type": "VIDEO",
+            "originalMimeType": "video/mp4"
+        })))
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    let resp = app
+        .oneshot(json_request(
+            "POST",
+            &format!("/api/assets/{id}/preview"),
+            json!({"max_edge": 512}),
+        ))
+        .await
+        .unwrap();
+    let status = resp.status();
+    let body = body_json(resp).await;
+    if status != StatusCode::UNPROCESSABLE_ENTITY || body["code"] != "unsupported_format" {
+        panic!("{status}: {body}");
     }
 }
 

@@ -36,7 +36,7 @@ async fn folder_paths_come_from_the_upstream_view() {
 }
 
 #[tokio::test]
-async fn folder_assets_forward_the_requested_path() {
+async fn folder_assets_forward_the_requested_path_and_drop_videos() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/api/view/folder"))
@@ -47,6 +47,10 @@ async fn folder_assets_forward_the_requested_path() {
                 "id": asset_id(),
                 "originalFileName": "DSC0001.ARW",
                 "type": "IMAGE"
+            }, {
+                "id": uuid::Uuid::new_v4(),
+                "originalFileName": "clip.mp4",
+                "type": "VIDEO"
             }])),
         )
         .mount(&server)

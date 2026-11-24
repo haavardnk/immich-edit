@@ -1,12 +1,14 @@
 use axum::Json;
 use axum::extract::{Query, State};
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 use crate::immich::dto::{MapMarker, PlaceName};
 use crate::routes::auth::AuthCtx;
+use crate::routes::search::searcher;
 use crate::services::map::{Place, StyleSource, resolve_styles};
+use crate::services::search::filter::BrowseFilter;
 use crate::state::AppState;
 
 mod admin;
@@ -42,30 +44,47 @@ pub struct MarkerQuery {
     before: Option<String>,
 }
 
-fn instant(raw: Option<String>, label: &str) -> Result<Option<String>, AppError> {
+fn instant(raw: Option<String>, label: &str) -> Result<Option<DateTime<Utc>>, AppError> {
     raw.map(|value| {
         DateTime::parse_from_rfc3339(&value)
-            .map(|at| at.to_rfc3339())
+            .map(|at| at.with_timezone(&Utc))
             .map_err(|_| AppError::BadRequest(format!("{label} must be an RFC 3339 time")))
     })
     .transpose()
 }
 
 pub async fn markers(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Query(query): Query<MarkerQuery>,
 ) -> Result<Json<Vec<MapMarker>>, AppError> {
+    let filter = BrowseFilter {
+        favorite: query.favorite,
+        taken_after: instant(query.after, "after")?,
+        taken_before: instant(query.before, "before")?,
+        ..BrowseFilter::default()
+    };
     let mut params: Vec<(&str, String)> = Vec::new();
-    if query.favorite {
+    if filter.favorite {
         params.push(("isFavorite", "true".into()));
     }
-    if let Some(after) = instant(query.after, "after")? {
-        params.push(("fileCreatedAfter", after));
+    if let Some(after) = filter.taken_after {
+        params.push(("fileCreatedAfter", after.to_rfc3339()));
     }
-    if let Some(before) = instant(query.before, "before")? {
-        params.push(("fileCreatedBefore", before));
+    if let Some(before) = filter.taken_before {
+        params.push(("fileCreatedBefore", before.to_rfc3339()));
     }
-    Ok(Json(ctx.immich.map_markers(&params).await?))
+    let searcher = searcher(&state, &ctx).await;
+    let (markers, videos) = tokio::try_join!(
+        async { Ok::<_, AppError>(ctx.immich.map_markers(&params).await?) },
+        searcher.video_ids(filter),
+    )?;
+    Ok(Json(
+        markers
+            .into_iter()
+            .filter(|marker| !videos.contains(&marker.id))
+            .collect(),
+    ))
 }
 
 #[derive(Deserialize)]

@@ -29,7 +29,8 @@ export function runEditorRoute(id: () => string): void {
   });
 
   $effect(() => {
-    if (editor.previewUrl || editor.previewFrame || editor.error) untrack(releaseLoupe);
+    if (editor.previewUrl || editor.previewFrame || editor.error || editor.unsupported)
+      untrack(releaseLoupe);
   });
 
   $effect(() => {

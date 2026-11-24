@@ -2,7 +2,7 @@ use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::matchers::{body_json as body_is, method, path, query_param};
+use wiremock::matchers::{body_json as body_is, body_partial_json, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn send(
@@ -101,15 +101,33 @@ async fn map_settings_reject_half_or_bad_urls_and_non_admins() {
 }
 
 #[tokio::test]
-async fn markers_forward_the_favorite_and_date_filters() {
+async fn markers_forward_the_favorite_and_date_filters_and_drop_videos() {
     let server = MockServer::start().await;
+    let video = uuid::Uuid::new_v4();
     Mock::given(method("GET"))
         .and(path("/api/map/markers"))
         .and(query_param("isFavorite", "true"))
         .and(query_param("fileCreatedAfter", "2026-10-01T00:00:00+00:00"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-            { "id": asset_id(), "lat": 60.3975, "lon": 5.324, "city": "Bergen", "state": "Vestland", "country": "Norway" }
+            { "id": asset_id(), "lat": 60.3975, "lon": 5.324, "city": "Bergen", "state": "Vestland", "country": "Norway" },
+            { "id": video, "lat": 60.39, "lon": 5.32, "city": "Bergen", "state": "Vestland", "country": "Norway" }
         ])))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/search/metadata"))
+        .and(body_partial_json(json!({
+            "type": "VIDEO",
+            "isFavorite": true,
+            "takenAfter": "2026-10-01T00:00:00.000Z"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "assets": {
+                "items": [{ "id": video, "originalFileName": "clip.mp4", "type": "VIDEO" }],
+                "nextPage": null
+            }
+        })))
         .expect(1)
         .mount(&server)
         .await;
@@ -121,7 +139,11 @@ async fn markers_forward_the_favorite_and_date_filters() {
         None,
     )
     .await;
-    if status != StatusCode::OK || markers[0]["city"] != "Bergen" || markers[0]["lat"] != 60.3975 {
+    if status != StatusCode::OK
+        || markers.as_array().map(Vec::len) != Some(1)
+        || markers[0]["city"] != "Bergen"
+        || markers[0]["lat"] != 60.3975
+    {
         panic!("{status}: {markers}");
     }
     for bad in [

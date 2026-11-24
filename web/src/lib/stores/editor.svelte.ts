@@ -80,6 +80,8 @@ import type { RangeSample } from '#lib/editor/rangeSample.ts';
 import type { Rgb } from '#lib/utils/oklab.ts';
 import type { ColorSpaceOpt } from '#lib/api/export.ts';
 
+export const UNSUPPORTED_ASSET = "Videos can't be edited. Only photos are supported.";
+
 class EditorStore {
   assetId = $state<string | null>(null);
   asset = $state<AssetDetail | null>(null);
@@ -123,6 +125,7 @@ class EditorStore {
   asShotError = $state<string | null>(null);
   asShotKey: string | null = null;
   error = $state<string | null>(null);
+  unsupported = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
   editsPreview = $state.raw<EditsPreview | null>(null);
@@ -284,6 +287,10 @@ class EditorStore {
     try {
       const [a, s] = await Promise.all([getAsset(id), getEdits(id)]);
       this.asset = a;
+      if (a.type !== 'IMAGE') {
+        this.unsupported = UNSUPPORTED_ASSET;
+        return;
+      }
       this.edits = manifestToEdits(s.manifest);
       this.savedHash = s.hash;
       this.saves.begin(id, s.hash);
@@ -303,7 +310,7 @@ class EditorStore {
   };
 
   retryPreview = (): void => {
-    if (!this.assetId) return;
+    if (!this.assetId || this.unsupported) return;
     this.error = null;
     this.previews.live();
   };
@@ -315,6 +322,7 @@ class EditorStore {
     this.depthPreview.reset();
     void geometry.endSession(this);
     this.asset = null;
+    this.unsupported = null;
     this.meta = null;
     this.aiDenoise.reset();
     scopes.reset();

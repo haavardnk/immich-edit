@@ -35,8 +35,8 @@ pub fn filter(filter: &BrowseFilter, ids: &Ids) -> Map<String, Value> {
     if let Some(visibility) = filter.visibility {
         body.insert("visibility".into(), json!({ "eq": visibility }));
     }
-    if filter.images_only {
-        body.insert("type".into(), json!({ "eq": "IMAGE" }));
+    if let Some(kind) = filter.asset_type() {
+        body.insert("type".into(), json!({ "eq": kind }));
     }
     match filter.rating {
         Some(RatingMatch::Eq(stars)) => body.insert("rating".into(), json!({ "eq": stars })),

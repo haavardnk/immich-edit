@@ -117,10 +117,26 @@ async fn load(
     telemetry: &RenderTelemetry,
 ) -> FrameResult {
     let started = Instant::now();
-    let bytes = immich.original(source).await?;
+    let (bytes, ()) = tokio::try_join!(
+        async { Ok(immich.original(source).await?) },
+        require_image(immich, source),
+    )?;
     let fetched = started.elapsed();
     let started = Instant::now();
     let frame = decoder.decode(bytes).await?;
     telemetry.record_frame_load(fetched, started.elapsed());
     Ok(frame)
+}
+
+// Lookup failures fall through so the original download reports them; only a known
+// non-image stops it early instead of fetching a whole video to fail decoding.
+async fn require_image(immich: &ImmichClient, source: Uuid) -> Result<(), RenderError> {
+    match immich.asset(source).await {
+        Ok(asset) if !asset.is_image() => Err(PipelineError::Unsupported(format!(
+            "Only photos can be edited; this asset is a {}",
+            asset.asset_type.to_lowercase()
+        ))
+        .into()),
+        _ => Ok(()),
+    }
 }

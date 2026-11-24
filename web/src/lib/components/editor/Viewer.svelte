@@ -261,6 +261,8 @@
         </span>
       </div>
     {/if}
+  {:else if editor.unsupported}
+    <Notice color="info" message={editor.unsupported} class="text-sm" />
   {:else if editor.error}
     <Notice message={editor.error} class="text-sm">
       <Button

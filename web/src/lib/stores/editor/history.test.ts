@@ -29,7 +29,7 @@ vi.mock('#lib/api/preview.ts', async (original) => ({
   livePreview: mocks.livePreview
 }));
 
-import { editor } from '#lib/stores/editor.svelte.ts';
+import { editor, UNSUPPORTED_ASSET } from '#lib/stores/editor.svelte.ts';
 import { EditHistory } from '#lib/stores/editor/history.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
@@ -330,5 +330,22 @@ describe('history step replacement', () => {
     expect(history.replaceStep(second!, editsAt(2))).toBe(true);
     expect(history.push(editsAt(2))).toBeNull();
     expect(history.lastChange).toEqual({ before: editsAt(0), after: editsAt(2) });
+  });
+});
+
+describe('editor load', () => {
+  it('marks a video unsupported without starting a history or preview', async () => {
+    editor.unload();
+    mocks.livePreview.mockClear();
+    mocks.getAsset.mockResolvedValue({ ...asset(), type: 'VIDEO', originalMimeType: 'video/mp4' });
+    mocks.getEdits.mockResolvedValue(record('hash-0', 0));
+    await editor.load('asset-1');
+    expect(editor.unsupported).toBe(UNSUPPORTED_ASSET);
+    expect(editor.initialised).toBe(false);
+    expect(editor.canUndo).toBe(false);
+    editor.retryPreview();
+    expect(mocks.livePreview).not.toHaveBeenCalled();
+    editor.unload();
+    expect(editor.unsupported).toBeNull();
   });
 });
