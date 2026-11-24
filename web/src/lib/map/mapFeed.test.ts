@@ -22,6 +22,27 @@ describe('MapFeed', () => {
     expect(await feed.jumpTo('missing')).toBe(false);
   });
 
+  it('keeps the previous list in browsing until its first page arrives', async () => {
+    let release: () => void = () => undefined;
+    const load = vi.fn(
+      (page: readonly string[]) =>
+        new Promise<ReturnType<typeof asset>[]>((resolve) => {
+          release = () => resolve(page.map((id) => asset(id)));
+        })
+    );
+    const before = [asset('open')];
+    browsing.set(before);
+    const feed = new MapFeed(load);
+    const shown = feed.show(['open', 'b']);
+    expect(browsing.assets).toBe(before);
+    release();
+    await shown;
+    expect(browsing.assets).toBe(feed.assets);
+    await feed.show([]);
+    expect(browsing.assets).toBe(feed.assets);
+    expect(browsing.total).toBe(0);
+  });
+
   it('drops a page that lands after the view moved on', async () => {
     let release: () => void = () => undefined;
     const load = vi.fn(

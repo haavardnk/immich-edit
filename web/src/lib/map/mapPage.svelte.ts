@@ -96,3 +96,25 @@ export class MapPageState {
     this.picked = null;
   }
 }
+
+let kept: { state: MapPageState; release: () => void } | null = null;
+
+function sameFilter(a: MarkerFilter, b: MarkerFilter): boolean {
+  return JSON.stringify(markerQuery(a)) === JSON.stringify(markerQuery(b));
+}
+
+export function mapPageState(filter: MarkerFilter): MapPageState {
+  if (kept && sameFilter(kept.state.filter, filter)) return kept.state;
+  forgetMapPage();
+  let state: MapPageState | null = null;
+  const release = $effect.root(() => {
+    state = new MapPageState(filter);
+  });
+  kept = { state: state!, release };
+  return kept.state;
+}
+
+export function forgetMapPage(): void {
+  kept?.release();
+  kept = null;
+}

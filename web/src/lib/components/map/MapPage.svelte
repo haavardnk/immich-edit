@@ -28,7 +28,7 @@
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { MapDrops } from '#lib/map/mapDrops.ts';
   import { forgetMap, MAP_EXITS, mapMemory, mapStart } from '#lib/map/mapMemory.ts';
-  import { MapPageState } from '#lib/map/mapPage.svelte.ts';
+  import { mapPageState } from '#lib/map/mapPage.svelte.ts';
   import { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import { writeMapUrl } from '#lib/map/mapUrl.ts';
   import { PhotoMarkers } from '#lib/map/photoMarkers.ts';
@@ -58,7 +58,7 @@
 
   const start = mapStart(page.url.searchParams, mapMemory);
   const startView = start.view ?? WORLD_VIEW;
-  const map = new MapPageState(start.filter);
+  const map = mapPageState(start.filter);
   map.tab = mapMemory.tab;
   const tray = new MapTrayState();
   const lift = new SheetLift();
@@ -172,6 +172,7 @@
 
   afterNavigate((navigation) => {
     if (navigation.type === 'enter' || navigation.type === 'popstate') return;
+    if (navigation.from?.url.pathname !== navigation.to?.url.pathname) return;
     const at = navigation.to?.url.searchParams.get('at') ?? null;
     if (at === (navigation.from?.url.searchParams.get('at') ?? null)) return;
     const view = parseView(at);
@@ -278,6 +279,7 @@
   $effect(() => {
     if (tracking) return;
     if (map.tab === 'view') {
+      if (!map.loaded) return;
       const ids = map.shownIds;
       untrack(() => void map.feed.show(ids));
     } else {

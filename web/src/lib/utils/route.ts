@@ -17,8 +17,13 @@ export function onViewerRoute(): boolean {
   return isViewerPath(page.url.pathname);
 }
 
+export function liveUrl(): typeof page.url {
+  return page.shallow?.url ?? page.url;
+}
+
 export function currentPath(): string {
-  return `${page.url.pathname}${page.url.search}`;
+  const url = liveUrl();
+  return `${url.pathname}${url.search}`;
 }
 
 export function returnPath(): string | null {

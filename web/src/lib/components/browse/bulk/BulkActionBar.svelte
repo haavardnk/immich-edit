@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/state';
+  import { currentPath } from '#lib/utils/route.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
@@ -134,7 +134,7 @@
             icon={mdiImageEditOutline}
             tooltip={hint('Open in editor', 'openEditor')}
             aria-label="Open in editor"
-            href={editorHref(scope.single.id, `${page.url.pathname}${page.url.search}`)}
+            href={editorHref(scope.single.id, currentPath())}
           />
         {:else}
           {@render multiButton('compare')}
