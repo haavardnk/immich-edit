@@ -297,6 +297,7 @@ export interface InstallOpts {
   mapStyle?: string | null;
   mapSearch?: boolean;
   onLocation?: (body: { ids: string[]; latitude: number; longitude: number }) => void;
+  onLocations?: (items: { id: string; latitude: number; longitude: number }[]) => void;
   mapPlaces?: MockPlace[];
   placeName?: MockPlaceName | null;
   mapSettings?: MockMapSettings;
@@ -405,6 +406,24 @@ export async function installMocks(
   const tagList: MockTag[] = [...(opts.tags ?? [])];
   const assetTags = new Map<string, MockTag[]>();
   const mapMarkers: MockMapMarker[] = [...(opts.mapMarkers ?? [])];
+  function placeAsset(id: string, latitude: number, longitude: number): void {
+    const place = opts.placeName ?? null;
+    const asset = assets.find((a) => a.id === id);
+    if (asset) {
+      asset.exifInfo = {
+        ...asset.exifInfo,
+        latitude,
+        longitude,
+        city: place?.city ?? null,
+        state: place?.state ?? null,
+        country: place?.country ?? null
+      };
+    }
+    const marker = { id, lat: latitude, lon: longitude, ...place };
+    const index = mapMarkers.findIndex((m) => m.id === id);
+    if (index === -1) mapMarkers.push(marker);
+    else mapMarkers[index] = marker;
+  }
   let mapSettings: MockMapSettings = opts.mapSettings ?? {
     styleLight: null,
     styleDark: null,
@@ -850,27 +869,18 @@ export async function installMocks(
       }
       return route.fulfill(json(mapSettings));
     }
+    if (p === '/api/assets/locations' && method === 'PUT') {
+      const { items } = req.postDataJSON() as {
+        items: { id: string; latitude: number; longitude: number }[];
+      };
+      opts.onLocations?.(items);
+      for (const { id, latitude, longitude } of items) placeAsset(id, latitude, longitude);
+      return route.fulfill(json({ failed: [] }));
+    }
     if (p === '/api/assets/location' && method === 'PUT') {
       const body = req.postDataJSON() as { ids: string[]; latitude: number; longitude: number };
       opts.onLocation?.(body);
-      const place = opts.placeName ?? null;
-      for (const id of body.ids) {
-        const asset = assets.find((a) => a.id === id);
-        if (asset) {
-          asset.exifInfo = {
-            ...asset.exifInfo,
-            latitude: body.latitude,
-            longitude: body.longitude,
-            city: place?.city ?? null,
-            state: place?.state ?? null,
-            country: place?.country ?? null
-          };
-        }
-        const marker = { id, lat: body.latitude, lon: body.longitude, ...place };
-        const index = mapMarkers.findIndex((m) => m.id === id);
-        if (index === -1) mapMarkers.push(marker);
-        else mapMarkers[index] = marker;
-      }
+      for (const id of body.ids) placeAsset(id, body.latitude, body.longitude);
       return route.fulfill({ status: 204, body: '' });
     }
     if (p === '/api/people') {

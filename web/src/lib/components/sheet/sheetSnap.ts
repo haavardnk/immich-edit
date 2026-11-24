@@ -1,8 +1,13 @@
 import { DEFAULT_THRESHOLDS } from '#lib/gestures/thresholds.ts';
 
-export type Detent = number | { fraction: number } | 'content';
+export type Detent = number | { fraction: number } | { body: number } | 'content' | 'header';
 
-export type DetentSpace = { available: number; content: number };
+export type DetentSpace = {
+  available: number;
+  content: number;
+  header?: number;
+  footer?: number;
+};
 
 export type SheetFrame = { height: number; offset: number };
 
@@ -30,9 +35,14 @@ function clampTo(value: number, max: number): number {
   return Math.min(Math.max(0, value), Math.max(0, max));
 }
 
-function resolveDetent(detent: Detent, { available, content }: DetentSpace): number {
+function resolveDetent(
+  detent: Detent,
+  { available, content, header = 0, footer = 0 }: DetentSpace
+): number {
   if (detent === 'content') return clampTo(content, available * CONTENT_CAP);
+  if (detent === 'header') return clampTo(header, available);
   if (typeof detent === 'number') return clampTo(detent, available);
+  if ('body' in detent) return clampTo(header + detent.body + footer, available * CONTENT_CAP);
   return clampTo(detent.fraction, 1) * Math.max(0, available);
 }
 

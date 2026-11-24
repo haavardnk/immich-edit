@@ -36,4 +36,6 @@
   <BulkActionRow action={bulkLocation.copy} onPick={pick} />
   {@render section('Saved places', bulkLocation.saved)}
   {@render section('Recent', bulkLocation.recent)}
+  <div class="my-1 h-px bg-hairline touch:hidden" role="separator"></div>
+  <BulkActionRow action={bulkLocation.track} onPick={pick} />
 </div>

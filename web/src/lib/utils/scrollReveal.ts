@@ -14,6 +14,13 @@ export function revealWithin(element: HTMLElement, scroller: HTMLElement, margin
     scroller.scrollTop += box.bottom - view.bottom + margin;
 }
 
+export function centerWithin(element: HTMLElement, scroller: HTMLElement): void {
+  const box = element.getBoundingClientRect();
+  const view = scroller.getBoundingClientRect();
+  if (box.top >= view.top && box.bottom <= view.bottom) return;
+  scroller.scrollTop += box.top + box.height / 2 - (view.top + view.height / 2);
+}
+
 export function revealAcross(element: HTMLElement, scroller: HTMLElement, margin = 0): void {
   const box = element.getBoundingClientRect();
   const view = scroller.getBoundingClientRect();

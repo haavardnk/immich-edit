@@ -79,6 +79,16 @@ export function setAssetLocation(
   return sendJson('PUT', '/api/assets/location', { ids, latitude, longitude });
 }
 
+export interface LocatedAsset {
+  id: string;
+  latitude: number;
+  longitude: number;
+}
+
+export function setAssetLocations(items: readonly LocatedAsset[]): Promise<{ failed: string[] }> {
+  return sendJson('PUT', '/api/assets/locations', { items });
+}
+
 export function getMapSettings(): Promise<MapSettings> {
   return getJson('/api/admin/map-settings');
 }

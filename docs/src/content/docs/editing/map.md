@@ -55,6 +55,26 @@ in bulk, so a location can be moved but not removed):
 <!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
 ![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)
 
+## Match photos to a track
+
+Place a whole shoot from a GPX, KML or TCX track recorded by a watch, phone app or GPS logger.
+
+1. Select the photos and choose **Location** > **Match to a track**, or select **Match track** in
+   the map header to work on every photo taken during the track.
+2. Drop one or more track files on the map, or choose them. Files are read in your browser and never
+   uploaded; only the locations you place are saved to Immich.
+3. Line up the camera clock. **Best fit** proposes the correction that puts the most photos on the
+   track, and you can adjust it by the minute or hour or type it (`-1:02:14`). Photos that recorded a
+   time zone are matched exactly; the others are read in the zone where the track was recorded,
+   which you can change if the camera was set to another one. The proposed pins move along the
+   track as you change the clock.
+4. Check the list: each photo says whether it lands on the track or how far before, after or between
+   track points it was taken. **Match within** sets how far from a track point a photo may be.
+   Hover a pin on the map to see its photo beside the pointer and highlighted in the list; click the
+   pin or a row to open the photo in the loupe, where the arrow keys step through the track's photos.
+5. Select **Place** to save the locations. Photos that already have one keep it unless you tick
+   **Also move**. **Undo** in the notification puts the previous locations back.
+
 ## Tiles and privacy
 
 Map tiles follow Immich's map style by default (or a custom MapLibre style set by an administrator),

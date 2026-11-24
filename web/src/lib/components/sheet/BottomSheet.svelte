@@ -82,7 +82,12 @@
   const steppable = $derived(detents.length > 1);
   const current = $derived(Math.min(Math.max(0, detent), Math.max(0, detents.length - 1)));
   const heights = $derived(
-    resolveDetents(detents, { available, content: topHeight + bodyHeight + bottomHeight })
+    resolveDetents(detents, {
+      available,
+      content: topHeight + bodyHeight + bottomHeight,
+      header: topHeight,
+      footer: bottomHeight
+    })
   );
   const restHeight = $derived(available > 0 ? (heights[current] ?? 0) : 0);
   const detentText = $derived(

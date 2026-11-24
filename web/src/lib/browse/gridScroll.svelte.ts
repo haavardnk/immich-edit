@@ -1,4 +1,5 @@
 import { afterNavigate } from '$app/navigation';
+import { scrollParent } from '#lib/utils/scrollReveal.ts';
 import { flushSync, untrack } from 'svelte';
 import { observeSize } from '#lib/actions/observeSize.ts';
 import type { AssetGridBox } from '#lib/browse/assetGridLayout.ts';
@@ -31,16 +32,6 @@ export type GridScrollSource = {
   loadingMore: () => boolean;
   loadingPrevious: () => boolean;
 };
-
-function findScrollParent(el: HTMLElement): HTMLElement | null {
-  let parent = el.parentElement;
-  while (parent) {
-    const overflow = getComputedStyle(parent).overflowY;
-    if (overflow === 'auto' || overflow === 'scroll') return parent;
-    parent = parent.parentElement;
-  }
-  return null;
-}
 
 export class GridScroll {
   width = $state(0);
@@ -92,7 +83,7 @@ export class GridScroll {
     this.#key = path;
     browseView.setLastGridPath(path);
     this.#pending = browseView.getGridAnchor(path);
-    const parent = findScrollParent(root);
+    const parent = scrollParent(root);
     this.#parent = parent;
     const resize = parent ? observeSize(parent, this.onResize) : undefined;
     parent?.addEventListener('scroll', this.#onScroll, { passive: true });

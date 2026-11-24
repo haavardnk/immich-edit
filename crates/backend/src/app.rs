@@ -279,6 +279,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             get(routes::assets::detail).put(routes::assets::update),
         )
         .route("/assets/location", put(routes::assets::location))
+        .route("/assets/locations", put(routes::assets::locations))
         .route("/assets/summaries", post(routes::assets::summaries))
         .route("/map/config", get(routes::map::config))
         .route("/map/markers", get(routes::map::markers))
