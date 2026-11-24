@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::services::search::ids::IdSet;
+use crate::services::search::local_taken::LocalSpan;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
@@ -24,6 +25,7 @@ pub struct BrowseFilter {
     pub ocr: Option<String>,
     pub taken_after: Option<DateTime<Utc>>,
     pub taken_before: Option<DateTime<Utc>>,
+    pub taken_local: Option<LocalSpan>,
     #[serde(skip)]
     pub taken_until: Option<DateTime<Utc>>,
     pub rejected: Option<Rejected>,
@@ -66,6 +68,31 @@ impl BrowseFilter {
         .into_iter()
         .filter_map(|(field, text)| Some((field, text.as_deref()?.trim())))
         .filter(|(_, text)| !text.is_empty())
+    }
+
+    pub fn takes(
+        &self,
+        taken: DateTime<Utc>,
+        added: Option<DateTime<Utc>>,
+        updated: Option<DateTime<Utc>>,
+    ) -> bool {
+        let (added_after, added_before) = self.added_bounds();
+        let added_in = match added {
+            Some(at) => {
+                added_after.is_none_or(|after| at >= after)
+                    && added_before.is_none_or(|before| at <= before)
+            }
+            None => added_after.is_none() && added_before.is_none(),
+        };
+        let updated_in = match updated {
+            Some(at) => self.updated_after.is_none_or(|after| at >= after),
+            None => self.updated_after.is_none(),
+        };
+        self.taken_after.is_none_or(|after| taken >= after)
+            && self.taken_before.is_none_or(|before| taken <= before)
+            && self.taken_until.is_none_or(|until| taken < until)
+            && added_in
+            && updated_in
     }
 
     pub fn added_bounds(&self) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {

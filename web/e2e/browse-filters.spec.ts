@@ -252,6 +252,27 @@ test('resetting filters clears a typed date', async ({ page }) => {
   await expect(from.locator('[data-segment="month"]')).toHaveText('mm');
 });
 
+test('a picked day lists the photos whose own clock reads that day', async ({ page }) => {
+  const [morning, pastMidnight] = numberedAssets(2);
+  const assets = [
+    { ...morning, fileCreatedAt: '2025-03-18T05:00:00Z', localDateTime: '2025-03-18T08:00:00Z' },
+    {
+      ...pastMidnight,
+      fileCreatedAt: '2025-03-18T21:30:00Z',
+      localDateTime: '2025-03-19T00:30:00Z'
+    }
+  ];
+  const filters: unknown[] = [];
+  await installMocks(page, { assets, onMetadata: (body) => void filters.push(body.filter) });
+  await page.goto('/photos?after=2025-03-18&before=2025-03-18');
+  const tiles = page.locator('[role="group"] > a[href^="/assets/"]');
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toHaveAttribute('href', new RegExp(`^/assets/${morning.id}\\?`));
+  expect(filters.at(-1)).toMatchObject({
+    takenLocal: { from: '2025-03-18T00:00:00', until: '2025-03-19T00:00:00' }
+  });
+});
+
 for (const structuredSearch of [false, true]) {
   test(`rating operator follows structured search (${structuredSearch})`, async ({ page }) => {
     const bodies: Array<Record<string, unknown>> = [];

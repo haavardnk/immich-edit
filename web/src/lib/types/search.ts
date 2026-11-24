@@ -9,6 +9,11 @@ export type SearchScope = { album: string } | { person: string } | { tag: string
 export type RatingMatch = { eq: number } | { gte: number } | { lte: number } | 'unrated';
 export type IdSet = { all?: string[]; any?: string[]; none?: string[] };
 
+export interface LocalSpan {
+  from?: string;
+  until?: string;
+}
+
 export interface BrowseFilter {
   scope?: SearchScope;
   favorite?: boolean;
@@ -29,6 +34,7 @@ export interface BrowseFilter {
   maxSize?: number;
   takenAfter?: string;
   takenBefore?: string;
+  takenLocal?: LocalSpan;
   addedAfter?: string;
   addedBefore?: string;
   rejected?: 'hide' | 'only';

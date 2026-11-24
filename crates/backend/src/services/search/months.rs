@@ -81,13 +81,13 @@ pub struct MonthCounts {
 }
 
 pub async fn count(searcher: &Searcher, filter: &BrowseFilter) -> Result<MonthCounts, AppError> {
-    let Some(body) = searcher.count_body(filter).await? else {
+    let Some(query) = searcher.count_key(filter).await? else {
         return Ok(MonthCounts { months: Vec::new() });
     };
     let key = MonthsKey {
         owner: searcher.owner,
         server_epoch: searcher.server_epoch,
-        query: body.to_string(),
+        query,
     };
     let cache = &searcher.caches.months;
     if let Some(hit) = cache.stored.get(&key).await

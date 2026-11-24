@@ -287,22 +287,34 @@ describe('browseControls filter', () => {
       imagesOnly: true,
       rating: 'unrated',
       filename: 'DSC',
-      takenAfter: new Date('2024-01-01T00:00:00').toISOString()
+      takenLocal: { from: '2024-01-01T00:00:00' }
     });
 
     browseControls.filters.rating = 3;
     expect(browseControls.filter({}).rating).toEqual({ eq: 3 });
   });
 
-  it('bounds taken and added dates by the same local day', () => {
+  it('bounds taken dates on the photo clock and added dates by the browser day', () => {
     browseControls.filters.takenAfter = '2024-03-10';
     browseControls.filters.takenBefore = '2024-03-10';
     browseControls.filters.addedAfter = '2024-03-10';
     browseControls.filters.addedBefore = '2024-03-10';
-    const { takenAfter, takenBefore, addedAfter, addedBefore } = browseControls.filter({});
-    expect([takenAfter, takenBefore]).toEqual([addedAfter, addedBefore]);
+    const { takenLocal, takenAfter, takenBefore, addedAfter, addedBefore } = browseControls.filter(
+      {}
+    );
+    expect(takenLocal).toEqual({ from: '2024-03-10T00:00:00', until: '2024-03-11T00:00:00' });
+    expect([takenAfter, takenBefore]).toEqual([undefined, undefined]);
     expect(addedAfter).toBe(new Date(2024, 2, 10).toISOString());
     expect(addedBefore).toBe(new Date(2024, 2, 10, 23, 59, 59, 999).toISOString());
+  });
+
+  it('bounds a picked time to the whole minute', () => {
+    browseControls.filters.takenAfter = '2024-03-10T06:30';
+    browseControls.filters.takenBefore = '2024-03-10T18:05';
+    browseControls.filters.addedBefore = '2024-03-10T18:05';
+    const { takenLocal, addedBefore } = browseControls.filter({});
+    expect(takenLocal).toEqual({ from: '2024-03-10T06:30:00', until: '2024-03-10T18:06:00' });
+    expect(addedBefore).toBe(new Date(2024, 2, 10, 18, 5, 59, 999).toISOString());
   });
 
   it.each([

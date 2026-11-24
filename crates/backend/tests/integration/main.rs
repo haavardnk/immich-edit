@@ -60,6 +60,7 @@ mod rasters;
 mod request_timeout;
 mod saved_views;
 mod search;
+mod search_local_taken;
 mod search_months;
 mod search_window;
 mod sessions;

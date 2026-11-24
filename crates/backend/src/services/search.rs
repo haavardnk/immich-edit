@@ -4,6 +4,7 @@ pub mod cursor;
 pub mod filter;
 mod flat;
 mod ids;
+pub mod local_taken;
 pub mod locate;
 pub mod months;
 pub mod query;
@@ -14,6 +15,7 @@ pub mod suggestions;
 mod tags;
 pub mod window;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -45,12 +47,27 @@ impl SearchPage {
             next_cursor: None,
         }
     }
+
+    fn emptied_by(&mut self, excluded: &HashSet<Uuid>) -> bool {
+        if excluded.is_empty() {
+            return false;
+        }
+        self.items
+            .retain(|asset| !excluded.contains(&asset.id.source()));
+        self.items.is_empty() && self.next_cursor.is_some()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchShape {
     Flat,
     Structured,
+}
+
+struct Prepared {
+    filter: BrowseFilter,
+    ids: Ids,
+    excluded: HashSet<Uuid>,
 }
 
 #[derive(Clone)]
@@ -113,15 +130,29 @@ impl Searcher {
     }
 
     async fn metadata_page(&self, query: &PageQuery) -> Result<SearchPage, AppError> {
-        let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
-        let Some(ids) = self.ids(&query.filter).await? else {
+        let Some(prepared) = self.prepare(&query.filter).await? else {
             return Ok(SearchPage::empty());
         };
+        let mut query = PageQuery {
+            filter: prepared.filter,
+            ..query.clone()
+        };
+        loop {
+            let mut page = self.immich_page(&query, &prepared.ids).await?;
+            if !page.emptied_by(&prepared.excluded) {
+                return Ok(page);
+            }
+            query.cursor = page.next_cursor;
+        }
+    }
+
+    async fn immich_page(&self, query: &PageQuery, ids: &Ids) -> Result<SearchPage, AppError> {
+        let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
         if self.shape == SearchShape::Flat {
             let page = flat_page(cursor)?;
             let assets = self
                 .immich
-                .search_metadata(&flat::page(query, &ids, page)?)
+                .search_metadata(&flat::page(query, ids, page)?)
                 .await?;
             return Ok(flat_result(assets));
         }
@@ -132,7 +163,7 @@ impl Searcher {
         };
         let assets = self
             .immich
-            .search_metadata(&structured::page(query, &ids, token.as_deref()))
+            .search_metadata(&structured::page(query, ids, token.as_deref()))
             .await?;
         Ok(SearchPage {
             items: assets.items,
@@ -144,34 +175,50 @@ impl Searcher {
 
     pub async fn smart(&self, query: &SmartQuery) -> Result<SearchPage, AppError> {
         check_size(query.size)?;
-        let cursor = query.cursor.as_deref().map(Cursor::decode).transpose()?;
-        let Some(ids) = self.ids(&query.filter).await? else {
+        let Some(prepared) = self.prepare(&query.filter).await? else {
             return Ok(SearchPage::empty());
         };
-        let page = flat_page(cursor)?;
-        let assets = self
-            .immich
-            .search_smart(&flat::smart(query, &ids, page)?)
-            .await?;
-        Ok(flat_result(assets))
+        let mut query = SmartQuery {
+            filter: prepared.filter,
+            ..query.clone()
+        };
+        loop {
+            let page = flat_page(query.cursor.as_deref().map(Cursor::decode).transpose()?)?;
+            let assets = self
+                .immich
+                .search_smart(&flat::smart(&query, &prepared.ids, page)?)
+                .await?;
+            let mut found = flat_result(assets);
+            if !found.emptied_by(&prepared.excluded) {
+                return Ok(found);
+            }
+            query.cursor = found.next_cursor;
+        }
     }
 
     pub async fn count(&self, filter: &BrowseFilter) -> Result<u64, AppError> {
-        let Some(body) = self.count_body(filter).await? else {
+        let Some(prepared) = self.prepare(filter).await? else {
             return Ok(0);
         };
-        Ok(self.immich.search_statistics(&body).await?.total)
+        let body = self.count_body(&prepared)?;
+        let total = self.immich.search_statistics(&body).await?.total;
+        Ok(total.saturating_sub(prepared.excluded.len() as u64))
     }
 
-    async fn count_body(&self, filter: &BrowseFilter) -> Result<Option<Value>, AppError> {
-        let Some(ids) = self.ids(filter).await? else {
+    async fn count_key(&self, filter: &BrowseFilter) -> Result<Option<String>, AppError> {
+        let Some(prepared) = self.prepare(filter).await? else {
             return Ok(None);
         };
-        let body = match self.shape {
-            SearchShape::Flat => flat::count(filter, &ids)?,
-            SearchShape::Structured => structured::count(filter, &ids),
-        };
-        Ok(Some(body))
+        let mut excluded: Vec<Uuid> = prepared.excluded.iter().copied().collect();
+        excluded.sort_unstable();
+        Ok(Some(format!("{}{excluded:?}", self.count_body(&prepared)?)))
+    }
+
+    fn count_body(&self, prepared: &Prepared) -> Result<Value, AppError> {
+        match self.shape {
+            SearchShape::Flat => flat::count(&prepared.filter, &prepared.ids),
+            SearchShape::Structured => Ok(structured::count(&prepared.filter, &prepared.ids)),
+        }
     }
 
     pub async fn find(
@@ -179,15 +226,41 @@ impl Searcher {
         filter: &BrowseFilter,
         id: Uuid,
     ) -> Result<Option<AssetSummary>, AppError> {
-        let Some(ids) = self.ids(filter).await? else {
+        let Some(prepared) = self.prepare(filter).await? else {
             return Ok(None);
         };
+        if prepared.excluded.contains(&id) {
+            return Ok(None);
+        }
         let body = match self.shape {
-            SearchShape::Flat => flat::find(filter, &ids, id)?,
-            SearchShape::Structured => structured::find(filter, &ids, id),
+            SearchShape::Flat => flat::find(&prepared.filter, &prepared.ids, id)?,
+            SearchShape::Structured => structured::find(&prepared.filter, &prepared.ids, id),
         };
         let found = self.immich.search_metadata(&body).await?;
         Ok(found.items.into_iter().next())
+    }
+
+    async fn prepare(&self, filter: &BrowseFilter) -> Result<Option<Prepared>, AppError> {
+        let Some(ids) = self.ids(filter).await? else {
+            return Ok(None);
+        };
+        let Some(span) = filter.taken_local else {
+            return Ok(Some(Prepared {
+                filter: filter.clone(),
+                ids,
+                excluded: HashSet::new(),
+            }));
+        };
+        let Some(bounds) = local_taken::bounds(self, filter, &ids, span).await? else {
+            return Ok(None);
+        };
+        let narrowed = bounds.narrow(filter);
+        let excluded = bounds.excluded_by(&narrowed);
+        Ok(Some(Prepared {
+            filter: narrowed,
+            ids,
+            excluded,
+        }))
     }
 
     async fn ids(&self, filter: &BrowseFilter) -> Result<Option<Ids>, AppError> {

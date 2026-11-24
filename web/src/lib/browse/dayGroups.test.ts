@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, daySubtitle, dayTitle, groupDays } from './dayGroups';
+import { dayKey, daySubtitle, dayTitle, groupDays, wallClock } from './dayGroups';
 import type { ExifInfo } from '#lib/types/asset.ts';
 
 function shot(localDateTime: string | null, city: string | null = null, fileCreatedAt = '') {
@@ -33,6 +33,18 @@ describe('dayKey', () => {
 
   it('gives an empty key when no time is known', () => {
     expect(dayKey({ localDateTime: null, fileCreatedAt: null, exifInfo: null })).toBe('');
+  });
+});
+
+describe('wallClock', () => {
+  it('reads the wall clock to the second in the photo zone', () => {
+    expect(wallClock(shot('2026-10-31T23:30:15.250Z'))).toBe('2026-10-31T23:30:15');
+    const midnight = {
+      localDateTime: null,
+      fileCreatedAt: null,
+      exifInfo: { dateTimeOriginal: '2026-01-01T05:00:00Z', timeZone: 'America/New_York' }
+    } as unknown as Parameters<typeof wallClock>[0];
+    expect(wallClock(midnight)).toBe('2026-01-01T00:00:00');
   });
 });
 

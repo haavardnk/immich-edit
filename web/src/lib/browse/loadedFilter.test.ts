@@ -17,6 +17,8 @@ const photo: AssetSummary = {
   tags: []
 };
 const bare: AssetSummary = { ...photo, fileCreatedAt: null, createdAt: null, exifInfo: null };
+const wallClocked: AssetSummary = { ...photo, localDateTime: '2024-06-15T12:00:00.000Z' };
+const eastOfUtc: AssetSummary = { ...photo, localDateTime: '2024-06-16T01:00:00.000Z' };
 
 describe('keepsLoaded', () => {
   it.each([
@@ -27,10 +29,21 @@ describe('keepsLoaded', () => {
     [{ filename: ' cafe_00 ' }, photo, true],
     [{ filename: 'CAFÉ' }, photo, true],
     [{ filename: 'img' }, photo, false],
-    [{ takenAfter: '2024-06-15T12:00:00Z' }, photo, true],
-    [{ takenAfter: '2024-06-16T00:00:00Z' }, photo, false],
-    [{ takenBefore: '2024-06-15T11:59:59Z' }, photo, false],
-    [{ takenBefore: '2024-06-15T12:00:00Z' }, bare, false],
+    [{ takenLocal: { from: '2024-06-15T12:00:00' } }, wallClocked, true],
+    [{ takenLocal: { from: '2024-06-16T00:00:00' } }, wallClocked, false],
+    [{ takenLocal: { until: '2024-06-15T12:00:00' } }, wallClocked, false],
+    [{ takenLocal: { until: '2024-06-15T12:01:00' } }, wallClocked, true],
+    [{ takenLocal: { until: '2024-06-16T00:00:00' } }, bare, false],
+    [
+      { takenLocal: { from: '2024-06-15T00:00:00', until: '2024-06-16T00:00:00' } },
+      eastOfUtc,
+      false
+    ],
+    [
+      { takenLocal: { from: '2024-06-16T00:00:00', until: '2024-06-17T00:00:00' } },
+      eastOfUtc,
+      true
+    ],
     [{ addedAfter: '2025-01-10T08:00:00Z' }, photo, true],
     [{ addedBefore: '2025-01-10T07:59:59Z' }, photo, false],
     [{ addedAfter: '2024-01-01T00:00:00Z' }, bare, false],

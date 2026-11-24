@@ -10,33 +10,43 @@ export type DayGroup = {
 
 const zoneFormats = new Map<string, Intl.DateTimeFormat>();
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-function zoned(at: Date, zone: string): string {
+function zoneFormat(zone: string): Intl.DateTimeFormat {
   let format = zoneFormats.get(zone);
   if (!format) {
     format = new Intl.DateTimeFormat('en-CA', {
       timeZone: zone,
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23'
     });
     zoneFormats.set(zone, format);
   }
-  return format.format(at);
+  return format;
 }
 
-export function dayKey(asset: Dated): string {
+function zoned(at: Date, zone: string): string {
+  const parts = Object.fromEntries(
+    zoneFormat(zone)
+      .formatToParts(at)
+      .map((part) => [part.type, part.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+export function wallClock(asset: Dated): string {
   const time = captureTime(asset);
   if (!time) return '';
   const { at, timeZone } = time;
-  if (timeZone === 'UTC') {
-    return `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
-  }
-  if (timeZone) return zoned(at, timeZone);
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  if (timeZone === 'UTC') return at.toISOString().slice(0, 19);
+  return zoned(at, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
+
+export function dayKey(asset: Dated): string {
+  return wallClock(asset).slice(0, 10);
 }
 
 function mostCommon(values: (string | null | undefined)[]): string | null {
