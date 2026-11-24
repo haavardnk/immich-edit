@@ -188,6 +188,12 @@ export class ClientPreview {
 
   private onError(err: unknown): void {
     if (err instanceof ApiError && err.code === 'superseded') return;
+    if (err instanceof ApiError && err.code === 'unsupported_format') {
+      this.cancelTile();
+      this.ctx.pending = false;
+      this.ctx.unsupported = err.message;
+      return;
+    }
     const recreate =
       !(err instanceof ApiError || err instanceof NetworkError) && renderer.fail(err);
     this.bound = recreate ? undefined : null;

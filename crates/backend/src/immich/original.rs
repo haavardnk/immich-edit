@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use futures_util::future::try_join_all;
-use reqwest::header::{CONTENT_RANGE, ETAG, HeaderValue, LAST_MODIFIED, RANGE};
+use reqwest::header::{CONTENT_RANGE, CONTENT_TYPE, ETAG, HeaderValue, LAST_MODIFIED, RANGE};
 use reqwest::{RequestBuilder, Response, StatusCode};
 
 use super::client::{body_err, run_idempotent};
@@ -28,6 +28,7 @@ pub(super) async fn download(
     split: Split,
 ) -> ImmichResult<Bytes> {
     let head = run_idempotent(request().header(RANGE, range(0, split.head))).await?;
+    reject_unsupported_media(&head)?;
     if head.status() != StatusCode::PARTIAL_CONTENT {
         return whole(head).await;
     }
@@ -116,6 +117,33 @@ fn content_range(resp: &Response) -> ImmichResult<(u64, u64, u64)> {
     let (start, end) = span.split_once('-').ok_or_else(invalid)?;
     let parse = |s: &str| s.parse::<u64>().map_err(|_| invalid());
     Ok((parse(start)?, parse(end)?, parse(total)?))
+}
+
+fn reject_unsupported_media(resp: &Response) -> ImmichResult<()> {
+    let Some(raw) = resp
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return Ok(());
+    };
+    let mime = raw
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if mime.starts_with("video/") {
+        return Err(ImmichError::UnsupportedMedia(
+            "Videos are not supported".into(),
+        ));
+    }
+    if mime.starts_with("audio/") {
+        return Err(ImmichError::UnsupportedMedia(
+            "Audio files are not supported".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn version(resp: &Response) -> Option<HeaderValue> {
@@ -235,5 +263,24 @@ mod tests {
         if result.is_ok() {
             panic!("mixed versions were stitched together");
         }
+    }
+
+    #[tokio::test]
+    async fn video_originals_are_rejected_before_tail_ranges() {
+        let mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(
+                ResponseTemplate::new(206)
+                    .insert_header("content-type", "video/mp4")
+                    .insert_header("content-range", "bytes 0-999/50000")
+                    .set_body_bytes(vec![0u8; 1_000]),
+            )
+            .expect(1)
+            .mount(&mock)
+            .await;
+        let http = reqwest::Client::new();
+        let url = format!("{}/original", mock.uri());
+        let result = download(|| http.get(&url), SPLIT).await;
+        assert!(matches!(result, Err(ImmichError::UnsupportedMedia(_))));
     }
 }

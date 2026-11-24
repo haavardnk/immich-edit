@@ -23,6 +23,8 @@ pub enum ImmichError {
     Status(u16),
     #[error("upstream decode error: {0}")]
     Decode(String),
+    #[error("unsupported media: {0}")]
+    UnsupportedMedia(String),
 }
 
 pub type ImmichResult<T> = Result<T, ImmichError>;
@@ -45,6 +47,7 @@ impl ImmichError {
             Self::Status(code) => format!("status {code}"),
             Self::Transport(_) => "transport error".into(),
             Self::Decode(_) => "decode error".into(),
+            Self::UnsupportedMedia(m) => m.clone(),
         }
     }
 }
@@ -110,6 +113,7 @@ impl ImmichConnectionStatus {
                 "Immich returned an unexpected response".into(),
                 None,
             ),
+            ImmichError::UnsupportedMedia(m) => ("unsupported_media", m, Some(422)),
         };
         Self {
             ok: false,

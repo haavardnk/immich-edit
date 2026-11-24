@@ -15,6 +15,7 @@ type Search = (query: PageQuery) => ReturnType<typeof searchMetadata>;
 export function unplacedFilter(filter: MarkerFilter): BrowseFilter {
   const dates = markerQuery(filter);
   return {
+    imagesOnly: true,
     visibility: 'timeline',
     country: [null],
     favorite: filter.favorite || undefined,

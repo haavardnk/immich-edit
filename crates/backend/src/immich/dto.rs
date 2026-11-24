@@ -50,6 +50,12 @@ pub struct AssetSummary {
     pub copy_label: Option<String>,
 }
 
+impl AssetSummary {
+    pub fn is_image(&self) -> bool {
+        self.asset_type == "IMAGE"
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetDetail {
     pub id: AssetKey,
@@ -100,6 +106,10 @@ pub struct AssetDetail {
 }
 
 impl AssetDetail {
+    pub fn is_image(&self) -> bool {
+        self.asset_type == "IMAGE"
+    }
+
     pub fn current_stack_id(&self) -> Option<Uuid> {
         self.stack_id.or(self.stack.as_ref().map(|s| s.id))
     }

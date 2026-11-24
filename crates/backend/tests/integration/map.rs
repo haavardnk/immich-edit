@@ -103,13 +103,35 @@ async fn map_settings_reject_half_or_bad_urls_and_non_admins() {
 #[tokio::test]
 async fn markers_forward_the_favorite_and_date_filters() {
     let server = MockServer::start().await;
+    let video = uuid::Uuid::from_u128(0xdead_beef);
     Mock::given(method("GET"))
         .and(path("/api/map/markers"))
         .and(query_param("isFavorite", "true"))
         .and(query_param("fileCreatedAfter", "2026-10-01T00:00:00+00:00"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-            { "id": asset_id(), "lat": 60.3975, "lon": 5.324, "city": "Bergen", "state": "Vestland", "country": "Norway" }
+            { "id": asset_id(), "lat": 60.3975, "lon": 5.324, "city": "Bergen", "state": "Vestland", "country": "Norway" },
+            { "id": video, "lat": 60.4, "lon": 5.3, "city": "Bergen", "state": "Vestland", "country": "Norway" }
         ])))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/search/metadata"))
+        .and(body_is(json!({
+            "type": "VIDEO",
+            "size": 1000,
+            "page": 1,
+            "withExif": false,
+            "isFavorite": true
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "assets": {
+                "items": [{ "id": video, "originalFileName": "clip.mp4", "type": "VIDEO" }],
+                "count": 1,
+                "total": 1,
+                "nextPage": null
+            }
+        })))
         .expect(1)
         .mount(&server)
         .await;
@@ -121,7 +143,11 @@ async fn markers_forward_the_favorite_and_date_filters() {
         None,
     )
     .await;
-    if status != StatusCode::OK || markers[0]["city"] != "Bergen" || markers[0]["lat"] != 60.3975 {
+    if status != StatusCode::OK
+        || markers.as_array().map(Vec::len) != Some(1)
+        || markers[0]["city"] != "Bergen"
+        || markers[0]["lat"] != 60.3975
+    {
         panic!("{status}: {markers}");
     }
     for bad in [
@@ -268,11 +294,16 @@ async fn summaries_keep_the_order_and_skip_photos_gone_from_immich() {
     let first = uuid::Uuid::from_u128(0xa1);
     let gone = uuid::Uuid::from_u128(0xa2);
     let last = uuid::Uuid::from_u128(0xa3);
-    for (id, name) in [(first, "A.ARW"), (last, "C.ARW")] {
+    let video = uuid::Uuid::from_u128(0xa4);
+    for (id, name, kind) in [
+        (first, "A.ARW", "IMAGE"),
+        (last, "C.ARW", "IMAGE"),
+        (video, "V.MP4", "VIDEO"),
+    ] {
         Mock::given(method("GET"))
             .and(path(format!("/api/assets/{id}")))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "id": id, "originalFileName": name, "type": "IMAGE"
+                "id": id, "originalFileName": name, "type": kind
             })))
             .mount(&server)
             .await;
@@ -287,7 +318,7 @@ async fn summaries_keep_the_order_and_skip_photos_gone_from_immich() {
         &app,
         "POST",
         "/api/assets/summaries",
-        Some(json!({ "ids": [last, gone, first] })),
+        Some(json!({ "ids": [last, gone, video, first] })),
     )
     .await;
     let names: Vec<&str> = assets

@@ -1,5 +1,5 @@
 use super::Develop;
-use super::bitmap::{Bitmap, InputFormat, sniff_format};
+use super::bitmap::{Bitmap, InputFormat, is_video_container, sniff_format};
 use super::raw::scaled_mosaic;
 use crate::PipelineError;
 use crate::encode::{ImageRgb8, encode_png8};
@@ -43,6 +43,29 @@ fn sniff_unknown_returns_none() {
     if sniff_format(b"not-an-image").is_some() {
         panic!("unknown bytes should not sniff");
     }
+}
+
+#[test]
+fn video_containers_are_rejected_as_unsupported() {
+    let videos: &[&[u8]] = &[
+        b"\0\0\0\x18ftypmp42\0\0\0\0",
+        b"\0\0\0\x18ftypisom\0\0\0\0",
+        b"\0\0\0\x14ftypqt  \0\0\0\0",
+        b"\x1A\x45\xDF\xA3\x01\x00\x00\x00",
+        b"RIFF\0\0\0\0AVI ",
+        b"FLV\x01\x05\0\0\0\x09",
+        b"OggS\0\x02\0\0",
+    ];
+    for bytes in videos {
+        assert!(is_video_container(bytes));
+        assert!(matches!(
+            super::decode(bytes),
+            Err(PipelineError::Unsupported(_))
+        ));
+    }
+    assert!(!is_video_container(b"\0\0\0\x20ftypheic"));
+    assert!(!is_video_container(b"\0\0\0\x20ftypcrx "));
+    assert!(!is_video_container(b"RIFF\0\0\0\0WEBP"));
 }
 
 #[test]

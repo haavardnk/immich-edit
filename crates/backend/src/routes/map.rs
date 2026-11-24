@@ -1,13 +1,21 @@
+use std::collections::HashSet;
+
 use axum::Json;
 use axum::extract::{Query, State};
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::dto::{MapMarker, PlaceName};
+use crate::immich::{ImmichClient, ImmichResult};
 use crate::routes::auth::AuthCtx;
 use crate::services::map::{Place, StyleSource, resolve_styles};
 use crate::state::AppState;
+
+const VIDEO_PAGE_SIZE: u32 = 1000;
+const MAX_VIDEO_PAGES: u32 = 50;
 
 mod admin;
 
@@ -51,6 +59,37 @@ fn instant(raw: Option<String>, label: &str) -> Result<Option<String>, AppError>
     .transpose()
 }
 
+async fn video_ids(immich: &ImmichClient, favorite: bool) -> ImmichResult<HashSet<Uuid>> {
+    let mut ids = HashSet::new();
+    let mut page: u32 = 1;
+    for _ in 0..MAX_VIDEO_PAGES {
+        let mut body = json!({
+            "type": "VIDEO",
+            "size": VIDEO_PAGE_SIZE,
+            "page": page,
+            "withExif": false,
+        });
+        if favorite {
+            body["isFavorite"] = json!(true);
+        }
+        let res = immich.search_metadata(&body).await?;
+        if res.items.is_empty() {
+            break;
+        }
+        ids.extend(res.items.into_iter().map(|a| a.id.source()));
+        let Some(next) = res
+            .next_page
+            .as_deref()
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|&n| n > page)
+        else {
+            break;
+        };
+        page = next;
+    }
+    Ok(ids)
+}
+
 pub async fn markers(
     ctx: AuthCtx,
     Query(query): Query<MarkerQuery>,
@@ -65,7 +104,14 @@ pub async fn markers(
     if let Some(before) = instant(query.before, "before")? {
         params.push(("fileCreatedBefore", before));
     }
-    Ok(Json(ctx.immich.map_markers(&params).await?))
+    let (mut markers, videos) = tokio::try_join!(
+        ctx.immich.map_markers(&params),
+        video_ids(&ctx.immich, query.favorite),
+    )?;
+    if !videos.is_empty() {
+        markers.retain(|m| !videos.contains(&m.id));
+    }
+    Ok(Json(markers))
 }
 
 #[derive(Deserialize)]

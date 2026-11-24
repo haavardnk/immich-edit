@@ -248,3 +248,45 @@ async fn persisted_preview_revalidates_with_etag() {
         panic!("etag unchanged after edit: {next}");
     }
 }
+
+#[tokio::test]
+async fn preview_of_video_returns_422_unsupported_format() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, ResponseTemplate};
+    let server = MockServer::start().await;
+    let video_by_header = uuid::Uuid::from_u128(0x7101);
+    let video_by_magic = uuid::Uuid::from_u128(0x7102);
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{video_by_header}/original")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "video/mp4")
+                .set_body_bytes(b"\0\0\0\x18ftypmp42\0\0\0\0".to_vec()),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{video_by_magic}/original")))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/octet-stream")
+                .set_body_bytes(b"\0\0\0\x18ftypmp42\0\0\0\0".to_vec()),
+        )
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+    for id in [video_by_header, video_by_magic] {
+        let resp = app
+            .clone()
+            .oneshot(json_request(
+                "POST",
+                &format!("/api/assets/{id}/preview"),
+                json!({"max_edge": 512, "edits": {}}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let body = body_json(resp).await;
+        assert_eq!(body["code"], "unsupported_format");
+    }
+}

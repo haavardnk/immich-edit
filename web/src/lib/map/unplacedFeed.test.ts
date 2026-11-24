@@ -9,6 +9,7 @@ vi.mock('#lib/stores/browsing.svelte.ts', () => ({
 describe('unplaced feed', () => {
   it('asks Immich for photos without a country inside the map filters', () => {
     expect(unplacedFilter({ favorite: true, after: '2024-01-01' })).toEqual({
+      imagesOnly: true,
       visibility: 'timeline',
       country: [null],
       favorite: true,
