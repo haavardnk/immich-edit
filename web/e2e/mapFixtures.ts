@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { installMocks, numberedAssets, type MockMapMarker } from './helpers';
+import type { PlacesMock } from './placesMocks';
 
 export const ASSETS = numberedAssets(5).map((asset, index) => ({
   ...asset,
@@ -80,10 +81,15 @@ export const PLACED_MARKERS: MockMapMarker[] = [
   { id: PLACED[2]!.id, lat: 59.9139, lon: 10.7522, city: 'Oslo' }
 ];
 
-export async function openPlacing(page: Page, writes: LocationWrite[]): Promise<void> {
+export async function openPlacing(
+  page: Page,
+  writes: LocationWrite[],
+  places?: PlacesMock
+): Promise<void> {
   await installMocks(page, {
     assets: PLACED,
     mapMarkers: PLACED_MARKERS,
+    places,
     placeName: BERGEN,
     metadataPushConsented: true,
     onLocation: (body) => writes.push(body)

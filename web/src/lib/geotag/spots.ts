@@ -15,6 +15,17 @@ export function distanceMetres(a: GeoPoint, b: GeoPoint): number {
   return 2 * EARTH_RADIUS_METRES * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+export function awayFrom(
+  ids: Iterable<string>,
+  located: readonly (GeoPoint & { id: string })[],
+  spot: GeoPoint
+): string[] {
+  const here = new Set(
+    located.filter((point) => distanceMetres(point, spot) <= SAME_SPOT_METRES).map((p) => p.id)
+  );
+  return [...ids].filter((id) => !here.has(id));
+}
+
 export function spotOf(location: GeoLocation): Spot {
   return {
     lat: location.lat,

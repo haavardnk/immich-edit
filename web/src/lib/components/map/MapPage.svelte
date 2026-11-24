@@ -5,6 +5,7 @@
   import MapDropConfirm from '#lib/components/map/MapDropConfirm.svelte';
   import MapDropZone from '#lib/components/map/MapDropZone.svelte';
   import MapFilters from '#lib/components/map/MapFilters.svelte';
+  import MapPlaceCard from '#lib/components/map/MapPlaceCard.svelte';
   import MapSidePanel from '#lib/components/map/MapSidePanel.svelte';
   import MapTray from '#lib/components/map/MapTray.svelte';
   import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
@@ -14,6 +15,7 @@
   import { provideTileDrag } from '#lib/browse/tileDrag.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import type { MarkerFilter } from '#lib/api/map.ts';
+  import type { SavedPlace } from '#lib/api/places.ts';
   import { onLocationsMoved } from '#lib/map/locationMoves.ts';
   import { WORLD_VIEW, parseView, type MapView } from '#lib/map/mapArea.ts';
   import { boxOf, MapCamera } from '#lib/map/mapCamera.svelte.ts';
@@ -24,13 +26,15 @@
   import { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import { writeMapUrl } from '#lib/map/mapUrl.ts';
   import { PhotoMarkers } from '#lib/map/photoMarkers.ts';
+  import { PlaceStars } from '#lib/map/placeStars.ts';
   import { SheetLift } from '#lib/map/sheetLift.svelte.ts';
   import { onUserMove } from '#lib/map/userMoves.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { places } from '#lib/stores/places.svelte.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { IconButton } from '@immich/ui';
-  import { mdiDockRight, mdiFitToScreenOutline } from '@mdi/js';
+  import { mdiDockRight, mdiFitToScreenOutline, mdiStar, mdiStarOutline } from '@mdi/js';
   import type { Map as MapLibreMap } from 'maplibre-gl';
   import { onMount, untrack } from 'svelte';
 
@@ -49,7 +53,15 @@
     const bottom = tray.state === 'open' ? Math.round(height / 2) + FIT_PAD / 4 : PILL_SPACE;
     return { top: FIT_PAD, left: FIT_PAD, right: FIT_PAD, bottom };
   });
-  const drops = new MapDrops({ map: () => camera.map, area: () => lift.area, tray });
+  let stars = $state.raw<PlaceStars | null>(null);
+  let starsShown = $state(mapMemory.stars);
+  let picked = $state.raw<SavedPlace | null>(null);
+  const drops = new MapDrops({
+    map: () => camera.map,
+    area: () => lift.area,
+    tray,
+    stars: () => (starsShown ? stars : null)
+  });
   provideTileDrag(drops.drag);
 
   let markers = $state.raw<PhotoMarkers | null>(null);
@@ -80,11 +92,20 @@
       map.showAll();
       if (tray.state === 'open') tray.close();
     });
+    const starLayer = new PlaceStars(target, lib, (place) => (picked = place));
+    const closeCard = (): void => {
+      picked = null;
+    };
+    target.on('click', closeCard);
     camera.map = target;
     markers = manager;
+    stars = starLayer;
     map.box = boxOf(target);
     return () => {
       stopMoves();
+      target.off('click', closeCard);
+      starLayer.destroy();
+      stars = null;
       manager.destroy();
       camera.map = null;
       markers = null;
@@ -141,6 +162,19 @@
   $effect(() => {
     mapMemory.tab = map.tab;
     mapMemory.panel = panelShown;
+    mapMemory.stars = starsShown;
+  });
+
+  $effect(() => {
+    const layer = stars;
+    const list = starsShown ? places.saved : [];
+    if (layer) untrack(() => layer.set(list));
+    if (!starsShown) picked = null;
+  });
+
+  $effect(() => {
+    const client = drops.drag.over ? drops.drag.client : null;
+    untrack(() => drops.hover(client));
   });
 
   $effect(() => {
@@ -155,6 +189,7 @@
 
   onMount(() => {
     void mapConfig.ensure().catch(() => undefined);
+    void places.ensure();
     void map.load();
     return onLocationsMoved((moves) => map.move(moves));
   });
@@ -169,6 +204,17 @@
 {/snippet}
 
 {#snippet actions()}
+  <IconButton
+    size="small"
+    variant="ghost"
+    color={starsShown ? 'primary' : 'secondary'}
+    class="touch:size-11"
+    icon={starsShown ? mdiStar : mdiStarOutline}
+    title={starsShown ? 'Hide saved places' : 'Show saved places'}
+    aria-label="Saved places"
+    aria-pressed={starsShown}
+    onclick={() => (starsShown = !starsShown)}
+  />
   <IconButton
     size="small"
     variant="ghost"
@@ -206,6 +252,14 @@
       onMoved={moved}
     />
     <MapDropConfirm confirm={drops.confirm} map={camera.map} />
+    {#if picked}
+      <MapPlaceCard
+        place={picked}
+        map={camera.map}
+        markers={map.markers}
+        onClose={() => (picked = null)}
+      />
+    {/if}
   </MapDropZone>
 {/snippet}
 

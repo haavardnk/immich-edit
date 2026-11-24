@@ -5,7 +5,8 @@ const MEMORY: MapMemory = {
   view: { lat: 60, lon: 5, zoom: 9 },
   filter: { favorite: true },
   tab: 'unplaced',
-  panel: false
+  panel: false,
+  stars: false
 };
 
 describe('map memory', () => {
@@ -28,6 +29,6 @@ describe('map memory', () => {
   it('forgets everything when the map is left for its parent', () => {
     Object.assign(mapMemory, MEMORY);
     forgetMap();
-    expect(mapMemory).toEqual({ view: null, filter: {}, tab: 'view', panel: null });
+    expect(mapMemory).toEqual({ view: null, filter: {}, tab: 'view', panel: null, stars: true });
   });
 });

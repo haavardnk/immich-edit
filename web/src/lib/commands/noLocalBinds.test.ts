@@ -26,6 +26,7 @@ const WINDOW_KEY_LISTENERS = [
   '/src/lib/components/editor/WhiteBalancePicker.svelte',
   '/src/lib/components/editor/controls/sliderSession.svelte.ts',
   '/src/lib/components/map/MapDropConfirm.svelte',
+  '/src/lib/components/map/MapPlaceCard.svelte',
   '/src/lib/components/shell/shortcuts/KeybindsHelp.svelte',
   '/src/lib/device/layout.svelte.ts',
   '/src/lib/map/markerDrag.ts',
