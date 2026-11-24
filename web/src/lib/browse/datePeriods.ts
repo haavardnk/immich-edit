@@ -1,6 +1,7 @@
 import type { BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { MonthCount } from '#lib/types/search.ts';
+import { boundAt, boundTime } from './dateBounds';
 
 export type DateBasis = 'taken' | 'added';
 
@@ -41,10 +42,6 @@ function lastDay(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-function utcDate(day: string): Date {
-  return new Date(`${day}T00:00:00Z`);
-}
-
 const MONTH_NAMES = [
   'Jan',
   'Feb',
@@ -64,9 +61,11 @@ export function monthName(month: number): string {
   return MONTH_NAMES[month - 1] ?? '';
 }
 
-function dayLabel(day: string): string {
-  const date = utcDate(day);
-  return `${date.getUTCDate()} ${monthName(date.getUTCMonth() + 1)} ${date.getUTCFullYear()}`;
+function boundLabel(bound: string): string {
+  const at = boundAt(bound);
+  const day = `${at.day} ${monthName(at.month)} ${at.year}`;
+  const time = boundTime(bound);
+  return time ? `${day} ${time}` : day;
 }
 
 export function yearRange(year: number): DateRange {
@@ -127,9 +126,10 @@ export function periodLabel(range: DateRange): string {
   if (period.kind === 'any') return 'Any date';
   if (period.kind === 'year') return String(period.year);
   if (period.kind === 'month') return `${monthName(period.month)} ${period.year}`;
-  if (range.after && range.before) return `${dayLabel(range.after)} – ${dayLabel(range.before)}`;
-  if (range.after) return `From ${dayLabel(range.after)}`;
-  return `Until ${dayLabel(range.before)}`;
+  if (range.after && range.before)
+    return `${boundLabel(range.after)} – ${boundLabel(range.before)}`;
+  if (range.after) return `From ${boundLabel(range.after)}`;
+  return `Until ${boundLabel(range.before)}`;
 }
 
 export function dateChipLabel(range: DateRange, basis: DateBasis): string {

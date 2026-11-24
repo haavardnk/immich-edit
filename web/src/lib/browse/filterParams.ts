@@ -1,5 +1,4 @@
 import type { ReadonlyURL, ReadonlyURLSearchParams } from '$app/state';
-import { DateTime } from 'luxon';
 import {
   FILTER_DEFAULTS,
   isDefaultFilter,
@@ -22,6 +21,7 @@ import {
   type IdFilterKey
 } from './idFilters';
 import { structuredRoute, supportsFilter } from './browseRoutes';
+import { readBound } from './dateBounds';
 
 const VISIBILITIES: Visibility[] = ['timeline', 'archive', 'hidden'];
 const LABELS: LabelFilter[] = ['any', 'none', ...LABEL_COLORS];
@@ -69,11 +69,6 @@ const TYPED_KEYS: (keyof BrowseFilters)[] = [
   'addedBefore'
 ];
 
-function day(value: string | null): string {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
-  return DateTime.fromISO(value).isValid ? value : '';
-}
-
 function values(params: ReadonlyURLSearchParams, key: ExifFilterKey): string[] {
   const all = [...new Set(params.getAll(PARAMS[key]))];
   const known = all.filter((value) => value !== UNKNOWN_EXIF);
@@ -105,10 +100,10 @@ export function readFilterParams(url: ReadonlyURL): BrowseFilters {
     minSize: megabytes(get('minSize')),
     maxSize: megabytes(get('maxSize')),
     visibility: VISIBILITIES.find((v) => v === get('visibility')) ?? FILTER_DEFAULTS.visibility,
-    takenAfter: day(get('takenAfter')),
-    takenBefore: day(get('takenBefore')),
-    addedAfter: day(get('addedAfter')),
-    addedBefore: day(get('addedBefore')),
+    takenAfter: readBound(get('takenAfter')),
+    takenBefore: readBound(get('takenBefore')),
+    addedAfter: readBound(get('addedAfter')),
+    addedBefore: readBound(get('addedBefore')),
     rejected: REJECTED_FILTERS.find((r) => r === get('rejected')) ?? FILTER_DEFAULTS.rejected,
     label: LABELS.find((l) => l === get('label')) ?? FILTER_DEFAULTS.label,
     make: values(params, 'make'),

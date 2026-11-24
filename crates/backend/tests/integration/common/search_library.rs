@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 use wiremock::matchers::{header, method, path_regex};
@@ -11,6 +11,7 @@ use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 pub struct Photo {
     pub id: Uuid,
     pub taken: DateTime<Utc>,
+    pub zone: TimeDelta,
     pub updated: DateTime<Utc>,
     pub favorite: bool,
     pub in_album: bool,
@@ -104,6 +105,7 @@ fn summary(photo: &Photo) -> Value {
         "type": "IMAGE",
         "originalFileName": "DSC0001.ARW",
         "fileCreatedAt": photo.taken.to_rfc3339_opts(SecondsFormat::Millis, true),
+        "localDateTime": (photo.taken + photo.zone).to_rfc3339_opts(SecondsFormat::Millis, true),
     })
 }
 

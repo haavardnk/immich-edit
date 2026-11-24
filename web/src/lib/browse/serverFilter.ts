@@ -4,14 +4,7 @@ import { isRange, ratingMatch } from './rating';
 import { EXIF_FILTERS, UNKNOWN_EXIF } from './exifFilters';
 import { toBytes } from './fileSize';
 import { ID_FILTERS, idSet } from './idFilters';
-
-function dayStart(date: string): string {
-  return new Date(`${date}T00:00:00`).toISOString();
-}
-
-function dayEnd(date: string): string {
-  return new Date(`${date}T23:59:59.999`).toISOString();
-}
+import { endInstant, localSpan, startInstant } from './dateBounds';
 
 export function serverFilter(
   filters: BrowseFilters,
@@ -32,10 +25,10 @@ export function serverFilter(
   if (filters.filename) filter.filename = filters.filename;
   if (filters.minSize !== null) filter.minSize = toBytes(filters.minSize);
   if (filters.maxSize !== null) filter.maxSize = toBytes(filters.maxSize);
-  if (filters.takenAfter) filter.takenAfter = dayStart(filters.takenAfter);
-  if (filters.takenBefore) filter.takenBefore = dayEnd(filters.takenBefore);
-  if (filters.addedAfter) filter.addedAfter = dayStart(filters.addedAfter);
-  if (filters.addedBefore) filter.addedBefore = dayEnd(filters.addedBefore);
+  const taken = localSpan(filters.takenAfter, filters.takenBefore);
+  if (taken) filter.takenLocal = taken;
+  if (filters.addedAfter) filter.addedAfter = startInstant(filters.addedAfter);
+  if (filters.addedBefore) filter.addedBefore = endInstant(filters.addedBefore);
   if (filters.rejected === 'only' || (filters.rejected === 'hide' && structured))
     filter.rejected = filters.rejected;
   if (filters.label !== 'any' && (filters.label !== 'none' || structured))

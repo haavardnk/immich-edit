@@ -143,6 +143,7 @@ export type MockAssetSummary = Omit<typeof ASSET_SUMMARY, 'exifInfo'> & {
   tags?: MockTag[];
   ownerId?: string;
   createdAt?: string;
+  localDateTime?: string;
 };
 
 export function numberedAssets(
@@ -455,12 +456,19 @@ export async function installMocks(
           body: opts.previewBody
         }
       : { ...png(), headers: { 'x-preview-meta-id': 'meta-1' } };
-  type DatedFilter = { takenAfter?: string; takenBefore?: string };
+  type DatedFilter = {
+    takenAfter?: string;
+    takenBefore?: string;
+    takenLocal?: { from?: string; until?: string };
+  };
   type Listed = MockAssetSummary & { copyOf?: string; tags: MockTag[] };
   const takenWithin = (a: MockAssetSummary, filter: DatedFilter): boolean => {
     const at = Date.parse(a.fileCreatedAt);
     if (filter.takenAfter && at < Date.parse(filter.takenAfter)) return false;
-    return !filter.takenBefore || at <= Date.parse(filter.takenBefore);
+    if (filter.takenBefore && at > Date.parse(filter.takenBefore)) return false;
+    const wall = new Date(a.localDateTime ?? a.fileCreatedAt).toISOString().slice(0, 19);
+    const { from, until } = filter.takenLocal ?? {};
+    return (!from || wall >= from) && (!until || wall < until);
   };
   const matching = (body: Record<string, unknown>, pageAssets: MockAssetSummary[]): Listed[] => {
     const filter = (body.filter ?? {}) as {

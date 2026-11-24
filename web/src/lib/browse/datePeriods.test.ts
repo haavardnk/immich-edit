@@ -47,7 +47,12 @@ describe('date periods', () => {
     [{ after: '2025-03-01', before: '2025-03-31' }, 'Mar 2025'],
     [{ after: '2026-10-24', before: '' }, 'From 24 Oct 2026'],
     [{ after: '', before: '2026-10-24' }, 'Until 24 Oct 2026'],
-    [{ after: '2026-10-02', before: '2026-10-24' }, '2 Oct 2026 – 24 Oct 2026']
+    [{ after: '2026-10-02', before: '2026-10-24' }, '2 Oct 2026 – 24 Oct 2026'],
+    [
+      { after: '2026-10-24T06:30', before: '2026-10-24T18:05' },
+      '24 Oct 2026 06:30 – 24 Oct 2026 18:05'
+    ],
+    [{ after: '2025-01-01T00:00', before: '2025-12-31' }, '1 Jan 2025 00:00 – 31 Dec 2025']
   ])('labels %j as %s', (range, label) => {
     expect(periodLabel(range)).toBe(label);
   });
