@@ -1,6 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { filterGroup, filterRow } from './filterLists';
 import { installMocks, numberedAssets, openFilters, filterSection } from './helpers';
+
+function calendarDay(panel: Locator, day: string): Locator {
+  return panel.locator(`[role="gridcell"][data-value="${day}"] > *`);
+}
 
 test('active filters stay visible as removable chips', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
@@ -220,36 +224,81 @@ test('the date chips pick a year, a month, the added basis and a custom range', 
   await years.getByRole('button', { name: '2025' }).click();
   await expect(chips).toHaveCount(0);
 
+  await years.getByRole('button', { name: '2025' }).click();
   await years.getByRole('button', { name: 'Custom' }).click();
-  const from = panel.getByRole('group', { name: 'From' });
-  await from.locator('[data-segment="month"]').click();
-  await page.keyboard.type('10242025');
-  await expect(chips).toHaveText(['Added from 24 Oct 2025']);
+  await calendarDay(panel, '2025-01-10').click();
+  await calendarDay(panel, '2025-01-20').click();
+  await expect(chips).toHaveText(['Added 10 Jan 2025 – 20 Jan 2025']);
   await expect(years.getByRole('button', { name: 'Custom' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
 });
 
-test('resetting filters clears a typed date', async ({ page }) => {
+test('resetting filters clears a picked time', async ({ page }) => {
   await installMocks(page);
-  await page.goto('/photos');
+  await page.goto('/photos?after=2025-03-18T06:30');
   const panel = await openFilters(page, 'Date');
   const custom = panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' });
-  const from = panel.getByRole('group', { name: 'From' });
+  const from = panel.getByRole('group', { name: 'From', exact: true });
   const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
-
-  await custom.click();
-  await from.locator('[data-segment="month"]').click();
-  await page.keyboard.type('10012026');
-  await expect(chips).toHaveText(['From 1 Oct 2026']);
-  await expect(from.getByRole('button', { name: 'Open calendar' })).toBeFocused();
+  await expect(from.getByRole('group', { name: 'From time' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Reset all filters' }).click();
   await expect(chips).toHaveCount(0);
   await expect(from).toHaveCount(0);
   await custom.click();
-  await expect(from.locator('[data-segment="month"]')).toHaveText('mm');
+  await expect(from).toContainText('Any');
+  await expect(from.getByRole('group', { name: 'From time' })).toHaveCount(0);
+  await expect(from.getByRole('button', { name: 'Add time' })).toHaveCount(0);
+});
+
+test('a custom range is picked on the calendar and each end takes a time and clears', async ({
+  page
+}) => {
+  await installMocks(page);
+  await page.goto('/photos?after=2025-03-01&before=2025-03-31');
+  const panel = await openFilters(page, 'Date');
+  const chips = page.getByRole('list', { name: 'Active filters' }).getByRole('listitem');
+  await panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' }).click();
+  const from = panel.getByRole('group', { name: 'From', exact: true });
+  const to = panel.getByRole('group', { name: 'To', exact: true });
+
+  await calendarDay(panel, '2025-03-18').click();
+  await calendarDay(panel, '2025-03-18').click();
+  await expect(page).toHaveURL(/after=2025-03-18&before=2025-03-18(&|$)/);
+  await calendarDay(panel, '2025-03-18').click();
+  await calendarDay(panel, '2025-03-19').click();
+  await expect(page).toHaveURL(/after=2025-03-18&before=2025-03-19(&|$)/);
+
+  await from.getByRole('button', { name: 'Add time' }).click();
+  await expect(
+    from.getByRole('group', { name: 'From time' }).locator('[data-segment="hour"]')
+  ).toBeFocused();
+  await page.keyboard.type('0630');
+  await page.keyboard.type('A');
+  await expect(page).toHaveURL(/after=2025-03-18T06%3A30/);
+  await expect(chips).toHaveText(['18 Mar 2025 06:30 – 19 Mar 2025']);
+  await calendarDay(panel, '2025-03-17').click();
+  await calendarDay(panel, '2025-03-19').click();
+  await expect(page).toHaveURL(/after=2025-03-17T06%3A30&before=2025-03-19(&|$)/);
+
+  const calendar = panel.getByRole('grid');
+  await from.getByRole('button', { name: 'Clear from' }).click();
+  await expect(chips).toHaveText(['Until 19 Mar 2025']);
+  await expect(from).toContainText('Any');
+  await expect(from.getByRole('group', { name: 'From time' })).toHaveCount(0);
+  await expect(calendar.locator(':focus')).toHaveCount(1);
+  await to.getByRole('button', { name: 'Clear to' }).click();
+  await expect(chips).toHaveCount(0);
+  await expect(calendar).toBeVisible();
+  await expect(
+    panel.getByRole('group', { name: 'Year' }).getByRole('button', { name: 'Custom' })
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(calendar.locator(':focus')).toHaveCount(1);
+  await calendarDay(panel, '2025-03-10').click();
+  await calendarDay(panel, '2025-03-12').click();
+  await expect(chips).toHaveText(['10 Mar 2025 – 12 Mar 2025']);
 });
 
 test('a picked day lists the photos whose own clock reads that day', async ({ page }) => {

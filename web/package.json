@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@immich/ui": "0.93.0",
+    "@internationalized/date": "3.12.4",
     "@mdi/js": "^7.4.47",
     "bits-ui": "2.21.0",
     "justified-layout": "^4.1.0",
