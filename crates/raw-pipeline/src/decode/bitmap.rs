@@ -17,6 +17,55 @@ pub(super) enum InputFormat {
     Bmp,
 }
 
+pub(super) fn is_video_container(data: &[u8]) -> bool {
+    if data.len() >= 12 && &data[4..8] == b"ftyp" {
+        return matches!(
+            &data[8..12],
+            b"isom"
+                | b"iso2"
+                | b"iso3"
+                | b"iso4"
+                | b"iso5"
+                | b"iso6"
+                | b"mp41"
+                | b"mp42"
+                | b"M4V "
+                | b"M4VH"
+                | b"M4VP"
+                | b"qt  "
+                | b"3gp4"
+                | b"3gp5"
+                | b"3gp6"
+                | b"3gp7"
+                | b"3gp8"
+                | b"3gp9"
+                | b"3g2a"
+                | b"3g2b"
+                | b"3g2c"
+                | b"avc1"
+                | b"mmp4"
+                | b"MSNV"
+                | b"f4v "
+        );
+    }
+    if data.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]) {
+        return true;
+    }
+    if data.len() >= 12 && &data[0..4] == b"RIFF" && &data[8..12] == b"AVI " {
+        return true;
+    }
+    if data.len() >= 4 && &data[0..4] == b"FLV\x01" {
+        return true;
+    }
+    if data.starts_with(&[0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11]) {
+        return true;
+    }
+    if data.len() >= 4 && &data[0..4] == b"OggS" {
+        return true;
+    }
+    data.starts_with(&[0x00, 0x00, 0x01, 0xBA])
+}
+
 pub(super) fn sniff_format(data: &[u8]) -> Option<InputFormat> {
     if data.len() >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
         return Some(InputFormat::Jpeg);

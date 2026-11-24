@@ -174,6 +174,7 @@ impl From<ImmichError> for AppError {
                 tracing::warn!(target: "upstream", detail = detail.as_str(), "immich response could not be decoded");
                 Self::UpstreamUnavailable
             }
+            ImmichError::UnsupportedMedia(msg) => Self::UnsupportedFormat(msg),
         }
     }
 }
@@ -386,6 +387,10 @@ mod tests {
             (ImmichError::Redirect(302), "upstream_redirect"),
             (ImmichError::Status(502), "upstream_unavailable"),
             (ImmichError::Unauthorized, "upstream_auth"),
+            (
+                ImmichError::UnsupportedMedia("Videos are not supported".into()),
+                "unsupported_format",
+            ),
         ];
         for (err, expected) in cases {
             let app: AppError = err.into();

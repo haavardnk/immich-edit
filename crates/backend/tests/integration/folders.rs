@@ -42,13 +42,18 @@ async fn folder_assets_forward_the_requested_path() {
         .and(path("/api/view/folder"))
         .and(query_param("path", "2024/summer"))
         .and(header("x-api-key", TEST_API_KEY))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!([{
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {
                 "id": asset_id(),
                 "originalFileName": "DSC0001.ARW",
                 "type": "IMAGE"
-            }])),
-        )
+            },
+            {
+                "id": uuid::Uuid::from_u128(0xf01d),
+                "originalFileName": "CLIP0001.MP4",
+                "type": "VIDEO"
+            }
+        ])))
         .mount(&server)
         .await;
     let app = test_app(&server).await;

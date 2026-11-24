@@ -11,7 +11,7 @@ mod tests;
 use crate::PipelineError;
 use crate::admission::over_budget;
 use crate::frame::RawFrame;
-use bitmap::{decode_image, sniff_format};
+use bitmap::{decode_image, is_video_container, sniff_format};
 use dng::DngCorrections;
 use little_exif::metadata::Metadata;
 use raw::{decode_raw_fast, decode_raw_quality, frame_bytes};
@@ -40,6 +40,11 @@ pub fn decode_within(
     develop: Develop,
     budget: Option<u64>,
 ) -> crate::PipelineResult<RawFrame> {
+    if is_video_container(data) {
+        return Err(PipelineError::Unsupported(
+            "video files are not supported".into(),
+        ));
+    }
     let exif = crate::metadata::read(data);
     let source = RawSource::new_from_slice(data);
     let decoder = match rawler::get_decoder(&source) {

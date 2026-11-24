@@ -24,6 +24,7 @@ describe('keepsLoaded', () => {
   it.each([
     [{}, photo, true],
     [{ imagesOnly: true, visibility: 'archive' }, photo, true],
+    [{ imagesOnly: true }, { ...photo, type: 'VIDEO' }, false],
     [{ favorite: true }, photo, false],
     [{ favorite: true }, { ...photo, isFavorite: true }, true],
     [{ filename: ' cafe_00 ' }, photo, true],

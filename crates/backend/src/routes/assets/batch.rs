@@ -66,8 +66,8 @@ pub async fn summaries(
         let results = join_all(chunk.iter().map(|id| ctx.immich.asset_summary(*id))).await;
         for result in results {
             match result {
-                Ok(asset) => found.push(asset),
-                Err(ImmichError::NotFound) => {}
+                Ok(asset) if asset.is_image() => found.push(asset),
+                Ok(_) | Err(ImmichError::NotFound) => {}
                 Err(err) => return Err(err.into()),
             }
         }

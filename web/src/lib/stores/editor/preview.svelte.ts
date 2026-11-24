@@ -69,6 +69,7 @@ export interface PreviewCtx extends MaskWeightCtx, CompareLeftCtx {
   viewNat: { w: number; h: number } | null;
   pending: boolean;
   error: string | null;
+  unsupported: string | null;
   showingOriginal: boolean;
   bypassedSection: DevelopSection | null;
   readonly isRaw: boolean;
@@ -177,6 +178,10 @@ export class PreviewEngine {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       if (err instanceof ApiError && err.code === 'superseded') return;
       this.ctx.rangePicker = null;
+      if (err instanceof ApiError && err.code === 'unsupported_format') {
+        this.ctx.unsupported = err.message;
+        return;
+      }
       this.ctx.error = errorMessage(err);
     },
     () => this.baseIdle()

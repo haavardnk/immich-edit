@@ -139,6 +139,7 @@ function context(): PreviewCtx {
     viewNat: null,
     pending: false,
     error: null,
+    unsupported: null,
     showingOriginal: false,
     bypassedSection: null,
     isRaw: false,
@@ -620,5 +621,27 @@ describe('preview lanes with the browser renderer', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(fake.tiles.length).toBe(2);
     expect(renders).toEqual([]);
+  });
+});
+
+describe('unsupported format handling', () => {
+  it('marks unsupported_format as unsupported without falling back from client preview', async () => {
+    vi.useFakeTimers();
+    renders.length = 0;
+    const ctx = context();
+    const engine = new PreviewEngine(ctx);
+    const { ApiError } = await import('#lib/api/client.ts');
+    const fake = fakeClient(async () => {
+      throw new ApiError(422, 'unsupported_format', 'Videos are not supported');
+    });
+    browser.current = fake.client;
+
+    engine.onViewChange(SNAP);
+    engine.live();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.unsupported).toBe('Videos are not supported');
+    expect(ctx.error).toBeNull();
+    expect(renders).toEqual([]);
+    vi.useRealTimers();
   });
 });

@@ -80,6 +80,12 @@ import type { RangeSample } from '#lib/editor/rangeSample.ts';
 import type { Rgb } from '#lib/utils/oklab.ts';
 import type { ColorSpaceOpt } from '#lib/api/export.ts';
 
+function unsupportedAssetMessage(type: string): string {
+  if (type === 'VIDEO') return 'Videos are not supported in the editor.';
+  if (type === 'AUDIO') return 'Audio files are not supported in the editor.';
+  return 'This file format is not supported in the editor.';
+}
+
 class EditorStore {
   assetId = $state<string | null>(null);
   asset = $state<AssetDetail | null>(null);
@@ -123,6 +129,7 @@ class EditorStore {
   asShotError = $state<string | null>(null);
   asShotKey: string | null = null;
   error = $state<string | null>(null);
+  unsupported = $state<string | null>(null);
   showingOriginal = $state(false);
   bypassedSection = $state<DevelopSection | null>(null);
   editsPreview = $state.raw<EditsPreview | null>(null);
@@ -281,9 +288,16 @@ class EditorStore {
     this.unload();
     this.assetId = id;
     this.error = null;
+    this.unsupported = null;
     try {
       const [a, s] = await Promise.all([getAsset(id), getEdits(id)]);
+      if (this.assetId !== id) return;
       this.asset = a;
+      if (a.type !== 'IMAGE') {
+        this.unsupported = unsupportedAssetMessage(a.type);
+        this.initialised = true;
+        return;
+      }
       this.edits = manifestToEdits(s.manifest);
       this.savedHash = s.hash;
       this.saves.begin(id, s.hash);
@@ -325,6 +339,8 @@ class EditorStore {
     this.asShotKey = null;
     this.assetId = null;
     this.initialised = false;
+    this.error = null;
+    this.unsupported = null;
     this.edits = neutralEdits();
     this.saving = false;
     this.savedHash = '';

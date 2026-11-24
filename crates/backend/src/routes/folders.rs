@@ -24,7 +24,13 @@ pub async fn assets(
     Query(q): Query<FolderQuery>,
 ) -> Result<Json<Vec<AssetDetail>>, AppError> {
     let path = q.path.unwrap_or_default();
-    let assets = ctx.immich.folder_assets(&path).await?;
+    let assets: Vec<AssetDetail> = ctx
+        .immich
+        .folder_assets(&path)
+        .await?
+        .into_iter()
+        .filter(AssetDetail::is_image)
+        .collect();
     let assets = expand_assets(&state.edits, ctx.owner, assets).await?;
     Ok(Json(assets))
 }

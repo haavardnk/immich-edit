@@ -38,6 +38,7 @@ function within(value: number | null | undefined, min?: number, max?: number): b
 }
 
 export function keepsLoaded(filter: BrowseFilter, asset: AssetSummary): boolean {
+  if (filter.imagesOnly && asset.type !== 'IMAGE') return false;
   if (filter.favorite && !asset.isFavorite) return false;
   const name = filter.filename?.trim();
   if (name && !foldText(asset.originalFileName).includes(foldText(name))) return false;
