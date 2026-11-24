@@ -422,7 +422,8 @@
 }
 
 [data-select-trigger]:not(:focus-visible),
-[data-date-field-input]:not(:focus-within) {
+[data-date-field-input]:not(:focus-within),
+[data-time-field-input]:not(:focus-within) {
   --tw-ring-shadow: 0 0 #0000;
 }
 
@@ -552,7 +553,7 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   font-size: 13px;
 }
 
-.compact-date-field [data-date-field-input] {
+.compact-date-field :is([data-date-field-input], [data-time-field-input]) {
   height: 28px;
   background-color: var(--immich-ui-light-200);
   transition: background-color var(--transition-duration-fast);
@@ -562,34 +563,47 @@ body:has(.editor-compact-select [data-select-trigger][data-state='open'])
   padding-inline: 16px;
 }
 
-[data-layout='touch'] .compact-date-field [data-date-field-input] {
+[data-layout='touch'] .compact-date-field :is([data-date-field-input], [data-time-field-input]) {
   height: 44px;
 }
 
-#browse-filters .compact-date-field [data-date-field-input]:not(:focus-within) {
+#browse-filters
+  .compact-date-field
+  :is([data-date-field-input], [data-time-field-input]):not(:focus-within) {
   box-shadow: none;
 }
 
-.compact-date-field [data-date-field-input]:hover {
+.compact-date-field :is([data-date-field-input], [data-time-field-input]):hover {
   background-color: var(--immich-ui-light-300);
 }
 
-.compact-date-field [data-date-field-input] > div {
+.compact-date-field :is([data-date-field-input], [data-time-field-input]) > div {
+  flex-wrap: nowrap;
+  white-space: nowrap;
   padding: 0 0 0 12px;
   font-weight: 400;
 }
 
-.compact-date-field [data-date-field-input] [aria-valuetext='Empty'],
-.compact-date-field [data-date-field-input]:has([aria-valuetext='Empty']) [data-segment='literal'] {
+.compact-date-field [data-time-field-input] > div {
+  padding-inline-end: 12px;
+}
+
+.compact-date-field :is([data-date-field-input], [data-time-field-input]) [aria-valuetext='Empty'],
+.compact-date-field
+  :is([data-date-field-input], [data-time-field-input]):has([aria-valuetext='Empty'])
+  [data-segment='literal'] {
   color: color-mix(in oklab, currentcolor 50%, transparent);
 }
 
-.compact-date-field [data-date-field-input] [data-segment]:focus {
+.compact-date-field :is([data-date-field-input], [data-time-field-input]) [data-segment]:focus {
   background-color: var(--immich-ui-primary-400);
   color: white;
 }
 
-:root.light .compact-date-field [data-date-field-input] [data-segment]:focus {
+:root.light
+  .compact-date-field
+  :is([data-date-field-input], [data-time-field-input])
+  [data-segment]:focus {
   background-color: var(--immich-ui-primary-600);
 }
 

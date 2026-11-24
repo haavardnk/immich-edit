@@ -1,31 +1,24 @@
 <script lang="ts">
+  import DateBoundRow from '#lib/components/browse/filters/DateBoundRow.svelte';
+  import DateRangeCalendar from '#lib/components/browse/filters/DateRangeCalendar.svelte';
   import { DATE_KEYS, type DateBasis } from '#lib/browse/datePeriods.ts';
   import { browseControls } from '#lib/stores/browseControls.svelte.ts';
-  import { DatePicker, Field } from '@immich/ui';
-  import { DateTime } from 'luxon';
 
   let { basis }: { basis: DateBasis } = $props();
 
-  const fields = $derived([
-    { key: DATE_KEYS[basis].after, label: 'From' },
-    { key: DATE_KEYS[basis].before, label: 'To' }
-  ]);
+  let calendar: DateRangeCalendar | undefined = $state();
+
+  const keys = $derived(DATE_KEYS[basis]);
+
+  function focusCalendar(): void {
+    calendar?.focus();
+  }
 </script>
 
 {#key browseControls.filters}
-  <div class="grid grid-cols-2 gap-2">
-    {#each fields as { key, label } (key)}
-      <Field {label} size="tiny" class="compact-date-field min-w-0">
-        <DatePicker
-          bind:value={
-            () =>
-              browseControls.filters[key]
-                ? DateTime.fromISO(browseControls.filters[key])
-                : undefined,
-            (date) => (browseControls.filters[key] = date?.toISODate() ?? '')
-          }
-        />
-      </Field>
-    {/each}
+  <div class="flex flex-col gap-1">
+    <DateRangeCalendar bind:this={calendar} after={keys.after} before={keys.before} />
+    <DateBoundRow key={keys.after} label="From" onCleared={focusCalendar} />
+    <DateBoundRow key={keys.before} label="To" onCleared={focusCalendar} />
   </div>
 {/key}
