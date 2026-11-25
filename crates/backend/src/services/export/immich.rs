@@ -7,7 +7,9 @@ use crate::error::AppError;
 use crate::immich::ImmichClient;
 use crate::immich::client::UploadRequest;
 use crate::names::display_name;
-use crate::services::edits_store::{ExportJobBaseline, ExportJobKey, ExportOutputKey};
+use crate::services::edits_store::{
+    ExportJobBaseline, ExportJobKey, ExportJobStatus, ExportOutputKey,
+};
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
 use crate::services::trash;
@@ -101,11 +103,24 @@ pub struct ExportToImmichResult {
     pub replaced_asset_id: Option<Uuid>,
 }
 
+pub enum ExportKey {
+    Client(String),
+    JobItem(String),
+}
+
+impl ExportKey {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Client(key) | Self::JobItem(key) => key,
+        }
+    }
+}
+
 pub struct ExportImmichRequest<'a> {
     pub asset_id: AssetKey,
     pub server_epoch: i64,
     pub body: &'a ExportToImmichBody,
-    pub idempotency_key: Option<String>,
+    pub idempotency_key: Option<ExportKey>,
     pub priority: RenderPriority,
     pub seq: Seq,
     pub preset: Option<&'a str>,
@@ -125,11 +140,12 @@ pub async fn export_to_immich(
         owner,
         server_epoch: req.server_epoch,
     };
-    let job = req.idempotency_key.as_deref().map(|key| ExportJobKey {
+    let job = req.idempotency_key.as_ref().map(|key| ExportJobKey {
         owner,
         asset_id: id,
-        key,
+        key: key.as_str(),
     });
+    let job_item = matches!(req.idempotency_key, Some(ExportKey::JobItem(_)));
     let request_hash = job.map(|_| hash_request(id, body, req.preset));
     let preset = preset_key(req.preset.unwrap_or_default());
     let output = ExportOutputKey {
@@ -148,7 +164,11 @@ pub async fn export_to_immich(
     if let (Some(job), Some(hash)) = (job, request_hash.as_deref())
         && let Some(existing) = state.edits.get_export_job(job).await?
     {
-        return settle_existing(state, immich, export, job, hash, existing).await;
+        if job_item && existing.status == ExportJobStatus::Pending {
+            state.edits.delete_pending_export_job(job).await?;
+        } else {
+            return settle_existing(state, immich, export, job, hash, existing, job_item).await;
+        }
     }
     let template = NameTemplate::parse(body.params.filename_template.as_deref())?;
     if trashes(body.replace_original, body.on_conflict) {
@@ -169,7 +189,7 @@ pub async fn export_to_immich(
         };
         reserved = state.edits.reserve_export_job(job, hash, baseline).await?;
         if !reserved && let Some(existing) = state.edits.get_export_job(job).await? {
-            return settle_existing(state, immich, export, job, hash, existing).await;
+            return settle_existing(state, immich, export, job, hash, existing, job_item).await;
         }
     }
 

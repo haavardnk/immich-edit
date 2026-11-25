@@ -25,8 +25,9 @@ pub(super) async fn settle_existing(
     job: ExportJobKey<'_>,
     request_hash: &str,
     existing: ExportJobRecord,
+    job_item: bool,
 ) -> Result<ExportToImmichResult, AppError> {
-    if existing.request_hash != request_hash {
+    if existing.request_hash != request_hash && !job_item {
         return Err(AppError::BadRequest(
             "idempotency key reused with different request".into(),
         ));

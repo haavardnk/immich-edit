@@ -199,7 +199,7 @@ async fn run_immich_item(
             asset_id,
             server_epoch: job.server_epoch,
             body: &body,
-            idempotency_key: Some(idempotency_key(job.id, item.variant)),
+            idempotency_key: Some(ExportKey::JobItem(idempotency_key(job.id, item.variant))),
             priority: RenderPriority::Background,
             seq,
             preset: preset.as_deref(),
