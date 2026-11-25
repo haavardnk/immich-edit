@@ -17,7 +17,7 @@ export const HSL_BAND_NAMES: readonly string[] = [
   'Magenta'
 ];
 
-export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 300, 340];
+export const HSL_BAND_HUES: readonly number[] = [0, 30, 60, 120, 180, 240, 270, 300];
 
 export const HSL_BAND_COLORS: readonly string[] = HSL_BAND_HUES.map((h) => `hsl(${h}, 70%, 65%)`);
 

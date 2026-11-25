@@ -1,5 +1,5 @@
 import type { GradeRegion } from '#lib/editor/params/colorGrading.ts';
-import { BW_CHANNELS, type BwChannel, type CurveChannel } from '#lib/types/edits.ts';
+import { BW_CHANNELS, HSL_BAND_HUES, type BwChannel, type CurveChannel } from '#lib/types/edits.ts';
 import { linearToOklab, toLinear, type Rgb } from '#lib/utils/oklab.ts';
 
 export type { Rgb } from '#lib/utils/oklab.ts';
@@ -11,8 +11,6 @@ export interface PixelGrid {
 }
 
 const SAMPLE_RADIUS = 2;
-
-export const HSL_BAND_CENTRES: readonly number[] = [0, 30, 60, 120, 180, 240, 270, 300];
 
 const HSL_SAT_GATE = 0.05;
 const BW_CHROMA_GATE = 0.05;
@@ -50,9 +48,9 @@ export function hslBandAt(rgb: Rgb): number | null {
   const s = max + min > 1 ? d / (2 - max - min) : d / (max + min);
   if (s < HSL_SAT_GATE) return null;
   const hue = hueOf(r, g, b, max, d);
-  return HSL_BAND_CENTRES.reduce(
+  return HSL_BAND_HUES.reduce(
     (best, centre, band) =>
-      hueDistance(hue, centre) < hueDistance(hue, HSL_BAND_CENTRES[best] ?? 0) ? band : best,
+      hueDistance(hue, centre) < hueDistance(hue, HSL_BAND_HUES[best] ?? 0) ? band : best,
     0
   );
 }
