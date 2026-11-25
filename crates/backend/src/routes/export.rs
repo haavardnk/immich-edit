@@ -9,8 +9,8 @@ use crate::error::AppError;
 use crate::routes::auth::AuthCtx;
 use crate::routes::headers;
 use crate::services::export::{
-    self, ExportBody, ExportImmichRequest, ExportToImmichResult, NameContext, NameTemplate,
-    RenderedExport, Seq, capture_date,
+    self, ExportBody, ExportImmichRequest, ExportKey, ExportToImmichResult, NameContext,
+    NameTemplate, RenderedExport, Seq, capture_date,
 };
 use crate::services::render::RenderIdentity;
 use crate::services::render_queue::RenderPriority;
@@ -106,7 +106,7 @@ pub async fn post_export_immich(
             asset_id: id,
             server_epoch: ctx.server_epoch,
             body: &body.export,
-            idempotency_key: idem_key,
+            idempotency_key: idem_key.map(ExportKey::Client),
             priority: RenderPriority::Interactive,
             seq: Seq::SINGLE,
             preset: preset.as_deref(),
