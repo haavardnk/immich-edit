@@ -87,26 +87,34 @@ impl FrameStore {
             self.telemetry.record_frame_hit();
             return Ok(frame);
         }
-        self.telemetry.record_frame_miss();
         let cache = self.cache.clone();
         let immich = immich.clone();
         let telemetry = self.telemetry.clone();
         let decoder = self.decoder;
+        let mut led = false;
         let loaded = self
             .inflight
-            .run(key, move || async move {
-                let result = load(&immich, source, decoder, &telemetry).await;
-                if let Ok(frame) = &result {
-                    cache.lock().await.put(key, frame.clone());
+            .run(key, || {
+                led = true;
+                self.telemetry.record_frame_miss();
+                async move {
+                    let result = load(&immich, source, decoder, &telemetry).await;
+                    if let Ok(frame) = &result {
+                        cache.lock().await.put(key, frame.clone());
+                    }
+                    result
                 }
-                result
             })
             .await;
-        loaded.unwrap_or_else(|| {
+        let result = loaded.unwrap_or_else(|| {
             Err(RenderError::Pipeline(PipelineError::Decode(
                 "frame loader stopped".into(),
             )))
-        })
+        });
+        if !led && result.is_ok() {
+            self.telemetry.record_frame_hit();
+        }
+        result
     }
 }
 
