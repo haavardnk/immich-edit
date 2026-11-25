@@ -9,6 +9,7 @@ import { Image } from 'astro:assets';
 import banner from '../../assets/banner.png';
 import developShot from '../../assets/shots/develop-desktop.png';
 import masksShot from '../../assets/shots/masks-desktop.png';
+import cullShot from '../../assets/shots/cull-desktop.png';
 import mapShot from '../../assets/shots/map-desktop.png';
 
 <div class="hero-banner">
@@ -51,13 +52,27 @@ import mapShot from '../../assets/shots/map-desktop.png';
 
   <div class="ie-feature">
     <div class="ie-feature-copy">
-      <h2>Browse, cull, and geotag</h2>
+      <h2>Fast culling and comparison</h2>
       <p>
-        Rate, reject, tag, compare side by side, and explore your library on an interactive map
-        across desktop, tablet, and phone — syncing ratings, favorites, albums, tags, and locations
+        Rate, reject, color-label, and tag photos in the loupe with auto-advance, compare two shots
+        side by side with linked pan and zoom, or survey up to 9 frames together — syncing metadata
         straight back to Immich.
       </p>
       <a href="editing/browse-and-cull/">Browse and cull →</a>
+    </div>
+    <div class="ie-feature-media">
+      <Image src={cullShot} alt="Loupe Compare mode with two photos side by side, rating bar, and filmstrip" />
+    </div>
+  </div>
+
+  <div class="ie-feature ie-feature-reverse">
+    <div class="ie-feature-copy">
+      <h2>Interactive map and geotagging</h2>
+      <p>
+        Explore your library by location across desktop, tablet, and phone, inspect photos in view,
+        and place or update GPS coordinates straight back to Immich.
+      </p>
+      <a href="editing/map/">Map and locations →</a>
     </div>
     <div class="ie-feature-media">
       <Image src={mapShot} alt="Map view with photo clusters and photos in view panel" />
