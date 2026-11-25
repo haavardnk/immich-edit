@@ -2,6 +2,7 @@ import type { BrowseFilters } from '#lib/stores/browseControls.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { MonthCount } from '#lib/types/search.ts';
 import { boundAt, boundTime } from './dateBounds';
+import { dayKey } from './dayGroups';
 
 export type DateBasis = 'taken' | 'added';
 
@@ -196,11 +197,8 @@ export function withoutDates(filters: BrowseFilters): BrowseFilters {
 export function loadedMonths(assets: readonly AssetSummary[]): MonthCount[] {
   const counts = new Map<string, number>();
   for (const asset of assets) {
-    if (!asset.fileCreatedAt) continue;
-    const date = new Date(asset.fileCreatedAt);
-    if (Number.isNaN(date.getTime())) continue;
-    const month = `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-    counts.set(month, (counts.get(month) ?? 0) + 1);
+    const month = dayKey(asset).slice(0, 7);
+    if (month) counts.set(month, (counts.get(month) ?? 0) + 1);
   }
   return [...counts].map(([month, count]) => ({ month, count }));
 }

@@ -120,7 +120,8 @@ pub fn page(query: &PageQuery, ids: &Ids, cursor: Option<&str>) -> Value {
     let field = match query.sort.field {
         SortField::Rating => "rating",
         SortField::Size => "fileSizeInBytes",
-        SortField::Taken | SortField::Added => "fileCreatedAt",
+        SortField::Taken => "localDateTime",
+        SortField::Added => "fileCreatedAt",
     };
     let mut body = json!({
         "filter": filter(&query.filter, ids),
@@ -222,7 +223,7 @@ mod tests {
                 "fileSizeInBytes": { "gte": 1_000_000 },
                 "createdAt": { "gte": "2025-06-01T00:00:00.000Z" },
             },
-            "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
+            "orderBy": { "field": "localDateTime", "direction": "asc" },
             "size": 500,
             "cursor": "next",
             "withExif": true,

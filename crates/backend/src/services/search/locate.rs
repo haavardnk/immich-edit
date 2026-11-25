@@ -12,6 +12,7 @@ use crate::services::search::months::{Month, Span, within};
 use crate::services::search::query::{Direction, MAX_SIZE, PageQuery, Sort, SortField};
 
 const BRACKET_PHOTOS: u64 = 250;
+const HOUR_MS: i64 = 3_600_000;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -65,7 +66,9 @@ impl MonthWalk<'_> {
             Direction::Desc => (at, end),
             Direction::Asc => (start, at),
         };
-        self.searcher.count(&within(self.filter, range)).await
+        self.searcher
+            .count(&within(self.searcher.clock(), self.filter, range))
+            .await
     }
 
     async fn narrow(&self, offset: u64, total: u64) -> Result<Bracket, AppError> {
@@ -81,7 +84,13 @@ impl MonthWalk<'_> {
             ahead_end,
         };
         while bracket.splittable() {
-            let middle = bracket.start + (bracket.end - bracket.start) / 2;
+            let width = bracket.end - bracket.start;
+            let middle = bracket.start + width / 2;
+            let middle = if width > 2 * HOUR_MS {
+                middle - middle.rem_euclid(HOUR_MS)
+            } else {
+                middle
+            };
             let ahead = self.ahead(instant(middle)?).await?;
             let past_target = ahead > offset;
             let middle_is_start = match self.direction {
@@ -102,7 +111,7 @@ impl MonthWalk<'_> {
     async fn nth_in(&self, bracket: &Bracket, index: u64) -> Result<Option<AssetKey>, AppError> {
         let range = (instant(bracket.start)?, instant(bracket.end)?);
         let mut query = PageQuery {
-            filter: within(self.filter, range),
+            filter: within(self.searcher.clock(), self.filter, range),
             sort: Sort {
                 field: SortField::Taken,
                 direction: self.direction,
@@ -139,7 +148,9 @@ pub async fn photo_at(searcher: &Searcher, query: &LocateQuery) -> Result<Locate
         direction: query.direction,
         span: month.span()?,
     };
-    let total = searcher.count(&within(walk.filter, walk.span)).await?;
+    let total = searcher
+        .count(&within(searcher.clock(), walk.filter, walk.span))
+        .await?;
     let Some(last) = total.checked_sub(1) else {
         return Ok(Located { asset_id: None });
     };

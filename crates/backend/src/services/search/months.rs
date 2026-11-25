@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::immich::ImmichError;
 use crate::services::search::Searcher;
-use crate::services::search::added::parse_at;
+use crate::services::search::clock::Clock;
 use crate::services::search::filter::BrowseFilter;
 use crate::services::search::query::{Direction, PageQuery, Sort, SortField};
 use crate::services::single_flight::SingleFlight;
@@ -137,6 +137,7 @@ async fn refresh(
 ) -> Result<Tally, AppError> {
     let counted_from = Utc::now() - CHANGE_MARGIN;
     let memberships = searcher.caches.months.memberships();
+    searcher.caches.local_taken.invalidate();
     let total = searcher.count(&filter).await?;
     let months = match total {
         0 => Vec::new(),
@@ -224,9 +225,9 @@ async fn edge(
     let Some(asset) = page.items.into_iter().next() else {
         return Ok(None);
     };
-    let raw = asset.file_created_at.unwrap_or_default();
-    let taken = parse_at(&raw)
-        .ok_or_else(|| ImmichError::Decode(format!("search fileCreatedAt {raw:?}")))?;
+    let taken = searcher.clock().taken(&asset).ok_or_else(|| {
+        ImmichError::Decode(format!("search capture time of {}", asset.id.source()))
+    })?;
     Ok(Some(taken))
 }
 
@@ -237,7 +238,7 @@ pub(super) async fn counts(
 ) -> Result<Vec<u64>, AppError> {
     stream::iter(spans)
         .map(|span| {
-            let bounded = within(filter, span);
+            let bounded = within(searcher.clock(), filter, span);
             async move { searcher.count(&bounded).await }
         })
         .buffered(CONCURRENCY)
@@ -245,62 +246,6 @@ pub(super) async fn counts(
         .await
 }
 
-pub(super) fn within(filter: &BrowseFilter, (start, end): Span) -> BrowseFilter {
-    BrowseFilter {
-        taken_after: Some(filter.taken_after.map_or(start, |after| after.max(start))),
-        taken_until: Some(filter.taken_until.map_or(end, |until| until.min(end))),
-        ..filter.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use chrono::{TimeDelta, TimeZone};
-
-    use super::*;
-
-    #[test]
-    fn a_bounded_filter_keeps_the_later_start_and_the_picked_end() {
-        let march = Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap();
-        let april = Utc.with_ymd_and_hms(2024, 4, 1, 0, 0, 0).unwrap();
-        let picked_after = Utc.with_ymd_and_hms(2024, 3, 10, 0, 0, 0).unwrap();
-        let picked_before = Utc.with_ymd_and_hms(2024, 3, 20, 0, 0, 0).unwrap();
-        let cases = [
-            (None, None, march),
-            (Some(picked_after), Some(picked_before), picked_after),
-            (Some(march - TimeDelta::days(9)), None, march),
-        ];
-        for (taken_after, taken_before, start) in cases {
-            let filter = BrowseFilter {
-                taken_after,
-                taken_before,
-                favorite: true,
-                ..BrowseFilter::default()
-            };
-            let bounded = within(&filter, (march, april));
-            let kept = (
-                bounded.taken_after,
-                bounded.taken_before,
-                bounded.taken_until,
-                bounded.favorite,
-            );
-            if kept != (Some(start), taken_before, Some(april), true) {
-                panic!("bounded filter kept {kept:?}");
-            }
-        }
-        let picked_until = Utc.with_ymd_and_hms(2024, 3, 15, 0, 0, 0).unwrap();
-        for (until, kept) in [
-            (picked_until, picked_until),
-            (april + TimeDelta::days(3), april),
-        ] {
-            let filter = BrowseFilter {
-                taken_until: Some(until),
-                ..BrowseFilter::default()
-            };
-            let bounded = within(&filter, (march, april)).taken_until;
-            if bounded != Some(kept) {
-                panic!("a picked end of {until} was bounded to {bounded:?}");
-            }
-        }
-    }
+pub(super) fn within(clock: Clock, filter: &BrowseFilter, (start, end): Span) -> BrowseFilter {
+    clock.bound(filter, (Some(start), Some(end)))
 }

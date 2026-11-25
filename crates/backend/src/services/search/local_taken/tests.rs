@@ -33,12 +33,15 @@ fn seen(at: &str, local_at: &str) -> Seen {
 }
 
 #[test]
-fn a_short_span_is_one_slice_and_a_long_one_trusts_its_middle() {
+fn each_end_is_its_own_slice_and_a_long_span_trusts_its_middle() {
     let one_day = span(Some(day(2025, 3, 18)), Some(day(2025, 3, 19))).plan();
     let slices = (one_day.sure, one_day.slices);
     let expected = (
         None,
-        vec![(utc("2025-03-17T10:00:00Z"), utc("2025-03-19T12:00:00Z"))],
+        vec![
+            (utc("2025-03-17T10:00:00Z"), utc("2025-03-18T12:00:00Z")),
+            (utc("2025-03-18T10:00:00Z"), utc("2025-03-19T12:00:00Z")),
+        ],
     );
     if slices != expected {
         panic!("one day planned {slices:?}");

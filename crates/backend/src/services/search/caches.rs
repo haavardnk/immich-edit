@@ -12,6 +12,6 @@ pub struct SearchCaches {
 impl SearchCaches {
     pub fn membership_changed(&self) {
         self.months.membership_changed();
-        self.local_taken.membership_changed();
+        self.local_taken.invalidate();
     }
 }

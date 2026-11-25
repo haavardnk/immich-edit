@@ -13,32 +13,16 @@ export type DayEdges = { keys: string[]; edges: string[] };
 
 const MONTH_KEY = /^(\d{4})-(\d{2})$/;
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-function localKey(at: Date): string {
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-}
-
-export function localDays(month: string): DayEdges | null {
+export function monthDays(month: string): DayEdges | null {
   const match = MONTH_KEY.exec(month);
   if (!match) return null;
   const year = Number(match[1]);
   const index = Number(match[2]) - 1;
-  const end = Date.UTC(year, index + 1, 1);
-  const starts = [new Date(Date.UTC(year, index, 1))];
-  for (;;) {
-    const last = starts[starts.length - 1];
-    if (!last) break;
-    const next = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-    if (next.getTime() >= end) break;
-    starts.push(next);
-  }
-  return {
-    keys: starts.map(localKey),
-    edges: [...starts.map((at) => at.toISOString()), new Date(end).toISOString()]
-  };
+  const count = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
+  const edges = Array.from({ length: count + 1 }, (_, day) =>
+    new Date(Date.UTC(year, index, day + 1)).toISOString()
+  );
+  return { keys: edges.slice(0, -1).map((edge) => edge.slice(0, 10)), edges };
 }
 
 export function scrubDays(keys: readonly string[], counts: readonly number[]): ScrubDay[] {

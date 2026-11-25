@@ -1,5 +1,6 @@
 import type { AssetSummary } from '#lib/types/album.ts';
 import type { SortDir, SortField } from '#lib/types/search.ts';
+import { wallClock } from './dayGroups';
 
 export type SortKey = (asset: AssetSummary) => number | null;
 
@@ -18,7 +19,10 @@ export function fieldKey(field: SortField): SortKey {
   if (field === 'rating') return (a) => a.exifInfo?.rating ?? null;
   if (field === 'size') return (a) => a.exifInfo?.fileSizeInByte ?? null;
   if (field === 'added') return (a) => timeOf(a.createdAt);
-  return (a) => timeOf(a.fileCreatedAt);
+  return (a) => {
+    const wall = wallClock(a);
+    return timeOf(a.localDateTime) ?? (wall ? timeOf(`${wall}Z`) : null);
+  };
 }
 
 export function sortAssets(assets: AssetSummary[], key: SortKey, dir: SortDir): AssetSummary[] {

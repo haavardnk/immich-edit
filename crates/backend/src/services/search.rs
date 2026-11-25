@@ -1,5 +1,6 @@
 mod added;
 mod caches;
+pub mod clock;
 pub mod cursor;
 pub mod filter;
 mod flat;
@@ -28,6 +29,7 @@ use crate::immich::ImmichClient;
 use crate::immich::dto::{AssetSummary, SearchAssets, TagSummary};
 use crate::services::immich_capabilities::CapabilityCache;
 pub use caches::SearchCaches;
+use clock::Clock;
 use cursor::Cursor;
 use filter::BrowseFilter;
 use ids::Ids;
@@ -113,6 +115,13 @@ impl Searcher {
             owner,
             server_epoch,
             ..Self::new(immich.clone(), shape)
+        }
+    }
+
+    pub fn clock(&self) -> Clock {
+        match self.shape {
+            SearchShape::Flat => Clock::Utc,
+            SearchShape::Structured => Clock::Photo,
         }
     }
 

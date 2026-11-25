@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gridHost } from '#lib/commands/grid/gridHost.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { DateScrub, KEY_IDLE_MS, type ScrubFeed } from './dateScrub.svelte';
 import { gridViewport } from './gridViewport.svelte';
-import { dayKey } from './dayGroups';
-import { localDays } from './scrubDays';
+import { captureDay } from './scrubberModel';
+import { monthDays } from './scrubDays';
 
 const searchLocate = vi.hoisted(() => vi.fn());
 const searchCounts = vi.hoisted(() => vi.fn());
@@ -66,6 +67,7 @@ afterEach(() => {
   searchCounts.mockReset();
   toasts.items = [];
   gridViewport.setTop(null);
+  immichCapabilities.structuredSearch = false;
 });
 
 describe('DateScrub', () => {
@@ -119,7 +121,7 @@ describe('DateScrub', () => {
   });
 
   it('names the day under the pointer from day counts or the loaded photo', async () => {
-    const january = localDays('2024-01');
+    const january = monthDays('2024-01');
     searchCounts.mockImplementation(async (_filter: unknown, edges: string[]) =>
       edges.slice(1).map((_, at) => (at === 9 ? 3 : at === 20 ? 1 : 0))
     );
@@ -134,7 +136,7 @@ describe('DateScrub', () => {
     scrub.hover(0.05);
     const first = browsing.visible[0];
     await vi.waitFor(() => expect(searchCounts).toHaveBeenCalledTimes(2));
-    expect(scrub.previewDay?.key).toBe(first ? dayKey(first) : null);
+    expect(scrub.previewDay?.key).toBe(captureDay(first, 'utc'));
     scrub.hover(0.62);
     expect(searchCounts).toHaveBeenCalledTimes(2);
   });
@@ -145,6 +147,18 @@ describe('DateScrub', () => {
     expect(scrub.visible).toEqual({ index: 1, within: 0.5 });
     expect(scrub.markAt).toBe(0.375);
     expect(scrub.index).toBe(1);
+  });
+
+  it("marks the month on each photo's own clock on structured servers", () => {
+    browsing.set([
+      { ...photo('late', '2025-08-01T01:00:00Z'), localDateTime: '2025-07-31T21:00:00Z' },
+      photo('d', '2025-07-01T00:00:00Z')
+    ]);
+    const scrub = new DateScrub(() => feed());
+    gridViewport.setTop('late');
+    expect(scrub.visible).toBeNull();
+    immichCapabilities.structuredSearch = true;
+    expect(scrub.visible).toEqual({ index: 1, within: 0 });
   });
 
   it('scrolls live to a loaded month while dragging and jumps only on release', async () => {

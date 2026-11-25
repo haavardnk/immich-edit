@@ -109,11 +109,15 @@ describe('date periods', () => {
     expect(calendarYears([], 'taken', TODAY, null)).toEqual([]);
   });
 
-  it('counts loaded photos by local month', () => {
+  it("counts loaded photos by each photo's own month", () => {
     const months = loadedMonths([
-      { fileCreatedAt: new Date(2026, 9, 3).toISOString() },
-      { fileCreatedAt: new Date(2026, 9, 30).toISOString() },
-      { fileCreatedAt: null }
+      { localDateTime: '2026-10-03T12:00:00.000Z', fileCreatedAt: null, exifInfo: null },
+      {
+        localDateTime: '2026-10-31T23:30:00.000Z',
+        fileCreatedAt: '2026-11-01T01:30:00.000Z',
+        exifInfo: null
+      },
+      { localDateTime: null, fileCreatedAt: null, exifInfo: null }
     ] as AssetSummary[]);
     expect(months).toEqual([{ month: '2026-10', count: 2 }]);
   });

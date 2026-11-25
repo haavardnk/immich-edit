@@ -1,21 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { dayAt, localDays, ordered, scrubDays, scrubLabel } from './scrubDays';
+import { dayAt, monthDays, ordered, scrubDays, scrubLabel } from './scrubDays';
 
-describe('localDays', () => {
-  it('splits a UTC month at local midnights from its first to its last instant', () => {
-    const days = localDays('2024-02');
+describe('monthDays', () => {
+  it('splits a month at wall-clock midnights', () => {
+    const days = monthDays('2024-02');
+    expect(days?.keys).toHaveLength(29);
+    expect(days?.keys[0]).toBe('2024-02-01');
+    expect(days?.keys.at(-1)).toBe('2024-02-29');
     expect(days?.edges[0]).toBe('2024-02-01T00:00:00.000Z');
+    expect(days?.edges[1]).toBe('2024-02-02T00:00:00.000Z');
     expect(days?.edges.at(-1)).toBe('2024-03-01T00:00:00.000Z');
-    expect(days?.edges).toHaveLength((days?.keys.length ?? 0) + 1);
-    expect(days?.keys.length).toBeGreaterThanOrEqual(29);
-    expect(days?.keys.length).toBeLessThanOrEqual(30);
-    expect(new Set(days?.keys).size).toBe(days?.keys.length);
-    const edges = days?.edges.map((edge) => Date.parse(edge)) ?? [];
-    expect(edges.every((edge, at) => at === 0 || edge > (edges[at - 1] ?? 0))).toBe(true);
   });
 
   it('rejects a malformed month', () => {
-    expect(localDays('2024-2')).toBeNull();
+    expect(monthDays('2024-2')).toBeNull();
   });
 });
 
