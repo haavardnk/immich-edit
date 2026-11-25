@@ -279,3 +279,58 @@ async fn search_listing_places_copies_after_their_master() {
         panic!("copies should inherit master metadata: {}", assets[2]);
     }
 }
+
+async fn send(app: &axum::Router, method: &str, uri: String, body: &'static str) -> StatusCode {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .status()
+}
+
+#[tokio::test]
+async fn a_deleted_or_unknown_copy_takes_no_edits_or_snapshots() {
+    let server = MockServer::start().await;
+    mock_asset_detail(&server).await;
+    let id = asset_id();
+    let app = test_app(&server).await;
+    let edits = r#"{"schema_version":2,"ops":{"exposure":{"ev":0.5}}}"#;
+    let snapshot = r#"{"name":"Warm","manifest":{"schema_version":2,"ops":{}}}"#;
+
+    let created = send(&app, "POST", format!("/api/assets/{id}/copies"), "{}").await;
+    assert_eq!(created, StatusCode::CREATED);
+    let live = send(&app, "PUT", format!("/api/assets/{id}_1/edits"), edits).await;
+    assert_eq!(live, StatusCode::OK);
+    let deleted = send(&app, "DELETE", format!("/api/copies/{id}_1"), "").await;
+    assert_eq!(deleted, StatusCode::NO_CONTENT);
+
+    for key in [format!("{id}_1"), format!("{id}_7")] {
+        let put = send(&app, "PUT", format!("/api/assets/{key}/edits"), edits).await;
+        assert_eq!(put, StatusCode::NOT_FOUND, "edits for {key}");
+        let snap = send(
+            &app,
+            "POST",
+            format!("/api/assets/{key}/snapshots"),
+            snapshot,
+        )
+        .await;
+        assert_eq!(snap, StatusCode::NOT_FOUND, "snapshot for {key}");
+    }
+    let master = send(&app, "PUT", format!("/api/assets/{id}/edits"), edits).await;
+    assert_eq!(master, StatusCode::OK);
+    let master_snapshot = send(
+        &app,
+        "POST",
+        format!("/api/assets/{id}/snapshots"),
+        snapshot,
+    )
+    .await;
+    assert_eq!(master_snapshot, StatusCode::OK);
+}

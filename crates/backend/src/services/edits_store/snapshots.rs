@@ -122,6 +122,7 @@ impl EditsStore {
         );
         let edits_json = serde_json::to_string(&snapshot.edits)?;
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        copies::ensure_live(&mut tx, owner, asset_id).await?;
         sqlx::query(
             "INSERT INTO edit_snapshots (id, user_id, asset_id, name, edits_json, created_at, \
              updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",

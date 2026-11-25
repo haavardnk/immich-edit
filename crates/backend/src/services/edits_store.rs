@@ -47,6 +47,8 @@ pub enum EditsStoreError {
     Migrate(#[from] sqlx::migrate::MigrateError),
     #[error("parse: {0}")]
     Parse(#[from] serde_json::Error),
+    #[error("virtual copy deleted or never created")]
+    DeletedCopy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,6 +226,7 @@ impl EditsStore {
         write: EditWrite<'_>,
     ) -> Result<EditRecord, EditsStoreError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        copies::ensure_live(&mut tx, owner, asset_id).await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
         self.write_put(tx, owner, asset_id, current, write).await
     }
@@ -236,6 +239,7 @@ impl EditsStore {
         write: EditWrite<'_>,
     ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        copies::ensure_live(&mut tx, owner, asset_id).await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
         if let Some(conflict) = conflict_with(current.clone(), expected, asset_id) {
             return Ok(WriteOutcome::Conflict(conflict));
