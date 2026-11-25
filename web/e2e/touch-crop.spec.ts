@@ -180,11 +180,11 @@ test.describe('touch crop on a phone', { tag: ['@touch', '@phone'] }, () => {
     await touchDown(page, still);
     await touchMoveTo(page, { x: still.x + 20, y: still.y });
     await touchMoveTo(page, { x: still.x + 40, y: still.y });
+    await expect.poll(photo).toBeGreaterThan(before + 20);
     expect(await frame()).toEqual(still);
-    expect(await photo()).toBeGreaterThan(before + 20);
     await touchUp(page);
     await expect.poll(frame).toEqual(still);
-    expect(await photo()).toBeGreaterThan(before + 20);
+    await expect.poll(photo).toBeGreaterThan(before + 20);
   });
 
   test('panning the photo into an edge keeps a locked ratio', async ({ page }) => {
