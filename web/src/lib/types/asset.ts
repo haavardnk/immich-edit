@@ -37,6 +37,7 @@ export interface AssetDetail {
   originalPath?: string;
   type: AssetType;
   ownerId?: string;
+  libraryId?: string;
   originalMimeType: string | null;
   localDateTime?: string | null;
   fileCreatedAt: string | null;

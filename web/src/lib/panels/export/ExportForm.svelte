@@ -90,6 +90,7 @@
       stackable={scope.stackable}
       stackReason={scope.stackReason}
       replaceReason={scope.replaceReason}
+      externalNote={scope.externalNote}
     />
   </ExportSection>
 {/if}

@@ -34,6 +34,7 @@ describe('exportScope', () => {
       stackable: true,
       stackReason: NOT_OWNER_STACK,
       replaceReason: null,
+      externalNote: null,
       conflictReason: null,
       nameExample: { original: 'a.ARW', date: '2024-05-06', position: 1, total: 1 }
     });
@@ -47,6 +48,12 @@ describe('exportScope', () => {
     const trashOn = exportScope({ assets: [asset('a')], count: 1, trashOn: true });
     expect(uploadOptions(form, trashOn, false, 'replace').onConflict).toBe('replace');
     expect(uploadOptions(form, trashOn, false).onConflict).toBe('keep_both');
+  });
+
+  it('notes photos from an external library', () => {
+    const external = { ...asset('a'), libraryId: '22222222-2222-4222-8222-222222222222' };
+    const scope = exportScope({ assets: [external, asset('b')], count: 3, trashOn: true });
+    expect(scope.externalNote).toMatch(/^1 photo is from an external library/);
   });
 
   it('allows stacking before the photo has loaded', () => {

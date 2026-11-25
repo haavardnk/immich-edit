@@ -21,13 +21,15 @@
     replaceOriginal = $bindable(false),
     stackable = true,
     stackReason = NOT_OWNER_STACK,
-    replaceReason = null
+    replaceReason = null,
+    externalNote = null
   }: {
     form: ExportFormValues;
     replaceOriginal?: boolean;
     stackable?: boolean;
     stackReason?: string;
     replaceReason?: string | null;
+    externalNote?: string | null;
   } = $props();
 
   const replacing = $derived(replaceOriginal && replaceReason === null);
@@ -138,7 +140,13 @@
   </div>
 
   {#if replacing}
-    <Notice color="warning" message={replaceWarning(immichCapabilities.trashDays)} />
+    <Notice
+      color="warning"
+      message={[
+        replaceWarning(immichCapabilities.trashDays),
+        ...(externalNote ? [externalNote] : [])
+      ]}
+    />
   {/if}
 
   {#if canStack && form.stackWithOriginal}

@@ -34,6 +34,7 @@ export interface AssetSummary {
   originalPath?: string;
   type: AssetType;
   ownerId?: string;
+  libraryId?: string;
   localDateTime?: string | null;
   fileCreatedAt: string | null;
   createdAt?: string | null;

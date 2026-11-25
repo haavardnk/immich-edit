@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { bulkBar } from './browse';
 import {
   installMocks,
   numberedAssets,
@@ -6,8 +7,13 @@ import {
   openLoupeFromGrid,
   type InstallOpts
 } from './helpers';
+import { datedAssets, dayShots, openTouchTimeline } from './timeline';
+import { selectTwo } from './touchShell';
 
 const ASSETS = numberedAssets(3);
+const LIBRARY = '44444444-4444-4444-8444-444444444444';
+const EXTERNAL_NOTE =
+  '2 photos are from an external library. Immich can only delete their files with write access to the library folder; without it, the next library scan imports them again.';
 
 async function openGrid(page: Page, opts: InstallOpts = {}): Promise<void> {
   await installMocks(page, { assets: ASSETS, ...opts });
@@ -55,6 +61,37 @@ test('the bulk bar moves photos to the Immich trash and undo brings them back', 
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(tile(page, 'IMG_0001.ARW')).toBeVisible();
   await expect(tile(page, 'IMG_0002.ARW')).toBeVisible();
+});
+
+test('trashing photos from an external library warns about read-only folders', async ({ page }) => {
+  await openGrid(page, { assets: numberedAssets(3, { libraryId: LIBRARY }) });
+  await selectFirstTwo(page);
+
+  await page
+    .getByRole('toolbar', { name: 'Selection actions' })
+    .getByRole('button', { name: 'Move to Immich trash' })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Move to Immich trash' })).toContainText(
+    EXTERNAL_NOTE
+  );
+});
+
+test('@touch the touch trash dialog warns about read-only external folders', async ({ page }) => {
+  const assets = datedAssets(dayShots('2026-10-31', 4)).map((asset) => ({
+    ...asset,
+    libraryId: LIBRARY
+  }));
+  await openTouchTimeline(page, { assets, metadataPushConsented: true });
+  await selectTwo(page);
+  await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
+  await page
+    .getByRole('dialog', { name: 'More actions' })
+    .getByRole('button', { name: 'Move to trash', exact: true })
+    .tap();
+
+  await expect(page.getByRole('dialog', { name: 'Move to Immich trash' })).toContainText(
+    EXTERNAL_NOTE
+  );
 });
 
 test('the delete key asks first and cancel keeps the photo', async ({ page }) => {
