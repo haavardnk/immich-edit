@@ -30,6 +30,7 @@ type Condition = Box<dyn Fn(&Photo) -> bool>;
 struct Search {
     conditions: Vec<Condition>,
     ascending: bool,
+    by_photo_clock: bool,
     size: usize,
     start: usize,
     structured: bool,
@@ -67,7 +68,7 @@ impl Respond for Library {
                 .set_body_json(json!({ "total": photos.len() }))
                 .set_delay(self.delay);
         }
-        sort(&mut photos, search.ascending);
+        sort(&mut photos, search.ascending, search.by_photo_clock);
         let items: Vec<Value> = photos
             .iter()
             .skip(search.start)
@@ -92,8 +93,15 @@ impl Respond for Library {
     }
 }
 
-fn sort(photos: &mut [Photo], ascending: bool) {
-    photos.sort_by_key(|photo| (photo.taken, photo.id));
+fn sort(photos: &mut [Photo], ascending: bool, by_photo_clock: bool) {
+    photos.sort_by_key(|photo| {
+        let at = if by_photo_clock {
+            photo.taken + photo.zone
+        } else {
+            photo.taken
+        };
+        (at, photo.id)
+    });
     if !ascending {
         photos.reverse();
     }
@@ -134,6 +142,7 @@ fn flat(body: &Map<String, Value>) -> Option<Search> {
     Some(Search {
         conditions,
         ascending: body.get("order") == Some(&json!("asc")),
+        by_photo_clock: false,
         size,
         start: (page - 1) * size,
         structured: false,
@@ -168,10 +177,8 @@ fn structured(body: &Map<String, Value>, filter: &Map<String, Value>) -> Option<
         }
     }
     let order = body.get("orderBy");
-    if order
-        .and_then(|order| order.get("field"))
-        .is_some_and(|field| field != "fileCreatedAt")
-    {
+    let field = order.and_then(|order| order.get("field"));
+    if field.is_some_and(|field| field != "fileCreatedAt" && field != "localDateTime") {
         return None;
     }
     let start = match body.get("cursor") {
@@ -181,6 +188,7 @@ fn structured(body: &Map<String, Value>, filter: &Map<String, Value>) -> Option<
     Some(Search {
         conditions,
         ascending: order.and_then(|order| order.get("direction")) == Some(&json!("asc")),
+        by_photo_clock: field == Some(&json!("localDateTime")),
         size: size(body),
         start,
         structured: true,
@@ -225,7 +233,7 @@ fn compare(op: &str, bound: &Value, field: fn(&Photo) -> DateTime<Utc>) -> Optio
 
 pub fn feed(photos: &[Photo], ascending: bool) -> Vec<Uuid> {
     let mut sorted = photos.to_vec();
-    sort(&mut sorted, ascending);
+    sort(&mut sorted, ascending, false);
     sorted.iter().map(|photo| photo.id).collect()
 }
 

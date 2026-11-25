@@ -12,16 +12,15 @@ use crate::error::AppError;
 use crate::immich::dto::AssetSummary;
 use crate::services::search::Searcher;
 use crate::services::search::added::parse_at;
+use crate::services::search::clock::{Clock, MAX_AHEAD_OF_UTC, MAX_BEHIND_UTC, earlier};
 use crate::services::search::filter::BrowseFilter;
 use crate::services::search::ids::Ids;
-use crate::services::search::months::{Span, within};
+use crate::services::search::months::Span;
 use crate::services::search::query::{Direction, MAX_SIZE, PageQuery, Sort, SortField};
 use crate::services::single_flight::SingleFlight;
 use crate::services::ttl_cache::TtlCache;
 
-const MAX_AHEAD_OF_UTC: TimeDelta = TimeDelta::hours(14);
-const MAX_BEHIND_UTC: TimeDelta = TimeDelta::hours(12);
-const CACHE_CAP: NonZeroUsize = NonZeroUsize::new(64).unwrap();
+const CACHE_CAP: NonZeroUsize = NonZeroUsize::new(1024).unwrap();
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize)]
@@ -51,19 +50,11 @@ impl LocalSpan {
     fn plan(self) -> Plan {
         let start = self.from.map(|from| from.and_utc() + MAX_BEHIND_UTC);
         let end = self.until.map(|until| until.and_utc() - MAX_AHEAD_OF_UTC);
-        if let (Some(start), Some(end)) = (start, end)
-            && start >= end
-        {
-            let joined = self.earliest().zip(self.latest());
-            return Plan {
-                sure: None,
-                slices: joined.into_iter().collect(),
-            };
-        }
         let lower = self.earliest().zip(start);
         let upper = end.zip(self.latest());
+        let joined = matches!((start, end), (Some(start), Some(end)) if start >= end);
         Plan {
-            sure: Some((start, end)),
+            sure: (!joined).then_some((start, end)),
             slices: lower.into_iter().chain(upper).collect(),
         }
     }
@@ -161,20 +152,21 @@ impl LocalBounds {
 }
 
 type Settled = Option<Arc<LocalBounds>>;
+type Scanned = Arc<Vec<Seen>>;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-struct BoundsKey {
+struct SliceKey {
     owner: Uuid,
     server_epoch: i64,
     generation: u64,
     basis: String,
-    span: LocalSpan,
+    slice: Span,
 }
 
 #[derive(Clone)]
 pub struct LocalBoundsCache {
-    stored: TtlCache<BoundsKey, Settled>,
-    flights: SingleFlight<BoundsKey, Result<Settled, AppError>>,
+    stored: TtlCache<SliceKey, Scanned>,
+    flights: SingleFlight<SliceKey, Result<Scanned, AppError>>,
     generation: Arc<AtomicU64>,
 }
 
@@ -189,7 +181,7 @@ impl Default for LocalBoundsCache {
 }
 
 impl LocalBoundsCache {
-    pub(super) fn membership_changed(&self) {
+    pub(super) fn invalidate(&self) {
         self.generation.fetch_add(1, Ordering::SeqCst);
     }
 }
@@ -203,65 +195,67 @@ pub(super) async fn bounds(
     if span.is_empty() {
         return Ok(None);
     }
-    let basis = BrowseFilter {
-        taken_local: None,
-        taken_after: None,
-        taken_before: None,
-        taken_until: None,
-        added_between: None,
-        updated_after: None,
-        ..filter.clone()
-    };
-    let cache = &searcher.caches.local_taken;
-    let key = BoundsKey {
-        owner: searcher.owner,
-        server_epoch: searcher.server_epoch,
-        generation: cache.generation.load(Ordering::SeqCst),
-        basis: format!("{basis:?}"),
-        span,
-    };
-    if let Some(hit) = cache.stored.get(&key).await {
-        return Ok(hit);
-    }
     let scope = Scope {
         searcher: searcher.clone(),
-        basis,
+        basis: BrowseFilter {
+            taken_local: None,
+            taken_after: None,
+            taken_before: None,
+            taken_until: None,
+            added_between: None,
+            updated_after: None,
+            ..filter.clone()
+        },
         ids: ids.clone(),
     };
-    let work = || resolve(scope, span, cache.stored.clone(), key.clone());
-    cache
-        .flights
-        .run(key.clone(), work)
-        .await
-        .ok_or(AppError::Internal)?
+    let plan = span.plan();
+    let mut seen: Vec<Seen> = Vec::new();
+    let mut ids = HashSet::new();
+    for slice in &plan.slices {
+        let scanned = scope.scanned(*slice).await?;
+        seen.extend(scanned.iter().filter(|asset| ids.insert(asset.id)).copied());
+    }
+    Ok(LocalBounds::settle(span, &plan, &seen).map(Arc::new))
 }
 
+#[derive(Clone)]
 struct Scope {
     searcher: Searcher,
     basis: BrowseFilter,
     ids: Ids,
 }
 
-async fn resolve(
-    scope: Scope,
-    span: LocalSpan,
-    stored: TtlCache<BoundsKey, Settled>,
-    key: BoundsKey,
-) -> Result<Settled, AppError> {
-    let plan = span.plan();
-    let mut seen = Vec::new();
-    for slice in &plan.slices {
-        seen.extend(scope.scan(*slice).await?);
-    }
-    let settled = LocalBounds::settle(span, &plan, &seen).map(Arc::new);
-    stored.put(key, settled.clone()).await;
-    Ok(settled)
-}
-
 impl Scope {
+    async fn scanned(&self, slice: Span) -> Result<Scanned, AppError> {
+        let cache = &self.searcher.caches.local_taken;
+        let key = SliceKey {
+            owner: self.searcher.owner,
+            server_epoch: self.searcher.server_epoch,
+            generation: cache.generation.load(Ordering::SeqCst),
+            basis: format!("{:?}", self.basis),
+            slice,
+        };
+        if let Some(hit) = cache.stored.get(&key).await {
+            return Ok(hit);
+        }
+        let scope = self.clone();
+        let stored = cache.stored.clone();
+        let flight_key = key.clone();
+        let work = || async move {
+            let scanned = Arc::new(scope.scan(slice).await?);
+            stored.put(flight_key, scanned.clone()).await;
+            Ok(scanned)
+        };
+        cache
+            .flights
+            .run(key, work)
+            .await
+            .ok_or(AppError::Internal)?
+    }
+
     async fn scan(&self, slice: Span) -> Result<Vec<Seen>, AppError> {
         let mut query = PageQuery {
-            filter: within(&self.basis, slice),
+            filter: Clock::Utc.bound(&self.basis, (Some(slice.0), Some(slice.1))),
             sort: Sort {
                 field: SortField::Taken,
                 direction: Direction::Asc,
@@ -279,13 +273,6 @@ impl Scope {
             };
             query.cursor = Some(cursor);
         }
-    }
-}
-
-fn earlier(a: Option<DateTime<Utc>>, b: Option<DateTime<Utc>>) -> Option<DateTime<Utc>> {
-    match (a, b) {
-        (Some(a), Some(b)) => Some(a.min(b)),
-        (a, b) => a.or(b),
     }
 }
 

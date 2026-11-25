@@ -18,15 +18,30 @@ export type LoadedPhoto = { id: string; exact: boolean };
 
 export type MonthAnchor = { month: string; offset: number; id: string };
 
-type Dated = { id: string; fileCreatedAt: string | null; copyOf?: string };
+export type CaptureClock = 'photo' | 'utc';
+
+type Dated = {
+  id: string;
+  fileCreatedAt: string | null;
+  localDateTime?: string | null;
+  copyOf?: string;
+};
 
 const MONTH_KEY = /^(\d{4})-(\d{2})$/;
 
-export function utcMonth(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return null;
-  return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}`;
+function capturedAt(item: Dated | undefined, clock: CaptureClock): Date | null {
+  const raw = clock === 'photo' ? item?.localDateTime : item?.fileCreatedAt;
+  if (!raw) return null;
+  const at = new Date(raw);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
+export function captureDay(item: Dated | undefined, clock: CaptureClock): string | null {
+  return capturedAt(item, clock)?.toISOString().slice(0, 10) ?? null;
+}
+
+export function captureMonth(item: Dated | undefined, clock: CaptureClock): string | null {
+  return capturedAt(item, clock)?.toISOString().slice(0, 7) ?? null;
 }
 
 export function scrubModel(counts: readonly MonthCount[], direction: SortDir): ScrubModel {
@@ -156,11 +171,12 @@ function monthBase(
   items: readonly Dated[],
   start: number,
   hasPrevious: boolean,
-  anchor: MonthAnchor | null
+  anchor: MonthAnchor | null,
+  clock: CaptureClock
 ): number | null {
   if (start > 0 || !hasPrevious) return 0;
   const at = anchor ? items.findIndex((item) => item.id === anchor.id) : -1;
-  if (!anchor || at < start || utcMonth(items[at]?.fileCreatedAt) !== anchor.month) return null;
+  if (!anchor || at < start || captureMonth(items[at], clock) !== anchor.month) return null;
   return anchor.offset - originalsBetween(items, start, at);
 }
 
@@ -169,16 +185,17 @@ export function loadedPhotoAt(
   month: string,
   offset: number,
   hasPrevious: boolean,
-  anchor: MonthAnchor | null = null
+  anchor: MonthAnchor | null,
+  clock: CaptureClock
 ): LoadedPhoto | null {
-  const start = items.findIndex((item) => utcMonth(item.fileCreatedAt) === month);
+  const start = items.findIndex((item) => captureMonth(item, clock) === month);
   if (start < 0) return null;
-  const base = monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null);
+  const base = monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null, clock);
   if (base === null) return null;
   let seen = base;
   let last: string | null = null;
   for (const item of items.slice(start)) {
-    if (utcMonth(item.fileCreatedAt) !== month) return last ? { id: last, exact: true } : null;
+    if (captureMonth(item, clock) !== month) return last ? { id: last, exact: true } : null;
     if (item.copyOf) continue;
     if (seen >= offset) return { id: item.id, exact: seen === offset };
     seen += 1;
@@ -191,16 +208,18 @@ export function visibleMonth(
   model: ScrubModel,
   items: readonly Dated[],
   topIndex: number,
-  hasPrevious = false,
-  anchor: MonthAnchor | null = null
+  hasPrevious: boolean,
+  anchor: MonthAnchor | null,
+  clock: CaptureClock
 ): ScrubPoint | null {
-  const month = utcMonth(items[topIndex]?.fileCreatedAt);
+  const month = captureMonth(items[topIndex], clock);
   const index = model.months.findIndex((entry) => entry.month === month);
   const entry = model.months[index];
   if (!entry || !month) return null;
   let start = topIndex;
-  while (start > 0 && utcMonth(items[start - 1]?.fileCreatedAt) === month) start -= 1;
-  const base = monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null) ?? 0;
+  while (start > 0 && captureMonth(items[start - 1], clock) === month) start -= 1;
+  const base =
+    monthBase(items, start, hasPrevious, anchor?.month === month ? anchor : null, clock) ?? 0;
   const before = base + originalsBetween(items, start, topIndex);
   return { index, within: Math.min(1, Math.max(0, before / entry.count)) };
 }

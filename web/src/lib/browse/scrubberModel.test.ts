@@ -10,7 +10,8 @@ import {
   spaced,
   stepMonth,
   stepYear,
-  utcMonth,
+  captureDay,
+  captureMonth,
   visibleMonth,
   yearMarks
 } from './scrubberModel';
@@ -130,10 +131,18 @@ describe('labels', () => {
     expect(monthLabel('2025-07')).toBe('July 2025');
   });
 
-  it('reads the UTC month of fileCreatedAt', () => {
-    expect(utcMonth('2025-07-31T23:30:00-02:00')).toBe('2025-08');
-    expect(utcMonth(null)).toBeNull();
-    expect(utcMonth('nope')).toBeNull();
+  it('reads the month and day on the server clock', () => {
+    const late = {
+      id: 'x',
+      fileCreatedAt: '2025-07-31T23:30:00-02:00',
+      localDateTime: '2025-07-31T23:30:00.000Z'
+    };
+    expect(captureMonth(late, 'utc')).toBe('2025-08');
+    expect(captureMonth(late, 'photo')).toBe('2025-07');
+    expect(captureDay(late, 'utc')).toBe('2025-08-01');
+    expect(captureDay(late, 'photo')).toBe('2025-07-31');
+    expect(captureMonth({ id: 'y', fileCreatedAt: null }, 'utc')).toBeNull();
+    expect(captureMonth({ id: 'z', fileCreatedAt: 'nope' }, 'utc')).toBeNull();
   });
 });
 
@@ -147,23 +156,41 @@ describe('loaded photos', () => {
   ];
 
   it('finds the first loaded photo of a month', () => {
-    expect(loadedPhotoAt(items, '2026-01', 0, false)).toEqual({ id: 'c', exact: true });
-    expect(loadedPhotoAt(items, '2025-07', 0, false)).toBeNull();
+    expect(loadedPhotoAt(items, '2026-01', 0, false, null, 'utc')).toEqual({
+      id: 'c',
+      exact: true
+    });
+    expect(loadedPhotoAt(items, '2025-07', 0, false, null, 'utc')).toBeNull();
   });
 
   it('does not trust a month cut off at the near end of a window', () => {
-    expect(loadedPhotoAt(items, '2026-10', 0, true)).toBeNull();
-    expect(loadedPhotoAt(items, '2026-10', 0, false)).toEqual({ id: 'a', exact: true });
+    expect(loadedPhotoAt(items, '2026-10', 0, true, null, 'utc')).toBeNull();
+    expect(loadedPhotoAt(items, '2026-10', 0, false, null, 'utc')).toEqual({
+      id: 'a',
+      exact: true
+    });
   });
 
   it('counts into a month past virtual copies', () => {
-    expect(loadedPhotoAt(items, '2026-10', 1, false)).toEqual({ id: 'b', exact: true });
-    expect(loadedPhotoAt(items, '2026-01', 1, false)).toEqual({ id: 'd', exact: true });
+    expect(loadedPhotoAt(items, '2026-10', 1, false, null, 'utc')).toEqual({
+      id: 'b',
+      exact: true
+    });
+    expect(loadedPhotoAt(items, '2026-01', 1, false, null, 'utc')).toEqual({
+      id: 'd',
+      exact: true
+    });
   });
 
   it('stops at the month end, or at the loaded end short of the target', () => {
-    expect(loadedPhotoAt(items, '2026-10', 5, false)).toEqual({ id: 'b', exact: true });
-    expect(loadedPhotoAt(items, '2026-01', 5, false)).toEqual({ id: 'd', exact: false });
+    expect(loadedPhotoAt(items, '2026-10', 5, false, null, 'utc')).toEqual({
+      id: 'b',
+      exact: true
+    });
+    expect(loadedPhotoAt(items, '2026-01', 5, false, null, 'utc')).toEqual({
+      id: 'd',
+      exact: false
+    });
   });
 
   it('turns a point into a photo offset inside its month', () => {
@@ -176,11 +203,13 @@ describe('loaded photos', () => {
 
   it('marks the visible range inside its month', () => {
     const model = scrubModel(counts, 'desc');
-    expect(visibleMonth(model, items, 0)).toEqual({ index: 0, within: 0 });
-    expect(visibleMonth(model, items, 3)).toEqual({ index: 1, within: 0 });
-    expect(visibleMonth(model, items, 4)).toEqual({ index: 1, within: 0.04 });
-    expect(visibleMonth(model, items, 2)).toEqual({ index: 0, within: 0.04 });
-    expect(visibleMonth(model, [{ id: 'x', fileCreatedAt: null }], 0)).toBeNull();
+    expect(visibleMonth(model, items, 0, false, null, 'utc')).toEqual({ index: 0, within: 0 });
+    expect(visibleMonth(model, items, 3, false, null, 'utc')).toEqual({ index: 1, within: 0 });
+    expect(visibleMonth(model, items, 4, false, null, 'utc')).toEqual({ index: 1, within: 0.04 });
+    expect(visibleMonth(model, items, 2, false, null, 'utc')).toEqual({ index: 0, within: 0.04 });
+    expect(
+      visibleMonth(model, [{ id: 'x', fileCreatedAt: null }], 0, false, null, 'utc')
+    ).toBeNull();
   });
 });
 
@@ -195,13 +224,19 @@ describe('a window inside a large month', () => {
   const anchor = { month: '2026-10', offset: 5000, id: 'p3' };
 
   it('counts offsets from a located photo when the month start is not loaded', () => {
-    expect(loadedPhotoAt(window, '2026-10', 4998, true, anchor)).toEqual({ id: 'p1', exact: true });
-    expect(loadedPhotoAt(window, '2026-10', 5001, true, anchor)).toEqual({ id: 'p4', exact: true });
-    expect(loadedPhotoAt(window, '2026-10', 6000, true, anchor)).toEqual({
+    expect(loadedPhotoAt(window, '2026-10', 4998, true, anchor, 'utc')).toEqual({
+      id: 'p1',
+      exact: true
+    });
+    expect(loadedPhotoAt(window, '2026-10', 5001, true, anchor, 'utc')).toEqual({
+      id: 'p4',
+      exact: true
+    });
+    expect(loadedPhotoAt(window, '2026-10', 6000, true, anchor, 'utc')).toEqual({
       id: 'p4',
       exact: false
     });
-    expect(loadedPhotoAt(window, '2026-10', 100, true, anchor)).toEqual({
+    expect(loadedPhotoAt(window, '2026-10', 100, true, anchor, 'utc')).toEqual({
       id: 'p1',
       exact: false
     });
@@ -209,14 +244,16 @@ describe('a window inside a large month', () => {
 
   it('ignores an anchor from another month or one that is no longer loaded', () => {
     expect(
-      loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, month: '2026-09' })
+      loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, month: '2026-09' }, 'utc')
     ).toBeNull();
-    expect(loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, id: 'gone' })).toBeNull();
+    expect(
+      loadedPhotoAt(window, '2026-10', 5000, true, { ...anchor, id: 'gone' }, 'utc')
+    ).toBeNull();
   });
 
   it('marks the visible photo at its place in the month', () => {
     const model = scrubModel([{ month: '2026-10', count: 10000 }], 'desc');
-    expect(visibleMonth(model, window, 3, true, anchor)).toEqual({ index: 0, within: 0.5 });
-    expect(visibleMonth(model, window, 3, true, null)).toEqual({ index: 0, within: 0.0002 });
+    expect(visibleMonth(model, window, 3, true, anchor, 'utc')).toEqual({ index: 0, within: 0.5 });
+    expect(visibleMonth(model, window, 3, true, null, 'utc')).toEqual({ index: 0, within: 0.0002 });
   });
 });

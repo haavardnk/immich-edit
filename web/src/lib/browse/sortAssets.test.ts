@@ -35,6 +35,24 @@ describe('sortAssets', () => {
     expect(ids(sortAssets(list, takenAt, dir))).toEqual(expected);
   });
 
+  it("orders taken photos by each photo's own clock", () => {
+    const camera = {
+      ...asset('camera', '2024-06-01T12:00:00Z'),
+      localDateTime: '2024-06-01T12:00:00Z'
+    };
+    const phone = {
+      ...asset('phone', '2024-06-01T10:30:00Z'),
+      localDateTime: '2024-06-01T12:30:00Z'
+    };
+    expect(ids(sortAssets([phone, camera], takenAt, 'asc'))).toEqual(['camera', 'phone']);
+  });
+
+  it('orders a burst within one second by its milliseconds', () => {
+    const shot = (id: string, at: string) => ({ ...asset(id, at), localDateTime: at });
+    const burst = [shot('b', '2024-06-01T12:00:00.200Z'), shot('a', '2024-06-01T12:00:00.100Z')];
+    expect(ids(sortAssets(burst, takenAt, 'asc'))).toEqual(['a', 'b']);
+  });
+
   it('keeps equal timestamps in their original order', () => {
     const same = [
       asset('x', '2024-01-01T00:00:00Z'),

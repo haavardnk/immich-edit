@@ -101,7 +101,8 @@ async fn one_month_is_counted_once() {
         let (server, app, _) = library(minor, photos(&taken)).await;
         let counts = months(&app, json!({})).await;
         let calls = search_calls(&server).await;
-        if counts != single("2024-07", 3) || calls != (2, 2) {
+        let boundary_scans = if minor == 2 { 2 } else { 0 };
+        if counts != single("2024-07", 3) || calls != (2 + boundary_scans, 2) {
             panic!("3.{minor} one month gave {counts} after {calls:?} calls");
         }
     }
@@ -129,7 +130,9 @@ async fn years_without_photos_are_skipped_before_months_are_counted() {
         let total_call = 1;
         let year_calls = 3;
         let month_calls = 2 + 12 + 6;
-        if counts != expected || calls != (2, total_call + year_calls + month_calls) {
+        let boundary_scans = if minor == 2 { 3 + 13 + 7 } else { 0 };
+        let expected_calls = (2 + boundary_scans, total_call + year_calls + month_calls);
+        if counts != expected || calls != expected_calls {
             panic!("3.{minor} gapped library gave {counts} after {calls:?} calls");
         }
     }
@@ -388,7 +391,7 @@ async fn concurrent_identical_views_share_one_count() {
     let (first, second) = tokio::join!(months(&app, json!({})), months(&app, json!({})));
     let calls = search_calls(&server).await;
     let shared = (calls.0 - warmed.0, calls.1 - warmed.1);
-    if first != single("2024-07", 1) || first != second || shared != (2, 2) {
+    if first != single("2024-07", 1) || first != second || shared != (4, 2) {
         panic!("concurrent views gave {first} and {second} after {shared:?} calls");
     }
 }
@@ -411,11 +414,11 @@ async fn a_dropped_request_still_fills_the_cache() {
         panic!("the slow request finished before it was dropped");
     }
     request.abort();
-    let filled = settle(&server, (2, 3)).await;
+    let filled = settle(&server, (4, 3)).await;
     tokio::time::sleep(Duration::from_millis(400)).await;
     let counts = months(&app, json!({})).await;
     let after = search_calls(&server).await;
-    if counts != single("2024-07", 1) || filled != (2, 3) || after != (2, 5) {
+    if counts != single("2024-07", 1) || filled != (4, 3) || after != (4, 5) {
         panic!("dropped request left {filled:?}, then {counts} after {after:?}");
     }
 }

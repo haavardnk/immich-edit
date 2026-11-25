@@ -2,16 +2,17 @@ import { searchLocate } from '#lib/api/search.ts';
 import { gridHost } from '#lib/commands/grid/gridHost.ts';
 import { gridViewport } from '#lib/browse/gridViewport.svelte.ts';
 import { DayCounts } from '#lib/browse/dayCounts.svelte.ts';
-import { dayKey } from '#lib/browse/dayGroups.ts';
 import { dayAt, type PreviewDay, type ScrubDay } from '#lib/browse/scrubDays.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { browseControls } from '#lib/stores/browseControls.svelte.ts';
 import type { JumpOptions } from '#lib/stores/browseFeed.svelte.ts';
+import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
 import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { hapticTick } from '#lib/utils/haptics.ts';
 import type { BrowseFilter, MonthCount, SortDir } from '#lib/types/search.ts';
 import {
+  captureDay,
   fractionOf,
   loadedPhotoAt,
   monthAt,
@@ -21,6 +22,7 @@ import {
   stepMonth,
   stepYear,
   visibleMonth,
+  type CaptureClock,
   type LoadedPhoto,
   type MonthAnchor,
   type ScrubMonth,
@@ -69,10 +71,12 @@ export class DateScrub {
       items,
       items.findIndex((item) => item.id === id),
       this.#source().hasPrevious,
-      this.anchor
+      this.anchor,
+      this.#clock()
     );
   });
   #source: () => ScrubFeed;
+  #clock = (): CaptureClock => (immichCapabilities.structuredSearch ? 'photo' : 'utc');
   #seeked: { index: number; offset: number } | null = null;
   #jump = 0;
   #keyTarget: number | null = null;
@@ -254,10 +258,20 @@ export class DateScrub {
     days: readonly ScrubDay[] | null
   ): PreviewDay | null {
     const items = browsing.visible;
-    const found = loadedPhotoAt(items, month, offset, this.#source().hasPrevious, this.anchor);
+    const clock = this.#clock();
+    const found = loadedPhotoAt(
+      items,
+      month,
+      offset,
+      this.#source().hasPrevious,
+      this.anchor,
+      clock
+    );
     if (!found?.exact) return null;
-    const item = items.find((entry) => entry.id === found.id);
-    const key = item ? dayKey(item) : '';
+    const key = captureDay(
+      items.find((entry) => entry.id === found.id),
+      clock
+    );
     if (!key) return null;
     return { key, count: days?.find((day) => day.key === key)?.count ?? null };
   }
@@ -270,7 +284,8 @@ export class DateScrub {
       month.month,
       offset,
       this.#source().hasPrevious,
-      this.anchor
+      this.anchor,
+      this.#clock()
     );
     if (found) gridHost.get()?.scrollTo(found.id);
     return found;

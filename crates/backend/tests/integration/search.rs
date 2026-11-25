@@ -78,7 +78,7 @@ async fn metadata_pages_follow_the_returned_cursor() {
     let flat_first = json!({ "page": 1, "albumIds": [album_id()], "order": "asc" });
     let structured_first = json!({
         "filter": { "albumIds": { "all": [album_id()] }, "trashedAt": { "eq": null } },
-        "orderBy": { "field": "fileCreatedAt", "direction": "asc" },
+        "orderBy": { "field": "localDateTime", "direction": "asc" },
     });
     for (minor, first, second, first_page) in [
         (

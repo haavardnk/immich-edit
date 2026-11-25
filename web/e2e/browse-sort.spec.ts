@@ -314,3 +314,30 @@ test('rating a photo in a folder sorted by rating keeps it in place', async ({ p
   await expect(tile.getByRole('radio', { name: '5 stars' })).toBeChecked();
   await expectOrder(page, [OLD_ID, MID_ID, NEW_ID]);
 });
+
+test("structured servers order taken photos by each photo's own clock under one day", async ({
+  page
+}) => {
+  const camera = {
+    ...ASSET_SUMMARY,
+    id: OLD_ID,
+    fileCreatedAt: '2024-06-01T12:00:00Z',
+    localDateTime: '2024-06-01T12:00:00Z'
+  };
+  const phone = {
+    ...ASSET_SUMMARY,
+    id: MID_ID,
+    fileCreatedAt: '2024-06-01T10:30:00Z',
+    localDateTime: '2024-06-01T12:30:00Z'
+  };
+  const evening = {
+    ...ASSET_SUMMARY,
+    id: NEW_ID,
+    fileCreatedAt: '2024-06-02T01:00:00Z',
+    localDateTime: '2024-06-01T21:00:00Z'
+  };
+  await installMocks(page, { assets: [camera, phone, evening], structuredSearch: true });
+  await page.goto('/photos');
+  await expectOrder(page, [NEW_ID, MID_ID, OLD_ID]);
+  await expect(page.getByRole('heading', { name: /1 June 2024/ })).toHaveCount(1);
+});

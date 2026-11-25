@@ -1,6 +1,6 @@
 import { searchCounts } from '#lib/api/search.ts';
 import { monthCounts } from '#lib/stores/monthCounts.svelte.ts';
-import { localDays, ordered, scrubDays, type ScrubDay } from '#lib/browse/scrubDays.ts';
+import { monthDays, ordered, scrubDays, type ScrubDay } from '#lib/browse/scrubDays.ts';
 import type { BrowseFilter, MonthCount, SortDir } from '#lib/types/search.ts';
 
 export class DayCounts {
@@ -38,7 +38,7 @@ export class DayCounts {
   }
 
   private async load(month: string): Promise<void> {
-    const days = localDays(month);
+    const days = monthDays(month);
     if (!days) return;
     const counts = monthCounts.months;
     this.#loading = { month, counts };

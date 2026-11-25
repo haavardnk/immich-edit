@@ -422,6 +422,8 @@ export async function installMocks(
       set
     );
   type MockSort = { field?: unknown; direction?: unknown } | undefined;
+  const capturedAt = (a: MockAssetSummary): string =>
+    opts.structuredSearch ? (a.localDateTime ?? a.fileCreatedAt) : a.fileCreatedAt;
   const ordered = (sort: MockSort, items: MockAssetSummary[] = assets): MockAssetSummary[] => {
     if (sort?.direction !== 'asc' && sort?.direction !== 'desc') return items;
     const sign = sort.direction === 'asc' ? 1 : -1;
@@ -437,7 +439,7 @@ export async function installMocks(
       });
     }
     const at = (a: MockAssetSummary): number =>
-      Date.parse(sort.field === 'added' ? (a.createdAt ?? a.fileCreatedAt) : a.fileCreatedAt);
+      Date.parse(sort.field === 'added' ? (a.createdAt ?? a.fileCreatedAt) : capturedAt(a));
     return items.slice().sort((a, b) => (at(a) - at(b)) * sign);
   };
   const expanded = (list: MockAssetSummary[] = assets) =>
@@ -538,7 +540,7 @@ export async function installMocks(
     const counts = new Map<string, number>();
     for (const a of matching({ ...body, sort: { field: 'taken', direction: 'desc' } }, assets)) {
       if (a.copyOf) continue;
-      const month = new Date(a.fileCreatedAt).toISOString().slice(0, 7);
+      const month = new Date(capturedAt(a)).toISOString().slice(0, 7);
       counts.set(month, (counts.get(month) ?? 0) + 1);
     }
     return {
@@ -552,7 +554,7 @@ export async function installMocks(
     const sort = { field: 'taken', direction: body.direction === 'asc' ? 'asc' : 'desc' };
     const month = String(body.month);
     const inMonth = masterRuns(matching({ ...body, sort, size: undefined }, assets)).filter(
-      (run) => new Date(run[0]?.fileCreatedAt ?? 0).toISOString().slice(0, 7) === month
+      (run) => (run[0] ? new Date(capturedAt(run[0])).toISOString().slice(0, 7) : '') === month
     );
     const offset = typeof body.offset === 'number' ? body.offset : 0;
     return { assetId: inMonth[Math.min(offset, inMonth.length - 1)]?.[0]?.id ?? null };
@@ -564,7 +566,7 @@ export async function installMocks(
     );
     const taken = matching({ ...body, sort: undefined, size: undefined }, assets)
       .filter((a) => !a.copyOf)
-      .map((a) => Date.parse(a.fileCreatedAt));
+      .map((a) => Date.parse(capturedAt(a)));
     return {
       counts: edges.slice(1).map((end, at) => {
         const start = edges[at] ?? end;

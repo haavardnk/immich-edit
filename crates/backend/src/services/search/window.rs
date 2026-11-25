@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::immich::dto::AssetSummary;
+use crate::services::search::clock::Clock;
 use crate::services::search::filter::BrowseFilter;
 use crate::services::search::query::{Direction, PageQuery, Sort, SortField};
 use crate::services::search::{Searcher, added, rating};
@@ -23,12 +24,11 @@ enum Position {
 
 type SortKey = (Position, Uuid);
 
-fn sort_key(field: SortField, asset: &AssetSummary) -> Option<SortKey> {
+fn sort_key(clock: Clock, field: SortField, asset: &AssetSummary) -> Option<SortKey> {
     let position = if field == SortField::Size {
         Position::Size(asset.exif_info.as_ref()?.file_size_in_byte?)
     } else {
-        let taken = DateTime::parse_from_rfc3339(asset.file_created_at.as_deref()?).ok()?;
-        Position::Taken(taken.with_timezone(&Utc))
+        Position::Taken(clock.taken(asset)?)
     };
     Some((position, asset.id.source()))
 }
@@ -52,7 +52,7 @@ pub async fn around(
         }
         SortField::Taken | SortField::Size => {}
     }
-    let Some(key) = sort_key(sort.field, &anchor) else {
+    let Some(key) = sort_key(searcher.clock(), sort.field, &anchor) else {
         return Ok(Window::alone(anchor));
     };
     let (greater, lesser) = reach.greater_and_lesser(sort.direction);
@@ -72,10 +72,10 @@ async fn side(
     let mut bounded = filter.clone();
     match (anchor.0, toward) {
         (Position::Taken(at), Ordering::Greater) => {
-            bounded.taken_after = Some(filter.taken_after.map_or(at, |after| after.max(at)));
+            bounded = searcher.clock().past(filter, at, true);
         }
         (Position::Taken(at), _) => {
-            bounded.taken_before = Some(filter.taken_before.map_or(at, |before| before.min(at)));
+            bounded = searcher.clock().past(filter, at, false);
         }
         (Position::Size(bytes), Ordering::Greater) => {
             bounded.min_size = Some(filter.min_size.map_or(bytes, |min| min.max(bytes)));
@@ -99,7 +99,8 @@ async fn side(
     loop {
         let page = searcher.page(&query).await?;
         out.extend(page.items.into_iter().filter(|asset| {
-            sort_key(sort.field, asset).is_some_and(|key| key.cmp(&anchor) == toward)
+            sort_key(searcher.clock(), sort.field, asset)
+                .is_some_and(|key| key.cmp(&anchor) == toward)
         }));
         if out.len() > wanted {
             break;

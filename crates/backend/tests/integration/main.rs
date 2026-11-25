@@ -62,6 +62,7 @@ mod saved_views;
 mod search;
 mod search_local_taken;
 mod search_months;
+mod search_photo_clock;
 mod search_window;
 mod sessions;
 mod setup_oauth;
