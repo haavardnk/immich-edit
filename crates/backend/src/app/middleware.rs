@@ -145,9 +145,12 @@ pub async fn count_timeouts(
     req: Request<Body>,
     next: Next,
 ) -> Response {
+    let method = req.method().clone();
+    let path = req.uri().path().to_owned();
     let res = next.run(req).await;
     if res.status() == StatusCode::REQUEST_TIMEOUT {
         state.render.telemetry().record_request_timeout();
+        tracing::warn!(%method, %path, "request timed out");
     }
     res
 }

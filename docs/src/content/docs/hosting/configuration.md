@@ -35,7 +35,7 @@ Environment variables override TOML values.
 | `MAX_BODY_MB` | `128` | Maximum HTTP request body size |
 | `REQUEST_TIMEOUT_SECS` | `60` | Standard API request timeout |
 | `ORIGINAL_TIMEOUT_SECS` | `120` | Immich original download timeout |
-| `EXPORT_TIMEOUT_SECS` | `300` | Export / Immich upload timeout |
+| `EXPORT_TIMEOUT_SECS` | `300` | Export / Immich upload timeout, and how long an export waits for an AI denoise bake |
 | `CF_ACCESS_CLIENT_ID` | Empty | Cloudflare Access service token ID for Immich calls |
 | `CF_ACCESS_CLIENT_SECRET` | Empty | Cloudflare Access service token secret |
 

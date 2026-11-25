@@ -30,6 +30,7 @@ use crate::telemetry::http::{REQUEST_ID_HEADER, report_rejection, trace_layer};
 mod cors;
 mod middleware;
 mod static_files;
+mod timeouts;
 
 use cors::build_cors;
 use middleware::{
@@ -92,12 +93,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
     let heavy = GovernorLayer::new(heavy_cfg);
 
     let request_timeout = Duration::from_secs(state.config.request_timeout_secs);
-    let export_timeout = Duration::from_secs(
-        state
-            .config
-            .original_timeout_secs
-            .saturating_add(state.config.export_timeout_secs),
-    );
+    let export_timeout = timeouts::export_request_timeout(&state.config);
 
     let exports = Router::new()
         .route(
