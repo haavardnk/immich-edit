@@ -29,9 +29,9 @@ export function parseCorrection(text: string): number | null {
   return sign === '-' || sign === '−' ? -ms : ms;
 }
 
-export function clockDrift(ms: number): string {
+export function driftText(ms: number): string {
   const total = Math.round(Math.abs(ms) / SECOND);
-  if (total === 0) return 'No correction';
+  if (total === 0) return 'no correction';
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
@@ -40,7 +40,26 @@ export function clockDrift(ms: number): string {
     minutes > 0 ? `${pad(minutes)} min` : '',
     seconds > 0 ? `${pad(seconds)} s` : ''
   ].filter(Boolean);
-  return `Camera ${parts.join(' ')} ${ms < 0 ? 'fast' : 'slow'}`;
+  return `${parts.join(' ')} ${ms < 0 ? 'fast' : 'slow'}`;
+}
+
+export function clockDrift(ms: number): string {
+  return Math.round(Math.abs(ms) / SECOND) === 0 ? 'No correction' : `Camera ${driftText(ms)}`;
+}
+
+export interface CameraDrift {
+  label: string;
+  ms: number;
+}
+
+export function clocksText(cameras: readonly CameraDrift[]): string {
+  if (cameras.length <= 1) return clockDrift(cameras[0]?.ms ?? 0);
+  const corrected = cameras.filter(({ ms }) => Math.round(Math.abs(ms) / SECOND) > 0);
+  if (corrected.length === 0) return 'No correction';
+  const unchanged = cameras.length - corrected.length;
+  const parts = corrected.map(({ label, ms }) => `${label} ${driftText(ms)}`);
+  if (unchanged > 0) parts.push(`${unchanged} ${unchanged === 1 ? 'camera' : 'cameras'} unchanged`);
+  return parts.join(' · ');
 }
 
 export function clockOfDay(ms: number, zone: string): string {

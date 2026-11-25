@@ -1,7 +1,6 @@
 <script lang="ts">
   import TrackFiles from '#lib/components/geotag/TrackFiles.svelte';
   import TrackSettings from '#lib/components/geotag/TrackSettings.svelte';
-  import { clockDrift } from '#lib/geotag/clockText.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { Icon } from '@immich/ui';
   import { mdiChevronDown } from '@mdi/js';
@@ -25,7 +24,7 @@
       <span class="block truncate text-sm text-light-950">{names}</span>
       <span class="block truncate text-caption text-dark/65">
         <span class="sr-only">Camera clock:</span>
-        {clockDrift(session.correctionMs)} · {session.zone.replaceAll('_', ' ')}
+        {session.clockText} · {session.zone.replaceAll('_', ' ')}
       </span>
     </span>
     <Icon

@@ -6,7 +6,6 @@
   import TrackSources from '#lib/components/geotag/TrackSources.svelte';
   import TrackStrip from '#lib/components/geotag/TrackStrip.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
-  import { clockDrift } from '#lib/geotag/clockText.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Button } from '@immich/ui';
@@ -22,7 +21,7 @@
   const loaded = $derived(session.tracks.length > 0);
   const subtitle = $derived(
     loaded
-      ? `${clockDrift(session.correctionMs)} · ${session.zone.replaceAll('_', ' ')}`
+      ? `${session.clockText} · ${session.zone.replaceAll('_', ' ')}`
       : 'Load a GPX, KML or TCX file'
   );
 </script>
