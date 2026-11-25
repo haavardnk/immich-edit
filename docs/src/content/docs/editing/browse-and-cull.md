@@ -58,3 +58,6 @@ bulk:
   original in Immich. Copies share Immich metadata (rating, favorite, tags).
 - **Trash**: move owned photos to the Immich trash (with **Undo**). Permanent deletion stays in
   Immich.
+
+<!-- SCREENSHOT: capture.cjs cull-desktop + compose.cjs cull-desktop -->
+![Loupe Compare mode showing Select and Candidate panes, rating controls, linked zoom, and filmstrip](../../../assets/shots/cull-desktop.png)
