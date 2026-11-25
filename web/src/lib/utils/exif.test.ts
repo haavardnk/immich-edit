@@ -9,7 +9,9 @@ import {
   fmtDay,
   fmtCamera,
   captureTime,
-  exifDetailRows
+  exifDetailRows,
+  captureZone,
+  withZone
 } from './exif';
 import type { ExifInfo } from '#lib/types/asset.ts';
 
@@ -152,5 +154,41 @@ describe('exifDetailRows', () => {
     expect(keys).not.toContain('Lens');
     expect(keys).not.toContain('Focal');
     expect(keys).not.toContain('Taken');
+  });
+});
+
+describe('captureZone', () => {
+  const at = '2026-07-14T10:00:00.000Z';
+  const shot = (timeZone: string | null, exif = true) => ({
+    fileCreatedAt: at,
+    localDateTime: at,
+    exifInfo: exif ? ({ timeZone, dateTimeOriginal: at } as ExifInfo) : null
+  });
+  const viewer = -new Date(at).getTimezoneOffset();
+  const viewerZone = `UTC${viewer < 0 ? '-' : '+'}${Math.floor(Math.abs(viewer) / 60)}:${String(
+    Math.abs(viewer) % 60
+  ).padStart(2, '0')}`;
+
+  it('labels a zone that is not the viewer local time', () => {
+    const far = viewer === 14 * 60 ? 'UTC-11' : 'UTC+14';
+    expect(captureZone(shot(far))).toBe(far);
+    expect(captureZone(shot('UTC-9:30'))).toBe('UTC-9:30');
+    expect(withZone('14 Jul 12:00', shot(far))).toBe(`14 Jul 12:00 (${far})`);
+  });
+
+  it('stays quiet when the photo was taken in the viewer offset', () => {
+    expect(captureZone(shot(viewerZone))).toBeNull();
+    expect(withZone('14 Jul 12:00', shot(viewerZone))).toBe('14 Jul 12:00');
+  });
+
+  it('reads the offset of a named zone at the moment of capture', () => {
+    const kiritimati = captureZone(shot('Pacific/Kiritimati'));
+    expect(kiritimati).toBe(viewer === 14 * 60 ? null : 'UTC+14');
+  });
+
+  it('says a photo has no time zone, and says nothing without EXIF', () => {
+    expect(captureZone(shot(null))).toBe('no time zone');
+    expect(captureZone(shot(''))).toBe('no time zone');
+    expect(captureZone(shot('UTC+2', false))).toBeNull();
   });
 });
