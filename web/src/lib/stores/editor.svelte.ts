@@ -218,7 +218,7 @@ class EditorStore {
   readonly exports = new EditorExports(this);
   readonly presetApplied = new PresetApplied(this, {
     steps: this.history,
-    save: (edits, action) => this.saves.commit(edits, action)
+    save: (edits, action) => this.saves.commit(edits, action, true)
   });
   readonly compare: CompareControl = new CompareControl(this, (wasOn) =>
     this.previews.compareChanged(wasOn)

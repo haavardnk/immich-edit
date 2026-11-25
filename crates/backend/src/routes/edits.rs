@@ -27,7 +27,7 @@ use crate::state::AppState;
 
 mod write;
 
-pub(crate) use write::write_manifest;
+pub(crate) use write::{Precondition, write_manifest};
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -36,15 +36,21 @@ pub enum PutEditsBody {
         manifest: EditManifest,
         #[serde(default)]
         action: Option<String>,
+        #[serde(default)]
+        amend: bool,
     },
     Raw(EditManifest),
 }
 
 impl PutEditsBody {
-    fn split(self) -> (EditManifest, Option<String>) {
+    fn split(self) -> (EditManifest, Option<String>, bool) {
         match self {
-            PutEditsBody::Wrapped { manifest, action } => (manifest, action),
-            PutEditsBody::Raw(manifest) => (manifest, None),
+            PutEditsBody::Wrapped {
+                manifest,
+                action,
+                amend,
+            } => (manifest, action, amend),
+            PutEditsBody::Raw(manifest) => (manifest, None, false),
         }
     }
 }
@@ -201,7 +207,7 @@ pub async fn put(
     request_headers: HeaderMap,
     Json(body): Json<PutEditsBody>,
 ) -> Result<Response, AppError> {
-    let (manifest, action) = body.split();
+    let (manifest, action, amend) = body.split();
     let if_match = headers::if_match(&request_headers);
     write_manifest(
         &state,
@@ -209,7 +215,9 @@ pub async fn put(
         id,
         manifest,
         action.as_deref(),
-        if_match.as_deref(),
+        if_match
+            .as_deref()
+            .map(|expected| Precondition { expected, amend }),
     )
     .await
 }
