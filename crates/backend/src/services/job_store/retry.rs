@@ -27,7 +27,8 @@ impl JobStore {
             return Ok(None);
         }
         sqlx::query(
-            "UPDATE job_items SET status = 'pending', error = NULL, result_json = NULL, updated_at = ?1 \
+            "UPDATE job_items SET status = 'pending', error = NULL, result_json = NULL, \
+             created_at = ?1, updated_at = ?1 \
              WHERE job_id = ?2 AND status = 'failed'",
         )
         .bind(&now)
@@ -181,6 +182,21 @@ mod tests {
         let reclaimed = store.claim_next_item().await.unwrap().unwrap();
         assert_eq!(reclaimed.id, failed.id);
         assert_eq!((reclaimed.position, reclaimed.variant), (1, 1));
+    }
+
+    #[tokio::test]
+    async fn a_retried_item_queues_behind_jobs_created_before_the_retry() {
+        let store = store().await;
+        let first = create(&store, &["bad"]).await;
+        let failed = settle_next(&store, false).await;
+        let second = create(&store, &["later"]).await;
+
+        retry(&store, first.id).await.unwrap();
+
+        let next = settle_next(&store, true).await;
+        assert_eq!(next.job_id, second.id);
+        let after = settle_next(&store, true).await;
+        assert_eq!(after.id, failed.id);
     }
 
     #[tokio::test]
