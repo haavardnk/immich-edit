@@ -13,6 +13,7 @@ import {
 const A = '11111111-1111-1111-1111-111111111111';
 const B = '22222222-2222-2222-2222-222222222222';
 const C = '33333333-3333-3333-3333-333333333333';
+const LIBRARY = '44444444-4444-4444-8444-444444444444';
 
 beforeEach(() => {
   session.set({ id: 'me', email: 'me@x', name: 'Me', is_admin: false, auth_kind: 'password' });
@@ -24,7 +25,27 @@ describe('planTrash', () => {
       [{ id: A, ownerId: 'me' }, { id: `${B}_1` }, { id: C, ownerId: 'partner' }],
       [{ id: A }, { id: `${A}_1`, copyOf: A }, { id: `${B}_1`, copyOf: B }]
     );
-    expect(plan).toEqual({ masters: [A], copies: [`${B}_1`], versions: [`${A}_1`], skipped: 1 });
+    expect(plan).toEqual({
+      masters: [A],
+      copies: [`${B}_1`],
+      versions: [`${A}_1`],
+      skipped: 1,
+      external: 0
+    });
+  });
+
+  it('counts owned photos from an external library once', () => {
+    const external = { id: A, ownerId: 'me', libraryId: LIBRARY };
+    const plan = planTrash(
+      [
+        external,
+        external,
+        { id: B, ownerId: 'me' },
+        { id: C, ownerId: 'partner', libraryId: LIBRARY }
+      ],
+      []
+    );
+    expect(plan.external).toBe(1);
   });
 
   it('lets a picked copy travel with its trashed master', () => {
@@ -53,7 +74,13 @@ describe('trashBlocked', () => {
 
 describe('trashDialogText', () => {
   it('names the trash period and what goes with the photos', () => {
-    const plan = { masters: [A, B], copies: [`${C}_1`], versions: [`${A}_1`], skipped: 1 };
+    const plan = {
+      masters: [A, B],
+      copies: [`${C}_1`],
+      versions: [`${A}_1`],
+      skipped: 1,
+      external: 0
+    };
     const text = trashDialogText(plan, 30);
     expect(text.title).toBe('Move to Immich trash');
     expect(text.lines).toEqual([
@@ -65,8 +92,21 @@ describe('trashDialogText', () => {
   });
 
   it('asks to delete when only copies are picked', () => {
-    const text = trashDialogText({ masters: [], copies: [`${A}_1`], versions: [], skipped: 0 }, 30);
+    const text = trashDialogText(
+      { masters: [], copies: [`${A}_1`], versions: [], skipped: 0, external: 0 },
+      30
+    );
     expect(text).toMatchObject({ title: 'Delete virtual copy', confirm: 'Delete' });
+  });
+
+  it('warns that a read-only external library brings photos back', () => {
+    const text = trashDialogText(
+      { masters: [A], copies: [], versions: [], skipped: 0, external: 1 },
+      30
+    );
+    expect(text.lines[1]).toBe(
+      'This photo is from an external library. Immich can only delete its file with write access to the library folder; without it, the next library scan imports it again.'
+    );
   });
 });
 

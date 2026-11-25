@@ -47,7 +47,7 @@ describe('TrashDialog', () => {
   it('says what happens and answers the pending request', async () => {
     const confirm = vi.spyOn(trash, 'confirm');
     const cancel = vi.spyOn(trash, 'cancel');
-    trash.plan = { masters: ['a'], copies: [], versions: [], skipped: 0 };
+    trash.plan = { masters: ['a'], copies: [], versions: [], skipped: 0, external: 0 };
     component = mount(Host, { target, props: { component: TrashDialog, props: {} } });
     await settle();
 

@@ -1,5 +1,6 @@
 import type { ImmichExportOptions, OnConflict } from '#lib/api/export.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
+import { externalLibraryNote, inExternalLibrary } from '#lib/browse/externalLibrary.ts';
 import { NONE_OWNED_STACK, NOT_OWNER_STACK, ownsAsset } from '#lib/browse/ownership.ts';
 import { captureDate, type NameContext } from '#lib/editor/filenameTemplate.ts';
 import { REPLACE_EXPORT_TRASH_OFF, replaceBlocked } from '#lib/panels/export/replace.ts';
@@ -8,12 +9,13 @@ import type { AssetSummary } from '#lib/types/album.ts';
 
 export type ExportAsset = Parameters<typeof captureDate>[0] &
   Parameters<typeof ownsAsset>[0] &
-  Pick<AssetSummary, 'id' | 'originalFileName'>;
+  Pick<AssetSummary, 'id' | 'originalFileName' | 'libraryId'>;
 
 export interface ExportScope {
   stackable: boolean;
   stackReason: string;
   replaceReason: string | null;
+  externalNote: string | null;
   conflictReason: string | null;
   nameExample: NameContext | null;
 }
@@ -39,6 +41,7 @@ export function exportScope({
       versionsOfOnePhoto: new Set(assets.map((a) => sourceId(a.id))).size < assets.length,
       single
     }),
+    externalNote: externalLibraryNote(assets.filter(inExternalLibrary).length, count),
     conflictReason: trashOn ? null : REPLACE_EXPORT_TRASH_OFF,
     nameExample: first
       ? {

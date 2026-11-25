@@ -1,7 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ASSET_ID, gotoAsset, installMocks, json, type InstallOpts } from './helpers';
+import {
+  ASSET_ID,
+  ASSET_SUMMARY,
+  gotoAsset,
+  installMocks,
+  json,
+  type InstallOpts
+} from './helpers';
 import { unfoldExport } from './exportSections';
 import { mockLibrary } from './touchShell';
+
+const EXTERNAL = [{ ...ASSET_SUMMARY, libraryId: '44444444-4444-4444-8444-444444444444' }];
+const EXTERNAL_NOTE =
+  /This photo is from an external library\. Immich can only delete its file with write access/;
 
 async function openImmichExport(page: Page, opts: InstallOpts = {}): Promise<void> {
   await installMocks(page, opts);
@@ -55,6 +66,17 @@ test('replace original warns, drops stacking and leaves for the grid', async ({ 
   ]);
 });
 
+test('replacing a photo from an external library warns about read-only folders', async ({
+  page
+}) => {
+  await openImmichExport(page, { assets: EXTERNAL });
+  const panel = page.getByRole('tabpanel');
+  await expect(panel.getByText(EXTERNAL_NOTE)).toHaveCount(0);
+
+  await panel.getByRole('checkbox', { name: 'Replace original' }).click();
+  await expect(panel.getByText(EXTERNAL_NOTE)).toBeVisible();
+});
+
 test('replace original is unavailable while the Immich trash is off', async ({ page }) => {
   await openImmichExport(page, { trash: false });
 
@@ -79,6 +101,20 @@ for (const device of ['phone', 'tablet'] as const) {
       await expect(name).toContainText('Original name');
       await name.tap();
       await expect(sheet.getByText('IMG_0001.jpg', { exact: true })).toBeVisible();
+    }
+  );
+
+  test(
+    `the touch sheet warns before replacing an external original on a ${device}`,
+    { tag: ['@touch', `@${device}`] },
+    async ({ page }) => {
+      await mockLibrary(page, { assets: EXTERNAL });
+      await page.goto(`/assets/${ASSET_ID}`);
+      await page.getByRole('button', { name: 'Share', exact: true }).tap();
+      const sheet = page.getByRole('dialog', { name: 'Export', exact: true });
+      await sheet.getByRole('radio', { name: 'Immich' }).tap();
+      await sheet.getByRole('checkbox', { name: 'Replace original' }).tap();
+      await expect(sheet.getByText(EXTERNAL_NOTE)).toBeVisible();
     }
   );
 }

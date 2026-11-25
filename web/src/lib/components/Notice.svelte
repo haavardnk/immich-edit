@@ -17,7 +17,7 @@
     children
   }: {
     color?: Tone;
-    message: string;
+    message: string | readonly string[];
     class?: string;
     children?: Snippet;
   } = $props();
@@ -35,6 +35,8 @@
     info: 'border-info-500/25 bg-info-500/10 text-info-800',
     success: 'border-success-500/25 bg-success-500/10 text-success-800'
   };
+
+  const paragraphs = $derived(typeof message === 'string' ? [message] : message);
 </script>
 
 <div
@@ -44,6 +46,10 @@
   ]} {className ?? ''}"
 >
   <Icon icon={icons[color]} size="14px" class="mt-px flex-none" aria-hidden />
-  <div class="flex-1 wrap-anywhere">{message}</div>
+  <div class="flex-1 space-y-1.5 wrap-anywhere">
+    {#each paragraphs as paragraph (paragraph)}
+      <p>{paragraph}</p>
+    {/each}
+  </div>
   {@render children?.()}
 </div>

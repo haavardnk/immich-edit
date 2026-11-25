@@ -26,6 +26,8 @@ pub struct AssetSummary {
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]
     pub owner_id: Option<Uuid>,
+    #[serde(rename = "libraryId", default, skip_serializing_if = "Option::is_none")]
+    pub library_id: Option<Uuid>,
     #[serde(rename = "localDateTime", default)]
     pub local_date_time: Option<String>,
     #[serde(rename = "fileCreatedAt", default)]
@@ -71,6 +73,8 @@ pub struct AssetDetail {
     pub asset_type: String,
     #[serde(rename = "ownerId", default, skip_serializing_if = "Option::is_none")]
     pub owner_id: Option<Uuid>,
+    #[serde(rename = "libraryId", default, skip_serializing_if = "Option::is_none")]
+    pub library_id: Option<Uuid>,
     #[serde(rename = "originalMimeType", default)]
     pub original_mime_type: Option<String>,
     #[serde(rename = "localDateTime", default)]
@@ -297,7 +301,7 @@ impl std::fmt::Display for ServerVersion {
 
 #[cfg(test)]
 mod tests {
-    use super::AssetSummary;
+    use super::{AssetDetail, AssetSummary};
 
     #[test]
     fn asset_summary_defaults_tags_when_absent() {
@@ -320,5 +324,26 @@ mod tests {
         let asset: AssetSummary = serde_json::from_str(json).unwrap();
         let out = serde_json::to_value(&asset).unwrap();
         assert_eq!(out["thumbhash"], "1QcSHQRnh493V4dIh4eXh1h4kJUI");
+    }
+
+    #[test]
+    fn assets_pass_an_external_library_id_through() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","libraryId":"22222222-2222-4222-8222-222222222222"}"#;
+        let summary: AssetSummary = serde_json::from_str(json).unwrap();
+        let detail: AssetDetail = serde_json::from_str(json).unwrap();
+        for out in [
+            serde_json::to_value(&summary).unwrap(),
+            serde_json::to_value(&detail).unwrap(),
+        ] {
+            assert_eq!(out["libraryId"], "22222222-2222-4222-8222-222222222222");
+        }
+    }
+
+    #[test]
+    fn uploaded_assets_carry_no_library_id() {
+        let json = r#"{"id":"00000000-0000-0000-0000-000000000001","libraryId":null}"#;
+        let summary: AssetSummary = serde_json::from_str(json).unwrap();
+        let out = serde_json::to_value(&summary).unwrap();
+        assert!(out.get("libraryId").is_none());
     }
 }

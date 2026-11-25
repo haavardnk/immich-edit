@@ -34,7 +34,8 @@ description, and rating:
 - **Stack with original**: group the export with the RAW (either can be the stack primary).
 - **Replace original**: transfers albums, shared links, favorite state, and stack to the upload,
   then moves the original to the Immich trash. Requires Immich trash to be enabled and owner
-  permissions.
+  permissions. For an original from an external library, Immich needs write access to the library
+  folder to delete the file; without it, the next library scan imports the original again.
 - **Upload conflict policy**: when re-exporting a photo, choose **Keep both**, **Replace**, or
   **Skip**.
 

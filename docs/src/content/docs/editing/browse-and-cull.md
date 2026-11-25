@@ -57,7 +57,8 @@ bulk:
 - **Virtual copies**: create independent edit versions of the same RAW without duplicating the
   original in Immich. Copies share Immich metadata (rating, favorite, tags).
 - **Trash**: move owned photos to the Immich trash (with **Undo**). Permanent deletion stays in
-  Immich.
+  Immich. For a photo from an external library, Immich needs write access to the library folder
+  to delete the file; without it, the next library scan imports the photo again.
 
 <!-- SCREENSHOT: capture.cjs cull-desktop + compose.cjs cull-desktop -->
 ![Loupe Compare mode showing Select and Candidate panes, rating controls, linked zoom, and filmstrip](../../../assets/shots/cull-desktop.png)

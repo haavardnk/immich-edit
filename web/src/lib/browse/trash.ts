@@ -1,11 +1,13 @@
 import { NOT_OWNER_TRASH } from '#lib/browse/bulk/bulkMarks.ts';
 import { countOf } from '#lib/utils/plural.ts';
 import { isCopy, sourceId } from './assetKey';
+import { externalLibraryNote, inExternalLibrary } from './externalLibrary';
 import { ownsAsset } from './ownership';
 
 export interface TrashTarget {
   id: string;
   ownerId?: string;
+  libraryId?: string;
 }
 
 export interface TrashPlan {
@@ -13,6 +15,7 @@ export interface TrashPlan {
   copies: string[];
   versions: string[];
   skipped: number;
+  external: number;
 }
 
 export interface TrashDialogText {
@@ -33,16 +36,20 @@ export function planTrash(
   const masters = new Set<string>();
   const pickedCopies = new Set<string>();
   let skipped = 0;
+  let external = 0;
   for (const target of picked) {
     if (isCopy(target.id)) pickedCopies.add(target.id);
-    else if (ownsAsset(target)) masters.add(target.id);
-    else skipped += 1;
+    else if (!ownsAsset(target)) skipped += 1;
+    else if (!masters.has(target.id)) {
+      masters.add(target.id);
+      if (inExternalLibrary(target)) external += 1;
+    }
   }
   const copies = [...pickedCopies].filter((id) => !masters.has(sourceId(id)));
   const versions = loaded
     .filter((a) => a.copyOf !== undefined && masters.has(a.copyOf))
     .map((a) => a.id);
-  return { masters: [...masters], copies, versions, skipped };
+  return { masters: [...masters], copies, versions, skipped, external };
 }
 
 export function trashBlocked(plan: TrashPlan, trashOn: boolean): string | null {
@@ -78,6 +85,8 @@ export function trashDialogText(plan: TrashPlan, trashDays: number | null): Tras
       `${countOf(masters, 'photo moves', 'photos move')} to the Immich trash. Immich deletes ${them} for good ${trashPeriod(trashDays)}; restore ${them} from the Immich trash until then.`
     );
   }
+  const external = externalLibraryNote(plan.external, masters);
+  if (external) lines.push(external);
   if (plan.versions.length > 0) {
     lines.push(
       `${countOf(plan.versions.length, 'virtual copy goes', 'virtual copies go')} with ${masters === 1 ? 'it' : 'them'} and ${plan.versions.length === 1 ? 'comes' : 'come'} back on restore.`
