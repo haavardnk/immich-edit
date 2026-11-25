@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { settleAnimations } from './animations';
 import { ASSET_ID, installMocks } from './helpers';
 
 async function openCurves(page: Page): Promise<Locator> {
@@ -10,6 +11,7 @@ async function openCurves(page: Page): Promise<Locator> {
   await page.getByRole('button', { name: 'Curves', exact: true }).click();
   const plot = page.getByRole('application', { name: 'Curves – RGB' });
   await expect(plot).toBeVisible();
+  await settleAnimations(page);
   return plot;
 }
 

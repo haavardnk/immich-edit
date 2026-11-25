@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright';
+import { settledAxe } from './axeHelpers';
 import { expect, test } from '@playwright/test';
 import {
   ASSET_ID,
@@ -15,9 +15,7 @@ import { openTileLoupe } from './touch';
 const IMPACTS = new Set(['serious', 'critical']);
 
 async function audit(page: Parameters<typeof gotoAsset>[0]): Promise<string[]> {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
+  const results = await settledAxe(page);
   return results.violations
     .filter((v) => IMPACTS.has(v.impact ?? ''))
     .map(
