@@ -81,8 +81,14 @@ export async function writeLabel(
   tags: TagRef[],
   tag: TagRef | null
 ): Promise<void> {
-  for (const old of tags.filter(isLabelTag)) {
-    if (old.id !== tag?.id) await removeTagFromAsset(old.id, assetId);
+  const added = tag !== null && !tags.some((t) => t.id === tag.id);
+  if (added) await addTagToAsset(tag.id, assetId);
+  try {
+    for (const old of tags.filter(isLabelTag)) {
+      if (old.id !== tag?.id) await removeTagFromAsset(old.id, assetId);
+    }
+  } catch (error) {
+    if (added) await removeTagFromAsset(tag.id, assetId).catch(() => undefined);
+    throw error;
   }
-  if (tag && !tags.some((t) => t.id === tag.id)) await addTagToAsset(tag.id, assetId);
 }

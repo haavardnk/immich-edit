@@ -246,8 +246,11 @@ describe('setLabel', () => {
     await vi.waitFor(() => expect(labelOf(browsing.assets[0]!)).toBe('blue'));
     refuse();
     await Promise.all([first, second]);
-    expect(removeTagFromAsset).toHaveBeenLastCalledWith('red', 'a');
-    expect(removeTagFromAsset).toHaveBeenCalledTimes(2);
+    expect(removeTagFromAsset.mock.calls).toEqual([
+      ['red', 'a'],
+      ['green', 'a'],
+      ['red', 'a']
+    ]);
     expect(labelOf(browsing.assets[0]!)).toBe('blue');
   });
 });

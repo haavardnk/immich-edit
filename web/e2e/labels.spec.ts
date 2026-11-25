@@ -43,7 +43,26 @@ test('number keys set, swap and clear a label on the selected photo', async ({ p
 
   await expect
     .poll(() => changes.map((c) => `${c.added ? '+' : '-'}${c.tagId}`))
-    .toEqual(['+mock-tag-1', '-mock-tag-1', '+mock-tag-2', '-mock-tag-2']);
+    .toEqual(['+mock-tag-1', '+mock-tag-2', '-mock-tag-1', '-mock-tag-2']);
+});
+
+test('a label swap that cannot add the new colour keeps the old one', async ({ page }) => {
+  const changes = await openGrid(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('6');
+  await expect(firstTile(page).getByRole('img', { name: 'Red label' })).toBeVisible();
+  await expect.poll(() => changes.length).toBe(1);
+  await page.route('**/api/tags/*/assets/*', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({ status: 500, body: '{}' })
+      : route.fallback()
+  );
+
+  await page.keyboard.press('9');
+
+  await expect(firstTile(page).getByRole('img', { name: 'Red label' })).toBeVisible();
+  await expect(firstTile(page).getByRole('img', { name: 'Blue label' })).toHaveCount(0);
+  expect(changes.map((c) => `${c.added ? '+' : '-'}${c.tagId}`)).toEqual(['+mock-tag-1']);
 });
 
 test('the label filter asks the server for one color', async ({ page }) => {
