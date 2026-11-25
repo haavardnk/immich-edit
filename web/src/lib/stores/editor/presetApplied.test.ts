@@ -118,6 +118,7 @@ describe('applied preset', () => {
 
     await editor.presetApplied.commitBlend();
     expect(actions()).toEqual(['Preset: Portra', 'Preset: Portra (65%)']);
+    expect(mocks.putEdits.mock.calls.map((call) => call[4])).toEqual([false, true]);
     expect(editor.presetApplied.current?.amount).toBe(65);
 
     editor.undo();

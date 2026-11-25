@@ -251,3 +251,42 @@ async fn restoring_an_unknown_entry_is_not_found() {
         panic!("a failed restore changed the edits");
     }
 }
+
+async fn put_wrapped(app: &axum::Router, id: Uuid, body: Value, if_match: Option<&str>) -> Value {
+    let mut request = json_request("PUT", &format!("/api/assets/{id}/edits"), body);
+    if let Some(hash) = if_match {
+        request
+            .headers_mut()
+            .insert("if-match", hash.parse().unwrap());
+    }
+    let resp = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    body_json(resp).await
+}
+
+#[tokio::test]
+async fn an_amending_put_rewrites_the_step_it_saved_last() {
+    let server = MockServer::start().await;
+    let id = asset_id();
+    mock_asset_detail(&server).await;
+    let app = test_app(&server).await;
+    let wrapped = |ev: f64, action: &str, amend: bool| json!({ "manifest": exposure_manifest(ev), "action": action, "amend": amend });
+
+    let applied = put_wrapped(&app, id, wrapped(0.5, "Preset: Warm", false), None).await;
+    let hash = applied["hash"].as_str().unwrap().to_string();
+    put_wrapped(
+        &app,
+        id,
+        wrapped(0.4, "Preset: Warm (80%)", true),
+        Some(&hash),
+    )
+    .await;
+    put_wrapped(&app, id, wrapped(0.3, "Preset: Warm (60%)", true), None).await;
+
+    let entries = history(&app, id).await;
+    let actions: Vec<&Value> = entries.iter().map(|e| &e["action"]).collect();
+    assert_eq!(
+        actions,
+        [&json!("Preset: Warm (60%)"), &json!("Preset: Warm (80%)")]
+    );
+}

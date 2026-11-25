@@ -77,13 +77,14 @@ export function putEdits(
   assetId: string,
   edits: Edits,
   baseHash?: string,
-  action?: string
+  action?: string,
+  amend = false
 ): Promise<EditRecord> {
   return writeEdits(
     assetId,
     'PUT',
     url`/api/assets/${assetId}/edits`,
-    { manifest: editsToManifest(edits), action: action ?? null },
+    { manifest: editsToManifest(edits), action: action ?? null, ...(amend ? { amend } : {}) },
     baseHash
   );
 }

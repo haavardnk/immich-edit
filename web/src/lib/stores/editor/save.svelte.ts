@@ -51,12 +51,12 @@ export class SaveQueue {
     return this.tail;
   }
 
-  commit(edits: Edits, action?: string): Promise<void> {
+  commit(edits: Edits, action?: string, amend = false): Promise<void> {
     const session = this.session;
     if (!session) return Promise.resolve();
     this.lastAction = action;
     this.queued++;
-    return this.queueSave(session, edits, action);
+    return this.queueSave(session, edits, action, amend);
   }
 
   retry(): Promise<void> {
@@ -117,8 +117,13 @@ export class SaveQueue {
     this.ctx.onLive();
   }
 
-  private queueSave(session: SaveSession, edits: Edits, action?: string): Promise<void> {
-    return this.queueTask(session, () => this.persist(session, edits, action));
+  private queueSave(
+    session: SaveSession,
+    edits: Edits,
+    action?: string,
+    amend = false
+  ): Promise<void> {
+    return this.queueTask(session, () => this.persist(session, edits, action, amend));
   }
 
   private queueTask(session: SaveSession, task: () => Promise<void>): Promise<void> {
@@ -135,13 +140,18 @@ export class SaveQueue {
     });
   }
 
-  private async persist(session: SaveSession, edits: Edits, action?: string): Promise<void> {
+  private async persist(
+    session: SaveSession,
+    edits: Edits,
+    action?: string,
+    amend = false
+  ): Promise<void> {
     try {
       if (isIdentity(edits)) {
         await deleteEdits(session.assetId, action, session.hash);
         session.hash = '';
       } else {
-        const saved = await putEdits(session.assetId, edits, session.hash, action);
+        const saved = await putEdits(session.assetId, edits, session.hash, action, amend);
         session.hash = saved.hash;
       }
       if (this.session === session) {

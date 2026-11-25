@@ -78,6 +78,43 @@ async fn fetch_history_entry<'e, E: SqliteExecutor<'e>>(
     row.as_ref().map(history_from_row).transpose()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum HistoryMode {
+    Append,
+    AmendLatest,
+}
+
+pub(super) async fn amend_latest_history(
+    conn: &mut SqliteConnection,
+    owner: Uuid,
+    asset_id: AssetKey,
+    entry: NewHistoryEntry<'_>,
+) -> Result<(), EditsStoreError> {
+    sqlx::query("DELETE FROM edits_history WHERE user_id = ?2 AND asset_id = ?1 AND undone = 1")
+        .bind(asset_id.to_string())
+        .bind(owner.to_string())
+        .execute(&mut *conn)
+        .await?;
+    let amended = sqlx::query(
+        "UPDATE edits_history SET manifest_hash = ?2, edits_json = ?3, deleted = ?4, \
+         created_at = ?5, action = ?6 \
+         WHERE id = (SELECT MAX(id) FROM edits_history WHERE user_id = ?7 AND asset_id = ?1)",
+    )
+    .bind(asset_id.to_string())
+    .bind(entry.manifest_hash)
+    .bind(entry.edits_json)
+    .bind(if entry.deleted { 1 } else { 0 })
+    .bind(entry.created_at)
+    .bind(entry.action)
+    .bind(owner.to_string())
+    .execute(&mut *conn)
+    .await?;
+    if amended.rows_affected() == 0 {
+        write_history(conn, owner, asset_id, entry).await?;
+    }
+    Ok(())
+}
+
 pub(super) async fn write_history(
     conn: &mut SqliteConnection,
     owner: Uuid,
@@ -259,6 +296,86 @@ mod tests {
             .fetch_all(&s.pool)
             .await
             .unwrap()
+    }
+
+    async fn put_action(s: &EditsStore, id: AssetKey, ev: f64, action: &str) -> String {
+        s.put(
+            O,
+            id,
+            EditWrite {
+                manifest: manifest_with_exposure(ev),
+                action: Some(action),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap()
+        .hash
+    }
+
+    async fn amend(s: &EditsStore, id: AssetKey, expected: &str, ev: f64, action: &str) -> String {
+        let outcome = s
+            .amend_if_match(
+                O,
+                id,
+                expected,
+                EditWrite {
+                    manifest: manifest_with_exposure(ev),
+                    action: Some(action),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let WriteOutcome::Written(saved) = outcome else {
+            panic!("amend conflicted");
+        };
+        saved.hash
+    }
+
+    #[tokio::test]
+    async fn an_amend_rewrites_the_latest_row_instead_of_adding_one() {
+        let s = store().await;
+        let id = key();
+        put_action(&s, id, 0.1, "Exposure").await;
+        let applied = put_action(&s, id, 0.5, "Preset: Warm").await;
+
+        let first = amend(&s, id, &applied, 0.4, "Preset: Warm (80%)").await;
+        amend(&s, id, &first, 0.3, "Preset: Warm (60%)").await;
+
+        let hist = s.list_history(O, id).await.unwrap();
+        let rows: Vec<(Option<&str>, Option<f64>)> = hist
+            .iter()
+            .map(|e| {
+                (
+                    e.action.as_deref(),
+                    e.edits.as_ref().map(|x| x.basic.exposure_ev),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (Some("Preset: Warm (60%)"), Some(0.3)),
+                (Some("Exposure"), Some(0.1))
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn an_amend_against_a_stale_hash_conflicts_and_keeps_history() {
+        let s = store().await;
+        let id = key();
+        let stale = put_action(&s, id, 0.5, "Preset: Warm").await;
+        put_action(&s, id, 0.9, "Exposure").await;
+
+        let outcome = s
+            .amend_if_match(O, id, &stale, write(manifest_with_exposure(0.2)))
+            .await
+            .unwrap();
+
+        assert!(matches!(outcome, WriteOutcome::Conflict(_)));
+        assert_eq!(s.list_history(O, id).await.unwrap().len(), 2);
     }
 
     #[tokio::test]

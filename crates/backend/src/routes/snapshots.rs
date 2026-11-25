@@ -10,7 +10,7 @@ use crate::asset_key::AssetKey;
 use crate::error::AppError;
 use crate::names::display_name;
 use crate::routes::auth::AuthCtx;
-use crate::routes::edits::write_manifest;
+use crate::routes::edits::{Precondition, write_manifest};
 use crate::routes::headers;
 use crate::services::edits_store::EditSnapshot;
 use crate::state::AppState;
@@ -142,7 +142,10 @@ pub async fn restore(
         id,
         EditManifest::from_edits(&snapshot.edits),
         Some(action.as_str()),
-        if_match.as_deref(),
+        if_match.as_deref().map(|expected| Precondition {
+            expected,
+            amend: false,
+        }),
     )
     .await
 }

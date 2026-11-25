@@ -33,6 +33,7 @@ pub use export_jobs::{ExportJobBaseline, ExportJobCompletion};
 pub use export_output_lookup::{ExportOutputQuery, RecordedExport};
 pub use export_outputs::{ExportOutput, ExportOutputKey};
 pub use export_presets::{ExportDestination, ExportPresetRecord, ExportPresetWrite};
+use history::HistoryMode;
 pub use history::{EditHistoryEntry, RestoreOutcome};
 pub use places::{MAX_SAVED_PLACES, PlaceWrite, Point, RecentPlace, SavedPlace};
 pub use preferences::{CropRatio, Preferences, PreferencesPatch, SectionEntry};
@@ -228,7 +229,8 @@ impl EditsStore {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         copies::ensure_live(&mut tx, owner, asset_id).await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
-        self.write_put(tx, owner, asset_id, current, write).await
+        self.write_put(tx, owner, asset_id, current, write, HistoryMode::Append)
+            .await
     }
 
     pub async fn put_if_match(
@@ -238,13 +240,38 @@ impl EditsStore {
         expected: &str,
         write: EditWrite<'_>,
     ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
+        self.write_if_match(owner, asset_id, expected, write, HistoryMode::Append)
+            .await
+    }
+
+    pub async fn amend_if_match(
+        &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        expected: &str,
+        write: EditWrite<'_>,
+    ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
+        self.write_if_match(owner, asset_id, expected, write, HistoryMode::AmendLatest)
+            .await
+    }
+
+    async fn write_if_match(
+        &self,
+        owner: Uuid,
+        asset_id: AssetKey,
+        expected: &str,
+        write: EditWrite<'_>,
+        mode: HistoryMode,
+    ) -> Result<WriteOutcome<EditRecord>, EditsStoreError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         copies::ensure_live(&mut tx, owner, asset_id).await?;
         let current = fetch_record(&mut *tx, owner, asset_id).await?;
         if let Some(conflict) = conflict_with(current.clone(), expected, asset_id) {
             return Ok(WriteOutcome::Conflict(conflict));
         }
-        let saved = self.write_put(tx, owner, asset_id, current, write).await?;
+        let saved = self
+            .write_put(tx, owner, asset_id, current, write, mode)
+            .await?;
         Ok(WriteOutcome::Written(saved))
     }
 
@@ -255,6 +282,7 @@ impl EditsStore {
         asset_id: AssetKey,
         current: Option<EditRecord>,
         write: EditWrite<'_>,
+        mode: HistoryMode,
     ) -> Result<EditRecord, EditsStoreError> {
         let EditWrite {
             manifest,
@@ -295,7 +323,14 @@ impl EditsStore {
                 action,
                 created_at: &now,
             };
-            history::write_history(&mut tx, owner, asset_id, entry).await?;
+            match mode {
+                HistoryMode::Append => {
+                    history::write_history(&mut tx, owner, asset_id, entry).await?
+                }
+                HistoryMode::AmendLatest => {
+                    history::amend_latest_history(&mut tx, owner, asset_id, entry).await?
+                }
+            }
             raster_refs::refresh_raster_refs(&mut tx, owner, asset_id).await?;
         }
         tx.commit().await?;
