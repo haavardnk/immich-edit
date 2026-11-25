@@ -94,7 +94,8 @@ async fn concurrent_previews_download_the_original_once() {
         arw_response().set_delay(Duration::from_millis(200)),
     )
     .await;
-    let app = seed_and_wrap(&server, parallel_state(&server).await).await;
+    let state = parallel_state(&server).await;
+    let app = seed_and_wrap(&server, state.clone()).await;
 
     let first = app.clone().oneshot(preview_lane(id, "base"));
     let second = app.oneshot(preview_lane(id, "roi"));
@@ -109,6 +110,12 @@ async fn concurrent_previews_download_the_original_once() {
     if fetched != 1 {
         panic!("expected a single original download, got {fetched}");
     }
+    let frames = state.render.telemetry().snapshot().frames;
+    assert_eq!(
+        (frames.cache_misses, frames.cache_hits),
+        (1, 1),
+        "a joined load counts as a hit"
+    );
 }
 
 #[tokio::test]
