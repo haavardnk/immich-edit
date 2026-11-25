@@ -1,6 +1,8 @@
 import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
+import { planShifts, type ShiftPlan } from '#lib/browse/captureShift.ts';
+import { correctTimes } from '#lib/browse/captureTimeOps.ts';
 import { bestFit, type Fit } from '#lib/geotag/bestFit.ts';
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
 import { cameraTime, deviceZone } from '#lib/geotag/photoTime.ts';
@@ -55,6 +57,7 @@ export class TrackSession {
   correctionMs = $state(0);
   toleranceMin = $state<(typeof TOLERANCES)[number]>(5);
   replace = $state(false);
+  fixTime = $state(false);
   loading = $state(false);
   placing = $state(false);
   focused = $state<string | null>(null);
@@ -92,6 +95,16 @@ export class TrackSession {
     )
   );
   readonly counts = $derived(countMatches(this.matches));
+  readonly timeShift: ShiftPlan = $derived(
+    planShifts(
+      this.matches.flatMap((match) => {
+        const base = this.bases.get(match.id);
+        return match.outcome.kind === 'placed' && base ? [{ id: match.id, ...base }] : [];
+      }),
+      this.correctionMs,
+      this.zone
+    )
+  );
   readonly rows = $derived(
     this.photos.flatMap((asset, index) => {
       const match = this.matches[index];
@@ -146,6 +159,7 @@ export class TrackSession {
     this.focused = null;
     this.revealed = null;
     this.replace = false;
+    this.fixTime = false;
     this.zone = deviceZone();
     this.zoneFrom = 'device';
   };
@@ -233,7 +247,12 @@ export class TrackSession {
         placed.map((point) => [point.id, { ...point, place: names.get(cellOf(point)) ?? null }])
       );
       const assets = this.photos.filter((asset) => targets.has(asset.id));
-      const done = await applyLocations(assets, targets);
+      const shift = this.fixTime ? this.timeShift : null;
+      const done = await applyLocations(
+        assets,
+        targets,
+        shift ? (written) => correctTimes(shift, written) : undefined
+      );
       if (done) this.close();
       return done;
     } finally {

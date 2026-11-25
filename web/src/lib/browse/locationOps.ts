@@ -129,9 +129,15 @@ function refusedLine(refused: number): string | undefined {
   return refused > 0 ? `${countOf(refused, 'photo')} owned by someone else kept theirs` : undefined;
 }
 
+export interface FollowUp {
+  note: string;
+  undo: () => Promise<void>;
+}
+
 export async function applyLocations(
   assets: readonly AssetSummary[],
-  targets: ReadonlyMap<string, GeoLocation>
+  targets: ReadonlyMap<string, GeoLocation>,
+  then?: (written: readonly string[]) => Promise<FollowUp | null>
 ): Promise<boolean> {
   const plan = await ownedWithConsent(assets.filter((asset) => targets.has(asset.id)));
   if (!plan) return false;
@@ -156,9 +162,17 @@ export async function applyLocations(
   const written = previous.filter(({ id }) => !failed.has(sourceId(id)));
   libraryChanged();
   const refused = plan.refused + previous.length - written.length;
-  toasts.push('success', `Placed ${countOf(written.length, 'photo')}`, {
+  const extra = then && written.length > 0 ? await then(written.map(({ id }) => id)) : null;
+  const title = `Placed ${countOf(written.length, 'photo')}`;
+  toasts.push('success', extra ? `${title} ${extra.note}` : title, {
     description: refusedLine(refused),
-    action: { label: 'Undo', run: () => void undo(written) }
+    action: {
+      label: 'Undo',
+      run: () => {
+        void undo(written);
+        void extra?.undo();
+      }
+    }
   });
   return written.length > 0;
 }

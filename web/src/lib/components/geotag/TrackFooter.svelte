@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TrackAlsoMove from '#lib/components/geotag/TrackAlsoMove.svelte';
+  import TrackOptions from '#lib/components/geotag/TrackOptions.svelte';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Button } from '@immich/ui';
@@ -14,7 +14,7 @@
     ? 'border-t border-hairline bg-light-50 px-4 py-3'
     : ''}"
 >
-  <TrackAlsoMove />
+  <TrackOptions />
   <div class="flex items-center justify-end gap-2">
     <Button
       size="small"

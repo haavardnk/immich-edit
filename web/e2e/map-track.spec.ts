@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { bulkBar } from './browse';
 import { installMocks, numberedAssets } from './helpers';
+import { CaptureTimeMock } from './captureTimeMocks';
 import { BERGEN, pointOnMap } from './mapFixtures';
 import { selectTwo } from './touchShell';
 
@@ -86,6 +87,45 @@ test('a track places a selection after the camera clock is lined up', async ({ p
     { id: SHOOT[1]!.id, latitude: 60.12, longitude: 6.72 }
   ]);
   await expect(panel).toHaveCount(0);
+});
+
+test('placing can correct the capture time too, and one Undo reverts both', async ({ page }) => {
+  const written: Written[] = [];
+  const times = new CaptureTimeMock();
+  await installMocks(page, {
+    assets: SHOOT,
+    placeName: BERGEN,
+    metadataPushConsented: true,
+    onLocations: (items) => written.push(...items),
+    captureTime: times
+  });
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+  const fix = panel.getByRole('checkbox', { name: 'Correct the capture time of 2 photos' });
+  await expect(panel.getByRole('checkbox', { name: /Correct the capture time/ })).toHaveCount(0);
+
+  await panel.getByRole('button', { name: 'Use best fit' }).click();
+  await expect(fix).not.toBeChecked();
+  await expect(panel).toContainText('1 h earlier');
+  await fix.check();
+  await panel.getByRole('button', { name: 'Place 2 photos' }).click();
+
+  await expect(page.getByText('Placed 2 photos and corrected their capture time')).toBeVisible();
+  expect(written).toHaveLength(2);
+  expect(times.calls).toEqual([
+    [
+      { id: SHOOT[0]!.id, minutes: -60 },
+      { id: SHOOT[1]!.id, minutes: -60 }
+    ]
+  ]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(() => times.calls.length).toBe(2);
+  expect(times.calls[1]).toEqual([
+    { id: SHOOT[0]!.id, minutes: 60 },
+    { id: SHOOT[1]!.id, minutes: 60 }
+  ]);
 });
 
 test('typing a correction moves the photos along the track', async ({ page }) => {
@@ -269,6 +309,28 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
       'aria-pressed',
       'false'
     );
+  });
+
+  test('the phone sheet offers the capture time correction', async ({ page }, info) => {
+    test.skip(info.project.name !== 'touch-phone', 'phone sheet');
+    const times = new CaptureTimeMock();
+    await installMocks(page, {
+      assets: SHOOT,
+      placeName: BERGEN,
+      metadataPushConsented: true,
+      captureTime: times
+    });
+    await page.goto('/map');
+    await page.getByRole('button', { name: 'Match track' }).tap();
+    await loadTrack(page);
+    await lineUpOnTouch(page);
+    await page.getByRole('button', { name: 'Resize sheet' }).tap();
+    const sheet = page.locator('[data-track-sheet]');
+    const fix = sheet.getByRole('checkbox', { name: 'Correct the capture time of 2 photos' });
+    await fix.tap();
+    await expect(fix).toBeChecked();
+    await sheet.getByRole('button', { name: 'Place 2 photos' }).tap();
+    await expect.poll(() => times.calls.length).toBe(1);
   });
 
   test('the phone sheet minimizes to its title row', async ({ page }, info) => {
