@@ -2,20 +2,42 @@
   import MapPhotos from '#lib/components/map/MapPhotos.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import type { MapPageState } from '#lib/map/mapPage.svelte.ts';
+  import type { MapPlacesHost } from '#lib/map/placeEditor.svelte.ts';
+  import { places } from '#lib/stores/places.svelte.ts';
   import type { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import MapPill from '#lib/components/map/MapPill.svelte';
   import { Button } from '@immich/ui';
+  import { mdiPlus } from '@mdi/js';
 
   let {
     map,
+    host,
     tray,
     lift,
     hidden
-  }: { map: MapPageState; tray: MapTrayState; lift: number; hidden: boolean } = $props();
+  }: {
+    map: MapPageState;
+    host: MapPlacesHost;
+    tray: MapTrayState;
+    lift: number;
+    hidden: boolean;
+  } = $props();
 </script>
 
 {#snippet showAll()}
   <Button size="small" variant="ghost" class="h-11" onclick={() => map.showAll()}>Show all</Button>
+{/snippet}
+
+{#snippet newPlace()}
+  <Button
+    size="small"
+    variant="ghost"
+    class="h-11"
+    leadingIcon={mdiPlus}
+    onclick={() => host.create()}
+  >
+    New place
+  </Button>
 {/snippet}
 
 {#if tray.state === 'closed' && !hidden}
@@ -34,11 +56,15 @@
   bind:detent={tray.detent}
   peek={tray.state === 'carrying'}
   title={map.title}
-  subtitle={map.tab === 'view' ? map.place || undefined : undefined}
+  subtitle={map.tab === 'places'
+    ? places.summary
+    : map.tab === 'view'
+      ? map.place || undefined
+      : undefined}
   bodyClass="flex min-h-0 flex-col p-0"
   {lift}
   data-map-sheet
-  header={map.picked && map.tab === 'view' ? showAll : undefined}
+  header={map.tab === 'places' ? newPlace : map.picked && map.tab === 'view' ? showAll : undefined}
 >
-  <MapPhotos {map} heading={false} />
+  <MapPhotos {map} {host} heading={false} />
 </BottomSheet>

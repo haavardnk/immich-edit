@@ -42,7 +42,8 @@ class LocationPickerStore {
     if (!request || this.saving) return;
     this.saving = true;
     try {
-      if (await applyLocation(request.assets, to)) this.request = null;
+      const done = await applyLocation(request.assets, to);
+      if (done) this.request = null;
     } finally {
       this.saving = false;
     }

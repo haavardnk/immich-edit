@@ -1,4 +1,5 @@
 import type { SavedPlace } from '#lib/api/places.ts';
+import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
 import type { Point } from '#lib/gestures/point.ts';
 import { mdiStar } from '@mdi/js';
 import type { Map as MapLibreMap, Marker } from 'maplibre-gl';
@@ -16,27 +17,31 @@ interface Drawn {
   element: HTMLButtonElement;
 }
 
-function starIcon(): SVGSVGElement {
+function starIcon(hollow: boolean): SVGSVGElement {
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('class', 'size-3.5 fill-primary');
+  svg.setAttribute(
+    'class',
+    hollow ? 'size-3.5 fill-none stroke-light-950 stroke-2' : 'size-3.5 fill-primary'
+  );
   const path = document.createElementNS(SVG, 'path');
   path.setAttribute('d', mdiStar);
   svg.append(path);
   return svg;
 }
 
-export function starElement(place: SavedPlace): HTMLButtonElement {
+export function starElement(place: SavedPlace | null): HTMLButtonElement {
   const element = document.createElement('button');
   element.type = 'button';
-  element.dataset['mapPlace'] = place.id;
+  if (place) element.dataset['mapPlace'] = place.id;
+  else element.dataset['mapPlaceNew'] = '';
   element.className =
-    'group flex items-center gap-1.5 outline-none data-[hit=true]:z-10 [&[data-names=false]_[data-place-name]]:hidden';
+    'group flex items-center gap-1.5 outline-none data-[dim=true]:pointer-events-none data-[dim=true]:opacity-40 data-[hit=true]:z-10 data-[moving=true]:z-20 data-[moving=true]:cursor-grab [&[data-names=false]_[data-place-name]]:hidden';
   const dot = document.createElement('span');
   dot.className =
-    'grid size-7 place-items-center rounded-full bg-light-100 shadow-lg ring-2 ring-primary group-focus-visible:ring-light-950 group-data-[hit=true]:scale-125 group-data-[hit=true]:ring-3 group-data-[hit=true]:ring-light-950 motion-safe:transition-transform motion-safe:duration-fast';
-  dot.append(starIcon());
+    'grid size-7 place-items-center rounded-full bg-light-100 shadow-lg ring-2 ring-primary group-focus-visible:ring-light-950 group-data-[hit=true]:scale-125 group-data-[hit=true]:ring-3 group-data-[hit=true]:ring-light-950 group-data-[moving=true]:scale-125 group-data-[moving=true]:ring-3 group-data-[moving=true]:ring-light-950 group-data-[map-place-new]:ring-3 group-data-[map-place-new]:ring-light-950 motion-safe:transition-transform motion-safe:duration-fast';
+  dot.append(starIcon(!place));
   const name = document.createElement('span');
   name.dataset['placeName'] = '';
   name.className =
@@ -56,6 +61,8 @@ export class PlaceStars {
   #lib: MapLibre;
   #onPick: (place: SavedPlace, element: HTMLElement) => void;
   #drawn = new Map<string, Drawn>();
+  #moving: (() => void) | null = null;
+  #ghost: Marker | null = null;
 
   constructor(
     map: MapLibreMap,
@@ -100,7 +107,56 @@ export class PlaceStars {
     }
   }
 
+  edit(id: string | null, onDrop: (at: GeoPoint) => void = () => undefined): void {
+    this.#moving?.();
+    this.#moving = null;
+    for (const [key, { element }] of this.#drawn) {
+      element.dataset['dim'] = String(id !== null && key !== id);
+      element.dataset['moving'] = String(key === id);
+    }
+    const drawn = id ? this.#drawn.get(id) : undefined;
+    if (!drawn) return;
+    const end = (): void => {
+      const at = drawn.marker.getLngLat();
+      onDrop({ lat: at.lat, lon: at.lng });
+    };
+    drawn.marker.setDraggable(true);
+    drawn.marker.on('dragend', end);
+    this.#moving = () => {
+      drawn.marker.off('dragend', end);
+      drawn.marker.setDraggable(false);
+      drawn.marker.setLngLat([drawn.place.lon, drawn.place.lat]);
+    };
+  }
+
+  hide(id: string | null): void {
+    for (const [key, { element }] of this.#drawn) element.hidden = key === id;
+  }
+
+  ghost(at: GeoPoint | null, onDrop: (at: GeoPoint) => void = () => undefined): void {
+    this.#ghost?.remove();
+    this.#ghost = null;
+    if (!at) return;
+    const element = starElement(null);
+    element.setAttribute('aria-label', 'New place');
+    const marker = new this.#lib.Marker({
+      element,
+      anchor: 'left',
+      offset: [-14, 0],
+      draggable: true
+    })
+      .setLngLat([at.lon, at.lat])
+      .addTo(this.#map);
+    marker.on('dragend', () => {
+      const end = marker.getLngLat();
+      onDrop({ lat: end.lat, lon: end.lng });
+    });
+    this.#ghost = marker;
+  }
+
   destroy(): void {
+    this.#moving?.();
+    this.#ghost?.remove();
     this.#map.off('zoom', this.#names);
     for (const { marker } of this.#drawn.values()) marker.remove();
     this.#drawn.clear();
