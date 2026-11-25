@@ -78,6 +78,46 @@ export function captureTime(asset: Dated): CaptureTime | null {
   return created ? { at: created } : null;
 }
 
+function offsetMinutes(at: Date, zone: string): number | null {
+  const offset = UTC_OFFSET.exec(zone);
+  if (offset) {
+    const minutes = Number(offset[2]) * 60 + Number(offset[3] ?? 0);
+    return offset[1] === '-' ? -minutes : minutes;
+  }
+  if (!knownZone(zone)) return null;
+  const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+    .formatToParts(at)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  const parsed = name ? /^GMT(?:([+-])(\d{2}):(\d{2}))?$/.exec(name) : null;
+  if (!parsed) return null;
+  const minutes = Number(parsed[2] ?? 0) * 60 + Number(parsed[3] ?? 0);
+  return parsed[1] === '-' ? -minutes : minutes;
+}
+
+function offsetLabel(minutes: number): string {
+  if (minutes === 0) return 'UTC';
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const rest = Math.abs(minutes) % 60;
+  return `UTC${minutes < 0 ? '-' : '+'}${hours}${rest ? `:${String(rest).padStart(2, '0')}` : ''}`;
+}
+
+export function captureZone(asset: Dated): string | null {
+  const exif = asset.exifInfo;
+  if (!exif) return null;
+  const zone = exif.timeZone?.trim();
+  if (!zone) return 'no time zone';
+  const at = parseDate(asset.fileCreatedAt) ?? parseDate(exif.dateTimeOriginal);
+  if (!at) return null;
+  const minutes = offsetMinutes(at, zone);
+  if (minutes === null) return zone;
+  return minutes === -at.getTimezoneOffset() ? null : offsetLabel(minutes);
+}
+
+export function withZone(text: string | null, asset: Dated): string | null {
+  const zone = captureZone(asset);
+  return text && zone ? `${text} (${zone})` : text;
+}
+
 export function fmtDate(t: CaptureTime | null): string | null {
   return t ? t.at.toLocaleString(undefined, { timeZone: t.timeZone }) : null;
 }
@@ -108,7 +148,7 @@ export function exifDetailRows(asset: Dated | null): ExifRow[] {
     ['ISO', exif.iso != null ? String(exif.iso) : null],
     ['Dimensions', fmtDim(exif.exifImageWidth, exif.exifImageHeight)],
     ['Size', fmtSize(exif.fileSizeInByte)],
-    ['Taken', exif.dateTimeOriginal ? fmtDate(captureTime(asset)) : null]
+    ['Taken', exif.dateTimeOriginal ? withZone(fmtDate(captureTime(asset)), asset) : null]
   ];
   return items
     .filter((r): r is [string, string] => r[1] != null && r[1] !== '')

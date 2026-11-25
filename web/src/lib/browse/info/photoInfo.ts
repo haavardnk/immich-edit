@@ -1,5 +1,11 @@
 import type { ExifInfo } from '#lib/types/asset.ts';
-import { captureTime, exifDetailRows, type Dated, type ExifRow } from '#lib/utils/exif.ts';
+import {
+  captureTime,
+  exifDetailRows,
+  withZone,
+  type Dated,
+  type ExifRow
+} from '#lib/utils/exif.ts';
 
 export interface ExposureCell {
   label: string;
@@ -80,7 +86,7 @@ export function takenLabel(asset: Dated): string | null {
     hour: '2-digit',
     minute: '2-digit'
   });
-  return `${day} · ${time}`;
+  return withZone(`${day} · ${time}`, asset);
 }
 
 export function coordinates(exif: Pick<ExifInfo, 'latitude' | 'longitude'>): GeoPoint | null {
