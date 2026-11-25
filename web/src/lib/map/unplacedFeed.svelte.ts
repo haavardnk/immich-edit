@@ -13,14 +13,12 @@ const UNPLACED_PAGE = 120;
 type Search = (query: PageQuery) => ReturnType<typeof searchMetadata>;
 
 export function unplacedFilter(filter: MarkerFilter): BrowseFilter {
-  const dates = markerQuery(filter);
   return {
     imagesOnly: true,
     visibility: 'timeline',
     country: [null],
     favorite: filter.favorite || undefined,
-    takenAfter: dates.after,
-    takenBefore: dates.before
+    takenLocal: markerQuery(filter).taken
   };
 }
 
