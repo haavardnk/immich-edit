@@ -41,6 +41,11 @@ export class PlacesStore {
   readonly freshRecent = $derived(
     this.recent.filter((spot) => !this.saved.some((place) => sameSpot(place, spot)))
   );
+  readonly summary = $derived(
+    this.freshRecent.length > 0
+      ? `${this.saved.length} saved · ${this.freshRecent.length} recent`
+      : `${this.saved.length} saved`
+  );
 
   ensure = (): Promise<void> => {
     this.#loading ??= this.#load();
@@ -92,6 +97,21 @@ export class PlacesStore {
 
   rename = (place: SavedPlace, name: string): Promise<boolean> =>
     this.update(place, placeInput(place, name));
+
+  move = async (place: SavedPlace, location: GeoLocation): Promise<boolean> => {
+    const moved = await this.update(place, { name: place.name, ...spotOf(location) });
+    if (moved) {
+      toasts.push('success', `Moved ${place.name}`, {
+        action: { label: 'Undo', run: () => void this.#putBack(place) }
+      });
+    }
+    return moved;
+  };
+
+  #putBack = async (place: SavedPlace): Promise<void> => {
+    const current = this.saved.find((p) => p.id === place.id);
+    if (current) await this.update(current, placeInput(place));
+  };
 
   remove = async (place: SavedPlace): Promise<void> => {
     await this.ensure();

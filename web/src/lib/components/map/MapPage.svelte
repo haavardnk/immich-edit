@@ -7,6 +7,9 @@
   import MapFilters from '#lib/components/map/MapFilters.svelte';
   import MapPhotos from '#lib/components/map/MapPhotos.svelte';
   import MapPlaceCard from '#lib/components/map/MapPlaceCard.svelte';
+  import MapPlaceEdit from '#lib/components/map/MapPlaceEdit.svelte';
+  import MapPlaceMenu from '#lib/components/map/MapPlaceMenu.svelte';
+  import MapPlaceSheet from '#lib/components/map/MapPlaceSheet.svelte';
   import MapSidePanel from '#lib/components/map/MapSidePanel.svelte';
   import MapTray from '#lib/components/map/MapTray.svelte';
   import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
@@ -20,7 +23,8 @@
   import { provideTileDrag } from '#lib/browse/tileDrag.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
   import type { MarkerFilter } from '#lib/api/map.ts';
-  import type { SavedPlace } from '#lib/api/places.ts';
+  import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
+  import { idsNear } from '#lib/geotag/spots.ts';
   import { onLocationsMoved } from '#lib/map/locationMoves.ts';
   import { WORLD_VIEW, boundsOf, parseView, type MapView } from '#lib/map/mapArea.ts';
   import { boxOf, MapCamera } from '#lib/map/mapCamera.svelte.ts';
@@ -32,6 +36,8 @@
   import { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import { writeMapUrl } from '#lib/map/mapUrl.ts';
   import { PhotoMarkers } from '#lib/map/photoMarkers.ts';
+  import { PLACE_ZOOM, PlaceEditor, type MapPlacesHost } from '#lib/map/placeEditor.svelte.ts';
+  import { watchPlaceMenu } from '#lib/map/placeMenuTriggers.ts';
   import { PlaceStars } from '#lib/map/placeStars.ts';
   import { SheetLift } from '#lib/map/sheetLift.svelte.ts';
   import { TrackFileDrop } from '#lib/map/trackFileDrop.svelte.ts';
@@ -71,7 +77,7 @@
   });
   let stars = $state.raw<PlaceStars | null>(null);
   let starsShown = $state(mapMemory.stars);
-  let picked = $state.raw<SavedPlace | null>(null);
+  const editor = new PlaceEditor();
   let pinCard = $state.raw<{ id: string; at: PinPoint } | null>(null);
   let rowCard = $state.raw<{ id: string; at: PinPoint } | null>(null);
   const shownCard = $derived(pinCard ?? rowCard);
@@ -103,6 +109,51 @@
     else panelShown = true;
   }
 
+  function flyTo(at: GeoPoint): void {
+    const target = camera.map;
+    if (!target) return;
+    target.flyTo({ center: [at.lon, at.lat], zoom: Math.max(target.getZoom(), PLACE_ZOOM) });
+  }
+
+  function mapCentre(): GeoPoint | null {
+    const centre = camera.map?.getCenter();
+    return centre ? { lat: centre.lat, lon: centre.lng } : null;
+  }
+
+  function leaveSheet(): void {
+    starsShown = true;
+    if (layout.compact) tray.close();
+  }
+
+  const host: MapPlacesHost = {
+    hover: (place) => stars?.hit(place?.id ?? null),
+    show: (place) => {
+      leaveSheet();
+      flyTo(place);
+      if (layout.mode !== 'touch') editor.open(place);
+    },
+    goTo: (at) => {
+      if (layout.compact) tray.close();
+      flyTo(at);
+    },
+    create: (at, name) => {
+      const spot = at ?? mapCentre();
+      if (!spot) return;
+      leaveSheet();
+      editor.startCreate(spot, name);
+    },
+    move: (place) => {
+      leaveSheet();
+      if (layout.mode !== 'touch') flyTo(place);
+      editor.startMove(place);
+    },
+    photos: (place) => {
+      map.tab = 'view';
+      pick(idsNear(map.markers, place));
+      flyTo(place);
+    }
+  };
+
   function ready(target: MapLibreMap, lib: typeof import('maplibre-gl')): () => void {
     const manager = new PhotoMarkers(target, lib, {
       pick,
@@ -114,7 +165,10 @@
       map.showAll();
       if (tray.state === 'open') tray.close();
     });
-    const starLayer = new PlaceStars(target, lib, (place) => (picked = place));
+    const starLayer = new PlaceStars(target, lib, (place) => editor.open(place));
+    const stopMenu = watchPlaceMenu(target, (menu) => {
+      if (!editor.edit && !tracking) editor.menu = menu;
+    });
     const trackLayer = new TrackOverlay(target, {
       hover: (id, at) => {
         trackSession.hoverPin(id);
@@ -129,7 +183,7 @@
       }
     });
     const closeCard = (): void => {
-      picked = null;
+      editor.close();
     };
     target.on('click', closeCard);
     camera.map = target;
@@ -139,6 +193,7 @@
     map.box = boxOf(target);
     return () => {
       stopMoves();
+      stopMenu();
       target.off('click', closeCard);
       starLayer.destroy();
       stars = null;
@@ -210,7 +265,7 @@
     const layer = stars;
     const list = starsShown ? places.saved : [];
     if (layer) untrack(() => layer.set(list));
-    if (!starsShown) picked = null;
+    if (!starsShown) editor.close();
   });
 
   $effect(() => {
@@ -242,7 +297,8 @@
   $effect(() => {
     if (tracking || browseView.loupeId !== null || !map.loaded) return;
     const tab = map.tab;
-    untrack(() => (tab === 'view' ? map.feed.attach() : map.unplaced.attach()));
+    if (tab === 'view') untrack(() => map.feed.attach());
+    else if (tab === 'unplaced') untrack(() => map.unplaced.attach());
   });
 
   $effect(() => {
@@ -282,7 +338,7 @@
       if (!map.loaded) return;
       const ids = map.shownIds;
       untrack(() => void map.feed.show(ids));
-    } else {
+    } else if (map.tab === 'unplaced') {
       const filter = map.filter;
       untrack(() => void map.unplaced.show(filter));
     }
@@ -357,7 +413,7 @@
   <MapDropZone
     drag={drops.drag}
     onDrop={drops.dropped}
-    class="{zone} {tracking
+    class="{zone} {tracking || editor.edit !== null
       ? '[&_[data-map-cluster]]:pointer-events-none [&_[data-map-cluster]]:opacity-35! [&_[data-map-photo]]:pointer-events-none [&_[data-map-photo]]:opacity-35!'
       : ''}"
   >
@@ -378,14 +434,30 @@
         onOpen={layout.mode === 'touch' ? () => openTrackPhoto(shownCard.id) : undefined}
       />
     {/if}
-    {#if picked}
+    {#if editor.card && layout.mode === 'touch'}
+      <MapPlaceSheet
+        place={editor.card}
+        markers={map.markers}
+        onMove={host.move}
+        onClose={editor.close}
+      />
+    {:else if editor.card}
       <MapPlaceCard
-        place={picked}
+        place={editor.card}
         map={camera.map}
         markers={map.markers}
-        onClose={() => (picked = null)}
+        onMove={host.move}
+        onClose={editor.close}
       />
     {/if}
+    {#if editor.menu}
+      <MapPlaceMenu
+        menu={editor.menu}
+        onSave={(menu) => host.create(menu.at)}
+        onClose={() => (editor.menu = null)}
+      />
+    {/if}
+    <MapPlaceEdit {editor} map={camera.map} {stars} touch={layout.mode === 'touch'} />
     {#if fileDrop.over}
       <div
         class="pointer-events-none absolute inset-2.5 z-30 grid place-items-center rounded-xl bg-light/35 ring-2 ring-primary"
@@ -430,7 +502,13 @@
       {#if tracking}
         <TrackSheet lift={lift.value} hidden={browseView.loupeId !== null} />
       {:else}
-        <MapTray {map} {tray} lift={lift.value} hidden={browseView.loupeId !== null} />
+        <MapTray
+          {map}
+          {host}
+          {tray}
+          lift={lift.value}
+          hidden={browseView.loupeId !== null || editor.edit !== null}
+        />
       {/if}
     </div>
   {:else}
@@ -443,7 +521,7 @@
         {#if tracking}
           <TrackPanel />
         {:else}
-          <MapPhotos {map} />
+          <MapPhotos {map} {host} />
         {/if}
       </MapSidePanel>
       <BulkBar placement="float" />

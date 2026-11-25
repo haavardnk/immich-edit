@@ -165,7 +165,7 @@
     </div>
   {/snippet}
 
-  <PlaceSearch onPick={pickPlace} photon={mapConfig.search} />
+  <PlaceSearch onPick={pickPlace} pin={at} photon={mapConfig.search} />
   <div class="relative h-85 overflow-hidden rounded-lg border border-hairline touch:h-[50vh]">
     <MapCanvas
       class="size-full"

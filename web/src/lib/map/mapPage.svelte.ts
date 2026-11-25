@@ -12,7 +12,7 @@ import { UnplacedFeed } from '#lib/map/unplacedFeed.svelte.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
-export type MapTab = 'view' | 'unplaced';
+export type MapTab = 'view' | 'unplaced' | 'places';
 
 export class MapPageState {
   filter = $state<MarkerFilter>({});
@@ -36,6 +36,7 @@ export class MapPageState {
   });
   readonly extent = $derived(boundsOf(this.markers));
   readonly title = $derived.by(() => {
+    if (this.tab === 'places') return 'Places';
     if (this.tab === 'unplaced') {
       const shown = this.unplaced.assets.length;
       const more = this.unplaced.hasMore ? '+' : '';

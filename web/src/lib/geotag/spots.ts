@@ -26,6 +26,16 @@ export function awayFrom(
   return [...ids].filter((id) => !here.has(id));
 }
 
+export const NEARBY_METRES = 200;
+
+export function idsNear(
+  located: readonly (GeoPoint & { id: string })[],
+  spot: GeoPoint,
+  metres: number = NEARBY_METRES
+): string[] {
+  return located.filter((point) => distanceMetres(point, spot) <= metres).map((p) => p.id);
+}
+
 export function spotOf(location: GeoLocation): Spot {
   return {
     lat: location.lat,

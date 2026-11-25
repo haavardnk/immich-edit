@@ -1,14 +1,30 @@
 <script lang="ts">
   import { searchPlaces, type Place } from '#lib/api/map.ts';
+  import type { SavedPlace } from '#lib/api/places.ts';
+  import type { GeoLocation } from '#lib/browse/locationOps.ts';
+  import ActionMenu from '#lib/components/ActionMenu.svelte';
+  import MoreActionsButton from '#lib/components/MoreActionsButton.svelte';
+  import NameField from '#lib/components/NameField.svelte';
   import SearchField from '#lib/components/SearchField.svelte';
+  import SavedPlacesMenu from '#lib/components/map/SavedPlacesMenu.svelte';
   import { parseCoordinates } from '#lib/geotag/coordinates.ts';
+  import {
+    pickerPlaceActions,
+    pickerPlaceMenu,
+    type PickerPlaceAction
+  } from '#lib/geotag/placeMenu.ts';
   import { placeSections, type PlaceSuggestion } from '#lib/geotag/placeSuggestions.ts';
+  import { sameSpot } from '#lib/geotag/spots.ts';
   import { places } from '#lib/stores/places.svelte.ts';
   import { errorMessage } from '#lib/utils/errors.ts';
   import { Icon } from '@immich/ui';
   import { onMount } from 'svelte';
 
-  let { onPick, photon }: { onPick: (place: Place) => void; photon: boolean } = $props();
+  let {
+    onPick,
+    pin = null,
+    photon
+  }: { onPick: (place: Place) => void; pin?: GeoLocation | null; photon: boolean } = $props();
 
   const DEBOUNCE_MS = 300;
 
@@ -18,6 +34,7 @@
   let focused = $state(false);
   let picked = $state(false);
   let box = $state<HTMLElement | null>(null);
+  let renaming = $state<string | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AbortController | null = null;
 
@@ -31,7 +48,8 @@
     })
   );
   const first = $derived(sections.flatMap((section) => section.items)[0] ?? null);
-  const shown = $derived(!picked && (focused || results.length > 0) && first !== null);
+  const typed = $derived(query.trim() !== '');
+  const shown = $derived(!picked && typed && (focused || results.length > 0) && first !== null);
 
   function search(text: string): void {
     picked = false;
@@ -75,7 +93,24 @@
 
   function focusOut(event: FocusEvent): void {
     const next = event.relatedTarget;
-    if (!(next instanceof Node) || !box?.contains(next)) focused = false;
+    const inMenu = next instanceof Element && next.closest('[data-popover-content]') !== null;
+    if (!inMenu && (!(next instanceof Node) || !box?.contains(next))) focused = false;
+  }
+
+  function savedOf(suggestion: PlaceSuggestion): SavedPlace | null {
+    if (!suggestion.saved) return null;
+    return places.saved.find((place) => `saved:${place.id}` === suggestion.key) ?? null;
+  }
+
+  function run(action: PickerPlaceAction, place: SavedPlace): void {
+    if (action === 'pin' && pin) void places.move(place, pin);
+    else if (action === 'rename') renaming = place.id;
+    else if (action === 'remove') void places.remove(place);
+  }
+
+  async function rename(place: SavedPlace, name: string): Promise<void> {
+    const trimmed = name.trim();
+    if (trimmed === place.name || (await places.rename(place, trimmed))) renaming = null;
   }
 
   onMount(() => {
@@ -88,24 +123,21 @@
   });
 </script>
 
-<div
-  bind:this={box}
-  class="relative z-10"
-  onfocusin={() => {
-    focused = true;
-    picked = false;
-  }}
-  onfocusout={focusOut}
->
-  <SearchField
-    bind:value={query}
-    label="Search for a place"
-    placeholder={photon
-      ? 'Search places, or paste coordinates or a map link'
-      : 'Paste coordinates or a map link'}
-    oninput={search}
-    onkeydown={keydown}
-  />
+<div bind:this={box} class="relative z-10" onfocusin={() => (focused = true)} onfocusout={focusOut}>
+  <div class="flex items-center gap-2">
+    <div class="min-w-0 flex-1">
+      <SearchField
+        bind:value={query}
+        label="Search for a place"
+        placeholder={photon
+          ? 'Search places, or paste coordinates or a map link'
+          : 'Paste coordinates or a map link'}
+        oninput={search}
+        onkeydown={keydown}
+      />
+    </div>
+    <SavedPlacesMenu onPick={pick} />
+  </div>
   {#if shown}
     <div
       class="absolute inset-x-0 top-full mt-1 max-h-80 overflow-y-auto rounded-lg border border-hairline bg-light-100 py-1 shadow-popover touch:max-h-[45vh]"
@@ -119,34 +151,65 @@
               </li>
             {/if}
             {#each section.items as suggestion (suggestion.key)}
-              <li>
-                <button
-                  type="button"
-                  class="flex w-full items-center gap-3 px-3 py-2 text-start outline-none hover:bg-subtle focus-visible:bg-subtle touch:px-4 touch:py-3"
-                  onclick={() => pick(suggestion)}
-                >
-                  {#if suggestion.icon}
-                    <Icon
-                      icon={suggestion.icon}
-                      size="16px"
-                      class="shrink-0 {suggestion.saved ? 'text-primary' : 'text-dark/65'}"
-                      aria-hidden
+              {@const saved = savedOf(suggestion)}
+              <li class="flex items-center pe-1">
+                {#if saved && renaming === saved.id}
+                  <div class="flex min-w-0 flex-1 items-center px-3 py-1.5 touch:px-4">
+                    <NameField
+                      initial={saved.name}
+                      ariaLabel="Name of {saved.name}"
+                      onsave={(name) => rename(saved, name)}
+                      oncancel={() => (renaming = null)}
                     />
-                  {/if}
-                  <span class="flex min-w-0 flex-1 flex-col">
-                    <span class="truncate text-sm text-light-950 touch:text-body">
-                      {suggestion.place.name}
-                    </span>
-                    {#if suggestion.place.detail}
-                      <span class="truncate text-caption text-dark/65 touch:text-sm">
-                        {suggestion.place.detail}
-                      </span>
+                  </div>
+                {:else}
+                  <button
+                    type="button"
+                    class="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-start outline-none hover:bg-subtle focus-visible:bg-subtle touch:px-4 touch:py-3"
+                    onclick={() => pick(suggestion)}
+                  >
+                    {#if suggestion.icon}
+                      <Icon
+                        icon={suggestion.icon}
+                        size="16px"
+                        class="shrink-0 {suggestion.saved ? 'text-primary' : 'text-dark/65'}"
+                        aria-hidden
+                      />
                     {/if}
-                  </span>
-                  {#if suggestion.trail}
-                    <span class="shrink-0 text-caption text-dark/65">{suggestion.trail}</span>
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="truncate text-sm text-light-950 touch:text-body">
+                        {suggestion.place.name}
+                      </span>
+                      {#if suggestion.place.detail}
+                        <span class="truncate text-caption text-dark/65 touch:text-sm">
+                          {suggestion.place.detail}
+                        </span>
+                      {/if}
+                    </span>
+                    {#if suggestion.trail}
+                      <span class="shrink-0 text-caption text-dark/65">{suggestion.trail}</span>
+                    {/if}
+                  </button>
+                  {#if saved}
+                    <MoreActionsButton
+                      label="Actions for {saved.name}"
+                      title={saved.name}
+                      size="tiny"
+                    >
+                      {#snippet children(close)}
+                        <ActionMenu
+                          groups={pickerPlaceMenu(pin !== null && !sameSpot(saved, pin))}
+                          actions={pickerPlaceActions(saved.name)}
+                          variant="popover"
+                          onrun={(action) => {
+                            close();
+                            run(action, saved);
+                          }}
+                        />
+                      {/snippet}
+                    </MoreActionsButton>
                   {/if}
-                </button>
+                {/if}
               </li>
             {/each}
             {#if section.id === 'found'}
