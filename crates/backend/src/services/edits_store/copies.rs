@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
-use sqlx::AssertSqlSafe;
+use sqlx::{AssertSqlSafe, SqliteConnection};
 use uuid::Uuid;
 
 use super::purge::ASSET_TABLES;
@@ -15,6 +15,29 @@ pub struct CopyRecord {
     pub source_asset_id: Uuid,
     pub name: Option<String>,
     pub created_at: String,
+}
+
+pub(super) async fn ensure_live(
+    conn: &mut SqliteConnection,
+    owner: Uuid,
+    key: AssetKey,
+) -> Result<(), EditsStoreError> {
+    if !key.is_copy() {
+        return Ok(());
+    }
+    let live: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM asset_copies \
+         WHERE user_id = ?1 AND id = ?2 AND deleted = 0)",
+    )
+    .bind(owner.to_string())
+    .bind(key.to_string())
+    .fetch_one(conn)
+    .await?;
+    if live {
+        Ok(())
+    } else {
+        Err(EditsStoreError::DeletedCopy)
+    }
 }
 
 impl EditsStore {

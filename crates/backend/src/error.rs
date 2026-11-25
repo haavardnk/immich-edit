@@ -269,7 +269,16 @@ macro_rules! store_from {
     };
 }
 
-internal_from!(crate::services::edits_store::EditsStoreError, "edits store");
+impl From<crate::services::edits_store::EditsStoreError> for AppError {
+    fn from(err: crate::services::edits_store::EditsStoreError) -> Self {
+        use crate::services::edits_store::EditsStoreError as E;
+        match err {
+            E::DeletedCopy => Self::NotFound,
+            e => Self::internal("edits store", &e),
+        }
+    }
+}
+
 internal_from!(crate::services::job_store::JobStoreError, "job store");
 internal_from!(std::io::Error, "io");
 store_from!(crate::services::dcp_store::DcpStoreError, "dcp", dup);
