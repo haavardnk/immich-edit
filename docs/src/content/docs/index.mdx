@@ -10,7 +10,7 @@ import banner from '../../assets/banner.png';
 import developShot from '../../assets/shots/develop-desktop.png';
 import masksShot from '../../assets/shots/masks-desktop.png';
 import cullShot from '../../assets/shots/cull-desktop.png';
-import mapShot from '../../assets/shots/map-desktop.png';
+import trackShot from '../../assets/shots/track-desktop.png';
 
 <div class="hero-banner">
   <Image src={banner} alt="immich-edit running on desktop, tablet, and phone" />
@@ -67,15 +67,16 @@ import mapShot from '../../assets/shots/map-desktop.png';
 
   <div class="ie-feature ie-feature-reverse">
     <div class="ie-feature-copy">
-      <h2>Interactive map and geotagging</h2>
+      <h2>Map and GPX track geotagging</h2>
       <p>
-        Explore your library by location across desktop, tablet, and phone, inspect photos in view,
-        and place or update GPS coordinates straight back to Immich.
+        Explore your library on an interactive map, save favorite places, copy and paste locations
+        in bulk, or match shoots to GPX, KML, and TCX tracks with per-camera clock alignment and
+        capture-time correction.
       </p>
-      <a href="editing/map/">Map and locations →</a>
+      <a href="editing/map/">Map and geotagging →</a>
     </div>
     <div class="ie-feature-media">
-      <Image src={mapShot} alt="Map view with photo clusters and photos in view panel" />
+      <Image src={trackShot} alt="GPX track matching around Lake Magadi with hovered photo preview" />
     </div>
   </div>
 </section>

@@ -33,6 +33,16 @@ describe('resolveDetents', () => {
 
   it('sizes content detents to the content, capped below the full height', () => {
     expect(resolveDetents(['content'], { available: 1000, content: 300 })).toEqual([300]);
+    expect(
+      resolveDetents(['header', 'content'], { available: 1000, content: 300, header: 84 })
+    ).toEqual([84, 300]);
+    expect(resolveDetents(['header'], { available: 60, content: 0, header: 84 })).toEqual([60]);
+    expect(
+      resolveDetents([{ body: 120 }], { available: 1000, content: 0, header: 84, footer: 70 })
+    ).toEqual([274]);
+    expect(
+      resolveDetents([{ body: 900 }], { available: 1000, content: 0, header: 84, footer: 70 })
+    ).toEqual([900]);
     expect(resolveDetents(['content'], { available: 1000, content: 2000 })).toEqual([
       1000 * CONTENT_CAP
     ]);

@@ -408,7 +408,9 @@ test('the loupe shows the saved edits after the editor', async ({ page }) => {
   await saved;
   await page.getByRole('button', { name: /^Back/ }).first().click();
 
-  await expect(page.getByRole('img', { name: LOUPE_IMAGE })).toHaveAttribute('src', /v=hash-saved/);
+  await expect(
+    page.locator('[data-loupe-root]').getByRole('img', { name: LOUPE_IMAGE })
+  ).toHaveAttribute('src', /v=hash-saved/);
 });
 
 test('j toggles the clipping overlay', async ({ page }) => {

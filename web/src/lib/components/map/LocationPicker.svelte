@@ -6,12 +6,15 @@
   import MapCanvas from '#lib/components/map/MapCanvas.svelte';
   import MapPin from '#lib/components/map/MapPin.svelte';
   import PlaceSearch from '#lib/components/map/PlaceSearch.svelte';
+  import SavePlace from '#lib/components/map/SavePlace.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
   import { WORLD_VIEW } from '#lib/map/mapArea.ts';
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { FLY_MAX_MS } from '#lib/map/motion.ts';
   import { placePin } from '#lib/map/pin.ts';
+  import { PlaceStars } from '#lib/map/placeStars.ts';
   import { locationPicker, type LocationRequest } from '#lib/stores/locationPicker.svelte.ts';
+  import { places } from '#lib/stores/places.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
   import { Button, Icon } from '@immich/ui';
   import { mdiMapMarkerOutline } from '@mdi/js';
@@ -33,6 +36,8 @@
   let pin: Marker | null = null;
   let lib: typeof import('maplibre-gl') | null = null;
   let naming = 0;
+  let pickedName = $state<string | null>(null);
+  let stars = $state.raw<PlaceStars | null>(null);
 
   const title = $derived(single && located === 1 ? 'Edit location' : 'Set location');
   const subtitle = single ? single.originalFileName : countOf(initial.assets.length, 'photo');
@@ -52,6 +57,7 @@
 
   function name(lat: number, lon: number): void {
     const ticket = ++naming;
+    pickedName = null;
     at = { lat, lon, place: null };
     reverseGeocode(lat, lon)
       .then((place) => {
@@ -80,6 +86,10 @@
   function ready(target: MapLibreMap, maplibre: typeof import('maplibre-gl')): () => void {
     map = target;
     lib = maplibre;
+    const starLayer = new PlaceStars(target, maplibre, (place) =>
+      pickPlace({ name: place.name, detail: '', lat: place.lat, lon: place.lon })
+    );
+    stars = starLayer;
     if (touch) {
       target.on('moveend', () => {
         const center = target.getCenter();
@@ -93,6 +103,8 @@
       target.on('click', (event) => moveTo(event.lngLat.lat, event.lngLat.lng));
     }
     return () => {
+      starLayer.destroy();
+      stars = null;
       pin?.remove();
       pin = null;
       map = null;
@@ -102,11 +114,18 @@
   function pickPlace(place: Place): void {
     map?.flyTo({ center: [place.lon, place.lat], zoom: PLACE_ZOOM, maxDuration: FLY_MAX_MS });
     moveTo(place.lat, place.lon);
+    pickedName = place.name === coordinateLabel(place.lat, place.lon) ? null : place.name;
   }
 
   function save(): void {
     if (at) void locationPicker.save(at);
   }
+
+  $effect(() => {
+    const layer = stars;
+    const list = places.saved;
+    if (layer) untrack(() => layer.set(list));
+  });
 
   onMount(() => {
     void mapConfig.ensure().catch(() => undefined);
@@ -146,9 +165,7 @@
     </div>
   {/snippet}
 
-  {#if mapConfig.search}
-    <PlaceSearch onPick={pickPlace} />
-  {/if}
+  <PlaceSearch onPick={pickPlace} pin={at} photon={mapConfig.search} />
   <div class="relative h-85 overflow-hidden rounded-lg border border-hairline touch:h-[50vh]">
     <MapCanvas
       class="size-full"
@@ -167,15 +184,25 @@
       </div>
     {/if}
   </div>
-  <p class="flex items-center gap-2 text-sm text-light-950" role="status">
-    <Icon icon={mdiMapMarkerOutline} size="16px" class="shrink-0 text-dark/65" aria-hidden="true" />
+  <div class="flex items-center gap-2">
+    <p class="flex min-w-0 flex-1 items-center gap-2 text-sm text-light-950" role="status">
+      <Icon
+        icon={mdiMapMarkerOutline}
+        size="16px"
+        class="shrink-0 text-dark/65"
+        aria-hidden="true"
+      />
+      {#if at}
+        <span class="min-w-0 flex-1 truncate">{placeName}</span>
+        <span class="shrink-0 text-caption text-dark/65 tabular-nums">
+          {coordinateLabel(at.lat, at.lon)}
+        </span>
+      {:else}
+        <span class="text-dark/65">No location yet</span>
+      {/if}
+    </p>
     {#if at}
-      <span class="min-w-0 flex-1 truncate">{placeName}</span>
-      <span class="shrink-0 text-caption text-dark/65 tabular-nums">
-        {coordinateLabel(at.lat, at.lon)}
-      </span>
-    {:else}
-      <span class="text-dark/65">No location yet</span>
+      <SavePlace {at} suggested={pickedName ?? at.place?.city ?? placeName} />
     {/if}
-  </p>
+  </div>
 </Dialog>

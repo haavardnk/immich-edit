@@ -1,4 +1,5 @@
-import type { MapMarker, MarkerFilter } from '#lib/api/map.ts';
+import type { MapMarker, MarkerFilter, MarkerQuery } from '#lib/api/map.ts';
+import { localSpan } from '#lib/browse/dateBounds.ts';
 
 export interface LngLatBox {
   west: number;
@@ -91,11 +92,10 @@ export function writeMapFilter(params: URLSearchParams, filter: MarkerFilter): v
   }
 }
 
-export function markerQuery(filter: MarkerFilter): MarkerFilter {
+export function markerQuery(filter: MarkerFilter): MarkerQuery {
   return {
     favorite: filter.favorite,
-    after: filter.after ? `${filter.after}T00:00:00Z` : undefined,
-    before: filter.before ? `${filter.before}T23:59:59Z` : undefined
+    taken: localSpan(filter.after ?? '', filter.before ?? '')
   };
 }
 

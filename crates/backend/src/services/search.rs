@@ -72,6 +72,12 @@ struct Prepared {
     excluded: HashSet<Uuid>,
 }
 
+pub struct TakenWindow {
+    pub after: Option<chrono::DateTime<chrono::Utc>>,
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
+    pub excluded: HashSet<Uuid>,
+}
+
 #[derive(Clone)]
 pub struct Searcher {
     immich: ImmichClient,
@@ -247,6 +253,17 @@ impl Searcher {
         };
         let found = self.immich.search_metadata(&body).await?;
         Ok(found.items.into_iter().next())
+    }
+
+    pub async fn taken_window(
+        &self,
+        filter: &BrowseFilter,
+    ) -> Result<Option<TakenWindow>, AppError> {
+        Ok(self.prepare(filter).await?.map(|prepared| TakenWindow {
+            after: prepared.filter.taken_after,
+            until: prepared.filter.taken_until,
+            excluded: prepared.excluded,
+        }))
     }
 
     async fn prepare(&self, filter: &BrowseFilter) -> Result<Option<Prepared>, AppError> {

@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { installMocks, numberedAssets, type MockMapMarker } from './helpers';
+import type { PlacesMock } from './placesMocks';
 
 export const ASSETS = numberedAssets(5).map((asset, index) => ({
   ...asset,
@@ -46,6 +47,13 @@ export async function openTray(page: Page): Promise<void> {
   await expect(page.locator(PHOTOS).first()).toBeVisible();
 }
 
+export async function chooseOnMap(page: Page): Promise<void> {
+  await page
+    .getByRole('group', { name: 'Location' })
+    .getByRole('button', { name: 'Choose on map…' })
+    .click();
+}
+
 export async function confirmDrop(page: Page, verb: 'Move' | 'Place'): Promise<void> {
   const card = page.locator('[data-drop-confirm]');
   await expect(card).toBeVisible();
@@ -73,10 +81,15 @@ export const PLACED_MARKERS: MockMapMarker[] = [
   { id: PLACED[2]!.id, lat: 59.9139, lon: 10.7522, city: 'Oslo' }
 ];
 
-export async function openPlacing(page: Page, writes: LocationWrite[]): Promise<void> {
+export async function openPlacing(
+  page: Page,
+  writes: LocationWrite[],
+  places?: PlacesMock
+): Promise<void> {
   await installMocks(page, {
     assets: PLACED,
     mapMarkers: PLACED_MARKERS,
+    places,
     placeName: BERGEN,
     metadataPushConsented: true,
     onLocation: (body) => writes.push(body)
@@ -107,4 +120,38 @@ export async function openStack(page: Page, writes: LocationWrite[] = []): Promi
 
 export function stack(page: Page) {
   return page.locator(`[data-map-cluster="2"], [data-map-photo="${STACK[0]!.id}"]`);
+}
+
+export async function pointOnMap(
+  page: Page,
+  lat: number,
+  lon: number
+): Promise<{ x: number; y: number }> {
+  let seen = '';
+  await expect
+    .poll(
+      async () => {
+        const at = new URL(page.url()).searchParams.get('at') ?? '';
+        const settled = at !== '' && at === seen;
+        seen = at;
+        return settled;
+      },
+      { intervals: [400] }
+    )
+    .toBe(true);
+  const [centerLat, centerLon, zoom] = seen.split(',').map(Number) as [number, number, number];
+  const world = 512 * 2 ** zoom;
+  const x = (value: number): number => ((value + 180) / 360) * world;
+  const y = (value: number): number => {
+    const rad = (value * Math.PI) / 180;
+    return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * world;
+  };
+  const box = (await page
+    .getByRole('region', { name: 'Map of your photos' })
+    .locator('canvas')
+    .boundingBox())!;
+  return {
+    x: box.x + box.width / 2 + x(lon) - x(centerLon),
+    y: box.y + box.height / 2 + y(lat) - y(centerLat)
+  };
 }

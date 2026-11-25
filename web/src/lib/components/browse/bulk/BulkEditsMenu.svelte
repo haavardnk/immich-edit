@@ -2,9 +2,10 @@
   import type { Job } from '#lib/api/jobs.ts';
   import MenuRow from '#lib/components/MenuRow.svelte';
   import Popover from '#lib/components/Popover.svelte';
+  import BulkActionRow from '#lib/components/browse/bulk/BulkActionRow.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
-  import { bulkEdits, type BulkEditAction } from '#lib/browse/bulk/bulkEdits.svelte.ts';
-  import { keysFor } from '#lib/shortcuts/labels.ts';
+  import { bulkEdits } from '#lib/browse/bulk/bulkEdits.svelte.ts';
+  import type { BulkMenuAction } from '#lib/browse/bulk/bulkMenu.ts';
   import { jobs } from '#lib/stores/jobs.svelte.ts';
   import { Icon } from '@immich/ui';
   import { mdiChevronRight } from '@mdi/js';
@@ -41,7 +42,7 @@
     onDone?.();
   }
 
-  function pick(action: BulkEditAction): void {
+  function pick(action: BulkMenuAction): void {
     finish();
     action.run();
   }
@@ -50,27 +51,7 @@
     finish();
     jobs.showJob(job.id);
   }
-
-  function keys(action: BulkEditAction): string | undefined {
-    if (!action.bind || (action.disabled && action.detail)) return undefined;
-    return keysFor(action.bind);
-  }
 </script>
-
-{#snippet row(action: BulkEditAction)}
-  <MenuRow
-    icon={action.icon}
-    label={action.label}
-    aria-label={action.label}
-    keys={keys(action)}
-    disabled={action.disabled}
-    onclick={() => pick(action)}
-  >
-    {#if action.detail}
-      <span class="max-w-32 shrink-0 truncate text-caption text-dark/65">{action.detail}</span>
-    {/if}
-  </MenuRow>
-{/snippet}
 
 <Popover
   {open}
@@ -105,10 +86,10 @@
       {/snippet}
       <BulkApplyPreset onApplied={applied} />
     </Popover>
-    {@render row(bulkEdits.paste)}
-    {@render row(bulkEdits.pasteOnly)}
-    {@render row(bulkEdits.copy)}
+    <BulkActionRow action={bulkEdits.paste} onPick={pick} />
+    <BulkActionRow action={bulkEdits.pasteOnly} onPick={pick} />
+    <BulkActionRow action={bulkEdits.copy} onPick={pick} />
     <div class="my-1 h-px bg-hairline" role="separator"></div>
-    {@render row(bulkEdits.reset)}
+    <BulkActionRow action={bulkEdits.reset} onPick={pick} />
   </div>
 </Popover>

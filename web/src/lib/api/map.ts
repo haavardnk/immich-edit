@@ -1,5 +1,6 @@
 import { getJson, sendJson } from './client';
 import type { AssetSummary } from '#lib/types/album.ts';
+import type { LocalSpan } from '#lib/types/search.ts';
 
 export type StyleSource = 'custom' | 'immich' | 'none';
 
@@ -38,6 +39,11 @@ export interface MarkerFilter {
   before?: string;
 }
 
+export interface MarkerQuery {
+  favorite?: boolean;
+  taken?: LocalSpan;
+}
+
 export interface MapSettings {
   styleLight: string | null;
   styleDark: string | null;
@@ -48,11 +54,11 @@ export function getMapConfig(): Promise<MapConfig> {
   return getJson('/api/map/config');
 }
 
-export function getMapMarkers(filter: MarkerFilter): Promise<MapMarker[]> {
+export function getMapMarkers(filter: MarkerQuery): Promise<MapMarker[]> {
   const params = new URLSearchParams();
   if (filter.favorite) params.set('favorite', 'true');
-  if (filter.after) params.set('after', filter.after);
-  if (filter.before) params.set('before', filter.before);
+  if (filter.taken?.from) params.set('from', filter.taken.from);
+  if (filter.taken?.until) params.set('until', filter.taken.until);
   const query = params.toString();
   return getJson(query ? `/api/map/markers?${query}` : '/api/map/markers');
 }
@@ -77,6 +83,16 @@ export function setAssetLocation(
   longitude: number
 ): Promise<void> {
   return sendJson('PUT', '/api/assets/location', { ids, latitude, longitude });
+}
+
+export interface LocatedAsset {
+  id: string;
+  latitude: number;
+  longitude: number;
+}
+
+export function setAssetLocations(items: readonly LocatedAsset[]): Promise<{ failed: string[] }> {
+  return sendJson('PUT', '/api/assets/locations', { items });
 }
 
 export function getMapSettings(): Promise<MapSettings> {

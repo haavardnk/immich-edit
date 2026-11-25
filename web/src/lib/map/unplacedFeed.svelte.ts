@@ -13,14 +13,12 @@ const UNPLACED_PAGE = 120;
 type Search = (query: PageQuery) => ReturnType<typeof searchMetadata>;
 
 export function unplacedFilter(filter: MarkerFilter): BrowseFilter {
-  const dates = markerQuery(filter);
   return {
     imagesOnly: true,
     visibility: 'timeline',
     country: [null],
     favorite: filter.favorite || undefined,
-    takenAfter: dates.after,
-    takenBefore: dates.before
+    takenLocal: markerQuery(filter).taken
   };
 }
 
@@ -37,6 +35,7 @@ export class UnplacedFeed implements BrowsePager {
   #cursor = $state<string | null>(null);
   #started = $state(false);
   #loading = $state(false);
+  #claim = false;
   #generation = 0;
   #search: Search;
 
@@ -70,7 +69,7 @@ export class UnplacedFeed implements BrowsePager {
     this.loaded = false;
     this.error = null;
     this.assets = [];
-    this.attach();
+    this.#claim = true;
     return this.loadMore();
   }
 
@@ -78,6 +77,13 @@ export class UnplacedFeed implements BrowsePager {
     const gone = new Set(ids);
     if (!this.assets.some((asset) => gone.has(asset.id))) return;
     this.assets = this.assets.filter((asset) => !gone.has(asset.id));
+    this.attach();
+  }
+
+  #settle(): void {
+    this.#loading = false;
+    if (!this.#claim) return;
+    this.#claim = false;
     this.attach();
   }
 
@@ -105,7 +111,7 @@ export class UnplacedFeed implements BrowsePager {
       if (generation === this.#generation) this.error = errorMessage(error);
       return false;
     } finally {
-      if (generation === this.#generation) this.#loading = false;
+      if (generation === this.#generation) this.#settle();
     }
   }
 

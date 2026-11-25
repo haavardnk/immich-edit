@@ -1,5 +1,6 @@
 import { beforeNavigate, goto } from '$app/navigation';
 import { navigating, page } from '$app/state';
+import { liveUrl } from '#lib/utils/route.ts';
 import { onMount, untrack } from 'svelte';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -34,7 +35,7 @@ export function closeOnBack(close: () => void, stillOpen: () => boolean = () => 
   function enter(): void {
     if (!mounted || leaving) return;
     const state = { ...page.state, backLayer: id };
-    void goto(page.url.href, { shallow: true, replace: staleLayer(), state }).then(settle, settle);
+    void goto(liveUrl().href, { shallow: true, replace: staleLayer(), state }).then(settle, settle);
   }
 
   function arrive(): void {

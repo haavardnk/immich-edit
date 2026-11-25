@@ -55,6 +55,8 @@ typing in a text field.
 | `D` / `Enter`                                                                                            | Open the editor                                                  | Grid, Loupe  |
 | `C`                                                                                                      | Compare the selection, or this photo and the next                | Grid, Loupe  |
 | `N`                                                                                                      | Survey the selection, or this photo and the next five            | Grid, Loupe  |
+| `Alt+Shift+C`                                                                                            | Copy location                                                    | Grid, Loupe  |
+| `Alt+Shift+V`                                                                                            | Paste location                                                   | Grid, Loupe  |
 
 ## Loupe
 

@@ -117,6 +117,14 @@ fn summary(photo: &Photo) -> Value {
     })
 }
 
+fn kind(value: &Value) -> Option<Condition> {
+    match value.as_str()? {
+        "IMAGE" => Some(Box::new(|_| true)),
+        "VIDEO" => Some(Box::new(|_| false)),
+        _ => None,
+    }
+}
+
 fn size(body: &Map<String, Value>) -> usize {
     body.get("size")
         .and_then(Value::as_u64)
@@ -131,6 +139,7 @@ fn flat(body: &Map<String, Value>) -> Option<Search> {
             ("takenBefore", _) => conditions.push(compare("lte", value, taken)?),
             ("updatedAfter", _) => conditions.push(compare("gte", value, updated)?),
             ("isFavorite", Value::Bool(true)) => conditions.push(Box::new(|photo| photo.favorite)),
+            ("type", _) => conditions.push(kind(value)?),
             ("albumIds" | "tagIds", _) => conditions.push(member(key, value)?),
             ("id", _) => conditions.push(id(value)?),
             ("order" | "size" | "page" | "withExif", _) => {}
@@ -162,6 +171,7 @@ fn structured(body: &Map<String, Value>, filter: &Map<String, Value>) -> Option<
                 conditions.push(Box::new(|photo| photo.favorite));
             }
             "id" => conditions.push(id(value.get("eq")?)?),
+            "type" => conditions.push(kind(value.get("eq")?)?),
             "takenAt" => {
                 for (op, bound) in value.as_object()? {
                     conditions.push(compare(op, bound, taken)?);

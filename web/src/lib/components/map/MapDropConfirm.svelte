@@ -2,6 +2,7 @@
   import { coordinateLabel } from '#lib/browse/info/photoInfo.ts';
   import MapPin from '#lib/components/map/MapPin.svelte';
   import { dropQuestion, placeLine, type DropConfirm } from '#lib/map/dropConfirm.svelte.ts';
+  import { followPoint, type ScreenPoint } from '#lib/map/followPoint.ts';
   import { Button } from '@immich/ui';
   import type { Map as MapLibreMap } from 'maplibre-gl';
 
@@ -10,7 +11,7 @@
   const CARD_SPACE = 150;
   const CARD_HALF = 136;
 
-  let point = $state<{ x: number; y: number; width: number } | null>(null);
+  let point = $state<ScreenPoint | null>(null);
 
   $effect(() => {
     const drop = confirm.pending;
@@ -19,13 +20,7 @@
       point = null;
       return;
     }
-    const place = (): void => {
-      const at = target.project([drop.lon, drop.lat]);
-      point = { x: at.x, y: at.y, width: target.getContainer().clientWidth };
-    };
-    place();
-    target.on('move', place);
-    return () => target.off('move', place);
+    return followPoint(target, drop, (next) => (point = next));
   });
 
   $effect(() => {
@@ -72,7 +67,7 @@
     <p class="mt-0.5 truncate text-caption text-dark/65">
       {drop.named
         ? (placeLine(drop.place) ?? coordinateLabel(drop.lat, drop.lon))
-        : coordinateLabel(drop.lat, drop.lon)}
+        : coordinateLabel(drop.lat, drop.lon)}{drop.saved ? ' · saved place' : ''}
     </p>
     <div class="mt-3 flex justify-end gap-2">
       <Button

@@ -5,9 +5,11 @@
   import BarAction from '#lib/components/browse/BarAction.svelte';
   import BulkAlbumBand from '#lib/components/browse/bulk/BulkAlbumBand.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
+  import BulkLocationRows from '#lib/components/browse/bulk/BulkLocationRows.svelte';
   import BulkMoreSheet from '#lib/components/browse/bulk/BulkMoreSheet.svelte';
   import BulkTagBand from '#lib/components/browse/bulk/BulkTagBand.svelte';
   import TouchBulkExportSheet from '#lib/components/browse/bulk/TouchBulkExportSheet.svelte';
+  import ActionSheet from '#lib/components/sheet/ActionSheet.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import { TAB_BAR_BOTTOM } from '#lib/components/shell/touch/touchChrome.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
@@ -17,9 +19,9 @@
   import { countOf } from '#lib/utils/plural.ts';
   import { mdiDotsHorizontal, mdiExportVariant, mdiImageAlbum, mdiTagOutline } from '@mdi/js';
 
-  type Sheet = 'rate' | 'label' | 'album' | 'tags' | 'export' | 'preset';
+  type Sheet = 'rate' | 'label' | 'album' | 'tags' | 'location' | 'export' | 'preset';
 
-  const OWNER_ONLY: readonly Sheet[] = ['rate', 'label', 'tags'];
+  const OWNER_ONLY: readonly Sheet[] = ['rate', 'label', 'tags', 'location'];
 
   let sheet = $state<Sheet | null>(null);
   let more = $state(false);
@@ -191,6 +193,15 @@
 >
   <BulkApplyPreset onApplied={() => (sheet = null)} />
 </Popover>
+
+<ActionSheet
+  open={sheet === 'location'}
+  onOpenChange={opener('location')}
+  title="Location"
+  subtitle={photos}
+>
+  <BulkLocationRows onDone={() => (sheet = null)} />
+</ActionSheet>
 
 {#if exportSheet.mounted}
   <TouchBulkExportSheet

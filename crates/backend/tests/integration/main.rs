@@ -7,6 +7,7 @@ mod assets;
 mod auth_logout;
 mod auth_oauth;
 mod auth_setup;
+mod capture_time;
 mod client_log;
 mod copies;
 mod cross_user_isolation;
@@ -53,6 +54,7 @@ mod middleware;
 #[cfg(feature = "ml")]
 mod models;
 mod people;
+mod places;
 mod preferences;
 mod presets;
 mod preview;

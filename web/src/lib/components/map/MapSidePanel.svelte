@@ -1,11 +1,10 @@
 <script lang="ts">
-  import MapPhotos from '#lib/components/map/MapPhotos.svelte';
   import ResizeHandle from '#lib/components/shell/ResizeHandle.svelte';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import type { MapPageState } from '#lib/map/mapPage.svelte.ts';
   import { MAX_MAP_PANEL, MIN_MAP_PANEL, mapPanel } from '#lib/map/mapPanel.svelte.ts';
+  import type { Snippet } from 'svelte';
 
-  let { map, shown }: { map: MapPageState; shown: boolean } = $props();
+  let { label, shown, children }: { label: string; shown: boolean; children: Snippet } = $props();
 
   let resizing = $state(false);
 </script>
@@ -17,7 +16,7 @@
   style:width="{shown ? mapPanel.width : 0}px"
 >
   <aside
-    aria-label="Photos in view"
+    aria-label={label}
     aria-hidden={!shown || undefined}
     inert={!shown}
     class="relative flex h-full shrink-0 flex-col border-s border-hairline bg-light"
@@ -44,6 +43,6 @@
         }}
       />
     {/if}
-    <MapPhotos {map} />
+    {@render children()}
   </aside>
 </div>

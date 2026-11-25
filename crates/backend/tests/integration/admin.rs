@@ -118,7 +118,7 @@ async fn purging_an_unknown_user_is_not_found() {
 }
 
 #[tokio::test]
-async fn purging_a_user_removes_their_saved_views() {
+async fn purging_a_user_removes_their_saved_views_and_places() {
     let server = MockServer::start().await;
     mock_me(&server, test_user_id(), true).await;
     let (state, admin, member) = two_owner_state(&server).await;
@@ -129,6 +129,16 @@ async fn purging_a_user_removes_their_saved_views() {
                 "POST",
                 "/api/saved-views",
                 serde_json::json!({ "name": "Picks", "url": "/photos?rating=5" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let res = app
+            .clone()
+            .oneshot(json_request(
+                "POST",
+                "/api/places",
+                serde_json::json!({ "name": "Home", "lat": 60.39, "lon": 5.32 }),
             ))
             .await
             .unwrap();
@@ -163,6 +173,17 @@ async fn purging_a_user_removes_their_saved_views() {
     );
     assert_eq!(
         edits.list_saved_views(test_user_id()).await.unwrap().len(),
+        1
+    );
+    assert!(
+        edits
+            .list_saved_places(member_user_id())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        edits.list_saved_places(test_user_id()).await.unwrap().len(),
         1
     );
     assert_eq!(

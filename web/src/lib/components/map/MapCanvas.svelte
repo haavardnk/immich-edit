@@ -63,7 +63,9 @@
       const shift = centreShift(last, next);
       last = next;
       target.resize();
-      if (shift.x !== 0 || shift.y !== 0) target.panBy([shift.x, shift.y], { duration: 0 });
+      if ((shift.x !== 0 || shift.y !== 0) && !target.isMoving()) {
+        target.panBy([shift.x, shift.y], { duration: 0 });
+      }
     });
     observer.observe(element);
     return () => observer.disconnect();

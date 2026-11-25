@@ -1,17 +1,18 @@
 import type { MarkerFilter } from '#lib/api/map.ts';
 import { parseView, readMapFilter, type MapView } from '#lib/map/mapArea.ts';
-import type { MapTab } from '#lib/map/mapPage.svelte.ts';
+import { forgetMapPage, type MapTab } from '#lib/map/mapPage.svelte.ts';
 
 export interface MapMemory {
   view: MapView | null;
   filter: MarkerFilter;
   tab: MapTab;
   panel: boolean | null;
+  stars: boolean;
 }
 
 const FILTER_KEYS = ['favorite', 'after', 'before'] as const;
 
-const FRESH: MapMemory = { view: null, filter: {}, tab: 'view', panel: null };
+const FRESH: MapMemory = { view: null, filter: {}, tab: 'view', panel: null, stars: true };
 
 export const mapMemory: MapMemory = { ...FRESH };
 
@@ -19,6 +20,7 @@ export const MAP_EXITS: ReadonlySet<string> = new Set(['/library']);
 
 export function forgetMap(): void {
   Object.assign(mapMemory, FRESH);
+  forgetMapPage();
 }
 
 export function mapStart(

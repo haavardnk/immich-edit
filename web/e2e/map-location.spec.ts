@@ -8,6 +8,7 @@ import {
   GEILO,
   BERGEN,
   type LocationWrite,
+  chooseOnMap,
   confirmDrop,
   PLACED,
   openPlacing,
@@ -30,10 +31,11 @@ test('the location picker searches a place and saves it', async ({ page }) => {
   await pick(page, 'IMG_0005.ARW');
   await pick(page, 'IMG_0004.ARW');
   await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
   await expect(dialog).toContainText('2 photos');
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('bryg');
   await dialog
     .getByRole('list', { name: 'Places' })
@@ -42,7 +44,7 @@ test('the location picker searches a place and saves it', async ({ page }) => {
   await expect(
     dialog.getByRole('status').filter({ hasText: 'Bergen, Vestland, Norway' })
   ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Save' }).click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
   expect(writes).toEqual(
@@ -72,11 +74,12 @@ test('a selection on the map moves to its new location', async ({ page }) => {
   await tile.hover();
   await tile.getByRole('button', { name: 'Select', exact: true }).click();
   await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await chooseOnMap(page);
   const dialog = page.getByRole('dialog', { name: /^(Set|Edit) location$/ });
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('geil');
   await dialog.getByRole('list', { name: 'Places' }).getByRole('button', { name: /Geilo/ }).click();
-  await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
-  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(panel).not.toContainText('Oslo');
   await expect(panel).toContainText('Geilo');
@@ -233,4 +236,33 @@ test('a group is dragged to a new spot as one', async ({ page }) => {
   await confirmDrop(page, 'Move');
   await expect.poll(() => writes.length).toBe(1);
   expect([...writes[0]!.ids].sort()).toEqual([STACK[0]!.id, STACK[1]!.id]);
+});
+
+test('a pasted map link places photos without a place search server', async ({ page }) => {
+  const writes: LocationWrite[] = [];
+  await installMocks(page, {
+    assets: ASSETS,
+    placeName: BERGEN,
+    metadataPushConsented: true,
+    onLocation: (body) => writes.push(body)
+  });
+  await page.goto('/photos');
+  await pick(page, 'IMG_0005.ARW');
+  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await chooseOnMap(page);
+
+  const dialog = page.getByRole('dialog', { name: 'Set location' });
+  const search = dialog.getByRole('textbox', { name: 'Search for a place' });
+  await expect(search).toHaveAttribute('placeholder', 'Paste coordinates or a map link');
+  await search.fill('https://www.google.com/maps/@60.3913,5.3221,15z');
+  const go = dialog.getByRole('button', { name: /60\.3913° N, 5\.3221° E/ });
+  await expect(go).toContainText('From the pasted map link');
+  await search.press('Enter');
+  await expect(
+    dialog.getByRole('status').filter({ hasText: 'Bergen, Vestland, Norway' })
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+
+  await expect(dialog).toHaveCount(0);
+  expect(writes).toEqual([{ ids: [ASSETS[4]!.id], latitude: 60.3913, longitude: 5.3221 }]);
 });

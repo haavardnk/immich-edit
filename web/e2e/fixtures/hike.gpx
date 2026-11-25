@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="immich-edit tests" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Hardangervidda</name>
+    <trkseg>
+      <trkpt lat="60.1000" lon="6.7000"><time>2026-10-31T08:00:00Z</time></trkpt>
+      <trkpt lat="60.1010" lon="6.7010"><time>2026-10-31T08:01:00Z</time></trkpt>
+      <trkpt lat="60.1020" lon="6.7020"><time>2026-10-31T08:02:00Z</time></trkpt>
+      <trkpt lat="60.1030" lon="6.7030"><time>2026-10-31T08:03:00Z</time></trkpt>
+      <trkpt lat="60.1040" lon="6.7040"><time>2026-10-31T08:04:00Z</time></trkpt>
+      <trkpt lat="60.1050" lon="6.7050"><time>2026-10-31T08:05:00Z</time></trkpt>
+      <trkpt lat="60.1060" lon="6.7060"><time>2026-10-31T08:06:00Z</time></trkpt>
+      <trkpt lat="60.1070" lon="6.7070"><time>2026-10-31T08:07:00Z</time></trkpt>
+      <trkpt lat="60.1080" lon="6.7080"><time>2026-10-31T08:08:00Z</time></trkpt>
+      <trkpt lat="60.1090" lon="6.7090"><time>2026-10-31T08:09:00Z</time></trkpt>
+      <trkpt lat="60.1100" lon="6.7100"><time>2026-10-31T08:10:00Z</time></trkpt>
+      <trkpt lat="60.1110" lon="6.7110"><time>2026-10-31T08:11:00Z</time></trkpt>
+      <trkpt lat="60.1120" lon="6.7120"><time>2026-10-31T08:12:00Z</time></trkpt>
+      <trkpt lat="60.1130" lon="6.7130"><time>2026-10-31T08:13:00Z</time></trkpt>
+      <trkpt lat="60.1140" lon="6.7140"><time>2026-10-31T08:14:00Z</time></trkpt>
+      <trkpt lat="60.1150" lon="6.7150"><time>2026-10-31T08:15:00Z</time></trkpt>
+      <trkpt lat="60.1160" lon="6.7160"><time>2026-10-31T08:16:00Z</time></trkpt>
+      <trkpt lat="60.1170" lon="6.7170"><time>2026-10-31T08:17:00Z</time></trkpt>
+      <trkpt lat="60.1180" lon="6.7180"><time>2026-10-31T08:18:00Z</time></trkpt>
+      <trkpt lat="60.1190" lon="6.7190"><time>2026-10-31T08:19:00Z</time></trkpt>
+      <trkpt lat="60.1200" lon="6.7200"><time>2026-10-31T08:20:00Z</time></trkpt>
+      <trkpt lat="60.1210" lon="6.7210"><time>2026-10-31T08:21:00Z</time></trkpt>
+      <trkpt lat="60.1220" lon="6.7220"><time>2026-10-31T08:22:00Z</time></trkpt>
+      <trkpt lat="60.1230" lon="6.7230"><time>2026-10-31T08:23:00Z</time></trkpt>
+      <trkpt lat="60.1240" lon="6.7240"><time>2026-10-31T08:24:00Z</time></trkpt>
+      <trkpt lat="60.1250" lon="6.7250"><time>2026-10-31T08:25:00Z</time></trkpt>
+      <trkpt lat="60.1260" lon="6.7260"><time>2026-10-31T08:26:00Z</time></trkpt>
+      <trkpt lat="60.1270" lon="6.7270"><time>2026-10-31T08:27:00Z</time></trkpt>
+      <trkpt lat="60.1280" lon="6.7280"><time>2026-10-31T08:28:00Z</time></trkpt>
+      <trkpt lat="60.1290" lon="6.7290"><time>2026-10-31T08:29:00Z</time></trkpt>
+      <trkpt lat="60.1300" lon="6.7300"><time>2026-10-31T08:30:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

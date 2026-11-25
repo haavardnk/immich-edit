@@ -7,6 +7,7 @@
     accept,
     label,
     fullWidth = false,
+    multiple = false,
     class: className = '',
     onfile,
     button
@@ -14,6 +15,7 @@
     accept: string;
     label: string;
     fullWidth?: boolean;
+    multiple?: boolean;
     class?: string;
     onfile: (file: File) => Promise<void>;
     button?: Snippet<[{ busy: boolean; open: () => void }]>;
@@ -24,19 +26,27 @@
 
   async function pick(e: Event): Promise<void> {
     const target = e.currentTarget as HTMLInputElement;
-    const file = target.files?.[0];
+    const files = [...(target.files ?? [])];
     target.value = '';
-    if (!file) return;
+    if (files.length === 0) return;
     busy = true;
     try {
-      await onfile(file);
+      for (const file of files) await onfile(file);
     } finally {
       busy = false;
     }
   }
 </script>
 
-<input bind:this={input} type="file" {accept} class="hidden" onchange={(e) => void pick(e)} />
+<input
+  bind:this={input}
+  type="file"
+  {accept}
+  {multiple}
+  class="hidden"
+  aria-label={label}
+  onchange={(e) => void pick(e)}
+/>
 {#if button}
   {@render button({ busy, open: () => input?.click() })}
 {:else}

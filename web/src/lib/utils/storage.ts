@@ -1,7 +1,13 @@
-export function readStored<T>(key: string): Partial<T> | null {
-  if (typeof localStorage === 'undefined') return null;
+export type StorageScope = 'local' | 'session';
+
+function area(scope: StorageScope): Storage | null {
+  if (scope === 'session') return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+  return typeof localStorage === 'undefined' ? null : localStorage;
+}
+
+export function readStored<T>(key: string, scope: StorageScope = 'local'): Partial<T> | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = area(scope)?.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw) as Partial<T>;
   } catch {
@@ -9,10 +15,9 @@ export function readStored<T>(key: string): Partial<T> | null {
   }
 }
 
-export function writeStored(key: string, value: unknown): void {
-  if (typeof localStorage === 'undefined') return;
+export function writeStored(key: string, value: unknown, scope: StorageScope = 'local'): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    area(scope)?.setItem(key, JSON.stringify(value));
   } catch {
     return;
   }

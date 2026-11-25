@@ -16,6 +16,7 @@ export class MapFeed implements BrowsePager {
   #ids = $state<readonly string[]>([]);
   #next = $state(0);
   #loading = $state(false);
+  #claim = false;
   #generation = 0;
   #load: (ids: readonly string[]) => Promise<AssetSummary[]>;
 
@@ -51,7 +52,11 @@ export class MapFeed implements BrowsePager {
     this.#loading = false;
     this.error = null;
     this.assets = [];
-    this.attach();
+    if (!this.hasMore) {
+      this.attach();
+      return Promise.resolve(false);
+    }
+    this.#claim = true;
     return this.loadMore();
   }
 
@@ -70,8 +75,15 @@ export class MapFeed implements BrowsePager {
       if (generation === this.#generation) this.error = String(error);
       return false;
     } finally {
-      if (generation === this.#generation) this.#loading = false;
+      if (generation === this.#generation) this.#settle();
     }
+  }
+
+  #settle(): void {
+    this.#loading = false;
+    if (!this.#claim) return;
+    this.#claim = false;
+    this.attach();
   }
 
   loadPrevious(): Promise<boolean> {

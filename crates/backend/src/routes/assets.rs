@@ -14,8 +14,10 @@ use crate::routes::headers::{self, attach_validators, etag_matches};
 use crate::services::blob_store::content_hash;
 
 mod batch;
+mod capture_time;
 
-pub use batch::{location, summaries};
+pub use batch::{location, locations, summaries};
+pub use capture_time::capture_time;
 
 const THUMB_ETAG_LEN: usize = 32;
 

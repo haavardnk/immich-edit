@@ -12,7 +12,7 @@ import { UnplacedFeed } from '#lib/map/unplacedFeed.svelte.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
-export type MapTab = 'view' | 'unplaced';
+export type MapTab = 'view' | 'unplaced' | 'places';
 
 export class MapPageState {
   filter = $state<MarkerFilter>({});
@@ -36,6 +36,7 @@ export class MapPageState {
   });
   readonly extent = $derived(boundsOf(this.markers));
   readonly title = $derived.by(() => {
+    if (this.tab === 'places') return 'Places';
     if (this.tab === 'unplaced') {
       const shown = this.unplaced.assets.length;
       const more = this.unplaced.hasMore ? '+' : '';
@@ -95,4 +96,26 @@ export class MapPageState {
   showAll(): void {
     this.picked = null;
   }
+}
+
+let kept: { state: MapPageState; release: () => void } | null = null;
+
+function sameFilter(a: MarkerFilter, b: MarkerFilter): boolean {
+  return JSON.stringify(markerQuery(a)) === JSON.stringify(markerQuery(b));
+}
+
+export function mapPageState(filter: MarkerFilter): MapPageState {
+  if (kept && sameFilter(kept.state.filter, filter)) return kept.state;
+  forgetMapPage();
+  let state: MapPageState | null = null;
+  const release = $effect.root(() => {
+    state = new MapPageState(filter);
+  });
+  kept = { state: state!, release };
+  return kept.state;
+}
+
+export function forgetMapPage(): void {
+  kept?.release();
+  kept = null;
 }
