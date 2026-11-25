@@ -1,28 +1,8 @@
 use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use tower::ServiceExt;
 use wiremock::matchers::{body_json as body_is, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-async fn send(
-    app: &axum::Router,
-    verb: &str,
-    uri: &str,
-    body: Option<Value>,
-) -> (StatusCode, Value) {
-    let request = match body {
-        Some(body) => json_request(verb, uri, body),
-        None => empty_request(verb, uri),
-    };
-    let resp = app.clone().oneshot(request).await.unwrap();
-    let status = resp.status();
-    let bytes = body_bytes(resp).await;
-    (
-        status,
-        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
-    )
-}
 
 async fn mock_map_styles(server: &MockServer) {
     Mock::given(method("GET"))
@@ -37,7 +17,7 @@ async fn mock_map_styles(server: &MockServer) {
 }
 
 async fn put_settings(app: &axum::Router, body: Value) -> (StatusCode, Value) {
-    send(app, "PUT", "/api/admin/map-settings", Some(body)).await
+    send_json(app, "PUT", "/api/admin/map-settings", Some(body)).await
 }
 
 #[tokio::test]
@@ -47,7 +27,7 @@ async fn the_map_follows_immich_styles_until_an_admin_sets_custom_ones() {
     mock_me(&server, test_user_id(), true).await;
     let app = test_app(&server).await;
 
-    let (status, config) = send(&app, "GET", "/api/map/config", None).await;
+    let (status, config) = send_json(&app, "GET", "/api/map/config", None).await;
     if status != StatusCode::OK
         || config["source"] != "immich"
         || config["dark"] != "https://tiles.immich.cloud/v1/style/dark.json"
@@ -65,14 +45,14 @@ async fn the_map_follows_immich_styles_until_an_admin_sets_custom_ones() {
     if status != StatusCode::OK || saved != custom {
         panic!("{status}: {saved}");
     }
-    let (_, config) = send(&app, "GET", "/api/map/config", None).await;
+    let (_, config) = send_json(&app, "GET", "/api/map/config", None).await;
     if config["source"] != "custom"
         || config["light"] != "https://tiles.openfreemap.org/styles/liberty"
         || config["search"] != false
     {
         panic!("custom: {config}");
     }
-    let (_, read) = send(&app, "GET", "/api/admin/map-settings", None).await;
+    let (_, read) = send_json(&app, "GET", "/api/admin/map-settings", None).await;
     if read != custom {
         panic!("read back: {read}");
     }
@@ -94,7 +74,7 @@ async fn map_settings_reject_half_or_bad_urls_and_non_admins() {
         }
     }
     let member = member_app(&server).await;
-    let (status, _) = send(&member, "GET", "/api/admin/map-settings", None).await;
+    let (status, _) = send_json(&member, "GET", "/api/admin/map-settings", None).await;
     if status != StatusCode::FORBIDDEN {
         panic!("member read {status}");
     }
@@ -136,7 +116,7 @@ async fn markers_forward_the_favorite_and_date_filters() {
         .mount(&server)
         .await;
     let app = test_app(&server).await;
-    let (status, markers) = send(
+    let (status, markers) = send_json(
         &app,
         "GET",
         "/api/map/markers?favorite=true&after=2026-10-01T00:00:00Z",
@@ -154,7 +134,7 @@ async fn markers_forward_the_favorite_and_date_filters() {
         "/api/map/markers?after=yesterday",
         "/api/map/markers?archived=true",
     ] {
-        let (status, _) = send(&app, "GET", bad, None).await;
+        let (status, _) = send_json(&app, "GET", bad, None).await;
         if !status.is_client_error() {
             panic!("{bad}: {status}");
         }
@@ -179,7 +159,7 @@ async fn reverse_geocode_names_the_nearest_place_or_nothing() {
         .mount(&server)
         .await;
     let app = test_app(&server).await;
-    let (_, place) = send(
+    let (_, place) = send_json(
         &app,
         "GET",
         "/api/map/reverse-geocode?lat=60.3975&lon=5.324",
@@ -189,11 +169,12 @@ async fn reverse_geocode_names_the_nearest_place_or_nothing() {
     if place["city"] != "Bergen" {
         panic!("{place}");
     }
-    let (status, none) = send(&app, "GET", "/api/map/reverse-geocode?lat=0&lon=-30", None).await;
+    let (status, none) =
+        send_json(&app, "GET", "/api/map/reverse-geocode?lat=0&lon=-30", None).await;
     if status != StatusCode::OK || !none.is_null() {
         panic!("{status}: {none}");
     }
-    let (status, _) = send(&app, "GET", "/api/map/reverse-geocode?lat=91&lon=0", None).await;
+    let (status, _) = send_json(&app, "GET", "/api/map/reverse-geocode?lat=91&lon=0", None).await;
     if status != StatusCode::BAD_REQUEST {
         panic!("out of range: {status}");
     }
@@ -222,7 +203,8 @@ async fn place_search_proxies_photon_once_per_query_and_can_be_off() {
     put_settings(&app, geocoder).await;
 
     for query in ["Bryggen", "%20Bryggen%20"] {
-        let (status, places) = send(&app, "GET", &format!("/api/map/search?q={query}"), None).await;
+        let (status, places) =
+            send_json(&app, "GET", &format!("/api/map/search?q={query}"), None).await;
         if status != StatusCode::OK
             || places
                 != json!([{ "name": "Bryggen", "detail": "Bergen, Norway", "lat": 60.3975, "lon": 5.324 }])
@@ -236,7 +218,7 @@ async fn place_search_proxies_photon_once_per_query_and_can_be_off() {
         json!({ "styleLight": null, "styleDark": null, "geocoderUrl": "" }),
     )
     .await;
-    let (status, json) = send(&app, "GET", "/api/map/search?q=Bryggen", None).await;
+    let (status, json) = send_json(&app, "GET", "/api/map/search?q=Bryggen", None).await;
     if status != StatusCode::CONFLICT || json["message"] != "place search is off" {
         panic!("off: {status} {json}");
     }
@@ -258,7 +240,7 @@ async fn a_location_goes_to_every_source_photo_in_one_update() {
     let app = test_app(&server).await;
     let body =
         json!({ "ids": [asset, format!("{asset}_1")], "latitude": 60.3975, "longitude": 5.324 });
-    let (status, json) = send(&app, "PUT", "/api/assets/location", Some(body)).await;
+    let (status, json) = send_json(&app, "PUT", "/api/assets/location", Some(body)).await;
     if status != StatusCode::NO_CONTENT {
         panic!("{status}: {json}");
     }
@@ -281,7 +263,7 @@ async fn a_location_is_checked_before_immich() {
         json!({ "ids": [asset], "latitude": 1.0, "longitude": 1.0, "city": "Oslo" }),
         json!({ "ids": vec![asset; 1001], "latitude": 1.0, "longitude": 1.0 }),
     ] {
-        let (status, _) = send(&app, "PUT", "/api/assets/location", Some(body.clone())).await;
+        let (status, _) = send_json(&app, "PUT", "/api/assets/location", Some(body.clone())).await;
         if !status.is_client_error() {
             panic!("{body}: {status}");
         }
@@ -321,7 +303,7 @@ async fn per_photo_locations_group_photos_that_share_a_point() {
         { "id": format!("{a}_1"), "latitude": 1.0, "longitude": 1.0 },
         { "id": c, "latitude": 60.39, "longitude": 5.32 }
     ] });
-    let (status, json) = send(&app, "PUT", "/api/assets/locations", Some(body)).await;
+    let (status, json) = send_json(&app, "PUT", "/api/assets/locations", Some(body)).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert_eq!(json, json!({ "failed": [] }));
 }
@@ -348,12 +330,12 @@ async fn per_photo_locations_report_the_photos_immich_refused() {
         { "id": mine, "latitude": 1.0, "longitude": 1.0 },
         { "id": theirs, "latitude": 2.0, "longitude": 2.0 }
     ] });
-    let (status, json) = send(&app, "PUT", "/api/assets/locations", Some(body)).await;
+    let (status, json) = send_json(&app, "PUT", "/api/assets/locations", Some(body)).await;
     assert_eq!(status, StatusCode::OK, "{json}");
     assert_eq!(json, json!({ "failed": [theirs] }));
 
     let only = json!({ "items": [{ "id": theirs, "latitude": 2.0, "longitude": 2.0 }] });
-    let (status, _) = send(&app, "PUT", "/api/assets/locations", Some(only)).await;
+    let (status, _) = send_json(&app, "PUT", "/api/assets/locations", Some(only)).await;
     assert!(status.is_client_error(), "{status}");
 }
 
@@ -375,7 +357,7 @@ async fn per_photo_locations_are_checked_before_immich() {
         json!({ "items": vec![item; 1001] }),
         json!({ "ids": [asset] }),
     ] {
-        let (status, _) = send(&app, "PUT", "/api/assets/locations", Some(body.clone())).await;
+        let (status, _) = send_json(&app, "PUT", "/api/assets/locations", Some(body.clone())).await;
         if !status.is_client_error() {
             panic!("{body}: {status}");
         }
@@ -408,7 +390,7 @@ async fn summaries_keep_the_order_and_skip_photos_gone_from_immich() {
         .mount(&server)
         .await;
     let app = test_app(&server).await;
-    let (status, assets) = send(
+    let (status, assets) = send_json(
         &app,
         "POST",
         "/api/assets/summaries",

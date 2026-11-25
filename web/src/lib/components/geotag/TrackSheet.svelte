@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TrackAlsoMove from '#lib/components/geotag/TrackAlsoMove.svelte';
+  import TrackOptions from '#lib/components/geotag/TrackOptions.svelte';
   import TrackFiles from '#lib/components/geotag/TrackFiles.svelte';
   import TrackFitBar from '#lib/components/geotag/TrackFitBar.svelte';
   import TrackSettings from '#lib/components/geotag/TrackSettings.svelte';
@@ -67,7 +67,7 @@
           <TrackFiles />
           <TrackSettings />
           <div class="px-4 pb-3">
-            <TrackAlsoMove />
+            <TrackOptions />
           </div>
         </div>
       </div>

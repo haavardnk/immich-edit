@@ -1,8 +1,9 @@
 use axum::body::Body;
-use axum::http::Request;
+use axum::http::{Request, StatusCode};
 use axum::response::Response;
 use http_body_util::BodyExt;
 use serde_json::Value;
+use tower::ServiceExt;
 
 pub async fn body_bytes(resp: Response) -> Vec<u8> {
     resp.into_body()
@@ -53,4 +54,23 @@ pub fn json_request(method: &str, uri: &str, body: Value) -> Request<Body> {
         .header("content-type", "application/json")
         .body(Body::from(body.to_string()))
         .unwrap()
+}
+
+pub async fn send_json(
+    app: &axum::Router,
+    verb: &str,
+    uri: &str,
+    body: Option<Value>,
+) -> (StatusCode, Value) {
+    let request = match body {
+        Some(body) => json_request(verb, uri, body),
+        None => empty_request(verb, uri),
+    };
+    let resp = app.clone().oneshot(request).await.unwrap();
+    let status = resp.status();
+    let bytes = body_bytes(resp).await;
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
 }

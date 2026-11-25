@@ -9,7 +9,7 @@
 {#if session.located > 0}
   <CheckboxRow
     checked={session.replace}
-    label="Also move {countOf(session.located, 'photo')} that already {session.located === 1
+    label="Move {countOf(session.located, 'photo')} that already {session.located === 1
       ? 'has'
       : 'have'} a location"
     onChange={(next) => (session.replace = next)}

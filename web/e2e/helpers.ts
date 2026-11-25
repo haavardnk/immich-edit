@@ -23,6 +23,7 @@ import {
   type MockPerson
 } from './searchMocks';
 import { PlacesMock, type MockPlaces } from './placesMocks';
+import { CaptureTimeMock } from './captureTimeMocks';
 
 const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -320,6 +321,7 @@ export interface InstallOpts {
   onPreferences?: (body: Record<string, unknown>) => void;
   savedViews?: MockSavedView[];
   places?: MockPlaces | PlacesMock;
+  captureTime?: CaptureTimeMock;
   metadataPushConsented?: boolean;
 }
 
@@ -859,6 +861,7 @@ export async function installMocks(
       );
     }
     if (await places.handle(route, req, p, method)) return;
+    if (await (opts.captureTime ?? new CaptureTimeMock()).handle(route, req, p, method)) return;
     if (p === '/api/map/reverse-geocode') {
       return route.fulfill(json(opts.placeName ?? null));
     }
