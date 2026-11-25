@@ -13,8 +13,7 @@ describe('capture time shifts', () => {
 
   it('shifts photos with a zone by the correction and undoes it', () => {
     const plan = planShifts(
-      [{ id: 'a', instant: OSLO_WINTER, recorded: true }],
-      -62 * 60_000,
+      [{ id: 'a', instant: OSLO_WINTER, recorded: true, correctionMs: -62 * 60_000 }],
       'Europe/Oslo'
     );
     expect(plan.write).toEqual([{ id: 'a', minutes: -62 }]);
@@ -23,8 +22,7 @@ describe('capture time shifts', () => {
 
   it('skips photos with a zone when the correction rounds to nothing', () => {
     const plan = planShifts(
-      [{ id: 'a', instant: OSLO_WINTER, recorded: true }],
-      20_000,
+      [{ id: 'a', instant: OSLO_WINTER, recorded: true, correctionMs: 20_000 }],
       'Europe/Oslo'
     );
     expect(plan.write).toEqual([]);
@@ -34,10 +32,9 @@ describe('capture time shifts', () => {
   it('gives a photo without a zone the zone and keeps its wall time, per DST offset', () => {
     const plan = planShifts(
       [
-        { id: 'w', instant: OSLO_WINTER, recorded: false },
-        { id: 's', instant: OSLO_SUMMER, recorded: false }
+        { id: 'w', instant: OSLO_WINTER, recorded: false, correctionMs: -62 * 60_000 },
+        { id: 's', instant: OSLO_SUMMER, recorded: false, correctionMs: -62 * 60_000 }
       ],
-      -62 * 60_000,
       'Europe/Oslo'
     );
     expect(plan.write).toEqual([
@@ -52,9 +49,31 @@ describe('capture time shifts', () => {
   });
 
   it('still writes the zone when there is no correction, and has nothing to undo', () => {
-    const plan = planShifts([{ id: 'w', instant: OSLO_WINTER, recorded: false }], 0, 'Europe/Oslo');
+    const plan = planShifts(
+      [{ id: 'w', instant: OSLO_WINTER, recorded: false, correctionMs: 0 }],
+      'Europe/Oslo'
+    );
     expect(plan.write).toEqual([{ id: 'w', minutes: -60, timeZone: 'Europe/Oslo' }]);
     expect(plan.undo).toEqual([]);
+  });
+
+  it('shifts each photo by its own camera correction', () => {
+    const plan = planShifts(
+      [
+        { id: 'sony', instant: OSLO_WINTER, recorded: true, correctionMs: -300 * 60_000 },
+        { id: 'phone', instant: OSLO_WINTER, recorded: true, correctionMs: 0 },
+        { id: 'm4', instant: OSLO_WINTER, recorded: true, correctionMs: 30 * 60_000 }
+      ],
+      'Europe/Oslo'
+    );
+    expect(plan.write).toEqual([
+      { id: 'sony', minutes: -300 },
+      { id: 'm4', minutes: 30 }
+    ]);
+    expect(plan.minutes).toBeNull();
+    expect(shiftCaption(plan, 'Europe/Oslo', ['A7M3 5 h earlier', 'A7M4 30 min later'])).toBe(
+      'A7M3 5 h earlier · A7M4 30 min later'
+    );
   });
 
   it('names the shift simply', () => {
@@ -62,8 +81,7 @@ describe('capture time shifts', () => {
     expect(shiftText(5)).toBe('5 min later');
     expect(shiftText(-300)).toBe('5 h earlier');
     const plan = planShifts(
-      [{ id: 'w', instant: OSLO_WINTER, recorded: false }],
-      -62 * 60_000,
+      [{ id: 'w', instant: OSLO_WINTER, recorded: false, correctionMs: -62 * 60_000 }],
       'America/New_York'
     );
     expect(shiftCaption(plan, 'America/New_York')).toBe(

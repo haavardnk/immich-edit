@@ -128,6 +128,40 @@ test('placing can correct the capture time too, and one Undo reverts both', asyn
   ]);
 });
 
+test('each camera keeps its own clock', async ({ page }) => {
+  const [first, second, third] = numberedAssets(3);
+  const shots = [
+    { asset: first!, at: '2026-10-31T09:10:00.000Z', make: 'SONY', model: 'ILCE-7M3' },
+    { asset: second!, at: '2026-10-31T09:20:00.000Z', make: 'SONY', model: 'ILCE-7M3' },
+    { asset: third!, at: '2026-10-31T08:15:00.000Z', make: 'Apple', model: 'iPhone 15 Pro' }
+  ].map(({ asset, at, make, model }) => ({
+    ...asset,
+    fileCreatedAt: at,
+    localDateTime: at,
+    exifInfo: { dateTimeOriginal: at, timeZone: 'Europe/Oslo', make, model }
+  })) as ReturnType<typeof numberedAssets>;
+  await installMocks(page, { assets: shots, placeName: BERGEN, metadataPushConsented: true });
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+
+  const fit = panel.getByRole('group', { name: 'Best fit' });
+  await expect(fit).toContainText('Best fit for ILCE-7M3: 1 h fast');
+  await expect(panel.getByRole('button', { name: 'Place 1 photo' })).toBeVisible();
+  await fit.getByRole('button', { name: 'Use best fit' }).click();
+  await expect(clockSetup(panel)).toContainText('ILCE-7M3 1 h fast · 1 camera unchanged');
+  await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
+
+  await clockSetup(panel).click();
+  const correction = panel.getByRole('textbox', { name: 'Clock correction' });
+  await expect(correction).toHaveValue('−1:00:00');
+  await panel.getByRole('button', { name: 'Camera: ILCE-7M3' }).click();
+  await page.getByRole('button', { name: /iPhone 15 Pro/ }).click();
+  await expect(correction).toHaveValue('+0:00:00');
+  await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
+});
+
 test('typing a correction moves the photos along the track', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');

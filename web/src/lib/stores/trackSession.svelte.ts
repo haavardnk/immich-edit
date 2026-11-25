@@ -1,9 +1,12 @@
 import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
-import { planShifts, type ShiftPlan } from '#lib/browse/captureShift.ts';
+import { planShifts, shiftCaption, shiftText, type ShiftPlan } from '#lib/browse/captureShift.ts';
 import { correctTimes } from '#lib/browse/captureTimeOps.ts';
 import { bestFit, type Fit } from '#lib/geotag/bestFit.ts';
+import { CameraClocks } from '#lib/geotag/cameraClocks.svelte.ts';
+import { cameraKey, camerasOf, type Camera } from '#lib/geotag/cameras.ts';
+import { clocksText, driftText } from '#lib/geotag/clockText.ts';
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
 import { cameraTime, deviceZone } from '#lib/geotag/photoTime.ts';
 import { cellOf, namePlaces } from '#lib/geotag/placeNames.ts';
@@ -54,7 +57,6 @@ export class TrackSession {
   candidates = $state.raw<AssetSummary[]>([]);
   zone = $state(deviceZone());
   zoneFrom = $state<'device' | 'track' | 'picked'>('device');
-  correctionMs = $state(0);
   toleranceMin = $state<(typeof TOLERANCES)[number]>(5);
   replace = $state(false);
   fixTime = $state(false);
@@ -68,6 +70,10 @@ export class TrackSession {
   readonly toleranceMs = $derived(this.toleranceMin * MINUTE);
   readonly bases = $derived(
     new Map(this.candidates.map((asset) => [asset.id, cameraTime(asset, this.zone)]))
+  );
+  readonly clocks = new CameraClocks();
+  readonly #cameraIds = $derived(
+    new Map(this.candidates.map((asset) => [asset.id, cameraKey(asset)]))
   );
   readonly photos = $derived(
     sortAssets(
@@ -83,11 +89,11 @@ export class TrackSession {
       this.photos.map((asset) => ({
         id: asset.id,
         base: this.bases.get(asset.id)?.instant ?? null,
+        shiftMs: this.shiftOf(asset.id),
         located: typeof asset.exifInfo?.latitude === 'number'
       })),
       this.log,
       {
-        correctionMs: this.correctionMs,
         toleranceMs: this.toleranceMs,
         interpolate: true,
         replace: this.replace
@@ -99,9 +105,10 @@ export class TrackSession {
     planShifts(
       this.matches.flatMap((match) => {
         const base = this.bases.get(match.id);
-        return match.outcome.kind === 'placed' && base ? [{ id: match.id, ...base }] : [];
+        return match.outcome.kind === 'placed' && base
+          ? [{ id: match.id, ...base, correctionMs: this.shiftOf(match.id) }]
+          : [];
       }),
-      this.correctionMs,
       this.zone
     )
   );
@@ -122,21 +129,74 @@ export class TrackSession {
   readonly unzoned = $derived(
     this.photos.filter((asset) => this.bases.get(asset.id)?.recorded === false).length
   );
-  readonly fit: Fit | null = $derived(
-    bestFit(
-      this.photos.flatMap((asset) => {
-        const base = this.bases.get(asset.id);
-        return base ? [base.instant] : [];
-      }),
-      this.log,
-      this.toleranceMs
+  readonly #fits = $derived.by(() => {
+    const bases = new Map<string, number[]>();
+    for (const asset of this.candidates) {
+      const base = this.bases.get(asset.id);
+      if (!base) continue;
+      const key = this.#cameraIds.get(asset.id) ?? '';
+      bases.set(key, [...(bases.get(key) ?? []), base.instant]);
+    }
+    return new Map(
+      [...bases].map(([key, instants]) => [key, bestFit(instants, this.log, this.toleranceMs)])
+    );
+  });
+  readonly cameras: Camera[] = $derived.by(() => {
+    const near = new Set(this.photos.map((asset) => this.#cameraIds.get(asset.id) ?? ''));
+    return camerasOf(this.candidates).filter(
+      (camera) => near.has(camera.key) || (this.#fits.get(camera.key) ?? null) !== null
+    );
+  });
+  readonly fits: { camera: Camera; fit: Fit }[] = $derived(
+    this.cameras.flatMap((camera) => {
+      const fit = this.#fits.get(camera.key) ?? null;
+      return fit && fit.correctionMs !== this.clocks.of(camera.key) ? [{ camera, fit }] : [];
+    })
+  );
+  readonly fitMatched = $derived(
+    this.cameras.reduce((sum, camera) => sum + (this.#fits.get(camera.key)?.matched ?? 0), 0)
+  );
+  readonly fitOf = $derived(this.cameras.reduce((sum, camera) => sum + camera.count, 0));
+  readonly clockText = $derived(
+    clocksText(
+      this.cameras.map((camera) => ({ label: camera.label, ms: this.clocks.of(camera.key) }))
     )
   );
+  readonly fixCaption = $derived(
+    shiftCaption(
+      this.timeShift,
+      this.zone,
+      this.cameras.flatMap((camera) => {
+        const minutes = Math.round(this.clocks.of(camera.key) / MINUTE);
+        return minutes === 0 ? [] : [`${camera.label} ${shiftText(minutes)}`];
+      })
+    )
+  );
+
+  get camera(): string {
+    return this.clocks.active(this.cameras);
+  }
+
+  get correctionMs(): number {
+    return this.clocks.of(this.camera);
+  }
+
+  set correctionMs(ms: number) {
+    this.clocks.set(this.camera, ms);
+  }
+
+  shiftOf(id: string): number {
+    return this.clocks.of(this.#cameraIds.get(id) ?? '');
+  }
+
+  driftOf(key: string): string {
+    return driftText(this.clocks.of(key));
+  }
 
   #near(asset: AssetSummary): boolean {
     const base = this.bases.get(asset.id);
     if (!base || this.log.size === 0) return false;
-    const time = base.instant + this.correctionMs;
+    const time = base.instant + this.shiftOf(asset.id);
     return time >= this.log.start - TRACK_MARGIN && time <= this.log.end + TRACK_MARGIN;
   }
 
@@ -155,7 +215,7 @@ export class TrackSession {
     this.active = false;
     this.tracks = [];
     this.candidates = [];
-    this.correctionMs = 0;
+    this.clocks.reset();
     this.focused = null;
     this.revealed = null;
     this.replace = false;
@@ -229,7 +289,7 @@ export class TrackSession {
   };
 
   useFit = (): void => {
-    if (this.fit) this.correctionMs = this.fit.correctionMs;
+    for (const { camera, fit } of this.fits) this.clocks.set(camera.key, fit.correctionMs);
   };
 
   place = async (): Promise<boolean> => {

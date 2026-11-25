@@ -79,18 +79,14 @@ describe('track lookup', () => {
 
 describe('matching photos', () => {
   const photos = [
-    { id: 'a', base: T0 + 65 * MIN, located: false },
-    { id: 'b', base: T0 + 75 * MIN, located: true },
-    { id: 'c', base: null, located: false },
-    { id: 'd', base: T0 + 300 * MIN, located: false }
+    { id: 'a', base: T0 + 65 * MIN, shiftMs: -60 * MIN, located: false },
+    { id: 'b', base: T0 + 75 * MIN, shiftMs: -60 * MIN, located: true },
+    { id: 'c', base: null, shiftMs: -60 * MIN, located: false },
+    { id: 'd', base: T0 + 300 * MIN, shiftMs: -60 * MIN, located: false }
   ];
 
   it('places photos, keeps located ones and explains the rest', () => {
-    const matches = matchPhotos(photos, WALK, {
-      ...OPTIONS,
-      correctionMs: -60 * MIN,
-      replace: false
-    });
+    const matches = matchPhotos(photos, WALK, { ...OPTIONS, replace: false });
     expect(matches.map((match) => match.outcome.kind)).toEqual([
       'placed',
       'kept',
@@ -99,7 +95,8 @@ describe('matching photos', () => {
     ]);
     expect(matches[0]?.time).toBe(T0 + 5 * MIN);
     expect(countMatches(matches)).toEqual({ placed: 1, outside: 1, kept: 1, untimed: 1 });
-    const replaced = matchPhotos(photos, WALK, { ...OPTIONS, correctionMs: 0, replace: true });
+    const unshifted = photos.map((photo) => ({ ...photo, shiftMs: 0 }));
+    const replaced = matchPhotos(unshifted, WALK, { ...OPTIONS, replace: true });
     expect(replaced[1]?.outcome.kind).toBe('placed');
   });
 

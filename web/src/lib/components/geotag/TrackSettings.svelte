@@ -3,6 +3,7 @@
   import { offsetLabel, zoneOffsetMinutes } from '#lib/geotag/photoTime.ts';
   import SearchableSelect from '#lib/components/SearchableSelect.svelte';
   import MenuRow from '#lib/components/MenuRow.svelte';
+  import TrackCameraPick from '#lib/components/geotag/TrackCameraPick.svelte';
   import Popover from '#lib/components/Popover.svelte';
   import TextInput from '#lib/components/TextInput.svelte';
   import { TOLERANCES, trackSession } from '#lib/stores/trackSession.svelte.ts';
@@ -69,6 +70,7 @@
       </div>
     </div>
   {/if}
+  <TrackCameraPick />
   <div class="flex items-center gap-3 touch:flex-col touch:items-stretch touch:gap-2">
     <div class="min-w-0 flex-1 text-sm text-light-950">Correction</div>
     <div

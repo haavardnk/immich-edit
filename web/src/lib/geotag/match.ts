@@ -3,6 +3,7 @@ import type { Located, LocateOptions, TrackLog } from '#lib/geotag/trackLog.ts';
 export interface TimedPhoto {
   id: string;
   base: number | null;
+  shiftMs: number;
   located: boolean;
 }
 
@@ -15,7 +16,6 @@ export interface PhotoMatch {
 }
 
 export interface MatchOptions extends LocateOptions {
-  correctionMs: number;
   replace: boolean;
 }
 
@@ -26,7 +26,7 @@ export function matchPhotos(
 ): PhotoMatch[] {
   return photos.map((photo) => {
     if (photo.base === null) return { id: photo.id, time: null, outcome: { kind: 'untimed' } };
-    const time = photo.base + options.correctionMs;
+    const time = photo.base + photo.shiftMs;
     if (photo.located && !options.replace) return { id: photo.id, time, outcome: { kind: 'kept' } };
     return { id: photo.id, time, outcome: log.locate(time, options) };
   });

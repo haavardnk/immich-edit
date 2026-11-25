@@ -6,6 +6,7 @@ export interface ShiftSource {
   id: string;
   instant: number;
   recorded: boolean;
+  correctionMs: number;
 }
 
 export interface CaptureShift {
@@ -17,7 +18,7 @@ export interface CaptureShift {
 export interface ShiftPlan {
   write: CaptureShift[];
   undo: CaptureShift[];
-  minutes: number;
+  minutes: number | null;
   zoned: number;
 }
 
@@ -25,28 +26,30 @@ export function wholeMinutes(ms: number): number {
   return Math.round(ms / MINUTE) + 0;
 }
 
-export function planShifts(
-  sources: readonly ShiftSource[],
-  correctionMs: number,
-  zone: string
-): ShiftPlan {
-  const minutes = wholeMinutes(correctionMs);
+export function planShifts(sources: readonly ShiftSource[], zone: string): ShiftPlan {
   const write: CaptureShift[] = [];
   const undo: CaptureShift[] = [];
+  const moved = new Set<number>();
   let zoned = 0;
-  for (const { id, instant, recorded } of sources) {
+  for (const { id, instant, recorded, correctionMs } of sources) {
+    const minutes = wholeMinutes(correctionMs);
     if (recorded) {
       if (minutes === 0) continue;
       write.push({ id, minutes });
       undo.push({ id, minutes: -minutes });
+      moved.add(minutes);
       continue;
     }
     const offset = zoneOffsetMinutes(zone, instant + correctionMs);
     write.push({ id, minutes: minutes - offset, timeZone: zone });
-    if (minutes !== 0) undo.push({ id, minutes: -minutes });
+    if (minutes !== 0) {
+      undo.push({ id, minutes: -minutes });
+      moved.add(minutes);
+    }
     zoned += 1;
   }
-  return { write, undo, minutes, zoned };
+  const [only] = moved;
+  return { write, undo, minutes: moved.size <= 1 ? (only ?? 0) : null, zoned };
 }
 
 export function shiftText(minutes: number): string {
@@ -60,8 +63,12 @@ export function shiftText(minutes: number): string {
   return `${parts.join(' ')} ${minutes < 0 ? 'earlier' : 'later'}`;
 }
 
-export function shiftCaption(plan: ShiftPlan, zone: string): string {
-  const zoneText =
-    plan.zoned > 0 ? `${zone.replaceAll('_', ' ')} for ${plan.zoned} without a zone` : '';
-  return [plan.minutes === 0 ? '' : shiftText(plan.minutes), zoneText].filter(Boolean).join(' · ');
+export function zoneText(plan: ShiftPlan, zone: string): string {
+  return plan.zoned > 0 ? `${zone.replaceAll('_', ' ')} for ${plan.zoned} without a zone` : '';
+}
+
+export function shiftCaption(plan: ShiftPlan, zone: string, moves: readonly string[] = []): string {
+  const shift =
+    plan.minutes === null ? moves.join(' · ') : plan.minutes === 0 ? '' : shiftText(plan.minutes);
+  return [shift, zoneText(plan, zone)].filter(Boolean).join(' · ');
 }
