@@ -1,3 +1,4 @@
+use crate::common::search_library::{Photo, mount};
 use crate::common::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
@@ -81,13 +82,12 @@ async fn map_settings_reject_half_or_bad_urls_and_non_admins() {
 }
 
 #[tokio::test]
-async fn markers_forward_the_favorite_and_date_filters() {
+async fn markers_forward_the_favorite_filter_and_drop_videos() {
     let server = MockServer::start().await;
     let video = uuid::Uuid::from_u128(0xdead_beef);
     Mock::given(method("GET"))
         .and(path("/api/map/markers"))
         .and(query_param("isFavorite", "true"))
-        .and(query_param("fileCreatedAfter", "2026-10-01T00:00:00+00:00"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
             { "id": asset_id(), "lat": 60.3975, "lon": 5.324, "city": "Bergen", "state": "Vestland", "country": "Norway" },
             { "id": video, "lat": 60.4, "lon": 5.3, "city": "Bergen", "state": "Vestland", "country": "Norway" }
@@ -116,13 +116,7 @@ async fn markers_forward_the_favorite_and_date_filters() {
         .mount(&server)
         .await;
     let app = test_app(&server).await;
-    let (status, markers) = send_json(
-        &app,
-        "GET",
-        "/api/map/markers?favorite=true&after=2026-10-01T00:00:00Z",
-        None,
-    )
-    .await;
+    let (status, markers) = send_json(&app, "GET", "/api/map/markers?favorite=true", None).await;
     if status != StatusCode::OK
         || markers.as_array().map(Vec::len) != Some(1)
         || markers[0]["city"] != "Bergen"
@@ -131,12 +125,77 @@ async fn markers_forward_the_favorite_and_date_filters() {
         panic!("{status}: {markers}");
     }
     for bad in [
-        "/api/map/markers?after=yesterday",
+        "/api/map/markers?from=yesterday",
         "/api/map/markers?archived=true",
     ] {
         let (status, _) = send_json(&app, "GET", bad, None).await;
         if !status.is_client_error() {
             panic!("{bad}: {status}");
+        }
+    }
+}
+
+fn shot(taken: &str, zone_hours: i64) -> Photo {
+    Photo {
+        id: uuid::Uuid::new_v4(),
+        taken: chrono::DateTime::parse_from_rfc3339(taken)
+            .unwrap()
+            .with_timezone(&chrono::Utc),
+        zone: chrono::TimeDelta::hours(zone_hours),
+        ..Photo::default()
+    }
+}
+
+#[tokio::test]
+async fn marker_dates_follow_each_photo_clock() {
+    let early = shot("2026-10-01T22:30:00Z", 3);
+    let noon = shot("2026-10-02T10:00:00Z", 0);
+    let late = shot("2026-10-02T22:30:00Z", -3);
+    let next = shot("2026-10-02T21:00:00Z", 5);
+    let before = shot("2026-10-01T20:00:00Z", 2);
+    let photos = [early, noon, late, next, before];
+    for minor in [1, 3] {
+        let server = MockServer::start().await;
+        mock_server_version(&server, 3, minor, 2).await;
+        mount(&server, TEST_API_KEY, photos.to_vec()).await;
+        let markers: Vec<Value> = [early, noon, late, next]
+            .iter()
+            .map(|photo| json!({ "id": photo.id, "lat": 60.0, "lon": 5.0 }))
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/api/map/markers"))
+            .and(query_param("fileCreatedAfter", "2026-10-01T22:30:00+00:00"))
+            .and(query_param(
+                "fileCreatedBefore",
+                "2026-10-02T22:30:00+00:00",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(markers)))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let app = test_app(&server).await;
+        let (status, found) = send_json(
+            &app,
+            "GET",
+            "/api/map/markers?from=2026-10-02T00:00:00&until=2026-10-03T00:00:00",
+            None,
+        )
+        .await;
+        let ids: Vec<&str> = found
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item["id"].as_str())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let wanted = [early.id, noon.id, late.id].map(|id| id.to_string());
+        if status != StatusCode::OK
+            || ids.len() != 3
+            || !wanted.iter().all(|id| ids.contains(&id.as_str()))
+        {
+            panic!("3.{minor}: {status} {found}");
         }
     }
 }

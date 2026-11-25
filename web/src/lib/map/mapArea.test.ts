@@ -58,9 +58,13 @@ describe('map area', () => {
     expect(written.toString()).toBe('at=1%2C2%2C3&favorite=1&after=2026-10-01');
     expect(markerQuery(filter)).toEqual({
       favorite: true,
-      after: '2026-10-01T00:00:00Z',
-      before: undefined
+      taken: { from: '2026-10-01T00:00:00' }
     });
+    expect(markerQuery({ before: '2026-10-31' })).toEqual({
+      favorite: undefined,
+      taken: { until: '2026-11-01T00:00:00' }
+    });
+    expect(markerQuery({}).taken).toBeUndefined();
   });
 
   it('treats views within URL rounding as the same', () => {

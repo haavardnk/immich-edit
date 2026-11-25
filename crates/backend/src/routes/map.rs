@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use axum::Json;
 use axum::extract::{Query, State};
-use chrono::DateTime;
+use chrono::{NaiveDateTime, TimeDelta};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -11,7 +11,11 @@ use crate::error::AppError;
 use crate::immich::dto::{MapMarker, PlaceName};
 use crate::immich::{ImmichClient, ImmichResult};
 use crate::routes::auth::AuthCtx;
+use crate::routes::search::searcher;
 use crate::services::map::{Place, StyleSource, resolve_styles};
+use crate::services::search::TakenWindow;
+use crate::services::search::filter::BrowseFilter;
+use crate::services::search::local_taken::LocalSpan;
 use crate::state::AppState;
 
 const VIDEO_PAGE_SIZE: u32 = 1000;
@@ -46,17 +50,8 @@ pub async fn config(State(state): State<AppState>, ctx: AuthCtx) -> Json<MapConf
 pub struct MarkerQuery {
     #[serde(default)]
     favorite: bool,
-    after: Option<String>,
-    before: Option<String>,
-}
-
-fn instant(raw: Option<String>, label: &str) -> Result<Option<String>, AppError> {
-    raw.map(|value| {
-        DateTime::parse_from_rfc3339(&value)
-            .map(|at| at.to_rfc3339())
-            .map_err(|_| AppError::BadRequest(format!("{label} must be an RFC 3339 time")))
-    })
-    .transpose()
+    from: Option<NaiveDateTime>,
+    until: Option<NaiveDateTime>,
 }
 
 async fn video_ids(immich: &ImmichClient, favorite: bool) -> ImmichResult<HashSet<Uuid>> {
@@ -90,7 +85,26 @@ async fn video_ids(immich: &ImmichClient, favorite: bool) -> ImmichResult<HashSe
     Ok(ids)
 }
 
+async fn taken_window(
+    state: &AppState,
+    ctx: &AuthCtx,
+    query: &MarkerQuery,
+) -> Result<Option<TakenWindow>, AppError> {
+    let span = LocalSpan {
+        from: query.from,
+        until: query.until,
+    };
+    let filter = BrowseFilter {
+        favorite: query.favorite,
+        images_only: true,
+        taken_local: Some(span),
+        ..BrowseFilter::default()
+    };
+    searcher(state, ctx).await.taken_window(&filter).await
+}
+
 pub async fn markers(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Query(query): Query<MarkerQuery>,
 ) -> Result<Json<Vec<MapMarker>>, AppError> {
@@ -98,19 +112,25 @@ pub async fn markers(
     if query.favorite {
         params.push(("isFavorite", "true".into()));
     }
-    if let Some(after) = instant(query.after, "after")? {
-        params.push(("fileCreatedAfter", after));
-    }
-    if let Some(before) = instant(query.before, "before")? {
-        params.push(("fileCreatedBefore", before));
+    let mut excluded = HashSet::new();
+    if query.from.is_some() || query.until.is_some() {
+        let Some(window) = taken_window(&state, &ctx, &query).await? else {
+            return Ok(Json(Vec::new()));
+        };
+        if let Some(after) = window.after {
+            params.push(("fileCreatedAfter", after.to_rfc3339()));
+        }
+        if let Some(until) = window.until {
+            let last = until - TimeDelta::milliseconds(1);
+            params.push(("fileCreatedBefore", last.to_rfc3339()));
+        }
+        excluded = window.excluded;
     }
     let (mut markers, videos) = tokio::try_join!(
         ctx.immich.map_markers(&params),
         video_ids(&ctx.immich, query.favorite),
     )?;
-    if !videos.is_empty() {
-        markers.retain(|m| !videos.contains(&m.id));
-    }
+    markers.retain(|m| !videos.contains(&m.id) && !excluded.contains(&m.id));
     Ok(Json(markers))
 }
 

@@ -7,14 +7,13 @@ vi.mock('#lib/stores/browsing.svelte.ts', () => ({
 }));
 
 describe('unplaced feed', () => {
-  it('asks Immich for photos without a country inside the map filters', () => {
+  it('asks for photos without a country inside the map filters, on each photo clock', () => {
     expect(unplacedFilter({ favorite: true, after: '2024-01-01' })).toEqual({
       imagesOnly: true,
       visibility: 'timeline',
       country: [null],
       favorite: true,
-      takenAfter: '2024-01-01T00:00:00Z',
-      takenBefore: undefined
+      takenLocal: { from: '2024-01-01T00:00:00' }
     });
   });
 

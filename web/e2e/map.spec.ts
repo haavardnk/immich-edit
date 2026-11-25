@@ -46,9 +46,16 @@ test('the date filter stacks its fields and clears them', async ({ page }) => {
   const fromBox = (await from.boundingBox())!;
   const toBox = (await to.boundingBox())!;
   expect(toBox.y).toBeGreaterThan(fromBox.y + fromBox.height - 1);
+  const markers = page.waitForRequest(
+    (request) =>
+      request.url().includes('/api/map/markers') && request.url().includes('from=2024-01-01')
+  );
   await from.locator('[data-segment="month"]').click();
   await page.keyboard.type('01012024');
   await expect(page).toHaveURL(/after=2024-01-01/);
+  const sent = new URL((await markers).url()).searchParams;
+  expect(sent.get('from')).toBe('2024-01-01T00:00:00');
+  expect(sent.has('after')).toBe(false);
   await expect(page.getByRole('button', { name: /^From / })).toBeVisible();
   await page.getByRole('button', { name: 'Clear dates' }).click();
   await expect(page).not.toHaveURL(/after=/);
