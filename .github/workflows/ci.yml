@@ -152,6 +152,12 @@ jobs:
         working-directory: web
       - run: xvfb-run -a npm run test:e2e
         working-directory: web
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: web/test-results
+          retention-days: 7
 
   docs:
     runs-on: ubuntu-latest
