@@ -1,4 +1,4 @@
-import { zoneOffsetMinutes } from '#lib/geotag/photoTime.ts';
+import { zoneOffsetMinutes } from '#lib/metadata/photoTime.ts';
 
 const MINUTE = 60_000;
 

@@ -1,6 +1,6 @@
 import tzLookup from '@photostructure/tz-lookup';
 import type { TrackPoint } from '#lib/geotag/trackFile.ts';
-import { isZone } from '#lib/geotag/photoTime.ts';
+import { isZone } from '#lib/metadata/photoTime.ts';
 
 export function zoneAt(lat: number, lon: number): string | null {
   try {

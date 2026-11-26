@@ -5,6 +5,10 @@ export function isZone(zone: string): boolean {
   return IANAZone.isValidZone(zone);
 }
 
+export function isUsableZone(zone: string): boolean {
+  return DateTime.now().setZone(zone).isValid;
+}
+
 export function zoneOffsetMinutes(zone: string, instant: number): number {
   return DateTime.fromMillis(instant, { zone }).offset;
 }
@@ -40,6 +44,10 @@ export function offsetLabel(minutes: number): string {
   const hours = Math.floor(total / 60);
   const rest = total % 60;
   return `UTC${sign}${hours}${rest ? `:${String(rest).padStart(2, '0')}` : ''}`;
+}
+
+export function zoneLabel(zone: string, at: number): string {
+  return `${zone.replaceAll('_', ' ')} · ${offsetLabel(zoneOffsetMinutes(zone, at))}`;
 }
 
 export function deviceZone(): string {

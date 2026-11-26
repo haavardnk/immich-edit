@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { clockDrift, driftText } from '#lib/geotag/clockText.ts';
+  import { clockDrift, driftText } from '#lib/metadata/clockText.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { Button } from '@immich/ui';
 

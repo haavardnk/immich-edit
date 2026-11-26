@@ -6,6 +6,11 @@ export interface Camera {
   count: number;
 }
 
+export interface AllCameras {
+  key: string;
+  count: number;
+}
+
 const UNKNOWN = 'Unknown camera';
 
 export function cameraKey(asset: AssetSummary): string {
