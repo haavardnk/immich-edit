@@ -196,7 +196,7 @@ describe('PhotoInfoBody layout parity', () => {
       layout(
         'sheet',
         PhotoInfoSheet,
-        { asset: photo, onclose: () => {} },
+        { asset: photo, open: true, onclose: () => {} },
         { exclude: [button('Close info'), button('Resize sheet')] }
       )
     ]);

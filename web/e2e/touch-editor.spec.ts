@@ -57,6 +57,13 @@ test.describe('touch editor on a phone', { tag: ['@touch', '@phone'] }, () => {
     await expect(sheet).toBeVisible();
     await expect(sheet.getByText('Tags', { exact: true })).toBeVisible();
     await expect(tray(page)).toHaveCount(0);
+    const photo = page.locator('.editor-stage').getByTestId('preview-image');
+    await expect
+      .poll(async () => {
+        const [image, panel] = await Promise.all([photo.boundingBox(), sheet.boundingBox()]);
+        return image && panel ? panel.y - (image.y + image.height) : -1;
+      })
+      .toBeGreaterThanOrEqual(-1);
     await sheet.getByRole('button', { name: 'Close info' }).tap();
     await expect(sheet).toHaveCount(0);
   });

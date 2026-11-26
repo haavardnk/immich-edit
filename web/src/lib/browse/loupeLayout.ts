@@ -17,7 +17,16 @@ export function paneWindow(
 
 export const INFO_SHEET_SHARE = 0.55;
 
-export const INFO_SHEET_INSET = `padding-bottom: calc(${INFO_SHEET_SHARE} * (var(--app-height) - var(--safe-top) - var(--sheet-gap)));`;
+export function infoSheetInset(open: boolean, below = '0px'): string {
+  if (!open) return '';
+  return `padding-bottom: max(0px, calc(${INFO_SHEET_SHARE} * (var(--app-height) - var(--safe-top) - var(--sheet-gap)) - ${below}));`;
+}
+
+export function infoSheetMotion(open: boolean): string {
+  return open
+    ? 'motion-safe:duration-slow motion-safe:ease-standard'
+    : 'motion-safe:duration-base motion-safe:ease-exit';
+}
 
 export function paneGridStyle(multi: boolean, count: number, stacked: boolean): string {
   if (!multi || count === 0) return '';

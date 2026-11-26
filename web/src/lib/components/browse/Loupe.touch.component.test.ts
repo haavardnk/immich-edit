@@ -141,16 +141,20 @@ describe('Loupe on touch', () => {
     expect(ui.loupeFilmstripCollapsed).toBe(false);
   });
 
-  it('hides the filmstrip and cull bar on a phone while the info sheet is open', () => {
+  it('collapses the filmstrip and cull bar on a phone while the info sheet is open', () => {
     render(false);
     browseView.toggleLoupeFilmstrip();
+    flushSync();
+    const strip = filmstrip()?.closest<HTMLElement>('[class*="grid-template-rows"]');
+    expect(strip?.contains(cullBar())).toBe(true);
     browseView.setLoupeInfoOpen(true);
     flushSync();
-    expect(filmstrip()).toBeNull();
-    expect(target.querySelector('nav[aria-label="Photo actions"]')).toBeNull();
+    expect(strip?.inert).toBe(true);
+    expect(strip?.className).toContain('grid-rows-[0fr]');
     browseView.setLoupeInfoOpen(false);
     flushSync();
-    expect(filmstrip()).not.toBeNull();
+    expect(strip?.inert).toBe(false);
+    expect(strip?.className).toContain('grid-rows-[1fr]');
     expect(cullBar().dataset.density).toBe('stacked');
   });
 

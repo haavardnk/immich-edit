@@ -15,7 +15,12 @@
   import { persistedPreviewUrl } from '#lib/api/preview.ts';
   import { cullState } from '#lib/browse/cullState.ts';
   import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
-  import { INFO_SHEET_INSET, paneGridStyle, paneWindow } from '#lib/browse/loupeLayout.ts';
+  import {
+    infoSheetInset,
+    infoSheetMotion,
+    paneGridStyle,
+    paneWindow
+  } from '#lib/browse/loupeLayout.ts';
   import { ImagePreloader, preloadUrls, type StepFn } from '#lib/browse/loupePreload.ts';
   import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
   import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
@@ -73,9 +78,9 @@
   const paneArea = $derived(
     `${multi ? 'grid gap-1.5 bg-neutral-950 p-1.5' : 'flex'} ${underBar ? 'pt-[calc(3.5rem+var(--safe-top))]' : ''}`
   );
+  const infoInset = $derived(browseView.loupeInfoSheet && !ui.fullscreen);
   const gridStyle = $derived(
-    paneGridStyle(multi, panes.length, stacked) +
-      (browseView.loupeInfoSheet && !ui.fullscreen ? INFO_SHEET_INSET : '')
+    paneGridStyle(multi, panes.length, stacked) + infoSheetInset(infoInset)
   );
   const moreActive = $derived(ui.clipWarn || (touch && browseView.loupeAutoAdvance));
 
@@ -237,7 +242,12 @@
 
     <div class="flex min-h-0 flex-1">
       <div class="flex min-w-0 flex-1 flex-col">
-        <div class="relative min-h-0 flex-1 {paneArea}" style={gridStyle}>
+        <div
+          class="relative min-h-0 flex-1 {paneArea} motion-safe:transition-[padding] {infoSheetMotion(
+            infoInset
+          )}"
+          style={gridStyle}
+        >
           <LoupePaneGrid
             {panes}
             {focusedId}
@@ -274,37 +284,44 @@
           {/if}
         </div>
 
-        {#if !ui.fullscreen && !browseView.loupeInfoSheet}
-          <div class="flex shrink-0 flex-col">
-            {#if !touch}
-              <LoupeActionRail
-                cull={cullState(asset)}
-                tags={currentTags}
-                fileName={asset.originalFileName}
-                {multi}
-                {zoom}
-                fitZoom={focusedFitZoom}
-                fitMode={paneView.zoom === null}
-                actions={loupeCullActions}
-                onAddTag={loupeTagActions.add}
-                onRemoveTag={loupeTagActions.remove}
-                onCreateTag={loupeTagActions.create}
-                onZoom={setZoom}
-                onFit={fitZoom}
-              />
-              <LoupeFilmstrip {focusedId} {currentId} {multi} />
-            {:else if layout.compact}
-              {#if multi}
-                <LoupePaneRail fileName={asset.originalFileName} />
-              {/if}
-              {#if browseView.loupeFilmstripShown}
+        {#if !ui.fullscreen}
+          <div
+            class="grid shrink-0 motion-safe:transition-[grid-template-rows] {infoSheetMotion(
+              infoInset
+            )} {infoInset ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}"
+            inert={infoInset}
+          >
+            <div class="flex min-h-0 flex-col overflow-hidden">
+              {#if !touch}
+                <LoupeActionRail
+                  cull={cullState(asset)}
+                  tags={currentTags}
+                  fileName={asset.originalFileName}
+                  {multi}
+                  {zoom}
+                  fitZoom={focusedFitZoom}
+                  fitMode={paneView.zoom === null}
+                  actions={loupeCullActions}
+                  onAddTag={loupeTagActions.add}
+                  onRemoveTag={loupeTagActions.remove}
+                  onCreateTag={loupeTagActions.create}
+                  onZoom={setZoom}
+                  onFit={fitZoom}
+                />
+                <LoupeFilmstrip {focusedId} {currentId} {multi} />
+              {:else if layout.compact}
+                {#if multi}
+                  <LoupePaneRail fileName={asset.originalFileName} />
+                {/if}
+                {#if browseView.loupeFilmstripShown}
+                  <LoupeFilmstrip {focusedId} {currentId} {multi} />
+                {/if}
+                {@render cullBar('stacked', editPill)}
+              {:else}
+                {@render cullBar('row', viewTools)}
                 <LoupeFilmstrip {focusedId} {currentId} {multi} />
               {/if}
-              {@render cullBar('stacked', editPill)}
-            {:else}
-              {@render cullBar('row', viewTools)}
-              <LoupeFilmstrip {focusedId} {currentId} {multi} />
-            {/if}
+            </div>
           </div>
         {/if}
       </div>
