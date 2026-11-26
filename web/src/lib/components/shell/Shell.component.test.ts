@@ -11,7 +11,7 @@ import Shell from './Shell.svelte';
 const route = vi.hoisted(() => ({ page: { url: new URL('http://localhost/photos'), params: {} } }));
 
 const navigation = vi.hoisted(() => ({
-  onNavigate: [] as ((nav: { to: { url: URL } | null }) => void)[]
+  onNavigate: [] as ((nav: { to: { url: URL } | null; complete: Promise<void> }) => void)[]
 }));
 
 vi.mock('$app/state', () => route);
@@ -23,7 +23,9 @@ vi.mock('#lib/device/layout.svelte.ts', async () => ({
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
   beforeNavigate: (): void => {},
-  onNavigate: (callback: (nav: { to: { url: URL } | null }) => void): void => {
+  onNavigate: (
+    callback: (nav: { to: { url: URL } | null; complete: Promise<void> }) => void
+  ): void => {
     navigation.onNavigate.push(callback);
   },
   goto: vi.fn()
@@ -62,7 +64,10 @@ function routeInert(): boolean {
 
 function navigate(path: string | null): void {
   for (const callback of navigation.onNavigate)
-    callback({ to: path ? { url: new URL(`http://localhost${path}`) } : null });
+    callback({
+      to: path ? { url: new URL(`http://localhost${path}`) } : null,
+      complete: Promise.resolve()
+    });
 }
 
 beforeEach(() => {
