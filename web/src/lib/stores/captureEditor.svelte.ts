@@ -20,15 +20,22 @@ import {
   type ZoneChoice
 } from '#lib/metadata/captureTimes.ts';
 import { cameraShiftText, clocksText } from '#lib/metadata/clockText.ts';
+import { nameTime, withTimeOfDay } from '#lib/metadata/fileNameTime.ts';
 import { deviceZone, wallToInstant } from '#lib/metadata/photoTime.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
-export type CaptureMode = 'shift' | 'photo' | 'once';
+export type CaptureMode = 'shift' | 'photo' | 'once' | 'name';
 export type PreviewFilter = 'all' | 'changed' | 'reordered';
 
 export const ALL_CAMERAS = '\u0001all';
+export const NO_DATE = 'No date in name';
+
+export interface NameSource {
+  source: string;
+  count: number;
+}
 export const SHIFT_LIMIT = 100 * 366 * 86_400_000;
 
 const SECOND = 1000;
@@ -84,6 +91,18 @@ class CaptureEditor {
   readonly clockZone: string | null = $derived(this.zone?.clock ?? null);
 
   readonly targets: Map<string, ClockTarget> = $derived.by(() => {
+    if (this.mode === 'name') {
+      return new Map(
+        this.scoped.flatMap((photo) => {
+          const named = nameTime(photo.name);
+          if (!named) return [];
+          const zone = shownZone(photo, this.#zonesOf(photo));
+          if (named.utc) return [[photo.id, { instant: named.wall, zone }] as const];
+          const wall = named.dateOnly ? withTimeOfDay(named.wall, photo.wall) : named.wall;
+          return [[photo.id, setTo(wall, zone)] as const];
+        })
+      );
+    }
     if (this.mode === 'once') {
       return new Map(
         [...this.scoped]
@@ -106,6 +125,18 @@ class CaptureEditor {
   });
 
   readonly rows: PreviewRow[] = $derived(previewRows(this.photos, this.targets));
+  readonly nameSources: NameSource[] = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const photo of this.scoped) {
+      const source = nameTime(photo.name)?.source ?? NO_DATE;
+      counts.set(source, (counts.get(source) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([source, count]) => ({ source, count }))
+      .sort(
+        (a, b) => Number(a.source === NO_DATE) - Number(b.source === NO_DATE) || b.count - a.count
+      );
+  });
   readonly changed = $derived(this.rows.filter((row) => row.changed).length);
   readonly reordered = $derived(this.rows.filter((row) => row.reordered).length);
   readonly shownFilter: PreviewFilter = $derived(
@@ -138,7 +169,7 @@ class CaptureEditor {
   });
 
   readonly summary: string = $derived.by(() => {
-    if (this.mode === 'once') return '';
+    if (this.mode === 'once' || this.mode === 'name') return '';
     const cameras = this.cameras.map((camera) => ({
       label: camera.label,
       ms: this.clocks.of(camera.key)

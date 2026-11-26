@@ -2,6 +2,7 @@
   import ChipChoice from '#lib/components/chips/ChipChoice.svelte';
   import CameraPick from '#lib/components/metadata/CameraPick.svelte';
   import CaptureByPhoto from '#lib/components/metadata/CaptureByPhoto.svelte';
+  import CaptureFromName from '#lib/components/metadata/CaptureFromName.svelte';
   import CaptureOnce from '#lib/components/metadata/CaptureOnce.svelte';
   import CapturePreview from '#lib/components/metadata/CapturePreview.svelte';
   import CaptureZones from '#lib/components/metadata/CaptureZones.svelte';
@@ -20,7 +21,8 @@
   const MODES: { value: CaptureMode; label: string; several?: boolean }[] = [
     { value: 'shift', label: 'Shift' },
     { value: 'photo', label: 'Set by a photo', several: true },
-    { value: 'once', label: 'One time for all', several: true }
+    { value: 'once', label: 'One time for all', several: true },
+    { value: 'name', label: 'From file name' }
   ];
 
   const modes = $derived(editor.photos.length > 1 ? MODES : MODES.filter((mode) => !mode.several));
@@ -60,8 +62,10 @@
           />
         {:else if editor.mode === 'photo'}
           <CaptureByPhoto />
-        {:else}
+        {:else if editor.mode === 'once'}
           <CaptureOnce />
+        {:else}
+          <CaptureFromName />
         {/if}
         <CaptureZones />
       </div>

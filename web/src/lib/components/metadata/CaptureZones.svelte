@@ -9,6 +9,7 @@
 
   const editor = captureEditor;
   const once = $derived(editor.mode === 'once');
+  const clockRow = $derived(editor.mode === 'shift' || editor.mode === 'photo');
   const mixed = $derived(editor.zone === null);
   const sample = $derived(editor.scoped[0] ?? null);
   const at = $derived(sample?.wall ?? Date.now());
@@ -55,7 +56,7 @@
     />
   {/if}
 </div>
-{#if !once && editor.takenIn}
+{#if clockRow && editor.takenIn}
   <div class="flex items-center gap-3 touch:flex-col touch:items-stretch touch:gap-2">
     <span class="min-w-0 flex-1 text-sm text-light-950">Camera time zone</span>
     <ZoneSelect
