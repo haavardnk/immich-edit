@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openBulkMetadata, openTouchMetadata, pick, tile } from './browse';
+import { bulkBar, openBulkMetadata, openTouchMetadata, pick, tile } from './browse';
 import { installMocks, numberedAssets } from './helpers';
 import { selectTwo } from './touchShell';
 
@@ -54,12 +54,47 @@ test('a description replaces mixed ones and Undo puts them back', async ({ page 
   expect(writes[1]).toEqual({ path: `/api/assets/${PHOTOS[2]!.id}`, body: { description: '' } });
 });
 
+test('metadata copied from one photo pastes the chosen fields onto others', async ({ page }) => {
+  const writes = await open(page);
+  await pick(page, 'IMG_0001.ARW');
+  let menu = await openBulkMetadata(page);
+  await expect(menu.getByRole('button', { name: 'Paste metadata…' })).toHaveCount(0);
+  await menu.getByRole('button', { name: 'Copy metadata' }).click();
+  await expect(page.getByText('Copied the metadata of IMG_0001.ARW')).toBeVisible();
+  await bulkBar(page).getByRole('button', { name: 'Clear selection' }).click();
+
+  await pick(page, 'IMG_0002.ARW');
+  await pick(page, 'IMG_0003.ARW');
+  menu = await openBulkMetadata(page);
+  await expect(menu.getByRole('button', { name: 'Copy metadata' })).toHaveCount(0);
+  const paste = menu.getByRole('button', { name: 'Paste metadata…' });
+  await expect(paste).toContainText('IMG_0001.ARW');
+  await paste.click();
+  const dialog = page.getByRole('dialog', { name: 'Paste metadata' });
+  await expect(dialog.getByRole('checkbox', { name: 'Tags' })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: 'Rating' }).check();
+  await dialog.getByRole('button', { name: 'Paste', exact: true }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect
+    .poll(() => writes.filter((write) => write.path === `/api/assets/${PHOTOS[2]!.id}`).length)
+    .toBe(2);
+  expect(writes).toContainEqual({
+    path: `/api/assets/${PHOTOS[2]!.id}`,
+    body: { description: 'Fløyen at dusk' }
+  });
+  expect(writes).toContainEqual({ path: `/api/assets/${PHOTOS[1]!.id}`, body: { rating: 4 } });
+  expect(writes.some((write) => write.path === '/api/assets/location')).toBe(true);
+});
+
 test.describe('metadata on touch', { tag: '@touch' }, () => {
   test('the Metadata sheet opens the description sheet', async ({ page }) => {
     const writes = await open(page);
     await page.goto('/photos');
     await selectTwo(page);
     const sheet = await openTouchMetadata(page);
+    await expect(sheet.getByRole('button', { name: 'Copy metadata' })).toHaveCount(0);
+    await expect(sheet.getByRole('button', { name: 'Paste metadata…' })).toHaveCount(0);
     await sheet.getByRole('button', { name: 'Description…' }).tap();
     const dialog = page.getByRole('dialog', { name: 'Description' });
     await dialog.getByRole('textbox', { name: 'Description' }).fill('Bryggen');
