@@ -1,4 +1,4 @@
-import { isModalOpen } from '@immich/ui';
+import { modalManager } from '@immich/ui';
 
 let held = 0;
 let escapeHolds = 0;
@@ -35,5 +35,5 @@ export function escapeTaken(e: KeyboardEvent): boolean {
 }
 
 export function isAnyModalOpen(): boolean {
-  return held > 0 || isModalOpen();
+  return held > 0 || modalManager.isOpen();
 }

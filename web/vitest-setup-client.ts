@@ -44,6 +44,30 @@ window.matchMedia = (query: string): MediaQueryList =>
     dispatchEvent: (): boolean => false
   }) as MediaQueryList;
 
+class AnimationStub {
+  currentTime = 0;
+  effect = null;
+  playState = 'finished';
+  finished = Promise.resolve(this);
+  #onfinish: (() => void) | null = null;
+
+  get onfinish(): (() => void) | null {
+    return this.#onfinish;
+  }
+
+  set onfinish(fn: (() => void) | null) {
+    this.#onfinish = fn;
+    queueMicrotask(() => this.#onfinish?.());
+  }
+
+  cancel(): void {
+    this.#onfinish = null;
+  }
+
+  finish(): void {}
+}
+
+Element.prototype.animate = (): Animation => new AnimationStub() as unknown as Animation;
 Element.prototype.scrollTo = (): void => {};
 Element.prototype.scrollIntoView = (): void => {};
 

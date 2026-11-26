@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
   toast: vi.fn()
 }));
 
-vi.mock('@immich/ui', () => ({ isModalOpen: () => h.modalOpen }));
+vi.mock('@immich/ui', () => ({ modalManager: { isOpen: () => h.modalOpen } }));
 vi.mock('#lib/stores/toasts.svelte.ts', () => ({ toasts: { push: h.toast } }));
 vi.mock('#lib/stores/ui.svelte.ts', () => ({
   ui: {

@@ -2,7 +2,7 @@ import type { Job } from '#lib/api/jobs.ts';
 import { jobs } from '#lib/stores/jobs.svelte.ts';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { flushSync, mount, unmount, type Component } from 'svelte';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import JobToast from './JobToast.svelte';
 
 const failed: Job = {
@@ -20,11 +20,6 @@ const failed: Job = {
 };
 
 const Host: Component<{ component: Component<{ job: Job }>; props: { job: Job } }> = ComponentHost;
-
-beforeAll(() => {
-  Element.prototype.animate = () =>
-    ({ cancel: () => {}, finished: Promise.resolve() }) as unknown as Animation;
-});
 
 let toast: Record<string, unknown> | null = null;
 const target = document.body;

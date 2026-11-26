@@ -63,6 +63,20 @@ describe('track files', () => {
     expect(lines[0]?.segments[1]?.[0]?.time).toBe(Date.parse('2026-10-31T08:00:00.500Z'));
   });
 
+  it('keeps each GPX time on its own point when one in the middle has none', () => {
+    const source = `<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>
+      <trkpt lat="1" lon="1"><time>2026-10-31T08:00:00Z</time></trkpt>
+      <trkpt lat="2" lon="2"></trkpt>
+      <trkpt lat="3" lon="3"><time>2026-10-31T08:02:00Z</time></trkpt>
+    </trkseg></trk></gpx>`;
+    const { lines, untimed } = parseTrackFile(source, 'gpx');
+    expect(untimed).toBe(1);
+    expect(lines[0]?.segments[0]).toEqual([
+      { lat: 1, lon: 1, time: Date.parse('2026-10-31T08:00:00Z') },
+      { lat: 3, lon: 3, time: Date.parse('2026-10-31T08:02:00Z') }
+    ]);
+  });
+
   it('reads TCX activities and KML tracks', () => {
     expect(parseTrackFile(TCX, 'tcx').lines[0]?.segments[0]).toEqual([
       { lat: 60.1, lon: 6.7, time: Date.parse('2026-10-31T08:00:00Z') },
