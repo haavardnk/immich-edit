@@ -29,7 +29,9 @@ async function expectBarInGridColumn(page: Page): Promise<void> {
   expect(bar.y + bar.height).toBeLessThanOrEqual(column.y + column.height);
 }
 
-test('date taken groups the grid by capture day with place and count', async ({ page }) => {
+test('date taken groups the grid by capture day with every place and the count', async ({
+  page
+}) => {
   await openTimeline(page, { assets: ASSETS }, 1400);
 
   await expect(headers(page).getByRole('heading')).toHaveText([
@@ -38,7 +40,7 @@ test('date taken groups the grid by capture day with place and count', async ({ 
     'Friday 4 July 2025'
   ]);
   await expect(headers(page)).toHaveText([
-    /Saturday 31 October\s*Bergen · 6/,
+    /Saturday 31 October\s*Bergen, Oslo · 6/,
     /Friday 30 October\s*Ålesund · 5/,
     /Friday 4 July 2025\s*4\s*$/
   ]);
@@ -127,7 +129,7 @@ test.describe('touch', () => {
     await expect(saturday).toBeVisible();
     await expect(saturday.getByRole('button', { name: 'Select day' })).toBeHidden();
 
-    const place = await saturday.getByText('Bergen · 6').boundingBox();
+    const place = await saturday.getByText('Bergen, Oslo · 6').boundingBox();
     const box = await saturday.boundingBox();
     expect((place?.x ?? 0) + (place?.width ?? 0)).toBeGreaterThan(
       (box?.x ?? 0) + (box?.width ?? 0) - 12

@@ -9,7 +9,7 @@ function groupsOf(days: string[]): DayGroup[] {
     if (last && last.key === key) {
       last.end = index + 1;
       last.count += 1;
-    } else groups.push({ key, start: index, end: index + 1, place: null, count: 1 });
+    } else groups.push({ key, start: index, end: index + 1, places: [], count: 1 });
   });
   return groups;
 }
