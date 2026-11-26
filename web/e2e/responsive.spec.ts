@@ -110,7 +110,7 @@ for (const size of SIZES) {
 
 test('the editor resize handles persist once per committed gesture', async ({ page }) => {
   await page.addInitScript(() => {
-    const state = window as Window & { editorUiWriteCount: number };
+    const state = window as unknown as Window & { editorUiWriteCount: number };
     const setItem = Storage.prototype.setItem;
     state.editorUiWriteCount = 0;
     Storage.prototype.setItem = function (key: string, value: string): void {
@@ -143,7 +143,7 @@ test('the editor resize handles persist once per committed gesture', async ({ pa
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
     await page.evaluate(() => {
-      (window as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
+      (window as unknown as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
     });
     await page.mouse.move(centerX, centerY);
     await page.mouse.down();
@@ -154,19 +154,19 @@ test('the editor resize handles persist once per committed gesture', async ({ pa
     );
     expect(
       await page.evaluate(
-        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+        () => (window as unknown as Window & { editorUiWriteCount: number }).editorUiWriteCount
       )
     ).toBe(0);
     await page.mouse.up();
     await expect(handle).toHaveAttribute('aria-valuenow', String(startValue + 20));
     expect(
       await page.evaluate(
-        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+        () => (window as unknown as Window & { editorUiWriteCount: number }).editorUiWriteCount
       )
     ).toBe(1);
 
     await page.evaluate(() => {
-      (window as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
+      (window as unknown as Window & { editorUiWriteCount: number }).editorUiWriteCount = 0;
     });
     await handle.press(resizeCase.key);
     await expect(handle).toHaveAttribute(
@@ -175,7 +175,7 @@ test('the editor resize handles persist once per committed gesture', async ({ pa
     );
     expect(
       await page.evaluate(
-        () => (window as Window & { editorUiWriteCount: number }).editorUiWriteCount
+        () => (window as unknown as Window & { editorUiWriteCount: number }).editorUiWriteCount
       )
     ).toBe(1);
   }
@@ -254,7 +254,8 @@ test('the photo grid preserves mixed source orientations', async ({ page }) => {
     await expect(link.locator('..')).toHaveCSS('border-radius', '0px');
     const ratios = await image.evaluate((element) => ({
       rendered: element.clientWidth / element.clientHeight,
-      source: element.naturalWidth / element.naturalHeight
+      source:
+        (element as HTMLImageElement).naturalWidth / (element as HTMLImageElement).naturalHeight
     }));
     expect(ratios.rendered).toBeCloseTo(ratios.source, 2);
   }
@@ -299,7 +300,9 @@ test('the editor filmstrip preserves mixed source orientations', async ({ page }
   });
 
   await page.goto('/photos');
-  await page.getByRole('link', { name: 'LANDSCAPE.ARW' }).evaluate((element) => element.click());
+  await page
+    .getByRole('link', { name: 'LANDSCAPE.ARW' })
+    .evaluate((element) => (element as HTMLElement).click());
 
   for (const fixture of fixtures) {
     const thumbnail = page.getByRole('link', { name: fixture.name });

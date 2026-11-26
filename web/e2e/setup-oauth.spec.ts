@@ -48,7 +48,7 @@ test('setup offers the provider once the immich url is known', async ({ page }) 
   await expect(page).toHaveURL(/idp\.local/);
 
   expect(started).toHaveLength(1);
-  const sent = JSON.parse(started[0]);
+  const sent = JSON.parse(started[0]!);
   expect(sent.immich_url).toBe('https://immich.example.com');
   expect(sent.redirect_uri).toMatch(/\/setup$/);
 });

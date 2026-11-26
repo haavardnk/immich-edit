@@ -33,7 +33,7 @@ const CRC_TABLE: number[] = Array.from({ length: 256 }, (_, n) => {
 
 function crc32(buf: Buffer): number {
   let c = 0xffffffff;
-  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 
@@ -388,7 +388,7 @@ export async function installMocks(
       localStorage.setItem('immich-edit:settings', JSON.stringify({ metadataPushConsented: true }));
     });
   }
-  const assets = structuredClone(opts.assets ?? [ASSET_SUMMARY]);
+  const assets: MockAssetSummary[] = structuredClone(opts.assets ?? [ASSET_SUMMARY]);
   const presets = [...(opts.presets ?? [])];
   const watermarks = [...(opts.watermarks ?? [])];
   const exportPresets = [...(opts.exportPresets ?? [])];
@@ -811,7 +811,7 @@ export async function installMocks(
     }
     const tagAssetMatch = p.match(/^\/api\/tags\/([^/]+)\/assets\/([^/]+)$/);
     if (tagAssetMatch) {
-      const [, tagId, assetId] = tagAssetMatch;
+      const [, tagId = '', assetId = ''] = tagAssetMatch;
       const tag = tagList.find((t) => t.id === tagId);
       const current = tagsOf(assetId, assets.find((a) => a.id === assetId)?.tags);
       const added = method === 'PUT';
@@ -1051,14 +1051,14 @@ export async function installMocks(
 
     const presetMatch = p.match(/^\/api\/presets\/([^/]+)$/);
     if (presetMatch && method === 'DELETE') {
-      opts.onPresetDelete?.(presetMatch[1]);
+      opts.onPresetDelete?.(presetMatch[1]!);
       const idx = presets.findIndex((preset) => preset.id === presetMatch[1]);
       if (idx >= 0) presets.splice(idx, 1);
       return route.fulfill({ status: 204, body: '' });
     }
     if (presetMatch && method === 'PUT') {
       const body = JSON.parse(route.request().postData() ?? '{}');
-      opts.onPresetUpdate?.(presetMatch[1], body);
+      opts.onPresetUpdate?.(presetMatch[1]!, body);
       const idx = presets.findIndex((preset) => preset.id === presetMatch[1]);
       const updated = { ...(presets[idx] ?? {}), ...body };
       if (idx >= 0) presets[idx] = updated;
@@ -1093,7 +1093,7 @@ export async function installMocks(
 
     const copiesMatch = p.match(/^\/api\/assets\/([^/]+)\/copies$/);
     if (copiesMatch) {
-      const source = copiesMatch[1].split('_')[0];
+      const source = copiesMatch[1]!.split('_')[0]!;
       if (method === 'POST') {
         const body = (req.postDataJSON() as { name?: string } | null) ?? {};
         const record = {
@@ -1125,7 +1125,7 @@ export async function installMocks(
         return route.fulfill({ status: 204, body: '' });
       }
       const body = (req.postDataJSON() as { name?: string | null } | null) ?? {};
-      if (idx >= 0) copies[idx] = { ...copies[idx], name: body.name ?? null };
+      if (idx >= 0) copies[idx] = { ...copies[idx]!, name: body.name ?? null };
       return route.fulfill(json(copies[idx]));
     }
 
@@ -1234,7 +1234,7 @@ export async function installMocks(
     if (p.match(/^\/api\/assets\/[^/]+\/preview/)) return route.fulfill(previewPng());
     const thumbnailMatch = p.match(/^\/api\/assets\/([^/]+)\/(?:thumbnail|thumb|edited-thumb)$/);
     if (thumbnailMatch) {
-      const body = opts.thumbnailRender?.(thumbnailMatch[1]) ?? PNG_1X1;
+      const body = opts.thumbnailRender?.(thumbnailMatch[1]!) ?? PNG_1X1;
       return route.fulfill({ status: 200, contentType: 'image/png', body });
     }
     if (p.match(/^\/api\/assets\/[^/]+\/presets\/[^/]+\/thumb$/)) {

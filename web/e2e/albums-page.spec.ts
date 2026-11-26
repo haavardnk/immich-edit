@@ -209,8 +209,8 @@ test.describe('albums page on the desktop', () => {
       expect(Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - middle)).toBeLessThanOrEqual(1);
     }
     await expect(header.getByText('13 albums', { exact: true })).toBeAttached();
-    const chips = await parts[2].boundingBox();
-    const field = await parts[3].locator('..').boundingBox();
+    const chips = await parts[2]!.boundingBox();
+    const field = await parts[3]!.locator('..').boundingBox();
     expect(field?.height).toBe(chips?.height);
   });
 
@@ -306,8 +306,8 @@ test.describe('albums page in phone portrait', { tag: ['@touch', '@phone'] }, ()
         Math.max(...boxes.map((box) => box.right))
       ];
     });
-    expect(Math.abs((field?.x ?? 0) - edges[0])).toBeLessThanOrEqual(1);
-    expect(Math.abs((field?.x ?? 0) + (field?.width ?? 0) - edges[1])).toBeLessThanOrEqual(1);
+    expect(Math.abs((field?.x ?? 0) - edges[0]!)).toBeLessThanOrEqual(1);
+    expect(Math.abs((field?.x ?? 0) + (field?.width ?? 0) - edges[1]!)).toBeLessThanOrEqual(1);
     const pill = await chip(page, 'All').boundingBox();
     expect(field?.y ?? 0).toBeGreaterThan((pill?.y ?? 0) + (pill?.height ?? 0));
   });

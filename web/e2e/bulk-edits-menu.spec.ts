@@ -1,8 +1,18 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { bulkBar, openBulkEdits, pick } from './browse';
-import { installMocks, jobsPanel, numberedAssets, openFilters } from './helpers';
+import {
+  installMocks,
+  jobsPanel,
+  numberedAssets,
+  openFilters,
+  type MockAssetSummary
+} from './helpers';
 
-const [SOURCE, SECOND, THIRD] = numberedAssets(3);
+const [SOURCE, SECOND, THIRD] = numberedAssets(3) as [
+  MockAssetSummary,
+  MockAssetSummary,
+  MockAssetSummary
+];
 if (!SOURCE || !SECOND || !THIRD) throw new Error('missing assets');
 
 async function openPhotos(page: Page): Promise<void> {

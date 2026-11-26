@@ -33,7 +33,7 @@ async function mockVersions(page: Page): Promise<CopyRecord[]> {
     const index = copies.findIndex((copy) => copy.id === id);
     if (route.request().method() !== 'PATCH' || index < 0) return route.fallback();
     const body = route.request().postDataJSON() as { name: string | null };
-    copies[index] = { ...copies[index], name: body.name };
+    copies[index] = { ...copies[index]!, name: body.name };
     return route.fulfill(json(copies[index]));
   });
   await page.route(/\/api\/assets\/[^/]+\/edits\/history$/, (route) => {

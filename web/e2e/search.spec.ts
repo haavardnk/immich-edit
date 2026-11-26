@@ -130,7 +130,7 @@ for (const [mode, label] of [
   ['description', 'Description'],
   ['path', 'Full path or folder'],
   ['ocr', 'OCR']
-]) {
+] as const) {
   test(`${label} mode searches the ${mode} field`, async ({ page }) => {
     const filters: Array<Record<string, unknown>> = [];
     await installMocks(page, {

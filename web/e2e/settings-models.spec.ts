@@ -18,7 +18,7 @@ const MODEL = {
   installed: false,
   installing: false,
   progress_bytes: 0,
-  install_error: null
+  install_error: null as string | null
 };
 
 async function installSettingsMocks(
