@@ -232,7 +232,10 @@ async fn run_zip_item(
             server_epoch: job.server_epoch,
         },
         &immich,
-        asset_id,
+        ExportSource {
+            id: asset_id,
+            known: Some(&original),
+        },
         edits.clamped(),
         &params.params,
         RenderPriority::Background,

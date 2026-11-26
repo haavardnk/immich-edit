@@ -17,6 +17,7 @@ pub const DOWNLOAD_ZIP_KIND: &str = "download_zip";
 
 mod archive;
 mod batch;
+mod capture_exif;
 mod conflict;
 mod denoise;
 mod immich;
@@ -59,17 +60,24 @@ pub struct RenderedExport {
     pub bytes: Bytes,
     pub output: OutputFormat,
     pub warnings: Vec<String>,
+    pub fetched: Option<crate::immich::dto::AssetDetail>,
+}
+
+pub struct ExportSource<'a> {
+    pub id: AssetKey,
+    pub known: Option<&'a crate::immich::dto::AssetDetail>,
 }
 
 pub async fn render_export(
     state: &AppState,
     identity: RenderIdentity,
     immich: &crate::immich::ImmichClient,
-    id: AssetKey,
+    source: ExportSource<'_>,
     edits: Edits,
     params: &ExportParams,
     priority: RenderPriority,
 ) -> Result<RenderedExport, AppError> {
+    let ExportSource { id, known } = source;
     let resize = params.resize()?;
     let output_sharpen = params.output_sharpen()?;
     let watermark = match params.watermark()? {
@@ -90,11 +98,18 @@ pub async fn render_export(
     };
     let denoise = denoise::prepare(state, identity, immich, id, &edits).await?;
     let work = async {
-        let frame = state
-            .render
-            .frame(identity, immich, id.source())
-            .await
-            .map_err(AppError::from)?;
+        let lookup = async {
+            match known {
+                Some(_) => Ok(None),
+                None => immich.asset(id.source()).await.map(Some),
+            }
+        };
+        let (frame, fetched) =
+            tokio::join!(state.render.frame(identity, immich, id.source()), lookup);
+        let frame = frame.map_err(AppError::from)?;
+        let fetched = fetched?;
+        let original = known.or(fetched.as_ref()).ok_or(AppError::Internal)?;
+        let corrections = capture_exif::corrections(original);
         let output = params.output_format();
         let crop = raw_pipeline::geom::display_crop_px(
             frame.meta.orientation,
@@ -110,6 +125,8 @@ pub async fn render_export(
         .map(|location| raw_pipeline::metadata::ExportMetadata {
             exif: frame.exif.clone(),
             location,
+            overrides: corrections.overrides,
+            cleared: corrections.cleared,
         });
         let opts = raw_pipeline::frame::RenderOptions {
             max_edge: edge.map_or(EXPORT_MAX_EDGE, |e| e.max_edge),
@@ -141,6 +158,7 @@ pub async fn render_export(
             bytes: Bytes::from(rendered.bytes),
             output,
             warnings,
+            fetched,
         })
     };
     state

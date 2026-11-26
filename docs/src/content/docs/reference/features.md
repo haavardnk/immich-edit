@@ -86,7 +86,7 @@ roadmap promise.
 | Capability | Available | Notes |
 | --- | :---: | --- |
 | Full-resolution export up to 65,535 px (JPEG, PNG, TIFF, WebP, HEIC, AVIF, JXL) | ✓ Yes | 16-bit for PNG, TIFF, JXL |
-| sRGB and Display P3 output with automatic gamut mapping and safe EXIF | ✓ Yes | No Adobe RGB, Rec.2020, linear, or HDR gain map |
+| sRGB and Display P3 output with automatic gamut mapping and safe EXIF | ✓ Yes | Writes corrected Immich time, GPS, and description; no Adobe RGB, Rec.2020, linear, or HDR gain map |
 | Resize, output sharpening, watermarks, filename templates, export presets, batch jobs | ✓ Yes | [Export](../editing/export.md) |
 | Immich upload, stacking, replace original, conflict policy | ✓ Yes | — |
 | DNG/PSD export or XMP sidecar round-trip | ✗ No | — |

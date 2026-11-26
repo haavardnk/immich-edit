@@ -48,23 +48,20 @@ async fn download(
     params: &ExportParams,
 ) -> Result<Response, AppError> {
     let template = NameTemplate::parse(params.filename_template.as_deref())?;
-    let (rendered, asset) = tokio::join!(
-        export::render_export(
-            state,
-            RenderIdentity::from(ctx),
-            &ctx.immich,
-            id,
-            edits,
-            params,
-            RenderPriority::Interactive,
-        ),
-        ctx.immich.asset(id.source()),
-    );
-    let rendered = rendered?;
-    let asset = asset?;
+    let rendered = export::render_export(
+        state,
+        RenderIdentity::from(ctx),
+        &ctx.immich,
+        export::ExportSource { id, known: None },
+        edits,
+        params,
+        RenderPriority::Interactive,
+    )
+    .await?;
+    let asset = rendered.fetched.as_ref().ok_or(AppError::Internal)?;
     let stem = template.render(&NameContext {
         original: &asset.original_file_name,
-        date: capture_date(&asset),
+        date: capture_date(asset),
         seq: Seq::SINGLE,
         preset: None,
     });

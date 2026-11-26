@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use little_exif::exif_tag::ExifTag;
+use little_exif::ifd::ExifTagGroup;
 use raw_pipeline::edits::Edits;
 use raw_pipeline::frame::{
     BitDepth, JpegSubsampling, OutputColorSpace, OutputFormat, PngCompression, RawFrame,
@@ -461,6 +462,8 @@ fn export(
     let meta = location.map(|location| ExportMetadata {
         exif: frame.exif.clone(),
         location,
+        overrides: Vec::new(),
+        cleared: Vec::new(),
     });
     let (embedded, _) = encode::embedded(meta.as_ref(), format, cs, (WIDTH, HEIGHT));
     encode::encode_from_rgb8(rgb, WIDTH, HEIGHT, format, cs, embedded.as_ref()).unwrap()
@@ -483,6 +486,8 @@ fn cpu_render_embeds_the_requested_metadata() {
             metadata: Some(ExportMetadata {
                 exif: source,
                 location,
+                overrides: Vec::new(),
+                cleared: Vec::new(),
             }),
             ..Default::default()
         };
@@ -590,4 +595,134 @@ fn exports_carry_the_source_metadata() {
             report.join("\n")
         );
     }
+}
+
+#[test]
+fn corrected_tags_replace_the_files_own() {
+    let mut exif = little_exif::metadata::Metadata::new();
+    exif.set_tag(ExifTag::Make("SONY".to_string()));
+    exif.set_tag(ExifTag::DateTimeOriginal("2026:10:31 13:03:12".to_string()));
+    exif.set_tag(ExifTag::GPSLatitude(vec![59u32.into(); 3]));
+    exif.set_tag(ExifTag::GPSAltitude(vec![100u32.into()]));
+    let overrides = vec![
+        ExifTag::DateTimeOriginal("2026:10:31 14:05:49".to_string()),
+        ExifTag::OffsetTimeOriginal("+01:00".to_string()),
+        ExifTag::GPSLatitudeRef("N".to_string()),
+        ExifTag::GPSLatitude(vec![60u32.into(), 23u32.into(), 51u32.into()]),
+    ];
+    let format = OutputFormat::Jpeg {
+        quality: 90,
+        subsampling: JpegSubsampling::Chroma420,
+    };
+    let read = |source: Option<little_exif::metadata::Metadata>, location: bool| {
+        let meta = ExportMetadata {
+            exif: source,
+            location,
+            overrides: overrides.clone(),
+            cleared: Vec::new(),
+        };
+        let (embedded, warnings) = encode::embedded(
+            Some(&meta),
+            &format,
+            OutputColorSpace::SRgb,
+            (WIDTH, HEIGHT),
+        );
+        assert_eq!(warnings.is_empty(), meta.exif.is_some(), "{warnings:?}");
+        let rgb = vec![128u8; (WIDTH * HEIGHT * 3) as usize];
+        let bytes = encode::encode_from_rgb8(
+            &rgb,
+            WIDTH,
+            HEIGHT,
+            &format,
+            OutputColorSpace::SRgb,
+            embedded.as_ref(),
+        )
+        .unwrap();
+        raw_pipeline::metadata::read(&bytes).unwrap_or_default()
+    };
+    let has = |tags: &little_exif::metadata::Metadata, want: &dyn Fn(&ExifTag) -> bool| {
+        tags.into_iter().any(want)
+    };
+
+    let all = read(Some(exif.clone()), true);
+    assert!(has(
+        &all,
+        &|t| matches!(t, ExifTag::DateTimeOriginal(v) if v == "2026:10:31 14:05:49")
+    ));
+    assert!(has(
+        &all,
+        &|t| matches!(t, ExifTag::OffsetTimeOriginal(v) if v == "+01:00")
+    ));
+    assert!(has(&all, &|t| matches!(t, ExifTag::Make(v) if v == "SONY")));
+    assert!(has(
+        &all,
+        &|t| matches!(t, ExifTag::GPSLatitude(v) if v.len() == 3 && v[0].nominator == 60)
+    ));
+    assert!(!has(&all, &|t| matches!(t, ExifTag::GPSAltitude(_))));
+
+    let private = read(Some(exif), false);
+    assert!(!has(&private, &|t| t.get_group() == ExifTagGroup::GPS));
+    assert!(has(&private, &|t| matches!(
+        t,
+        ExifTag::OffsetTimeOriginal(_)
+    )));
+
+    let bare = read(None, true);
+    assert!(has(
+        &bare,
+        &|t| matches!(t, ExifTag::DateTimeOriginal(v) if v == "2026:10:31 14:05:49")
+    ));
+}
+
+#[test]
+fn an_unmoved_location_keeps_the_files_gps_and_cleared_tags_go() {
+    let mut exif = little_exif::metadata::Metadata::new();
+    exif.set_tag(ExifTag::GPSLatitudeRef("N".to_string()));
+    exif.set_tag(ExifTag::GPSLatitude(vec![
+        60u32.into(),
+        23u32.into(),
+        51u32.into(),
+    ]));
+    exif.set_tag(ExifTag::GPSLongitudeRef("E".to_string()));
+    exif.set_tag(ExifTag::GPSLongitude(vec![
+        5u32.into(),
+        19u32.into(),
+        26u32.into(),
+    ]));
+    exif.set_tag(ExifTag::GPSAltitude(vec![100u32.into()]));
+    exif.set_tag(ExifTag::ImageDescription(
+        "OLYMPUS DIGITAL CAMERA".to_string(),
+    ));
+    let meta = ExportMetadata {
+        exif: Some(exif),
+        location: true,
+        overrides: vec![
+            ExifTag::GPSLatitudeRef("N".to_string()),
+            ExifTag::GPSLatitude(vec![60u32.into(), 23u32.into(), 51u32.into()]),
+            ExifTag::GPSLongitudeRef("E".to_string()),
+            ExifTag::GPSLongitude(vec![5u32.into(), 19u32.into(), 26u32.into()]),
+        ],
+        cleared: vec![0x010e],
+    };
+    let format = OutputFormat::Jpeg {
+        quality: 90,
+        subsampling: JpegSubsampling::Chroma420,
+    };
+    let (embedded, _) = encode::embedded(
+        Some(&meta),
+        &format,
+        OutputColorSpace::SRgb,
+        (WIDTH, HEIGHT),
+    );
+    let tags = embedded.unwrap().tags;
+    assert!(
+        (&tags)
+            .into_iter()
+            .any(|t| matches!(t, ExifTag::GPSAltitude(_)))
+    );
+    assert!(
+        !(&tags)
+            .into_iter()
+            .any(|t| matches!(t, ExifTag::ImageDescription(_)))
+    );
 }

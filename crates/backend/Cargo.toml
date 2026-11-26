@@ -48,13 +48,13 @@ base64 = "0.23"
 zip = { version = "9", default-features = false }
 mimalloc = { version = "0.1", default-features = false }
 lensfun = "=0.7.0"
+little_exif = "0.6"
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
 sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }
 
 [dev-dependencies]
 raw-pipeline-testkit = { path = "../raw-pipeline-testkit" }
 tokio = { workspace = true }
-little_exif = "0.6"
 wiremock = "0.6"
 reqwest = { version = "0.13", features = ["json", "query"] }
 tower = { version = "0.5", features = ["util"] }

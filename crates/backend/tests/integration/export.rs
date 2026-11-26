@@ -5,7 +5,8 @@ use little_exif::ifd::ExifTagGroup;
 use raw_pipeline::frame::RawFrame;
 use serde_json::{Value, json};
 use tower::ServiceExt;
-use wiremock::{MockServer, ResponseTemplate};
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn export(server: &MockServer, body: Value) -> axum::response::Response {
     test_app(server)
@@ -56,6 +57,8 @@ fn jpeg_with_camera_and_gps() -> Vec<u8> {
     let source = raw_pipeline::metadata::ExportMetadata {
         exif: Some(meta),
         location: true,
+        overrides: Vec::new(),
+        cleared: Vec::new(),
     };
     let (embedded, _) = raw_pipeline::encode::embedded(
         Some(&source),
@@ -253,7 +256,7 @@ async fn export_download_reports_metadata_warnings() {
             plain_jpeg(),
             "all",
             Some(json!([
-                "Metadata not copied: no readable EXIF in the original"
+                "Camera details not copied: no readable EXIF in the original"
             ])),
         ),
         ("no exif, none", plain_jpeg(), "none", None),
@@ -281,4 +284,53 @@ async fn export_download_reports_metadata_warnings() {
             panic!("{label}: warnings {got:?}");
         }
     }
+}
+
+#[tokio::test]
+async fn export_download_carries_the_capture_time_corrected_in_immich() {
+    let server = MockServer::start().await;
+    mock_original_with(
+        &server,
+        asset_id(),
+        ResponseTemplate::new(200)
+            .insert_header("content-type", "image/jpeg")
+            .set_body_bytes(jpeg_with_camera_and_gps()),
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{}", asset_id())))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": asset_id(),
+            "originalFileName": "DSC0001.JPG",
+            "type": "IMAGE",
+            "ownerId": test_user_id(),
+            "localDateTime": "2026-10-31T14:05:49.345Z",
+            "exifInfo": {
+                "dateTimeOriginal": "2026-10-31T13:05:49.345+00:00",
+                "timeZone": "UTC+1",
+                "description": "Fløyen"
+            }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let resp = export(&server, json!({ "edits": {}, "metadata": "all" })).await;
+    if resp.status() != StatusCode::OK {
+        panic!("status {}", resp.status());
+    }
+    let tags = raw_pipeline::metadata::read(&body_bytes(resp).await).unwrap();
+    let has = |want: &dyn Fn(&ExifTag) -> bool| (&tags).into_iter().any(want);
+    assert!(has(
+        &|t| matches!(t, ExifTag::DateTimeOriginal(v) if v == "2026:10:31 14:05:49")
+    ));
+    assert!(has(
+        &|t| matches!(t, ExifTag::OffsetTimeOriginal(v) if v == "+01:00")
+    ));
+    assert!(has(
+        &|t| matches!(t, ExifTag::SubSecTimeOriginal(v) if v == "345")
+    ));
+    assert!(has(
+        &|t| matches!(t, ExifTag::ImageDescription(v) if v == "Fløyen")
+    ));
+    assert!(has(&|t| matches!(t, ExifTag::Make(v) if v == "SONY")));
 }
