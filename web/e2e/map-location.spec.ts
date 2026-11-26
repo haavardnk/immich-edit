@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bulkBar, pick } from './browse';
+import { openBulkLocation, pick } from './browse';
 import { installMocks } from './helpers';
 import {
   ASSETS,
@@ -30,7 +30,7 @@ test('the location picker searches a place and saves it', async ({ page }) => {
   await page.goto('/photos');
   await pick(page, 'IMG_0005.ARW');
   await pick(page, 'IMG_0004.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
@@ -73,7 +73,7 @@ test('a selection on the map moves to its new location', async ({ page }) => {
   const tile = panel.locator('[role="group"][data-name="IMG_0004.ARW"]');
   await tile.hover();
   await tile.getByRole('button', { name: 'Select', exact: true }).click();
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
   const dialog = page.getByRole('dialog', { name: /^(Set|Edit) location$/ });
   await dialog.getByRole('textbox', { name: 'Search for a place' }).fill('geil');
@@ -248,7 +248,7 @@ test('a pasted map link places photos without a place search server', async ({ p
   });
   await page.goto('/photos');
   await pick(page, 'IMG_0005.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });

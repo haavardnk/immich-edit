@@ -13,8 +13,8 @@
   import {
     mdiCompare,
     mdiContentDuplicate,
+    mdiFileDocumentEditOutline,
     mdiImageAlbum,
-    mdiMapMarkerOutline,
     mdiMinusBoxOutline,
     mdiTagOutline,
     mdiTrashCanOutline,
@@ -28,7 +28,7 @@
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onPick: (sheet: 'album' | 'tags' | 'location' | 'preset') => void;
+    onPick: (sheet: 'album' | 'tags' | 'metadata' | 'preset') => void;
   } = $props();
 
   const scope = bulkScope;
@@ -83,12 +83,12 @@
     onclick={owned(() => onPick('tags'))}
   />
   <MenuRow
-    icon={mdiMapMarkerOutline}
-    label="Location"
+    icon={mdiFileDocumentEditOutline}
+    label="Metadata"
     class={shared ? 'opacity-50' : ''}
     aria-disabled={shared || undefined}
     disabled={busy}
-    onclick={owned(() => onPick('location'))}
+    onclick={owned(() => onPick('metadata'))}
   />
   <MenuRow
     icon={bulkEdits.applyPreset.icon}

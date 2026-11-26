@@ -1,7 +1,9 @@
 import {
   cameraTime,
+  immichZone,
   offsetLabel,
   wallToInstant,
+  zoneLabel,
   zoneOffsetMinutes
 } from '#lib/metadata/photoTime.ts';
 import { asset } from '#lib/testing/assets.ts';
@@ -55,5 +57,20 @@ describe('camera time', () => {
     expect(offsetLabel(60)).toBe('UTC+1');
     expect(offsetLabel(-210)).toBe('UTC−3:30');
     expect(offsetLabel(0)).toBe('UTC+0');
+  });
+
+  it('names a fixed offset once and a region with its offset', () => {
+    const summer = Date.parse('2026-07-01T12:00:00Z');
+    expect(zoneLabel('UTC+1', summer)).toBe('UTC+1');
+    expect(zoneLabel('UTC-4', summer)).toBe('UTC−4');
+    expect(zoneLabel('UTC+5:30', summer)).toBe('UTC+5:30');
+    expect(zoneLabel('America/New_York', summer)).toBe('America/New York · UTC−4');
+  });
+
+  it('names zones the way Immich stores them', () => {
+    expect(immichZone('Europe/Oslo', Date.parse('2026-07-01T12:00:00Z'))).toBe('UTC+2');
+    expect(immichZone('Asia/Kolkata', Date.parse('2026-07-01T12:00:00Z'))).toBe('UTC+5:30');
+    expect(immichZone('America/St_Johns', Date.parse('2026-01-01T12:00:00Z'))).toBe('UTC-3:30');
+    expect(immichZone('UTC', 0)).toBe('UTC+0');
   });
 });

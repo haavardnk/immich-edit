@@ -1,5 +1,5 @@
 import { goto } from '$app/navigation';
-import { resolveAssets } from '#lib/browse/locationOps.ts';
+import { resolveAssets } from '#lib/browse/assetLookup.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import { trackSession } from '#lib/stores/trackSession.svelte.ts';
 

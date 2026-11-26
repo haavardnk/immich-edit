@@ -6,6 +6,7 @@
   import BulkAlbumBand from '#lib/components/browse/bulk/BulkAlbumBand.svelte';
   import BulkApplyPreset from '#lib/components/browse/bulk/BulkApplyPreset.svelte';
   import BulkLocationRows from '#lib/components/browse/bulk/BulkLocationRows.svelte';
+  import BulkMetadataRows from '#lib/components/browse/bulk/BulkMetadataRows.svelte';
   import BulkMoreSheet from '#lib/components/browse/bulk/BulkMoreSheet.svelte';
   import BulkTagBand from '#lib/components/browse/bulk/BulkTagBand.svelte';
   import TouchBulkExportSheet from '#lib/components/browse/bulk/TouchBulkExportSheet.svelte';
@@ -19,9 +20,9 @@
   import { countOf } from '#lib/utils/plural.ts';
   import { mdiDotsHorizontal, mdiExportVariant, mdiImageAlbum, mdiTagOutline } from '@mdi/js';
 
-  type Sheet = 'rate' | 'label' | 'album' | 'tags' | 'location' | 'export' | 'preset';
+  type Sheet = 'rate' | 'label' | 'album' | 'tags' | 'metadata' | 'location' | 'export' | 'preset';
 
-  const OWNER_ONLY: readonly Sheet[] = ['rate', 'label', 'tags', 'location'];
+  const OWNER_ONLY: readonly Sheet[] = ['rate', 'label', 'tags', 'metadata', 'location'];
 
   let sheet = $state<Sheet | null>(null);
   let more = $state(false);
@@ -193,6 +194,15 @@
 >
   <BulkApplyPreset onApplied={() => (sheet = null)} />
 </Popover>
+
+<ActionSheet
+  open={sheet === 'metadata'}
+  onOpenChange={opener('metadata')}
+  title="Metadata"
+  subtitle={photos}
+>
+  <BulkMetadataRows onDone={() => (sheet = null)} onLocation={() => (sheet = 'location')} />
+</ActionSheet>
 
 <ActionSheet
   open={sheet === 'location'}

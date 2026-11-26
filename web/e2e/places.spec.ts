@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bulkBar, pick } from './browse';
+import { openBulkLocation, openTouchLocation, pick } from './browse';
 import { installMocks } from './helpers';
 import { ASSETS, BERGEN, chooseOnMap, type LocationWrite } from './mapFixtures';
 import { PlacesMock, savedPlace } from './placesMocks';
@@ -43,7 +43,7 @@ test('the saved places menu and typed search both place photos', async ({ page }
   await open(page, places, writes);
   await page.goto('/photos');
   await pick(page, 'IMG_0005.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
@@ -89,7 +89,7 @@ test('the star in the picker saves the spot as a named place', async ({ page }) 
   await open(page, places, writes);
   await page.goto('/photos');
   await pick(page, 'IMG_0005.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
 
   const dialog = page.getByRole('dialog', { name: 'Set location' });
@@ -119,7 +119,7 @@ test('the Location menu places a selection at a saved place in one click', async
   await page.goto('/photos');
   await pick(page, 'IMG_0004.ARW');
   await pick(page, 'IMG_0005.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   const saved = page.getByRole('group', { name: 'Saved places' });
   await expect(saved.getByRole('button')).toHaveText([/Hytta\s*Voss/, /Studio\s*Oslo/]);
   await saved.getByRole('button', { name: 'Studio' }).click();
@@ -134,7 +134,7 @@ test('a saved place moves to the pin, is renamed and removed from the picker', a
   await open(page, places, []);
   await page.goto('/photos');
   await pick(page, 'IMG_0005.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await chooseOnMap(page);
   const dialog = page.getByRole('dialog', { name: 'Set location' });
   const search = dialog.getByRole('textbox', { name: 'Search for a place' });
@@ -178,11 +178,7 @@ test.describe('saved places on touch', { tag: '@touch' }, () => {
     await open(page, places, writes);
     await page.goto('/photos');
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
-    await page
-      .getByRole('dialog', { name: 'More actions' })
-      .getByRole('button', { name: 'Location' })
-      .tap();
+    await openTouchLocation(page);
     const sheet = page.getByRole('dialog', { name: 'Location' });
     await expect(sheet.getByRole('group', { name: 'Recent' })).toContainText('Flåm');
     await sheet
@@ -199,11 +195,7 @@ test.describe('saved places on touch', { tag: '@touch' }, () => {
     await open(page, places, []);
     await page.goto('/photos');
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
-    await page
-      .getByRole('dialog', { name: 'More actions' })
-      .getByRole('button', { name: 'Location' })
-      .tap();
+    await openTouchLocation(page);
     await page
       .getByRole('dialog', { name: 'Location' })
       .getByRole('button', { name: 'Choose on map' })

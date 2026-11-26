@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { clockDrift, driftText } from '#lib/metadata/clockText.ts';
+  import { correctionText } from '#lib/metadata/clockText.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { Button } from '@immich/ui';
 
@@ -9,8 +9,8 @@
     const [only, ...rest] = session.fits;
     if (!only) return null;
     if (rest.length > 0) return `Best fit for ${session.fits.length} cameras`;
-    if (session.cameras.length === 1) return `Best fit: ${clockDrift(only.fit.correctionMs)}`;
-    return `Best fit for ${only.camera.label}: ${driftText(only.fit.correctionMs)}`;
+    if (session.cameras.length === 1) return `Best fit: ${correctionText(only.fit.correctionMs)}`;
+    return `Best fit for ${only.camera.label}: ${correctionText(only.fit.correctionMs)}`;
   });
 </script>
 

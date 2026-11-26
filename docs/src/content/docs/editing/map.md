@@ -30,8 +30,8 @@ in bulk, so a location can be moved but not removed):
 - **Coordinates and map links**: paste coordinates (`60.3913, 5.3221` or `60°23'29"N 5°19'20"E`)
   or a Google Maps, Apple Maps, OpenStreetMap, or `geo:` link into search and choose **Go to**
   (parsed locally in your browser, even with place search disabled).
-- **Multiple photos**: select photos in the grid and open **Location** in the bulk bar (or **More**
-  on touch), then **Choose on map**.
+- **Multiple photos**: select photos in the grid and open **Metadata** > **Location** in the bulk
+  bar (or **More** > **Metadata** on touch), then **Choose on map**.
 - **Drag onto the map**: drag tiles from **In view** or **No location** onto the map, or drag an
   existing marker to refine it (press and hold first on touch).
 - **Copy and paste**: copy a photo's location from **Photo info**, the **Location** menu, or
@@ -44,7 +44,7 @@ in bulk, so a location can be moved but not removed):
   choose **Save place** — or select **New place** in the **Places** tab, or right-click (press and
   hold on touch) anywhere on the map and choose **Save place here**.
 - **Reuse**: open **Saved** beside the search field, type part of a name, or pick a saved or recent
-  place directly from **Location** in the bulk bar.
+  place directly from **Metadata** > **Location** in the bulk bar.
 - **On the map**: toggle saved place stars from the map header. Photos dropped near a star snap to
   it; selecting a star copies its location, moves or renames it, or places the current selection
   there.
@@ -58,19 +58,19 @@ in bulk, so a location can be moved but not removed):
 
 Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app, or GPS logger:
 
-1. Select photos and choose **Location** > **Match to a track**, or select **Match track** in the
-   map header to match every photo taken during the track.
+1. Select photos and choose **Metadata** > **Location** > **Match to a track**, or select **Match
+   track** in the map header to match every photo taken during the track.
 2. Drop or choose one or more track files (parsed locally in your browser; only saved coordinates
    are sent to Immich).
-3. Align the camera clock: select **Use** on the **Best fit** bar to apply the suggested offset, or
-   expand the track row to adjust the time zone, per-camera clock correction (`-1:02:14`, with a
-   **Camera** picker when multiple cameras are present), and **Match within** gap. Unzoned photos
-   default to the track's time zone.
+3. Align the camera clock: select **Use** on the **Best fit** bar to apply the suggested shift, or
+   expand the track row to adjust the **Time zone**, a per-camera **Shift by** (`-1:02:14`, with a
+   **Camera** picker when multiple cameras are present), and the **Match within** gap. Unzoned
+   photos default to the track's time zone.
 4. Hover any pin or list row on desktop (tap once on touch) to preview the photo on the map; click
    (tap again on touch) to open it in the loupe and step through the track with arrow keys.
 5. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
-   existing GPS coordinates, or **Correct the capture time of … photos** to write the clock
-   correction back to Immich; **Undo** restores both.
+   existing GPS coordinates, or **Change the capture time of … photos** to write the shift back
+   to Immich; **Undo** restores both.
 
 <!-- SCREENSHOT: capture.cjs track-desktop + compose.cjs track-desktop -->
 ![GPX track matching around Lake Magadi with hovered lion photo preview and matched photo list](../../../assets/shots/track-desktop.png)

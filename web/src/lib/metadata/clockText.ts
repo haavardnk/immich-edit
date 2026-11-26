@@ -36,38 +36,27 @@ export function parseCorrection(text: string, limit = TRACK_LIMIT): number | nul
   return sign === '-' || sign === '−' ? -ms : ms;
 }
 
-export function driftText(ms: number): string {
-  const total = Math.round(Math.abs(ms) / SECOND);
-  if (total === 0) return 'no correction';
-  const days = Math.floor(total / 86400);
-  const hours = Math.floor((total % 86400) / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  const parts = [
-    days > 0 ? `${days} d` : '',
-    hours > 0 ? `${hours} h` : '',
-    minutes > 0 ? `${pad(minutes)} min` : '',
-    seconds > 0 ? `${pad(seconds)} s` : ''
-  ].filter(Boolean);
-  return `${parts.join(' ')} ${ms < 0 ? 'fast' : 'slow'}`;
+function shifts(ms: number): boolean {
+  return Math.round(Math.abs(ms) / SECOND) > 0;
 }
 
-export function clockDrift(ms: number): string {
-  return Math.round(Math.abs(ms) / SECOND) === 0 ? 'No correction' : `Camera ${driftText(ms)}`;
+export function cameraShiftText(ms: number): string {
+  return shifts(ms) ? correctionText(ms) : 'unchanged';
 }
 
-export interface CameraDrift {
+export interface CameraShift {
   label: string;
   ms: number;
 }
 
-export function clocksText(cameras: readonly CameraDrift[]): string {
-  if (cameras.length <= 1) return clockDrift(cameras[0]?.ms ?? 0);
-  const corrected = cameras.filter(({ ms }) => Math.round(Math.abs(ms) / SECOND) > 0);
-  if (corrected.length === 0) return 'No correction';
-  const unchanged = cameras.length - corrected.length;
-  const parts = corrected.map(({ label, ms }) => `${label} ${driftText(ms)}`);
-  if (unchanged > 0) parts.push(`${unchanged} ${unchanged === 1 ? 'camera' : 'cameras'} unchanged`);
+export function clocksText(cameras: readonly CameraShift[]): string {
+  const moved = cameras.filter(({ ms }) => shifts(ms));
+  const [only] = moved;
+  if (!only) return 'No shift';
+  if (cameras.length === 1) return `Shift ${correctionText(only.ms)}`;
+  const parts = moved.map(({ label, ms }) => `${label} ${correctionText(ms)}`);
+  const still = cameras.length - moved.length;
+  if (still > 0) parts.push(`${still} ${still === 1 ? 'camera' : 'cameras'} unchanged`);
   return parts.join(' · ');
 }
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { bulkBar } from './browse';
+import { bulkBar, openTouchLocation } from './browse';
 import { installMocks } from './helpers';
 import { drag, longPressUntil, touchDown, touchMoveTo, touchUp } from './touch';
 import { selectTwo } from './touchShell';
@@ -52,7 +52,7 @@ test.describe('map on touch', { tag: '@touch' }, () => {
     await longPressUntil(page, tile, page.getByText('1 selected'));
     await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
     await expect(
-      page.getByRole('dialog', { name: 'More actions' }).getByRole('button', { name: 'Location' })
+      page.getByRole('dialog', { name: 'More actions' }).getByRole('button', { name: 'Metadata' })
     ).toBeVisible();
   });
 
@@ -287,15 +287,8 @@ test.describe('map on touch', { tag: '@touch' }, () => {
     });
     await page.goto('/photos');
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
-    await page
-      .getByRole('dialog', { name: 'More actions' })
-      .getByRole('button', { name: 'Location' })
-      .tap();
-    await page
-      .getByRole('dialog', { name: 'Location' })
-      .getByRole('button', { name: 'Choose on map…' })
-      .tap();
+    const sheet = await openTouchLocation(page);
+    await sheet.getByRole('button', { name: 'Choose on map…' }).tap();
     const dialog = page.getByRole('dialog', { name: 'Set location' });
     await expect(dialog).toContainText('Move the map under the pin');
     const map = dialog.getByRole('region', { name: 'Location map' });

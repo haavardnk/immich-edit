@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planShifts, shiftCaption, shiftText, wholeMinutes } from './captureShift';
+import { planShifts, shiftCaption, wholeMinutes } from './captureShift';
 
 const OSLO_WINTER = Date.UTC(2026, 0, 15, 10);
 const OSLO_SUMMER = Date.UTC(2026, 6, 15, 10);
@@ -71,21 +71,18 @@ describe('capture time shifts', () => {
       { id: 'm4', minutes: 30 }
     ]);
     expect(plan.minutes).toBeNull();
-    expect(shiftCaption(plan, 'Europe/Oslo', ['A7M3 5 h earlier', 'A7M4 30 min later'])).toBe(
-      'A7M3 5 h earlier · A7M4 30 min later'
+    expect(shiftCaption(plan, 'Europe/Oslo', ['A7M3 −5:00:00', 'A7M4 +0:30:00'])).toBe(
+      'A7M3 −5:00:00 · A7M4 +0:30:00'
     );
   });
 
-  it('names the shift simply', () => {
-    expect(shiftText(-62)).toBe('1 h 02 min earlier');
-    expect(shiftText(5)).toBe('5 min later');
-    expect(shiftText(-300)).toBe('5 h earlier');
+  it('names the shift as the stepper writes it', () => {
     const plan = planShifts(
       [{ id: 'w', instant: OSLO_WINTER, recorded: false, correctionMs: -62 * 60_000 }],
       'America/New_York'
     );
     expect(shiftCaption(plan, 'America/New_York')).toBe(
-      '1 h 02 min earlier · America/New York for 1 without a zone'
+      'Shift −1:02:00 · America/New York for 1 without a zone'
     );
   });
 });

@@ -17,7 +17,8 @@ roadmap promise.
 | Multi-faceted filters (rating, label, reject, camera, lens, place, date, size, etc.) | ✓ Yes | Persisted in URL; ranges/multi-pick expand on Immich 3.2+ |
 | Saved views and per-view sort order | ✓ Yes | Stored per account |
 | Ratings, favorites, tags, color labels, rejects, descriptions | ✓ Yes | Written to Immich after one-time consent; owned photos only |
-| Edit capture dates or arbitrary EXIF fields | ✗ No | — |
+| Bulk capture time: shift, set by a photo, sync cameras, one time for all | ✓ Yes | [Metadata](../editing/metadata.md); owned photos |
+| Title, creator, copyright, camera, lens, and exposure fields | ✗ No | Immich cannot store them |
 | Map view of geotagged photos and photo info mini map | ✓ Yes | [Map and geotagging](../editing/map.md) |
 | Set, move, drag-drop, bulk, and copy/paste photo locations | ✓ Yes | Owned photos; Immich cannot clear GPS in bulk |
 | Saved and recent places, coordinates and map links in place search | ✓ Yes | [Map and geotagging](../editing/map.md#saved-and-recent-places) |

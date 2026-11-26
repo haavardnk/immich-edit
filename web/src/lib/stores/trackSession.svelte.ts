@@ -1,12 +1,12 @@
 import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
-import { planShifts, shiftCaption, shiftText, type ShiftPlan } from '#lib/metadata/captureShift.ts';
+import { planShifts, shiftCaption, type ShiftPlan } from '#lib/metadata/captureShift.ts';
 import { correctTimes } from '#lib/metadata/captureTimeOps.ts';
 import { bestFit, type Fit } from '#lib/geotag/bestFit.ts';
 import { CameraClocks } from '#lib/metadata/cameraClocks.svelte.ts';
 import { cameraKey, camerasOf, type Camera } from '#lib/metadata/cameras.ts';
-import { clocksText, driftText } from '#lib/metadata/clockText.ts';
+import { cameraShiftText, clocksText, correctionText } from '#lib/metadata/clockText.ts';
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
 import { cameraTime, deviceZone } from '#lib/metadata/photoTime.ts';
 import { cellOf, namePlaces } from '#lib/geotag/placeNames.ts';
@@ -168,7 +168,7 @@ export class TrackSession {
       this.zone,
       this.cameras.flatMap((camera) => {
         const minutes = Math.round(this.clocks.of(camera.key) / MINUTE);
-        return minutes === 0 ? [] : [`${camera.label} ${shiftText(minutes)}`];
+        return minutes === 0 ? [] : [`${camera.label} ${correctionText(minutes * MINUTE)}`];
       })
     )
   );
@@ -189,8 +189,8 @@ export class TrackSession {
     return this.clocks.of(this.#cameraIds.get(id) ?? '');
   }
 
-  driftOf(key: string): string {
-    return driftText(this.clocks.of(key));
+  shiftTextOf(key: string): string {
+    return cameraShiftText(this.clocks.of(key));
   }
 
   #near(asset: AssetSummary): boolean {

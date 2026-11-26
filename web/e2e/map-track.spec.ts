@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { bulkBar } from './browse';
+import { openBulkLocation, openTouchLocation } from './browse';
 import { installMocks, numberedAssets } from './helpers';
 import { CaptureTimeMock } from './captureTimeMocks';
 import { BERGEN, pointOnMap } from './mapFixtures';
@@ -50,7 +50,7 @@ test('a track places a selection after the camera clock is lined up', async ({ p
     await tile.hover();
     await tile.getByRole('button', { name: 'Select', exact: true }).click();
   }
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   await page
     .getByRole('group', { name: 'Location' })
     .getByRole('button', { name: 'Match to a track…' })
@@ -62,14 +62,14 @@ test('a track places a selection after the camera clock is lined up', async ({ p
   await loadTrack(page);
 
   const fit = panel.getByRole('group', { name: 'Best fit' });
-  await expect(fit).toContainText('Best fit: Camera 1 h fast');
+  await expect(fit).toContainText('Best fit: −1:00:00');
   await expect(fit).toContainText('Puts 2 of 3 photos on the track');
   await expect(panel.getByRole('button', { name: 'Place 0 photos' })).toBeDisabled();
   await fit.getByRole('button', { name: 'Use best fit' }).click();
   await expect(fit).toHaveCount(0);
-  await expect(clockSetup(panel)).toContainText('Camera 1 h fast');
+  await expect(clockSetup(panel)).toContainText('Shift −1:00:00');
   await clockSetup(panel).click();
-  await expect(panel.getByRole('textbox', { name: 'Clock correction' })).toHaveValue('−1:00:00');
+  await expect(panel.getByRole('textbox', { name: 'Shift by' })).toHaveValue('−1:00:00');
 
   const photos = panel.getByRole('list', { name: 'Photos on the track' });
   await expect(photos).toContainText('On the track');
@@ -89,7 +89,7 @@ test('a track places a selection after the camera clock is lined up', async ({ p
   await expect(panel).toHaveCount(0);
 });
 
-test('placing can correct the capture time too, and one Undo reverts both', async ({ page }) => {
+test('placing can change the capture time too, and one Undo reverts both', async ({ page }) => {
   const written: Written[] = [];
   const times = new CaptureTimeMock();
   await installMocks(page, {
@@ -103,16 +103,18 @@ test('placing can correct the capture time too, and one Undo reverts both', asyn
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
-  const fix = panel.getByRole('checkbox', { name: 'Correct the capture time of 2 photos' });
-  await expect(panel.getByRole('checkbox', { name: /Correct the capture time/ })).toHaveCount(0);
+  const fix = panel.getByRole('checkbox', { name: 'Change the capture time of 2 photos' });
+  await expect(panel.getByRole('checkbox', { name: /Change the capture time/ })).toHaveCount(0);
 
   await panel.getByRole('button', { name: 'Use best fit' }).click();
   await expect(fix).not.toBeChecked();
-  await expect(panel).toContainText('1 h earlier');
+  await expect(panel.locator('label').filter({ hasText: 'Change the capture time' })).toContainText(
+    'Shift −1:00:00'
+  );
   await fix.check();
   await panel.getByRole('button', { name: 'Place 2 photos' }).click();
 
-  await expect(page.getByText('Placed 2 photos and corrected their capture time')).toBeVisible();
+  await expect(page.getByText('Placed 2 photos and changed their capture time')).toBeVisible();
   expect(written).toHaveLength(2);
   expect(times.calls).toEqual([
     [
@@ -147,22 +149,22 @@ test('each camera keeps its own clock', async ({ page }) => {
   await loadTrack(page);
 
   const fit = panel.getByRole('group', { name: 'Best fit' });
-  await expect(fit).toContainText('Best fit for ILCE-7M3: 1 h fast');
+  await expect(fit).toContainText('Best fit for ILCE-7M3: −1:00:00');
   await expect(panel.getByRole('button', { name: 'Place 1 photo' })).toBeVisible();
   await fit.getByRole('button', { name: 'Use best fit' }).click();
-  await expect(clockSetup(panel)).toContainText('ILCE-7M3 1 h fast · 1 camera unchanged');
+  await expect(clockSetup(panel)).toContainText('ILCE-7M3 −1:00:00 · 1 camera unchanged');
   await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
 
   await clockSetup(panel).click();
-  const correction = panel.getByRole('textbox', { name: 'Clock correction' });
-  await expect(correction).toHaveValue('−1:00:00');
+  const shift = panel.getByRole('textbox', { name: 'Shift by' });
+  await expect(shift).toHaveValue('−1:00:00');
   await panel.getByRole('button', { name: 'Camera: ILCE-7M3' }).click();
   await page.getByRole('button', { name: /iPhone 15 Pro/ }).click();
-  await expect(correction).toHaveValue('+0:00:00');
+  await expect(shift).toHaveValue('+0:00:00');
   await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
 });
 
-test('typing a correction moves the photos along the track', async ({ page }) => {
+test('typing a shift moves the photos along the track', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
   await page.getByRole('button', { name: 'Match track' }).click();
@@ -172,12 +174,12 @@ test('typing a correction moves the photos along the track', async ({ page }) =>
   await expect(panel).toContainText('photos taken during the track');
   await clockSetup(panel).click();
 
-  const correction = panel.getByRole('textbox', { name: 'Clock correction' });
-  await correction.fill('-0:55');
-  await correction.press('Enter');
-  await expect(clockSetup(panel)).toContainText('Camera 55 min fast');
+  const shift = panel.getByRole('textbox', { name: 'Shift by' });
+  await shift.fill('-0:55');
+  await shift.press('Enter');
+  await expect(clockSetup(panel)).toContainText('Shift −0:55:00');
   await panel.getByRole('button', { name: 'One minute earlier' }).click();
-  await expect(correction).toHaveValue('−0:56:00');
+  await expect(shift).toHaveValue('−0:56:00');
   await panel.getByRole('button', { name: 'Close track' }).click();
   await expect(panel).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Photos in view' })).toBeVisible();
@@ -290,9 +292,7 @@ test.describe('a camera without a time zone', () => {
     await clockSetup(panel).click();
     const clock = panel.getByRole('region', { name: 'Camera clock' });
     await expect(clock).toContainText('from the track');
-    await expect(clock.getByRole('combobox', { name: 'Camera time zone' })).toHaveValue(
-      /Europe\/Oslo/
-    );
+    await expect(clock.getByRole('combobox', { name: 'Time zone' })).toHaveValue(/Europe\/Oslo/);
     await expect(panel.getByRole('button', { name: '2 on track' })).toBeVisible();
   });
 });
@@ -314,11 +314,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await open(page, written);
     await page.goto('/photos');
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
-    await page
-      .getByRole('dialog', { name: 'More actions' })
-      .getByRole('button', { name: 'Location' })
-      .tap();
+    await openTouchLocation(page);
     await page
       .getByRole('dialog', { name: 'Location' })
       .getByRole('button', { name: 'Match to a track…' })
@@ -373,7 +369,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     );
   });
 
-  test('the phone sheet offers the capture time correction', async ({ page }, info) => {
+  test('the phone sheet offers the capture time change', async ({ page }, info) => {
     test.skip(info.project.name !== 'touch-phone', 'phone sheet');
     const times = new CaptureTimeMock();
     await installMocks(page, {
@@ -388,7 +384,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await lineUpOnTouch(page);
     await page.getByRole('button', { name: 'Resize sheet' }).tap();
     const sheet = page.locator('[data-track-sheet]');
-    const fix = sheet.getByRole('checkbox', { name: 'Correct the capture time of 2 photos' });
+    const fix = sheet.getByRole('checkbox', { name: 'Change the capture time of 2 photos' });
     await fix.tap();
     await expect(fix).toBeChecked();
     await sheet.getByRole('button', { name: 'Place 2 photos' }).tap();
