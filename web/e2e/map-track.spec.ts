@@ -167,7 +167,7 @@ test('typing a correction moves the photos along the track', async ({ page }) =>
   await page.goto('/map');
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
-  await expect(panel).toContainText('Drop a GPX, KML or TCX file');
+  await expect(panel).toContainText('Choose GPX, KML or TCX files');
   await loadTrack(page);
   await expect(panel).toContainText('photos taken during the track');
   await clockSetup(panel).click();
@@ -254,6 +254,23 @@ test('photo markers under the track let the pins be hovered', async ({ page }) =
   await expect(page.locator('[data-pin-preview]')).toContainText('IMG_0001.ARW');
 });
 
+function trackBox(page: Page): Locator {
+  return page
+    .getByRole('region', { name: 'Track' })
+    .getByRole('button', { name: /Choose GPX, KML or TCX files/ });
+}
+
+test('the whole track box opens the file picker', async ({ page }) => {
+  await open(page, []);
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  await expect(trackBox(page)).toContainText('or drop them on the map');
+  const chooser = page.waitForEvent('filechooser');
+  await trackBox(page).click({ position: { x: 8, y: 8 } });
+  await (await chooser).setFiles(GPX);
+  await expect(page.getByText('Hardangervidda')).toBeVisible();
+});
+
 test.describe('a camera without a time zone', () => {
   test.use({ timezoneId: 'America/New_York' });
 
@@ -281,6 +298,17 @@ test.describe('a camera without a time zone', () => {
 });
 
 test.describe('track matching on touch', { tag: '@touch' }, () => {
+  test('a tap anywhere on the track box opens the file picker', async ({ page }) => {
+    await open(page, []);
+    await page.goto('/map');
+    await page.getByRole('button', { name: 'Match track' }).tap();
+    await expect(trackBox(page)).not.toContainText('drop');
+    const chooser = page.waitForEvent('filechooser');
+    await trackBox(page).tap({ position: { x: 8, y: 8 } });
+    await (await chooser).setFiles(GPX);
+    await expect(page.getByText('Hardangervidda')).toBeVisible();
+  });
+
   test('the More sheet opens track matching for a selection', async ({ page }) => {
     const written: Written[] = [];
     await open(page, written);
