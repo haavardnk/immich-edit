@@ -8,7 +8,7 @@ use crate::gpu::renderer::GpuRenderer;
 use crate::gpu::renderer::detail::{NoiseHistogram, NoiseProfile};
 use crate::gpu::renderer::resample::Resample;
 use crate::gpu::source::LinearSource;
-use crate::tile::{Rect, SensorTile, Warp};
+use crate::tile::{Rect, SensorTile};
 use crate::timing;
 
 impl GpuRenderer {
@@ -53,16 +53,17 @@ impl GpuRenderer {
             }
         })?;
         job.check()?;
+        let mut identity = job.cached.then(|| Self::base_identity(frame, &cached));
         if let Some((plane, mix)) = job.denoise {
+            identity = identity.map(|_| self.denoise_identity(frame, &cached, plane, &mix));
             cached = t.stage(timing::AI_DENOISE, || {
                 self.submit_denoise_blend(frame, &cached, plane, mix, job.cached)
             })?;
             job.check()?;
         }
         for (warp, &dst) in shape.chain.warps.iter().zip(&tile.rects[1..]) {
-            cached = t.stage(timing::LENS, || match warp {
-                Warp::Dng(dng) => self.submit_dng_warp(&cached, dng, dst, shape.sensor()),
-                Warp::Lens(lens) => self.submit_sensor(&cached, lens, dst, shape.sensor()),
+            (cached, identity) = t.stage(timing::LENS, || {
+                self.sensor_warp(&cached, warp, dst, shape.sensor(), identity)
             });
             job.check()?;
         }

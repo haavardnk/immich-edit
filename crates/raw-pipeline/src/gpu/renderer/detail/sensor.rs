@@ -1,20 +1,101 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use wgpu::{BindGroupLayout, CommandEncoderDescriptor, ComputePipeline, TextureUsages};
 
 use crate::edits::LensEdits;
+use crate::frame::RawFrame;
 use crate::geom::dng_warp::DngWarp;
 use crate::gpu::dispatch::{bind_group, dispatch_2d, tex};
 use crate::gpu::helpers::mip_count;
 use crate::gpu::passes::dng_warp::DngWarpParams;
 use crate::gpu::passes::sensor::SensorParams;
+use crate::gpu::renderer::stage_cache::Stage;
 use crate::gpu::renderer::{GpuRenderer, SensorFrame};
 use crate::gpu::texture::{STORAGE_SAMPLED, mip_view, texture_2d};
 use crate::gpu::uniform_pool::PooledUniform;
-use crate::tile::Rect;
+use crate::tile::{Rect, Warp};
+
+fn hash_rect(rect: Rect, h: &mut impl Hasher) {
+    (rect.x, rect.y, rect.w, rect.h).hash(h);
+}
+
+fn hash_warp(warp: &Warp, h: &mut impl Hasher) {
+    match warp {
+        Warp::Lens(lens) => {
+            0u8.hash(h);
+            lens.hash_key(h);
+        }
+        Warp::Dng(dng) => {
+            1u8.hash(h);
+            let planes = dng
+                .planes
+                .iter()
+                .flat_map(|p| p.radial.iter().chain(&p.tangential));
+            for v in dng.center.iter().chain(planes) {
+                v.to_bits().hash(h);
+            }
+        }
+    }
+}
+
+fn warp_key(input: u64, warp: &Warp, src: Rect, dst: Rect, frame: (u32, u32)) -> u64 {
+    let mut h = DefaultHasher::new();
+    input.hash(&mut h);
+    hash_warp(warp, &mut h);
+    hash_rect(src, &mut h);
+    hash_rect(dst, &mut h);
+    frame.hash(&mut h);
+    h.finish()
+}
 
 impl GpuRenderer {
-    pub(in crate::gpu::renderer) fn submit_sensor(
+    pub fn warp_passes(&self) -> u64 {
+        self.sensor.warps.load(Ordering::Relaxed)
+    }
+
+    pub(in crate::gpu::renderer) fn base_identity(frame: &RawFrame, src: &SensorFrame) -> u64 {
+        let mut h = DefaultHasher::new();
+        frame.id.hash(&mut h);
+        src.block.hash(&mut h);
+        hash_rect(src.rect, &mut h);
+        h.finish()
+    }
+
+    pub(in crate::gpu::renderer) fn sensor_warp(
+        &self,
+        src: &Arc<SensorFrame>,
+        warp: &Warp,
+        dst: Rect,
+        frame: (u32, u32),
+        input: Option<u64>,
+    ) -> (Arc<SensorFrame>, Option<u64>) {
+        let key = input.map(|input| warp_key(input, warp, src.rect, dst, frame));
+        if let Some(texture) = key.and_then(|key| self.sensor.stages.get(Stage::Warp, key)) {
+            tracing::debug!(target: "gpu_cache", "warp cache hit");
+            let warped = Arc::new(SensorFrame {
+                texture,
+                rect: dst,
+                block: src.block,
+            });
+            return (warped, key);
+        }
+        let warped = match warp {
+            Warp::Dng(dng) => self.submit_dng_warp(src, dng, dst, frame),
+            Warp::Lens(lens) => self.submit_sensor(src, lens, dst, frame),
+        };
+        self.sensor.warps.fetch_add(1, Ordering::Relaxed);
+        if let Some(key) = key {
+            self.sensor
+                .stages
+                .put(Stage::Warp, key, warped.texture.clone());
+        }
+        (warped, key)
+    }
+
+    fn submit_sensor(
         &self,
         src: &Arc<SensorFrame>,
         lens: &LensEdits,
@@ -34,7 +115,7 @@ impl GpuRenderer {
         )
     }
 
-    pub(in crate::gpu::renderer) fn submit_dng_warp(
+    fn submit_dng_warp(
         &self,
         src: &Arc<SensorFrame>,
         warp: &DngWarp,

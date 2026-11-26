@@ -36,6 +36,16 @@ fn blend_key(frame: &RawFrame, src: &SensorFrame, plane: &DenoisePlane, mix: &De
 }
 
 impl GpuRenderer {
+    pub(in crate::gpu::renderer) fn denoise_identity(
+        &self,
+        frame: &RawFrame,
+        src: &SensorFrame,
+        plane: &DenoisePlane,
+        mix: &DenoiseMix,
+    ) -> u64 {
+        blend_key(frame, src, plane, mix)
+    }
+
     pub fn denoise_blends(&self) -> u64 {
         self.sensor.denoise_blends.load(Ordering::Relaxed)
     }
