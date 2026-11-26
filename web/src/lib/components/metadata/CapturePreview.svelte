@@ -22,7 +22,8 @@
 </script>
 
 {#snippet rowBody(row: PreviewRow)}
-  {@const withDay = !sameDay(row.before, row.after) || editor.mode === 'once'}
+  {@const withDay =
+    !sameDay(row.before, row.after) || editor.mode === 'once' || editor.mode === 'name'}
   <img
     src={thumbUrl(row.photo.id, 'thumbnail')}
     alt=""

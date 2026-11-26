@@ -18,9 +18,13 @@ It holds **Capture time** and **Location**; changes write back to Immich for pho
   difference becomes that camera's shift.
 - **One time for all**: assign one date and time to the selection, spaced one second apart by file
   name so scans keep their order.
+- **From file name**: read the date from WhatsApp, Pixel, Samsung, Signal, and screenshot names.
+  WhatsApp names carry only a date, so those photos keep their time of day; names without a date
+  are left alone.
 
 When a selection includes multiple cameras, **Camera** scopes shifts and time zones per camera so a
-drifted camera can be aligned with a phone (**One time for all** always updates every photo).
+drifted camera can be aligned with a phone (**One time for all** always updates every photo). With
+one photo selected, only **Shift** and **From file name** are offered.
 
 **Time zone** starts at **As shot** and switches the photos to another zone. Once changed, **Camera
 time zone** sets the zone the camera was left on (for example `13:05 on the camera → 19:05 in

@@ -74,7 +74,7 @@ async function expectOneSize(
 ): Promise<void> {
   const modes = dialog.getByRole('radiogroup', { name: 'How to change the capture time' });
   const chips = await modes.getByRole('radio').all();
-  expect(chips).toHaveLength(3);
+  expect(chips).toHaveLength(4);
   await settleAnimations(page);
   const first = (await dialog.boundingBox())!;
   for (const chip of chips) {
@@ -286,7 +286,7 @@ test('one photo offers only the modes that fit one photo', async ({ page }) => {
   await pick(page, SONY_1!.originalFileName);
   const dialog = await openEditor(page);
   const modes = dialog.getByRole('radiogroup', { name: 'How to change the capture time' });
-  await expect(modes.getByRole('radio')).toHaveText(['Shift']);
+  await expect(modes.getByRole('radio')).toHaveText(['Shift', 'From file name']);
   await settleAnimations(page);
   const change = (await dialog.getByRole('region', { name: 'Change' }).boundingBox())!;
   for (const field of [
@@ -340,6 +340,35 @@ test('the info panel moves one photo to another zone and keeps its shown time', 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Changed the capture time of 1 photo')).toBeVisible();
   expect(times.calls[0]).toEqual([{ id: PHONE_1!.id, minutes: -360, timeZone: 'Asia/Bangkok' }]);
+});
+
+test('dates in file names become capture times and other names are left alone', async ({
+  page
+}) => {
+  const times = new CaptureTimeMock();
+  const named = numberedAssets(3).map((asset, index) => ({
+    ...asset,
+    originalFileName: ['IMG-20231105-WA0001.jpg', 'PXL_20240712_181522347.jpg', 'IMG_0042.JPG'][
+      index
+    ]!,
+    localDateTime: '2026-11-26T08:14:02.000Z',
+    fileCreatedAt: '2026-11-26T08:14:02.000Z',
+    exifInfo: { make: null, model: null, dateTimeOriginal: null, timeZone: null }
+  }));
+  await installMocks(page, { assets: named, captureTime: times, metadataPushConsented: true });
+  await page.goto('/photos');
+  for (const asset of named) await pick(page, asset.originalFileName);
+  const dialog = await openEditor(page);
+  await dialog.getByRole('radio', { name: 'From file name' }).click();
+  const found = dialog.getByRole('list', { name: 'Dates found in file names' });
+  await expect(found).toContainText('WhatsApp');
+  await expect(found).toContainText('No date in name');
+  await dialog.getByRole('button', { name: 'Apply to 2 photos' }).click();
+  await expect.poll(() => times.calls.length).toBe(1);
+  expect(times.calls[0]).toEqual([
+    { id: named[0]!.id, at: '2023-11-05T07:14:02.000Z', timeZone: 'Europe/Oslo' },
+    { id: named[1]!.id, at: '2024-07-12T18:15:22.347Z', timeZone: 'Europe/Oslo' }
+  ]);
 });
 
 test.describe('capture time on touch', { tag: '@touch' }, () => {
