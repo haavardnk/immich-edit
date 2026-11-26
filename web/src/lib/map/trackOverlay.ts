@@ -40,25 +40,13 @@ interface Colors {
   text: string;
 }
 
-function asRgb(color: string): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return color;
-  context.fillStyle = color;
-  context.fillRect(0, 0, 1, 1);
-  const [red = 0, green = 0, blue = 0, alpha = 255] = context.getImageData(0, 0, 1, 1).data;
-  return `rgba(${red}, ${green}, ${blue}, ${(alpha / 255).toFixed(3)})`;
-}
-
 function probe(host: HTMLElement, className: string): string {
   const span = document.createElement('span');
   span.className = className;
   host.append(span);
   const color = getComputedStyle(span).color;
   span.remove();
-  return asRgb(color);
+  return color;
 }
 
 function colors(host: HTMLElement): Colors {

@@ -76,7 +76,6 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/components/editor/crop/CropHandles.svelte': ['bg-white', 'border-white'],
   '/src/lib/map/markerElements.ts': ['ring-white', 'ring-white/60', 'ring-white/90'],
   '/src/lib/map/photoDrag.svelte.ts': ['ring-white'],
-  '/src/lib/map/trackOverlay.ts': ['rgba('],
   '/src/lib/components/editor/FloatingScope.svelte': [
     'bg-black/45',
     'bg-black/60',
