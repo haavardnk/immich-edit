@@ -53,11 +53,11 @@
     "@internationalized/date": "3.12.4",
     "@mdi/js": "^7.4.47",
     "@photostructure/tz-lookup": "11.8.0",
-    "@tmcw/togeojson": "7.1.3",
+    "@tmcw/togeojson": "7.1.4",
     "bits-ui": "2.21.0",
     "justified-layout": "^4.1.0",
     "luxon": "^3.7.2",
-    "maplibre-gl": "6.17.0",
+    "maplibre-gl": "6.19.0",
     "tailwind-merge": "3.7.1",
     "thumbhash": "^0.1.1",
     "uuid": "^14.0.3"
