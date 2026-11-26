@@ -1,6 +1,6 @@
 import { getJson, request, sendJson, url } from './client';
 import type { AssetDetail } from '#lib/types/asset.ts';
-import type { CaptureShift } from '#lib/browse/captureShift.ts';
+import type { CaptureShift } from '#lib/metadata/captureShift.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { fnv1a } from '#lib/utils/hash.ts';

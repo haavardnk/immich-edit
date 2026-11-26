@@ -1,4 +1,9 @@
-import { clockDrift, clocksText, correctionText, parseCorrection } from '#lib/geotag/clockText.ts';
+import {
+  clockDrift,
+  clocksText,
+  correctionText,
+  parseCorrection
+} from '#lib/metadata/clockText.ts';
 import { describe, expect, it } from 'vitest';
 
 const H = 3_600_000;
@@ -19,12 +24,24 @@ describe('clock correction text', () => {
     expect(parseCorrection('1:60')).toBeNull();
     expect(parseCorrection('25')).toBeNull();
     expect(parseCorrection('soon')).toBeNull();
+    expect(parseCorrection('')).toBeNull();
+  });
+
+  it('writes and reads days when the limit allows them', () => {
+    const year = 365 * 24 * H;
+    expect(correctionText(3 * 24 * H + 4 * H)).toBe('+3 d 4:00:00');
+    expect(parseCorrection('+3 d 4:00:00', year)).toBe(3 * 24 * H + 4 * H);
+    expect(parseCorrection('-10 d', year)).toBe(-10 * 24 * H);
+    expect(parseCorrection('3 d 24:00', year)).toBeNull();
+    expect(parseCorrection('3 d')).toBeNull();
+    expect(parseCorrection('400 d', year)).toBeNull();
   });
 
   it('says which way the camera clock is off', () => {
     expect(clockDrift(-(H + 2 * M + 14_000))).toBe('Camera 1 h 02 min 14 s fast');
     expect(clockDrift(3 * M)).toBe('Camera 03 min slow');
     expect(clockDrift(0)).toBe('No correction');
+    expect(clockDrift(2 * 24 * H + H)).toBe('Camera 2 d 1 h slow');
   });
 
   it('names each corrected camera and counts the rest', () => {

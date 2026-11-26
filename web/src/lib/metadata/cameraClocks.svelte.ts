@@ -1,4 +1,4 @@
-import type { Camera } from '#lib/geotag/cameras.ts';
+import type { Camera } from '#lib/metadata/cameras.ts';
 
 export class CameraClocks {
   #corrections = $state<Record<string, number>>({});

@@ -1,6 +1,6 @@
-import { clockOfDay } from '#lib/geotag/clockText.ts';
+import { clockOfDay } from '#lib/metadata/clockText.ts';
 import type { PhotoMatch } from '#lib/geotag/match.ts';
-import type { CameraTime } from '#lib/geotag/photoTime.ts';
+import type { CameraTime } from '#lib/metadata/photoTime.ts';
 
 export type MatchTone = 'ok' | 'out' | 'kept';
 

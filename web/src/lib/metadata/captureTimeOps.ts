@@ -1,6 +1,6 @@
 import { shiftCaptureTimes } from '#lib/api/assets.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
-import type { CaptureShift, ShiftPlan } from '#lib/browse/captureShift.ts';
+import type { CaptureShift, ShiftPlan } from '#lib/metadata/captureShift.ts';
 import type { FollowUp } from '#lib/browse/locationOps.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';

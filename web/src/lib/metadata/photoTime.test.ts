@@ -3,7 +3,7 @@ import {
   offsetLabel,
   wallToInstant,
   zoneOffsetMinutes
-} from '#lib/geotag/photoTime.ts';
+} from '#lib/metadata/photoTime.ts';
 import { asset } from '#lib/testing/assets.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { describe, expect, it } from 'vitest';
