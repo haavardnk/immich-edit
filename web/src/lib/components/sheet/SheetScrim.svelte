@@ -9,6 +9,7 @@
     {@const ending = 'data-ending-style' in props}
     <div
       {...props}
+      data-sheet-scrim
       data-leaving={leaving || ending ? '' : undefined}
       class="fixed inset-0 z-50 {tone === 'light'
         ? 'bg-black/20'

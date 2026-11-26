@@ -3,7 +3,9 @@
   import { mdiClose } from '@mdi/js';
   import { Dialog } from 'bits-ui';
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import { leaveBehind, sheetParts, type SheetParts } from '#lib/components/sheet/sheetGhost.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
 
   let {
@@ -26,15 +28,30 @@
     children: Snippet;
   } = $props();
 
+  let sheet: SheetParts | null = null;
+  let slidAway = false;
+
+  const keepSheet: Attachment<HTMLElement> = (content) => {
+    sheet = sheetParts(content);
+    slidAway = false;
+  };
+
   function closeSheet(next: boolean): void {
-    if (!next) onClose();
+    if (next) return;
+    slidAway = true;
+    onClose();
   }
+
+  $effect(() => () => {
+    if (sheet && !slidAway && layout.mode === 'touch') leaveBehind(sheet);
+  });
 </script>
 
 {#if layout.mode === 'touch'}
   <BottomSheet
     open
     onOpenChange={closeSheet}
+    {@attach keepSheet}
     {title}
     {subtitle}
     close="icon"
