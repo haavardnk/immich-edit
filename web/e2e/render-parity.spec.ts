@@ -5,7 +5,7 @@ import { webgpu } from './webgpu';
 
 const web = path.resolve(import.meta.dirname, '..');
 const fixtures = path.join(web, 'e2e/fixtures/render');
-const cases = ['fit', 'tile'];
+const cases = ['fit', 'tile', 'lens_blur'];
 const dcp = JSON.parse(fs.readFileSync(path.join(fixtures, 'fit/case.json'), 'utf8')).dcp;
 const MIN_PSNR = 50;
 
@@ -20,7 +20,10 @@ const shared: Record<string, [string, string]> = {
 function fixture(name: string): [string, string] | undefined {
   const [dir = '', file] = name.split('/');
   if (!file) return shared[dir];
-  if (!cases.includes(dir) || !['case.json', 'source.iesr', 'expected.rgb'].includes(file)) {
+  if (
+    !cases.includes(dir) ||
+    !['case.json', 'source.iesr', 'expected.rgb', 'depth.r8'].includes(file)
+  ) {
     return undefined;
   }
   return [path.join(fixtures, dir, file), 'application/octet-stream'];
