@@ -1,10 +1,15 @@
 {
-  "latest": "v0.8.1",
+  "latest": "v0.8.2",
   "versions": [
     {
-      "id": "v0.8.1",
-      "label": "v0.8.1 (latest)",
+      "id": "v0.8.2",
+      "label": "v0.8.2 (latest)",
       "base": "/"
+    },
+    {
+      "id": "v0.8.1",
+      "label": "v0.8.1",
+      "base": "/v0.8.1"
     },
     {
       "id": "main",
