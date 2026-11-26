@@ -189,7 +189,7 @@ async fn export_immich_resume_keeps_render_warnings() {
         asset_id: asset,
         key: "key-1",
     };
-    let rendered = "Metadata not copied: no readable EXIF in the original";
+    let rendered = "Camera details not copied: no readable EXIF in the original";
     state
         .edits
         .put_export_job_uploaded(
@@ -381,7 +381,7 @@ async fn export_immich_keeps_capture_metadata_and_date() {
         let json = body_json(resp).await;
         let warned = json["warnings"].as_array().is_some_and(|w| {
             w.iter()
-                .any(|w| w.as_str().is_some_and(|w| w.starts_with("Metadata")))
+                .any(|w| w.as_str().is_some_and(|w| w.contains("not copied")))
         });
         if warned != want_warning {
             panic!("{label}: warnings {}", json["warnings"]);

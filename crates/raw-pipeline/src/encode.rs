@@ -11,6 +11,7 @@ mod working_set;
 use crate::frame::{BitDepth, OutputColorSpace, OutputFormat};
 use crate::metadata::ExportMetadata;
 use crate::metadata::exif::{self, ExifBlock};
+use little_exif::metadata::Metadata;
 
 pub use self::heif::{encode_avif_rgb, encode_heic_rgb};
 pub use self::jpeg::{encode_jpeg_rgb, encode_jpeg_rgba};
@@ -53,16 +54,38 @@ pub fn embedded(
     let Some(meta) = meta else {
         return (None, Vec::new());
     };
-    let Some(source) = meta.exif.as_ref() else {
-        return (
-            None,
-            vec!["Metadata not copied: no readable EXIF in the original".into()],
-        );
+    let empty = Metadata::new();
+    let (source, mut warnings) = match meta.exif.as_ref() {
+        Some(source) => (source, Vec::new()),
+        None if !meta.overrides.is_empty() => (
+            &empty,
+            vec!["Camera details not copied: no readable EXIF in the original".into()],
+        ),
+        None => {
+            return (
+                None,
+                vec!["Metadata not copied: no readable EXIF in the original".into()],
+            );
+        }
     };
     let budget = matches!(format, OutputFormat::Jpeg { .. }).then_some(jpeg::EXIF_BUDGET);
-    match exif::block(source, meta.location, budget, color_space, size) {
-        Ok(block) => (Some(block), Vec::new()),
-        Err(e) => (None, vec![format!("Metadata not copied: {e}")]),
+    let corrections = exif::Corrections {
+        overrides: &meta.overrides,
+        cleared: &meta.cleared,
+    };
+    match exif::block(
+        source,
+        meta.location,
+        corrections,
+        budget,
+        color_space,
+        size,
+    ) {
+        Ok(block) => (Some(block), warnings),
+        Err(e) => {
+            warnings.push(format!("Metadata not copied: {e}"));
+            (None, warnings)
+        }
     }
 }
 

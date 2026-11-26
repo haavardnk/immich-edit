@@ -138,22 +138,79 @@ fn within_budget(
     ))
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Corrections<'a> {
+    pub overrides: &'a [ExifTag],
+    pub cleared: &'a [u16],
+}
+
+fn is_gps(tag: &ExifTag) -> bool {
+    tag.get_group() == ExifTagGroup::GPS
+}
+
+fn degrees(sign: Option<&ExifTag>, dms: Option<&ExifTag>) -> Option<f64> {
+    let parts = match dms? {
+        ExifTag::GPSLatitude(v) | ExifTag::GPSLongitude(v) if v.len() == 3 => v,
+        _ => return None,
+    };
+    let value = parts
+        .iter()
+        .zip([1.0, 60.0, 3600.0])
+        .try_fold(0.0, |sum, (part, scale)| {
+            (part.denominator != 0)
+                .then(|| sum + f64::from(part.nominator) / f64::from(part.denominator) / scale)
+        })?;
+    let negative = matches!(
+        sign,
+        Some(ExifTag::GPSLatitudeRef(r) | ExifTag::GPSLongitudeRef(r)) if r.starts_with(['S', 'W'])
+    );
+    Some(if negative { -value } else { value })
+}
+
+fn coordinates<'a>(tags: impl Iterator<Item = &'a ExifTag> + Clone) -> Option<(f64, f64)> {
+    let find = |id: u16| tags.clone().find(|t| is_gps(t) && t.as_u16() == id);
+    Some((
+        degrees(find(0x0001), find(0x0002))?,
+        degrees(find(0x0003), find(0x0004))?,
+    ))
+}
+
+fn same_place(a: Option<(f64, f64)>, b: Option<(f64, f64)>) -> bool {
+    const EPSILON: f64 = 1e-6;
+    matches!((a, b), (Some(a), Some(b)) if (a.0 - b.0).abs() < EPSILON && (a.1 - b.1).abs() < EPSILON)
+}
+
 pub fn block(
     exif: &Metadata,
     location: bool,
+    corrections: Corrections<'_>,
     budget: Option<usize>,
     color_space: OutputColorSpace,
     (width, height): (u32, u32),
 ) -> crate::PipelineResult<ExifBlock> {
-    let tags: Vec<ExifTag> = exif
+    let source: Vec<&ExifTag> = exif
         .get_ifds()
         .iter()
         .filter(|ifd| ifd.get_generic_ifd_nr() == 0)
         .flat_map(|ifd| ifd.get_tags())
-        .filter(|t| is_copyable(t) && (location || t.get_group() != ExifTagGroup::GPS))
+        .collect();
+    let moved = corrections.overrides.iter().any(is_gps)
+        && !same_place(
+            coordinates(source.iter().copied()),
+            coordinates(corrections.overrides.iter()),
+        );
+    let tags: Vec<ExifTag> = source
+        .into_iter()
+        .filter(|t| is_copyable(t) && !corrections.cleared.contains(&t.as_u16()))
+        .filter(|t| !(is_gps(t) && (!location || moved)))
         .cloned()
         .collect();
-    let rewritten = [
+    let corrected = corrections
+        .overrides
+        .iter()
+        .filter(|t| !is_gps(t) || (location && moved))
+        .cloned();
+    let rewritten: Vec<ExifTag> = [
         ExifTag::Orientation(vec![1]),
         ExifTag::ColorSpace(vec![match color_space {
             OutputColorSpace::SRgb => 1,
@@ -162,7 +219,10 @@ pub fn block(
         ExifTag::ExifImageWidth(vec![width]),
         ExifTag::ExifImageHeight(vec![height]),
         ExifTag::Software(format!("immich-edit {}", crate::version())),
-    ];
+    ]
+    .into_iter()
+    .chain(corrected)
+    .collect();
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         within_budget(&tags, &rewritten, budget)
     }))
@@ -202,7 +262,15 @@ mod tests {
     }
 
     fn sanitized(src: &Metadata, location: bool, budget: Option<usize>) -> ExifBlock {
-        block(src, location, budget, OutputColorSpace::SRgb, (16, 16)).unwrap()
+        block(
+            src,
+            location,
+            Corrections::default(),
+            budget,
+            OutputColorSpace::SRgb,
+            (16, 16),
+        )
+        .unwrap()
     }
 
     fn text() -> String {

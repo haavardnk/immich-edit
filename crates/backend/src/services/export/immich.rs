@@ -201,7 +201,10 @@ pub async fn export_to_immich(
             state,
             identity,
             immich,
-            id,
+            ExportSource {
+                id,
+                known: Some(&original),
+            },
             body.edits.clamped(),
             &body.params,
             req.priority,

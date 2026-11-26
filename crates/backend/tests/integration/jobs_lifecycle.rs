@@ -53,7 +53,8 @@ async fn a_zip_item_reports_metadata_warnings() {
 
     let result = BatchExecutor::new(state).execute(job, item).await.unwrap();
 
-    if result["warnings"] != json!(["Metadata not copied: no readable EXIF in the original"]) {
+    if result["warnings"] != json!(["Camera details not copied: no readable EXIF in the original"])
+    {
         panic!("result {result}");
     }
 }

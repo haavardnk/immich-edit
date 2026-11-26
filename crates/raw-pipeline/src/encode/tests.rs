@@ -27,7 +27,15 @@ fn tagged() -> ExifBlock {
     source.set_tag(ExifTag::Model("ILCE-7M4".to_string()));
     source.set_tag(ExifTag::GPSLatitude(vec![59u32.into(); 3]));
     source.set_tag(ExifTag::GPSLatitudeRef("N".to_string()));
-    exif::block(&source, true, None, OutputColorSpace::SRgb, (16, 16)).unwrap()
+    exif::block(
+        &source,
+        true,
+        exif::Corrections::default(),
+        None,
+        OutputColorSpace::SRgb,
+        (16, 16),
+    )
+    .unwrap()
 }
 
 fn every_format() -> Vec<OutputFormat> {

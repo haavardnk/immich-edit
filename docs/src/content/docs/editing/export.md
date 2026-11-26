@@ -15,7 +15,9 @@ files on the server, either for one photo or a grid selection.
 - **Resize**: constrain by width × height, megapixels, or percentage, with optional upscaling.
 - **Output sharpening**: post-resize sharpening tuned for **Screen**, **Matte**, or **Glossy**
   paper at low, standard, or high strength.
-- **Metadata**: keep safe EXIF (all, all except GPS location, or none).
+- **Metadata**: keep safe EXIF (all, all except GPS location, or none). Capture time, time zone,
+  location, and description come from Immich, so corrections made there carry into the exported
+  file.
 - **Watermark**: overlay an admin-imported PNG watermark with configurable size, opacity, inset,
   and 9-point placement.
 - **Filenames**: format output names with `{name}`, `{date}`, `{seq}`, and `{preset}` tokens.
