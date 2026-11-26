@@ -27,4 +27,10 @@
   >
     <Icon icon={mdiChevronRight} size="16px" class="shrink-0 opacity-70" aria-hidden="true" />
   </MenuRow>
+  {#if bulkMetadata.copy}
+    <BulkActionRow action={bulkMetadata.copy} onPick={pick} />
+  {/if}
+  {#if bulkMetadata.paste}
+    <BulkActionRow action={bulkMetadata.paste} onPick={pick} />
+  {/if}
 </div>

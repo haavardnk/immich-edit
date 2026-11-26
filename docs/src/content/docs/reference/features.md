@@ -18,7 +18,7 @@ roadmap promise.
 | Saved views and per-view sort order | ✓ Yes | Stored per account |
 | Ratings, favorites, tags, color labels, rejects, descriptions | ✓ Yes | Written to Immich after one-time consent; owned photos only |
 | Bulk capture time: shift, set by a photo, sync cameras, one time for all, from file names | ✓ Yes | [Metadata](../editing/metadata.md); owned photos |
-| Bulk descriptions | ✓ Yes | [Metadata](../editing/metadata.md#description) |
+| Bulk descriptions and copy/paste of description, location, tags, and rating | ✓ Yes | [Metadata](../editing/metadata.md) |
 | Title, creator, copyright, camera, lens, and exposure fields | ✗ No | Immich cannot store them |
 | Map view of geotagged photos and photo info mini map | ✓ Yes | [Map and geotagging](../editing/map.md) |
 | Set, move, drag-drop, bulk, and copy/paste photo locations | ✓ Yes | Owned photos; Immich cannot clear GPS in bulk |

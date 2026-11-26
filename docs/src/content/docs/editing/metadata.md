@@ -1,11 +1,11 @@
 ---
 title: Metadata
-description: Fix capture times and time zones, and edit descriptions in bulk.
+description: Fix capture times and time zones, edit descriptions, and copy metadata between photos.
 ---
 
 Select photos in the grid and open **Metadata** in the bulk bar (**More** > **Metadata** on touch).
-It holds **Capture time**, **Description**, and **Location**; changes write back to Immich for
-photos you own.
+It holds **Capture time**, **Description**, **Location**, and **Copy** / **Paste metadata**;
+changes write back to Immich for photos you own.
 
 ## Capture time
 
@@ -38,3 +38,9 @@ For a single photo, open **Photo info** (`I`) and select its **Taken** value.
 **Description** sets one description across the selection. When values differ the field shows
 **Mixed**; pick an existing value to apply it to all, or select **Clear all**. Single-photo
 descriptions stay in **Photo info**.
+
+## Copy and paste metadata
+
+Select one photo and choose **Copy metadata**, then select target photos and choose **Paste
+metadata** to apply its description, location, tags, or rating. Your chosen fields are remembered;
+tags are added rather than replaced, and capture time is never copied.

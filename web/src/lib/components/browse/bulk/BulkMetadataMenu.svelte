@@ -76,5 +76,14 @@
         </MenuRow>
       {/snippet}
     </BulkLocationMenu>
+    {#if bulkMetadata.copy || bulkMetadata.paste}
+      <div class="my-1 h-px bg-hairline" role="separator"></div>
+    {/if}
+    {#if bulkMetadata.copy}
+      <BulkActionRow action={bulkMetadata.copy} onPick={pick} />
+    {/if}
+    {#if bulkMetadata.paste}
+      <BulkActionRow action={bulkMetadata.paste} onPick={pick} />
+    {/if}
   </div>
 </Popover>
