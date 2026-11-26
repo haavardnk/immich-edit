@@ -17,6 +17,7 @@
 
 <div class="flex flex-col" role="group" aria-label="Metadata">
   <BulkActionRow action={bulkMetadata.captureTime} onPick={pick} />
+  <BulkActionRow action={bulkMetadata.description} onPick={pick} />
   <MenuRow
     icon={mdiMapMarkerOutline}
     label="Location"

@@ -18,6 +18,7 @@
   import TagDetailsDialog from '#lib/components/library/TagDetailsDialog.svelte';
   import LocationPickerDialog from '#lib/components/map/LocationPickerDialog.svelte';
   import CaptureTimeDialog from '#lib/components/metadata/CaptureTimeDialog.svelte';
+  import DescriptionDialog from '#lib/components/metadata/DescriptionDialog.svelte';
   import Loupe from '#lib/components/browse/Loupe.svelte';
   import PeekView from '#lib/components/browse/PeekView.svelte';
   import { peek } from '#lib/browse/peek.svelte.ts';
@@ -103,6 +104,7 @@
 <TagConfirmDialog />
 <LocationPickerDialog />
 <CaptureTimeDialog />
+<DescriptionDialog />
 <JobsOverlay />
 <JobsTabStatus />
 <SignOutConfirm />

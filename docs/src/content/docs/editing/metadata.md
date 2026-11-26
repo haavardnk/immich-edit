@@ -1,10 +1,11 @@
 ---
 title: Metadata
-description: Fix capture times and time zones for owned photos in Immich.
+description: Fix capture times and time zones, and edit descriptions in bulk.
 ---
 
 Select photos in the grid and open **Metadata** in the bulk bar (**More** > **Metadata** on touch).
-It holds **Capture time** and **Location**; changes write back to Immich for photos you own.
+It holds **Capture time**, **Description**, and **Location**; changes write back to Immich for
+photos you own.
 
 ## Capture time
 
@@ -31,3 +32,9 @@ time zone** sets the zone the camera was left on (for example `13:05 on the came
 Bangkok`). Unzoned photos inherit your device's zone when their time changes.
 
 For a single photo, open **Photo info** (`I`) and select its **Taken** value.
+
+## Description
+
+**Description** sets one description across the selection. When values differ the field shows
+**Mixed**; pick an existing value to apply it to all, or select **Clear all**. Single-photo
+descriptions stay in **Photo info**.
