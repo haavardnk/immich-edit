@@ -18,6 +18,14 @@
         const initMs = performance.now() - started;
         renderer.set_dcp(await bytes('dcp'));
         renderer.set_lut(spec.lut_id, await bytes('lut.cube'));
+        for (const raster of spec.rasters ?? []) {
+          renderer.set_raster(
+            raster.id,
+            raster.width,
+            raster.height,
+            await bytes(`${name}/${raster.file}`)
+          );
+        }
         const source = await bytes(`${name}/source.iesr`);
         if (spec.view.tile) await renderer.set_tile(source);
         else await renderer.set_source(source);
