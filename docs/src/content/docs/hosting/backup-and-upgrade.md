@@ -57,6 +57,8 @@ read the log and restore your backup if rolling back.
 
 ## Notable version notes
 
+- **v0.8.2**: adds saved and recent place tables (not downgradeable to v0.8.1 without backup
+  restore).
 - **v0.8.0**: schema adds account preferences, saved views, snapshots, and export outputs (not
   downgradeable to v0.7.2 without backup restore). **Geometry** renamed to **Crop** (`Shift+R`);
   browser preview setting moved to **Settings** > **Preferences** > **Preview renderer**.
