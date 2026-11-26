@@ -30,9 +30,11 @@ impl SensorShape {
         let sensor = sensor_dims(frame, scale);
         let sigma =
             frame_sigma(frame, edits, scale).filter(|_| presence && sensor.0 >= 8 && sensor.1 >= 8);
+        let exact = geom::exact_preview_dims(frame.meta.orientation, edits, full, options.max_edge)
+            .filter(|_| options.roi.is_none());
         let working = ratio
             .filter(|_| presence)
-            .and_then(|ratio| geom::resample_target(sensor, ratio / scale as f32))
+            .and_then(|ratio| geom::preview_target(sensor, ratio / scale as f32, exact))
             .unwrap_or(sensor);
         let detail = if presence {
             let d = &edits.detail;

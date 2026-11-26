@@ -102,6 +102,36 @@ pub fn resample_target(src_dims: (u32, u32), ratio: f32) -> Option<(u32, u32)> {
     Some((w, h))
 }
 
+pub fn exact_preview_dims(
+    orientation: OrientFlips,
+    edits: &crate::edits::Edits,
+    src_dims: (u32, u32),
+    max_edge: u32,
+) -> Option<(u32, u32)> {
+    let g = &edits.geometry;
+    let cropped = g.crop.is_some_and(|c| !c.is_full());
+    let tilted = g.rotate_angle.abs() > 1e-4 || g.perspective.is_some_and(|p| !p.is_identity());
+    if cropped || tilted {
+        return None;
+    }
+    let (w, h) = display_out_dims(orientation, edits, src_dims, max_edge);
+    let transposed = orientation.0 ^ (g.rotate % 180 == 90);
+    Some(if transposed { (h, w) } else { (w, h) })
+}
+
+pub fn preview_target(
+    src_dims: (u32, u32),
+    ratio: f32,
+    exact: Option<(u32, u32)>,
+) -> Option<(u32, u32)> {
+    let target = resample_target(src_dims, ratio)?;
+    Some(
+        exact
+            .filter(|&(w, h)| w <= src_dims.0 && h <= src_dims.1)
+            .unwrap_or(target),
+    )
+}
+
 pub fn preview_ratio(
     orientation: OrientFlips,
     edits: &crate::edits::Edits,

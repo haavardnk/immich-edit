@@ -20,6 +20,44 @@ fn preview_ratio_cases() {
     }
 }
 
+#[test]
+fn a_straight_preview_downsamples_to_the_output_size() {
+    let mut edits = crate::edits::Edits::default();
+    let upright = (false, false, false);
+    assert_eq!(
+        exact_preview_dims(upright, &edits, (1026, 768), 384),
+        Some((384, 287))
+    );
+    assert_eq!(
+        exact_preview_dims((true, false, false), &edits, (768, 1026), 384),
+        Some((287, 384))
+    );
+    edits.geometry.rotate = 90;
+    assert_eq!(
+        display_out_dims(upright, &edits, (1026, 768), 384),
+        (287, 384)
+    );
+    assert_eq!(
+        exact_preview_dims(upright, &edits, (1026, 768), 384),
+        Some((384, 287))
+    );
+    edits.geometry.rotate = 0;
+    edits.geometry.rotate_angle = 2.0;
+    assert_eq!(exact_preview_dims(upright, &edits, (1026, 768), 384), None);
+
+    assert_eq!(resample_target((513, 384), 1.338), Some((383, 287)));
+    assert_eq!(
+        preview_target((513, 384), 1.338, Some((384, 287))),
+        Some((384, 287))
+    );
+    assert_eq!(preview_target((513, 384), 1.338, None), Some((383, 287)));
+    assert_eq!(
+        preview_target((513, 384), 1.338, Some((600, 287))),
+        Some((383, 287))
+    );
+    assert_eq!(preview_target((513, 384), 1.0, Some((384, 287))), None);
+}
+
 fn mosaic_frame(cfa_pattern: &str, cpp: usize) -> RawFrame {
     RawFrame {
         meta: FrameMeta {
