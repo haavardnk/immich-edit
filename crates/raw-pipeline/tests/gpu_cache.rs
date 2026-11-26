@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use raw_pipeline::GpuRendererOptions;
 use raw_pipeline::edits::{
-    Edits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource, MaskedEdits,
-    WhiteBalance,
+    Edits, LensEdits, MaskComponent, MaskComponentKind, MaskComponentMode, MaskLayer, MaskSource,
+    MaskedEdits, WhiteBalance,
 };
 use raw_pipeline::frame::{OutputFormat, RawFrame, RenderOptions};
 use raw_pipeline::mask_raster::{MaskRaster, RasterMap};
@@ -73,6 +73,59 @@ fn ai_denoise_blend_is_reused_across_display_edits() {
             panic!("{plan}: the strength change had no effect");
         }
     }
+}
+
+fn lens_edits(k1: f64, exposure_ev: f64) -> Edits {
+    let mut edits = Edits {
+        lens: LensEdits {
+            profile_enabled: Some(true),
+            ca_enabled: true,
+            distortion_amount: 100.0,
+            k1,
+            k2: 0.03,
+            ca_red_scale_x10000: 8.0,
+            ca_blue_scale_x10000: -6.0,
+            ..LensEdits::default()
+        },
+        ..Edits::default()
+    };
+    edits.basic.exposure_ev = exposure_ev;
+    edits
+}
+
+#[test]
+fn the_lens_warp_is_reused_across_display_edits() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let frame = as_raw(synthetic_frame(96, 64));
+    let opts = rgb8_opts(96);
+    let render = |k1: f64, exposure_ev: f64| {
+        renderer
+            .render(&frame, &lens_edits(k1, exposure_ev), &opts)
+            .unwrap()
+    };
+    let start = renderer.warp_passes();
+    let first = render(-0.12, 0.0);
+    render(-0.12, 0.6);
+    let again = render(-0.12, 0.0);
+    assert_eq!(
+        renderer.warp_passes() - start,
+        1,
+        "exposure changes re-ran the lens warp"
+    );
+    assert_eq!(
+        again.bytes, first.bytes,
+        "the cached warp changed the image"
+    );
+
+    let stronger = render(-0.24, 0.0);
+    assert_eq!(
+        renderer.warp_passes() - start,
+        2,
+        "a lens change reused the old warp"
+    );
+    assert_ne!(stronger.bytes, first.bytes, "the lens change had no effect");
 }
 
 #[test]
