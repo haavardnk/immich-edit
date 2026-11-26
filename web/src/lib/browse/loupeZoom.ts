@@ -1,5 +1,6 @@
 import { takePhoto } from '#lib/browse/photoHandoff.ts';
 import { boxFrame, containBox, onScreen, type Box } from '#lib/browse/zoomGeometry.ts';
+import { layout } from '#lib/device/layout.svelte.ts';
 import {
   animated,
   boxOf,
@@ -55,6 +56,14 @@ function hide(tile: Tile, motion: KeyframeAnimationOptions): void {
 
 const READY_MS = 1500;
 
+export function flightDuration(): string {
+  return layout.mode === 'touch' ? '--transition-duration-slow' : '--transition-duration-base';
+}
+
+function flightTiming(fill?: FillMode): KeyframeAnimationOptions {
+  return timing(flightDuration(), '--ease-emphasized', fill);
+}
+
 function arrive(track: Element, from: HTMLElement, start: Box, ratio: number): void {
   const hold = track.animate([{ opacity: 0 }, { opacity: 0 }], {
     duration: READY_MS * 2,
@@ -62,7 +71,7 @@ function arrive(track: Element, from: HTMLElement, start: Box, ratio: number): v
   });
   const flight = from.animate(
     [boxFrame(start), boxFrame(containBox(boxOf(track), ratio))],
-    timing('--transition-duration-slow', '--ease-emphasized', 'forwards')
+    flightTiming('forwards')
   );
   const image = [...track.querySelectorAll('img:not([data-testid="loupe-neighbour"])')].at(-1);
   void Promise.all([
@@ -98,7 +107,7 @@ export function zoomIn(id: string | null, root: HTMLElement): void {
     return;
   }
   arrive(track, ghost(tile.image, tile.box), tile.box, tile.ratio);
-  hide(tile, timing('--transition-duration-slow', '--ease-emphasized'));
+  hide(tile, flightTiming());
   root.animate(
     [{ opacity: 0 }, { opacity: 1 }],
     timing('--transition-duration-base', '--ease-standard')
@@ -148,7 +157,7 @@ export function zoomOut(id: string): void {
   const image = origin.place();
   requestAnimationFrame(() => {
     if (!image.isConnected) return;
-    const motion = timing('--transition-duration-slow', '--ease-emphasized', 'forwards');
+    const motion = flightTiming('forwards');
     const tile = tileOf(id);
     settle(backdrop.animate([{ opacity: origin.backdrop }, { opacity: 0 }], motion), [backdrop]);
     if (tile) hide(tile, motion);

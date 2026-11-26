@@ -12,16 +12,20 @@ import {
   STACK_MARKERS
 } from './mapFixtures';
 
+async function watchClosingBackdrop(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    Reflect.set(window, '__closingBackdrop', false);
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
+      if (this.classList.contains('bg-image-canvas'))
+        Reflect.set(window, '__closingBackdrop', true);
+      return animate.apply(this, args);
+    };
+  });
+}
+
 function closingBackdrop(page: Page): Promise<boolean> {
-  return page.evaluate(() =>
-    document
-      .getAnimations()
-      .some((animation) =>
-        ((animation.effect as KeyframeEffect).target as HTMLElement | null)?.classList.contains(
-          'bg-image-canvas'
-        )
-      )
-  );
+  return page.evaluate(() => Reflect.get(window, '__closingBackdrop') === true);
 }
 
 test('the map lists the photos in view beside clustered markers', async ({ page }) => {
@@ -153,8 +157,9 @@ test('the map comes back where it was after the loupe and the editor', async ({ 
   await expect(page).toHaveURL(/\/map/);
   await expect(page.locator('[data-loupe-root]')).toHaveCount(1);
   expect(await page.evaluate(() => (window as unknown as { bare: number }).bare)).toBe(0);
+  await watchClosingBackdrop(page);
   await page.getByRole('button', { name: /^Back/ }).first().click();
-  await expect.poll(() => closingBackdrop(page), { intervals: [16] }).toBe(true);
+  await expect.poll(() => closingBackdrop(page)).toBe(true);
   await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
   await expect(page).toHaveURL(/\/map\?/);
   expect(new URL(page.url()).searchParams.get('at')).toBe(zoomed);
@@ -242,9 +247,10 @@ test('a loupe closed before its edited image loads still flies back to the tile'
 
   await page.getByRole('button', { name: /^Back/ }).first().click();
   await expect(page).toHaveURL(/\/map/);
+  await watchClosingBackdrop(page);
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
-  await expect.poll(() => closingBackdrop(page), { intervals: [16] }).toBe(true);
+  await expect.poll(() => closingBackdrop(page)).toBe(true);
 });
 
 test('clicking a group lists its photos and keeps them on screen', async ({ page }) => {
