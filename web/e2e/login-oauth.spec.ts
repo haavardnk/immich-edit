@@ -57,7 +57,7 @@ test('choosing the provider hands off to the identity provider', async ({ page }
   await page.getByRole('button', { name: 'Sign in with Keycloak' }).click();
   await expect(page).toHaveURL(/idp\.local/);
   expect(started).toHaveLength(1);
-  const sent = JSON.parse(started[0]);
+  const sent = JSON.parse(started[0]!);
   expect(sent.redirect_uri).toMatch(/\/login$/);
   expect(sent.next).toBe('/albums');
 });

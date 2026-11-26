@@ -134,8 +134,8 @@ test('a reload paints the saved theme before the app starts', async ({ page }) =
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /^data:image\/svg\+xml,/);
 });
 
-function serveAppearance(page: Page, appearance: MockAppearance): Promise<void> {
-  return page.route('**/api/appearance', (route) => route.fulfill(json(appearance)));
+async function serveAppearance(page: Page, appearance: MockAppearance): Promise<void> {
+  await page.route('**/api/appearance', (route) => route.fulfill(json(appearance)));
 }
 
 test('the server appearance replaces a stale cache after boot', async ({ page }) => {

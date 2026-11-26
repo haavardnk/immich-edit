@@ -306,6 +306,7 @@ test.describe('touch editor on a tablet', { tag: ['@touch', '@tablet'] }, () => 
           const range = document.createRange();
           range.selectNodeContents(chip);
           const text = range.getClientRects()[0];
+          if (!text) return -1;
           const box = chip.getBoundingClientRect();
           return Math.abs(text.left + text.width / 2 - (box.left + box.width / 2));
         })

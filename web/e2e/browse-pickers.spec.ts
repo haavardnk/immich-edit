@@ -8,8 +8,8 @@ const CAMERA_ASSETS = [
   ['SONY', 'ILCE-7M3', 'FE 35mm F1.8'],
   ['FUJIFILM', 'X-T5', 'XF35mmF1.4 R'],
   ['SONY', 'ILCE-7M4', 'FE 85mm F1.8']
-].map(([make, model, lensModel], index) => ({
-  ...PAGED_ASSETS[index],
+].map(([make = '', model = '', lensModel = ''], index) => ({
+  ...PAGED_ASSETS[index]!,
   exifInfo: { make, model, lensModel }
 }));
 
@@ -91,7 +91,7 @@ test('several cameras match together and a removed make clears its models', asyn
 test('an unknown lens matches photos without one and excludes named lenses', async ({ page }) => {
   const bodies: Array<Record<string, unknown>> = [];
   const filter = () => bodies.at(-1)?.filter as ExifFilter;
-  const bare = { ...numberedAssets(4)[3], exifInfo: { make: 'SONY', model: 'ILCE-7M3' } };
+  const bare = { ...numberedAssets(4)[3]!, exifInfo: { make: 'SONY', model: 'ILCE-7M3' } };
   await installMocks(page, {
     structuredSearch: true,
     assets: [...CAMERA_ASSETS, bare],

@@ -1,6 +1,12 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { filterGroup, filterRow } from './filterLists';
-import { installMocks, numberedAssets, openFilters, filterSection } from './helpers';
+import {
+  installMocks,
+  numberedAssets,
+  openFilters,
+  filterSection,
+  type MockAssetSummary
+} from './helpers';
 
 function calendarDay(panel: Locator, day: string): Locator {
   return panel.locator(`[role="gridcell"][data-value="${day}"] > *`);
@@ -302,7 +308,7 @@ test('a custom range is picked on the calendar and each end takes a time and cle
 });
 
 test('a picked day lists the photos whose own clock reads that day', async ({ page }) => {
-  const [morning, pastMidnight] = numberedAssets(2);
+  const [morning, pastMidnight] = numberedAssets(2) as [MockAssetSummary, MockAssetSummary];
   const assets = [
     { ...morning, fileCreatedAt: '2025-03-18T05:00:00Z', localDateTime: '2025-03-18T08:00:00Z' },
     {

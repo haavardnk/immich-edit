@@ -181,7 +181,7 @@ test('editor and loupe layout choices survive reload', async ({ page }) => {
   await page.getByRole('button', { name: /^Back/ }).click();
   await page
     .locator(`[role="group"] > a[href^="/assets/${ASSET_ID}?"]`)
-    .evaluate((element) => element.click());
+    .evaluate((element) => (element as HTMLElement).click());
   await expect(page.getByRole('button', { name: 'Show filmstrip' })).toBeVisible();
 });
 
@@ -505,7 +505,7 @@ test('history restore waits for a save that is still in flight', async ({ page }
       action: 'Initial'
     }
   ];
-  let releaseSave: (() => void) | null = null;
+  const save: { release: (() => void) | null } = { release: null };
   let held = false;
   let restoreCalled = false;
   await installMocks(page, {
@@ -519,7 +519,7 @@ test('history restore waits for a save that is still in flight', async ({ page }
     if (route.request().method() !== 'PUT' || held) return route.fallback();
     held = true;
     await new Promise<void>((resolve) => {
-      releaseSave = resolve;
+      save.release = resolve;
     });
     return route.fallback();
   });
@@ -529,13 +529,13 @@ test('history restore waits for a save that is still in flight', async ({ page }
     .locator('div.group', { has: page.getByRole('button', { name: 'Exposure', exact: true }) })
     .getByRole('slider');
   await exposure.fill('1');
-  await expect.poll(() => releaseSave !== null).toBe(true);
+  await expect.poll(() => save.release !== null).toBe(true);
 
   await page.getByRole('button', { name: 'Edit history' }).click();
   await page.getByText('Initial').click();
   expect(restoreCalled).toBe(false);
 
-  releaseSave?.();
+  save.release?.();
   await expect.poll(() => restoreCalled).toBe(true);
   await expect(exposure).toHaveValue('0');
 });

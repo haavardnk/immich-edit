@@ -100,14 +100,17 @@ test('at 1:1 a slider tick posts nothing and a pan posts one tile', async ({ pag
 const fallbacks: [string, (page: Page) => Promise<void>][] = [
   [
     'without WebGPU',
-    (page) =>
-      page.addInitScript(() =>
+    async (page) => {
+      await page.addInitScript(() =>
         Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined })
-      )
+      );
+    }
   ],
   [
     'when the renderer fails to start',
-    (page) => page.route(/web_render_bg[^/]*\.wasm$/, (route) => route.fulfill({ status: 404 }))
+    async (page) => {
+      await page.route(/web_render_bg[^/]*\.wasm$/, (route) => route.fulfill({ status: 404 }));
+    }
   ]
 ];
 

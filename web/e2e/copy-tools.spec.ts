@@ -232,7 +232,7 @@ test.describe('copy and paste per section on touch', { tag: ['@touch'] }, () => 
     for (const [name, text] of [
       ['Check all', 'All'],
       ['Check none', 'None']
-    ]) {
+    ] as const) {
       const action = sheet.getByRole('button', { name, exact: true });
       await expect(action.getByText(text, { exact: true })).toBeVisible();
       await expect(action.getByText(name, { exact: true })).toBeHidden();

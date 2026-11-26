@@ -73,7 +73,9 @@ test('the star card leaves out selected photos already at the place', async ({ p
   const bryggen = savedPlace('place-bryggen', 'Bryggen', {
     lat: 60.3975,
     lon: 5.324,
-    city: 'Bergen'
+    city: 'Bergen',
+    state: null,
+    country: null
   });
   await openPlacing(page, writes, new PlacesMock({ saved: [bryggen] }));
   const panel = page.getByRole('complementary', { name: 'Photos in view' });

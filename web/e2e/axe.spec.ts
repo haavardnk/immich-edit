@@ -43,7 +43,7 @@ for (const [theme, path] of [
   ['one-light', '/settings/preferences#appearance'],
   ['everforest-light', '/photos'],
   ['everforest-light', '/settings/preferences#appearance']
-]) {
+] as const) {
   test(`${path} has no serious accessibility violations in ${theme}`, async ({ page }) => {
     await installMocks(page, {
       appearance: { ...DEFAULT_APPEARANCE, mode: 'light', light_theme: theme }

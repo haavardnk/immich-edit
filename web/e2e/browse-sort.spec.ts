@@ -119,9 +119,9 @@ test('the timeline can sort by date added', async ({ page }) => {
 });
 
 const RATED = [
-  { ...ASSETS[0], exifInfo: { rating: 3 } },
-  { ...ASSETS[1], exifInfo: { rating: null } },
-  { ...ASSETS[2], exifInfo: { rating: 5 } }
+  { ...ASSETS[0]!, exifInfo: { rating: 3 } },
+  { ...ASSETS[1]!, exifInfo: { rating: null } },
+  { ...ASSETS[2]!, exifInfo: { rating: 5 } }
 ];
 
 test('structured servers sort the whole result by rating', async ({ page }) => {
@@ -148,9 +148,9 @@ test('structured servers sort the whole result by file size', async ({ page }) =
   const sorts: unknown[] = [];
   await installMocks(page, {
     assets: [
-      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
-      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
-      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+      { ...ASSETS[0]!, exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1]!, exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2]!, exifInfo: { fileSizeInByte: 20_000_000 } }
     ],
     structuredSearch: true,
     onMetadata: (body) => void sorts.push(body.sort)
@@ -228,9 +228,9 @@ test('edited view names photos from one enriched request', async ({ page }) => {
 test('edited view filters the loaded photos', async ({ page }) => {
   await installMocks(page, {
     assets: [
-      { ...ASSETS[0], exifInfo: { fileSizeInByte: 30_000_000 } },
-      { ...ASSETS[1], exifInfo: { fileSizeInByte: 10_000_000 } },
-      { ...ASSETS[2], exifInfo: { fileSizeInByte: 20_000_000 } }
+      { ...ASSETS[0]!, exifInfo: { fileSizeInByte: 30_000_000 } },
+      { ...ASSETS[1]!, exifInfo: { fileSizeInByte: 10_000_000 } },
+      { ...ASSETS[2]!, exifInfo: { fileSizeInByte: 20_000_000 } }
     ],
     edits: [
       { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
@@ -254,9 +254,9 @@ test('edited view filters the loaded photos', async ({ page }) => {
 test('edited view counts and steps through only the photos a filter keeps', async ({ page }) => {
   await installMocks(page, {
     assets: [
-      { ...ASSETS[0], exifInfo: { make: 'FUJIFILM' } },
-      { ...ASSETS[1], exifInfo: { make: 'SONY' } },
-      { ...ASSETS[2], exifInfo: { make: 'SONY' } }
+      { ...ASSETS[0]!, exifInfo: { make: 'FUJIFILM' } },
+      { ...ASSETS[1]!, exifInfo: { make: 'SONY' } },
+      { ...ASSETS[2]!, exifInfo: { make: 'SONY' } }
     ],
     edits: [
       { id: OLD_ID, hash: 'h1', updated_at: '2024-05-01T00:00:00Z' },
@@ -277,9 +277,9 @@ test('edited view counts and steps through only the photos a filter keeps', asyn
 
 test('folder view counts only the photos a filter keeps', async ({ page }) => {
   const assets = [
-    { ...ASSETS[0], exifInfo: { make: 'FUJIFILM' } },
-    { ...ASSETS[1], exifInfo: { make: 'SONY' } },
-    { ...ASSETS[2], exifInfo: { make: 'SONY' } }
+    { ...ASSETS[0]!, exifInfo: { make: 'FUJIFILM' } },
+    { ...ASSETS[1]!, exifInfo: { make: 'SONY' } },
+    { ...ASSETS[2]!, exifInfo: { make: 'SONY' } }
   ];
   await installMocks(page, { assets });
   await page.route('**/api/folders/assets?*', (route) => route.fulfill(json(assets)));
@@ -291,9 +291,9 @@ test('folder view counts only the photos a filter keeps', async ({ page }) => {
 
 test('rating a photo in a folder sorted by rating keeps it in place', async ({ page }) => {
   const assets = [
-    { ...ASSETS[0], exifInfo: { rating: 5 } },
-    { ...ASSETS[1], exifInfo: { rating: 3 } },
-    { ...ASSETS[2], exifInfo: { rating: 1 } }
+    { ...ASSETS[0]!, exifInfo: { rating: 5 } },
+    { ...ASSETS[1]!, exifInfo: { rating: 3 } },
+    { ...ASSETS[2]!, exifInfo: { rating: 1 } }
   ];
   await installMocks(page, { assets, structuredSearch: true });
   await page.route('**/api/folders/assets?*', (route) => route.fulfill(json(assets)));

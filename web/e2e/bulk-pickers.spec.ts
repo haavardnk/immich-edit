@@ -1,11 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pick } from './browse';
-import { installMocks, json, numberedAssets } from './helpers';
+import { installMocks, json, numberedAssets, type MockAssetSummary } from './helpers';
 
 const LANDSCAPE = { id: 'tag-1', name: 'Landscape', value: 'Landscape' };
 const PORTRAIT = { id: 'tag-2', name: 'Portrait', value: 'Portrait' };
 const LANDMARK = { id: 'tag-3', name: 'Landmark', value: 'Landmark' };
-const [FIRST, SECOND] = numberedAssets(2);
+const [FIRST, SECOND] = numberedAssets(2) as [MockAssetSummary, MockAssetSummary];
 if (!FIRST || !SECOND) throw new Error('missing assets');
 const IDS = [FIRST.id, SECOND.id];
 

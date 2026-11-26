@@ -209,7 +209,7 @@ for (const [name, to, want] of [
     await page.mouse.click(...at(0.4, 0.4));
     await page.mouse.move(...at(0.4, 0.4));
     await page.mouse.down();
-    await page.mouse.move(...at(...to), { steps: 5 });
+    await page.mouse.move(...at(to[0], to[1]), { steps: 5 });
     await page.mouse.up();
 
     type Stroke = { points: Array<{ x: number; y: number }>; source: { x: number; y: number } };

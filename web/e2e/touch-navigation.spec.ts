@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { ASSET_ID, numberedAssets } from './helpers';
+import { ASSET_ID, numberedAssets, type MockAssetSummary } from './helpers';
 import { tapCentre } from './touch';
 import { avatar, backButton, open, openDrawer, tab } from './touchShell';
 
@@ -118,9 +118,13 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
 
   test('reopening a tag does not look for a photo from another view', async ({ page }) => {
     const sky = { id: 'tag-sky', name: 'Sky', value: 'Sky' };
-    const [first, second, third] = numberedAssets(3);
+    const [first, second, third] = numberedAssets(3) as [
+      MockAssetSummary,
+      MockAssetSummary,
+      MockAssetSummary
+    ];
     await open(page, '/photos', {
-      assets: [first, second, { ...third, tags: [sky] }].filter((asset) => asset !== undefined),
+      assets: [first, second, { ...third, tags: [sky] }],
       structuredSearch: true
     });
     await tapCentre(page, page.locator(`[data-name="${first?.originalFileName}"]`));
@@ -167,7 +171,7 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
   });
 
   test('editor Back returns after an in-app asset change without looping', async ({ page }) => {
-    const [first, second] = numberedAssets(2);
+    const [first, second] = numberedAssets(2) as [MockAssetSummary, MockAssetSummary];
     await open(page, '/albums/album-family', { assets: numberedAssets(2) });
     await tapCentre(page, page.locator(`[data-name="${first.originalFileName}"]`));
     await page.getByRole('button', { name: 'Edit', exact: true }).tap();
@@ -184,7 +188,7 @@ test.describe('touch back navigation on a phone', { tag: ['@touch', '@phone'] },
   });
 
   test('editor Back on a deep-linked asset replaces it with the grid', async ({ page }) => {
-    const [first] = numberedAssets(1);
+    const first = numberedAssets(1)[0]!;
     const from = encodeURIComponent('/albums/album-family');
     await open(page, `/assets/${first.id}?from=${from}`, { assets: numberedAssets(2) });
     await expect(page.getByRole('navigation', { name: 'Editor toolbar' })).toBeVisible();

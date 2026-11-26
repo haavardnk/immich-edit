@@ -86,12 +86,12 @@ test('the loupe zooms out of its tile and back into it', async ({ page }) => {
 test('the loupe paints the Immich preview while the render is pending', async ({ page }) => {
   let release = (): void => {};
   const rendered = new Promise<void>((resolve) => (release = resolve));
-  await openLoupe(page, { thumbnailRender: () => makePng(36, 24) }, () =>
-    page.route(`**/api/assets/${ASSET_ID}/preview?*`, async (route) => {
+  await openLoupe(page, { thumbnailRender: () => makePng(36, 24) }, async () => {
+    await page.route(`**/api/assets/${ASSET_ID}/preview?*`, async (route) => {
       await rendered;
       await route.fallback();
-    })
-  );
+    });
+  });
 
   const immichPreview = page.getByTestId('loupe-immich-preview');
   await expect(immichPreview).toHaveAttribute('src', `/api/assets/${ASSET_ID}/thumb?size=preview`);

@@ -5,7 +5,8 @@ import {
   numberedAssets,
   openFilters,
   openLoupeFromGrid,
-  type InstallOpts
+  type InstallOpts,
+  type MockAssetSummary
 } from './helpers';
 import { datedAssets, dayShots, openTouchTimeline } from './timeline';
 import { selectTwo } from './touchShell';
@@ -198,10 +199,10 @@ test('a selected virtual copy is deleted, not trashed', async ({ page }) => {
 });
 
 test('a finished cull moves every reject to the trash', async ({ page }) => {
-  const [kept, dropped] = ASSETS;
+  const [kept, dropped] = ASSETS as [MockAssetSummary, MockAssetSummary, MockAssetSummary];
   const reject = { id: 'r', name: 'reject', value: 'immich-edit/reject' };
   await installMocks(page, {
-    assets: [kept, { ...dropped, tags: [reject] }].filter((a) => a !== undefined)
+    assets: [kept, { ...dropped, tags: [reject] }]
   });
   await page.goto('/photos');
   await openFilters(page, 'Library');

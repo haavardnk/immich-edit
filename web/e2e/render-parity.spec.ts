@@ -18,7 +18,7 @@ const shared: Record<string, [string, string]> = {
 };
 
 function fixture(name: string): [string, string] | undefined {
-  const [dir, file] = name.split('/');
+  const [dir = '', file] = name.split('/');
   if (!file) return shared[dir];
   if (!cases.includes(dir) || !['case.json', 'source.iesr', 'expected.rgb'].includes(file)) {
     return undefined;
@@ -54,7 +54,7 @@ for (const name of cases) {
       if (msg.type() === 'warning' || msg.type() === 'error') complaints.push(msg.text());
     });
     await page.route('**/__render/**', (route) => {
-      const file = fixture(new URL(route.request().url()).pathname.split('/__render/')[1]);
+      const file = fixture(new URL(route.request().url()).pathname.split('/__render/')[1] ?? '');
       if (!file) return route.fulfill({ status: 404 });
       return route.fulfill({ path: file[0], contentType: file[1] });
     });

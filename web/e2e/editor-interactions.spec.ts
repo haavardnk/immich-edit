@@ -1095,8 +1095,8 @@ test('perspective corner handles drag into the transform op', async ({ page }) =
   const corners = body.manifest.ops.transform?.perspective?.corners;
   expect(body.action).toBe('Perspective');
   expect(corners).toBeDefined();
-  expect(corners?.[0][0]).toBeGreaterThan(0);
-  expect(corners?.[0][1]).toBeGreaterThan(0);
+  expect(corners?.[0]?.[0]).toBeGreaterThan(0);
+  expect(corners?.[0]?.[1]).toBeGreaterThan(0);
 });
 
 async function dragCropCorner(page: import('@playwright/test').Page): Promise<void> {

@@ -119,7 +119,7 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
     completed: 0
   };
   const finished = { ...queued, status: 'completed', completed: 1, failed: 1 };
-  let deliver: (() => void) | null = null;
+  const delivery: { send: (() => void) | null } = { send: null };
   const assets = numberedAssets(2);
   await installMocks(page, {
     assets,
@@ -128,11 +128,11 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   await page.route('**/api/jobs', (route) =>
     route.request().method() === 'POST'
       ? route.fulfill(json(queued))
-      : route.fulfill(json(deliver === null ? [queued] : [finished]))
+      : route.fulfill(json(delivery.send === null ? [queued] : [finished]))
   );
   await page.route('**/api/jobs/job-9/events', async (route) => {
     await new Promise<void>((resolve) => {
-      deliver = resolve;
+      delivery.send = resolve;
     });
     return route.fulfill({
       status: 200,
@@ -175,8 +175,8 @@ test('a bulk job reports progress in a toast and leaves the drawer closed', asyn
   await expect(page).toHaveTitle('(0%) immich-edit');
   await expect(page.getByRole('complementary', { name: 'Jobs' })).toHaveCount(0);
 
-  await expect.poll(() => deliver !== null).toBe(true);
-  deliver?.();
+  await expect.poll(() => delivery.send !== null).toBe(true);
+  delivery.send?.();
   await expect(page.getByTestId('job-toast-outcome')).toHaveText('1 of 2 failed');
   await expect(progress).toBeHidden();
   await expect(page.getByTestId('jobs-attention')).toBeVisible();

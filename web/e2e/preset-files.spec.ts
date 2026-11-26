@@ -64,7 +64,7 @@ test('importing presets skips names already in the library', async ({ page }) =>
   await gotoAsset(page);
   await openPresetStrip(page);
 
-  const cool = { ...warmPreset(), name: 'Cool', group_name: null };
+  const cool: Record<string, unknown> = { ...warmPreset(), name: 'Cool', group_name: null };
   const file = {
     kind: 'immich-edit-presets',
     version: 1,
