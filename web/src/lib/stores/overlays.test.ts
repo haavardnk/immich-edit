@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ modalOpen: false }));
 
-vi.mock('@immich/ui', () => ({ isModalOpen: () => h.modalOpen }));
+vi.mock('@immich/ui', () => ({ modalManager: { isOpen: () => h.modalOpen } }));
 
 function keydown(key: string): KeyboardEvent {
   const event = Object.assign(new Event('keydown'), { key }) as KeyboardEvent;
