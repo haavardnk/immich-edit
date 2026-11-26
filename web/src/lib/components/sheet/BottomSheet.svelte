@@ -225,6 +225,7 @@
     {/if}
     {#if present}
       <div
+        data-sheet-frame
         class="pointer-events-none fixed inset-x-0 z-50 flex flex-col pt-[calc(var(--safe-top)+var(--sheet-gap))]"
         style:top="{inset.top}px"
         style:bottom="{inset.bottom + lift}px"
@@ -254,6 +255,7 @@
                 {@attach trackFocus}
               >
                 <div
+                  data-sheet-panel
                   class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl bg-light-50 pr-(--safe-right) pl-(--safe-left) text-dark shadow-popover starting:[translate:0_100%] motion-safe:transition-[translate,transform] motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-snapping:transition-[translate,transform,height] motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit"
                   {@attach motion.panel}
                 >
