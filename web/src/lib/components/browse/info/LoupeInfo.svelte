@@ -10,9 +10,11 @@
 </script>
 
 {#if layout.compact}
-  {#if browseView.loupeInfoOpen}
-    <PhotoInfoSheet {asset} onclose={() => browseView.setLoupeInfoOpen(false)} />
-  {/if}
+  <PhotoInfoSheet
+    {asset}
+    open={browseView.loupeInfoOpen}
+    onclose={() => browseView.setLoupeInfoOpen(false)}
+  />
 {:else if browseView.loupeInfoOpen}
   <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
     <PhotoInfoPanel {asset} onclose={() => browseView.setLoupeInfoOpen(false)} />

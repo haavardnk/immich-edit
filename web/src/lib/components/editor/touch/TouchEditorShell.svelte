@@ -24,6 +24,7 @@
   import CompareBar from '#lib/components/editor/compare/CompareBar.svelte';
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
   import PhotoInfoSheet from '#lib/components/browse/info/PhotoInfoSheet.svelte';
+  import { infoSheetInset, infoSheetMotion } from '#lib/browse/loupeLayout.ts';
   import { paintSize } from '#lib/editor/paintSize.ts';
   import BrushSizeRail from './BrushSizeRail.svelte';
   import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
@@ -51,6 +52,7 @@
   let bar = $state(0);
   const keyboard = viewportInset();
   const lift = $derived(touchUi.searching ? bar : 0);
+  const infoInset = $derived(ui.editorInfoOpen && !ui.fullscreen && editor.asset !== null);
   const docked = $derived(touchUi.searching ? available + keyboard.bottom - bar : available);
 
   const bottom = $derived(
@@ -108,7 +110,12 @@
     bind:this={region}
     bind:clientHeight={available}
   >
-    <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
+    <div
+      class="relative flex min-h-0 min-w-0 flex-1 flex-col motion-safe:transition-[padding] {infoSheetMotion(
+        infoInset
+      )}"
+      style={infoSheetInset(infoInset, stack ? `${bar}px` : '0px')}
+    >
       {#snippet overlay()}
         <FloatingScope yieldToSliders />
       {/snippet}
@@ -204,6 +211,8 @@
   {/if}
 </div>
 
-{#if ui.editorInfoOpen && editor.asset}
-  <PhotoInfoSheet asset={editor.asset} onclose={() => (ui.editorInfoOpen = false)} />
-{/if}
+<PhotoInfoSheet
+  asset={editor.asset}
+  open={ui.editorInfoOpen}
+  onclose={() => (ui.editorInfoOpen = false)}
+/>

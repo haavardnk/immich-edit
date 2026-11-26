@@ -214,6 +214,13 @@ test.describe('loupe info on touch', { tag: '@touch' }, () => {
     await infoButton(page).tap();
     const sheet = page.getByRole('dialog', { name: 'Info' });
     await expect(sheet).toBeVisible();
+    const photo = page.getByRole('img', { name: 'IMG_0001.ARW' }).first();
+    await expect
+      .poll(async () => {
+        const [image, panel] = await Promise.all([photo.boundingBox(), sheet.boundingBox()]);
+        return image && panel ? panel.y - (image.y + image.height) : -1;
+      })
+      .toBeGreaterThanOrEqual(-1);
     await expect(sheet).toContainText('FUJIFILM X-T5');
     await expect(sheet).toContainText('Bergen');
     await expect(page.getByRole('complementary', { name: 'Info' })).toHaveCount(0);
@@ -222,6 +229,28 @@ test.describe('loupe info on touch', { tag: '@touch' }, () => {
     await expect(sheet).toBeHidden();
     await expect(infoButton(page)).toHaveAttribute('aria-pressed', 'false');
   });
+
+  test(
+    'slides the sheet away when the Info toggle closes it',
+    { tag: '@phone' },
+    async ({ page }) => {
+      await openLoupe(page);
+      await infoButton(page).tap();
+      const sheet = page.getByRole('dialog', { name: 'Info' });
+      await expect(sheet).toBeVisible();
+      await page.evaluate(() => {
+        Reflect.set(window, '__sheetLeft', false);
+        new MutationObserver(() => {
+          if (document.querySelector('[data-leaving]')) Reflect.set(window, '__sheetLeft', true);
+        }).observe(document.body, { subtree: true, attributes: true, childList: true });
+      });
+
+      await infoButton(page).tap();
+
+      await expect(sheet).toBeHidden();
+      expect(await page.evaluate(() => Reflect.get(window, '__sheetLeft'))).toBe(true);
+    }
+  );
 
   test('docks beside the photo on a tablet in landscape', { tag: '@tablet' }, async ({ page }) => {
     await openLoupe(page);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  infoSheetInset,
+  infoSheetMotion,
   paneColumns,
   paneGridStyle,
   paneWindow,
-  INFO_SHEET_INSET,
   switchMembers
 } from './loupeLayout';
 
@@ -49,11 +50,18 @@ describe('paneWindow', () => {
   });
 });
 
-describe('INFO_SHEET_INSET', () => {
-  it('lifts the photo by the half-height detent of the space the sheet can use', () => {
-    expect(INFO_SHEET_INSET).toBe(
-      'padding-bottom: calc(0.55 * (var(--app-height) - var(--safe-top) - var(--sheet-gap)));'
+describe('infoSheetInset', () => {
+  it('lifts the photo by the half-height detent less what already sits below it', () => {
+    expect(infoSheetInset(true)).toBe(
+      'padding-bottom: max(0px, calc(0.55 * (var(--app-height) - var(--safe-top) - var(--sheet-gap)) - 0px));'
     );
+    expect(infoSheetInset(true, '72px')).toContain('- 72px));');
+    expect(infoSheetInset(false)).toBe('');
+  });
+
+  it('follows the sheet: slow in, quick out', () => {
+    expect(infoSheetMotion(true)).toContain('duration-slow');
+    expect(infoSheetMotion(false)).toContain('duration-base');
   });
 });
 
