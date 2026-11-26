@@ -58,7 +58,7 @@
     />
     <TextInput
       compact
-      class="w-full font-semibold tabular-nums [&_input]:text-center"
+      class="w-full font-semibold tabular-nums [&_input]:h-8 [&_input]:py-0 [&_input]:text-center touch:[&_input]:h-9"
       aria-label={name}
       value={typed ?? correctionText(value)}
       oninput={(event) => (typed = event.currentTarget.value)}

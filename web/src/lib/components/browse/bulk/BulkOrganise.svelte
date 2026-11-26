@@ -3,7 +3,7 @@
   import MenuRow from '#lib/components/MenuRow.svelte';
   import Popover from '#lib/components/Popover.svelte';
   import BulkEditsMenu from '#lib/components/browse/bulk/BulkEditsMenu.svelte';
-  import BulkLocationMenu from '#lib/components/browse/bulk/BulkLocationMenu.svelte';
+  import BulkMetadataMenu from '#lib/components/browse/bulk/BulkMetadataMenu.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
   import { ROOMY_ONLY, TIGHT_ONLY } from '#lib/browse/bulk/bulkBarFit.ts';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -13,8 +13,8 @@
     mdiChevronRight,
     mdiContentDuplicate,
     mdiDotsHorizontal,
+    mdiFileDocumentEditOutline,
     mdiImageAlbum,
-    mdiMapMarkerOutline,
     mdiTagOutline,
     mdiTuneVariant
   } from '@mdi/js';
@@ -43,7 +43,7 @@
 
   let menu = $state(false);
   let edits = $state<'bar' | 'menu' | null>(null);
-  let location = $state<'bar' | 'menu' | null>(null);
+  let metadata = $state<'bar' | 'menu' | null>(null);
 
   const scope = bulkScope;
   const actions = bulkActions;
@@ -81,9 +81,9 @@
     run: () => onBand(band === 'albums' ? null : 'albums')
   });
 
-  function openLocation(where: 'bar' | 'menu', open: boolean): void {
+  function openMetadata(where: 'bar' | 'menu', open: boolean): void {
     if (open && !actions.ownedOrExplain()) return;
-    location = open ? where : null;
+    metadata = open ? where : null;
   }
 
   function pick(tool: Tool): void {
@@ -95,7 +95,7 @@
   function setMenu(open: boolean): void {
     menu = open;
     if (!open && edits === 'menu') edits = null;
-    if (!open && location === 'menu') location = null;
+    if (!open && metadata === 'menu') metadata = null;
   }
 </script>
 
@@ -159,24 +159,24 @@
   {@render barTool(tagsTool)}
   {@render barTool(albumsTool)}
   <DisabledReason locked={shared} reason={scope.notOwnedReason} class="flex">
-    <BulkLocationMenu
-      open={location === 'bar'}
-      onOpenChange={(open) => openLocation('bar', open)}
-      tooltip="Location"
+    <BulkMetadataMenu
+      open={metadata === 'bar'}
+      onOpenChange={(open) => openMetadata('bar', open)}
+      tooltip="Metadata"
     >
       {#snippet trigger(props)}
         <IconButton
           {...props}
           size="medium"
-          variant={location === 'bar' ? 'filled' : 'ghost'}
-          color={location === 'bar' ? 'primary' : 'secondary'}
-          icon={mdiMapMarkerOutline}
+          variant={metadata === 'bar' ? 'filled' : 'ghost'}
+          color={metadata === 'bar' ? 'primary' : 'secondary'}
+          icon={mdiFileDocumentEditOutline}
           title=""
-          aria-label="Location"
+          aria-label="Metadata"
           disabled={actions.metaBusy || shared}
         />
       {/snippet}
-    </BulkLocationMenu>
+    </BulkMetadataMenu>
   </DisabledReason>
 </div>
 <Popover
@@ -222,26 +222,26 @@
     </BulkEditsMenu>
     {@render row(tagsTool)}
     {@render row(albumsTool)}
-    <BulkLocationMenu
-      open={location === 'menu'}
+    <BulkMetadataMenu
+      open={metadata === 'menu'}
       anchor="right"
-      onOpenChange={(open) => openLocation('menu', open)}
+      onOpenChange={(open) => openMetadata('menu', open)}
       onDone={() => (menu = false)}
     >
       {#snippet trigger(props)}
         <MenuRow
           {...props}
-          icon={mdiMapMarkerOutline}
-          label="Location"
-          aria-label="Location"
+          icon={mdiFileDocumentEditOutline}
+          label="Metadata"
+          aria-label="Metadata"
           class={shared ? 'opacity-50' : ''}
           aria-disabled={shared || undefined}
-          pressed={location === 'menu'}
+          pressed={metadata === 'menu'}
           disabled={actions.metaBusy}
         >
           <Icon icon={mdiChevronRight} size="14px" class="shrink-0 opacity-70" aria-hidden="true" />
         </MenuRow>
       {/snippet}
-    </BulkLocationMenu>
+    </BulkMetadataMenu>
   </div>
 </Popover>

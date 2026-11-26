@@ -1,5 +1,4 @@
 import {
-  assetSummaries,
   reverseGeocode,
   setAssetLocation,
   setAssetLocations,
@@ -7,6 +6,7 @@ import {
 } from '#lib/api/map.ts';
 import { withExif } from '#lib/browse/assetMeta.ts';
 import { ownsAsset } from '#lib/browse/ownership.ts';
+import { resolveAssets } from '#lib/browse/assetLookup.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { libraryChanged } from '#lib/stores/libraryChange.ts';
@@ -207,17 +207,6 @@ export async function applyLocation(
     }
   );
   return true;
-}
-
-export async function resolveAssets(ids: readonly string[]): Promise<AssetSummary[]> {
-  const found = ids.map((id) => browsing.find(id));
-  const missing = ids.filter((_, index) => !found[index]);
-  const fetched = missing.length > 0 ? await assetSummaries(missing) : [];
-  const byId = new Map(fetched.map((asset) => [asset.id, asset]));
-  return ids.flatMap((id, index) => {
-    const asset = found[index] ?? byId.get(sourceId(id));
-    return asset ? [asset] : [];
-  });
 }
 
 export async function placeAt(

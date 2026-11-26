@@ -1,13 +1,20 @@
 <script lang="ts">
   import InfoSection from '#lib/components/browse/info/InfoSection.svelte';
   import TruncationTooltip from '#lib/components/TruncationTooltip.svelte';
+  import CaptureTimeQuick from '#lib/components/metadata/CaptureTimeQuick.svelte';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
   import { detailRows, exposureCells } from '#lib/browse/info/photoInfo.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
 
   let { asset }: { asset: AssetSummary } = $props();
 
   const cells = $derived(exposureCells(asset));
-  const rows = $derived(detailRows(asset));
+  const owned = $derived(ownsAsset(asset));
+  const rows = $derived.by(() => {
+    const details = detailRows(asset);
+    const dated = details.some((row) => row.key === 'Taken');
+    return owned && !dated ? [...details, { key: 'Taken', value: 'Not set' }] : details;
+  });
 </script>
 
 <InfoSection>
@@ -34,16 +41,22 @@
       {#each rows as row (row.key)}
         <div class="flex min-w-0 items-center justify-between gap-4 touch:min-h-9">
           <dt class="shrink-0 text-xs text-light-950/65 touch:text-body">{row.key}</dt>
-          <TruncationTooltip text={row.value}>
-            {#snippet child({ props })}
-              <dd
-                {...props}
-                class="min-w-0 truncate text-right text-xs font-medium text-light-950/90 tabular-nums touch:text-body"
-              >
-                {row.value}
-              </dd>
-            {/snippet}
-          </TruncationTooltip>
+          {#if row.key === 'Taken' && owned}
+            <dd class="min-w-0">
+              <CaptureTimeQuick {asset} value={row.value} />
+            </dd>
+          {:else}
+            <TruncationTooltip text={row.value}>
+              {#snippet child({ props })}
+                <dd
+                  {...props}
+                  class="min-w-0 truncate text-right text-xs font-medium text-light-950/90 tabular-nums touch:text-body"
+                >
+                  {row.value}
+                </dd>
+              {/snippet}
+            </TruncationTooltip>
+          {/if}
         </div>
       {/each}
     </dl>

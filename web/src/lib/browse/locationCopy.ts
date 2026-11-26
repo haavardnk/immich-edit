@@ -1,9 +1,5 @@
-import {
-  applyLocation,
-  locationOf,
-  resolveAssets,
-  type GeoLocation
-} from '#lib/browse/locationOps.ts';
+import { resolveAssets } from '#lib/browse/assetLookup.ts';
+import { applyLocation, locationOf, type GeoLocation } from '#lib/browse/locationOps.ts';
 import { coordinateLabel } from '#lib/browse/info/photoInfo.ts';
 import { locationClipboard } from '#lib/stores/locationClipboard.svelte.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';

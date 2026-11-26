@@ -6,6 +6,7 @@
   import type { Attachment } from 'svelte/attachments';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { leaveBehind, sheetParts, type SheetParts } from '#lib/components/sheet/sheetGhost.ts';
+  import type { Detent } from '#lib/components/sheet/sheetSnap.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
 
   let {
@@ -14,6 +15,7 @@
     size = 'small',
     onClose,
     bodyClass = '',
+    detents,
     actions,
     footer,
     children
@@ -23,6 +25,7 @@
     size?: 'tiny' | 'small' | 'medium' | 'large' | 'giant';
     onClose: () => void;
     bodyClass?: string;
+    detents?: readonly Detent[];
     actions?: Snippet;
     footer?: Snippet;
     children: Snippet;
@@ -55,6 +58,7 @@
     {title}
     {subtitle}
     close="icon"
+    {detents}
     header={actions}
     {footer}
     bodyClass="px-5 py-5 {bodyClass}"

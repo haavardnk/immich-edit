@@ -1,5 +1,5 @@
 import {
-  clockDrift,
+  cameraShiftText,
   clocksText,
   correctionText,
   parseCorrection
@@ -37,28 +37,28 @@ describe('clock correction text', () => {
     expect(parseCorrection('400 d', year)).toBeNull();
   });
 
-  it('says which way the camera clock is off', () => {
-    expect(clockDrift(-(H + 2 * M + 14_000))).toBe('Camera 1 h 02 min 14 s fast');
-    expect(clockDrift(3 * M)).toBe('Camera 03 min slow');
-    expect(clockDrift(0)).toBe('No correction');
-    expect(clockDrift(2 * 24 * H + H)).toBe('Camera 2 d 1 h slow');
+  it('writes a camera shift as the stepper does, or unchanged', () => {
+    expect(cameraShiftText(-(H + 2 * M + 14_000))).toBe('−1:02:14');
+    expect(cameraShiftText(2 * 24 * H + H)).toBe('+2 d 1:00:00');
+    expect(cameraShiftText(0)).toBe('unchanged');
+    expect(cameraShiftText(400)).toBe('unchanged');
   });
 
-  it('names each corrected camera and counts the rest', () => {
-    expect(clocksText([{ label: 'ILCE-7M3', ms: 0 }])).toBe('No correction');
-    expect(clocksText([{ label: 'ILCE-7M3', ms: -3_600_000 }])).toBe('Camera 1 h fast');
+  it('names each shifted camera and counts the rest', () => {
+    expect(clocksText([{ label: 'ILCE-7M3', ms: 0 }])).toBe('No shift');
+    expect(clocksText([{ label: 'ILCE-7M3', ms: -3_600_000 }])).toBe('Shift −1:00:00');
     expect(
       clocksText([
         { label: 'ILCE-7M3', ms: -(4 * 3600 + 59 * 60 + 38) * 1000 },
         { label: 'ILCE-7M4', ms: 0 },
         { label: 'iPhone 15 Pro', ms: 0 }
       ])
-    ).toBe('ILCE-7M3 4 h 59 min 38 s fast · 2 cameras unchanged');
+    ).toBe('ILCE-7M3 −4:59:38 · 2 cameras unchanged');
     expect(
       clocksText([
         { label: 'A', ms: 0 },
         { label: 'B', ms: 0 }
       ])
-    ).toBe('No correction');
+    ).toBe('No shift');
   });
 });

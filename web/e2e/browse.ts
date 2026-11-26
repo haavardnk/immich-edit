@@ -35,6 +35,40 @@ export async function openBulkEdits(page: Page): Promise<Locator> {
   return menu;
 }
 
+export async function openBulkMetadata(page: Page): Promise<Locator> {
+  await bulkBar(page).getByRole('button', { name: 'Metadata', exact: true }).click();
+  const menu = page.getByRole('group', { name: 'Metadata', exact: true });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+export async function openBulkLocation(page: Page): Promise<Locator> {
+  const metadata = await openBulkMetadata(page);
+  await metadata.getByRole('button', { name: 'Location', exact: true }).click();
+  const menu = page.getByRole('group', { name: 'Location', exact: true });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+export async function openTouchMetadata(page: Page): Promise<Locator> {
+  await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
+  await page
+    .getByRole('dialog', { name: 'More actions' })
+    .getByRole('button', { name: 'Metadata' })
+    .tap();
+  const sheet = page.getByRole('dialog', { name: 'Metadata' });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+export async function openTouchLocation(page: Page): Promise<Locator> {
+  const metadata = await openTouchMetadata(page);
+  await metadata.getByRole('button', { name: 'Location' }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Location' });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
 export async function selectedNames(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('[role="group"][data-selected]')]

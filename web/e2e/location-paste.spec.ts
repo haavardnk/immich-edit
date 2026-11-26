@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { bulkBar, pick } from './browse';
+import { bulkBar, openBulkLocation, openTouchLocation, pick } from './browse';
 import { installMocks } from './helpers';
 import { BERGEN, type LocationWrite, PLACED } from './mapFixtures';
 import { selectTwo } from './touchShell';
@@ -29,10 +29,10 @@ test('a location copied from one photo pastes onto a selection', async ({ page }
   const writes: LocationWrite[] = [];
   await openPhotos(page, writes);
   await pick(page, 'IMG_0002.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
-  await expect(locationMenu(page).getByRole('button', { name: 'Paste location' })).toBeDisabled();
-  await expect(locationMenu(page)).toContainText('Copy a location first');
-  await expect(locationMenu(page)).toContainText('This photo has no location');
+  await openBulkLocation(page);
+  await expect(locationMenu(page).getByRole('button', { name: 'Choose on map…' })).toBeVisible();
+  await expect(locationMenu(page).getByRole('button', { name: 'Paste location' })).toHaveCount(0);
+  await expect(locationMenu(page).getByRole('button', { name: 'Copy location' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await clearSelection(page);
 
@@ -43,7 +43,7 @@ test('a location copied from one photo pastes onto a selection', async ({ page }
 
   await pick(page, 'IMG_0002.ARW');
   await pick(page, 'IMG_0004.ARW');
-  await bulkBar(page).getByRole('button', { name: 'Location', exact: true }).click();
+  await openBulkLocation(page);
   const paste = locationMenu(page).getByRole('button', { name: 'Paste location' });
   await expect(paste).toContainText('Bergen');
   await paste.click();
@@ -65,13 +65,9 @@ test.describe('location on touch', { tag: '@touch' }, () => {
     }, COPIED);
     await openPhotos(page, writes);
     await selectTwo(page);
-    await bulkBar(page).getByRole('button', { name: 'More', exact: true }).tap();
-    await page
-      .getByRole('dialog', { name: 'More actions' })
-      .getByRole('button', { name: 'Location' })
-      .tap();
+    await openTouchLocation(page);
     const sheet = page.getByRole('dialog', { name: 'Location' });
-    await expect(sheet.getByRole('button', { name: 'Copy location' })).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: 'Copy location' })).toHaveCount(0);
     const paste = sheet.getByRole('button', { name: 'Paste location' });
     await expect(paste).toContainText('Bergen');
     await paste.tap();

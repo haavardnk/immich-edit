@@ -32,8 +32,12 @@
 
 <div class="flex flex-col" role="group" aria-label="Location">
   <BulkActionRow action={bulkLocation.choose} onPick={pick} />
-  <BulkActionRow action={bulkLocation.paste} onPick={pick} />
-  <BulkActionRow action={bulkLocation.copy} onPick={pick} />
+  {#if bulkLocation.paste}
+    <BulkActionRow action={bulkLocation.paste} onPick={pick} />
+  {/if}
+  {#if bulkLocation.copy}
+    <BulkActionRow action={bulkLocation.copy} onPick={pick} />
+  {/if}
   {@render section('Saved places', bulkLocation.saved)}
   {@render section('Recent', bulkLocation.recent)}
   <div class="my-1 h-px bg-hairline touch:hidden" role="separator"></div>

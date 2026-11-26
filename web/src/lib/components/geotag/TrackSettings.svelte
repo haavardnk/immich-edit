@@ -30,7 +30,7 @@
         </span>
       </div>
       <ZoneSelect
-        label="Camera time zone"
+        label="Time zone"
         value={session.zone}
         at={reference}
         onPick={(zone) => session.pickZone(zone)}
@@ -40,12 +40,12 @@
   <CameraPick
     cameras={session.cameras}
     chosen={session.camera}
-    detail={(key) => session.driftOf(key)}
+    detail={(key) => session.shiftTextOf(key)}
     onChoose={(key) => session.clocks.choose(key)}
   />
   <ClockStepper
-    label="Correction"
-    name="Clock correction"
+    label="Shift by"
+    name="Shift by"
     value={session.correctionMs}
     onChange={(ms) => (session.correctionMs = ms)}
   />

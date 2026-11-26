@@ -11,7 +11,7 @@
 {#if count > 0}
   <CheckboxRow
     checked={session.fixTime}
-    label="Correct the capture time of {countOf(count, 'photo')}"
+    label="Change the capture time of {countOf(count, 'photo')}"
     class="h-auto items-start py-0.5 touch:h-auto touch:min-h-11"
     onChange={(next) => (session.fixTime = next)}
   >

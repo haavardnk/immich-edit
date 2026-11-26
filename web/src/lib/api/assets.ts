@@ -1,6 +1,6 @@
 import { getJson, request, sendJson, url } from './client';
 import type { AssetDetail } from '#lib/types/asset.ts';
-import type { CaptureShift } from '#lib/metadata/captureShift.ts';
+import type { CaptureWrite } from '#lib/metadata/captureTimes.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
 import { fnv1a } from '#lib/utils/hash.ts';
@@ -20,7 +20,7 @@ export function updateAsset(id: string, body: AssetUpdate): Promise<AssetDetail>
   return sendJson('PUT', url`/api/assets/${id}`, body);
 }
 
-export function shiftCaptureTimes(items: readonly CaptureShift[]): Promise<{ failed: string[] }> {
+export function writeCaptureTimes(items: readonly CaptureWrite[]): Promise<{ failed: string[] }> {
   return sendJson('PUT', '/api/assets/capture-time', { items });
 }
 

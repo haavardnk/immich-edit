@@ -2,7 +2,8 @@ import type { Request, Route } from '@playwright/test';
 
 export interface MockShift {
   id: string;
-  minutes: number;
+  minutes?: number;
+  at?: string;
   timeZone?: string;
 }
 

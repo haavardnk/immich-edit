@@ -19,9 +19,10 @@ const h = vi.hoisted(() => ({
 
 vi.mock('#lib/browse/locationOps.ts', async (original) => ({
   ...(await original<typeof import('#lib/browse/locationOps.ts')>()),
-  applyLocation: h.applyLocation,
-  resolveAssets: h.resolveAssets
+  applyLocation: h.applyLocation
 }));
+
+vi.mock('#lib/browse/assetLookup.ts', () => ({ resolveAssets: h.resolveAssets }));
 
 const BERGEN = {
   lat: 60.39,

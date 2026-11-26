@@ -75,6 +75,7 @@ export default defineConfig({
             { slug: "editing/workspace" },
             { slug: "editing/browse-and-cull" },
             { slug: "editing/map" },
+            { slug: "editing/metadata" },
             { slug: "editing/develop" },
             { slug: "editing/masks-and-retouch" },
             { slug: "editing/presets-and-history" },

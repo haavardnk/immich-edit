@@ -12,21 +12,27 @@
     value,
     at,
     choices = [],
+    class: className = 'w-60',
     onPick
   }: {
     label: string;
     value: string;
     at: number;
     choices?: readonly Choice[];
+    class?: string;
     onPick: (id: string) => void;
   } = $props();
 
   const zones = Intl.supportedValuesOf('timeZone');
-  const options = $derived([...choices.map((choice) => choice.id), ...zones]);
+  const options = $derived([
+    ...choices.map((choice) => choice.id),
+    ...(zones.includes(value) || choices.some((choice) => choice.id === value) ? [] : [value]),
+    ...zones
+  ]);
   const named = $derived(new Map(choices.map((choice) => [choice.id, choice.label])));
 </script>
 
-<div class="w-56 shrink-0 touch:w-full">
+<div class="{className} shrink-0 touch:w-full [&_.editor-compact-combobox_input]:h-8!">
   <SearchableSelect
     compact
     color="neutral"
