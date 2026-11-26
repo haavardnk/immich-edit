@@ -65,6 +65,7 @@ pub(super) struct Prepared {
     setup: crate::dcp::setup::DcpSetup,
     out_dims: (u32, u32),
     preview_ratio: Option<f32>,
+    exact_preview: Option<(u32, u32)>,
     block: Option<usize>,
     denoise: Option<(
         Arc<crate::ai_denoise::DenoisePlane>,
@@ -76,7 +77,11 @@ impl Prepared {
     pub(super) fn preview_dims(&self, (w, h): (usize, usize)) -> Option<(u32, u32)> {
         let block_scale = self.block.unwrap_or(1) as f32;
         self.preview_ratio.and_then(|ratio| {
-            crate::geom::resample_target((w as u32, h as u32), ratio / block_scale)
+            crate::geom::preview_target(
+                (w as u32, h as u32),
+                ratio / block_scale,
+                self.exact_preview,
+            )
         })
     }
 
@@ -142,12 +147,15 @@ pub(super) fn prepare(
         },
         scratch: OpScratch::default(),
     };
+    let exact_preview =
+        crate::geom::exact_preview_dims(frame.meta.orientation, &edits, src_dims, options.max_edge);
     Ok(Prepared {
         edits,
         ctx,
         setup,
         out_dims,
         preview_ratio,
+        exact_preview,
         block,
         denoise,
     })

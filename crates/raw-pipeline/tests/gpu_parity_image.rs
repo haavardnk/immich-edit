@@ -265,6 +265,26 @@ fn gpu_xtrans_fixture_matches_cpu() {
 }
 
 #[test]
+fn gpu_previews_match_cpu_at_odd_output_sizes() {
+    let Some(renderer) = try_renderer() else {
+        return;
+    };
+    let mut ledger = ParityLedger::new("odd_preview_sizes");
+    for name in ["Fujifilm_FinePix_S5000_4-3.raf", "DJI_FC7303_16-9.dng"] {
+        let bytes = std::fs::read(fixture_path(name)).expect("committed fixture");
+        let frame = decode::decode(&bytes).unwrap();
+        for edge in [383, 701, 1024] {
+            let opts = rgb8_opts(edge);
+            let cpu = raw_pipeline::cpu::render(&frame, &Edits::default(), &opts).unwrap();
+            let gpu = renderer.render(&frame, &Edits::default(), &opts).unwrap();
+            require_same_dims(name, &cpu, &gpu);
+            ledger.check(&format!("{name}@{edge}"), &cpu.bytes, &gpu.bytes, 0.5);
+        }
+    }
+    ledger.finish();
+}
+
+#[test]
 fn gpu_enlarged_export_matches_cpu() {
     let Some(renderer) = try_renderer() else {
         return;
