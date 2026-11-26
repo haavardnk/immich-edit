@@ -49,17 +49,18 @@ describe('wallClock', () => {
 });
 
 describe('groupDays', () => {
-  it('splits consecutive runs by day with the commonest city and the count', () => {
+  it('splits consecutive runs by day with every city in grid order and the count', () => {
     const groups = groupDays([
-      shot('2026-10-31T18:00:00Z', 'Bergen'),
-      shot('2026-10-31T12:00:00Z', 'Oslo'),
+      shot('2026-10-31T18:00:00Z', 'Oslo'),
+      shot('2026-10-31T12:00:00Z', 'Bergen'),
       shot('2026-10-31T09:00:00Z', 'Bergen'),
+      shot('2026-10-31T08:00:00Z', 'Oslo'),
       shot('2026-10-30T20:00:00Z', null),
       shot('2026-10-30T10:00:00Z', null)
     ]);
     expect(groups).toEqual([
-      { key: '2026-10-31', start: 0, end: 3, place: 'Bergen', count: 3 },
-      { key: '2026-10-30', start: 3, end: 5, place: null, count: 2 }
+      { key: '2026-10-31', start: 0, end: 4, places: ['Oslo', 'Bergen'], count: 4 },
+      { key: '2026-10-30', start: 4, end: 6, places: [], count: 2 }
     ]);
   });
 
@@ -70,7 +71,7 @@ describe('groupDays', () => {
       { ...master, copyOf: 'm' },
       shot('2026-10-31T09:00:00Z', null)
     ]);
-    expect(groups).toEqual([{ key: '2026-10-31', start: 0, end: 3, place: 'Bergen', count: 2 }]);
+    expect(groups).toEqual([{ key: '2026-10-31', start: 0, end: 3, places: ['Bergen'], count: 2 }]);
   });
 
   it('keeps a day that comes back later as its own run', () => {
@@ -109,10 +110,16 @@ describe('dayTitle', () => {
 
 describe('daySubtitle', () => {
   it('joins the place and count', () => {
-    expect(daySubtitle({ place: 'Bergen', count: 24 })).toBe('Bergen · 24');
+    expect(daySubtitle({ places: ['Bergen'], count: 24 })).toBe('Bergen · 24');
+  });
+
+  it('lists every place of the day', () => {
+    expect(daySubtitle({ places: ['Oslo', 'Bergen', 'Voss'], count: 9 })).toBe(
+      'Oslo, Bergen, Voss · 9'
+    );
   });
 
   it('shows only the count without a place', () => {
-    expect(daySubtitle({ place: null, count: 3 })).toBe('3');
+    expect(daySubtitle({ places: [], count: 3 })).toBe('3');
   });
 });

@@ -4,7 +4,7 @@ export type DayGroup = {
   key: string;
   start: number;
   end: number;
-  place: string | null;
+  places: string[];
   count: number;
 };
 
@@ -49,20 +49,13 @@ export function dayKey(asset: Dated): string {
   return wallClock(asset).slice(0, 10);
 }
 
-function mostCommon(values: (string | null | undefined)[]): string | null {
-  const tally = new Map<string, number>();
-  let best: string | null = null;
-  let bestCount = 0;
-  for (const value of values) {
-    if (!value) continue;
-    const count = (tally.get(value) ?? 0) + 1;
-    tally.set(value, count);
-    if (count > bestCount) {
-      best = value;
-      bestCount = count;
-    }
+function placesOf(assets: readonly Dated[]): string[] {
+  const places = new Set<string>();
+  for (const asset of assets) {
+    const city = asset.exifInfo?.city;
+    if (city) places.add(city);
   }
-  return best;
+  return [...places];
 }
 
 type Grouped = Dated & { copyOf?: string };
@@ -74,9 +67,8 @@ export function groupDays(assets: readonly Grouped[]): DayGroup[] {
   const close = (end: number): void => {
     if (key === null || end <= start) return;
     const day = assets.slice(start, end);
-    const cities = day.map((asset) => asset.exifInfo?.city);
     const count = day.filter((asset) => !asset.copyOf).length;
-    groups.push({ key, start, end, place: mostCommon(cities), count });
+    groups.push({ key, start, end, places: placesOf(day), count });
   };
   assets.forEach((asset, index) => {
     const next = dayKey(asset);
@@ -103,6 +95,7 @@ export function dayTitle(key: string, today: Date = new Date()): string {
   return date.toLocaleDateString('en-GB', options).replace(',', '');
 }
 
-export function daySubtitle(group: Pick<DayGroup, 'place' | 'count'>): string {
-  return group.place ? `${group.place} · ${group.count}` : String(group.count);
+export function daySubtitle(group: Pick<DayGroup, 'places' | 'count'>): string {
+  if (group.places.length === 0) return String(group.count);
+  return `${group.places.join(', ')} · ${group.count}`;
 }
