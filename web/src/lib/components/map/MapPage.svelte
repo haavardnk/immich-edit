@@ -399,7 +399,7 @@
     <div class="relative flex min-h-0 flex-1">
       {@render mapView('flex min-w-0 flex-1', 'min-w-0 flex-1')}
       <aside
-        aria-label="Match track"
+        aria-label="Geotag from track"
         class="w-75 shrink-0 flex-col border-s border-hairline bg-light {full ? 'hidden' : 'flex'}"
       >
         <TrackPanel />
@@ -425,7 +425,10 @@
   {:else}
     <div class="relative flex min-h-0 flex-1">
       {@render mapView('flex min-w-0 flex-1', 'min-w-0 flex-1')}
-      <MapSidePanel label={tracking ? 'Match track' : 'Photos in view'} shown={!full && side.shown}>
+      <MapSidePanel
+        label={tracking ? 'Geotag from track' : 'Photos in view'}
+        shown={!full && side.shown}
+      >
         {#if tracking}
           <TrackPanel />
         {:else}

@@ -7,7 +7,7 @@ export async function matchTrackFor(ids: readonly string[]): Promise<void> {
   try {
     trackSession.open(await resolveAssets(ids));
   } catch (error) {
-    toasts.fail('Match to a track', error);
+    toasts.fail('Geotag from track', error);
     return;
   }
   await goto('/map');

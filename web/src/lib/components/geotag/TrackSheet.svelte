@@ -48,7 +48,7 @@
   ]}
   bind:detent
   collapseTo={loaded ? 1 : undefined}
-  title={loaded ? session.summary : 'Match track'}
+  title={loaded ? session.summary : 'Geotag from track'}
   {subtitle}
   bodyClass="flex h-full min-h-0 flex-col p-0"
   {lift}

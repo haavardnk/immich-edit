@@ -1,6 +1,6 @@
 ---
 title: Map and geotagging
-description: Explore geotagged photos, save places, and match shoots to GPX, KML, or TCX tracks.
+description: Explore geotagged photos, save places, and geotag shoots from GPX, KML, or TCX tracks.
 ---
 
 Open **Map** from the sidebar (under **Library** > **Collections** on phones) to browse geotagged
@@ -56,12 +56,12 @@ in bulk, so a location can be moved but not removed):
 <!-- SCREENSHOT: capture.cjs location-desktop + compose.cjs location-desktop -->
 ![Set location dialog with Photon place search and draggable map pin](../../../assets/shots/location-desktop.png)
 
-## Match photos to a track
+## Geotag photos from a track
 
-Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app, or GPS logger:
+Geotag still photos with a GPX, KML, or TCX track from a watch, phone app, or GPS logger:
 
-1. Select photos and choose **Metadata** > **Location** > **Match to a track**, or select **Match
-   track** in the map header to match every photo taken during the track.
+1. Select photos and choose **Metadata** > **Location** > **Geotag from track**, or select
+   **Geotag from track** in the map header to match every photo taken during the track.
 2. Drop or choose one or more track files (parsed locally in your browser; only saved coordinates
    are sent to Immich).
 3. Align each camera under **Camera time**: set a camera's **Time zone** when it was not left in
@@ -79,7 +79,7 @@ Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app
    inherit the track's zone). **Undo** restores both.
 
 <!-- SCREENSHOT: capture.cjs track-desktop + compose.cjs track-desktop -->
-![GPX track matching around Lake Magadi with hovered lion photo preview and matched photo list](../../../assets/shots/track-desktop.png)
+![Geotag from track around Lake Magadi with hovered lion preview, reference pins, and matched photo list](../../../assets/shots/track-desktop.png)
 
 ## Tiles and privacy
 

@@ -83,7 +83,7 @@ class BulkLocation {
   );
 
   readonly track: BulkMenuAction = $derived({
-    label: 'Match to a track…',
+    label: 'Geotag from track…',
     icon: mdiMapMarkerPath,
     bind: null,
     detail: null,

@@ -22,7 +22,7 @@
   {#if header}
     <div class="flex h-13 shrink-0 items-center gap-2 border-b border-hairline ps-4 pe-2">
       <div class="min-w-0 flex-1 leading-tight">
-        <h2 class="truncate text-sm font-semibold text-light-950">Match track</h2>
+        <h2 class="truncate text-sm font-semibold text-light-950">Geotag from track</h2>
         {#if subtitle}
           <p class="truncate text-caption text-dark/65">{subtitle}</p>
         {/if}

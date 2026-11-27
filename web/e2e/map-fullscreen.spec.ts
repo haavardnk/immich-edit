@@ -29,7 +29,7 @@ function card(page: Page) {
 async function openTrack(page: Page): Promise<void> {
   await installMocks(page, { assets: SHOOT, metadataPushConsented: true });
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track', exact: true }).click();
+  await page.getByRole('button', { name: 'Geotag from track', exact: true }).click();
   await page.getByLabel('Choose track files').setInputFiles(GPX);
   await expect(page.getByText('Hardangervidda').first()).toBeVisible();
 }
@@ -115,7 +115,7 @@ test('Escape leaves fullscreen before it clears a selection', async ({ page }) =
 
 test('a fullscreen track keeps its summary and Place in a floating card', async ({ page }) => {
   await openTrack(page);
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await expect(panel).toBeVisible();
   await page.keyboard.press('f');
   await expect(panel).toBeHidden();
@@ -142,7 +142,7 @@ test('fullscreen stays under the loupe and ends when the map is left for Library
   page
 }) => {
   await openTrack(page);
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await panel.getByRole('button', { name: /^Camera time/ }).click();
   const shift = panel.getByRole('textbox', { name: 'Shift Unknown camera by', exact: true });
   await shift.fill('-1:00');
@@ -205,7 +205,7 @@ test.describe('fullscreen map on touch', { tag: '@touch' }, () => {
   }, info) => {
     await installMocks(page, { assets: SHOOT, metadataPushConsented: true });
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track', exact: true }).tap();
+    await page.getByRole('button', { name: 'Geotag from track', exact: true }).tap();
     await page.getByLabel('Choose track files').setInputFiles(GPX);
     await expect(page.getByText('Hardangervidda').first()).toBeVisible();
     await page.getByRole('button', { name: 'Fullscreen', exact: true }).tap();
@@ -229,7 +229,7 @@ test.describe('fullscreen map on touch', { tag: '@touch' }, () => {
       const row = await boxOf(card(page));
       expect(Math.round(844 - (row.x + row.width))).toBe(12);
       expect(row.width).toBeLessThan(700);
-      await expect(page.getByRole('complementary', { name: 'Match track' })).toBeHidden();
+      await expect(page.getByRole('complementary', { name: 'Geotag from track' })).toBeHidden();
     } else {
       expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
       expect(button.width).toBeLessThan(box.width / 2);
