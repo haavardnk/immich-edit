@@ -40,12 +40,13 @@
   {#each session.rows as { asset, match } (asset.id)}
     {@const state = matchStatus(match)}
     {@const chosen = session.focused === asset.id}
+    {@const named = [asset.originalFileName, state.text].filter(Boolean)}
     <li class="shrink-0" data-strip-photo={asset.id}>
       <TooltipLink
-        tooltip="{asset.originalFileName} · {state.text}"
+        tooltip={named.join(' · ')}
         href={editorHref(asset.id, currentPath())}
         onclick={(event) => tap(event, asset.id)}
-        aria-label="{asset.originalFileName}, {state.text}"
+        aria-label={named.join(', ')}
         aria-current={chosen ? 'true' : undefined}
         class="relative block size-16 overflow-hidden rounded-md outline-none {chosen
           ? 'ring-3 ring-primary'

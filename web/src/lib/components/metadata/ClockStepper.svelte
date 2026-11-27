@@ -12,12 +12,14 @@
     name,
     value,
     limit,
+    width = 'w-60',
     onChange
   }: {
     label: string;
     name: string;
     value: number;
     limit?: number;
+    width?: string;
     onChange: (ms: number) => void;
   } = $props();
 
@@ -34,7 +36,7 @@
 <div class="flex items-center gap-3 touch:flex-col touch:items-stretch touch:gap-2">
   <div class="min-w-0 flex-1 text-sm text-light-950">{label}</div>
   <div
-    class="flex w-60 shrink-0 items-center rounded-lg bg-light-100 ring-1 ring-hairline touch:w-full"
+    class="flex {width} shrink-0 items-center rounded-lg bg-light-100 ring-1 ring-hairline touch:w-full"
   >
     <Button
       size="tiny"

@@ -1,6 +1,6 @@
+import { isAnyModalOpen } from '#lib/stores/overlays.ts';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import SheetHarness from '#lib/testing/SheetHarness.svelte';
-import { isAnyModalOpen } from '#lib/stores/overlays.ts';
 import { flushSync, mount, tick, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -265,5 +265,19 @@ describe('BottomSheet', () => {
     outside.focus();
     await settle();
     expect(document.activeElement).toBe(outside);
+  });
+
+  it('steps a non-modal sheet down on a press outside it', async () => {
+    await render({ modal: false, detents: [{ fraction: 0.5 }, { fraction: 1 }], collapseTo: 0 });
+    const output = document.querySelector('[data-testid="detent"]');
+    handle().click();
+    flushSync();
+    expect(output?.textContent).toBe('1');
+    button('Inside').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    flushSync();
+    expect(output?.textContent).toBe('1');
+    button('Outside').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    flushSync();
+    expect(output?.textContent).toBe('0');
   });
 });

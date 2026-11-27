@@ -8,6 +8,7 @@
     refuse = false,
     detents,
     detentLabels,
+    collapseTo,
     onOpenChange
   }: {
     modal?: boolean;
@@ -15,6 +16,7 @@
     refuse?: boolean;
     detents?: Detent[];
     detentLabels?: string[];
+    collapseTo?: number;
     onOpenChange: (open: boolean) => void;
   } = $props();
 
@@ -39,6 +41,7 @@
   {dismissable}
   {detents}
   {detentLabels}
+  {collapseTo}
   bind:detent
 >
   <button type="button">Inside</button>

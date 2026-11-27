@@ -6,23 +6,15 @@ export interface CaptureRow {
   asset: AssetSummary;
   match: PhotoMatch;
   shiftMs: number;
+  zone: string | null;
 }
 
-export interface CaptureZones {
-  clock: string;
-  track: string;
-}
-
-export function trackCaptureChanges(
-  rows: readonly CaptureRow[],
-  zones: CaptureZones
-): ClockChange[] {
-  const rezoned = zones.clock !== zones.track;
-  return rows.flatMap(({ asset, match, shiftMs }) => {
+export function trackCaptureChanges(rows: readonly CaptureRow[], trackZone: string): ClockChange[] {
+  return rows.flatMap(({ asset, match, shiftMs, zone }) => {
     if (match.time === null) return [];
     const photo = clockPhoto(asset);
     if (!photo) return [];
-    if (shiftMs === 0 && (photo.zone !== null || !rezoned)) return [];
-    return [{ photo, target: { instant: match.time, zone: photo.zone ?? zones.track } }];
+    if (shiftMs === 0 && (zone === null || zone === photo.zone)) return [];
+    return [{ photo, target: { instant: match.time, zone: zone ?? photo.zone ?? trackZone } }];
   });
 }

@@ -49,17 +49,21 @@
         ]
       : []),
     ...(session.counts.kept > 0
-      ? [{ id: 'kept' as const, label: `${session.counts.kept} kept` }]
+      ? [{ id: 'kept' as const, label: `${session.counts.kept} with location` }]
       : [])
   ]);
 </script>
 
 <section class="flex min-h-40 flex-1 flex-col" aria-label="Photos">
-  <div class="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-3 pb-2">
-    <h3 class="section-label me-2 text-dark/65">Photos</h3>
+  <div class="flex shrink-0 items-center gap-1.5 px-4 pt-3 pb-2">
+    <h3 class="section-label me-2 shrink-0 text-dark/65 touch:sr-only">Photos</h3>
     {#each chips as chip (chip.id)}
-      <Chip pressed={filter === chip.id} onPressedChange={(on) => (filter = on ? chip.id : null)}>
-        {chip.label}
+      <Chip
+        class="touch:min-w-0 touch:grow touch:px-2.5 {chip.id === 'kept' ? 'touch:shrink' : ''}"
+        pressed={filter === chip.id}
+        onPressedChange={(on) => (filter = on ? chip.id : null)}
+      >
+        <span class="min-w-0 truncate">{chip.label}</span>
       </Chip>
     {/each}
   </div>
@@ -72,7 +76,8 @@
       {@const state = matchStatus(match)}
       {@const when = matchTimes(session.bases.get(asset.id), match, session.trackZone)}
       <li
-        class="flex items-center gap-3 px-4 py-1.5 transition-colors {session.focused === asset.id
+        class="flex items-center gap-3 px-4 py-1.5 transition-colors [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto] touch:[contain-intrinsic-size:auto_3.75rem] {session.focused ===
+        asset.id
           ? 'bg-primary/20 shadow-[inset_3px_0_0_var(--color-primary)]'
           : ''}"
         data-track-photo={asset.id}
@@ -102,9 +107,11 @@
             {/if}
           </span>
         </TooltipLink>
-        <span class="shrink-0 rounded-full px-2 py-0.5 text-caption {MATCH_TONES[state.tone]}">
-          {state.text}
-        </span>
+        {#if state.text}
+          <span class="shrink-0 rounded-full px-2 py-0.5 text-caption {MATCH_TONES[state.tone]}">
+            {state.text}
+          </span>
+        {/if}
       </li>
     {:else}
       <li class="px-4 py-3 text-caption text-dark/65">

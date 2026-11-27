@@ -90,6 +90,21 @@ describe('track files', () => {
     ]);
   });
 
+  it('tells UTC times from times with their own offset', () => {
+    const at = (time: string) =>
+      parseTrackFile(
+        `<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>
+          <trkpt lat="1" lon="1"><time>${time}</time></trkpt>
+          <trkpt lat="1" lon="2"><time>${time}</time></trkpt>
+        </trkseg></trk></gpx>`,
+        'gpx'
+      ).lines[0]?.utc;
+    expect(at('2026-10-31T08:00:00Z')).toBe(true);
+    expect(at('2026-10-31T08:00:00')).toBe(true);
+    expect(at('2026-10-31T08:00:00+00:00')).toBe(true);
+    expect(at('2026-10-31T11:00:00+03:00')).toBe(false);
+  });
+
   it('finds nothing in a broken or empty file', () => {
     expect(parseTrackFile('not xml <', 'gpx')).toEqual({ lines: [], untimed: 0 });
     expect(parseTrackFile('<gpx><wpt lat="1" lon="2"/></gpx>', 'gpx')).toEqual({

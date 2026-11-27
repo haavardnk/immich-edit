@@ -1,7 +1,6 @@
 <script lang="ts">
-  import TrackFitBar from '#lib/components/geotag/TrackFitBar.svelte';
+  import TrackCameraShifts from '#lib/components/geotag/TrackCameraShifts.svelte';
   import TrackSection from '#lib/components/geotag/TrackSection.svelte';
-  import TrackSetup from '#lib/components/geotag/TrackSetup.svelte';
   import TrackFooter from '#lib/components/geotag/TrackFooter.svelte';
   import TrackPhotoList from '#lib/components/geotag/TrackPhotoList.svelte';
   import TrackSources from '#lib/components/geotag/TrackSources.svelte';
@@ -15,11 +14,7 @@
   const session = trackSession;
 
   const subtitle = $derived(
-    session.scope === 'selection'
-      ? countOf(session.photos.length, 'selected photo')
-      : session.tracks.length > 0
-        ? `${countOf(session.photos.length, 'photo')} taken during the track`
-        : 'Photos taken during the track'
+    session.selection ? countOf(session.photos.length, 'selected photo') : ''
   );
 </script>
 
@@ -28,7 +23,9 @@
     <div class="flex h-13 shrink-0 items-center gap-2 border-b border-hairline ps-4 pe-2">
       <div class="min-w-0 flex-1 leading-tight">
         <h2 class="truncate text-sm font-semibold text-light-950">Match track</h2>
-        <p class="truncate text-caption text-dark/65">{subtitle}</p>
+        {#if subtitle}
+          <p class="truncate text-caption text-dark/65">{subtitle}</p>
+        {/if}
       </div>
       <IconButton
         size="small"
@@ -46,8 +43,7 @@
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div class="shrink-0">
         <TrackSection />
-        <TrackSetup />
-        <TrackFitBar />
+        <TrackCameraShifts />
       </div>
       <TrackPhotoList />
     </div>

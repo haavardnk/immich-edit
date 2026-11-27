@@ -75,11 +75,13 @@
         {#if when}
           <span class="min-w-0 flex-1 truncate text-caption text-dark/65 tabular-nums">{when}</span>
         {/if}
-        <span
-          class="ms-auto shrink-0 rounded-full px-2 py-0.5 text-caption {MATCH_TONES[state.tone]}"
-        >
-          {state.text}
-        </span>
+        {#if state.text}
+          <span
+            class="ms-auto shrink-0 rounded-full px-2 py-0.5 text-caption {MATCH_TONES[state.tone]}"
+          >
+            {state.text}
+          </span>
+        {/if}
       </div>
     </div>
   </div>

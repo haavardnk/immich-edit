@@ -27,6 +27,7 @@
     detents = ['content'],
     detent = $bindable(0),
     detentLabels,
+    collapseTo,
     close,
     closeLabel = 'close',
     header,
@@ -50,6 +51,7 @@
     detents?: readonly Detent[];
     detent?: number;
     detentLabels?: readonly string[];
+    collapseTo?: number;
     close?: 'icon' | 'done';
     closeLabel?: string;
     header?: Snippet;
@@ -62,6 +64,9 @@
 
   const guard = clickGuard();
   const inset = viewportInset();
+
+  const FLOATING_LAYERS =
+    '[data-sheet-frame], [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [role="tooltip"]';
 
   let content = $state<HTMLElement | null>(null);
   let available = $state(0);
@@ -205,6 +210,20 @@
   $effect(() => {
     if (open) untrack(reopen);
     else if (untrack(() => present)) untrack(() => void exit());
+  });
+
+  $effect(() => {
+    const target = collapseTo;
+    const panel = content;
+    if (!open || modal || target === undefined || current <= target || !panel) return;
+    const press = (event: PointerEvent): void => {
+      if (!(event.target instanceof Element) || panel.contains(event.target)) return;
+      if (event.target.closest(FLOATING_LAYERS)) return;
+      detent = target;
+      void motion.settle(heights[target] ?? 0);
+    };
+    document.addEventListener('pointerdown', press, true);
+    return () => document.removeEventListener('pointerdown', press, true);
   });
 
   $effect(() => {

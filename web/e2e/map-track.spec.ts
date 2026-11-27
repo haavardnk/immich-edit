@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { openBulkLocation, openTouchLocation } from './browse';
-import { installMocks, numberedAssets } from './helpers';
 import { CaptureTimeMock } from './captureTimeMocks';
+import { installMocks, numberedAssets } from './helpers';
 import { BERGEN, pointOnMap } from './mapFixtures';
 import { selectTwo } from './touchShell';
 
@@ -28,12 +28,50 @@ async function open(page: Page, written: Written[]): Promise<void> {
   });
 }
 
-async function lineUpOnTouch(page: Page): Promise<void> {
-  await page.locator('[data-track-panel]').getByRole('button', { name: 'Use best fit' }).tap();
+function cameraShift(panel: Locator): Locator {
+  return panel.getByRole('region', { name: 'Camera time', exact: true });
 }
 
-function clockSetup(panel: Locator): Locator {
-  return panel.getByRole('button', { name: /Camera clock/ });
+function shiftHeader(panel: Locator): Locator {
+  return cameraShift(panel).getByRole('button', { name: /^Camera time/ });
+}
+
+async function shiftCamera(scope: Locator, camera: string, value: string): Promise<void> {
+  const box = scope.getByRole('textbox', { name: `Shift ${camera} by`, exact: true });
+  await box.fill(value);
+  await box.press('Enter');
+}
+
+async function pickZone(page: Page, field: Locator, place: string, zone: RegExp): Promise<void> {
+  await field.click();
+  await field.pressSequentially(place);
+  await page.getByRole('option', { name: zone }).click();
+}
+
+async function openShifts(panel: Locator): Promise<void> {
+  await shiftHeader(panel).click();
+  await expect(shiftHeader(panel)).toHaveAttribute('aria-expanded', 'true');
+}
+
+async function lineUp(panel: Locator): Promise<void> {
+  await openShifts(panel);
+  await shiftCamera(cameraShift(panel), 'Unknown camera', '-1:00');
+}
+
+async function lineUpOnTouch(page: Page): Promise<void> {
+  const panel = page.locator('[data-track-panel]');
+  const sheet = page.locator('[data-track-sheet]');
+  await expect(panel).toBeVisible();
+  if ((await sheet.count()) > 0) {
+    await sheet
+      .getByRole('button', { name: /^Camera time/ })
+      .first()
+      .tap();
+  } else {
+    await shiftHeader(panel).tap();
+  }
+  await expect(shiftHeader(panel)).toHaveAttribute('aria-expanded', 'true');
+  await shiftCamera(cameraShift(panel), 'Unknown camera', '-1:00');
 }
 
 async function loadTrack(page: Page): Promise<void> {
@@ -41,7 +79,7 @@ async function loadTrack(page: Page): Promise<void> {
   await expect(page.getByText('Hardangervidda')).toBeVisible();
 }
 
-test('a track places a selection after the camera clock is lined up', async ({ page }) => {
+test('a track places a selection after the camera time is lined up', async ({ page }) => {
   const written: Written[] = [];
   await open(page, written);
   await page.goto('/photos');
@@ -61,18 +99,20 @@ test('a track places a selection after the camera clock is lined up', async ({ p
   await expect(panel).toContainText('3 selected photos');
   await loadTrack(page);
 
-  const fit = panel.getByRole('group', { name: 'Best fit' });
-  await expect(fit).toContainText('Best fit: −1:00:00');
-  await expect(fit).toContainText('Puts 2 of 3 photos on the track');
-  await expect(panel.getByRole('button', { name: 'Place 0 photos' })).toBeDisabled();
-  await fit.getByRole('button', { name: 'Use best fit' }).click();
-  await expect(fit).toHaveCount(0);
-  await expect(clockSetup(panel)).toContainText('Shift −1:00:00');
-  await clockSetup(panel).click();
-  await expect(panel.getByRole('textbox', { name: 'Shift by' })).toHaveValue('−1:00:00');
+  await expect(shiftHeader(panel)).toContainText('No change');
+  await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
+  await openShifts(panel);
+  const shifts = cameraShift(panel);
+  await expect(
+    shifts.getByRole('combobox', { name: 'Unknown camera time zone', exact: true })
+  ).toHaveValue('As shot (Oslo · UTC+1)');
+  await shiftCamera(shifts, 'Unknown camera', '-1:00');
+  await expect(shiftHeader(panel)).toContainText('−1:00:00');
+  await expect(
+    shifts.getByRole('textbox', { name: 'Shift Unknown camera by', exact: true })
+  ).toHaveValue('−1:00:00');
 
   const photos = panel.getByRole('list', { name: 'Photos on the track' });
-  await expect(photos).toContainText('On the track');
   await expect(panel.locator('[data-track-photo]')).toContainText([
     'IMG_0001',
     'IMG_0002',
@@ -108,11 +148,8 @@ test('placing can change the capture time too, and one Undo reverts both', async
   });
   await expect(panel.getByRole('checkbox', { name: /Save corrected capture time/ })).toHaveCount(0);
 
-  await panel.getByRole('button', { name: 'Use best fit' }).click();
+  await lineUp(panel);
   await expect(fix).not.toBeChecked();
-  await expect(
-    panel.locator('label').filter({ hasText: 'Save corrected capture time' })
-  ).toContainText('Updates Date taken & XMP sidecar; originals untouched');
   await fix.check();
   await panel.getByRole('button', { name: 'Place 2 & save time' }).click();
 
@@ -134,38 +171,124 @@ test('placing can change the capture time too, and one Undo reverts both', async
   ]);
 });
 
-test('each camera keeps its own clock', async ({ page }) => {
-  const [first, second, third] = numberedAssets(3);
-  const shots = [
-    { asset: first!, at: '2026-10-31T09:10:00.000Z', make: 'SONY', model: 'ILCE-7M3' },
-    { asset: second!, at: '2026-10-31T09:20:00.000Z', make: 'SONY', model: 'ILCE-7M3' },
-    { asset: third!, at: '2026-10-31T08:15:00.000Z', make: 'Apple', model: 'iPhone 15 Pro' }
-  ].map(({ asset, at, make, model }) => ({
+function shot(
+  asset: ReturnType<typeof numberedAssets>[number],
+  at: string,
+  model: [string, string]
+): ReturnType<typeof numberedAssets>[number] {
+  const [make, name] = model;
+  const osloWall = new Date(Date.parse(at) + 3_600_000).toISOString();
+  return {
     ...asset,
     fileCreatedAt: at,
-    localDateTime: at,
-    exifInfo: { dateTimeOriginal: at, timeZone: 'Europe/Oslo', make, model }
-  })) as ReturnType<typeof numberedAssets>;
+    localDateTime: osloWall,
+    exifInfo: { dateTimeOriginal: at, timeZone: 'Europe/Oslo', make, model: name }
+  } as ReturnType<typeof numberedAssets>[number];
+}
+
+const SONY: [string, string] = ['SONY', 'ILCE-7M3'];
+const PHONE: [string, string] = ['Apple', 'iPhone 15 Pro'];
+
+test('each camera keeps its own time zone and shift', async ({ page }) => {
+  const [first, second, third] = numberedAssets(3);
+  const shots = [
+    shot(first!, '2026-10-31T09:10:00.000Z', SONY),
+    shot(second!, '2026-10-31T09:20:00.000Z', SONY),
+    shot(third!, '2026-10-31T08:15:00.000Z', PHONE)
+  ];
   await installMocks(page, { assets: shots, placeName: BERGEN, metadataPushConsented: true });
   await page.goto('/map');
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
 
-  const fit = panel.getByRole('group', { name: 'Best fit' });
-  await expect(fit).toContainText('Best fit for ILCE-7M3: −1:00:00');
-  await expect(panel.getByRole('button', { name: 'Place 1 photo' })).toBeVisible();
-  await fit.getByRole('button', { name: 'Use best fit' }).click();
-  await expect(clockSetup(panel)).toContainText('ILCE-7M3 −1:00:00 · 1 camera unchanged');
-  await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
+  await expect(shiftHeader(panel)).toContainText('No change');
+  await expect(panel.getByRole('button', { name: 'Place 1 photo', exact: true })).toBeVisible();
+  await openShifts(panel);
+  const shifts = cameraShift(panel);
+  const sony = shifts.getByRole('group', { name: 'ILCE-7M3', exact: true });
+  const phone = shifts.getByRole('group', { name: 'iPhone 15 Pro', exact: true });
+  const sonyRow = sony.getByRole('button', { name: /^ILCE-7M3,/ });
+  await expect(sonyRow).toHaveAccessibleName('ILCE-7M3, 2 photos, No change');
+  await expect(shifts.getByRole('textbox')).toHaveCount(0);
 
-  await clockSetup(panel).click();
-  const shift = panel.getByRole('textbox', { name: 'Shift by' });
-  await expect(shift).toHaveValue('−1:00:00');
-  await panel.getByRole('button', { name: 'Camera: ILCE-7M3' }).click();
-  await page.getByRole('button', { name: /iPhone 15 Pro/ }).click();
-  await expect(shift).toHaveValue('+0:00:00');
-  await expect(panel.getByRole('button', { name: 'Place 3 photos' })).toBeVisible();
+  await sonyRow.click();
+  await expect(sonyRow).toHaveAttribute('aria-expanded', 'true');
+  const zone = sony.getByRole('combobox', { name: 'ILCE-7M3 time zone', exact: true });
+  await expect(zone).toHaveValue('As shot (Oslo · UTC+1)');
+  await pickZone(page, zone, 'Helsinki', /Europe\/Helsinki/);
+  await expect(shiftHeader(panel)).toContainText('ILCE-7M3 Helsinki · 1 unchanged');
+  await expect(sonyRow).toHaveAccessibleName('ILCE-7M3, 2 photos, Helsinki');
+  await expect(panel.getByRole('button', { name: 'Place 3 photos', exact: true })).toBeVisible();
+  await expect(panel.locator('[data-track-photo]')).toContainText([
+    'IMG_0001',
+    'IMG_0003',
+    'IMG_0002'
+  ]);
+
+  await phone.getByRole('button', { name: /^iPhone 15 Pro,/ }).click();
+  await expect(phone.getByRole('textbox', { name: 'Shift iPhone 15 Pro by' })).toHaveValue(
+    '+0:00:00'
+  );
+  await expect(sony.getByRole('textbox')).toHaveCount(0);
+  await expect(sony.getByRole('combobox')).toHaveCount(0);
+});
+
+test('a track logged in local time gets its time zone', async ({ page }) => {
+  await open(page, []);
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+  await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
+
+  const track = panel.getByRole('region', { name: 'Track', exact: true });
+  const header = track.getByRole('button', { name: /Hardangervidda/ });
+  await header.click();
+  const zone = track.getByRole('combobox', { name: 'Hardangervidda time zone', exact: true });
+  await expect(zone).toHaveValue('UTC');
+  await pickZone(page, zone, 'Cape Verde', /Atlantic\/Cape Verde/);
+  await expect(header).toContainText('Cape Verde');
+  await expect(panel.getByRole('button', { name: 'Place 2 photos', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('checkbox', { name: /Save corrected capture time/ })).toHaveCount(0);
+});
+
+test('photos with a location can get their capture time saved alone', async ({ page }) => {
+  const times = new CaptureTimeMock();
+  const located = SHOOT.map((asset, index) => ({
+    ...asset,
+    exifInfo: { ...asset.exifInfo, latitude: 60.11 + index * 0.01, longitude: 6.71 }
+  })) as ReturnType<typeof numberedAssets>;
+  await installMocks(page, {
+    assets: located,
+    placeName: BERGEN,
+    metadataPushConsented: true,
+    captureTime: times
+  });
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+  await lineUp(panel);
+
+  const photos = panel.getByRole('list', { name: 'Photos on the track' });
+  await expect(photos.locator(`[data-track-photo="${SHOOT[0]!.id}"]`)).toContainText(
+    /m from track/
+  );
+  await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
+  await panel
+    .getByRole('checkbox', { name: 'Save corrected capture time in Immich (2 photos)' })
+    .check();
+  await panel.getByRole('button', { name: 'Save time for 2 photos', exact: true }).click();
+
+  await expect(page.getByText('Changed the capture time of 2 photos')).toBeVisible();
+  expect(times.calls).toEqual([
+    [
+      { id: SHOOT[0]!.id, minutes: -60 },
+      { id: SHOOT[1]!.id, minutes: -60 }
+    ]
+  ]);
+  await expect(panel).toHaveCount(0);
 });
 
 test('typing a shift moves the photos along the track', async ({ page }) => {
@@ -175,13 +298,15 @@ test('typing a shift moves the photos along the track', async ({ page }) => {
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await expect(panel).toContainText('Choose GPX, KML or TCX files');
   await loadTrack(page);
-  await expect(panel).toContainText('photos taken during the track');
-  await clockSetup(panel).click();
+  await openShifts(panel);
 
-  const shift = panel.getByRole('textbox', { name: 'Shift by' });
+  const shift = cameraShift(panel).getByRole('textbox', {
+    name: 'Shift Unknown camera by',
+    exact: true
+  });
   await shift.fill('-0:55');
   await shift.press('Enter');
-  await expect(clockSetup(panel)).toContainText('Shift −0:55:00');
+  await expect(shiftHeader(panel)).toContainText('−0:55:00');
   await panel.getByRole('button', { name: 'One minute earlier' }).click();
   await expect(shift).toHaveValue('−0:56:00');
   await panel.getByRole('button', { name: 'Close track' }).click();
@@ -195,7 +320,7 @@ test('a track shift moves the track under the photos', async ({ page }) => {
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
-  await expect(panel.getByRole('button', { name: 'Place 0 photos' })).toBeDisabled();
+  await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
 
   const track = panel.getByRole('region', { name: 'Track', exact: true });
   const header = track.getByRole('button', { name: /Hardangervidda/ });
@@ -203,9 +328,10 @@ test('a track shift moves the track under the photos', async ({ page }) => {
   const shift = track.getByRole('textbox', { name: 'Shift Hardangervidda by' });
   await shift.fill('1:00');
   await shift.press('Enter');
-  await expect(header).toContainText('Shift +1:00:00');
-  await expect(panel.getByRole('button', { name: 'Place 2 photos' })).toBeEnabled();
+  await expect(header).toContainText('+1:00:00');
+  await expect(panel.getByRole('button', { name: 'Place 2 photos', exact: true })).toBeEnabled();
   await expect(panel.getByRole('list', { name: 'Photos on the track' })).toContainText('10:10:00');
+  await expect(panel.getByRole('checkbox', { name: /Save corrected capture time/ })).toHaveCount(0);
 });
 
 test('hovering a pin points at its photo and a click opens it large', async ({ page }) => {
@@ -214,10 +340,10 @@ test('hovering a pin points at its photo and a click opens it large', async ({ p
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
-  await panel.getByRole('button', { name: 'Use best fit' }).click();
+  await lineUp(panel);
   const photos = panel.getByRole('list', { name: 'Photos on the track' });
   const first = photos.locator(`[data-track-photo="${SHOOT[0]!.id}"]`);
-  await expect(first).toContainText('On the track');
+  await expect(first).toContainText('10:10:00 → 09:10:00');
 
   await expect(page).toHaveURL(/at=60\.1\d+%2C6\.7/);
   const pin = await pointOnMap(page, 60.11, 6.71);
@@ -225,7 +351,7 @@ test('hovering a pin points at its photo and a click opens it large', async ({ p
   await expect(first).toHaveAttribute('aria-current', 'true');
   const card = page.locator('[data-pin-preview]');
   await expect(card).toContainText('IMG_0001.ARW');
-  await expect(card).toContainText('On the track');
+  await expect(card).toContainText('10:10:00 → 09:10:00');
   await expect(card.getByRole('img', { name: 'IMG_0001.ARW' })).toBeVisible();
   await page.mouse.move(pin.x + 80, pin.y + 80);
   await expect(first).not.toHaveAttribute('aria-current');
@@ -263,7 +389,7 @@ test('photo markers under the track let the pins be hovered', async ({ page }) =
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
-  await panel.getByRole('button', { name: 'Use best fit' }).click();
+  await lineUp(panel);
   await expect(page).toHaveURL(/at=60\.115\d*%2C6\.715/);
 
   const marker = page.locator(`[data-map-photo="${SHOOT[2]!.id}"]`);
@@ -277,6 +403,36 @@ test('photo markers under the track let the pins be hovered', async ({ page }) =
     'true'
   );
   await expect(page.locator('[data-pin-preview]')).toContainText('IMG_0001.ARW');
+});
+
+test('track and camera time sections slide open and closed', async ({ page }) => {
+  await open(page, []);
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+  await page.evaluate(() => {
+    const slides: string[] = [];
+    Reflect.set(window, '__trackSlides', slides);
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args: Parameters<Element['animate']>) {
+      const owner = this.closest('[aria-label]')?.getAttribute('aria-label');
+      if (this.id && owner) slides.push(owner);
+      return animate.apply(this, args);
+    };
+  });
+  const slides = () => page.evaluate(() => Reflect.get(window, '__trackSlides') as string[]);
+
+  await openShifts(panel);
+  await expect.poll(slides).toContain('Camera time');
+  const track = panel.getByRole('region', { name: 'Track', exact: true });
+  await track.getByRole('button', { name: /Hardangervidda/ }).click();
+  await expect.poll(slides).toContain('Track');
+  const opened = (await slides()).length;
+
+  await shiftHeader(panel).click();
+  await expect(shiftHeader(panel)).toHaveAttribute('aria-expanded', 'false');
+  await expect.poll(async () => (await slides()).length).toBeGreaterThan(opened);
 });
 
 function trackBox(page: Page): Locator {
@@ -299,7 +455,7 @@ test('the whole track box opens the file picker', async ({ page }) => {
 test.describe('a camera without a time zone', () => {
   test.use({ timezoneId: 'America/New_York' });
 
-  test('reads its clock in the zone where the track was recorded', async ({ page }) => {
+  test('reads its time in the zone of the track', async ({ page }) => {
     const wall = ['2026-10-31T09:10:00.000Z', '2026-10-31T09:20:00.000Z'];
     const unzoned = numberedAssets(2).map((asset, index) => ({
       ...asset,
@@ -312,10 +468,12 @@ test.describe('a camera without a time zone', () => {
     await page.getByRole('button', { name: 'Match track' }).click();
     const panel = page.getByRole('complementary', { name: 'Match track' });
     await loadTrack(page);
-    await clockSetup(panel).click();
-    const clock = panel.getByRole('region', { name: 'Camera clock' });
-    await expect(clock).toContainText('from the track');
-    await expect(clock.getByRole('combobox', { name: 'Time zone' })).toHaveValue(/Europe\/Oslo/);
+    await openShifts(panel);
+    const shifts = cameraShift(panel);
+    await expect(
+      shifts.getByRole('combobox', { name: 'Unknown camera time zone', exact: true })
+    ).toHaveValue('As shot (Oslo · UTC+1)');
+    await expect(shiftHeader(panel)).toContainText('No change');
     await expect(panel.getByRole('button', { name: '2 on track' })).toBeVisible();
   });
 });
@@ -345,7 +503,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await expect(page).toHaveURL(/\/map/);
     await loadTrack(page);
     await lineUpOnTouch(page);
-    await page.getByRole('button', { name: 'Place 2 photos' }).tap();
+    await page.getByRole('button', { name: 'Place 2 photos', exact: true }).tap();
     await expect.poll(() => written.length).toBe(2);
   });
 
@@ -358,7 +516,14 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     const panel = page.locator('[data-track-panel]');
     const loupe = page.locator('[data-loupe-root]');
     const strip = panel.getByRole('list', { name: 'Photos on the track' });
-    const inStrip = strip.getByRole('link', { name: 'IMG_0002.ARW, On the track' });
+    const inStrip = strip.getByRole('link', { name: 'IMG_0002.ARW', exact: true });
+    const sheet = page.locator('[data-track-sheet]');
+    if ((await sheet.count()) > 0) {
+      const resize = page.getByRole('button', { name: 'Resize sheet' });
+      await resize.tap();
+      await resize.tap();
+      await expect(inStrip).toBeVisible();
+    }
     if ((await inStrip.count()) === 0) {
       await panel.getByRole('link', { name: 'Open IMG_0002.ARW' }).tap();
       await expect(loupe.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
@@ -405,14 +570,13 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await page.getByRole('button', { name: 'Match track' }).tap();
     await loadTrack(page);
     await lineUpOnTouch(page);
-    await page.getByRole('button', { name: 'Resize sheet' }).tap();
     const sheet = page.locator('[data-track-sheet]');
     const fix = sheet.getByRole('checkbox', {
       name: 'Save corrected capture time in Immich (2 photos)'
     });
     await fix.tap();
     await expect(fix).toBeChecked();
-    await sheet.getByRole('button', { name: 'Place 2 & save time' }).tap();
+    await sheet.getByRole('button', { name: 'Place 2 & save time', exact: true }).tap();
     await expect.poll(() => times.calls.length).toBe(1);
   });
 
@@ -428,6 +592,9 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     const peek = await height();
     await resize.tap();
     await expect.poll(height).toBeGreaterThan(peek + 100);
+    await expect(
+      sheet.getByRole('link', { name: `Open ${SHOOT[0]!.originalFileName}` })
+    ).toBeInViewport();
     await resize.tap();
     await expect.poll(height).toBeLessThan(140);
     await expect(sheet.getByRole('heading', { name: /photos on the track/ })).toBeInViewport();
@@ -436,14 +603,29 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await expect(sheet.getByRole('list', { name: 'Photos on the track' })).toBeInViewport();
   });
 
+  test('a tap on the map shrinks the large phone sheet', async ({ page }, info) => {
+    test.skip(info.project.name !== 'touch-phone', 'phone sheet');
+    await open(page, []);
+    await page.goto('/map');
+    await page.getByRole('button', { name: 'Match track' }).tap();
+    await loadTrack(page);
+    const sheet = page.locator('[data-track-sheet]');
+    const height = async (): Promise<number> => (await sheet.boundingBox())!.height;
+    const peek = await height();
+    await page.getByRole('button', { name: 'Resize sheet' }).tap();
+    await expect.poll(height).toBeGreaterThan(peek + 100);
+    await page.getByRole('heading', { name: 'Map', level: 1 }).tap();
+    await expect.poll(height).toBeLessThan(peek + 4);
+    await expect(sheet.getByRole('heading', { name: /photos on the track/ })).toBeVisible();
+  });
+
   test('a tapped dot previews its photo and a second tap opens it', async ({ page }, info) => {
     test.skip(info.project.name !== 'touch-tablet', 'tablet panel');
     await open(page, []);
     await page.goto('/map');
     await page.getByRole('button', { name: 'Match track' }).tap();
     await loadTrack(page);
-    const panel = page.getByRole('complementary', { name: 'Match track' });
-    await panel.getByRole('button', { name: 'Use best fit' }).tap();
+    await lineUpOnTouch(page);
     await expect(page).toHaveURL(/%2C1[2-9]\.\d\d$/);
     const pin = await pointOnMap(page, 60.11, 6.71);
     const card = page.locator('[data-pin-preview]');
