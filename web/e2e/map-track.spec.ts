@@ -185,6 +185,25 @@ test('typing a shift moves the photos along the track', async ({ page }) => {
   await expect(page.getByRole('complementary', { name: 'Photos in view' })).toBeVisible();
 });
 
+test('a track shift moves the track under the photos', async ({ page }) => {
+  await open(page, []);
+  await page.goto('/map');
+  await page.getByRole('button', { name: 'Match track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await loadTrack(page);
+  await expect(panel.getByRole('button', { name: 'Place 0 photos' })).toBeDisabled();
+
+  const track = panel.getByRole('region', { name: 'Track', exact: true });
+  const header = track.getByRole('button', { name: /Hardangervidda/ });
+  await header.click();
+  const shift = track.getByRole('textbox', { name: 'Shift Hardangervidda by' });
+  await shift.fill('1:00');
+  await shift.press('Enter');
+  await expect(header).toContainText('Shift +1:00:00');
+  await expect(panel.getByRole('button', { name: 'Place 2 photos' })).toBeEnabled();
+  await expect(panel.getByRole('list', { name: 'Photos on the track' })).toContainText('10:10:00');
+});
+
 test('hovering a pin points at its photo and a click opens it large', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');

@@ -11,9 +11,15 @@ import { cameraShiftText, clocksText, correctionText } from '#lib/metadata/clock
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
 import { cameraTime, deviceZone } from '#lib/metadata/photoTime.ts';
 import { cellOf, namePlaces } from '#lib/geotag/placeNames.ts';
-import { parseTrackFile, trackFormat, type TrackPoint } from '#lib/geotag/trackFile.ts';
-import { TrackLog } from '#lib/geotag/trackLog.ts';
-import { photosAround, stillsOnly } from '#lib/geotag/trackPhotos.ts';
+import { loadedTrack, trackLogOf, type LoadedTrack } from '#lib/geotag/loadedTracks.ts';
+import { parseTrackFile, trackFormat } from '#lib/geotag/trackFile.ts';
+import {
+  covers,
+  photosAround,
+  searchRange,
+  stillsOnly,
+  type TimeRange
+} from '#lib/geotag/trackPhotos.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { countOf } from '#lib/utils/plural.ts';
@@ -24,32 +30,7 @@ const TRACK_MARGIN = HOUR;
 
 export const TOLERANCES = [1, 2, 5, 15, 60] as const;
 
-export interface LoadedTrack {
-  id: string;
-  fileName: string;
-  name: string | null;
-  segments: TrackPoint[][];
-  points: number;
-  start: number;
-  end: number;
-  metres: number;
-}
-
 export type PhotoScope = 'selection' | 'track';
-
-function loaded(fileName: string, name: string | null, segments: TrackPoint[][], id: number) {
-  const log = new TrackLog(segments);
-  return {
-    id: `track-${id}`,
-    fileName,
-    name,
-    segments,
-    points: log.size,
-    start: log.start,
-    end: log.end,
-    metres: log.lengthMetres()
-  } satisfies LoadedTrack;
-}
 
 export class TrackSession {
   active = $state(false);
@@ -66,8 +47,10 @@ export class TrackSession {
   focused = $state<string | null>(null);
   revealed = $state<string | null>(null);
   #seq = 0;
+  #loads = 0;
+  #fetched: TimeRange | null = null;
 
-  readonly log = $derived(new TrackLog(this.tracks.flatMap((track) => track.segments)));
+  readonly log = $derived(trackLogOf(this.tracks));
   readonly toleranceMs = $derived(this.toleranceMin * MINUTE);
   readonly bases = $derived(
     new Map(this.candidates.map((asset) => [asset.id, cameraTime(asset, this.zone)]))
@@ -216,6 +199,8 @@ export class TrackSession {
     this.active = false;
     this.tracks = [];
     this.candidates = [];
+    this.#fetched = null;
+    this.#loads += 1;
     this.clocks.reset();
     this.focused = null;
     this.revealed = null;
@@ -244,7 +229,7 @@ export class TrackSession {
         }
         for (const line of parsed.lines) {
           this.#seq += 1;
-          added.push(loaded(file.name, line.name, line.segments, this.#seq));
+          added.push(loadedTrack(file.name, line.name, line.segments, this.#seq));
         }
       }
       if (added.length === 0) return;
@@ -260,6 +245,15 @@ export class TrackSession {
   removeTrack = (id: string): void => {
     this.tracks = this.tracks.filter((track) => track.id !== id);
     void this.#followTrackZone();
+  };
+
+  setTrackOffset = (id: string, offsetMs: number): void => {
+    this.tracks = this.tracks.map((track) => (track.id === id ? { ...track, offsetMs } : track));
+    const log = this.log;
+    if (this.scope !== 'track' || log.size === 0) return;
+    if (!covers(this.#fetched, log.start - TRACK_MARGIN, log.end + TRACK_MARGIN)) {
+      void this.#loadPhotos();
+    }
   };
 
   pickZone = (zone: string): void => {
@@ -282,9 +276,16 @@ export class TrackSession {
   }
 
   #loadPhotos = async (): Promise<void> => {
+    const range = searchRange(this.log.start, this.log.end);
+    this.#loads += 1;
+    const load = this.#loads;
+    this.#fetched = range;
     try {
-      this.candidates = await photosAround(this.log.start, this.log.end);
+      const found = await photosAround(range);
+      if (load === this.#loads) this.candidates = found;
     } catch (error) {
+      if (load !== this.#loads) return;
+      this.#fetched = null;
       toasts.fail('Could not find photos taken during the track', error);
     }
   };

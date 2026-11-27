@@ -63,14 +63,16 @@ Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app
 2. Drop or choose one or more track files (parsed locally in your browser; only saved coordinates
    are sent to Immich).
 3. Align the camera clock: select **Use** on the **Best fit** bar to apply the suggested shift, or
-   expand the track row to adjust the **Time zone**, a per-camera **Shift by** (`-1:02:14`, with a
-   **Camera** picker when multiple cameras are present), and the **Match within** gap. Unzoned
-   photos default to the track's time zone.
-4. Photos that already have a location show as green pins where they are, with a dashed line to
+   expand **Camera clock** to adjust the **Time zone** and a per-camera **Shift by** (`-1:02:14`,
+   with a **Camera** picker when multiple cameras are present). Unzoned photos default to the
+   track's time zone.
+4. If the track's own clock was off, expand the **Track** row and set the file's **Shift by**. The
+   row also adds and removes track files and sets **Match within**.
+5. Photos that already have a location show as green pins where they are, with a dashed line to
    the track when they sit more than 50 m from it. Hover any pin or list row on desktop (tap once
    on touch) to preview the photo on the map; click (tap again on touch) to open it in the loupe
    and step through the track with arrow keys.
-5. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
+6. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
    existing GPS coordinates, or **Change the capture time of … photos** to write the shift back
    to Immich; **Undo** restores both.
 

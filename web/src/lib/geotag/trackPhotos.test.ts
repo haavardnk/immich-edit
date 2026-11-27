@@ -1,7 +1,7 @@
 import { searchMetadata } from '#lib/api/search.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { photosAround, stillsOnly } from './trackPhotos';
+import { covers, photosAround, searchRange, stillsOnly } from './trackPhotos';
 
 vi.mock('#lib/api/search.ts', () => ({ searchMetadata: vi.fn() }));
 
@@ -16,9 +16,22 @@ describe('track photos', () => {
 
   it('asks the library for images only', async () => {
     search.mockResolvedValue({ items: [asset('a', 'IMAGE')], nextCursor: null } as never);
-    const found = await photosAround(Date.UTC(2026, 9, 31, 9), Date.UTC(2026, 9, 31, 10));
+    const found = await photosAround(
+      searchRange(Date.UTC(2026, 9, 31, 9), Date.UTC(2026, 9, 31, 10))
+    );
     expect(found.map((item) => item.id)).toEqual(['a']);
-    expect(search.mock.calls[0]![0].filter).toMatchObject({ imagesOnly: true });
+    expect(search.mock.calls[0]![0].filter).toMatchObject({
+      imagesOnly: true,
+      takenAfter: '2026-10-30T19:00:00.000Z',
+      takenBefore: '2026-11-01T00:00:00.000Z'
+    });
+  });
+
+  it('knows when a shifted track leaves the photos it fetched', () => {
+    const range = searchRange(0, 10);
+    expect(covers(range, -1000, 1000)).toBe(true);
+    expect(covers(range, range.start - 1, 10)).toBe(false);
+    expect(covers(null, 0, 10)).toBe(false);
   });
 
   it('leaves videos out of a selection', () => {

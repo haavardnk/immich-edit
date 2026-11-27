@@ -1,6 +1,6 @@
 <script lang="ts">
   import TrackOptions from '#lib/components/geotag/TrackOptions.svelte';
-  import TrackFiles from '#lib/components/geotag/TrackFiles.svelte';
+  import TrackSection from '#lib/components/geotag/TrackSection.svelte';
   import TrackFitBar from '#lib/components/geotag/TrackFitBar.svelte';
   import TrackSettings from '#lib/components/geotag/TrackSettings.svelte';
   import TrackSources from '#lib/components/geotag/TrackSources.svelte';
@@ -63,7 +63,7 @@
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <div class="pt-2" bind:offsetHeight={rest}>
-          <TrackFiles />
+          <TrackSection />
           <TrackSettings />
           <div class="px-4 pb-3">
             <TrackOptions />
