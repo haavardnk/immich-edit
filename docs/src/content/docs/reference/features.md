@@ -23,7 +23,7 @@ roadmap promise.
 | Map view of geotagged photos, fullscreen map, and photo info mini map | ✓ Yes | [Map and geotagging](../editing/map.md) |
 | Set, move, drag-drop, bulk, and copy/paste photo locations | ✓ Yes | Owned photos; Immich cannot clear GPS in bulk |
 | Saved and recent places, coordinates and map links in place search | ✓ Yes | [Map and geotagging](../editing/map.md#saved-and-recent-places) |
-| GPX, KML, and TCX track matching with per-camera and per-track time zones and shifts, reference pins, and capture-time correction | ✓ Yes | [Map and geotagging](../editing/map.md#match-photos-to-a-track) |
+| Geotagging from GPX, KML, and TCX tracks with per-camera and per-track time zones and shifts, reference pins, and capture-time correction | ✓ Yes | [Map and geotagging](../editing/map.md#geotag-photos-from-a-track) |
 | Two-photo compare, 9-photo survey, face-aware zoom, peek (`W`) | ✓ Yes | Survey is desktop/tablet; phones use compare |
 | Virtual copies | ✓ Yes | Independent local edits sharing Immich metadata |
 | Move owned photos to Immich trash (with Undo) | ✓ Yes | Refused when Immich trash is disabled |

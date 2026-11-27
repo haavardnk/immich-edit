@@ -91,11 +91,11 @@ test('a track places a selection after the camera time is lined up', async ({ pa
   await openBulkLocation(page);
   await page
     .getByRole('group', { name: 'Location' })
-    .getByRole('button', { name: 'Match to a track…' })
+    .getByRole('button', { name: 'Geotag from track…' })
     .click();
 
   await expect(page).toHaveURL(/\/map/);
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await expect(panel).toContainText('3 selected photos');
   await loadTrack(page);
 
@@ -140,8 +140,8 @@ test('placing can change the capture time too, and one Undo reverts both', async
     captureTime: times
   });
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   const fix = panel.getByRole('checkbox', {
     name: 'Save corrected capture time in Immich (2 photos)'
@@ -198,8 +198,8 @@ test('each camera keeps its own time zone and shift', async ({ page }) => {
   ];
   await installMocks(page, { assets: shots, placeName: BERGEN, metadataPushConsented: true });
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
 
   await expect(shiftHeader(panel)).toContainText('No change');
@@ -237,8 +237,8 @@ test('each camera keeps its own time zone and shift', async ({ page }) => {
 test('a track logged in local time gets its time zone', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
 
@@ -266,8 +266,8 @@ test('photos with a location can get their capture time saved alone', async ({ p
     captureTime: times
   });
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await lineUp(panel);
 
@@ -294,8 +294,8 @@ test('photos with a location can get their capture time saved alone', async ({ p
 test('typing a shift moves the photos along the track', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await expect(panel).toContainText('Choose GPX, KML or TCX files');
   await loadTrack(page);
   await openShifts(panel);
@@ -317,8 +317,8 @@ test('typing a shift moves the photos along the track', async ({ page }) => {
 test('a track shift moves the track under the photos', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await expect(panel.getByRole('button', { name: 'Place 0 photos', exact: true })).toBeDisabled();
 
@@ -337,8 +337,8 @@ test('a track shift moves the track under the photos', async ({ page }) => {
 test('hovering a pin points at its photo and a click opens it large', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await lineUp(panel);
   const photos = panel.getByRole('list', { name: 'Photos on the track' });
@@ -388,8 +388,8 @@ test('photo markers dim under the track and can be hidden', async ({ page }) => 
   await page.goto('/map');
   const toggle = page.getByRole('button', { name: 'Photos on the map', exact: true });
   await expect(toggle).toHaveCount(0);
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await lineUp(panel);
   await expect(page).toHaveURL(/at=60\.115\d*%2C6\.715/);
@@ -417,8 +417,8 @@ test('photo markers dim under the track and can be hidden', async ({ page }) => 
 test('track and camera time sections slide open and closed', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
-  const panel = page.getByRole('complementary', { name: 'Match track' });
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
+  const panel = page.getByRole('complementary', { name: 'Geotag from track' });
   await loadTrack(page);
   await page.evaluate(() => {
     const slides: string[] = [];
@@ -453,7 +453,7 @@ function trackBox(page: Page): Locator {
 test('the whole track box opens the file picker', async ({ page }) => {
   await open(page, []);
   await page.goto('/map');
-  await page.getByRole('button', { name: 'Match track' }).click();
+  await page.getByRole('button', { name: 'Geotag from track' }).click();
   await expect(trackBox(page)).toContainText('or drop them on the map');
   const chooser = page.waitForEvent('filechooser');
   await trackBox(page).click({ position: { x: 8, y: 8 } });
@@ -474,8 +474,8 @@ test.describe('a camera without a time zone', () => {
     })) as ReturnType<typeof numberedAssets>;
     await installMocks(page, { assets: unzoned, placeName: BERGEN, metadataPushConsented: true });
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).click();
-    const panel = page.getByRole('complementary', { name: 'Match track' });
+    await page.getByRole('button', { name: 'Geotag from track' }).click();
+    const panel = page.getByRole('complementary', { name: 'Geotag from track' });
     await loadTrack(page);
     await openShifts(panel);
     const shifts = cameraShift(panel);
@@ -491,7 +491,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
   test('a tap anywhere on the track box opens the file picker', async ({ page }) => {
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await expect(trackBox(page)).not.toContainText('drop');
     const chooser = page.waitForEvent('filechooser');
     await trackBox(page).tap({ position: { x: 8, y: 8 } });
@@ -507,7 +507,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await openTouchLocation(page);
     await page
       .getByRole('dialog', { name: 'Location' })
-      .getByRole('button', { name: 'Match to a track…' })
+      .getByRole('button', { name: 'Geotag from track…' })
       .tap();
     await expect(page).toHaveURL(/\/map/);
     await loadTrack(page);
@@ -519,7 +519,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
   test('a tapped photo shows its card first, then opens large', async ({ page }) => {
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     await lineUpOnTouch(page);
     const panel = page.locator('[data-track-panel]');
@@ -552,7 +552,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await open(page, []);
     await page.goto('/library');
     await page.getByRole('link', { name: /^Map/ }).filter({ visible: true }).first().tap();
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     await expect(page.locator('[data-track-sheet]')).toBeVisible();
     await page.getByRole('button', { name: 'Back', exact: true }).tap();
@@ -560,7 +560,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await page.getByRole('link', { name: /^Map/ }).filter({ visible: true }).first().tap();
     await expect(page.getByRole('region', { name: 'Map of your photos' })).toBeVisible();
     await expect(page.locator('[data-track-sheet]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Match track' })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: 'Geotag from track' })).toHaveAttribute(
       'aria-pressed',
       'false'
     );
@@ -576,7 +576,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
       captureTime: times
     });
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     await lineUpOnTouch(page);
     const sheet = page.locator('[data-track-sheet]');
@@ -593,7 +593,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     test.skip(info.project.name !== 'touch-phone', 'phone sheet');
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     const sheet = page.locator('[data-track-sheet]');
     const resize = page.getByRole('button', { name: 'Resize sheet' });
@@ -616,7 +616,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     test.skip(info.project.name !== 'touch-phone', 'phone sheet');
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     const sheet = page.locator('[data-track-sheet]');
     const height = async (): Promise<number> => (await sheet.boundingBox())!.height;
@@ -632,7 +632,7 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     test.skip(info.project.name !== 'touch-tablet', 'tablet panel');
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
     await loadTrack(page);
     await lineUpOnTouch(page);
     await expect(page).toHaveURL(/%2C1[2-9]\.\d\d$/);
@@ -658,8 +658,8 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await page.setViewportSize({ width: 844, height: 390 });
     await open(page, []);
     await page.goto('/map');
-    await page.getByRole('button', { name: 'Match track' }).tap();
-    const panel = page.getByRole('complementary', { name: 'Match track' });
+    await page.getByRole('button', { name: 'Geotag from track' }).tap();
+    const panel = page.getByRole('complementary', { name: 'Geotag from track' });
     await expect(panel).toBeVisible();
     await loadTrack(page);
     const box = (await panel.boundingBox())!;

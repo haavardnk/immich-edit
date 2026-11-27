@@ -15,8 +15,8 @@
   color={tracking ? 'primary' : 'secondary'}
   class="touch:size-11"
   icon={mdiMapMarkerPath}
-  title={tracking ? 'Close track' : 'Match photos to a track'}
-  aria-label="Match track"
+  title={tracking ? 'Close track' : 'Geotag photos from a GPS track'}
+  aria-label="Geotag from track"
   aria-pressed={tracking}
   onclick={() => (tracking ? trackSession.close() : trackSession.open())}
 />
