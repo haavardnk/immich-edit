@@ -39,7 +39,7 @@ test.describe('map on touch', { tag: '@touch' }, () => {
     } else {
       const panel = page.getByRole('complementary', { name: 'Photos in view' });
       await expect(panel).toHaveCount(0);
-      await page.getByRole('button', { name: 'Photos panel' }).tap();
+      await page.getByRole('button', { name: 'Side panel' }).tap();
       await expect(panel).toContainText(/photos? in view/);
     }
   });

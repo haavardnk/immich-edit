@@ -4,7 +4,7 @@
   import { ZOOM_STEP_MS } from '#lib/map/motion.ts';
   import type { Map as MapLibreMap } from 'maplibre-gl';
 
-  let { map }: { map: MapLibreMap | null } = $props();
+  let { map, below = false }: { map: MapLibreMap | null; below?: boolean } = $props();
 
   const BUTTONS = [
     { label: 'Zoom in', icon: mdiPlus, step: 1 },
@@ -13,7 +13,9 @@
 </script>
 
 <div
-  class="absolute top-3 right-3 z-10 flex flex-col overflow-hidden rounded-xl border border-hairline bg-light-100 shadow-popover touch:hidden"
+  class="absolute {below
+    ? 'top-16'
+    : 'top-3'} right-3 z-10 flex flex-col overflow-hidden rounded-xl border border-hairline bg-light-100 shadow-popover touch:hidden"
 >
   {#each BUTTONS as { label, icon, step } (label)}
     <IconButton

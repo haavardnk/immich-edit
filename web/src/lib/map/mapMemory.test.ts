@@ -1,3 +1,4 @@
+import { mapFullscreen } from '#lib/map/mapFullscreen.svelte.ts';
 import { forgetMap, mapMemory, mapStart, type MapMemory } from '#lib/map/mapMemory.ts';
 import { describe, expect, it } from 'vitest';
 
@@ -6,7 +7,8 @@ const MEMORY: MapMemory = {
   filter: { favorite: true },
   tab: 'unplaced',
   panel: false,
-  stars: false
+  stars: false,
+  photos: false
 };
 
 describe('map memory', () => {
@@ -28,7 +30,16 @@ describe('map memory', () => {
 
   it('forgets everything when the map is left for its parent', () => {
     Object.assign(mapMemory, MEMORY);
+    mapFullscreen.enter();
     forgetMap();
-    expect(mapMemory).toEqual({ view: null, filter: {}, tab: 'view', panel: null, stars: true });
+    expect(mapMemory).toEqual({
+      view: null,
+      filter: {},
+      tab: 'view',
+      panel: null,
+      stars: true,
+      photos: true
+    });
+    expect(mapFullscreen.on).toBe(false);
   });
 });

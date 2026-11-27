@@ -297,7 +297,7 @@ test('the photos panel toggles from the header and resizes', async ({ page }) =>
   const panel = page.getByRole('complementary', { name: 'Photos in view' });
   const map = page.getByRole('region', { name: 'Map of your photos' });
   const narrow = (await map.boundingBox())!.width;
-  const toggle = page.getByRole('button', { name: 'Photos panel' });
+  const toggle = page.getByRole('button', { name: 'Side panel' });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await toggle.click();
   await expect(panel).toHaveCount(0);

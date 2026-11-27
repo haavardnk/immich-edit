@@ -10,7 +10,8 @@ export type KeybindContext =
   | 'geometry'
   | 'masks'
   | 'retouch'
-  | 'viewer';
+  | 'viewer'
+  | 'map';
 
 export interface Keybind {
   readonly id: string;
@@ -189,6 +190,14 @@ export const KEYBINDS = [
     contexts: ['grid'],
     group: 'Grid',
     label: 'Load and select every photo'
+  },
+  {
+    id: 'mapExitFullscreen',
+    fixed: true,
+    keys: ['Escape'],
+    contexts: ['map'],
+    group: 'View',
+    label: 'Exit the fullscreen map'
   },
   {
     id: 'gridClearSelection',
@@ -426,7 +435,7 @@ export const KEYBINDS = [
   {
     id: 'fullscreen',
     keys: ['f'],
-    contexts: ['loupe', 'compare', 'survey', 'editor', 'viewer'],
+    contexts: ['loupe', 'compare', 'survey', 'editor', 'viewer', 'map'],
     group: 'View',
     label: 'Toggle fullscreen'
   },

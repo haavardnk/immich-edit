@@ -9,7 +9,9 @@ photos, manage saved places, and assign missing locations.
 ## Browse the map
 
 - Clusters expand into individual photo markers as you zoom in.
-- Filter by **Favorites** and date range, or select **Fit all** to frame every matching marker.
+- Filter by **Favorites** and date range in the header; use the map view bar to toggle **Saved
+  places**, **Fit all photos**, or **Fullscreen** (`F`, `Esc` or **Exit fullscreen** to return).
+  With a track loaded in fullscreen, a compact card keeps the match summary and **Place** at hand.
 - On desktop and landscape tablets, the side panel lists photos in view, unplaced photos, and saved
   places; on phones and portrait tablets, tap the floating pill at the bottom to open them.
 - Open any photo in the loupe or editor and return directly to your map position.
@@ -45,7 +47,7 @@ in bulk, so a location can be moved but not removed):
   hold on touch) anywhere on the map and choose **Save place here**.
 - **Reuse**: open **Saved** beside the search field, type part of a name, or pick a saved or recent
   place directly from **Metadata** > **Location** in the bulk bar.
-- **On the map**: toggle saved place stars from the map header. Photos dropped near a star snap to
+- **On the map**: toggle saved place stars from the map view bar. Photos dropped near a star snap to
   it; selecting a star copies its location, moves or renames it, or places the current selection
   there.
 - **Manage**: rename, move, or remove saved places and clear recent places from the **Places** tab

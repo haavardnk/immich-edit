@@ -9,6 +9,10 @@ export function onEditorRoute(): boolean {
   return isEditorPath(page.url.pathname);
 }
 
+export function onMapRoute(): boolean {
+  return page.url.pathname === '/map';
+}
+
 export function isViewerPath(pathname: string): boolean {
   return pathname === VIEWER_PATH;
 }

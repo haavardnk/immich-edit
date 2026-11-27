@@ -37,7 +37,7 @@ export const PHOTOS = '[data-map-sheet], aside[aria-label="Photos in view"]:not(
 
 export async function openTray(page: Page): Promise<void> {
   const pill = page.locator('[data-map-pill]');
-  const toggle = page.getByRole('button', { name: 'Photos panel' });
+  const toggle = page.getByRole('button', { name: 'Side panel' });
   await expect(page.locator(`[data-map-pill], ${PHOTOS}`).or(toggle).first()).toBeVisible();
   if (await pill.isVisible()) await pill.tap();
   else if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-pressed')) === 'false') {

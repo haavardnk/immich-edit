@@ -250,7 +250,7 @@ test.describe('saved places on the touch map', { tag: '@touch' }, () => {
     const pill = page.locator('[data-map-pill]');
     const phone = (await pill.count()) > 0;
     if (phone) await pill.tap();
-    else await page.getByRole('button', { name: 'Photos panel' }).tap();
+    else await page.getByRole('button', { name: 'Side panel' }).tap();
     const scope = phone ? page.locator('[data-map-sheet]') : placesPanel(page);
     await scope.getByRole('radio', { name: 'Places' }).tap();
     await scope.getByRole('button', { name: 'Actions for Hytta' }).tap();
