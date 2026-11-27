@@ -25,6 +25,7 @@ const SCRIM = '[data-loupe-scrim]';
 const BACKDROP = 'pointer-events-none fixed inset-0 z-50 bg-image-canvas';
 
 let captured: Shot | null = null;
+let still: string | null = null;
 
 function tileOf(id: string): Tile | null {
   const image = document.querySelector(`[data-asset-id="${CSS.escape(id)}"] img`);
@@ -89,7 +90,14 @@ function arrive(track: Element, from: HTMLElement, start: Box, ratio: number): v
   });
 }
 
+export function skipZoomIn(id: string): void {
+  still = id;
+}
+
 export function zoomIn(id: string | null, root: HTMLElement): void {
+  const skip = id !== null && still === id;
+  still = null;
+  if (skip) return;
   const handed = id ? takePhoto(id) : null;
   if (!id || !animated()) return;
   clearGhosts();

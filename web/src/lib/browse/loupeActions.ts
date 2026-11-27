@@ -9,14 +9,17 @@ import {
 } from '#lib/browse/assetMeta.ts';
 import type { CullKind } from '#lib/browse/cullMark.ts';
 import { cullState, type CullActions } from '#lib/browse/cullState.ts';
+import { leaveLoupeFor, type Leaving } from '#lib/browse/loupeAway.svelte.ts';
 import { advanceFocused, dropPane, stepLoupe } from '#lib/browse/loupeNav.ts';
 import { ratingHud } from '#lib/browse/ratingHud.svelte.ts';
 import { editorHref } from '#lib/editor/navigation.ts';
+import type { PageTurn } from '#lib/navigation/pageTransition.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import type { LabelColor } from '#lib/stores/labels.ts';
 import { loupeTags } from '#lib/stores/loupeTags.svelte.ts';
+import { navHistory } from '#lib/stores/navHistory.ts';
 import { recentTags } from '#lib/stores/recentTags.svelte.ts';
 import { trash } from '#lib/stores/trash.svelte.ts';
 import type { AssetSummary } from '#lib/types/album.ts';
@@ -24,7 +27,6 @@ import type { TagRef } from '#lib/types/asset.ts';
 import { currentPath, isEditorPath } from '#lib/utils/route.ts';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { navHistory } from '#lib/stores/navHistory.ts';
 
 export function loupeFocusedId(): string | null {
   return compare.mode === 'single' ? browseView.loupeId : compare.focusedId;
@@ -147,15 +149,23 @@ export function trashFocused(): void {
 
 type Place = Pick<URL, 'pathname' | 'search'>;
 
-export function leaveLoupeOnNavigate(from: Place | undefined, to: Place): void {
+export function leaveLoupeOnNavigate(
+  from: Place | undefined,
+  to: Place,
+  leaving: Leaving
+): PageTurn | null {
   const id = loupeFocusedId();
-  if (!id) return;
+  if (!id) return null;
   if (isEditorPath(to.pathname)) {
     browseView.leaveLoupeForEditor(id);
-    return;
+    return null;
   }
-  if (!from || isEditorPath(from.pathname) || browseView.loupeBehindEditor) return;
+  if (!from || isEditorPath(from.pathname) || browseView.loupeBehindEditor) return null;
+  if (from.pathname !== to.pathname && leaving.type === 'link') {
+    return leaveLoupeFor(id, from, to, leaving);
+  }
   if (from.pathname !== to.pathname || from.search !== to.search) browseView.closeLoupe();
+  return null;
 }
 
 export function openInEditor(id: string | null = loupeFocusedId()): void {

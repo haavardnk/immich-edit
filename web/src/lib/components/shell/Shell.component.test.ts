@@ -163,7 +163,8 @@ describe('Shell', () => {
     expect(leaveLoupeOnNavigate).toHaveBeenCalledOnce();
     expect(leaveLoupeOnNavigate).toHaveBeenCalledWith(
       undefined,
-      expect.objectContaining({ pathname: '/assets/a1' })
+      expect.objectContaining({ pathname: '/assets/a1' }),
+      expect.objectContaining({ complete: expect.any(Promise) })
     );
   });
 });

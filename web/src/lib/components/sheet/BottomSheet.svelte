@@ -35,6 +35,7 @@
     lift = 0,
     bodyClass = '',
     peek = false,
+    appear = true,
     onExited,
     children,
     ...rest
@@ -59,6 +60,7 @@
     lift?: number;
     bodyClass?: string;
     peek?: boolean;
+    appear?: boolean;
     children: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'title'> = $props();
 
@@ -275,7 +277,9 @@
               >
                 <div
                   data-sheet-panel
-                  class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl bg-light-50 pr-(--safe-right) pl-(--safe-left) text-dark shadow-popover starting:[translate:0_100%] motion-safe:transition-[translate,transform] motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-snapping:transition-[translate,transform,height] motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit"
+                  class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl bg-light-50 pr-(--safe-right) pl-(--safe-left) text-dark shadow-popover motion-safe:transition-[translate,transform] motion-safe:duration-slow motion-safe:ease-standard motion-safe:data-snapping:transition-[translate,transform,height] motion-safe:data-leaving:duration-base motion-safe:data-leaving:ease-exit {appear
+                    ? 'starting:[translate:0_100%]'
+                    : ''}"
                   {@attach motion.panel}
                 >
                   <div

@@ -34,7 +34,7 @@ export function hasInAppPrevious(entryIndex: number | null, depth: number): bool
   return entryIndex === null ? depth > 0 : entryIndex > 0;
 }
 
-export function routeKey(url: URL): string {
+export function routeKey(url: Pick<URL, 'pathname' | 'search'>): string {
   return `${url.pathname}${url.search}`;
 }
 

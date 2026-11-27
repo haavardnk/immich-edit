@@ -19,6 +19,9 @@
   import FloatingScope from '#lib/components/editor/FloatingScope.svelte';
   import PhotoInfoPanel from '#lib/components/browse/info/PhotoInfoPanel.svelte';
   import { reveal } from '#lib/motion/reveal.ts';
+  import { editorInfoAsset } from '#lib/editor/editorInfo.ts';
+
+  const infoAsset = $derived(editorInfoAsset());
 </script>
 
 <div class="app-frame flex overflow-hidden">
@@ -58,10 +61,12 @@
       {/if}
     </div>
     {#if !ui.fullscreen}
-      {#if ui.editorInfoOpen && editor.asset}
-        <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
-          <PhotoInfoPanel asset={editor.asset} onclose={() => (ui.editorInfoOpen = false)} />
-        </div>
+      {#if infoAsset}
+        {#if ui.editorInfoOpen}
+          <div class="flex h-full flex-none" transition:reveal={{ axis: 'x' }}>
+            <PhotoInfoPanel asset={infoAsset} onclose={() => (ui.editorInfoOpen = false)} />
+          </div>
+        {/if}
       {/if}
       <RightSidebar />
       <EditorToolRail />

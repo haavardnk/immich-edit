@@ -18,6 +18,8 @@ function navigate(from: string, to: string): FakeNavigation {
 }
 
 const pending: Array<() => void> = [];
+let finished: Promise<void>;
+let dataset: Record<string, string>;
 
 beforeEach(() => {
   pending.length = 0;
@@ -33,11 +35,13 @@ beforeEach(() => {
     return {
       ready: done,
       updateCallbackDone: done,
-      finished: done,
+      finished,
       skipTransition: run
     };
   };
-  vi.stubGlobal('document', { startViewTransition, documentElement: { dataset: {} } });
+  finished = Promise.resolve();
+  dataset = {};
+  vi.stubGlobal('document', { startViewTransition, documentElement: { dataset } });
 });
 
 afterEach(() => {
@@ -85,5 +89,37 @@ describe('animatePageChange', () => {
     const next = navigate('/albums', '/albums');
     expect(animatePageChange(next.navigation, false)).toBeUndefined();
     next.finish();
+  });
+
+  it('moves the whole screen for a turn that asks, and waits until it is ready', async () => {
+    let end = (): void => undefined;
+    finished = new Promise<void>((resolve) => (end = resolve));
+    let show = (): void => undefined;
+    const ready = new Promise<void>((resolve) => (show = resolve));
+    const back = navigate('/map', '/photos');
+    let updated = false;
+    vi.stubGlobal('document', {
+      startViewTransition: (update: () => Promise<void>) => {
+        void update().then(() => (updated = true));
+        return {
+          ready: Promise.resolve(),
+          updateCallbackDone: Promise.resolve(),
+          finished,
+          skipTransition: () => undefined
+        };
+      },
+      documentElement: { dataset }
+    });
+    void animatePageChange(back.navigation, true, { direction: 'back', whole: true, ready });
+    expect(dataset).toEqual({ pageMotion: 'pop', pageWhole: '' });
+    back.finish();
+    await tick(null);
+    expect(updated).toBe(false);
+    show();
+    await tick(null);
+    expect(updated).toBe(true);
+    end();
+    await tick(null);
+    expect(dataset).toEqual({});
   });
 });

@@ -133,6 +133,15 @@ describe('BottomSheet', () => {
     expect(handle().type).toBe('button');
   });
 
+  it.each([
+    [undefined, true],
+    [false, false]
+  ])('slides in on mount unless told to appear at rest (appear %s)', async (appear, slides) => {
+    await render({ appear });
+    const panel = document.querySelector<HTMLElement>('[data-sheet-panel]');
+    expect(panel?.classList.contains('starting:[translate:0_100%]')).toBe(slides);
+  });
+
   it('hides the handle from assistive tech with a single detent', async () => {
     await render();
     expect(handle().getAttribute('aria-hidden')).toBe('true');

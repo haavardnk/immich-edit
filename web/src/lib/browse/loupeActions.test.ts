@@ -194,13 +194,34 @@ describe('loupe actions', () => {
     ['another page closes', '/map', null, false]
   ])('navigating to %s the loupe', (_, path, open, returnsToLoupe) => {
     browseView.consumeEditorReturnLoupe(null);
-    leaveLoupeOnNavigate(new URL('http://x/albums/a1'), new URL(`http://x${path}`));
+    leaveLoupeOnNavigate(new URL('http://x/albums/a1'), new URL(`http://x${path}`), {
+      type: 'goto',
+      complete: Promise.resolve()
+    });
     expect(browseView.loupeId).toBe(open);
     expect(browseView.consumeEditorReturnLoupe('a')).toBe(returnsToLoupe);
   });
 
+  it('keeps the loupe until a link to another page lands, then pushes', async () => {
+    let land = (): void => {};
+    const complete = new Promise<void>((resolve) => (land = resolve));
+    const turn = leaveLoupeOnNavigate(
+      new URL('http://x/albums/a1'),
+      new URL('http://x/map?at=1,2'),
+      { type: 'link', complete }
+    );
+    expect(turn).toEqual({ direction: 'forward', whole: true });
+    expect(browseView.loupeId).toBe('a');
+    land();
+    await complete;
+    expect(browseView.loupeId).toBeNull();
+  });
+
   it('leaves the loupe alone when the editor hands back to it', () => {
-    leaveLoupeOnNavigate(new URL('http://x/assets/a'), new URL('http://x/albums/a1'));
+    leaveLoupeOnNavigate(new URL('http://x/assets/a'), new URL('http://x/albums/a1'), {
+      type: 'goto',
+      complete: Promise.resolve()
+    });
     expect(browseView.loupeId).toBe('a');
   });
 });
