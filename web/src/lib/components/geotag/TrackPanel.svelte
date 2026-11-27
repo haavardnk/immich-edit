@@ -1,5 +1,6 @@
 <script lang="ts">
   import TrackFitBar from '#lib/components/geotag/TrackFitBar.svelte';
+  import TrackSection from '#lib/components/geotag/TrackSection.svelte';
   import TrackSetup from '#lib/components/geotag/TrackSetup.svelte';
   import TrackFooter from '#lib/components/geotag/TrackFooter.svelte';
   import TrackPhotoList from '#lib/components/geotag/TrackPhotoList.svelte';
@@ -43,7 +44,8 @@
   {/if}
   {#if session.tracks.length > 0}
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div class="shrink-0 border-b border-hairline">
+      <div class="shrink-0">
+        <TrackSection />
         <TrackSetup />
         <TrackFitBar />
       </div>

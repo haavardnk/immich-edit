@@ -10,10 +10,23 @@ export function stillsOnly(assets: readonly AssetSummary[]): AssetSummary[] {
   return assets.filter((asset) => asset.type !== 'VIDEO');
 }
 
-export async function photosAround(start: number, end: number): Promise<AssetSummary[]> {
+export interface TimeRange {
+  start: number;
+  end: number;
+}
+
+export function searchRange(start: number, end: number): TimeRange {
+  return { start: start - SEARCH_MARGIN, end: end + SEARCH_MARGIN };
+}
+
+export function covers(range: TimeRange | null, start: number, end: number): boolean {
+  return range !== null && start >= range.start && end <= range.end;
+}
+
+export async function photosAround(range: TimeRange): Promise<AssetSummary[]> {
   const filter = {
-    takenAfter: new Date(start - SEARCH_MARGIN).toISOString(),
-    takenBefore: new Date(end + SEARCH_MARGIN).toISOString(),
+    takenAfter: new Date(range.start).toISOString(),
+    takenBefore: new Date(range.end).toISOString(),
     imagesOnly: true
   };
   const found: AssetSummary[] = [];
