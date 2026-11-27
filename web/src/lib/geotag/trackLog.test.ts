@@ -16,6 +16,7 @@ const WALK = new TrackLog([
   [at(60, 60.1, 6.1), at(100, 60.1, 6.1)]
 ]);
 const OPTIONS = { toleranceMs: 5 * MIN, interpolate: true };
+const HOME = { lat: 59.9, lon: 10.7 };
 
 describe('track lookup', () => {
   it('interpolates between points in one segment', () => {
@@ -79,10 +80,10 @@ describe('track lookup', () => {
 
 describe('matching photos', () => {
   const photos = [
-    { id: 'a', base: T0 + 65 * MIN, shiftMs: -60 * MIN, located: false },
-    { id: 'b', base: T0 + 75 * MIN, shiftMs: -60 * MIN, located: true },
-    { id: 'c', base: null, shiftMs: -60 * MIN, located: false },
-    { id: 'd', base: T0 + 300 * MIN, shiftMs: -60 * MIN, located: false }
+    { id: 'a', base: T0 + 65 * MIN, shiftMs: -60 * MIN, at: null },
+    { id: 'b', base: T0 + 75 * MIN, shiftMs: -60 * MIN, at: HOME },
+    { id: 'c', base: null, shiftMs: -60 * MIN, at: null },
+    { id: 'd', base: T0 + 300 * MIN, shiftMs: -60 * MIN, at: null }
   ];
 
   it('places photos, keeps located ones and explains the rest', () => {
@@ -95,9 +96,14 @@ describe('matching photos', () => {
     ]);
     expect(matches[0]?.time).toBe(T0 + 5 * MIN);
     expect(countMatches(matches)).toEqual({ placed: 1, outside: 1, kept: 1, untimed: 1 });
+    expect(matches[1]?.outcome).toMatchObject({
+      kind: 'kept',
+      at: HOME,
+      track: { kind: 'placed' }
+    });
     const unshifted = photos.map((photo) => ({ ...photo, shiftMs: 0 }));
     const replaced = matchPhotos(unshifted, WALK, { ...OPTIONS, replace: true });
-    expect(replaced[1]?.outcome.kind).toBe('placed');
+    expect(replaced[1]?.outcome).toMatchObject({ kind: 'placed', from: HOME });
   });
 
   it('finds the clock correction that puts the most photos on the track', () => {

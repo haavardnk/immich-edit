@@ -12,7 +12,7 @@
   const DOTS = {
     ok: 'bg-primary',
     out: 'bg-warning-500',
-    kept: 'bg-dark/65'
+    kept: 'bg-success'
   } as const;
 
   let strip = $state<HTMLElement | null>(null);

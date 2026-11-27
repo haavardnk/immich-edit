@@ -17,6 +17,7 @@
   import TrackPanel from '#lib/components/geotag/TrackPanel.svelte';
   import TrackPinPreview from '#lib/components/geotag/TrackPinPreview.svelte';
   import TrackSheet from '#lib/components/geotag/TrackSheet.svelte';
+  import { focusLink, pinSpot, trackMarks } from '#lib/geotag/references.ts';
   import { openTrackPhoto } from '#lib/geotag/trackLoupe.ts';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -284,14 +285,15 @@
 
   $effect(() => {
     const layer = overlay;
-    const pins = tracking
-      ? trackSession.matches.flatMap((match) =>
-          match.outcome.kind === 'placed'
-            ? [{ id: match.id, lat: match.outcome.lat, lon: match.outcome.lon }]
-            : []
-        )
-      : [];
-    if (layer) untrack(() => layer.setPins(pins));
+    const marks = trackMarks(tracking ? trackSession.matches : []);
+    if (layer) untrack(() => layer.setMarks(marks));
+  });
+
+  $effect(() => {
+    const layer = overlay;
+    const id = trackSession.focused;
+    const link = tracking && id ? focusLink(trackSession.row(id)?.match.outcome) : null;
+    if (layer) untrack(() => layer.setLink(link));
   });
 
   $effect(() => {
@@ -304,10 +306,10 @@
   $effect(() => {
     const target = camera.map;
     const id = trackSession.focused;
-    const outcome = id ? trackSession.row(id)?.match.outcome : undefined;
+    const spot = id ? pinSpot(trackSession.row(id)?.match.outcome) : null;
     rowCard = null;
-    if (!target || !tracking || !id || outcome?.kind !== 'placed') return;
-    return followPoint(target, outcome, (point) => {
+    if (!target || !tracking || !id || !spot) return;
+    return followPoint(target, spot, (point) => {
       const inView =
         point.x >= 0 && point.y >= 0 && point.x <= point.width && point.y <= point.height;
       rowCard = inView ? { id, at: point } : null;
@@ -322,13 +324,13 @@
   $effect(() => {
     const target = camera.map;
     const id = trackSession.focused;
-    const outcome = id ? trackSession.row(id)?.match.outcome : undefined;
-    if (!target || layout.mode !== 'touch' || !tracking || outcome?.kind !== 'placed') return;
+    const spot = id ? pinSpot(trackSession.row(id)?.match.outcome) : null;
+    if (!target || layout.mode !== 'touch' || !tracking || !spot) return;
     untrack(() => {
-      const at = target.project([outcome.lon, outcome.lat]);
+      const at = target.project([spot.lon, spot.lat]);
       const box = target.getContainer();
       const inView = at.x >= 0 && at.y >= 0 && at.x <= box.clientWidth && at.y <= box.clientHeight;
-      if (!inView) target.easeTo({ center: [outcome.lon, outcome.lat] });
+      if (!inView) target.easeTo({ center: [spot.lon, spot.lat] });
     });
   });
 

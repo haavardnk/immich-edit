@@ -1,3 +1,4 @@
+import { coordinates } from '#lib/browse/info/photoInfo.ts';
 import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
@@ -90,7 +91,7 @@ export class TrackSession {
         id: asset.id,
         base: this.bases.get(asset.id)?.instant ?? null,
         shiftMs: this.shiftOf(asset.id),
-        located: typeof asset.exifInfo?.latitude === 'number'
+        at: asset.exifInfo ? coordinates(asset.exifInfo) : null
       })),
       this.log,
       {
@@ -124,7 +125,7 @@ export class TrackSession {
     return this.#rowById.get(id) ?? null;
   }
   readonly located = $derived(
-    this.photos.filter((asset) => typeof asset.exifInfo?.latitude === 'number').length
+    this.photos.filter((asset) => asset.exifInfo && coordinates(asset.exifInfo)).length
   );
   readonly unzoned = $derived(
     this.photos.filter((asset) => this.bases.get(asset.id)?.recorded === false).length
