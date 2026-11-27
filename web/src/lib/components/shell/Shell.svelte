@@ -27,6 +27,8 @@
   import { ui } from '#lib/stores/ui.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { leaveLoupeOnNavigate } from '#lib/browse/loupeActions.ts';
+  import { closedQuietly, returnToLoupe } from '#lib/browse/loupeAway.svelte.ts';
+  import type { PageTurn } from '#lib/navigation/pageTransition.ts';
   import { zoomOut } from '#lib/browse/loupeZoom.ts';
   import { enteringEditor, handoffId, holdPhoto } from '#lib/browse/photoHandoff.ts';
   import { touchUi } from '#lib/stores/touchUi.svelte.ts';
@@ -51,14 +53,17 @@
   onNavigate((navigation) => {
     peek.hide();
     holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
+    let turn: PageTurn | null = null;
     if (navigation.to) {
-      leaveLoupeOnNavigate(navigation.from?.url, navigation.to.url);
+      const from = navigation.from?.url;
+      const to = navigation.to.url;
+      turn = returnToLoupe(from, to, navigation) ?? leaveLoupeOnNavigate(from, to, navigation);
     }
     if (enteringEditor(navigation.from?.url, navigation.to?.url)) {
       ui.startEditing(layout.mode === 'touch');
       touchUi.startDevelop();
     }
-    return animatePageChange(navigation, layout.compact);
+    return animatePageChange(navigation, layout.compact, turn);
   });
 
   $effect.pre(() => {
@@ -69,7 +74,13 @@
     const id = browseView.loupeId;
     const closed = loupeShown;
     loupeShown = id;
-    if (closed && !id && untrack(() => browseView.editorReturnLoupeId) === null) zoomOut(closed);
+    if (
+      closed &&
+      !id &&
+      untrack(() => browseView.editorReturnLoupeId) === null &&
+      !closedQuietly(closed)
+    )
+      zoomOut(closed);
   });
 
   $effect(() => {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { returnsToLoupe } from '#lib/browse/loupeAway.svelte.ts';
   import { backParent, backSkips } from '#lib/components/shell/backParent.ts';
   import { crossesTabs } from '#lib/components/shell/touch/navTabs.ts';
   import { navHistory } from '#lib/stores/navHistory.ts';
@@ -15,9 +16,10 @@
     navHistory.back(parent, (previous) => {
       const before = new URL(previous, page.url.origin).pathname;
       return (
-        !crossesTabs(before, page.url.pathname) &&
-        !backSkips(page.url.pathname, before) &&
-        (!upOnly || navHistory.previousIs(parent))
+        returnsToLoupe(previous) ||
+        (!crossesTabs(before, page.url.pathname) &&
+          !backSkips(page.url.pathname, before) &&
+          (!upOnly || navHistory.previousIs(parent)))
       );
     });
   }

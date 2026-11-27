@@ -26,6 +26,7 @@
   import PhotoInfoSheet from '#lib/components/browse/info/PhotoInfoSheet.svelte';
   import { infoSheetInset, infoSheetMotion } from '#lib/browse/loupeLayout.ts';
   import { paintSize } from '#lib/editor/paintSize.ts';
+  import { editorInfoAsset } from '#lib/editor/editorInfo.ts';
   import BrushSizeRail from './BrushSizeRail.svelte';
   import RetouchSourceBanner from './retouch/RetouchSourceBanner.svelte';
   import { toolOpen } from '#lib/stores/editor/toolOpen.ts';
@@ -52,7 +53,8 @@
   let bar = $state(0);
   const keyboard = viewportInset();
   const lift = $derived(touchUi.searching ? bar : 0);
-  const infoInset = $derived(ui.editorInfoOpen && !ui.fullscreen && editor.asset !== null);
+  const infoAsset = $derived(editorInfoAsset());
+  const infoInset = $derived(ui.editorInfoOpen && !ui.fullscreen && infoAsset !== null);
   const docked = $derived(touchUi.searching ? available + keyboard.bottom - bar : available);
 
   const bottom = $derived(
@@ -212,7 +214,7 @@
 </div>
 
 <PhotoInfoSheet
-  asset={editor.asset}
+  asset={infoAsset}
   open={ui.editorInfoOpen}
   onclose={() => (ui.editorInfoOpen = false)}
 />

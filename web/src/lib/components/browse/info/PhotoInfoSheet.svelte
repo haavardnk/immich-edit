@@ -5,11 +5,18 @@
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
+  import { untrack } from 'svelte';
 
   let { asset, open, onclose }: { asset: AssetSummary | null; open: boolean; onclose: () => void } =
     $props();
 
   const sheet = presence(() => open);
+  let atRest = $state(untrack(() => open));
+
+  function exited(): void {
+    atRest = false;
+    sheet.exited();
+  }
   const subtitle = $derived(asset ? (takenLabel(asset) ?? undefined) : undefined);
 </script>
 
@@ -19,7 +26,8 @@
     onOpenChange={(next) => {
       if (!next) onclose();
     }}
-    onExited={sheet.exited}
+    onExited={exited}
+    appear={!atRest}
     title="Info"
     {subtitle}
     close="icon"
