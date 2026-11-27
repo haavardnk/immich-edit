@@ -57,3 +57,9 @@ export function locationOfSpot(spot: Spot): GeoLocation {
 export function sameSpot(a: GeoPoint, b: GeoPoint): boolean {
   return distanceMetres(a, b) <= SAME_SPOT_METRES;
 }
+
+export function distanceText(metres: number): string {
+  const rounded = Math.round(metres / 10) * 10;
+  if (rounded < 1000) return `${Math.max(10, rounded)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
+}

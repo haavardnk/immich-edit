@@ -1,13 +1,20 @@
+import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
 import type { Located, LocateOptions, TrackLog } from '#lib/geotag/trackLog.ts';
 
 export interface TimedPhoto {
   id: string;
   base: number | null;
   shiftMs: number;
-  located: boolean;
+  at: GeoPoint | null;
 }
 
-export type PhotoOutcome = Located | { kind: 'kept' } | { kind: 'untimed' };
+export type Placed = Extract<Located, { kind: 'placed' }> & { from: GeoPoint | null };
+
+export type PhotoOutcome =
+  | Placed
+  | Extract<Located, { kind: 'outside' }>
+  | { kind: 'kept'; at: GeoPoint; track: Located }
+  | { kind: 'untimed' };
 
 export interface PhotoMatch {
   id: string;
@@ -27,8 +34,12 @@ export function matchPhotos(
   return photos.map((photo) => {
     if (photo.base === null) return { id: photo.id, time: null, outcome: { kind: 'untimed' } };
     const time = photo.base + photo.shiftMs;
-    if (photo.located && !options.replace) return { id: photo.id, time, outcome: { kind: 'kept' } };
-    return { id: photo.id, time, outcome: log.locate(time, options) };
+    const track = log.locate(time, options);
+    if (photo.at && !options.replace) {
+      return { id: photo.id, time, outcome: { kind: 'kept', at: photo.at, track } };
+    }
+    const outcome = track.kind === 'placed' ? { ...track, from: photo.at } : track;
+    return { id: photo.id, time, outcome };
   });
 }
 

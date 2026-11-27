@@ -66,8 +66,10 @@ Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app
    expand the track row to adjust the **Time zone**, a per-camera **Shift by** (`-1:02:14`, with a
    **Camera** picker when multiple cameras are present), and the **Match within** gap. Unzoned
    photos default to the track's time zone.
-4. Hover any pin or list row on desktop (tap once on touch) to preview the photo on the map; click
-   (tap again on touch) to open it in the loupe and step through the track with arrow keys.
+4. Photos that already have a location show as green pins where they are, with a dashed line to
+   the track when they sit more than 50 m from it. Hover any pin or list row on desktop (tap once
+   on touch) to preview the photo on the map; click (tap again on touch) to open it in the loupe
+   and step through the track with arrow keys.
 5. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
    existing GPS coordinates, or **Change the capture time of … photos** to write the shift back
    to Immich; **Undo** restores both.
