@@ -17,7 +17,6 @@
   import TrackPanel from '#lib/components/geotag/TrackPanel.svelte';
   import TrackPinPreview from '#lib/components/geotag/TrackPinPreview.svelte';
   import TrackSheet from '#lib/components/geotag/TrackSheet.svelte';
-  import { focusLink, pinSpot, trackMarks } from '#lib/geotag/references.ts';
   import { openTrackPhoto } from '#lib/geotag/trackLoupe.ts';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
   import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
@@ -27,13 +26,13 @@
   import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
   import { idsNear } from '#lib/geotag/spots.ts';
   import { onLocationsMoved } from '#lib/map/locationMoves.ts';
-  import { WORLD_VIEW, boundsOf, parseView, type MapView } from '#lib/map/mapArea.ts';
+  import { WORLD_VIEW, parseView, type MapView } from '#lib/map/mapArea.ts';
   import { boxOf, MapCamera } from '#lib/map/mapCamera.svelte.ts';
-  import { followPoint } from '#lib/map/followPoint.ts';
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { MapDrops } from '#lib/map/mapDrops.ts';
   import { forgetMap, MAP_EXITS, mapMemory, mapStart } from '#lib/map/mapMemory.ts';
   import { mapPageState } from '#lib/map/mapPage.svelte.ts';
+  import { MapTrackLayer } from '#lib/map/mapTrackLayer.svelte.ts';
   import { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import { writeMapUrl } from '#lib/map/mapUrl.ts';
   import { PhotoMarkers } from '#lib/map/photoMarkers.ts';
@@ -42,7 +41,6 @@
   import { PlaceStars } from '#lib/map/placeStars.ts';
   import { SheetLift } from '#lib/map/sheetLift.svelte.ts';
   import { TrackFileDrop } from '#lib/map/trackFileDrop.svelte.ts';
-  import { TrackOverlay, type PinPoint } from '#lib/map/trackOverlay.ts';
   import { onUserMove } from '#lib/map/userMoves.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { places } from '#lib/stores/places.svelte.ts';
@@ -79,10 +77,6 @@
   let stars = $state.raw<PlaceStars | null>(null);
   let starsShown = $state(mapMemory.stars);
   const editor = new PlaceEditor();
-  let pinCard = $state.raw<{ id: string; at: PinPoint } | null>(null);
-  let rowCard = $state.raw<{ id: string; at: PinPoint } | null>(null);
-  const shownCard = $derived(pinCard ?? rowCard);
-  let overlay = $state.raw<TrackOverlay | null>(null);
   const fileDrop = new TrackFileDrop((files) => void trackSession.addFiles(files));
   const tracking = $derived(trackSession.active);
   const drops = new MapDrops({
@@ -170,19 +164,7 @@
     const stopMenu = watchPlaceMenu(target, (menu) => {
       if (!editor.edit && !tracking) editor.menu = menu;
     });
-    const trackLayer = new TrackOverlay(target, {
-      hover: (id, at) => {
-        trackSession.hoverPin(id);
-        pinCard = id && at ? { id, at } : null;
-      },
-      open: (id) => {
-        if (layout.mode === 'touch' && trackSession.focused !== id) trackSession.hoverPin(id);
-        else openTrackPhoto(id);
-      },
-      blank: () => {
-        if (layout.mode === 'touch') trackSession.hoverPin(null);
-      }
-    });
+    const stopTrack = track.attach(target);
     const closeCard = (): void => {
       editor.close();
     };
@@ -190,7 +172,6 @@
     camera.map = target;
     markers = manager;
     stars = starLayer;
-    overlay = trackLayer;
     map.box = boxOf(target);
     return () => {
       stopMoves();
@@ -198,8 +179,7 @@
       target.off('click', closeCard);
       starLayer.destroy();
       stars = null;
-      trackLayer.destroy();
-      overlay = null;
+      stopTrack();
       manager.destroy();
       camera.map = null;
       markers = null;
@@ -274,64 +254,13 @@
     untrack(() => drops.hover(client));
   });
 
-  $effect(() => {
-    const layer = overlay;
-    const paths = tracking ? trackSession.log.path() : [];
-    if (!layer) return;
-    untrack(() => layer.setTrack(paths));
-    const points = paths.flat().map(([lon, lat]) => ({ lat, lon }));
-    if (points.length > 0) untrack(() => camera.fitAll(boundsOf(points)));
-  });
-
-  $effect(() => {
-    const layer = overlay;
-    const marks = trackMarks(tracking ? trackSession.matches : []);
-    if (layer) untrack(() => layer.setMarks(marks));
-  });
-
-  $effect(() => {
-    const layer = overlay;
-    const id = trackSession.focused;
-    const link = tracking && id ? focusLink(trackSession.row(id)?.match.outcome) : null;
-    if (layer) untrack(() => layer.setLink(link));
-  });
+  const track = new MapTrackLayer(camera);
 
   $effect(() => {
     if (tracking || browseView.loupeId !== null || !map.loaded) return;
     const tab = map.tab;
     if (tab === 'view') untrack(() => map.feed.attach());
     else if (tab === 'unplaced') untrack(() => map.unplaced.attach());
-  });
-
-  $effect(() => {
-    const target = camera.map;
-    const id = trackSession.focused;
-    const spot = id ? pinSpot(trackSession.row(id)?.match.outcome) : null;
-    rowCard = null;
-    if (!target || !tracking || !id || !spot) return;
-    return followPoint(target, spot, (point) => {
-      const inView =
-        point.x >= 0 && point.y >= 0 && point.x <= point.width && point.y <= point.height;
-      rowCard = inView ? { id, at: point } : null;
-    });
-  });
-
-  $effect(() => {
-    const focused = trackSession.focused;
-    overlay?.focus(focused);
-  });
-
-  $effect(() => {
-    const target = camera.map;
-    const id = trackSession.focused;
-    const spot = id ? pinSpot(trackSession.row(id)?.match.outcome) : null;
-    if (!target || layout.mode !== 'touch' || !tracking || !spot) return;
-    untrack(() => {
-      const at = target.project([spot.lon, spot.lat]);
-      const box = target.getContainer();
-      const inView = at.x >= 0 && at.y >= 0 && at.x <= box.clientWidth && at.y <= box.clientHeight;
-      if (!inView) target.easeTo({ center: [spot.lon, spot.lat] });
-    });
   });
 
   $effect(() => {
@@ -428,12 +357,13 @@
       onMoved={moved}
     />
     <MapDropConfirm confirm={drops.confirm} map={camera.map} />
-    {#if tracking && shownCard}
+    {#if track.card}
+      {@const card = track.card}
       <TrackPinPreview
-        id={shownCard.id}
-        at={shownCard.at}
+        id={card.id}
+        at={card.at}
         compact={layout.mode === 'touch'}
-        onOpen={layout.mode === 'touch' ? () => openTrackPhoto(shownCard.id) : undefined}
+        onOpen={layout.mode === 'touch' ? () => openTrackPhoto(card.id) : undefined}
       />
     {/if}
     {#if editor.card && layout.mode === 'touch'}
