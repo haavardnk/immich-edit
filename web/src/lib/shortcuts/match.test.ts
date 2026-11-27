@@ -60,6 +60,8 @@ describe('context resolution', () => {
     [{ key: 'Escape' }, ['editor', 'global'], 'editorEscape'],
     [{ key: 'Escape' }, ['masks', 'editor', 'global'], 'editorEscape'],
     [{ key: 'Escape' }, ['grid', 'global'], 'gridClearSelection'],
+    [{ key: 'Escape' }, ['map', 'grid', 'global'], 'mapExitFullscreen'],
+    [{ key: 'f' }, ['map', 'grid', 'global'], 'fullscreen'],
     [{ key: 'd' }, ['compare', 'global'], 'paneOpenEditor'],
     [{ key: 'd' }, ['editor', 'global'], null],
     [{ key: 'D', shiftKey: true }, ['editor', 'global'], 'openDevelop'],

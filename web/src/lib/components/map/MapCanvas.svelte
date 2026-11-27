@@ -17,6 +17,7 @@
     label,
     onReady,
     onMoved,
+    zoomBelow = false,
     class: className = ''
   }: {
     style: string | null;
@@ -25,6 +26,7 @@
     label: string;
     onReady?: (map: MapLibreMap, lib: MapLibre) => (() => void) | void;
     onMoved?: (view: MapView) => void;
+    zoomBelow?: boolean;
     class?: string;
   } = $props();
 
@@ -128,7 +130,7 @@
 <div class="relative isolate overflow-hidden bg-subtle {className}">
   <div {@attach host} class="h-full w-full" role="region" aria-label={label}></div>
   {#if interactive}
-    <MapZoom {map} />
+    <MapZoom {map} below={zoomBelow} />
   {/if}
   {#if failure}
     <p

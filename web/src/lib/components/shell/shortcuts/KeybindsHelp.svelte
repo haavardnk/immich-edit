@@ -26,7 +26,8 @@
     geometry: 'the Geometry panel',
     masks: 'the Masks panel',
     retouch: 'the Retouch panel',
-    viewer: 'the viewer window'
+    viewer: 'the viewer window',
+    map: 'the map'
   };
 
   const recorder = new ShortcutRecorder();

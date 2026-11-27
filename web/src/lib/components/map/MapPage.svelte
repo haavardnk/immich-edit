@@ -1,6 +1,15 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { afterNavigate, beforeNavigate } from '$app/navigation';
+  import type { MarkerFilter } from '#lib/api/map.ts';
+  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
+  import { provideTileDrag } from '#lib/browse/tileDrag.ts';
+  import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
+  import SelectionAppBar from '#lib/components/browse/bulk/SelectionAppBar.svelte';
+  import TrackCard from '#lib/components/geotag/TrackCard.svelte';
+  import TrackPanel from '#lib/components/geotag/TrackPanel.svelte';
+  import TrackPinPreview from '#lib/components/geotag/TrackPinPreview.svelte';
+  import TrackSheet from '#lib/components/geotag/TrackSheet.svelte';
+  import MapActions from '#lib/components/map/MapActions.svelte';
   import MapCanvas from '#lib/components/map/MapCanvas.svelte';
   import MapDropConfirm from '#lib/components/map/MapDropConfirm.svelte';
   import MapDropZone from '#lib/components/map/MapDropZone.svelte';
@@ -12,26 +21,20 @@
   import MapPlaceSheet from '#lib/components/map/MapPlaceSheet.svelte';
   import MapSidePanel from '#lib/components/map/MapSidePanel.svelte';
   import MapTray from '#lib/components/map/MapTray.svelte';
-  import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
-  import SelectionAppBar from '#lib/components/browse/bulk/SelectionAppBar.svelte';
-  import TrackPanel from '#lib/components/geotag/TrackPanel.svelte';
-  import TrackPinPreview from '#lib/components/geotag/TrackPinPreview.svelte';
-  import TrackSheet from '#lib/components/geotag/TrackSheet.svelte';
-  import { openTrackPhoto } from '#lib/geotag/trackLoupe.ts';
+  import MapViewBar from '#lib/components/map/MapViewBar.svelte';
   import PageHeader from '#lib/components/shell/PageHeader.svelte';
-  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
-  import { provideTileDrag } from '#lib/browse/tileDrag.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import type { MarkerFilter } from '#lib/api/map.ts';
-  import type { GeoPoint } from '#lib/browse/info/photoInfo.ts';
   import { idsNear } from '#lib/geotag/spots.ts';
+  import { openTrackPhoto } from '#lib/geotag/trackLoupe.ts';
   import { onLocationsMoved } from '#lib/map/locationMoves.ts';
-  import { WORLD_VIEW, parseView, type MapView } from '#lib/map/mapArea.ts';
+  import { parseView, WORLD_VIEW, type MapView } from '#lib/map/mapArea.ts';
   import { boxOf, MapCamera } from '#lib/map/mapCamera.svelte.ts';
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { MapDrops } from '#lib/map/mapDrops.ts';
+  import { mapFullscreen } from '#lib/map/mapFullscreen.svelte.ts';
   import { forgetMap, MAP_EXITS, mapMemory, mapStart } from '#lib/map/mapMemory.ts';
   import { mapPageState } from '#lib/map/mapPage.svelte.ts';
+  import { MapSide } from '#lib/map/mapSide.svelte.ts';
   import { MapTrackLayer } from '#lib/map/mapTrackLayer.svelte.ts';
   import { MapTrayState } from '#lib/map/mapTray.svelte.ts';
   import { writeMapUrl } from '#lib/map/mapUrl.ts';
@@ -47,14 +50,8 @@
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
   import { countOf } from '#lib/utils/plural.ts';
-  import { IconButton } from '@immich/ui';
-  import {
-    mdiDockRight,
-    mdiFitToScreenOutline,
-    mdiMapMarkerPath,
-    mdiStar,
-    mdiStarOutline
-  } from '@mdi/js';
+  import { afterNavigate, beforeNavigate } from '$app/navigation';
+  import { page } from '$app/state';
   import type { Map as MapLibreMap } from 'maplibre-gl';
   import { onMount, untrack } from 'svelte';
 
@@ -67,8 +64,13 @@
   map.tab = mapMemory.tab;
   const tray = new MapTrayState();
   const lift = new SheetLift();
+  let cardHeight = $state(0);
+  const full = $derived(mapFullscreen.on);
   const camera = new MapCamera(() => {
-    if (!layout.compact) return FIT_PAD;
+    if (full || !layout.compact) {
+      const card = side.card ? cardHeight : 0;
+      return { top: FIT_PAD, left: FIT_PAD, right: FIT_PAD, bottom: FIT_PAD + card };
+    }
     const height = lift.area?.getBoundingClientRect().height ?? 0;
     const sheet = tray.state === 'open' || trackSession.active;
     const bottom = sheet ? Math.round(height / 2) + FIT_PAD / 4 : PILL_SPACE;
@@ -76,6 +78,7 @@
   });
   let stars = $state.raw<PlaceStars | null>(null);
   let starsShown = $state(mapMemory.stars);
+  let photosShown = $state(mapMemory.photos);
   const editor = new PlaceEditor();
   const fileDrop = new TrackFileDrop((files) => void trackSession.addFiles(files));
   const tracking = $derived(trackSession.active);
@@ -90,7 +93,7 @@
   let markers = $state.raw<PhotoMarkers | null>(null);
   let fitted = start.view !== null;
   let settled = start.view !== null;
-  let panelShown = $state(mapMemory.panel ?? layout.mode !== 'touch');
+  const side = new MapSide();
 
   const count = $derived(map.loaded ? countOf(map.markers.length, 'photo') : undefined);
 
@@ -100,8 +103,9 @@
 
   function pick(ids: readonly string[]): void {
     map.pick(ids);
+    if (full) return;
     if (layout.compact) tray.open();
-    else panelShown = true;
+    else side.photos = true;
   }
 
   function flyTo(at: GeoPoint): void {
@@ -220,8 +224,9 @@
   $effect(() => {
     const manager = markers;
     const list = map.markers;
+    const drawn = tracking && !photosShown ? [] : list;
     if (!manager) return;
-    untrack(() => manager.set(list));
+    untrack(() => manager.set(drawn));
     if (!fitted && list.length > 0) {
       fitted = true;
       const animate = settled;
@@ -238,8 +243,9 @@
 
   $effect(() => {
     mapMemory.tab = map.tab;
-    mapMemory.panel = panelShown;
+    mapMemory.panel = side.photos;
     mapMemory.stars = starsShown;
+    mapMemory.photos = photosShown;
   });
 
   $effect(() => {
@@ -292,52 +298,7 @@
 {/snippet}
 
 {#snippet actions()}
-  <IconButton
-    size="small"
-    variant="ghost"
-    color={tracking ? 'primary' : 'secondary'}
-    class="touch:size-11"
-    icon={mdiMapMarkerPath}
-    title={tracking ? 'Close track' : 'Match photos to a track'}
-    aria-label="Match track"
-    aria-pressed={tracking}
-    onclick={() => (tracking ? trackSession.close() : trackSession.open())}
-  />
-  <IconButton
-    size="small"
-    variant="ghost"
-    color={starsShown ? 'primary' : 'secondary'}
-    class="touch:size-11"
-    icon={starsShown ? mdiStar : mdiStarOutline}
-    title={starsShown ? 'Hide saved places' : 'Show saved places'}
-    aria-label="Saved places"
-    aria-pressed={starsShown}
-    onclick={() => (starsShown = !starsShown)}
-  />
-  <IconButton
-    size="small"
-    variant="ghost"
-    color="secondary"
-    class="touch:size-11"
-    icon={mdiFitToScreenOutline}
-    title="Fit all photos"
-    aria-label="Fit all photos"
-    disabled={!map.extent}
-    onclick={() => fitAll()}
-  />
-  {#if !layout.compact && !tracking}
-    <IconButton
-      size="small"
-      variant="ghost"
-      color={panelShown ? 'primary' : 'secondary'}
-      class="touch:size-11"
-      icon={mdiDockRight}
-      title={panelShown ? 'Hide photos' : 'Show photos'}
-      aria-label="Photos panel"
-      aria-pressed={panelShown}
-      onclick={() => (panelShown = !panelShown)}
-    />
-  {/if}
+  <MapActions panel={side.shown} onPanel={() => side.toggle()} />
 {/snippet}
 
 {#snippet mapView(zone: string, canvas: string)}
@@ -355,6 +316,7 @@
       view={startView}
       onReady={ready}
       onMoved={moved}
+      zoomBelow
     />
     <MapDropConfirm confirm={drops.confirm} map={camera.map} />
     {#if track.card}
@@ -390,6 +352,15 @@
       />
     {/if}
     <MapPlaceEdit {editor} map={camera.map} {stars} touch={layout.mode === 'touch'} />
+    <MapViewBar
+      bind:stars={starsShown}
+      bind:photos={photosShown}
+      canFit={!!map.extent}
+      onFit={() => fitAll()}
+    />
+    {#if side.card}
+      <TrackCard bind:height={cardHeight} />
+    {/if}
     {#if fileDrop.over}
       <div
         class="pointer-events-none absolute inset-2.5 z-30 grid place-items-center rounded-xl bg-light/35 ring-2 ring-primary"
@@ -403,16 +374,24 @@
   </MapDropZone>
 {/snippet}
 
-<div class="flex min-h-0 min-w-0 flex-1 flex-col" {@attach fileDrop.attach}>
-  <PageHeader
-    title="Map"
-    {count}
-    badge={map.loaded ? String(map.markers.length) : undefined}
-    {actions}
-    compactActions={actions}
-    toolbar={filters}
-    selecting={bulkScope.selecting ? selectionBar : undefined}
-  />
+<div
+  class={full
+    ? 'fixed inset-0 z-36 flex h-(--app-height) flex-col bg-light safe-frame'
+    : 'flex min-h-0 min-w-0 flex-1 flex-col'}
+  data-map-fullscreen={full || undefined}
+  {@attach fileDrop.attach}
+>
+  {#if !full}
+    <PageHeader
+      title="Map"
+      {count}
+      badge={map.loaded ? String(map.markers.length) : undefined}
+      {actions}
+      compactActions={actions}
+      toolbar={filters}
+      selecting={bulkScope.selecting ? selectionBar : undefined}
+    />
+  {/if}
   {#if map.error}
     <p class="px-6 py-3 text-sm text-danger" role="alert">{map.error}</p>
   {/if}
@@ -421,7 +400,7 @@
       {@render mapView('flex min-w-0 flex-1', 'min-w-0 flex-1')}
       <aside
         aria-label="Match track"
-        class="flex w-75 shrink-0 flex-col border-s border-hairline bg-light"
+        class="w-75 shrink-0 flex-col border-s border-hairline bg-light {full ? 'hidden' : 'flex'}"
       >
         <TrackPanel />
       </aside>
@@ -432,32 +411,33 @@
         {@render mapView('size-full', 'size-full')}
       </div>
       {#if tracking}
-        <TrackSheet lift={lift.value} hidden={browseView.loupeId !== null} />
+        <TrackSheet lift={lift.value} hidden={full || browseView.loupeId !== null} />
       {:else}
         <MapTray
           {map}
           {host}
           {tray}
           lift={lift.value}
-          hidden={browseView.loupeId !== null || editor.edit !== null}
+          hidden={full || browseView.loupeId !== null || editor.edit !== null}
         />
       {/if}
     </div>
   {:else}
     <div class="relative flex min-h-0 flex-1">
       {@render mapView('flex min-w-0 flex-1', 'min-w-0 flex-1')}
-      <MapSidePanel
-        label={tracking ? 'Match track' : 'Photos in view'}
-        shown={tracking || panelShown}
-      >
+      <MapSidePanel label={tracking ? 'Match track' : 'Photos in view'} shown={!full && side.shown}>
         {#if tracking}
           <TrackPanel />
         {:else}
           <MapPhotos {map} {host} />
         {/if}
       </MapSidePanel>
-      <BulkBar placement="float" />
+      {#if !full}
+        <BulkBar placement="float" />
+      {/if}
     </div>
   {/if}
-  <BulkBar placement="dock" />
+  {#if !full}
+    <BulkBar placement="dock" />
+  {/if}
 </div>

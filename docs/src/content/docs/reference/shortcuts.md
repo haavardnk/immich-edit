@@ -58,6 +58,15 @@ typing in a text field.
 | `Alt+Shift+C`                                                                                            | Copy location                                                    | Grid, Loupe  |
 | `Alt+Shift+V`                                                                                            | Paste location                                                   | Grid, Loupe  |
 
+## View
+
+| Keys      | Action                         | Available in                                       |
+| --------- | ------------------------------ | -------------------------------------------------- |
+| `Esc`     | Exit the fullscreen map        | Map                                                |
+| `F`       | Toggle fullscreen              | Loupe, Compare, Survey, Editor, Viewer window, Map |
+| `Shift+S` | Hide or show the filmstrip     | Loupe, Compare, Survey, Editor                     |
+| `S`       | Show or hide the scope overlay | Editor                                             |
+
 ## Loupe
 
 | Keys                                                                          | Action                           | Available in                   |
@@ -92,14 +101,6 @@ typing in a text field.
 | `←` / `→` / `↑` / `↓` | Move focus between panes                                                  | Survey       |
 | `Enter`               | Keep only the focused photo                                               | Survey       |
 | `E` / `Esc`           | Back to the loupe, selecting the survivors in the grid if you dropped any | Survey       |
-
-## View
-
-| Keys      | Action                         | Available in                                  |
-| --------- | ------------------------------ | --------------------------------------------- |
-| `F`       | Toggle fullscreen              | Loupe, Compare, Survey, Editor, Viewer window |
-| `Shift+S` | Hide or show the filmstrip     | Loupe, Compare, Survey, Editor                |
-| `S`       | Show or hide the scope overlay | Editor                                        |
 
 ## Loupe gestures
 

@@ -22,6 +22,7 @@ import { LOUPE_LOCATION_COMMANDS } from '#lib/commands/loupe/location.ts';
 import { LOUPE_NAVIGATION_COMMANDS } from '#lib/commands/loupe/navigation.ts';
 import { LOUPE_PANE_COMMANDS } from '#lib/commands/loupe/panes.ts';
 import { LOUPE_VIEW_COMMANDS } from '#lib/commands/loupe/view.ts';
+import { MAP_COMMANDS } from '#lib/commands/map.ts';
 import { SETTINGS_COMMANDS } from '#lib/commands/settings.ts';
 import type { Command } from '#lib/commands/types.ts';
 import { VIEWER_COMMANDS } from '#lib/commands/viewer.ts';
@@ -42,6 +43,7 @@ export const COMMANDS: readonly Command[] = [
   ...LOUPE_LOCATION_COMMANDS,
   ...LOUPE_CULLING_COMMANDS,
   ...LOUPE_ALBUM_COMMANDS,
+  ...MAP_COMMANDS,
   ...GRID_VIEW_COMMANDS,
   ...GRID_SELECTION_COMMANDS,
   ...GRID_NAVIGATION_COMMANDS,

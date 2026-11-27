@@ -1,7 +1,7 @@
 import { ui } from '#lib/stores/ui.svelte.ts';
 import { compare } from '#lib/stores/compare.svelte.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
-import { onEditorRoute, onViewerRoute } from '#lib/utils/route.ts';
+import { onEditorRoute, onMapRoute, onViewerRoute } from '#lib/utils/route.ts';
 import type { KeybindContext } from './table';
 import { CONTEXT_STACKS } from './stacks';
 
@@ -14,5 +14,6 @@ export function activeContexts(): readonly KeybindContext[] {
   }
   if (compare.mode !== 'single') return CONTEXT_STACKS[compare.mode];
   if (browseView.loupeId) return CONTEXT_STACKS.loupe;
+  if (onMapRoute()) return CONTEXT_STACKS.map;
   return CONTEXT_STACKS.grid;
 }

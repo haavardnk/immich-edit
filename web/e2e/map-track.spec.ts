@@ -378,7 +378,7 @@ test('hovering a pin points at its photo and a click opens it large', async ({ p
   await expect(loupe.getByRole('img', { name: 'IMG_0002.ARW' })).toBeVisible();
 });
 
-test('photo markers under the track let the pins be hovered', async ({ page }) => {
+test('photo markers dim under the track and can be hidden', async ({ page }) => {
   await installMocks(page, {
     assets: SHOOT,
     mapMarkers: [{ id: SHOOT[2]!.id, lat: 60.11, lon: 6.71, city: 'Bergen' }],
@@ -386,6 +386,8 @@ test('photo markers under the track let the pins be hovered', async ({ page }) =
     metadataPushConsented: true
   });
   await page.goto('/map');
+  const toggle = page.getByRole('button', { name: 'Photos on the map', exact: true });
+  await expect(toggle).toHaveCount(0);
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
@@ -403,6 +405,13 @@ test('photo markers under the track let the pins be hovered', async ({ page }) =
     'true'
   );
   await expect(page.locator('[data-pin-preview]')).toContainText('IMG_0001.ARW');
+
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(marker).toHaveCount(0);
+  await toggle.click();
+  await expect(marker).toBeVisible();
 });
 
 test('track and camera time sections slide open and closed', async ({ page }) => {
