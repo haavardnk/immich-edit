@@ -62,20 +62,19 @@ Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app
    track** in the map header to match every photo taken during the track.
 2. Drop or choose one or more track files (parsed locally in your browser; only saved coordinates
    are sent to Immich).
-3. Align the camera clock: select **Use** on the **Best fit** bar to apply the suggested shift, or
-   expand **Camera clock** to adjust the **Time zone** and a per-camera **Shift by** (`-1:02:14`,
-   with a **Camera** picker when multiple cameras are present). Unzoned photos default to the
-   track's time zone.
-4. If the track's own clock was off, expand the **Track** row and set the file's **Shift by**. The
-   row also adds and removes track files and sets **Match within**.
-5. Photos that already have a location show as green pins where they are, with a dashed line to
-   the track when they sit more than 50 m from it. Hover any pin or list row on desktop (tap once
-   on touch) to preview the photo on the map; click (tap again on touch) to open it in the loupe
-   and step through the track with arrow keys.
+3. Align each camera under **Camera time**: set a camera's **Time zone** when it was not left in
+   **As shot**, and enter its **Shift by** (`-1:02:14`) when its clock drifted. With several
+   cameras, expand each camera to adjust it independently.
+4. If the logger's own clock or time zone was wrong, expand the **Track** row to set the file's
+   **Time zone** (GPX defaults to UTC), **Shift by**, **Match within** gap, or add/remove track
+   files. Track adjustments move every photo without changing their capture times.
+5. Already-located photos appear as green reference pins (with a dashed line to the track when more
+   than 50 m away) so you can verify alignment. Hover any pin or list row on desktop (tap once on
+   touch) to preview the photo; click (tap again on touch) to open it in the loupe.
 6. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
-   their coordinates, or **Save corrected capture time in Immich** to write each camera's shift to
-   the capture time, to the second; the button then reads **Place … & save time**, or **Save time
-   for … photos** when no photo needs a location. **Undo** restores both.
+   existing GPS coordinates, or **Save corrected capture time in Immich** to write each camera's
+   time zone and shift back to the second (see [Metadata](metadata.md#capture-time); unzoned photos
+   inherit the track's zone). **Undo** restores both.
 
 <!-- SCREENSHOT: capture.cjs track-desktop + compose.cjs track-desktop -->
 ![GPX track matching around Lake Magadi with hovered lion photo preview and matched photo list](../../../assets/shots/track-desktop.png)

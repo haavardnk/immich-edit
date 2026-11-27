@@ -1,13 +1,15 @@
 <script lang="ts">
+  import TrackCameraShifts from '#lib/components/geotag/TrackCameraShifts.svelte';
+  import TrackDisclosureHeader from '#lib/components/geotag/TrackDisclosureHeader.svelte';
   import TrackOptions from '#lib/components/geotag/TrackOptions.svelte';
+  import TrackPhotoList from '#lib/components/geotag/TrackPhotoList.svelte';
+  import TrackPlaceButton from '#lib/components/geotag/TrackPlaceButton.svelte';
   import TrackSection from '#lib/components/geotag/TrackSection.svelte';
-  import TrackFitBar from '#lib/components/geotag/TrackFitBar.svelte';
-  import TrackSettings from '#lib/components/geotag/TrackSettings.svelte';
   import TrackSources from '#lib/components/geotag/TrackSources.svelte';
   import TrackStrip from '#lib/components/geotag/TrackStrip.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import { CONTENT_CAP } from '#lib/components/sheet/sheetSnap.ts';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
-  import TrackPlaceButton from '#lib/components/geotag/TrackPlaceButton.svelte';
 
   let { lift, hidden }: { lift: number; hidden: boolean } = $props();
 
@@ -16,17 +18,19 @@
   let detent = $state(1);
   let glance = $state(0);
   let rest = $state(0);
+  let shifting = $state(false);
 
   const loaded = $derived(session.tracks.length > 0);
-  const subtitle = $derived(
-    loaded
-      ? `${session.clockText} · ${session.clockZone.replaceAll('_', ' ')}`
-      : 'Load a GPX, KML or TCX file'
-  );
+  const subtitle = $derived(loaded ? undefined : 'Load a GPX, KML or TCX file');
 </script>
 
 {#snippet footer()}
-  <TrackPlaceButton size="large" class="w-full" />
+  <div class="flex w-full flex-col gap-3">
+    {#if detent === 2}
+      <TrackOptions />
+    {/if}
+    <TrackPlaceButton size="large" class="w-full" />
+  </div>
 {/snippet}
 
 <BottomSheet
@@ -37,8 +41,13 @@
   modal={false}
   close="icon"
   closeLabel="Close track"
-  detents={['header', { body: loaded ? glance : rest }, { body: loaded ? glance + rest : rest }]}
+  detents={[
+    'header',
+    { body: loaded ? glance : rest },
+    loaded ? { fraction: CONTENT_CAP } : { body: rest }
+  ]}
   bind:detent
+  collapseTo={loaded ? 1 : undefined}
   title={loaded ? session.summary : 'Match track'}
   {subtitle}
   bodyClass="flex h-full min-h-0 flex-col p-0"
@@ -48,17 +57,33 @@
 >
   <div class="flex min-h-0 flex-1 flex-col" data-track-panel>
     {#if loaded}
-      <div class="shrink-0 border-b border-hairline pt-2" bind:offsetHeight={glance}>
-        <TrackFitBar />
+      <div
+        class={['shrink-0 border-t border-hairline', detent === 2 && 'hidden']}
+        bind:offsetHeight={
+          null,
+          (height) => {
+            if (height) glance = height;
+          }
+        }
+      >
+        <TrackDisclosureHeader
+          title="Camera time"
+          caption={session.shifts.status}
+          open={false}
+          onclick={() => {
+            shifting = true;
+            detent = 2;
+          }}
+        />
         <TrackStrip />
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <div class="pt-2" bind:offsetHeight={rest}>
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-hairline">
+        <div class="shrink-0" bind:offsetHeight={rest}>
           <TrackSection />
-          <TrackSettings />
-          <div class="px-4 pb-3">
-            <TrackOptions />
-          </div>
+          <TrackCameraShifts bind:open={shifting} />
+        </div>
+        <div class={detent === 2 ? 'contents' : 'hidden'}>
+          <TrackPhotoList />
         </div>
       </div>
     {:else}

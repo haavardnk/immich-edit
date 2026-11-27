@@ -3,13 +3,10 @@ import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
 import { applyCaptureTimes, captureTimesAfter } from '#lib/metadata/captureTimeOps.ts';
-import { planWrites, type ClockChange } from '#lib/metadata/captureTimes.ts';
-import { bestFit, type Fit } from '#lib/geotag/bestFit.ts';
-import { CameraClocks } from '#lib/metadata/cameraClocks.svelte.ts';
-import { cameraKey, camerasOf, type Camera } from '#lib/metadata/cameras.ts';
-import { cameraShiftText, clocksText } from '#lib/metadata/clockText.ts';
+import { clockPhoto, planWrites, type ClockChange } from '#lib/metadata/captureTimes.ts';
+import { TrackCameras } from '#lib/geotag/trackCameras.svelte.ts';
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
-import { cameraTime, deviceZone } from '#lib/metadata/photoTime.ts';
+import { cameraTime, deviceZone, wallToInstant, type CameraTime } from '#lib/metadata/photoTime.ts';
 import { cellOf, namePlaces } from '#lib/geotag/placeNames.ts';
 import { trackCaptureChanges } from '#lib/geotag/trackCapture.ts';
 import { loadedTrack, trackLogOf, type LoadedTrack } from '#lib/geotag/loadedTracks.ts';
@@ -39,8 +36,6 @@ export class TrackSession {
   scope = $state<PhotoScope>('track');
   candidates = $state.raw<AssetSummary[]>([]);
   trackZone = $state(deviceZone());
-  trackZoneFrom = $state<'device' | 'track'>('device');
-  pickedZone = $state<string | null>(null);
   toleranceMin = $state<(typeof TOLERANCES)[number]>(5);
   replace = $state(false);
   fixTime = $state(false);
@@ -53,14 +48,10 @@ export class TrackSession {
   #fetched: TimeRange | null = null;
 
   readonly log = $derived(trackLogOf(this.tracks));
-  readonly clockZone = $derived(this.pickedZone ?? this.trackZone);
   readonly toleranceMs = $derived(this.toleranceMin * MINUTE);
+  readonly shifts = new TrackCameras(this);
   readonly bases = $derived(
-    new Map(this.candidates.map((asset) => [asset.id, cameraTime(asset, this.clockZone)]))
-  );
-  readonly clocks = new CameraClocks();
-  readonly #cameraIds = $derived(
-    new Map(this.candidates.map((asset) => [asset.id, cameraKey(asset)]))
+    new Map(this.candidates.map((asset) => [asset.id, this.#baseOf(asset)]))
   );
   readonly photos = $derived(
     sortAssets(
@@ -89,16 +80,22 @@ export class TrackSession {
   );
   readonly counts = $derived(countMatches(this.matches));
   readonly rows = $derived(
-    this.photos.flatMap((asset, index) => {
-      const match = this.matches[index];
-      return match ? [{ asset, match }] : [];
-    })
+    this.photos
+      .flatMap((asset, index) => {
+        const match = this.matches[index];
+        return match ? [{ asset, match }] : [];
+      })
+      .sort((a, b) => (a.match.time ?? Infinity) - (b.match.time ?? Infinity))
   );
   readonly #rowById = $derived(new Map(this.rows.map((row) => [row.asset.id, row])));
   readonly captureChanges: ClockChange[] = $derived(
     trackCaptureChanges(
-      this.rows.map((row) => ({ ...row, shiftMs: this.shiftOf(row.asset.id) })),
-      { clock: this.clockZone, track: this.trackZone }
+      this.rows.map((row) => ({
+        ...row,
+        shiftMs: this.shiftOf(row.asset.id),
+        zone: this.shifts.zoneOf(row.asset.id)
+      })),
+      this.trackZone
     )
   );
   readonly captureWrites = $derived(planWrites(this.captureChanges).write.length);
@@ -110,60 +107,19 @@ export class TrackSession {
   readonly located = $derived(
     this.photos.filter((asset) => asset.exifInfo && coordinates(asset.exifInfo)).length
   );
-  readonly unzoned = $derived(
-    this.photos.filter((asset) => this.bases.get(asset.id)?.recorded === false).length
-  );
-  readonly #fits = $derived.by(() => {
-    const bases = new Map<string, number[]>();
-    for (const asset of this.candidates) {
-      const base = this.bases.get(asset.id);
-      if (!base) continue;
-      const key = this.#cameraIds.get(asset.id) ?? '';
-      bases.set(key, [...(bases.get(key) ?? []), base.instant]);
-    }
-    return new Map(
-      [...bases].map(([key, instants]) => [key, bestFit(instants, this.log, this.toleranceMs)])
-    );
-  });
-  readonly cameras: Camera[] = $derived.by(() => {
-    const near = new Set(this.photos.map((asset) => this.#cameraIds.get(asset.id) ?? ''));
-    return camerasOf(this.candidates).filter(
-      (camera) => near.has(camera.key) || (this.#fits.get(camera.key) ?? null) !== null
-    );
-  });
-  readonly fits: { camera: Camera; fit: Fit }[] = $derived(
-    this.cameras.flatMap((camera) => {
-      const fit = this.#fits.get(camera.key) ?? null;
-      return fit && fit.correctionMs !== this.clocks.of(camera.key) ? [{ camera, fit }] : [];
-    })
-  );
-  readonly fitMatched = $derived(
-    this.cameras.reduce((sum, camera) => sum + (this.#fits.get(camera.key)?.matched ?? 0), 0)
-  );
-  readonly fitOf = $derived(this.cameras.reduce((sum, camera) => sum + camera.count, 0));
-  readonly clockText = $derived(
-    clocksText(
-      this.cameras.map((camera) => ({ label: camera.label, ms: this.clocks.of(camera.key) }))
-    )
-  );
-  get camera(): string {
-    return this.clocks.active(this.cameras);
-  }
-
-  get correctionMs(): number {
-    return this.clocks.of(this.camera);
-  }
-
-  set correctionMs(ms: number) {
-    this.clocks.set(this.camera, ms);
+  get selection(): boolean {
+    return this.scope === 'selection';
   }
 
   shiftOf(id: string): number {
-    return this.clocks.of(this.#cameraIds.get(id) ?? '');
+    return this.shifts.shiftOf(id);
   }
 
-  shiftTextOf(key: string): string {
-    return cameraShiftText(this.clocks.of(key));
+  #baseOf(asset: AssetSummary): CameraTime | null {
+    const zone = this.shifts.zoneOf(asset.id);
+    if (!zone) return cameraTime(asset, this.trackZone);
+    const photo = clockPhoto(asset);
+    return photo ? { instant: wallToInstant(photo.wall, zone), recorded: true } : null;
   }
 
   #near(asset: AssetSummary): boolean {
@@ -190,14 +146,12 @@ export class TrackSession {
     this.candidates = [];
     this.#fetched = null;
     this.#loads += 1;
-    this.clocks.reset();
+    this.shifts.reset();
     this.focused = null;
     this.revealed = null;
     this.replace = false;
     this.fixTime = false;
     this.trackZone = deviceZone();
-    this.trackZoneFrom = 'device';
-    this.pickedZone = null;
   };
 
   addFiles = async (files: readonly File[]): Promise<void> => {
@@ -219,7 +173,7 @@ export class TrackSession {
         }
         for (const line of parsed.lines) {
           this.#seq += 1;
-          added.push(loadedTrack(file.name, line.name, line.segments, this.#seq));
+          added.push(loadedTrack(file.name, line, this.#seq));
         }
       }
       if (added.length === 0) return;
@@ -238,17 +192,21 @@ export class TrackSession {
   };
 
   setTrackOffset = (id: string, offsetMs: number): void => {
-    this.tracks = this.tracks.map((track) => (track.id === id ? { ...track, offsetMs } : track));
+    this.#changeTrack(id, { offsetMs });
+  };
+
+  setTrackZone = (id: string, zone: string | null): void => {
+    this.#changeTrack(id, { zone });
+  };
+
+  #changeTrack(id: string, change: Partial<Pick<LoadedTrack, 'offsetMs' | 'zone'>>): void {
+    this.tracks = this.tracks.map((track) => (track.id === id ? { ...track, ...change } : track));
     const log = this.log;
     if (this.scope !== 'track' || log.size === 0) return;
     if (!covers(this.#fetched, log.start - TRACK_MARGIN, log.end + TRACK_MARGIN)) {
       void this.#loadPhotos();
     }
-  };
-
-  pickClockZone = (zone: string): void => {
-    this.pickedZone = zone;
-  };
+  }
 
   async #followTrackZone(): Promise<void> {
     const first = this.tracks[0];
@@ -256,7 +214,6 @@ export class TrackSession {
     if (this.tracks[0] !== first) return;
     const zone = first ? trackZone(first.segments) : null;
     this.trackZone = zone ?? deviceZone();
-    this.trackZoneFrom = zone ? 'track' : 'device';
   }
 
   #loadPhotos = async (): Promise<void> => {
@@ -272,10 +229,6 @@ export class TrackSession {
       this.#fetched = null;
       toasts.fail('Could not find photos taken during the track', error);
     }
-  };
-
-  useFit = (): void => {
-    for (const { camera, fit } of this.fits) this.clocks.set(camera.key, fit.correctionMs);
   };
 
   place = async (): Promise<boolean> => {

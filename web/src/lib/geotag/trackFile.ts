@@ -10,6 +10,7 @@ export interface TrackPoint {
 export interface TrackLine {
   name: string | null;
   segments: TrackPoint[][];
+  utc: boolean;
 }
 
 export interface ParsedTrack {
@@ -55,6 +56,10 @@ function parseTime(raw: unknown): number {
   return Date.parse(iso);
 }
 
+function utcTime(raw: unknown): boolean {
+  return typeof raw !== 'string' || !/[+-]\d\d:?\d\d$/.test(raw) || /[+-]00:?00$/.test(raw);
+}
+
 function isRoute(feature: Feature<Geometry | null>): boolean {
   return (feature.properties as { _gpxType?: string } | null)?._gpxType === 'rte';
 }
@@ -64,6 +69,7 @@ export function readTrack(document: Document, format: TrackFormat): ParsedTrack 
   const lines: TrackLine[] = [];
   for (const feature of READERS[format](document).features) {
     if (isRoute(feature)) continue;
+    let utc = true;
     const segments = segmentsOf(feature)
       .map(([coordinates, times]) => {
         const points: TrackPoint[] = [];
@@ -74,6 +80,7 @@ export function readTrack(document: Document, format: TrackFormat): ParsedTrack 
             untimed += 1;
             return;
           }
+          if (!utcTime(times[index])) utc = false;
           points.push({ lat, lon, time });
         });
         return points.sort((a, b) => a.time - b.time);
@@ -81,7 +88,11 @@ export function readTrack(document: Document, format: TrackFormat): ParsedTrack 
       .filter((points) => points.length > 0);
     if (segments.length === 0) continue;
     const name = (feature.properties as { name?: unknown } | null)?.name;
-    lines.push({ name: typeof name === 'string' && name.trim() ? name.trim() : null, segments });
+    lines.push({
+      name: typeof name === 'string' && name.trim() ? name.trim() : null,
+      segments,
+      utc
+    });
   }
   return { lines, untimed };
 }

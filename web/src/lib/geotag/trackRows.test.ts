@@ -15,7 +15,7 @@ describe('track rows', () => {
   it('says how far a located photo is from the track', () => {
     const kept = match({ kind: 'kept', at: { lat: 60.00036, lon: 6 }, track: TRACK });
     expect(matchStatus(kept)).toEqual({
-      text: 'Has a location · 40 m from the track',
+      text: '40 m from track',
       tone: 'kept'
     });
     const late = match({
@@ -23,13 +23,13 @@ describe('track rows', () => {
       at: { lat: 60, lon: 6 },
       track: { kind: 'outside', reason: 'after', gapMs: 40 * MIN }
     });
-    expect(matchStatus(late).text).toBe('Has a location · 40 min after end');
+    expect(matchStatus(late).text).toBe('40 min after end');
   });
 
   it('says how far a moved photo travels', () => {
     const moved = match({ ...TRACK, from: { lat: 60.00036, lon: 6 } });
     expect(matchStatus(moved)).toEqual({ text: 'Moves 40 m', tone: 'ok' });
-    expect(matchStatus(match({ ...TRACK, from: null })).text).toBe('On the track');
+    expect(matchStatus(match({ ...TRACK, from: null })).text).toBe('');
   });
 
   it('shows one time unless the shift changes it', () => {

@@ -26,14 +26,14 @@ export function matchStatus(match: PhotoMatch): { text: string; tone: MatchTone 
   if (outcome.kind === 'placed') {
     return reference?.moved && reference.metres !== null
       ? { text: `Moves ${distanceText(reference.metres)}`, tone: 'ok' }
-      : { text: 'On the track', tone: 'ok' };
+      : { text: '', tone: 'ok' };
   }
   if (outcome.kind === 'kept') {
-    const where =
+    const text =
       outcome.track.kind === 'outside'
         ? outsideText(outcome.track)
-        : `${distanceText(reference?.metres ?? 0)} from the track`;
-    return { text: `Has a location · ${where}`, tone: 'kept' };
+        : `${distanceText(reference?.metres ?? 0)} from track`;
+    return { text, tone: 'kept' };
   }
   if (outcome.kind === 'untimed') return { text: 'No capture time', tone: 'out' };
   return { text: outsideText(outcome), tone: 'out' };

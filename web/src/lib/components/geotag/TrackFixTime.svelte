@@ -12,9 +12,6 @@
   <CheckboxRow
     checked={session.fixTime}
     label="Save corrected capture time in Immich ({countOf(count, 'photo')})"
-    class="h-auto items-start py-0.5 touch:h-auto touch:min-h-11"
     onChange={(next) => (session.fixTime = next)}
-  >
-    <span class="block text-dark/65">Updates Date taken & XMP sidecar; originals untouched</span>
-  </CheckboxRow>
+  />
 {/if}
