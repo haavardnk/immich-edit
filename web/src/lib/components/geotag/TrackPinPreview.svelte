@@ -40,7 +40,7 @@
 
 {#if row}
   {@const state = matchStatus(row.match)}
-  {@const when = matchTimes(trackSession.bases.get(id), row.match, trackSession.zone)}
+  {@const when = matchTimes(trackSession.bases.get(id), row.match, trackSession.trackZone)}
   <div
     class="absolute z-30 flex overflow-hidden rounded-xl bg-light-100 shadow-popover ring-1 ring-hairline {beside
       ? 'w-60 flex-col'

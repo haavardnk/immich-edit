@@ -7,8 +7,7 @@
   import TrackStrip from '#lib/components/geotag/TrackStrip.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
-  import { countOf } from '#lib/utils/plural.ts';
-  import { Button } from '@immich/ui';
+  import TrackPlaceButton from '#lib/components/geotag/TrackPlaceButton.svelte';
 
   let { lift, hidden }: { lift: number; hidden: boolean } = $props();
 
@@ -21,21 +20,13 @@
   const loaded = $derived(session.tracks.length > 0);
   const subtitle = $derived(
     loaded
-      ? `${session.clockText} · ${session.zone.replaceAll('_', ' ')}`
+      ? `${session.clockText} · ${session.clockZone.replaceAll('_', ' ')}`
       : 'Load a GPX, KML or TCX file'
   );
 </script>
 
 {#snippet footer()}
-  <Button
-    size="large"
-    class="w-full"
-    loading={session.placing}
-    disabled={session.counts.placed === 0 || session.placing}
-    onclick={() => void session.place()}
-  >
-    Place {countOf(session.counts.placed, 'photo')}
-  </Button>
+  <TrackPlaceButton size="large" class="w-full" />
 {/snippet}
 
 <BottomSheet

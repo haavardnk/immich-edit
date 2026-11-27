@@ -30,12 +30,12 @@
 <TrackDisclosure
   label="Track"
   title={session.tracks.map(trackName).join(', ')}
-  caption={trackDetail(session.tracks, session.zone)}
+  caption={trackDetail(session.tracks, session.trackZone)}
 >
   {#each session.tracks as track (track.id)}
     {@const expanded = !several || shown === track.id}
     {@const name = trackName(track)}
-    {@const detail = trackDetail([track], session.zone)}
+    {@const detail = trackDetail([track], session.trackZone)}
     <div class="rounded-lg bg-light-100 ring-1 ring-hairline" role="group" aria-label={name}>
       <div class="flex items-center gap-1 ps-3 pe-1">
         {#if several}

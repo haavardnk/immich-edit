@@ -103,18 +103,22 @@ test('placing can change the capture time too, and one Undo reverts both', async
   await page.getByRole('button', { name: 'Match track' }).click();
   const panel = page.getByRole('complementary', { name: 'Match track' });
   await loadTrack(page);
-  const fix = panel.getByRole('checkbox', { name: 'Change the capture time of 2 photos' });
-  await expect(panel.getByRole('checkbox', { name: /Change the capture time/ })).toHaveCount(0);
+  const fix = panel.getByRole('checkbox', {
+    name: 'Save corrected capture time in Immich (2 photos)'
+  });
+  await expect(panel.getByRole('checkbox', { name: /Save corrected capture time/ })).toHaveCount(0);
 
   await panel.getByRole('button', { name: 'Use best fit' }).click();
   await expect(fix).not.toBeChecked();
-  await expect(panel.locator('label').filter({ hasText: 'Change the capture time' })).toContainText(
-    'Shift −1:00:00'
-  );
+  await expect(
+    panel.locator('label').filter({ hasText: 'Save corrected capture time' })
+  ).toContainText('Updates Date taken & XMP sidecar; originals untouched');
   await fix.check();
-  await panel.getByRole('button', { name: 'Place 2 photos' }).click();
+  await panel.getByRole('button', { name: 'Place 2 & save time' }).click();
 
-  await expect(page.getByText('Placed 2 photos and changed their capture time')).toBeVisible();
+  await expect(
+    page.getByText('Placed 2 photos and changed the capture time of 2 photos')
+  ).toBeVisible();
   expect(written).toHaveLength(2);
   expect(times.calls).toEqual([
     [
@@ -403,10 +407,12 @@ test.describe('track matching on touch', { tag: '@touch' }, () => {
     await lineUpOnTouch(page);
     await page.getByRole('button', { name: 'Resize sheet' }).tap();
     const sheet = page.locator('[data-track-sheet]');
-    const fix = sheet.getByRole('checkbox', { name: 'Change the capture time of 2 photos' });
+    const fix = sheet.getByRole('checkbox', {
+      name: 'Save corrected capture time in Immich (2 photos)'
+    });
     await fix.tap();
     await expect(fix).toBeChecked();
-    await sheet.getByRole('button', { name: 'Place 2 photos' }).tap();
+    await sheet.getByRole('button', { name: 'Place 2 & save time' }).tap();
     await expect.poll(() => times.calls.length).toBe(1);
   });
 

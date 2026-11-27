@@ -70,7 +70,7 @@
   >
     {#each rows as { asset, match } (asset.id)}
       {@const state = matchStatus(match)}
-      {@const when = matchTimes(session.bases.get(asset.id), match, session.zone)}
+      {@const when = matchTimes(session.bases.get(asset.id), match, session.trackZone)}
       <li
         class="flex items-center gap-3 px-4 py-1.5 transition-colors {session.focused === asset.id
           ? 'bg-primary/20 shadow-[inset_3px_0_0_var(--color-primary)]'

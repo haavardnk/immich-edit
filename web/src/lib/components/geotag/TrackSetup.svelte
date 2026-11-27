@@ -9,7 +9,7 @@
 <TrackDisclosure
   label="Clock setup"
   title="Camera clock"
-  caption="{session.clockText} · {session.zone.replaceAll('_', ' ')}"
+  caption="{session.clockText} · {session.clockZone.replaceAll('_', ' ')}"
 >
   <TrackSettings />
 </TrackDisclosure>
