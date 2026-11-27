@@ -5,16 +5,16 @@
 
   const session = trackSession;
 
-  const count = $derived(session.timeShift.write.length);
+  const count = $derived(session.captureWrites);
 </script>
 
 {#if count > 0}
   <CheckboxRow
     checked={session.fixTime}
-    label="Change the capture time of {countOf(count, 'photo')}"
+    label="Save corrected capture time in Immich ({countOf(count, 'photo')})"
     class="h-auto items-start py-0.5 touch:h-auto touch:min-h-11"
     onChange={(next) => (session.fixTime = next)}
   >
-    <span class="block text-dark/65">{session.fixCaption}</span>
+    <span class="block text-dark/65">Updates Date taken & XMP sidecar; originals untouched</span>
   </CheckboxRow>
 {/if}

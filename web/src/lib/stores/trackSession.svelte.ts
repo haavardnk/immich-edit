@@ -2,15 +2,16 @@ import { coordinates } from '#lib/browse/info/photoInfo.ts';
 import type { GeoLocation } from '#lib/browse/locationOps.ts';
 import { applyLocations } from '#lib/browse/locationOps.ts';
 import { fieldKey, sortAssets } from '#lib/browse/sortAssets.ts';
-import { planShifts, shiftCaption, type ShiftPlan } from '#lib/metadata/captureShift.ts';
-import { correctTimes } from '#lib/metadata/captureTimeOps.ts';
+import { applyCaptureTimes, captureTimesAfter } from '#lib/metadata/captureTimeOps.ts';
+import { planWrites, type ClockChange } from '#lib/metadata/captureTimes.ts';
 import { bestFit, type Fit } from '#lib/geotag/bestFit.ts';
 import { CameraClocks } from '#lib/metadata/cameraClocks.svelte.ts';
 import { cameraKey, camerasOf, type Camera } from '#lib/metadata/cameras.ts';
-import { cameraShiftText, clocksText, correctionText } from '#lib/metadata/clockText.ts';
+import { cameraShiftText, clocksText } from '#lib/metadata/clockText.ts';
 import { countMatches, matchPhotos, type PhotoMatch } from '#lib/geotag/match.ts';
 import { cameraTime, deviceZone } from '#lib/metadata/photoTime.ts';
 import { cellOf, namePlaces } from '#lib/geotag/placeNames.ts';
+import { trackCaptureChanges } from '#lib/geotag/trackCapture.ts';
 import { loadedTrack, trackLogOf, type LoadedTrack } from '#lib/geotag/loadedTracks.ts';
 import { parseTrackFile, trackFormat } from '#lib/geotag/trackFile.ts';
 import {
@@ -37,8 +38,9 @@ export class TrackSession {
   tracks = $state.raw<LoadedTrack[]>([]);
   scope = $state<PhotoScope>('track');
   candidates = $state.raw<AssetSummary[]>([]);
-  zone = $state(deviceZone());
-  zoneFrom = $state<'device' | 'track' | 'picked'>('device');
+  trackZone = $state(deviceZone());
+  trackZoneFrom = $state<'device' | 'track'>('device');
+  pickedZone = $state<string | null>(null);
   toleranceMin = $state<(typeof TOLERANCES)[number]>(5);
   replace = $state(false);
   fixTime = $state(false);
@@ -51,9 +53,10 @@ export class TrackSession {
   #fetched: TimeRange | null = null;
 
   readonly log = $derived(trackLogOf(this.tracks));
+  readonly clockZone = $derived(this.pickedZone ?? this.trackZone);
   readonly toleranceMs = $derived(this.toleranceMin * MINUTE);
   readonly bases = $derived(
-    new Map(this.candidates.map((asset) => [asset.id, cameraTime(asset, this.zone)]))
+    new Map(this.candidates.map((asset) => [asset.id, cameraTime(asset, this.clockZone)]))
   );
   readonly clocks = new CameraClocks();
   readonly #cameraIds = $derived(
@@ -85,17 +88,6 @@ export class TrackSession {
     )
   );
   readonly counts = $derived(countMatches(this.matches));
-  readonly timeShift: ShiftPlan = $derived(
-    planShifts(
-      this.matches.flatMap((match) => {
-        const base = this.bases.get(match.id);
-        return match.outcome.kind === 'placed' && base
-          ? [{ id: match.id, ...base, correctionMs: this.shiftOf(match.id) }]
-          : [];
-      }),
-      this.zone
-    )
-  );
   readonly rows = $derived(
     this.photos.flatMap((asset, index) => {
       const match = this.matches[index];
@@ -103,6 +95,14 @@ export class TrackSession {
     })
   );
   readonly #rowById = $derived(new Map(this.rows.map((row) => [row.asset.id, row])));
+  readonly captureChanges: ClockChange[] = $derived(
+    trackCaptureChanges(
+      this.rows.map((row) => ({ ...row, shiftMs: this.shiftOf(row.asset.id) })),
+      { clock: this.clockZone, track: this.trackZone }
+    )
+  );
+  readonly captureWrites = $derived(planWrites(this.captureChanges).write.length);
+  readonly timeWrites = $derived(this.fixTime ? this.captureWrites : 0);
 
   row(id: string): { asset: AssetSummary; match: PhotoMatch } | null {
     return this.#rowById.get(id) ?? null;
@@ -146,17 +146,6 @@ export class TrackSession {
       this.cameras.map((camera) => ({ label: camera.label, ms: this.clocks.of(camera.key) }))
     )
   );
-  readonly fixCaption = $derived(
-    shiftCaption(
-      this.timeShift,
-      this.zone,
-      this.cameras.flatMap((camera) => {
-        const minutes = Math.round(this.clocks.of(camera.key) / MINUTE);
-        return minutes === 0 ? [] : [`${camera.label} ${correctionText(minutes * MINUTE)}`];
-      })
-    )
-  );
-
   get camera(): string {
     return this.clocks.active(this.cameras);
   }
@@ -206,8 +195,9 @@ export class TrackSession {
     this.revealed = null;
     this.replace = false;
     this.fixTime = false;
-    this.zone = deviceZone();
-    this.zoneFrom = 'device';
+    this.trackZone = deviceZone();
+    this.trackZoneFrom = 'device';
+    this.pickedZone = null;
   };
 
   addFiles = async (files: readonly File[]): Promise<void> => {
@@ -256,23 +246,17 @@ export class TrackSession {
     }
   };
 
-  pickZone = (zone: string): void => {
-    this.zone = zone;
-    this.zoneFrom = 'picked';
+  pickClockZone = (zone: string): void => {
+    this.pickedZone = zone;
   };
 
-  #zonePicked(): boolean {
-    return this.zoneFrom === 'picked';
-  }
-
   async #followTrackZone(): Promise<void> {
-    if (this.#zonePicked()) return;
     const first = this.tracks[0];
     const { trackZone } = await import('#lib/geotag/trackZone.ts');
-    if (this.#zonePicked() || this.tracks[0] !== first) return;
+    if (this.tracks[0] !== first) return;
     const zone = first ? trackZone(first.segments) : null;
-    this.zone = zone ?? deviceZone();
-    this.zoneFrom = zone ? 'track' : 'device';
+    this.trackZone = zone ?? deviceZone();
+    this.trackZoneFrom = zone ? 'track' : 'device';
   }
 
   #loadPhotos = async (): Promise<void> => {
@@ -301,26 +285,45 @@ export class TrackSession {
         ? [{ id: match.id, lat: match.outcome.lat, lon: match.outcome.lon }]
         : []
     );
-    if (placed.length === 0) return false;
+    const timed = this.timeWrites > 0 ? this.captureChanges : [];
+    if (placed.length === 0 && timed.length === 0) return false;
     this.placing = true;
     try {
-      const names = await namePlaces(placed);
-      const targets = new Map<string, GeoLocation>(
-        placed.map((point) => [point.id, { ...point, place: names.get(cellOf(point)) ?? null }])
-      );
-      const assets = this.photos.filter((asset) => targets.has(asset.id));
-      const shift = this.fixTime ? this.timeShift : null;
-      const done = await applyLocations(
-        assets,
-        targets,
-        shift ? (written) => correctTimes(shift, written) : undefined
-      );
+      const done =
+        placed.length > 0 ? await this.#placeAll(placed, timed) : await this.#saveTimes(timed);
       if (done) this.close();
       return done;
     } finally {
       this.placing = false;
     }
   };
+
+  #saveTimes(timed: readonly ClockChange[]): Promise<boolean> {
+    return applyCaptureTimes(timed, new Map(this.photos.map((asset) => [asset.id, asset])));
+  }
+
+  async #placeAll(
+    placed: readonly { id: string; lat: number; lon: number }[],
+    timed: readonly ClockChange[]
+  ): Promise<boolean> {
+    const names = await namePlaces(placed);
+    const targets = new Map<string, GeoLocation>(
+      placed.map((point) => [point.id, { ...point, place: names.get(cellOf(point)) ?? null }])
+    );
+    const assets = this.photos.filter((asset) => targets.has(asset.id));
+    const byId = new Map(this.photos.map((asset) => [asset.id, asset]));
+    const then =
+      timed.length > 0
+        ? (written: readonly string[]) => {
+            const done = new Set(written);
+            const kept = timed.filter(
+              (change) => !targets.has(change.photo.id) || done.has(change.photo.id)
+            );
+            return captureTimesAfter(kept, byId);
+          }
+        : undefined;
+    return applyLocations(assets, targets, then);
+  }
 
   get summary(): string {
     const { placed } = this.counts;

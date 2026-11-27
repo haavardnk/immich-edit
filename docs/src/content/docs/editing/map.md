@@ -73,8 +73,9 @@ Geotag still photos from a GPX, KML, or TCX track recorded by a watch, phone app
    on touch) to preview the photo on the map; click (tap again on touch) to open it in the loupe
    and step through the track with arrow keys.
 6. Select **Place** to save. Tick **Move … photos that already have a location** to overwrite
-   existing GPS coordinates, or **Change the capture time of … photos** to write the shift back
-   to Immich; **Undo** restores both.
+   their coordinates, or **Save corrected capture time in Immich** to write each camera's shift to
+   the capture time, to the second; the button then reads **Place … & save time**, or **Save time
+   for … photos** when no photo needs a location. **Undo** restores both.
 
 <!-- SCREENSHOT: capture.cjs track-desktop + compose.cjs track-desktop -->
 ![GPX track matching around Lake Magadi with hovered lion photo preview and matched photo list](../../../assets/shots/track-desktop.png)

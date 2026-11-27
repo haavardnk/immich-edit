@@ -15,16 +15,17 @@
       <div class="min-w-0 flex-1 text-sm text-light-950">
         Time zone
         <span class="block text-caption text-dark/65">
-          {session.unzoned} photos without one{session.zoneFrom === 'track'
+          {session.unzoned} photos without one{session.trackZoneFrom === 'track' &&
+          session.pickedZone === null
             ? ' · from the track'
             : ''}
         </span>
       </div>
       <ZoneSelect
         label="Time zone"
-        value={session.zone}
+        value={session.clockZone}
         at={reference}
-        onPick={(zone) => session.pickZone(zone)}
+        onPick={(zone) => session.pickClockZone(zone)}
       />
     </div>
   {/if}

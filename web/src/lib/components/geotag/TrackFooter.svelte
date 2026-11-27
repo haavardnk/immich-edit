@@ -1,7 +1,7 @@
 <script lang="ts">
   import TrackOptions from '#lib/components/geotag/TrackOptions.svelte';
+  import TrackPlaceButton from '#lib/components/geotag/TrackPlaceButton.svelte';
   import { trackSession } from '#lib/stores/trackSession.svelte.ts';
-  import { countOf } from '#lib/utils/plural.ts';
   import { Button } from '@immich/ui';
 
   let { framed = true }: { framed?: boolean } = $props();
@@ -25,14 +25,6 @@
     >
       Cancel
     </Button>
-    <Button
-      size="small"
-      class="shrink-0 whitespace-nowrap touch:h-11"
-      loading={session.placing}
-      disabled={session.counts.placed === 0 || session.placing}
-      onclick={() => void session.place()}
-    >
-      Place {countOf(session.counts.placed, 'photo')}
-    </Button>
+    <TrackPlaceButton class="shrink-0 whitespace-nowrap touch:h-11" />
   </div>
 </footer>

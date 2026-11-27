@@ -1,10 +1,10 @@
 import { writeCaptureTimes } from '#lib/api/assets.ts';
 import { withExif } from '#lib/browse/assetMeta.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
-import type { CaptureShift, ShiftPlan } from '#lib/metadata/captureShift.ts';
 import {
   planWrites,
   wallOf,
+  type CapturePlan,
   type CaptureWrite,
   type ClockChange,
   type ClockTarget
@@ -19,45 +19,6 @@ import type { AssetSummary } from '#lib/types/album.ts';
 import { countOf } from '#lib/utils/plural.ts';
 
 const CHUNK = 100;
-
-function only(shifts: readonly CaptureShift[], ids: ReadonlySet<string>): CaptureShift[] {
-  return shifts.filter((shift) => ids.has(sourceId(shift.id)));
-}
-
-async function undoShifts(shifts: readonly CaptureShift[]): Promise<void> {
-  if (shifts.length === 0) return;
-  try {
-    await writeChunks(shifts);
-  } catch (error) {
-    toasts.fail('Undo capture time', error);
-    return;
-  }
-  libraryChanged();
-}
-
-export async function correctTimes(
-  plan: ShiftPlan,
-  ids: readonly string[]
-): Promise<FollowUp | null> {
-  const chosen = new Set(ids.map(sourceId));
-  const write = only(plan.write, chosen);
-  if (write.length === 0) return null;
-  let failed: Set<string>;
-  try {
-    failed = await writeChunks(write);
-  } catch (error) {
-    toasts.fail('Change capture time', error);
-    return null;
-  }
-  libraryChanged();
-  if (failed.size > 0) {
-    toasts.push('warn', `Could not change the capture time of ${countOf(failed.size, 'photo')}`);
-  }
-  const fixed = new Set([...chosen].filter((id) => !failed.has(id)));
-  if (fixed.size === 0) return null;
-  const back = only(plan.undo, fixed);
-  return { note: 'and changed their capture time', undo: () => undoShifts(back) };
-}
 
 async function writeChunks(items: readonly CaptureWrite[]): Promise<Set<string>> {
   const failed = new Set<string>();
@@ -114,19 +75,23 @@ async function undoTimes(
   }
 }
 
-export async function applyCaptureTimes(
+interface Saved {
+  count: number;
+  failed: number;
+  undo: () => Promise<void>;
+}
+
+async function saveTimes(
+  plan: CapturePlan,
   changes: readonly ClockChange[],
   assets: ReadonlyMap<string, AssetSummary>
-): Promise<boolean> {
-  const plan = planWrites(changes);
-  if (plan.write.length === 0) return true;
-  if (!(await metadataConsent.gate())) return false;
+): Promise<Saved | null> {
   let failed: Set<string>;
   try {
     failed = await writeChunks(plan.write);
   } catch (error) {
     toasts.fail('Change capture time', error);
-    return false;
+    return null;
   }
   const sent = new Set(plan.write.map((item) => item.id));
   const written = new Map(
@@ -138,10 +103,44 @@ export async function applyCaptureTimes(
   libraryChanged();
   const undo = plan.undo.filter((item) => written.has(item.id));
   const restored = new Map([...plan.restored].filter(([id]) => written.has(id)));
-  toasts.push('success', `Changed the capture time of ${countOf(written.size, 'photo')}`, {
+  return {
+    count: written.size,
+    failed: failed.size,
+    undo: () => undoTimes(undo, restored, assets)
+  };
+}
+
+export async function applyCaptureTimes(
+  changes: readonly ClockChange[],
+  assets: ReadonlyMap<string, AssetSummary>
+): Promise<boolean> {
+  const plan = planWrites(changes);
+  if (plan.write.length === 0) return true;
+  if (!(await metadataConsent.gate())) return false;
+  const saved = await saveTimes(plan, changes, assets);
+  if (!saved) return false;
+  toasts.push('success', `Changed the capture time of ${countOf(saved.count, 'photo')}`, {
     description:
-      failed.size > 0 ? `${countOf(failed.size, 'photo')} could not be changed` : undefined,
-    action: { label: 'Undo', run: () => void undoTimes(undo, restored, assets) }
+      saved.failed > 0 ? `${countOf(saved.failed, 'photo')} could not be changed` : undefined,
+    action: { label: 'Undo', run: () => void saved.undo() }
   });
   return true;
+}
+
+export async function captureTimesAfter(
+  changes: readonly ClockChange[],
+  assets: ReadonlyMap<string, AssetSummary>
+): Promise<FollowUp | null> {
+  const plan = planWrites(changes);
+  if (plan.write.length === 0) return null;
+  const saved = await saveTimes(plan, changes, assets);
+  if (!saved) return null;
+  if (saved.failed > 0) {
+    toasts.push('warn', `Could not change the capture time of ${countOf(saved.failed, 'photo')}`);
+  }
+  if (saved.count === 0) return null;
+  return {
+    note: `and changed the capture time of ${countOf(saved.count, 'photo')}`,
+    undo: saved.undo
+  };
 }
