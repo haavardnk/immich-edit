@@ -55,7 +55,7 @@ describe('BrowseHeader', () => {
     expect(target.querySelector('h1')?.textContent).toBe('Photos');
     expect(target.textContent).toContain('12 photos');
     expect(labelled('Thumbnail size S')).not.toBeNull();
-    expect(labelled('Thumbnail info: badges')).not.toBeNull();
+    expect(labelled('Thumbnail info: icons')).not.toBeNull();
     expect(labelled('Filters')).not.toBeNull();
     expect(labelled('Account')).toBeNull();
     expect(labelled('Select photos')).toBeNull();

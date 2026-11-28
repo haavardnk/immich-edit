@@ -57,7 +57,14 @@ describe('browse view persistence', () => {
     expect(browseView.gridSize).toBe('md');
     expect(browseView.loupeAutoAdvance).toBe(false);
     expect(browseView.loupeInfoOpen).toBe(false);
-    expect(browseView.tileInfo).toBe('badges');
+    expect(browseView.tileInfo).toBe('icons');
+  });
+
+  it('reads the old badges mode as icons', async () => {
+    stubStorage({ tileInfo: 'badges' });
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.tileInfo).toBe('icons');
   });
 
   it('writes every field whenever one changes', async () => {
@@ -165,14 +172,14 @@ describe('browse view persistence', () => {
     expect(browseView.loupeFilmstripShown).toBe(true);
   });
 
-  it('cycles the tile info through none, badges and full', async () => {
+  it('cycles the tile info through none, icons and full', async () => {
     stubStorage({ tileInfo: 'full' });
     const { browseView } = await import('./browseView.svelte');
 
     browseView.cycleTileInfo();
     expect(browseView.tileInfo).toBe('none');
     browseView.cycleTileInfo();
-    expect(browseView.tileInfo).toBe('badges');
+    expect(browseView.tileInfo).toBe('icons');
   });
 });
 

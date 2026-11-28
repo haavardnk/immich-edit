@@ -40,6 +40,7 @@ import { browsing } from '#lib/stores/browsing.svelte.ts';
 import { library } from '#lib/stores/library.svelte.ts';
 import { rejected } from '#lib/stores/rejected.svelte.ts';
 import { session } from '#lib/stores/session.svelte.ts';
+import { tagCache } from '#lib/stores/tagCache.svelte.ts';
 
 const sunset: TagRef = { id: 't1', name: 'sunset', value: 'sunset' };
 const beach: TagRef = { id: 't2', name: 'beach', value: 'beach' };
@@ -74,6 +75,7 @@ beforeEach(() => {
   library.tags = [];
   session.clear();
   rejected.reset();
+  tagCache.clear();
   browsing.set([asset('a')]);
 });
 
@@ -89,6 +91,13 @@ describe('addTag', () => {
     expect(await addTag(browseTarget('a'), sunset)).toBe('saved');
     expect(h.addTagToAsset).toHaveBeenCalledWith('t1', 'a');
     expect(tagIds()).toEqual(['t1']);
+  });
+
+  it('keeps a cached tag the summary lacks when re-adding it fails', async () => {
+    tagCache.set('a', [sunset, beach]);
+    h.addTagToAsset.mockRejectedValueOnce(new Error('boom'));
+    expect(await addTag(recordingTarget().target, sunset)).toBe('failed');
+    expect(tagCache.get('a')).toEqual([sunset, beach]);
   });
 
   it('takes the tag back off when Immich refuses', async () => {
@@ -120,6 +129,14 @@ describe('removeTag', () => {
     h.removeTagFromAsset.mockRejectedValueOnce(new Error('boom'));
     expect(await removeTag(recordingTarget().target, 't1')).toBe('failed');
     expect(tagIds().toSorted()).toEqual(['t1', 't2']);
+  });
+
+  it('keeps a cached tag the summary lacks when Immich refuses', async () => {
+    tagCache.set('a', [sunset]);
+    h.removeTagFromAsset.mockRejectedValueOnce(new Error('boom'));
+    expect(await removeTag(recordingTarget().target, 't1')).toBe('failed');
+    expect(h.removeTagFromAsset).toHaveBeenCalledWith('t1', 'a');
+    expect(tagCache.get('a')).toEqual([sunset]);
   });
 });
 

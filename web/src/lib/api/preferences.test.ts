@@ -30,7 +30,8 @@ describe('preferences api', () => {
       desktopSections: null,
       touchSubviews: null,
       cropRatios: null,
-      maskOverlayColor: null
+      maskOverlayColor: null,
+      tileOverlay: null
     });
   });
 
@@ -119,5 +120,24 @@ describe('preferences api', () => {
     expect(fetch.sent().body).toEqual({ mask_overlay_color: '#0a84ff' });
     await patchPreferences({ maskOverlayColor: null });
     expect(fetch.sent().body).toEqual({ mask_overlay_color: null });
+  });
+
+  it('reads the tile overlay in catalog order, dropping unknown keys', async () => {
+    stubFetch({
+      tile_overlay: { icons: ['location', 'people', 'favorite'], details: ['lens', 'filename'] }
+    });
+    await expect(getPreferences()).resolves.toMatchObject({
+      tileOverlay: { icons: ['favorite', 'location'], details: ['filename', 'lens'] }
+    });
+    stubFetch({ tile_overlay: null });
+    await expect(getPreferences()).resolves.toMatchObject({ tileOverlay: null });
+  });
+
+  it('patches the tile overlay under its wire name', async () => {
+    const fetch = stubFetch({});
+    await patchPreferences({ tileOverlay: { icons: ['albums'], details: [] } });
+    expect(fetch.sent().body).toEqual({ tile_overlay: { icons: ['albums'], details: [] } });
+    await patchPreferences({ tileOverlay: null });
+    expect(fetch.sent().body).toEqual({ tile_overlay: null });
   });
 });

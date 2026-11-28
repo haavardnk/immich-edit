@@ -13,6 +13,10 @@ export function albumsWithAsset(assetId: string): Promise<AlbumSummary[]> {
   return getJson(url`/api/albums?assetId=${assetId}`);
 }
 
+export function albumMemberships(ids: readonly string[]): Promise<Record<string, AlbumSummary[]>> {
+  return sendJson('POST', '/api/albums/membership', { ids }, undefined, { silent: true });
+}
+
 export function getAlbum(id: string): Promise<AlbumSummary> {
   return getJson(url`/api/albums/${id}`);
 }

@@ -3,11 +3,12 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { listAlbums } from '#lib/api/albums.ts';
   import { assetThumbUrl } from '#lib/api/assets.ts';
-  import { albumMembership } from '#lib/browse/bulk/albumMembership.ts';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
+  import { MEMBERSHIP_CAP, heldCounts } from '#lib/browse/bulk/heldMembership.ts';
   import { nextStage, type Stage } from '#lib/browse/bulk/pickStage.ts';
   import { sourceId } from '#lib/browse/assetKey.ts';
   import { viewedAlbumId } from '#lib/browse/viewedAlbum.ts';
+  import { assetAlbums } from '#lib/stores/assetAlbums.svelte.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import type { AlbumSummary } from '#lib/types/album.ts';
@@ -17,11 +18,11 @@
   let { onDone }: { onDone?: () => void } = $props();
 
   let albums = $state<AlbumSummary[]>([]);
-  let membership = $state<Map<string, number> | null>(null);
   const stages = new SvelteMap<string, Stage>();
 
-  const ids = $derived([...selection.selected]);
-  const total = $derived(new Set(ids.map(sourceId)).size);
+  const sources = $derived([...new Set([...selection.selected].map(sourceId))]);
+  const total = $derived(sources.length);
+  const membership = $derived(heldCounts(sources, (id) => assetAlbums.albumsOf(id)));
   const viewing = $derived(viewedAlbumId());
   const items = $derived<PickItem[]>(
     albums.map((album) => ({
@@ -42,9 +43,10 @@
         albums = items.sort((a, b) => a.albumName.localeCompare(b.albumName));
       })
       .catch((e: unknown) => toasts.fail('Failed to load albums', e));
-    albumMembership(ids)
-      .then((counts) => (membership = counts))
-      .catch(() => (membership = null));
+  });
+
+  $effect(() => {
+    if (sources.length <= MEMBERSHIP_CAP) void assetAlbums.ensureMany(sources);
   });
 
   function toggle(id: string): void {

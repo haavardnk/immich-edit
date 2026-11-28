@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { putBounded } from './boundedRecord';
+import { putAllBounded, putBounded } from './boundedRecord';
 
 describe('putBounded', () => {
   it('evicts oldest keys beyond max', () => {
@@ -29,5 +29,23 @@ describe('putBounded', () => {
     }
     expect(cache).toEqual({ a: 3, c: 4 });
     expect(order).toEqual(['a', 'c']);
+  });
+});
+
+describe('putAllBounded', () => {
+  it('stores a batch in one copy, refreshing and evicting the oldest keys', () => {
+    const record = { a: 1, b: 2, c: 3 };
+    const next = putAllBounded(
+      record,
+      ['a', 'b', 'c'],
+      [
+        ['a', 10],
+        ['d', 4]
+      ],
+      3
+    );
+    expect(next.record).toEqual({ c: 3, a: 10, d: 4 });
+    expect(next.order).toEqual(['c', 'a', 'd']);
+    expect(record).toEqual({ a: 1, b: 2, c: 3 });
   });
 });

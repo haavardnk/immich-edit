@@ -1,12 +1,16 @@
 import { album as albumFixture } from '#lib/testing/albums.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
-  albumsWithAsset: vi.fn<(id: string) => Promise<AlbumSummary[]>>()
+  albumsWithAsset: vi.fn<(id: string) => Promise<AlbumSummary[]>>(),
+  albumMemberships: vi.fn<(ids: readonly string[]) => Promise<Record<string, AlbumSummary[]>>>()
 }));
 
-vi.mock('#lib/api/albums.ts', () => ({ albumsWithAsset: h.albumsWithAsset }));
+vi.mock('#lib/api/albums.ts', () => ({
+  albumsWithAsset: h.albumsWithAsset,
+  albumMemberships: h.albumMemberships
+}));
 
 const A = '0f8fad5b-d9cb-469f-a165-70867728950e';
 const B = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
@@ -18,10 +22,19 @@ function album(id: string, albumName: string): AlbumSummary {
 beforeEach(() => {
   vi.resetModules();
   h.albumsWithAsset.mockReset();
+  h.albumMemberships.mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 async function store() {
   return (await import('#lib/stores/assetAlbums.svelte.ts')).assetAlbums;
+}
+
+async function retryMs() {
+  return (await import('#lib/stores/assetAlbums.svelte.ts')).RETRY_MS;
 }
 
 describe('asset albums', () => {
@@ -87,5 +100,111 @@ describe('asset albums', () => {
     await albums.retry(A);
     expect(albums.errorOf(A)).toBeNull();
     expect(albums.albumsOf(A)).toHaveLength(1);
+  });
+
+  it('loads many photos in batches of 100, skipping known and running ones', async () => {
+    h.albumsWithAsset.mockResolvedValue([]);
+    h.albumMemberships.mockImplementation((ids) =>
+      Promise.resolve(Object.fromEntries(ids.map((id) => [id, [album('1', 'Bergen')]])))
+    );
+    const albums = await store();
+    await albums.ensure(A);
+    const ids = Array.from(
+      { length: 150 },
+      (_, i) => `${i.toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`
+    );
+    await albums.ensureMany([A, B, `${B}_2`, ...ids]);
+    const batches = h.albumMemberships.mock.calls.map(([batch]) => batch.length);
+    expect(batches).toEqual([100, 51]);
+    expect(h.albumMemberships.mock.calls[0]?.[0]).toContain(B);
+    expect(albums.has(A)).toBe(true);
+    expect(albums.albumsOf(`${B}_2`)?.map((a) => a.albumName)).toEqual(['Bergen']);
+    await albums.ensureMany([B]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves photos missing from a batch unloaded and waits before asking again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    h.albumMemberships
+      .mockResolvedValueOnce({ [A]: [album('1', 'Bergen')] })
+      .mockResolvedValueOnce({ [B]: [] });
+    const albums = await store();
+    await albums.ensureMany([A, B]);
+    expect(albums.albumsOf(A)?.map((a) => a.id)).toEqual(['1']);
+    expect(albums.has(B)).toBe(false);
+    vi.setSystemTime(Date.now() + (await retryMs()) - 1);
+    await albums.ensureMany([B]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + 1);
+    await albums.ensureMany([B]);
+    expect(albums.albumsOf(B)).toEqual([]);
+  });
+
+  it('leaves a failed batch unloaded and waits before asking again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    h.albumMemberships
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ [A]: [] });
+    const albums = await store();
+    await albums.ensureMany([A]);
+    expect(albums.has(A)).toBe(false);
+    expect(albums.errorOf(A)).toBeNull();
+    await albums.ensureMany([A]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + (await retryMs()));
+    await albums.ensureMany([A]);
+    expect(albums.albumsOf(A)).toEqual([]);
+  });
+
+  it('asks again at once for a failed photo that a change or clear forgot', async () => {
+    h.albumMemberships.mockResolvedValue({});
+    const albums = await store();
+    await albums.ensureMany([A, B]);
+    albums.forget([A]);
+    await albums.ensureMany([A, B]);
+    expect(h.albumMemberships).toHaveBeenLastCalledWith([A]);
+    albums.clear();
+    await albums.ensureMany([A, B]);
+    expect(h.albumMemberships).toHaveBeenLastCalledWith([A, B]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not hold back a photo whose failed batch a change overtook', async () => {
+    let fail: (error: Error) => void = () => {};
+    h.albumMemberships
+      .mockImplementationOnce(() => new Promise((_, reject) => (fail = reject)))
+      .mockResolvedValueOnce({ [A]: [] });
+    const albums = await store();
+    const running = albums.ensureMany([A]);
+    albums.forget([A]);
+    fail(new Error('offline'));
+    await running;
+    await albums.ensureMany([A]);
+    expect(albums.albumsOf(A)).toEqual([]);
+  });
+
+  it('loads a photo alone when the batch it joined left it out', async () => {
+    let answer: (found: Record<string, AlbumSummary[]>) => void = () => {};
+    h.albumMemberships.mockImplementationOnce(() => new Promise((done) => (answer = done)));
+    h.albumsWithAsset.mockResolvedValue([album('1', 'Bergen')]);
+    const albums = await store();
+    const batch = albums.ensureMany([A]);
+    const single = albums.ensure(A);
+    answer({});
+    await Promise.all([batch, single]);
+    expect(h.albumsWithAsset).toHaveBeenCalledWith(A);
+    expect(albums.albumsOf(A)?.map((a) => a.id)).toEqual(['1']);
+  });
+
+  it('drops a batch that an album change overtook', async () => {
+    let answer: (found: Record<string, AlbumSummary[]>) => void = () => {};
+    h.albumMemberships.mockImplementationOnce(() => new Promise((done) => (answer = done)));
+    const albums = await store();
+    const running = albums.ensureMany([A, B]);
+    albums.forget([A]);
+    answer({ [A]: [album('1', 'Old')], [B]: [] });
+    await running;
+    expect(albums.has(A)).toBe(false);
+    expect(albums.albumsOf(B)).toEqual([]);
   });
 });

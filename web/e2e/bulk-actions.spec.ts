@@ -123,6 +123,10 @@ async function installAlbumMocks(page: Page): Promise<Array<{ method: string; id
   const calls: Array<{ method: string; ids: string[] }> = [];
   await installBulkMocks(page);
   await page.route(/\/api\/albums(\?.*)?$/, (route) => route.fulfill(json([ALBUM])));
+  await page.route('**/api/albums/membership', (route) => {
+    const { ids } = route.request().postDataJSON() as { ids: string[] };
+    return route.fulfill(json(Object.fromEntries(ids.map((id) => [id, [ALBUM]]))));
+  });
   await page.route('**/api/albums/album-1', (route) => route.fulfill(json(ALBUM)));
   await page.route('**/api/albums/album-1/assets', (route) => {
     const request = route.request();

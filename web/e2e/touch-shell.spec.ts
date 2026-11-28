@@ -103,7 +103,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     ).toBeChecked();
     await sheet
       .getByRole('radiogroup', { name: 'Thumbnail info' })
-      .getByRole('radio', { name: 'Name and date' })
+      .getByRole('radio', { name: 'Full' })
       .tap();
     await expect(page.getByTestId('tile-name').first()).toBeVisible();
     await sheet.getByRole('button', { name: 'Close view & filters' }).tap();

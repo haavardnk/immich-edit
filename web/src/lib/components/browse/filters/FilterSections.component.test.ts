@@ -104,7 +104,7 @@ describe('FilterSheet view block', () => {
       );
       expect(groups.slice(0, 4)).toEqual(['Sort by', 'Order', 'Thumbnail size', 'Thumbnail info']);
       expect(names()).toEqual(
-        expect.arrayContaining(['Taken', 'Newest', 'XL', 'Name and date', 'Reset all filters'])
+        expect.arrayContaining(['Taken', 'Newest', 'XL', 'Full', 'Reset all filters'])
       );
       expect(names()).not.toContain('View');
     } finally {
