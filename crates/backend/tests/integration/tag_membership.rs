@@ -135,3 +135,20 @@ async fn tag_membership_surfaces_an_immich_failure() {
     let resp = memberships(&app, json!([asset_id()])).await;
     assert!(resp.status().is_server_error(), "{}", resp.status());
 }
+
+#[tokio::test]
+async fn tag_membership_answers_the_rest_when_one_lookup_fails() {
+    let server = MockServer::start().await;
+    mock_tagged(&server, asset_id(), "Travel", 1).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/api/assets/{}", other_asset())))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let body = memberships_ok(&app, json!([asset_id(), other_asset()])).await;
+    assert_eq!(body.as_object().unwrap().len(), 1, "{body}");
+    assert_eq!(body[asset_id().to_string()][0]["value"], "Travel");
+}
