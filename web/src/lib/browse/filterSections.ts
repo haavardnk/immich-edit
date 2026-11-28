@@ -7,6 +7,8 @@ const ID_LIST_ORDER: readonly IdFilterKey[] = ['people', 'albums', 'tags'];
 export type FilterSectionId =
   'library' | 'people' | 'albums' | 'tags' | 'rating' | 'date' | 'camera' | 'place' | 'file';
 
+export type FilterPageId = FilterSectionId | 'tileOverlay';
+
 export interface FilterSection {
   id: FilterSectionId;
   title: string;

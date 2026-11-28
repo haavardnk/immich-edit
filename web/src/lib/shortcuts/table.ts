@@ -175,7 +175,7 @@ export const KEYBINDS = [
     keys: ['i'],
     contexts: ['grid'],
     group: 'Grid',
-    label: 'Cycle thumbnail info: hover only, badges, name and date'
+    label: 'Cycle thumbnail info: hover only, icons, full'
   },
   {
     id: 'toggleFilters',

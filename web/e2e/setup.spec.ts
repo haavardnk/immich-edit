@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { tile } from './browse';
 import { ASSET_SUMMARY, installMocks, json, SESSION_USER } from './helpers';
 
 test('completing setup with an admin password lands in the app', async ({ page }) => {
@@ -29,7 +30,7 @@ test('completing setup with an admin password lands in the app', async ({ page }
   await page.getByRole('button', { name: /connect and claim instance/i }).click();
 
   await page.waitForURL(/\/photos$/);
-  await expect(page.getByText('IMG_0001.ARW')).toBeVisible();
+  await expect(tile(page, ASSET_SUMMARY.originalFileName)).toBeVisible();
   expect(submitted).toEqual([
     { immich_url: 'https://immich.example.com', email: 'admin@example.com', password: 'secret' }
   ]);

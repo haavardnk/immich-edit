@@ -2,6 +2,7 @@
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
   import FiltersHeading from '#lib/components/browse/filters/FiltersHeading.svelte';
   import ViewBlock from '#lib/components/browse/filters/ViewBlock.svelte';
+  import TileOverlayPage from '#lib/components/browse/overlay/TileOverlayPage.svelte';
   import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
@@ -45,7 +46,11 @@
           <ViewBlock {sortBasis} />
           <FiltersHeading />
         {/if}
-        <FilterSections {favoriteLocked} />
+        {#if browseView.filterPage === 'tileOverlay'}
+          <TileOverlayPage />
+        {:else}
+          <FilterSections {favoriteLocked} />
+        {/if}
         {#snippet footer()}
           <Button
             size="medium"

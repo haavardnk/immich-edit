@@ -2,37 +2,32 @@
   import { currentPath } from '#lib/utils/route.ts';
   import DeleteConfirmation from '#lib/components/DeleteConfirmation.svelte';
   import IconLink from '#lib/components/IconLink.svelte';
-  import StarRating from '#lib/components/StarRating.svelte';
-  import RatingBadge from '#lib/components/browse/RatingBadge.svelte';
-  import DisabledReason from '#lib/components/DisabledReason.svelte';
-  import { NOT_OWNER, ownsAsset } from '#lib/browse/ownership.ts';
+  import TileBand from '#lib/components/browse/tile/TileBand.svelte';
+  import TileMarks from '#lib/components/browse/tile/TileMarks.svelte';
+  import { ownsAsset } from '#lib/browse/ownership.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
   import { hint } from '#lib/shortcuts/labels.ts';
   import { assetPlaceholder, assetThumbUrl } from '#lib/api/assets.ts';
-  import { copyIndex, isCopy } from '#lib/browse/assetKey.ts';
+  import { isCopy } from '#lib/browse/assetKey.ts';
   import { isRejected } from '#lib/browse/reject.ts';
   import { tileDrag } from '#lib/browse/tileDrag.ts';
   import { layout } from '#lib/device/layout.svelte.ts';
-  import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
+  import { labelOf } from '#lib/stores/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
-  import { captureTime, fmtDay } from '#lib/utils/exif.ts';
-  import type { TileInfo } from '#lib/browse/tileOverlay.ts';
-  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { clusterItems, tileDetails, topMarks, type TileFacts } from '#lib/browse/tileContent.ts';
+  import { tileLayout } from '#lib/browse/tileLayout.ts';
+  import type { TileInfo, TileOverlay } from '#lib/browse/tileOverlay.ts';
   import { Icon } from '@immich/ui';
-  import {
-    mdiHeart,
-    mdiCircle,
-    mdiCheck,
-    mdiCloseCircle,
-    mdiContentDuplicate,
-    mdiPencilOutline,
-    mdiTuneVariant
-  } from '@mdi/js';
+  import { mdiCheck, mdiPencilOutline } from '@mdi/js';
   import { held } from '#lib/input/modifiers.svelte.ts';
 
   let {
     asset,
     info = 'icons',
+    overlay,
+    facts,
+    width,
+    height,
     selected = false,
     rangePreview = false,
     selectionActive = false,
@@ -48,6 +43,10 @@
   }: {
     asset: AssetSummary;
     info?: TileInfo;
+    overlay: TileOverlay;
+    facts: TileFacts;
+    width: number;
+    height: number;
     selected?: boolean;
     rangePreview?: boolean;
     selectionActive?: boolean;
@@ -68,16 +67,13 @@
   const owned = $derived(ownsAsset(asset));
   const rejected = $derived(isRejected(asset));
   const label = $derived(labelOf(asset));
-  const edited = $derived(info !== 'none' && editedThumbs.has(asset.id));
   const src = $derived(assetThumbUrl(asset));
   const placeholder = $derived(assetPlaceholder(asset));
   const marked = $derived(selected || rangePreview);
-  const copyBadge = $derived(
-    isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
-  );
-  const rowPinned = $derived(
-    info === 'full' || (info === 'icons' && (copyBadge !== null || rating > 0))
-  );
+  const shape = $derived(tileLayout(info, overlay, { width, height }));
+  const marks = $derived(topMarks(overlay, asset, facts));
+  const cluster = $derived(clusterItems(overlay, asset, facts));
+  const details = $derived(tileDetails(overlay, asset, facts, shape.lines));
   const hoverButton = {
     size: 'small',
     shape: 'round',
@@ -86,8 +82,6 @@
     class: 'text-white drop-shadow-md bg-black/40 hover:bg-black/70'
   } as const;
   const hoverOnly = 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100';
-  const markClass = $derived(info === 'none' ? hoverOnly : '');
-  const nameClass = $derived(info === 'full' ? '' : hoverOnly);
   const checkClass = $derived(
     marked || selectMode
       ? 'opacity-100'
@@ -95,7 +89,6 @@
         ? 'opacity-0 group-hover:opacity-100 touch:opacity-100'
         : 'opacity-0 group-hover:opacity-100 touch:hidden'
   );
-  const taken = $derived(info === 'full' ? fmtDay(captureTime(asset)) : null);
   const href = $derived(editorHref(asset.id, currentPath()));
 
   function onClick(e: MouseEvent): void {
@@ -187,39 +180,8 @@
       <Icon icon={mdiCheck} size="16px" aria-hidden="true" />
     {/if}
   </button>
-  {#if edited || asset.isFavorite || rejected || label}
-    <div
-      class="pointer-events-none absolute top-1 right-1 flex flex-col items-center gap-1 text-white drop-shadow-md"
-    >
-      {#if edited}
-        <div
-          role="img"
-          aria-label="Edited"
-          class="grid size-5 place-items-center rounded-full bg-black/55"
-        >
-          <Icon icon={mdiTuneVariant} size="12px" aria-hidden="true" />
-        </div>
-      {/if}
-      {#if asset.isFavorite}
-        <div role="img" aria-label="Favorite" class="transition-opacity {markClass}">
-          <Icon icon={mdiHeart} size="16px" aria-hidden="true" />
-        </div>
-      {/if}
-      {#if rejected}
-        <div role="img" aria-label="Rejected" class="transition-opacity {markClass}">
-          <Icon icon={mdiCloseCircle} size="16px" aria-hidden="true" />
-        </div>
-      {/if}
-      {#if label}
-        <div
-          role="img"
-          aria-label="{LABEL_NAMES[label]} label"
-          class="transition-opacity {LABEL_TEXT[label]} {markClass}"
-        >
-          <Icon icon={mdiCircle} size="14px" aria-hidden="true" />
-        </div>
-      {/if}
-    </div>
+  {#if marks.length > 0}
+    <TileMarks {marks} {label} low={shape.low} class={info === 'none' ? hoverOnly : ''} />
   {/if}
   {#if !selectMode}
     <div
@@ -233,7 +195,7 @@
         aria-label="Edit"
         onclick={() => onActivate?.()}
       />
-      {#if copyBadge && onDeleteCopy}
+      {#if isCopy(asset.id) && onDeleteCopy}
         <DeleteConfirmation
           bind:pending={pendingDelete}
           label="Delete copy"
@@ -248,48 +210,5 @@
       {/if}
     </div>
   {/if}
-  <div
-    data-testid="tile-info"
-    class="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-8 flex-col justify-end gap-0.5 bg-linear-to-t from-black/90 via-black/55 to-transparent px-2 pb-1.5 pt-4 text-white transition-opacity {rowPinned
-      ? 'opacity-100'
-      : 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100'}"
-  >
-    {#if onRate}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span
-        class="pointer-events-auto -ml-1 self-start drop-shadow-md {info === 'full'
-          ? 'flex'
-          : 'hidden group-hover:flex group-has-[:focus-visible]:flex'}"
-        onkeydown={(e) => e.stopPropagation()}
-        onmousedown={(e) => e.preventDefault()}
-      >
-        <DisabledReason locked={!owned} reason={NOT_OWNER}>
-          <StarRating {rating} size={12} disabled={!owned} onchange={onRate} />
-        </DisabledReason>
-      </span>
-    {/if}
-    <div class="flex items-end gap-2">
-      <span
-        data-testid="tile-name"
-        class="flex min-w-0 flex-1 flex-col drop-shadow-md transition-opacity {nameClass}"
-      >
-        <span class="truncate text-micro font-medium">{asset.originalFileName}</span>
-        {#if taken}
-          <span class="truncate text-nano text-white/70">{taken}</span>
-        {/if}
-      </span>
-      {#if copyBadge}
-        <span class="flex max-w-[45%] shrink-0 items-center gap-1 text-nano text-white/75">
-          <Icon icon={mdiContentDuplicate} size="12px" aria-hidden="true" />
-          <span class="truncate">{copyBadge}</span>
-        </span>
-      {/if}
-      {#if rating > 0 && (!onRate || info !== 'full')}
-        <RatingBadge
-          {rating}
-          class={onRate ? 'group-hover:hidden group-has-[:focus-visible]:hidden' : ''}
-        />
-      {/if}
-    </div>
-  </div>
+  <TileBand {info} {shape} {details} {cluster} {rating} {owned} {onRate} />
 </div>

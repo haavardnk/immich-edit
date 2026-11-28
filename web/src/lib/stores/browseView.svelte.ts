@@ -1,6 +1,10 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
+import {
+  isFilterSectionId,
+  type FilterPageId,
+  type FilterSectionId
+} from '#lib/browse/filterSections.ts';
 import {
   dayHeaderHeight,
   defaultGridSize,
@@ -38,7 +42,7 @@ class BrowseViewStore {
   #filtersSheet = $state(false);
   #compact = $state(false);
   filterSections = $state<FilterSectionId[]>([]);
-  filterPage = $state<FilterSectionId | null>(null);
+  filterPage = $state<FilterPageId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
   loupeReturn: { on: string; to: string } | null = null;
   lastGridPath = $state<string | null>(null);
