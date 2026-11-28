@@ -752,7 +752,8 @@ async fn preferences_are_scoped_to_the_owner() {
                 serde_json::json!({
                     "mask_overlay_color": "#ff0000",
                     "shortcuts": { "help": ["F1"] },
-                    "crop_ratios": [{ "num": 3, "den": 2 }]
+                    "crop_ratios": [{ "num": 3, "den": 2 }],
+                    "tile_overlay": { "icons": ["location"], "details": ["camera"] }
                 }),
             ),
             StatusCode::OK,
@@ -775,6 +776,7 @@ async fn preferences_are_scoped_to_the_owner() {
     if !seen["mask_overlay_color"].is_null()
         || seen["shortcuts"] != serde_json::json!({})
         || !seen["crop_ratios"].is_null()
+        || !seen["tile_overlay"].is_null()
     {
         panic!("member read the owner's preferences: {seen}");
     }
@@ -799,6 +801,7 @@ async fn preferences_are_scoped_to_the_owner() {
     if !member_saved["mask_overlay_color"].is_null()
         || member_saved["shortcuts"] != serde_json::json!({})
         || member_saved["crop_ratios"] != serde_json::json!([{ "num": 7, "den": 5 }])
+        || !member_saved["tile_overlay"].is_null()
     {
         panic!("member patch merged onto the owner's preferences: {member_saved}");
     }

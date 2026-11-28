@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::de::{Error as _, Unexpected};
 use serde::{Deserialize, Deserializer};
 
-use super::{CropRatio, Preferences, SectionEntry};
+use super::{CropRatio, Preferences, SectionEntry, TileOverlay};
 use crate::patch_field::present;
 
 fn non_null<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
@@ -30,6 +30,8 @@ pub struct PreferencesPatch {
     pub touch_subviews: Option<Option<Vec<SectionEntry>>>,
     #[serde(default, deserialize_with = "present")]
     pub crop_ratios: Option<Option<Vec<CropRatio>>>,
+    #[serde(default, deserialize_with = "present")]
+    pub tile_overlay: Option<Option<TileOverlay>>,
 }
 
 impl PreferencesPatch {
@@ -48,6 +50,7 @@ impl PreferencesPatch {
                     ratios.map(|list| list.into_iter().map(CropRatio::normalized).collect())
                 })
                 .unwrap_or(current.crop_ratios),
+            tile_overlay: self.tile_overlay.unwrap_or(current.tile_overlay),
         }
     }
 }

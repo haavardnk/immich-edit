@@ -11,7 +11,8 @@ fn defaults() -> Value {
         "shortcuts": {},
         "desktop_sections": null,
         "touch_subviews": null,
-        "crop_ratios": null
+        "crop_ratios": null,
+        "tile_overlay": null
     })
 }
 
@@ -64,7 +65,11 @@ async fn preferences_round_trip_every_field() {
         },
         "desktop_sections": [{ "id": "basic", "hidden": false }, { "id": "detail", "hidden": true }],
         "touch_subviews": [{ "id": "light", "hidden": true }],
-        "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 1, "den": 1 }]
+        "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 1, "den": 1 }],
+        "tile_overlay": {
+            "icons": ["favorite", "rating", "location", "albums"],
+            "details": ["filename", "camera", "lens", "albums"]
+        }
     });
 
     assert_eq!(patch_ok(&app, all.clone()).await, all);
@@ -140,6 +145,17 @@ async fn preferences_validation_failures_are_bad_requests() {
             json!({ "crop_ratios": [{ "num": 3, "den": 2 }, { "num": 2, "den": 3 }] }),
             "crop_ratios: duplicate ratio 3:2",
         ),
+        (
+            json!({ "tile_overlay": { "icons": ["people"], "details": [] } }),
+            "tile_overlay.icons: unknown key \"people\"",
+        ),
+        (
+            json!({ "tile_overlay": {
+                "icons": [],
+                "details": ["filename", "taken", "place", "camera", "lens"]
+            } }),
+            "tile_overlay.details: at most 4 entries",
+        ),
     ] {
         let resp = patch(&app, body.clone()).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{body}");
@@ -173,5 +189,35 @@ async fn preferences_a_shape_error_is_unprocessable() {
 
     let resp = patch(&app, json!({ "theme": "dark" })).await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(read(&app).await, defaults());
+}
+
+#[tokio::test]
+async fn preferences_tile_overlay_resets_to_null() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+    let chosen = json!({ "icons": [], "details": ["taken"] });
+    let saved = patch_ok(&app, json!({ "tile_overlay": chosen })).await;
+    assert_eq!(saved, with(json!({ "tile_overlay": chosen })));
+
+    assert_eq!(
+        patch_ok(&app, json!({ "tile_overlay": null })).await,
+        defaults()
+    );
+    assert_eq!(read(&app).await, defaults());
+}
+
+#[tokio::test]
+async fn preferences_tile_overlay_needs_both_lists() {
+    let server = MockServer::start().await;
+    let app = test_app(&server).await;
+
+    for body in [
+        json!({ "tile_overlay": { "icons": [] } }),
+        json!({ "tile_overlay": { "icons": [], "details": [], "mode": "full" } }),
+    ] {
+        let resp = patch(&app, body.clone()).await;
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    }
     assert_eq!(read(&app).await, defaults());
 }

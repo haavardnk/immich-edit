@@ -4,6 +4,7 @@ use crate::services::edits_store::{PreferencesPatch, SectionEntry};
 
 mod crop_ratios;
 mod shortcuts;
+mod tile_overlay;
 
 const MAX_ID_LEN: usize = 64;
 const MAX_LIST_LEN: usize = 64;
@@ -26,6 +27,9 @@ pub fn patch(patch: &PreferencesPatch) -> Result<(), String> {
     }
     if let Some(Some(ratios)) = &patch.crop_ratios {
         crop_ratios::crop_ratios(ratios)?;
+    }
+    if let Some(Some(overlay)) = &patch.tile_overlay {
+        tile_overlay::tile_overlay(overlay)?;
     }
     Ok(())
 }
@@ -197,7 +201,8 @@ mod tests {
                 "mask_overlay_color": null,
                 "desktop_sections": null,
                 "touch_subviews": null,
-                "crop_ratios": null
+                "crop_ratios": null,
+                "tile_overlay": null
             }))
             .is_ok()
         );
@@ -208,7 +213,8 @@ mod tests {
                 "shortcuts": { "help": ["?"] },
                 "desktop_sections": [{ "id": "basic", "hidden": false }],
                 "touch_subviews": [{ "id": "light", "hidden": true }],
-                "crop_ratios": [{ "num": 2, "den": 3 }, { "num": 16, "den": 9 }]
+                "crop_ratios": [{ "num": 2, "den": 3 }, { "num": 16, "den": 9 }],
+                "tile_overlay": { "icons": ["favorite", "location"], "details": ["filename"] }
             }))
             .is_ok()
         );
@@ -234,6 +240,10 @@ mod tests {
             (
                 "crop_ratios",
                 json!({ "crop_ratios": [{ "num": 0, "den": 1 }] }),
+            ),
+            (
+                "tile_overlay",
+                json!({ "tile_overlay": { "icons": ["people"], "details": [] } }),
             ),
         ] {
             assert!(check(body).unwrap_err().starts_with(field), "{field}");
