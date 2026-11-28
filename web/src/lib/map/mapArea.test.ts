@@ -6,7 +6,10 @@ import {
   inBox,
   markerQuery,
   markersIn,
+  dropMapPhoto,
+  mapHref,
   parseView,
+  readMapPhoto,
   placeOfMarkers,
   readMapFilter,
   writeMapFilter
@@ -47,6 +50,16 @@ describe('map area', () => {
     expect(view).toEqual({ lat: 60.39, lon: 5.32, zoom: 12 });
     for (const bad of [null, '60,5', '91,0,3', '0,0,30', 'a,b,c'])
       expect(parseView(bad)).toBeNull();
+  });
+
+  it('links to a view that picks a photo', () => {
+    const href = mapHref({ lat: 60.39, lon: 5.32, zoom: 14 }, 'a b');
+    expect(href).toBe('/map?at=60.39000,5.32000,14.00&photo=a%20b');
+    const params = new URL(href, 'http://x').searchParams;
+    expect(readMapPhoto(params)).toBe('a b');
+    dropMapPhoto(params);
+    expect(readMapPhoto(params)).toBeNull();
+    expect(mapHref({ lat: 1, lon: 2, zoom: 3 })).toBe('/map?at=1.00000,2.00000,3.00');
   });
 
   it('reads and writes the filters, ignoring malformed dates', () => {

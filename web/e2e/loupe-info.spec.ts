@@ -70,7 +70,7 @@ test('the info panel docks beside the photo with its details', async ({ page, co
   await expect(panel).toContainText('Vestland, Norway');
   await expect(panel.getByRole('link', { name: 'Open Bergen on the map' })).toHaveAttribute(
     'href',
-    '/map?at=60.39000,5.32000,14.00'
+    `/map?at=60.39000,5.32000,14.00&photo=${ASSET_ID}`
   );
   await expect(panel.getByRole('region', { name: 'Map of Bergen' })).toBeVisible();
   await expect(panel.locator('.maplibregl-compact-show')).toHaveCount(0);

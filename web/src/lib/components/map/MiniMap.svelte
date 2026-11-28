@@ -9,7 +9,7 @@
   import type { Map as MapLibreMap } from 'maplibre-gl';
   import { onMount } from 'svelte';
 
-  let { point, label }: { point: GeoPoint; label: string } = $props();
+  let { point, label, photo }: { point: GeoPoint; label: string; photo?: string } = $props();
 
   const ZOOM = 11;
 
@@ -27,7 +27,7 @@
   {#snippet child({ props })}
     <a
       {...props}
-      href={mapHref({ ...point, zoom: 14 })}
+      href={mapHref({ ...point, zoom: 14 }, photo)}
       aria-label="Open {label} on the map"
       class="group relative block h-38 overflow-hidden rounded-lg border border-hairline outline-none focus-visible:ring-2 focus-visible:ring-primary touch:h-44"
     >
