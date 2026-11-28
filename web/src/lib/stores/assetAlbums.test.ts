@@ -1,6 +1,6 @@
 import { album as albumFixture } from '#lib/testing/albums.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   albumsWithAsset: vi.fn<(id: string) => Promise<AlbumSummary[]>>(),
@@ -25,8 +25,16 @@ beforeEach(() => {
   h.albumMemberships.mockReset();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 async function store() {
   return (await import('#lib/stores/assetAlbums.svelte.ts')).assetAlbums;
+}
+
+async function retryMs() {
+  return (await import('#lib/stores/assetAlbums.svelte.ts')).RETRY_MS;
 }
 
 describe('asset albums', () => {
@@ -115,21 +123,77 @@ describe('asset albums', () => {
     expect(h.albumMemberships).toHaveBeenCalledTimes(2);
   });
 
-  it('answers photos missing from a batch with no albums', async () => {
-    h.albumMemberships.mockResolvedValue({ [A]: [album('1', 'Bergen')] });
+  it('leaves photos missing from a batch unloaded and waits before asking again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    h.albumMemberships
+      .mockResolvedValueOnce({ [A]: [album('1', 'Bergen')] })
+      .mockResolvedValueOnce({ [B]: [] });
     const albums = await store();
     await albums.ensureMany([A, B]);
+    expect(albums.albumsOf(A)?.map((a) => a.id)).toEqual(['1']);
+    expect(albums.has(B)).toBe(false);
+    vi.setSystemTime(Date.now() + (await retryMs()) - 1);
+    await albums.ensureMany([B]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + 1);
+    await albums.ensureMany([B]);
     expect(albums.albumsOf(B)).toEqual([]);
   });
 
-  it('leaves a failed batch unloaded so the next pass asks again', async () => {
-    h.albumMemberships.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({});
+  it('leaves a failed batch unloaded and waits before asking again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    h.albumMemberships
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ [A]: [] });
     const albums = await store();
     await albums.ensureMany([A]);
     expect(albums.has(A)).toBe(false);
     expect(albums.errorOf(A)).toBeNull();
     await albums.ensureMany([A]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + (await retryMs()));
+    await albums.ensureMany([A]);
     expect(albums.albumsOf(A)).toEqual([]);
+  });
+
+  it('asks again at once for a failed photo that a change or clear forgot', async () => {
+    h.albumMemberships.mockResolvedValue({});
+    const albums = await store();
+    await albums.ensureMany([A, B]);
+    albums.forget([A]);
+    await albums.ensureMany([A, B]);
+    expect(h.albumMemberships).toHaveBeenLastCalledWith([A]);
+    albums.clear();
+    await albums.ensureMany([A, B]);
+    expect(h.albumMemberships).toHaveBeenLastCalledWith([A, B]);
+    expect(h.albumMemberships).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not hold back a photo whose failed batch a change overtook', async () => {
+    let fail: (error: Error) => void = () => {};
+    h.albumMemberships
+      .mockImplementationOnce(() => new Promise((_, reject) => (fail = reject)))
+      .mockResolvedValueOnce({ [A]: [] });
+    const albums = await store();
+    const running = albums.ensureMany([A]);
+    albums.forget([A]);
+    fail(new Error('offline'));
+    await running;
+    await albums.ensureMany([A]);
+    expect(albums.albumsOf(A)).toEqual([]);
+  });
+
+  it('loads a photo alone when the batch it joined left it out', async () => {
+    let answer: (found: Record<string, AlbumSummary[]>) => void = () => {};
+    h.albumMemberships.mockImplementationOnce(() => new Promise((done) => (answer = done)));
+    h.albumsWithAsset.mockResolvedValue([album('1', 'Bergen')]);
+    const albums = await store();
+    const batch = albums.ensureMany([A]);
+    const single = albums.ensure(A);
+    answer({});
+    await Promise.all([batch, single]);
+    expect(h.albumsWithAsset).toHaveBeenCalledWith(A);
+    expect(albums.albumsOf(A)?.map((a) => a.id)).toEqual(['1']);
   });
 
   it('drops a batch that an album change overtook', async () => {
