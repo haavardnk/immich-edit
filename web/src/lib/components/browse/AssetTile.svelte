@@ -16,7 +16,7 @@
   import { LABEL_NAMES, LABEL_TEXT, labelOf } from '#lib/stores/labels.ts';
   import { editorHref } from '#lib/editor/navigation.ts';
   import { captureTime, fmtDay } from '#lib/utils/exif.ts';
-  import type { TileInfo } from '#lib/stores/browseView.svelte.ts';
+  import type { TileInfo } from '#lib/browse/tileOverlay.ts';
   import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
   import { Icon } from '@immich/ui';
   import {
@@ -32,7 +32,7 @@
 
   let {
     asset,
-    info = 'badges',
+    info = 'icons',
     selected = false,
     rangePreview = false,
     selectionActive = false,
@@ -76,7 +76,7 @@
     isCopy(asset.id) ? (asset.copyLabel ?? `Copy ${copyIndex(asset.id)}`) : null
   );
   const rowPinned = $derived(
-    info === 'full' || (info === 'badges' && (copyBadge !== null || rating > 0))
+    info === 'full' || (info === 'icons' && (copyBadge !== null || rating > 0))
   );
   const hoverButton = {
     size: 'small',

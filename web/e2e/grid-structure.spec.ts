@@ -151,7 +151,7 @@ test.describe('grid sizing on desktop', () => {
     await expect(hud(page)).toBeHidden();
   });
 
-  test('edited photos carry the Edited mark with badges and with name and date, not hover-only', async ({
+  test('edited photos carry the Edited mark with icons and full info, not hover-only', async ({
     page
   }) => {
     const assets = numberedAssets(6);
@@ -169,9 +169,9 @@ test.describe('grid sizing on desktop', () => {
       page.locator('[data-name="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' })
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Thumbnail info: badges' }).click();
+    await page.getByRole('button', { name: 'Thumbnail info: icons' }).click();
     await expect(marks).toHaveCount(2);
-    await page.getByRole('button', { name: 'Thumbnail info: name and date' }).click();
+    await page.getByRole('button', { name: 'Thumbnail info: full' }).click();
     await expect(page.getByRole('button', { name: 'Thumbnail info: hover only' })).toBeVisible();
     await expect(marks).toHaveCount(0);
   });

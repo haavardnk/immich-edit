@@ -130,7 +130,7 @@ afterEach(() => {
   scroller.remove();
   window.getSelection()?.removeAllRanges();
   editedThumbs.remove('b');
-  browseView.setTileInfo('badges');
+  browseView.setTileInfo('icons');
   browseView.setGridSize('md');
   gridSizeHud.hide();
 });

@@ -55,13 +55,13 @@ test('each thumbnail info mode shows more than the last', async ({ page }) => {
   const name = tile.getByTestId('tile-name');
   await page.mouse.move(0, 0);
 
-  await expect(page.getByRole('button', { name: 'Thumbnail info: badges' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Thumbnail info: icons' })).toBeVisible();
   await expect(heart).toHaveCSS('opacity', '1');
   await expect(row).toHaveCSS('opacity', '1');
   await expect(name).toHaveCSS('opacity', '0');
 
   await page.keyboard.press('i');
-  await expect(page.getByRole('button', { name: 'Thumbnail info: name and date' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Thumbnail info: full' })).toBeVisible();
   await expect(name).toHaveCSS('opacity', '1');
   await expect(name).toContainText(new Date('2024-01-01T00:00:00Z').toLocaleDateString());
 

@@ -1,6 +1,7 @@
 import { getJson, sendJson } from './client';
 import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
+import { tileOverlayFrom, type TileOverlay } from '#lib/browse/tileOverlay.ts';
 
 export interface CropRatio {
   num: number;
@@ -14,6 +15,7 @@ export interface Preferences {
   touchSubviews: readonly SectionEntry[] | null;
   cropRatios: readonly CropRatio[] | null;
   maskOverlayColor: string | null;
+  tileOverlay: TileOverlay | null;
 }
 
 interface PreferencesBody {
@@ -23,6 +25,7 @@ interface PreferencesBody {
   touch_subviews: unknown;
   crop_ratios: unknown;
   mask_overlay_color: unknown;
+  tile_overlay: unknown;
 }
 
 function strings(value: unknown): string[] | null {
@@ -73,7 +76,8 @@ function fromBody(body: PreferencesBody): Preferences {
     desktopSections: sectionsFrom(body.desktop_sections),
     touchSubviews: sectionsFrom(body.touch_subviews),
     cropRatios: cropRatiosFrom(body.crop_ratios),
-    maskOverlayColor: colorFrom(body.mask_overlay_color)
+    maskOverlayColor: colorFrom(body.mask_overlay_color),
+    tileOverlay: tileOverlayFrom(body.tile_overlay)
   };
 }
 
@@ -89,5 +93,6 @@ export async function patchPreferences(patch: Partial<Preferences>): Promise<Pre
   if (patch.touchSubviews !== undefined) body.touch_subviews = patch.touchSubviews;
   if (patch.cropRatios !== undefined) body.crop_ratios = patch.cropRatios;
   if (patch.maskOverlayColor !== undefined) body.mask_overlay_color = patch.maskOverlayColor;
+  if (patch.tileOverlay !== undefined) body.tile_overlay = patch.tileOverlay;
   return fromBody(await sendJson<PreferencesBody>('PATCH', '/api/preferences', body));
 }

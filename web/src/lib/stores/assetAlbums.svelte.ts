@@ -1,10 +1,11 @@
-import { albumsWithAsset } from '#lib/api/albums.ts';
+import { albumMemberships, albumsWithAsset } from '#lib/api/albums.ts';
 import { sourceId } from '#lib/browse/assetKey.ts';
 import type { AlbumSummary } from '#lib/types/album.ts';
-import { putBounded } from '#lib/utils/boundedRecord.ts';
+import { putAllBounded } from '#lib/utils/boundedRecord.ts';
 import { errorMessage } from '#lib/utils/errors.ts';
 
-const KEEP = 40;
+const KEEP = 1000;
+const BATCH = 100;
 
 type Entry = { albums: AlbumSummary[] } | { error: string };
 
@@ -13,6 +14,10 @@ class AssetAlbumsStore {
   #order: string[] = [];
   #pending = new Map<string, Promise<void>>();
   #generations = new Map<string, number>();
+
+  has(id: string): boolean {
+    return this.#entries[sourceId(id)] !== undefined;
+  }
 
   albumsOf(id: string): AlbumSummary[] | null {
     const entry = this.#entries[sourceId(id)];
@@ -32,14 +37,26 @@ class AssetAlbumsStore {
     const generation = this.#generations.get(key) ?? 0;
     const load = albumsWithAsset(key)
       .then(
-        (albums) => this.#settle(key, generation, { albums: byName(albums) }),
-        (error: unknown) => this.#settle(key, generation, { error: errorMessage(error) })
+        (albums) => this.#settle(new Map([[key, generation]]), () => ({ albums: byName(albums) })),
+        (error: unknown) =>
+          this.#settle(new Map([[key, generation]]), () => ({ error: errorMessage(error) }))
       )
       .finally(() => {
         if (this.#pending.get(key) === load) this.#pending.delete(key);
       });
     this.#pending.set(key, load);
     return load;
+  }
+
+  ensureMany(ids: readonly string[]): Promise<void> {
+    const keys = [...new Set(ids.map(sourceId))].filter(
+      (key) => !this.#entries[key] && !this.#pending.has(key)
+    );
+    const loads: Promise<void>[] = [];
+    for (let start = 0; start < keys.length; start += BATCH) {
+      loads.push(this.#loadBatch(keys.slice(start, start + BATCH)));
+    }
+    return Promise.all(loads).then(() => undefined);
   }
 
   retry(id: string): Promise<void> {
@@ -64,9 +81,27 @@ class AssetAlbumsStore {
     this.#order = this.#order.filter((key) => !keys.has(key));
   }
 
-  #settle(key: string, generation: number, entry: Entry): void {
-    if ((this.#generations.get(key) ?? 0) !== generation) return;
-    const next = putBounded(this.#entries, this.#order, key, entry, KEEP);
+  #loadBatch(keys: readonly string[]): Promise<void> {
+    const generations = new Map(keys.map((key) => [key, this.#generations.get(key) ?? 0]));
+    const load = albumMemberships(keys)
+      .then(
+        (found) => this.#settle(generations, (key) => ({ albums: byName(found[key] ?? []) })),
+        () => undefined
+      )
+      .finally(() => {
+        for (const key of keys) if (this.#pending.get(key) === load) this.#pending.delete(key);
+      });
+    for (const key of keys) this.#pending.set(key, load);
+    return load;
+  }
+
+  #settle(generations: ReadonlyMap<string, number>, entryOf: (key: string) => Entry): void {
+    const current = [...generations].filter(
+      ([key, generation]) => (this.#generations.get(key) ?? 0) === generation
+    );
+    if (current.length === 0) return;
+    const entries = current.map(([key]) => [key, entryOf(key)] as const);
+    const next = putAllBounded(this.#entries, this.#order, entries, KEEP);
     this.#entries = next.record;
     this.#order = next.order;
   }

@@ -12,10 +12,7 @@ import {
 import { layout } from '#lib/device/layout.svelte.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import type { TileAnchor } from '#lib/browse/gridZoom.ts';
-
-export type TileInfo = 'none' | 'badges' | 'full';
-
-const TILE_INFO_ORDER: TileInfo[] = ['none', 'badges', 'full'];
+import { nextTileInfo, tileInfoFrom, type TileInfo } from '#lib/browse/tileOverlay.ts';
 
 const STORAGE_KEY = 'immich-edit:browseView';
 
@@ -36,7 +33,7 @@ class BrowseViewStore {
   #infoSheet = $state(false);
   loupeTagsOpen = $state(false);
   loupeAutoAdvance = $state(false);
-  tileInfo = $state<TileInfo>('badges');
+  tileInfo = $state<TileInfo>('icons');
   #filtersDocked = $state(false);
   #filtersSheet = $state(false);
   #compact = $state(false);
@@ -54,8 +51,7 @@ class BrowseViewStore {
     if (typeof stored?.loupeAutoAdvance === 'boolean')
       this.loupeAutoAdvance = stored.loupeAutoAdvance;
     if (typeof stored?.loupeInfoOpen === 'boolean') this.#infoDocked = stored.loupeInfoOpen;
-    if (stored?.tileInfo && TILE_INFO_ORDER.includes(stored.tileInfo))
-      this.tileInfo = stored.tileInfo;
+    this.tileInfo = tileInfoFrom(stored?.tileInfo) ?? this.tileInfo;
     if (typeof stored?.filtersOpen === 'boolean') this.#filtersDocked = stored.filtersOpen;
     if (Array.isArray(stored?.filterSections))
       this.filterSections = stored.filterSections.filter(isFilterSectionId);
@@ -128,9 +124,7 @@ class BrowseViewStore {
   }
 
   cycleTileInfo(): void {
-    const next =
-      TILE_INFO_ORDER[(TILE_INFO_ORDER.indexOf(this.tileInfo) + 1) % TILE_INFO_ORDER.length];
-    if (next) this.setTileInfo(next);
+    this.setTileInfo(nextTileInfo(this.tileInfo));
   }
 
   setTileInfo(info: TileInfo): void {
