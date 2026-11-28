@@ -18,6 +18,10 @@ Browse **Photos**, **Albums**, **People**, **Tags**, **Folders**, **Map**, **Fav
   bookmarks and browser navigation.
 - **Saved views**: select **Save view** to store a filter, sort order, and thumbnail size under a
   name in your account.
+- **Thumbnail info**: open **Thumbnail info** in the toolbar (`I` cycles **Hover only**, **Icons**,
+  and **Full**), or **View** on touch, to choose which **Icons** and up to four **Details** lines
+  (file name, date, place, tags, exposure, and more) appear on tiles. Settings sync with your
+  account; smaller thumbnails show fewer lines.
 - **Timeline tools**: day headers select an entire day; the date scrubber jumps to any month. Hold
   `W` over any grid tile to peek at a larger preview.
 

@@ -13,13 +13,16 @@ import { tagCache } from '#lib/stores/tagCache.svelte.ts';
 import type { TagRef } from '#lib/types/asset.ts';
 
 export function addTag(target: MetaTarget, tag: TagRef): Promise<MetaOutcome> {
-  return changeMeta(target, 'tag', (asset) => tagChange(target.id, asset.tags, tag.id, tag, true));
+  return changeMeta(target, 'tag', (asset) =>
+    tagChange(target.id, heldTags(target.id, asset.tags), tag.id, tag, true)
+  );
 }
 
 export function removeTag(target: MetaTarget, tagId: string): Promise<MetaOutcome> {
   return changeMeta(target, 'tag', (asset) => {
-    const applied = asset.tags.find((t) => t.id === tagId) ?? null;
-    return tagChange(target.id, asset.tags, tagId, applied, false);
+    const tags = heldTags(target.id, asset.tags);
+    const applied = tags.find((t) => t.id === tagId) ?? null;
+    return tagChange(target.id, tags, tagId, applied, false);
   });
 }
 
@@ -43,6 +46,10 @@ async function createTag(value: string): Promise<TagRef | null> {
   library.putTag(created);
   if (value.includes('/')) void library.refreshTags().catch(() => undefined);
   return toTagRef(created);
+}
+
+function heldTags(assetId: string, summary: TagRef[]): TagRef[] {
+  return tagCache.get(assetId) ?? summary;
 }
 
 function tagChange(

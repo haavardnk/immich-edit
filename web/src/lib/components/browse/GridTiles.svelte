@@ -3,10 +3,17 @@
   import type { AssetGridBox } from '#lib/browse/assetGridLayout.ts';
   import { isCopy } from '#lib/browse/assetKey.ts';
   import { browseTarget, setRating } from '#lib/browse/assetMeta.ts';
+  import { loadOverlayMembership } from '#lib/browse/overlayMembership.svelte.ts';
   import { peek } from '#lib/browse/peek.svelte.ts';
+  import type { TileFacts } from '#lib/browse/tileContent.ts';
+  import { membershipNeed } from '#lib/browse/tileOverlay.ts';
   import { keyHeld, latched } from '#lib/input/modifiers.svelte.ts';
+  import { assetAlbums } from '#lib/stores/assetAlbums.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
+  import { editedThumbs } from '#lib/stores/editedThumbs.svelte.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
   import { selection } from '#lib/stores/selection.svelte.ts';
+  import { tagCache } from '#lib/stores/tagCache.svelte.ts';
   import { trash } from '#lib/stores/trash.svelte.ts';
   import type { AssetSummary } from '#lib/types/album.ts';
 
@@ -26,6 +33,22 @@
 
   let extendKey = $state(false);
   let hoveredId = $state<string | null>(null);
+
+  const need = $derived(membershipNeed(browseView.tileInfo, preferences.overlay));
+
+  loadOverlayMembership(() => ({
+    info: browseView.tileInfo,
+    overlay: preferences.overlay,
+    ids: tiles.map((tile) => tile.asset.id)
+  }));
+
+  function factsOf(id: string): TileFacts {
+    return {
+      edited: editedThumbs.has(id),
+      albums: need.albums ? assetAlbums.albumsOf(id) : null,
+      tags: need.tags ? (tagCache.get(id) ?? null) : null
+    };
+  }
 
   const extending = $derived(extendKey || latched('extend'));
 
@@ -62,6 +85,10 @@
     <AssetTile
       asset={item.asset}
       info={browseView.tileInfo}
+      overlay={preferences.overlay}
+      facts={factsOf(item.asset.id)}
+      width={item.box.width}
+      height={item.box.height}
       selected={selectingAll || selection.has(item.asset.id)}
       rangePreview={rangePreview?.has(item.asset.id) && !selection.has(item.asset.id)}
       selectionActive={selection.selecting || selectingAll}

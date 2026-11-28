@@ -25,6 +25,7 @@ function remote(fields: Partial<Preferences>): Preferences {
     touchSubviews: null,
     cropRatios: null,
     maskOverlayColor: null,
+    tileOverlay: null,
     ...fields
   };
 }
@@ -252,5 +253,21 @@ describe('preferences', () => {
     await preferences.setShortcuts({ undo: ['Mod+y'] });
     expect(api.patchPreferences).toHaveBeenCalledWith({ shortcuts: { undo: ['Mod+y'] } });
     expect(preferences.shortcuts).toEqual({});
+  });
+
+  it('shows the default tile overlay until a choice and saves defaults as none', async () => {
+    const preferences = await freshStore();
+    expect(preferences.overlay.details).toEqual(['filename', 'taken']);
+    api.patchPreferences.mockResolvedValue(remote({}));
+    const chosen = { icons: ['albums'], details: ['lens'] } as const;
+    await preferences.setTileOverlay(chosen);
+    expect(preferences.overlay).toEqual(chosen);
+    expect(api.patchPreferences).toHaveBeenLastCalledWith({ tileOverlay: chosen });
+    await preferences.setTileOverlay({
+      icons: ['edited', 'favorite', 'rejected', 'label', 'rating', 'copy'],
+      details: ['filename', 'taken']
+    });
+    expect(preferences.tileOverlay).toBeNull();
+    expect(api.patchPreferences).toHaveBeenLastCalledWith({ tileOverlay: null });
   });
 });

@@ -14,8 +14,8 @@ import type { AssetSummary } from '#lib/types/album.ts';
 import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AssetGrid from './AssetGrid.svelte';
+import BrowseDock from './BrowseDock.svelte';
 import BulkBar from './bulk/BulkBar.svelte';
-import FilterPanel from './filters/FilterPanel.svelte';
 
 vi.mock('$app/navigation', () => ({
   afterNavigate: (): void => {},
@@ -53,7 +53,7 @@ type BarProps = ComponentProps<typeof BulkBar>;
 
 const BarHost: Component<{ component: Component<BarProps>; props: BarProps }> = ComponentHost;
 
-type PanelProps = ComponentProps<typeof FilterPanel>;
+type PanelProps = ComponentProps<typeof BrowseDock>;
 
 const PanelHost: Component<{ component: Component<PanelProps>; props: PanelProps }> = ComponentHost;
 
@@ -130,7 +130,7 @@ afterEach(() => {
   scroller.remove();
   window.getSelection()?.removeAllRanges();
   editedThumbs.remove('b');
-  browseView.setTileInfo('badges');
+  browseView.setTileInfo('icons');
   browseView.setGridSize('md');
   gridSizeHud.hide();
 });
@@ -221,7 +221,7 @@ describe('AssetGrid', () => {
   it('toggles the filter panel with Shift+F', async () => {
     const panel = mount(PanelHost, {
       target,
-      props: { component: FilterPanel, props: { sortBasis: 'capture', title: 'Photos' } }
+      props: { component: BrowseDock, props: { sortBasis: 'capture', title: 'Photos' } }
     });
     render();
     press('F', { shiftKey: true });

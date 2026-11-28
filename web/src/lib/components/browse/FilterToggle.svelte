@@ -7,14 +7,11 @@
   import { IconButton } from '@immich/ui';
   import { mdiFilterOutline } from '@mdi/js';
 
-  let {
-    size = 'medium',
-    label = 'Filters',
-    class: className = ''
-  }: { size?: 'small' | 'medium'; label?: string; class?: string } = $props();
+  let { size = 'medium', class: className = '' }: { size?: 'small' | 'medium'; class?: string } =
+    $props();
 
   const filterCount = $derived(activeFilterCount(browseControls.filters));
-  const filtersLabel = $derived(filterCount > 0 ? `${label} (${filterCount} active)` : label);
+  const filtersLabel = $derived(filterCount > 0 ? `Filters (${filterCount} active)` : 'Filters');
   const large = $derived(size === 'medium');
 
   function toggle(): void {
@@ -28,11 +25,11 @@
     id="browse-filters-toggle"
     {size}
     variant="ghost"
-    color={filterCount > 0 ? 'primary' : 'secondary'}
+    color={filterCount > 0 || browseView.filtersOpen ? 'primary' : 'secondary'}
     shape={large ? 'round' : undefined}
     class={large ? 'size-11' : ''}
     icon={mdiFilterOutline}
-    title={hint(label, 'toggleFilters')}
+    title={hint('Filters', 'toggleFilters')}
     aria-label={filtersLabel}
     aria-expanded={browseView.filtersOpen}
     onclick={toggle}

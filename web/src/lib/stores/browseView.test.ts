@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayoutMode } from '#lib/device/layoutRules.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const storageKey = 'immich-edit:browseView';
 
@@ -57,7 +57,14 @@ describe('browse view persistence', () => {
     expect(browseView.gridSize).toBe('md');
     expect(browseView.loupeAutoAdvance).toBe(false);
     expect(browseView.loupeInfoOpen).toBe(false);
-    expect(browseView.tileInfo).toBe('badges');
+    expect(browseView.tileInfo).toBe('icons');
+  });
+
+  it('reads the old badges mode as icons', async () => {
+    stubStorage({ tileInfo: 'badges' });
+    const { browseView } = await import('./browseView.svelte');
+
+    expect(browseView.tileInfo).toBe('icons');
   });
 
   it('writes every field whenever one changes', async () => {
@@ -97,7 +104,7 @@ describe('browse view persistence', () => {
     const values = stubStorage({ filtersOpen: true });
     const { browseView } = await import('./browseView.svelte');
 
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.filtersOpen).toBe(false);
 
     browseView.setFiltersOpen(true);
@@ -105,25 +112,92 @@ describe('browse view persistence', () => {
     expect(values.get(storageKey)).toBe(JSON.stringify({ filtersOpen: true }));
 
     browseView.setFiltersOpen(false);
-    browseView.setCompact(false);
+    browseView.setLayout({ mode: 'touch', compact: false });
     expect(browseView.filtersOpen).toBe(true);
 
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     browseView.setFiltersOpen(true);
-    browseView.setCompact(false);
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: false });
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.filtersOpen).toBe(false);
 
-    browseView.setCompact(false);
+    browseView.setLayout({ mode: 'touch', compact: false });
     browseView.setFiltersOpen(false);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+  });
+
+  it('opens view and filters one at a time and never persists the view', async () => {
+    const values = stubStorage({ filtersOpen: true });
+    onLayout('touch', true);
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setViewOpen(true);
+    expect(browseView.viewOpen).toBe(true);
+    expect(browseView.filtersOpen).toBe(false);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+
+    browseView.filterPage = 'camera';
+    browseView.setFiltersOpen(true);
+    expect(browseView.viewOpen).toBe(false);
+    expect(browseView.filtersOpen).toBe(true);
+    expect(browseView.filterPage).toBe('camera');
+
+    browseView.setViewOpen(true);
+    expect(browseView.filterPage).toBeNull();
+    expect(Object.keys(JSON.parse(values.get(storageKey) ?? ''))).not.toContain('viewOpen');
+
+    onLayout('desktop');
+    expect(browseView.viewOpen).toBe(false);
+  });
+
+  it('drops the filter page when the layout mode or compact changes', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+    browseView.setLayout({ mode: 'touch', compact: false });
+    browseView.filterPage = 'people';
+
+    browseView.setLayout({ mode: 'touch', compact: false });
+    expect(browseView.filterPage).toBe('people');
+
+    browseView.setLayout({ mode: 'desktop', compact: false });
+    expect(browseView.filterPage).toBeNull();
+
+    browseView.setLayout({ mode: 'touch', compact: false });
+    browseView.filterPage = 'tags';
+    browseView.setLayout({ mode: 'touch', compact: true });
+    expect(browseView.filterPage).toBeNull();
+  });
+
+  it('drops the filter page when navigation leaves the page', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+    browseView.filterPage = 'people';
+
+    browseView.navigated(new URL('http://x/photos'), new URL('http://x/photos?person=a'));
+    expect(browseView.filterPage).toBe('people');
+
+    browseView.navigated(new URL('http://x/photos'), new URL('http://x/folders'));
+    expect(browseView.filterPage).toBeNull();
+  });
+
+  it('keeps the compact view sheet transient', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setLayout({ mode: 'touch', compact: true });
+    browseView.setViewOpen(true);
+    expect(browseView.viewOpen).toBe(true);
+
+    browseView.setLayout({ mode: 'touch', compact: false });
+    browseView.setLayout({ mode: 'touch', compact: true });
+    expect(browseView.viewOpen).toBe(false);
   });
 
   it('keeps the compact info sheet transient and the docked info panel persisted', async () => {
     const values = stubStorage({ loupeInfoOpen: true });
     const { browseView } = await import('./browseView.svelte');
 
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.loupeInfoOpen).toBe(false);
 
     browseView.toggleLoupeInfo();
@@ -135,11 +209,11 @@ describe('browse view persistence', () => {
     expect(browseView.loupeInfoOpen).toBe(false);
 
     browseView.toggleLoupeInfo();
-    browseView.setCompact(false);
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: false });
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.loupeInfoOpen).toBe(false);
 
-    browseView.setCompact(false);
+    browseView.setLayout({ mode: 'touch', compact: false });
     expect(browseView.loupeInfoOpen).toBe(true);
     browseView.setLoupeInfoOpen(false);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ loupeInfoOpen: false });
@@ -151,28 +225,28 @@ describe('browse view persistence', () => {
     const { ui } = await import('#lib/stores/ui.svelte.ts');
 
     expect(browseView.loupeFilmstripShown).toBe(true);
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.loupeFilmstripShown).toBe(false);
 
     browseView.toggleLoupeFilmstrip();
     expect(browseView.loupeFilmstripShown).toBe(true);
     expect(ui.loupeFilmstripCollapsed).toBe(false);
 
-    browseView.setCompact(false);
+    browseView.setLayout({ mode: 'touch', compact: false });
     browseView.toggleLoupeFilmstrip();
     expect(browseView.loupeFilmstripShown).toBe(false);
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     expect(browseView.loupeFilmstripShown).toBe(true);
   });
 
-  it('cycles the tile info through none, badges and full', async () => {
+  it('cycles the tile info through none, icons and full', async () => {
     stubStorage({ tileInfo: 'full' });
     const { browseView } = await import('./browseView.svelte');
 
     browseView.cycleTileInfo();
     expect(browseView.tileInfo).toBe('none');
     browseView.cycleTileInfo();
-    expect(browseView.tileInfo).toBe('badges');
+    expect(browseView.tileInfo).toBe('icons');
   });
 });
 

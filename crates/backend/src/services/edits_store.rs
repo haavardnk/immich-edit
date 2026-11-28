@@ -36,7 +36,7 @@ pub use export_presets::{ExportDestination, ExportPresetRecord, ExportPresetWrit
 use history::HistoryMode;
 pub use history::{EditHistoryEntry, RestoreOutcome};
 pub use places::{MAX_SAVED_PLACES, PlaceWrite, Point, RecentPlace, SavedPlace};
-pub use preferences::{CropRatio, Preferences, PreferencesPatch, SectionEntry};
+pub use preferences::{CropRatio, Preferences, PreferencesPatch, SectionEntry, TileOverlay};
 pub use saved_views::SavedViewRecord;
 pub use snapshots::EditSnapshot;
 

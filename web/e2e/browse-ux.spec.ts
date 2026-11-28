@@ -51,28 +51,35 @@ test('each thumbnail info mode shows more than the last', async ({ page }) => {
   await page.goto('/photos');
   const tile = page.locator(`[data-name="${ASSET_SUMMARY.originalFileName}"]`);
   const heart = tile.getByRole('img', { name: 'Favorite' });
+  const marks = heart.locator('..');
   const row = tile.getByTestId('tile-info');
   const name = tile.getByTestId('tile-name');
   await page.mouse.move(0, 0);
 
-  await expect(page.getByRole('button', { name: 'Thumbnail info: badges' })).toBeVisible();
-  await expect(heart).toHaveCSS('opacity', '1');
+  const lines = row.locator('.truncate');
+
+  await expect(page.getByRole('button', { name: 'Thumbnail info: icons' })).toBeVisible();
+  await expect(marks).toHaveCSS('opacity', '1');
   await expect(row).toHaveCSS('opacity', '1');
-  await expect(name).toHaveCSS('opacity', '0');
+  await expect(name).toBeHidden();
 
   await page.keyboard.press('i');
-  await expect(page.getByRole('button', { name: 'Thumbnail info: name and date' })).toBeVisible();
-  await expect(name).toHaveCSS('opacity', '1');
-  await expect(name).toContainText(new Date('2024-01-01T00:00:00Z').toLocaleDateString());
+  await expect(page.getByRole('button', { name: 'Thumbnail info: full' })).toBeVisible();
+  await expect(name).toBeVisible();
+  await expect(lines).toHaveText([
+    ASSET_SUMMARY.originalFileName,
+    new Date('2024-01-01T00:00:00Z').toLocaleDateString()
+  ]);
 
   await page.keyboard.press('i');
   await expect(page.getByRole('button', { name: 'Thumbnail info: hover only' })).toBeVisible();
-  await expect(heart).toHaveCSS('opacity', '0');
+  await expect(marks).toHaveCSS('opacity', '0');
   await expect(row).toHaveCSS('opacity', '0');
 
   await tile.hover();
-  await expect(heart).toHaveCSS('opacity', '1');
-  await expect(name).toHaveCSS('opacity', '1');
+  await expect(marks).toHaveCSS('opacity', '1');
+  await expect(row).toHaveCSS('opacity', '1');
+  await expect(name).toBeVisible();
 });
 
 test('clicking a star on a hovered tile rates that photo', async ({ page }) => {
@@ -269,8 +276,8 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
 
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'View & filters', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'View & filters' });
+  await page.getByRole('button', { name: 'View', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'View' });
   const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
   for (const size of ['S', 'M', 'L', 'XL']) {
     await expect(sizes.getByRole('radio', { name: size, exact: true })).toBeInViewport();

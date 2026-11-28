@@ -32,7 +32,7 @@ let component: Record<string, unknown> | null = null;
 
 function render(wide: boolean): void {
   resetLayout({ mode: 'touch', wide, landscape: wide });
-  browseView.setCompact(!wide);
+  browseView.setLayout({ mode: 'touch', compact: !wide });
   component = mount(Host, { target, props: { component: Loupe, props: {} } });
   flushSync();
 }
@@ -115,7 +115,7 @@ afterEach(() => {
   component = null;
   target.remove();
   browseView.closeLoupe();
-  browseView.setCompact(false);
+  browseView.setLayout({ mode: 'touch', compact: false });
   resetLayout();
   vi.unstubAllGlobals();
 });
@@ -196,7 +196,7 @@ describe('Loupe on touch', () => {
 
   it('names the survey pane in the rail and lays a landscape phone side by side', () => {
     resetLayout({ mode: 'touch', wide: false, landscape: true });
-    browseView.setCompact(true);
+    browseView.setLayout({ mode: 'touch', compact: true });
     component = mount(Host, { target, props: { component: Loupe, props: {} } });
     compare.enter('compare', ['a', 'b']);
     flushSync();

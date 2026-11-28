@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { seriousViolations } from './axeHelpers';
-import { ASSET_SUMMARY, json, numberedAssets, ACCOUNT_NAME, filterSection } from './helpers';
+import { ACCOUNT_NAME, ASSET_SUMMARY, filterSection, json, numberedAssets } from './helpers';
 import { drag, tapAt } from './touch';
 import {
   avatar,
@@ -61,7 +61,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     await expectTab(page, 'Photos');
   });
 
-  test('the app bar shows the count, the filter badge and one View & filters sheet', async ({
+  test('the app bar shows the count, the filter badge and the View and Filters sheets', async ({
     page
   }) => {
     await open(page, '/photos?make=SONY', {
@@ -70,18 +70,18 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
 
     const bar = page.locator('header[data-app-bar]');
     await expect(bar.getByText(/^\d+ photos?$/)).toBeVisible();
-    await expect(bar.getByRole('button')).toHaveCount(3);
+    await expect(bar.getByRole('button')).toHaveCount(4);
     await expect(bar.getByRole('button', { name: 'Select photos' })).toBeVisible();
-    await expect(bar.getByRole('button', { name: 'View options' })).toHaveCount(0);
+    await expect(bar.getByRole('button', { name: 'View', exact: true })).toBeVisible();
     await expect(
       page.getByRole('list', { name: 'Active filters' }).getByRole('listitem')
     ).toHaveText(['Make: SONY']);
     await expectTargets(page.getByRole('button', { name: 'Remove Make: SONY' }), 44);
 
-    await bar.getByRole('button', { name: 'View & filters (1 active)' }).tap();
-    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    await bar.getByRole('button', { name: 'Filters (1 active)' }).tap();
+    const sheet = page.getByRole('dialog', { name: 'Filters' });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
+    await expect(sheet.getByText('1 active', { exact: true })).toBeVisible();
     const camera = filterSection(sheet, 'Camera');
     await expect(camera).toHaveAccessibleName('Camera SONY');
     await expect(filterSection(sheet, 'Place')).toBeVisible();
@@ -91,23 +91,30 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
     const models = sheet.getByRole('group', { name: 'Models' }).locator('[data-filter-row]');
     await expect(models).toHaveText(['ILCE-7M3']);
     await expectTargets(models, 44);
+    await expect(sheet.getByRole('radiogroup', { name: 'Sort by' })).toHaveCount(0);
+    await sheet.getByRole('button', { name: 'Close filters' }).tap();
+    await expect(sheet).toBeHidden();
+
+    await bar.getByRole('button', { name: 'View', exact: true }).tap();
+    const view = page.getByRole('dialog', { name: 'View' });
+    await expect(view).toBeVisible();
     await expect(
-      sheet.getByRole('radiogroup', { name: 'Sort by' }).getByRole('radio', { checked: true })
+      view.getByRole('radiogroup', { name: 'Sort by' }).getByRole('radio', { checked: true })
     ).toHaveText('Taken');
-    await sheet
+    await view
       .getByRole('radiogroup', { name: 'Thumbnail size' })
       .getByRole('radio', { name: 'XL', exact: true })
       .tap();
     await expect(
-      sheet.getByRole('radiogroup', { name: 'Thumbnail size' }).getByRole('radio', { name: 'XL' })
+      view.getByRole('radiogroup', { name: 'Thumbnail size' }).getByRole('radio', { name: 'XL' })
     ).toBeChecked();
-    await sheet
+    await view
       .getByRole('radiogroup', { name: 'Thumbnail info' })
-      .getByRole('radio', { name: 'Name and date' })
+      .getByRole('radio', { name: 'Full' })
       .tap();
     await expect(page.getByTestId('tile-name').first()).toBeVisible();
-    await sheet.getByRole('button', { name: 'Close view & filters' }).tap();
-    await expect(sheet).toBeHidden();
+    await view.getByRole('button', { name: 'Close view' }).tap();
+    await expect(view).toBeHidden();
   });
 
   test('the account drawer opens from the avatar and closes from its button, the scrim or a swipe', async ({
@@ -153,8 +160,8 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
 
     const filters = page
       .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'View & filters', exact: true });
-    const filterSheet = page.getByRole('dialog', { name: 'View & filters' });
+      .getByRole('button', { name: 'Filters', exact: true });
+    const filterSheet = page.getByRole('dialog', { name: 'Filters' });
     await filters.tap();
     await expect(filterSheet).toBeVisible();
     await page.keyboard.press('Escape');
@@ -164,7 +171,7 @@ test.describe('touch browse shell on a phone', { tag: ['@touch', '@phone'] }, ()
 
     await filters.tap();
     await expect(filterSheet).toBeVisible();
-    await filterSheet.getByRole('button', { name: 'Close view & filters' }).tap();
+    await filterSheet.getByRole('button', { name: 'Close filters' }).tap();
     await expect(filterSheet).toBeHidden();
     await expect(filters).toBeFocused();
     await expectNoTooltip();
@@ -453,7 +460,10 @@ test.describe('touch browse shell on a tablet', { tag: ['@touch', '@tablet'] }, 
     await expect(page.getByRole('button', { name: 'Jobs', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(0);
     await expect(
-      page.locator('main header').getByRole('button', { name: 'View & filters', exact: true })
+      page.locator('main header').getByRole('button', { name: 'View', exact: true })
+    ).toBeVisible();
+    await expect(
+      page.locator('main header').getByRole('button', { name: 'Filters', exact: true })
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Thumbnail size XL' })).toHaveCount(0);
     await expect

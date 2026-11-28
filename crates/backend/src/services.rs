@@ -28,6 +28,7 @@ pub mod lut_store;
 pub mod map;
 #[cfg(feature = "ml")]
 pub mod mask_scene;
+pub mod membership;
 #[cfg(feature = "ml")]
 pub mod ml_runtime;
 #[cfg(feature = "ml")]

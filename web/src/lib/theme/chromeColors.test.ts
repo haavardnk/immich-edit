@@ -21,14 +21,9 @@ const IMAGE_SURFACES: Record<string, string[]> = {
   '/src/lib/components/browse/AssetTile.svelte': [
     'bg-black/35',
     'bg-black/40',
-    'bg-black/55',
     'bg-black/70',
     'border-white',
-    'from-black/90',
-    'text-white',
-    'text-white/70',
-    'text-white/75',
-    'via-black/55'
+    'text-white'
   ],
   '/src/lib/components/browse/Loupe.svelte': ['bg-neutral-950'],
   '/src/lib/components/browse/LoupePane.svelte': [
@@ -58,6 +53,14 @@ const IMAGE_SURFACES: Record<string, string[]> = {
     'text-white/45',
     'text-white/70'
   ],
+  '/src/lib/components/browse/tile/TileBand.svelte': [
+    'from-black/90',
+    'text-white',
+    'text-white/70',
+    'via-black/55'
+  ],
+  '/src/lib/components/browse/tile/TileCluster.svelte': ['ring-white/70', 'text-white/75'],
+  '/src/lib/components/browse/tile/TileMarks.svelte': ['bg-black/55', 'text-white'],
   '/src/lib/components/editor/BrushCanvas.svelte': ['border-white/90', 'rgb(', 'rgba('],
   '/src/lib/components/editor/ClickCanvas.svelte': [
     'bg-black/70',

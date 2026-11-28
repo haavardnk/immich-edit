@@ -100,6 +100,7 @@
       variant="ghost"
       color="primary"
       class="h-7 justify-start gap-1 px-1 text-label font-normal touch:h-12 touch:justify-between touch:px-0.5 touch:text-body"
+      data-filter-all
       onclick={showAll}
     >
       {allLabel}

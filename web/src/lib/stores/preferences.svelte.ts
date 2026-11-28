@@ -6,6 +6,11 @@ import {
 } from '#lib/api/preferences.ts';
 import type { SectionEntry } from '#lib/editor/sectionOrder.ts';
 import type { ShortcutMap } from '#lib/shortcuts/custom.ts';
+import {
+  DEFAULT_TILE_OVERLAY,
+  isDefaultOverlay,
+  type TileOverlay
+} from '#lib/browse/tileOverlay.ts';
 import { toasts } from '#lib/stores/toasts.svelte.ts';
 
 export const DEFAULT_PINNED_SETTINGS: readonly string[] = [
@@ -36,6 +41,7 @@ class PreferencesStore implements Preferences {
   touchSubviews = $state.raw<readonly SectionEntry[] | null>(null);
   cropRatios = $state.raw<readonly CropRatio[] | null>(null);
   maskOverlayColor = $state<string | null>(null);
+  tileOverlay = $state.raw<TileOverlay | null>(null);
   pinsKnown = $state(false);
   #chosen = new Set<Field>();
   #saving: Promise<void> = Promise.resolve();
@@ -49,6 +55,10 @@ class PreferencesStore implements Preferences {
     return this.cropRatios ?? [];
   }
 
+  get overlay(): TileOverlay {
+    return this.tileOverlay ?? DEFAULT_TILE_OVERLAY;
+  }
+
   async load(): Promise<void> {
     const remote = await getPreferences().catch(() => null);
     this.pinsKnown = true;
@@ -59,6 +69,7 @@ class PreferencesStore implements Preferences {
     if (!this.#chosen.has('touchSubviews')) this.touchSubviews = remote.touchSubviews;
     if (!this.#chosen.has('cropRatios')) this.cropRatios = remote.cropRatios;
     if (!this.#chosen.has('maskOverlayColor')) this.maskOverlayColor = remote.maskOverlayColor;
+    if (!this.#chosen.has('tileOverlay')) this.tileOverlay = remote.tileOverlay;
   }
 
   reset(): void {
@@ -69,6 +80,7 @@ class PreferencesStore implements Preferences {
     this.touchSubviews = null;
     this.cropRatios = null;
     this.maskOverlayColor = null;
+    this.tileOverlay = null;
     this.pinsKnown = false;
   }
 
@@ -82,6 +94,9 @@ class PreferencesStore implements Preferences {
 
   setMaskOverlayColor = (next: string | null): Promise<void> =>
     this.#write('maskOverlayColor', next);
+
+  setTileOverlay = (next: TileOverlay): Promise<void> =>
+    this.#write('tileOverlay', isDefaultOverlay(next) ? null : next);
 
   isPinned = (id: string): boolean => this.pins.includes(id);
 

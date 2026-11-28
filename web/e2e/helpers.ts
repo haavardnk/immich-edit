@@ -320,6 +320,7 @@ export interface InstallOpts {
   desktopSections?: { id: string; hidden: boolean }[] | null;
   touchSubviews?: { id: string; hidden: boolean }[] | null;
   onPreferences?: (body: Record<string, unknown>) => void;
+  tileOverlay?: { icons: string[]; details: string[] } | null;
   savedViews?: MockSavedView[];
   places?: MockPlaces | PlacesMock;
   captureTime?: CaptureTimeMock;
@@ -402,7 +403,8 @@ export async function installMocks(
     shortcuts: opts.shortcuts ?? {},
     desktop_sections: opts.desktopSections ?? null,
     touch_subviews: opts.touchSubviews ?? null,
-    crop_ratios: null
+    crop_ratios: null,
+    tile_overlay: opts.tileOverlay ?? null
   };
   const copies: CopyRecord[] = [];
   const trashed = new Set<string>();
@@ -710,6 +712,18 @@ export async function installMocks(
       return route.fulfill(list(entries.map((e) => ({ ...e, asset: byId.get(e.id) }))));
     }
     if (p === '/api/folders/paths') return route.fulfill(json([]));
+    if (p === '/api/albums/membership' && method === 'POST') {
+      const { ids } = req.postDataJSON() as { ids: string[] };
+      const holding = (id: string) =>
+        albums.filter(({ assetIds }) => assetIds.includes(id)).map(mockAlbumSummary);
+      return route.fulfill(json(Object.fromEntries(ids.map((id) => [id, holding(id)]))));
+    }
+    if (p === '/api/tags/membership' && method === 'POST') {
+      const { ids } = req.postDataJSON() as { ids: string[] };
+      const tagged = (id: string) =>
+        tagsOf(id, assets.find((a) => a.id === id)?.tags).map((t) => ({ ...t, createdAt: null }));
+      return route.fulfill(json(Object.fromEntries(ids.map((id) => [id, tagged(id)]))));
+    }
     if (p === '/api/albums' && method === 'POST') {
       const { albumName, description } = req.postDataJSON() as {
         albumName: string;
@@ -1292,9 +1306,11 @@ export function settingsPages(page: Page): Locator {
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
-  await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
-  const name = /^(View & filters|Filters)$/;
-  const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  const name = 'Filters';
+  const panel = page
+    .getByRole('complementary', { name, exact: true })
+    .or(page.getByRole('dialog', { name, exact: true }));
   for (const title of sections) await filterSection(panel, title).click();
   return panel;
 }

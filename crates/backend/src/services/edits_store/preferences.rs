@@ -39,6 +39,13 @@ impl CropRatio {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TileOverlay {
+    pub icons: Vec<String>,
+    pub details: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, sqlx::FromRow)]
 pub struct Preferences {
     #[sqlx(rename = "pinned_settings_json", json(nullable))]
@@ -52,6 +59,8 @@ pub struct Preferences {
     pub touch_subviews: Option<Vec<SectionEntry>>,
     #[sqlx(rename = "crop_ratios_json", json(nullable))]
     pub crop_ratios: Option<Vec<CropRatio>>,
+    #[sqlx(rename = "tile_overlay_json", json(nullable))]
+    pub tile_overlay: Option<TileOverlay>,
 }
 
 async fn fetch_preferences<'e, E: SqliteExecutor<'e>>(
@@ -60,7 +69,7 @@ async fn fetch_preferences<'e, E: SqliteExecutor<'e>>(
 ) -> Result<Option<Preferences>, EditsStoreError> {
     Ok(sqlx::query_as::<_, Preferences>(
         "SELECT mask_overlay_color, pinned_settings_json, shortcuts_json, \
-         desktop_sections_json, touch_subviews_json, crop_ratios_json \
+         desktop_sections_json, touch_subviews_json, crop_ratios_json, tile_overlay_json \
          FROM user_preferences WHERE user_id = ?1",
     )
     .bind(owner.to_string())
@@ -76,8 +85,9 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
     sqlx::query(
         "INSERT INTO user_preferences \
          (user_id, mask_overlay_color, pinned_settings_json, shortcuts_json, \
-          desktop_sections_json, touch_subviews_json, crop_ratios_json, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+          desktop_sections_json, touch_subviews_json, crop_ratios_json, tile_overlay_json, \
+          updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
          ON CONFLICT(user_id) DO UPDATE SET \
            mask_overlay_color = excluded.mask_overlay_color, \
            pinned_settings_json = excluded.pinned_settings_json, \
@@ -85,6 +95,7 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
            desktop_sections_json = excluded.desktop_sections_json, \
            touch_subviews_json = excluded.touch_subviews_json, \
            crop_ratios_json = excluded.crop_ratios_json, \
+           tile_overlay_json = excluded.tile_overlay_json, \
            updated_at = excluded.updated_at",
     )
     .bind(owner.to_string())
@@ -94,6 +105,7 @@ async fn upsert_preferences<'e, E: SqliteExecutor<'e>>(
     .bind(preferences.desktop_sections.as_ref().map(Json))
     .bind(preferences.touch_subviews.as_ref().map(Json))
     .bind(preferences.crop_ratios.as_ref().map(Json))
+    .bind(preferences.tile_overlay.as_ref().map(Json))
     .bind(Utc::now().to_rfc3339())
     .execute(exec)
     .await?;
@@ -150,24 +162,28 @@ mod tests {
         patch(
             &s,
             O,
-            json!({ "pinned_settings": ["exposure"], "crop_ratios": [{ "num": 3, "den": 2 }] }),
+            json!({
+                "pinned_settings": ["exposure"],
+                "crop_ratios": [{ "num": 3, "den": 2 }],
+                "tile_overlay": { "icons": ["favorite"], "details": [] }
+            }),
         )
         .await;
         patch(
             &s,
             O,
-            json!({ "pinned_settings": null, "crop_ratios": null }),
+            json!({ "pinned_settings": null, "crop_ratios": null, "tile_overlay": null }),
         )
         .await;
-        let stored: (Option<String>, Option<String>) = sqlx::query_as(
-            "SELECT pinned_settings_json, crop_ratios_json FROM user_preferences \
-             WHERE user_id = ?1",
+        let stored: (Option<String>, Option<String>, Option<String>) = sqlx::query_as(
+            "SELECT pinned_settings_json, crop_ratios_json, tile_overlay_json \
+             FROM user_preferences WHERE user_id = ?1",
         )
         .bind(O.to_string())
         .fetch_one(&s.pool)
         .await
         .unwrap();
-        assert_eq!(stored, (None, None));
+        assert_eq!(stored, (None, None, None));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -182,6 +198,7 @@ mod tests {
             json!({ "desktop_sections": [{ "id": "basic", "hidden": true }] }),
             json!({ "touch_subviews": [{ "id": "light", "hidden": false }] }),
             json!({ "crop_ratios": [{ "num": 5, "den": 4 }] }),
+            json!({ "tile_overlay": { "icons": ["location"], "details": ["camera"] } }),
             json!({ "pinned_settings": ["exposure"], "crop_ratios": [{ "num": 5, "den": 4 }] }),
             json!({ "shortcuts": { "help": ["F1"] }, "mask_overlay_color": "#123456" }),
         ];
@@ -208,6 +225,10 @@ mod tests {
                 desktop_sections: Some(vec![section("basic", true)]),
                 touch_subviews: Some(vec![section("light", false)]),
                 crop_ratios: Some(vec![CropRatio { num: 5, den: 4 }]),
+                tile_overlay: Some(TileOverlay {
+                    icons: vec!["location".into()],
+                    details: vec!["camera".into()],
+                }),
             })
         );
     }

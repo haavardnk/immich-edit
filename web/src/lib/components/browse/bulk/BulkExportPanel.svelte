@@ -26,7 +26,13 @@
   onDestroy(bulkExportDock.close);
 
   $effect(() => {
-    if (jobs.open || browseView.filtersOpen || !bulkScope.selecting || bulkScope.count === 0) {
+    if (
+      jobs.open ||
+      browseView.filtersOpen ||
+      browseView.viewOpen ||
+      !bulkScope.selecting ||
+      bulkScope.count === 0
+    ) {
       bulkExportDock.close();
     }
   });

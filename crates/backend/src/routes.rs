@@ -27,6 +27,7 @@ pub mod luts;
 pub mod map;
 #[cfg(feature = "ml")]
 pub mod masks;
+pub mod membership;
 #[cfg(feature = "ml")]
 pub mod models;
 pub mod people;

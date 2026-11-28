@@ -11,6 +11,8 @@
     onChange,
     class: className,
     children,
+    leading,
+    trailing,
     ...rest
   }: {
     checked: boolean;
@@ -20,6 +22,8 @@
     onChange: (checked: boolean) => void;
     class?: string;
     children?: Snippet;
+    leading?: Snippet;
+    trailing?: Snippet;
   } & Omit<HTMLAttributes<HTMLDivElement>, 'class'> = $props();
 
   const id = $props.id();
@@ -36,6 +40,7 @@
 >
   <Checkbox {id} {checked} {disabled} size="tiny" aria-label={label} onCheckedChange={onChange} />
   <label for={id} class="select-none" class:cursor-pointer={!disabled}>
-    {label}{@render children?.()}
+    {@render leading?.()}{label}{@render children?.()}
   </label>
+  {@render trailing?.()}
 </div>

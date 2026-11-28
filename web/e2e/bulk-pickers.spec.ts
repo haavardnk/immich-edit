@@ -111,3 +111,87 @@ test('the tag checklist searches, adds one tag and removes another', async ({ pa
   expect(changes.filter((c) => c.added).map((c) => c.tagId)).toEqual(['tag-3', 'tag-3']);
   expect(changes.filter((c) => !c.added).map((c) => c.tagId)).toEqual(['tag-1', 'tag-1']);
 });
+
+test('the tag checklist counts tags that only the membership route reports', async ({ page }) => {
+  await installMocks(page, {
+    assets: [FIRST, SECOND],
+    metadataPushConsented: true,
+    tags: [LANDSCAPE, PORTRAIT]
+  });
+  await page.route('**/api/tags/membership', (route) =>
+    route.fulfill(json({ [FIRST.id]: [LANDSCAPE], [SECOND.id]: [LANDSCAPE, PORTRAIT] }))
+  );
+  await selectBoth(page);
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+
+  await expect(row(page, 'Landscape')).toHaveAttribute('aria-checked', 'true');
+  await expect(note(page, 'Landscape')).toContainText('All 2 photos');
+  await expect(row(page, 'Portrait')).toHaveAttribute('aria-checked', 'mixed');
+  await expect(note(page, 'Portrait')).toContainText('In 1 of 2');
+});
+
+test('a failed membership load leaves the tag checklist adding only', async ({ page }) => {
+  await installMocks(page, {
+    assets: [FIRST, SECOND],
+    metadataPushConsented: true,
+    tags: [LANDSCAPE]
+  });
+  const loads: string[][] = [];
+  await page.route('**/api/tags/membership', (route) => {
+    loads.push((route.request().postDataJSON() as { ids: string[] }).ids);
+    return route.fulfill(json({ [FIRST.id]: [LANDSCAPE] }));
+  });
+  await selectBoth(page);
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+
+  await expect.poll(() => loads).toEqual([IDS]);
+  await expect(row(page, 'Landscape')).toHaveAttribute('aria-checked', 'false');
+  await row(page, 'Landscape').click();
+  await expect(note(page, 'Landscape')).toContainText('Add 2 photos');
+});
+
+test('a recent tag chip only stages an add, even for a tag every photo holds', async ({ page }) => {
+  await page.addInitScript(
+    (tag) => localStorage.setItem('immich-edit:recentTags', JSON.stringify({ tags: [tag] })),
+    LANDSCAPE
+  );
+  await installMocks(page, {
+    assets: [FIRST, SECOND],
+    metadataPushConsented: true,
+    tags: [LANDSCAPE]
+  });
+  await page.route('**/api/tags/membership', (route) =>
+    route.fulfill(json({ [FIRST.id]: [LANDSCAPE], [SECOND.id]: [LANDSCAPE] }))
+  );
+  await selectBoth(page);
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await expect(row(page, 'Landscape')).toHaveAttribute('aria-checked', 'true');
+
+  const chip = page.locator('[data-bulk-pick]').getByRole('button', { name: 'Landscape' });
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-bulk-pick]')).toContainText('Add 1');
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  await expect(row(page, 'Landscape')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('[data-bulk-pick]')).not.toContainText('Remove');
+});
+
+test('the tag checklist counts a photo selected while it is open', async ({ page }) => {
+  await installMocks(page, {
+    assets: [FIRST, SECOND],
+    metadataPushConsented: true,
+    tags: [LANDSCAPE]
+  });
+  await page.route('**/api/tags/membership', (route) => {
+    const { ids } = route.request().postDataJSON() as { ids: string[] };
+    return route.fulfill(json(Object.fromEntries(ids.map((id) => [id, [LANDSCAPE]]))));
+  });
+  await page.goto('/photos');
+  await pick(page, FIRST.originalFileName);
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await expect(note(page, 'Landscape')).toContainText('All 1 photo');
+
+  await pick(page, SECOND.originalFileName);
+  await expect(note(page, 'Landscape')).toContainText('All 2 photos');
+});

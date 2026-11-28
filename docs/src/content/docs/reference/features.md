@@ -16,6 +16,7 @@ roadmap promise.
 | Smart CLIP search, filename, description, path, and OCR search | ✓ Yes | Smart/OCR require Immich support |
 | Multi-faceted filters (rating, label, reject, camera, lens, place, date, size, etc.) | ✓ Yes | Persisted in URL; ranges/multi-pick expand on Immich 3.2+ |
 | Saved views and per-view sort order | ✓ Yes | Stored per account |
+| Configurable grid thumbnail overlays (Hover only, Icons, Full) | ✓ Yes | Choose icons and up to 4 detail lines; stored per account |
 | Ratings, favorites, tags, color labels, rejects, descriptions | ✓ Yes | Written to Immich after one-time consent; owned photos only |
 | Bulk capture time: shift, set by a photo, sync cameras, one time for all, from file names | ✓ Yes | [Metadata](../editing/metadata.md); owned photos |
 | Bulk descriptions and copy/paste of description, location, tags, and rating | ✓ Yes | [Metadata](../editing/metadata.md) |

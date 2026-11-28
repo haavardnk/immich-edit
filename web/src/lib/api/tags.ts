@@ -15,6 +15,10 @@ export function listTags(): Promise<TagSummary[]> {
   return getJson('/api/tags');
 }
 
+export function tagMemberships(ids: readonly string[]): Promise<Record<string, TagSummary[]>> {
+  return sendJson('POST', '/api/tags/membership', { ids }, undefined, { silent: true });
+}
+
 export interface NewTag {
   name: string;
   parentId?: string;

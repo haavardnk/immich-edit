@@ -102,12 +102,14 @@ pub async fn detail(ctx: AuthCtx, Path(id): Path<Uuid>) -> Result<Json<AlbumSumm
 }
 
 pub async fn update(
+    State(state): State<AppState>,
     ctx: AuthCtx,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateAlbumBody>,
 ) -> Result<Json<AlbumSummary>, AppError> {
     let patch = AlbumPatch::try_from(body)?;
     ctx.immich.update_album(id, &patch).await?;
+    state.search_caches.names_changed();
     Ok(Json(ctx.immich.album(id).await?))
 }
 

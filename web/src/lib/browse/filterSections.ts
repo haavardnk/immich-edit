@@ -34,5 +34,3 @@ export const FILTER_SECTIONS: FilterSection[] = [
 export function isFilterSectionId(value: unknown): value is FilterSectionId {
   return FILTER_SECTIONS.some((section) => section.id === value);
 }
-
-export const VIEW_AND_FILTERS = 'View & filters';
