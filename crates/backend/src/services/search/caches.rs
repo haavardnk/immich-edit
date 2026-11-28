@@ -1,4 +1,4 @@
-use crate::services::membership::{Albums, MembershipCache};
+use crate::services::membership::{Albums, MembershipCache, Tags};
 use crate::services::search::added::TimelineCache;
 use crate::services::search::local_taken::LocalBoundsCache;
 use crate::services::search::months::MonthCountCache;
@@ -9,6 +9,7 @@ pub struct SearchCaches {
     pub(super) months: MonthCountCache,
     pub(super) local_taken: LocalBoundsCache,
     album_membership: MembershipCache<Albums>,
+    tag_membership: MembershipCache<Tags>,
 }
 
 impl SearchCaches {
@@ -20,9 +21,14 @@ impl SearchCaches {
 
     pub fn names_changed(&self) {
         self.album_membership.invalidate();
+        self.tag_membership.invalidate();
     }
 
     pub fn album_membership(&self) -> &MembershipCache<Albums> {
         &self.album_membership
+    }
+
+    pub fn tag_membership(&self) -> &MembershipCache<Tags> {
+        &self.tag_membership
     }
 }

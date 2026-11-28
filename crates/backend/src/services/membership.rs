@@ -8,8 +8,8 @@ use futures_util::{StreamExt, TryStreamExt, stream};
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::immich::dto::AlbumSummary;
-use crate::immich::{ImmichClient, ImmichResult};
+use crate::immich::dto::{AlbumSummary, TagSummary};
+use crate::immich::{ImmichClient, ImmichError, ImmichResult};
 use crate::services::ttl_cache::TtlCache;
 
 const CACHE_CAP: NonZeroUsize = NonZeroUsize::new(4096).unwrap();
@@ -32,6 +32,22 @@ impl Source for Albums {
 
     async fn fetch(immich: &ImmichClient, asset: Uuid) -> ImmichResult<Self::Value> {
         immich.albums_with_asset(asset).await
+    }
+}
+
+pub struct Tags;
+
+impl Source for Tags {
+    type Value = Vec<TagSummary>;
+
+    async fn fetch(immich: &ImmichClient, asset: Uuid) -> ImmichResult<Self::Value> {
+        match immich.asset(asset).await {
+            Ok(detail) => Ok(detail.tags),
+            Err(ImmichError::NotFound | ImmichError::Rejected { status: 400, .. }) => {
+                Ok(Vec::new())
+            }
+            Err(error) => Err(error),
+        }
     }
 }
 

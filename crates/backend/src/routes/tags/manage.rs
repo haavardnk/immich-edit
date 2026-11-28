@@ -146,7 +146,9 @@ pub async fn update(
         }
         ensure_free(&tags, tag.parent_id, name, Some(id))?;
     }
-    Ok(Json(ctx.immich.update_tag(id, &patch).await?))
+    let updated = ctx.immich.update_tag(id, &patch).await?;
+    state.search_caches.names_changed();
+    Ok(Json(updated))
 }
 
 pub async fn delete(

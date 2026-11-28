@@ -73,6 +73,7 @@ mod setup_oauth;
 mod snapshots;
 mod source;
 mod static_files;
+mod tag_membership;
 mod tags;
 mod trash;
 mod watermarks;
