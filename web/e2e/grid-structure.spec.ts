@@ -249,9 +249,9 @@ test.describe('grid sizing on a phone', { tag: ['@touch', '@phone'] }, () => {
     await open(page, '/photos', { assets: ASSETS });
     await page
       .locator('header[data-app-bar]')
-      .getByRole('button', { name: 'View & filters', exact: true })
+      .getByRole('button', { name: 'View', exact: true })
       .tap();
-    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    const sheet = page.getByRole('dialog', { name: 'View' });
     const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
     await expect(sizes.getByRole('radio', { name: 'L', exact: true })).toBeChecked();
 

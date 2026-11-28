@@ -1,8 +1,8 @@
 <script lang="ts">
   import AssetGrid from '#lib/components/browse/AssetGrid.svelte';
   import BrowseHeader from '#lib/components/browse/BrowseHeader.svelte';
+  import BrowseDock from '#lib/components/browse/BrowseDock.svelte';
   import BulkBar from '#lib/components/browse/bulk/BulkBar.svelte';
-  import FilterPanel from '#lib/components/browse/filters/FilterPanel.svelte';
   import Notice from '#lib/components/Notice.svelte';
   import DateScrubber from '#lib/components/browse/scrubber/DateScrubber.svelte';
   import type { BrowseFeed } from '#lib/stores/browseFeed.svelte.ts';
@@ -177,5 +177,5 @@
       {/if}
     {/if}
   </div>
-  <FilterPanel {favoriteLocked} count={headerTotal} {sortBasis} {title} />
+  <BrowseDock {favoriteLocked} count={headerTotal} {sortBasis} {title} />
 </div>

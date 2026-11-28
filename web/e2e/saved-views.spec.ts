@@ -159,7 +159,7 @@ test.describe('saved views on a tablet', { tag: ['@touch', '@tablet'] }, () => {
     const panel = await openFilters(page);
     await panel.getByRole('button', { name: 'Save view', exact: true }).tap();
     await expect(panel.getByRole('textbox', { name: 'View name' })).toBeFocused();
-    const toggle = page.locator('main').getByRole('button', { name: /^View & filters/ });
+    const toggle = page.locator('main').getByRole('button', { name: /^Filters/ });
     await toggle.tap();
     await expect(panel).toBeHidden();
 
@@ -193,9 +193,9 @@ test.describe('saved views on a phone', { tag: ['@touch', '@phone'] }, () => {
 
     await page
       .locator('main')
-      .getByRole('button', { name: /^View & filters/ })
+      .getByRole('button', { name: /^Filters/ })
       .tap();
-    const sheet = page.getByRole('dialog', { name: 'View & filters' });
+    const sheet = page.getByRole('dialog', { name: 'Filters' });
     await sheet.getByRole('button', { name: 'Save view', exact: true }).tap();
     const name = sheet.getByRole('textbox', { name: 'View name' });
     await expect(name).toHaveValue('Favorites');
@@ -208,7 +208,7 @@ test.describe('saved views on a phone', { tag: ['@touch', '@phone'] }, () => {
     await name.fill('Best');
     await sheet.getByRole('button', { name: 'Save', exact: true }).tap();
     await expect(page.getByText('Saved view “Best”')).toBeVisible();
-    await sheet.getByRole('button', { name: 'Close view & filters' }).tap();
+    await sheet.getByRole('button', { name: 'Close filters' }).tap();
     await expect(sheet).toBeHidden();
 
     await page.goto('/library');
@@ -219,7 +219,7 @@ test.describe('saved views on a phone', { tag: ['@touch', '@phone'] }, () => {
     await row.tap();
     await expect(page).toHaveURL(/\/photos\?favorite=1$/);
     await expect(
-      page.locator('main').getByRole('button', { name: 'View & filters (1 active)' })
+      page.locator('main').getByRole('button', { name: 'Filters (1 active)' })
     ).toBeVisible();
   });
 

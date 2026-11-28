@@ -50,6 +50,7 @@
 
   onNavigate((navigation) => {
     peek.hide();
+    browseView.navigated(navigation.from?.url, navigation.to?.url);
     holdPhoto(handoffId(navigation.from?.url, navigation.to?.url));
     if (navigation.to) {
       leaveLoupeOnNavigate(navigation.from?.url, navigation.to.url);
@@ -62,7 +63,7 @@
   });
 
   $effect.pre(() => {
-    browseView.setCompact(layout.compact);
+    browseView.setLayout({ mode: layout.mode, compact: layout.compact });
   });
 
   $effect.pre(() => {

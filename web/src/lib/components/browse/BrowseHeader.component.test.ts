@@ -64,7 +64,8 @@ describe('BrowseHeader', () => {
   it('trades the inline view controls for the touch actions on a wide touch screen', () => {
     render('wide');
 
-    expect(labelled('View & filters')).not.toBeNull();
+    expect(labelled('View')).not.toBeNull();
+    expect(labelled('Filters')).not.toBeNull();
     expect(labelled('Select photos')).not.toBeNull();
     expect(labelled('Thumbnail size S')).toBeNull();
     expect(labelled('Account')).toBeNull();
@@ -75,7 +76,7 @@ describe('BrowseHeader', () => {
     browseControls.applyFilters({ ...FILTER_DEFAULTS, favoriteOnly: true, make: ['SONY'] });
     flushSync();
 
-    expect(labelled('View & filters (2 active)')).not.toBeNull();
+    expect(labelled('Filters (2 active)')).not.toBeNull();
     expect(target.querySelectorAll('[aria-label="Active filters"] [role="listitem"]')).toHaveLength(
       2
     );

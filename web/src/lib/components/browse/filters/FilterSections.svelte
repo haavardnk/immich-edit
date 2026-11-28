@@ -32,28 +32,24 @@
   const pushes = $derived(layout.mode === 'touch');
   const pageSection = $derived(sections.find((section) => section.id === browseView.filterPage));
 
-  let returnTo: string | null = null;
-
-  $effect(() => {
-    const id = browseView.filterPage;
-    if (id) {
-      returnTo = id;
-      return;
-    }
-    if (!returnTo) return;
-    const back = returnTo;
-    returnTo = null;
-    void tick().then(() =>
-      document.querySelector(`[data-filter-section="${back}"]`)?.scrollIntoView({ block: 'start' })
-    );
-  });
-
   function supports(key: FilterKey): boolean {
     return supportsFilter(page.url, key);
   }
 
   function showAll(section: Section): (() => void) | undefined {
     return pushes ? () => (browseView.filterPage = section.id) : undefined;
+  }
+
+  async function back(id: Section['id']): Promise<void> {
+    browseView.filterPage = null;
+    await tick();
+    const section = document.querySelector<HTMLElement>(`[data-filter-section="${id}"]`);
+    if (!section) return;
+    section.scrollIntoView({ block: 'start' });
+    const target =
+      section.querySelector<HTMLElement>('[data-filter-all]') ??
+      section.querySelector<HTMLElement>('[data-filter-toggle]');
+    target?.focus({ preventScroll: true });
   }
 </script>
 
@@ -89,7 +85,7 @@
 {/snippet}
 
 {#if pageSection}
-  <FilterPage title={pageSection.title}>
+  <FilterPage title={pageSection.title} onBack={() => back(pageSection.id)}>
     {@render body(pageSection, true)}
   </FilterPage>
 {:else}

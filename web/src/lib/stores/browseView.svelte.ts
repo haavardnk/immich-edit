@@ -1,10 +1,6 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import {
-  isFilterSectionId,
-  type FilterPageId,
-  type FilterSectionId
-} from '#lib/browse/filterSections.ts';
+import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
 import {
   dayHeaderHeight,
   defaultGridSize,
@@ -14,6 +10,7 @@ import {
   type GridSize
 } from '#lib/browse/gridSizes.ts';
 import { layout } from '#lib/device/layout.svelte.ts';
+import type { Layout, LayoutMode } from '#lib/device/layoutRules.ts';
 import { ui } from '#lib/stores/ui.svelte.ts';
 import type { TileAnchor } from '#lib/browse/gridZoom.ts';
 import { nextTileInfo, tileInfoFrom, type TileInfo } from '#lib/browse/tileOverlay.ts';
@@ -40,9 +37,12 @@ class BrowseViewStore {
   tileInfo = $state<TileInfo>('icons');
   #filtersDocked = $state(false);
   #filtersSheet = $state(false);
+  #viewDocked = $state(false);
+  #viewSheet = $state(false);
   #compact = $state(false);
+  #mode: LayoutMode | null = null;
   filterSections = $state<FilterSectionId[]>([]);
-  filterPage = $state<FilterPageId | null>(null);
+  filterPage = $state<FilterSectionId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
   loupeReturn: { on: string; to: string } | null = null;
   lastGridPath = $state<string | null>(null);
@@ -141,7 +141,8 @@ class BrowseViewStore {
   }
 
   setFiltersOpen(open: boolean): void {
-    if (!open) this.filterPage = null;
+    if (open) this.#closeView();
+    else this.filterPage = null;
     if (this.#compact) {
       this.#filtersSheet = open;
       return;
@@ -150,11 +151,37 @@ class BrowseViewStore {
     this.persist();
   }
 
-  setCompact(compact: boolean): void {
+  get viewOpen(): boolean {
+    return this.#compact ? this.#viewSheet : layout.wide && this.#viewDocked;
+  }
+
+  setViewOpen(open: boolean): void {
+    if (!open) {
+      this.#closeView();
+      return;
+    }
+    this.setFiltersOpen(false);
+    if (this.#compact) this.#viewSheet = true;
+    else this.#viewDocked = true;
+  }
+
+  #closeView(): void {
+    this.#viewSheet = false;
+    this.#viewDocked = false;
+  }
+
+  setLayout({ mode, compact }: Pick<Layout, 'mode' | 'compact'>): void {
+    if (mode !== this.#mode || compact !== this.#compact) this.filterPage = null;
+    this.#mode = mode;
     if (compact === this.#compact) return;
     this.#compact = compact;
     this.#filtersSheet = false;
+    this.#viewSheet = false;
     this.#infoSheet = false;
+  }
+
+  navigated(from: URL | undefined, to: URL | undefined): void {
+    if (from?.pathname !== to?.pathname) this.filterPage = null;
   }
 
   setFilterSection(id: FilterSectionId, open: boolean): void {

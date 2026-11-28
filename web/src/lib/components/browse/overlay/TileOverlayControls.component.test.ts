@@ -3,10 +3,10 @@ import { browseView } from '#lib/stores/browseView.svelte.ts';
 import { preferences } from '#lib/stores/preferences.svelte.ts';
 import ComponentHost from '#lib/testing/ComponentHost.svelte';
 import { resetLayout } from '#lib/testing/layoutMock.ts';
-import { flushSync, mount, unmount, type Component } from 'svelte';
+import { flushSync, mount, unmount, type Component, type ComponentProps } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import ViewBody from '../view/ViewBody.svelte';
 import TileOverlayMenu from './TileOverlayMenu.svelte';
-import TileOverlayPage from './TileOverlayPage.svelte';
 
 vi.mock('#lib/device/layout.svelte.ts', async () => ({
   layout: (await import('#lib/testing/layoutMock.ts')).fakeLayout
@@ -19,13 +19,24 @@ const api = vi.hoisted(() => ({
 
 vi.mock('#lib/api/preferences.ts', () => api);
 
-const Host: Component<{ component: Component; props: Record<string, never> }> = ComponentHost;
+type BodyProps = ComponentProps<typeof ViewBody>;
+
+const BodyHost: Component<{ component: Component<BodyProps>; props: BodyProps }> = ComponentHost;
+const MenuHost: Component<{ component: Component; props: Record<string, never> }> = ComponentHost;
 
 let target: HTMLDivElement;
 let component: Record<string, unknown> | null = null;
 
-function render(view: Component): void {
-  component = mount(Host, { target, props: { component: view, props: {} } });
+function renderBody(): void {
+  component = mount(BodyHost, {
+    target,
+    props: { component: ViewBody, props: { sortBasis: 'capture' } }
+  });
+  flushSync();
+}
+
+function renderMenu(): void {
+  component = mount(MenuHost, { target, props: { component: TileOverlayMenu, props: {} } });
   flushSync();
 }
 
@@ -64,9 +75,9 @@ afterEach(async () => {
   flushSync();
 });
 
-describe('Thumbnail info page', () => {
+describe('View body thumbnail info', () => {
   it('counts the chosen icons and details and hides the shortcut without a keyboard', () => {
-    render(TileOverlayPage);
+    renderBody();
 
     expect(text()).toContain('Icons 6 of 11');
     expect(text()).toContain('Details 2 of 4');
@@ -79,7 +90,7 @@ describe('Thumbnail info page', () => {
   });
 
   it('saves a toggled icon to the account', async () => {
-    render(TileOverlayPage);
+    renderBody();
 
     checkbox('Albums').click();
     await settle();
@@ -101,7 +112,7 @@ describe('Thumbnail info page', () => {
       icons: [],
       details: ['filename', 'taken', 'place', 'exposure']
     });
-    render(TileOverlayPage);
+    renderBody();
 
     expect(checkbox('Lens').disabled).toBe(true);
     expect(checkbox('Place').disabled).toBe(false);
@@ -116,7 +127,7 @@ describe('Thumbnail info page', () => {
       icons: [],
       details: ['filename', 'taken', 'place', 'exposure']
     });
-    render(TileOverlayPage);
+    renderBody();
 
     expect(text()).toContain('Showing 2 of 4 at size M. Larger thumbnails show more.');
     expect(text()).toContain('cycles the modes');
@@ -125,14 +136,14 @@ describe('Thumbnail info page', () => {
   it('drops the shortcut hint when the cycle key is unbound', () => {
     resetLayout();
     preferences.shortcuts = { gridTileInfo: [] };
-    render(TileOverlayPage);
+    renderBody();
 
     expect(text()).not.toContain('cycles the modes');
   });
 
   it('resets to the default overlay', async () => {
     await preferences.setTileOverlay({ icons: ['format'], details: ['lens'] });
-    render(TileOverlayPage);
+    renderBody();
     api.patchPreferences.mockClear();
 
     document.querySelector<HTMLButtonElement>('[aria-label="Reset thumbnail info"]')?.click();
@@ -146,7 +157,7 @@ describe('Thumbnail info page', () => {
 describe('Thumbnail info menu', () => {
   it('opens the controls from the toolbar button and names the mode', async () => {
     resetLayout();
-    render(TileOverlayMenu);
+    renderMenu();
 
     const trigger = document.querySelector<HTMLButtonElement>(
       '[aria-label="Thumbnail info: icons"]'

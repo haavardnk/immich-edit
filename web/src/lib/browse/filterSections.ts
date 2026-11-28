@@ -7,8 +7,6 @@ const ID_LIST_ORDER: readonly IdFilterKey[] = ['people', 'albums', 'tags'];
 export type FilterSectionId =
   'library' | 'people' | 'albums' | 'tags' | 'rating' | 'date' | 'camera' | 'place' | 'file';
 
-export type FilterPageId = FilterSectionId | 'tileOverlay';
-
 export interface FilterSection {
   id: FilterSectionId;
   title: string;
@@ -36,5 +34,3 @@ export const FILTER_SECTIONS: FilterSection[] = [
 export function isFilterSectionId(value: unknown): value is FilterSectionId {
   return FILTER_SECTIONS.some((section) => section.id === value);
 }
-
-export const VIEW_AND_FILTERS = 'View & filters';

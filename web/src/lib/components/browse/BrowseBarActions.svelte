@@ -1,8 +1,9 @@
 <script lang="ts">
   import FilterToggle from '#lib/components/browse/FilterToggle.svelte';
   import SelectModeButton from '#lib/components/browse/SelectModeButton.svelte';
-  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
+  import ViewToggle from '#lib/components/browse/view/ViewToggle.svelte';
 </script>
 
-<FilterToggle label={VIEW_AND_FILTERS} />
+<ViewToggle />
+<FilterToggle />
 <SelectModeButton />

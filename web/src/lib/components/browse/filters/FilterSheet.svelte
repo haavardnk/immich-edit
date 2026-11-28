@@ -1,29 +1,26 @@
 <script lang="ts">
+  import FilterReset from '#lib/components/browse/filters/FilterReset.svelte';
   import FilterSections from '#lib/components/browse/filters/FilterSections.svelte';
-  import FiltersHeading from '#lib/components/browse/filters/FiltersHeading.svelte';
-  import ViewBlock from '#lib/components/browse/filters/ViewBlock.svelte';
-  import TileOverlayPage from '#lib/components/browse/overlay/TileOverlayPage.svelte';
   import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
   import BottomSheet from '#lib/components/sheet/BottomSheet.svelte';
+  import SheetActionButton from '#lib/components/sheet/SheetActionButton.svelte';
   import { presence } from '#lib/components/sheet/presence.svelte.ts';
-  import { showPhotosLabel } from '#lib/browse/filterChips.ts';
-  import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
+  import { activeFilterCount, showPhotosLabel } from '#lib/browse/filterChips.ts';
+  import { browseControls } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
-  import { Button } from '@immich/ui';
 
   let {
     favoriteLocked = false,
     count,
-    sortBasis,
     title
   }: {
     favoriteLocked?: boolean;
     count?: number;
-    sortBasis: 'capture' | 'edit' | null;
     title: string;
   } = $props();
 
   const sheet = presence(() => browseView.filtersOpen);
+  const active = $derived(activeFilterCount(browseControls.filters));
 </script>
 
 {#if sheet.mounted}
@@ -33,34 +30,24 @@
         open={browseView.filtersOpen}
         onOpenChange={(open) => browseView.setFiltersOpen(open)}
         onExited={sheet.exited}
-        title={VIEW_AND_FILTERS}
+        title="Filters"
+        subtitle={active > 0 ? `${active} active` : undefined}
         close="icon"
-        closeLabel="Close {VIEW_AND_FILTERS.toLowerCase()}"
+        closeLabel="Close filters"
         detents={[{ fraction: 1 }]}
       >
         {#snippet header()}
+          <FilterReset />
           {@render saveButton(true)}
         {/snippet}
         {#if !browseView.filterPage}
           {@render saveEntry()}
-          <ViewBlock {sortBasis} />
-          <FiltersHeading />
         {/if}
-        {#if browseView.filterPage === 'tileOverlay'}
-          <TileOverlayPage />
-        {:else}
-          <FilterSections {favoriteLocked} />
-        {/if}
+        <FilterSections {favoriteLocked} />
         {#snippet footer()}
-          <Button
-            size="medium"
-            color="primary"
-            shape="round"
-            class="h-12 w-full text-base font-semibold"
-            onclick={() => browseView.setFiltersOpen(false)}
-          >
+          <SheetActionButton onclick={() => browseView.setFiltersOpen(false)}>
             {showPhotosLabel(count)}
-          </Button>
+          </SheetActionButton>
         {/snippet}
       </BottomSheet>
     {/snippet}

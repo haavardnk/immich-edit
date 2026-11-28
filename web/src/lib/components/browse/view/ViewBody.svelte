@@ -1,5 +1,7 @@
 <script lang="ts">
   import SegmentedChoice from '#lib/components/settings/SegmentedChoice.svelte';
+  import TileOverlayControls from '#lib/components/browse/overlay/TileOverlayControls.svelte';
+  import TileOverlayReset from '#lib/components/browse/overlay/TileOverlayReset.svelte';
   import { resizeGrid } from '#lib/browse/gridResize.ts';
   import {
     EDIT_SORT_SHORT,
@@ -7,19 +9,16 @@
     SORT_FIELD_SHORT,
     sortFields
   } from '#lib/browse/sortOptions.ts';
-  import { GRID_SIZE_OPTIONS, TILE_INFO_OPTIONS } from '#lib/browse/viewOptions.ts';
+  import { GRID_SIZE_OPTIONS } from '#lib/browse/viewOptions.ts';
   import { browseControls, type SortDir } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
-  import { preferences } from '#lib/stores/preferences.svelte.ts';
-  import { countOf } from '#lib/utils/plural.ts';
-  import { Icon } from '@immich/ui';
-  import { mdiChevronRight } from '@mdi/js';
 
   let { sortBasis }: { sortBasis: 'capture' | 'edit' | null } = $props();
 
   const DIRECTIONS: SortDir[] = ['desc', 'asc'];
 
+  const id = $props.id();
   const fieldOptions = $derived(
     sortFields(immichCapabilities.structuredSearch).map((value) => ({
       value,
@@ -32,13 +31,12 @@
   const directionOptions = $derived(
     DIRECTIONS.map((value) => ({ value, label: directionLabels[value] }))
   );
-  const overlaySummary = $derived(
-    `${countOf(preferences.overlay.icons.length, 'icon')} · ${countOf(preferences.overlay.details.length, 'detail')}`
-  );
 </script>
 
-<section aria-labelledby="view-block-heading" class="flex flex-col gap-2 px-4 pb-4">
-  <h3 id="view-block-heading" class="section-label flex h-10 items-center text-dark/65">View</h3>
+<section aria-labelledby="{id}-sort" class="flex flex-col gap-2 px-4 pb-4">
+  <h3 id="{id}-sort" class="section-label flex h-10 items-center text-dark/65">
+    {sortBasis ? 'Sort and size' : 'Size'}
+  </h3>
   {#if sortBasis === 'capture'}
     <SegmentedChoice
       appearance="view"
@@ -73,22 +71,11 @@
       />
     </div>
   </div>
-  <SegmentedChoice
-    appearance="view"
-    fill
-    options={TILE_INFO_OPTIONS}
-    value={browseView.tileInfo}
-    label="Thumbnail info"
-    onChange={(info) => browseView.setTileInfo(info)}
-  />
-  <button
-    type="button"
-    aria-label="Icons and details, {overlaySummary}"
-    class="flex h-12 items-center gap-2 rounded-xl bg-ghost pr-3 pl-3.5 text-left transition-colors outline-none hover:bg-light-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
-    onclick={() => (browseView.filterPage = 'tileOverlay')}
-  >
-    <span class="flex-1 text-sm font-medium text-light-950">Icons and details</span>
-    <span class="min-w-0 truncate text-caption text-dark/65">{overlaySummary}</span>
-    <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
-  </button>
+</section>
+<section aria-labelledby="{id}-info" class="flex flex-col border-t border-hairline px-4 pb-4">
+  <div class="flex h-11 items-center gap-2">
+    <h3 id="{id}-info" class="section-label text-dark/65">Thumbnail info</h3>
+    <TileOverlayReset />
+  </div>
+  <TileOverlayControls />
 </section>
