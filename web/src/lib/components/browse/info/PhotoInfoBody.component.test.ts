@@ -124,7 +124,7 @@ describe('PhotoInfoBody', () => {
     }
     expect(text).toContain('Nordland, Norway');
     const map = target.querySelector<HTMLAnchorElement>('a[href^="/map?at="]');
-    expect(map?.getAttribute('href')).toBe('/map?at=67.93000,13.09000,14.00');
+    expect(map?.getAttribute('href')).toBe('/map?at=67.93000,13.09000,14.00&photo=p1');
     expect(map?.getAttribute('aria-label')).toBe('Open Reine on the map');
     expect(text).toContain('/library/2026/07/IMG_4120.ARW');
     await vi.waitFor(() => expect(target.textContent).toContain('Lofoten 2026'));

@@ -66,8 +66,19 @@ export function formatView(view: MapView): string {
   return `${view.lat.toFixed(5)},${view.lon.toFixed(5)},${view.zoom.toFixed(2)}`;
 }
 
-export function mapHref(view: MapView): string {
-  return `/map?at=${formatView(view)}`;
+const PHOTO_PARAM = 'photo';
+
+export function mapHref(view: MapView, photo?: string): string {
+  const pick = photo ? `&${PHOTO_PARAM}=${encodeURIComponent(photo)}` : '';
+  return `/map?at=${formatView(view)}${pick}`;
+}
+
+export function readMapPhoto(params: Pick<URLSearchParams, 'get'>): string | null {
+  return params.get(PHOTO_PARAM) || null;
+}
+
+export function dropMapPhoto(params: Pick<URLSearchParams, 'delete'>): void {
+  params.delete(PHOTO_PARAM);
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

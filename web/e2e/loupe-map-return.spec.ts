@@ -59,7 +59,13 @@ async function recordReturn(page: Page): Promise<() => Promise<ReturnFrame[]>> {
     Reflect.set(window, '__returnFrames', frames);
     const started = performance.now();
     const sample = (): void => {
-      const info = document.querySelector('[data-sheet-panel], aside[aria-label="Info"]');
+      const sheet = [...document.querySelectorAll('[role="dialog"]')]
+        .find((dialog) => {
+          const title = document.getElementById(dialog.getAttribute('aria-labelledby') ?? '');
+          return title?.textContent.trim() === 'Info';
+        })
+        ?.querySelector('[data-sheet-panel]');
+      const info = sheet ?? document.querySelector('aside[aria-label="Info"]');
       const box = info?.getBoundingClientRect();
       const motion = document
         .getAnimations()
@@ -102,13 +108,18 @@ async function goBack(page: Page): Promise<void> {
 
 for (const tag of [[], ['@touch']]) {
   test.describe(`the info panel map ${tag.length ? 'on touch' : 'on desktop'}`, { tag }, () => {
-    test('pushes the map and Back returns to the photo with its info open', async ({ page }) => {
+    test('pushes the map with the photo picked and Back returns to it with its info', async ({
+      page
+    }) => {
       await openBergenInfo(page);
       const motions = await recordPageMotion(page);
       await press(page, page.getByRole('link', { name: 'Open Bergen on the map' }));
 
       await expect(page).toHaveURL(/\/map\?at=60\.39000(,|%2C)5\.32000/);
       await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Show all/ })).toBeVisible();
+      await expect(page.locator('[role="group"][data-name="IMG_0002.ARW"]')).toBeVisible();
+      await expect(page.locator('[role="group"][data-name="IMG_0001.ARW"]')).toHaveCount(0);
       await expect.poll(motions).toEqual([expect.stringMatching(/^(push|rise)$/)]);
       await expect(page.locator('html')).not.toHaveAttribute('data-page-motion');
 
@@ -140,6 +151,10 @@ for (const tag of [[], ['@touch']]) {
       await press(page, page.getByRole('button', { name: 'Info', exact: true }));
       await press(page, page.getByRole('link', { name: 'Open Bergen on the map' }));
       await expect(page).toHaveURL(/\/map\?/);
+      await expect(page.getByRole('button', { name: /^Show all/ })).toBeVisible();
+      await page.waitForFunction(() =>
+        document.getAnimations().every((animation) => !(animation instanceof CSSTransition))
+      );
 
       await page.route(`**/api/assets/${PHOTOS[1]!.id}`, async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 800));

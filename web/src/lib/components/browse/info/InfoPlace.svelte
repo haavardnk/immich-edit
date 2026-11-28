@@ -22,7 +22,7 @@
   <InfoSection title="Place">
     {#if place?.point}
       <div class="mb-2">
-        <MiniMap point={place.point} label={place.name} />
+        <MiniMap point={place.point} label={place.name} photo={asset.id} />
       </div>
     {/if}
     {#if place}

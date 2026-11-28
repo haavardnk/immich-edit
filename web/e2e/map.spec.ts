@@ -101,7 +101,7 @@ test('the mini map in photo info leaves the loupe for the map', async ({ page })
   );
 });
 
-test('the mini map of a photo opened from the map closes the loupe and moves there', async ({
+test('the mini map of a photo opened from the map closes the loupe and picks it there', async ({
   page
 }) => {
   const photos = ASSETS.map((asset, index) => {
@@ -121,7 +121,8 @@ test('the mini map of a photo opened from the map closes the loupe and moves the
   await page.getByRole('link', { name: 'Open Oslo on the map' }).click();
   await expect(page).toHaveURL(/at=59\.91390(,|%2C)10\.75220/);
   await expect(page.locator('[data-loupe-root]')).toHaveCount(0);
-  await expect(panel).toContainText('1 photo in view');
+  await expect(panel).toContainText('Show all in view');
+  await expect(panel.locator('[role="group"][data-name="IMG_0004.ARW"]')).toBeVisible();
 });
 
 test('the map comes back where it was after the loupe and the editor', async ({ page }) => {

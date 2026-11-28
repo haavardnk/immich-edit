@@ -27,7 +27,7 @@
   import { idsNear } from '#lib/geotag/spots.ts';
   import { openTrackPhoto } from '#lib/geotag/trackLoupe.ts';
   import { onLocationsMoved } from '#lib/map/locationMoves.ts';
-  import { parseView, WORLD_VIEW, type MapView } from '#lib/map/mapArea.ts';
+  import { parseView, readMapPhoto, WORLD_VIEW, type MapView } from '#lib/map/mapArea.ts';
   import { boxOf, MapCamera } from '#lib/map/mapCamera.svelte.ts';
   import { mapConfig } from '#lib/map/mapConfig.svelte.ts';
   import { MapDrops } from '#lib/map/mapDrops.ts';
@@ -94,6 +94,7 @@
   let fitted = start.view !== null;
   let settled = start.view !== null;
   const side = new MapSide();
+  let wanted = $state<string | null>(readMapPhoto(page.url.searchParams));
 
   const count = $derived(map.loaded ? countOf(map.markers.length, 'photo') : undefined);
 
@@ -216,9 +217,22 @@
     const at = navigation.to?.url.searchParams.get('at') ?? null;
     if (at === (navigation.from?.url.searchParams.get('at') ?? null)) return;
     const view = parseView(at);
-    if (!view || !camera.follow(view)) return;
+    const photo = navigation.to ? readMapPhoto(navigation.to.url.searchParams) : null;
+    if (!view || (!camera.follow(view) && !photo)) return;
     fitted = true;
     map.showAll();
+    wanted = photo;
+  });
+
+  $effect(() => {
+    const id = wanted;
+    if (!id || !map.loaded || !markers) return;
+    wanted = null;
+    if (!map.markers.some((marker) => marker.id === id)) return;
+    untrack(() => {
+      pick([id]);
+      camera.focus(map.markers, [id]);
+    });
   });
 
   $effect(() => {
