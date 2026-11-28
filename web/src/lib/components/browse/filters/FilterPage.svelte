@@ -4,7 +4,8 @@
   import { mdiArrowLeft } from '@mdi/js';
   import type { Snippet } from 'svelte';
 
-  let { title, children }: { title: string; children: Snippet } = $props();
+  let { title, action, children }: { title: string; action?: Snippet; children: Snippet } =
+    $props();
 </script>
 
 <section
@@ -23,6 +24,7 @@
       onclick={() => (browseView.filterPage = null)}
     />
     <h3 class="text-base font-semibold text-light-950">{title}</h3>
+    {@render action?.()}
   </div>
   <div class="flex flex-col px-4 pt-2 pb-4">
     {@render children()}

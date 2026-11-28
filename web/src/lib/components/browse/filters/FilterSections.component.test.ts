@@ -27,7 +27,9 @@ const VIEW_BLOCK = [
   ...['Taken', 'Added', 'Newest', 'Oldest'],
   ...GRID_SIZE_OPTIONS.map((option) => option.label),
   ...TILE_INFO_OPTIONS.map((option) => option.label)
-].map(radio);
+]
+  .map(radio)
+  .concat(button('Icons and details, 6 icons · 2 details'));
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -107,6 +109,32 @@ describe('FilterSheet view block', () => {
         expect.arrayContaining(['Taken', 'Newest', 'XL', 'Full', 'Reset all filters'])
       );
       expect(names()).not.toContain('View');
+    } finally {
+      await destroy();
+    }
+  });
+});
+
+describe('FilterSheet thumbnail info page', () => {
+  it('drills into the icons and details and back to the filters', async () => {
+    const destroy = renderLayout(
+      layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture', title: 'Photos' })
+    );
+    try {
+      await settle();
+      document
+        .querySelector<HTMLButtonElement>('[aria-label="Icons and details, 6 icons · 2 details"]')
+        ?.click();
+      await settle();
+
+      expect(document.querySelector('section[aria-label="Thumbnail info"]')).not.toBeNull();
+      expect(names()).toEqual(expect.arrayContaining(['Reset thumbnail info', 'Edited', 'Lens']));
+      expect(names()).not.toContain('Library');
+
+      document.querySelector<HTMLButtonElement>('[aria-label="Back to filters"]')?.click();
+      await settle();
+      expect(document.querySelector('section[aria-label="Thumbnail info"]')).toBeNull();
+      expect(names()).toContain('Icons and details, 6 icons · 2 details');
     } finally {
       await destroy();
     }

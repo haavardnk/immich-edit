@@ -43,7 +43,7 @@ typing in a text field.
 | `PgUp` / `PgDn`                                                                                          | Jump a page                                                      | Grid         |
 | `-` / `_` / `=` / `+`                                                                                    | Thumbnail size                                                   | Grid         |
 | `Ctrl scroll · pinch`                                                                                    | Change the thumbnail size around the pointer                     | Grid         |
-| `I`                                                                                                      | Cycle thumbnail info: hover only, badges, name and date          | Grid         |
+| `I`                                                                                                      | Cycle thumbnail info: hover only, icons, full                    | Grid         |
 | `Shift+F`                                                                                                | Show or hide the filter panel                                    | Grid         |
 | `Ctrl+A`                                                                                                 | Load and select every photo                                      | Grid         |
 | `Esc`                                                                                                    | Clear the selection                                              | Grid         |

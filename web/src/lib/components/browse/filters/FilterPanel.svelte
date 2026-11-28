@@ -5,6 +5,7 @@
   import FilterSheet from '#lib/components/browse/filters/FilterSheet.svelte';
   import FiltersHeading from '#lib/components/browse/filters/FiltersHeading.svelte';
   import ViewBlock from '#lib/components/browse/filters/ViewBlock.svelte';
+  import TileOverlayPage from '#lib/components/browse/overlay/TileOverlayPage.svelte';
   import SaveViewScope from '#lib/components/savedViews/SaveViewScope.svelte';
   import { activeFilterCount } from '#lib/browse/filterChips.ts';
   import { VIEW_AND_FILTERS } from '#lib/browse/filterSections.ts';
@@ -103,7 +104,11 @@
               <FiltersHeading />
             {/if}
           {/if}
-          <FilterSections {favoriteLocked} />
+          {#if browseView.filterPage === 'tileOverlay'}
+            <TileOverlayPage />
+          {:else}
+            <FilterSections {favoriteLocked} />
+          {/if}
         </div>
       </aside>
     {/snippet}

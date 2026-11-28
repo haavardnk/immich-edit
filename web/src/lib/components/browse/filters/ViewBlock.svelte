@@ -11,6 +11,10 @@
   import { browseControls, type SortDir } from '#lib/stores/browseControls.svelte.ts';
   import { browseView } from '#lib/stores/browseView.svelte.ts';
   import { immichCapabilities } from '#lib/stores/immichCapabilities.svelte.ts';
+  import { preferences } from '#lib/stores/preferences.svelte.ts';
+  import { countOf } from '#lib/utils/plural.ts';
+  import { Icon } from '@immich/ui';
+  import { mdiChevronRight } from '@mdi/js';
 
   let { sortBasis }: { sortBasis: 'capture' | 'edit' | null } = $props();
 
@@ -27,6 +31,9 @@
   );
   const directionOptions = $derived(
     DIRECTIONS.map((value) => ({ value, label: directionLabels[value] }))
+  );
+  const overlaySummary = $derived(
+    `${countOf(preferences.overlay.icons.length, 'icon')} · ${countOf(preferences.overlay.details.length, 'detail')}`
   );
 </script>
 
@@ -74,4 +81,14 @@
     label="Thumbnail info"
     onChange={(info) => browseView.setTileInfo(info)}
   />
+  <button
+    type="button"
+    aria-label="Icons and details, {overlaySummary}"
+    class="flex h-12 items-center gap-2 rounded-xl bg-ghost pr-3 pl-3.5 text-left transition-colors outline-none hover:bg-light-200 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+    onclick={() => (browseView.filterPage = 'tileOverlay')}
+  >
+    <span class="flex-1 text-sm font-medium text-light-950">Icons and details</span>
+    <span class="min-w-0 truncate text-caption text-dark/65">{overlaySummary}</span>
+    <Icon icon={mdiChevronRight} size="20px" class="shrink-0 text-dark/65" aria-hidden="true" />
+  </button>
 </section>

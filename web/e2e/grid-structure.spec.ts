@@ -151,7 +151,7 @@ test.describe('grid sizing on desktop', () => {
     await expect(hud(page)).toBeHidden();
   });
 
-  test('edited photos carry the Edited mark with icons and full info, not hover-only', async ({
+  test('edited photos carry the Edited mark with icons and full info, and on hover only', async ({
     page
   }) => {
     const assets = numberedAssets(6);
@@ -170,10 +170,22 @@ test.describe('grid sizing on desktop', () => {
     ).toBeVisible();
 
     await page.getByRole('button', { name: 'Thumbnail info: icons' }).click();
+    const modes = page.locator('[data-popover-content]').getByRole('radiogroup', {
+      name: 'Thumbnail info'
+    });
+    await modes.getByRole('radio', { name: 'Full' }).click();
     await expect(marks).toHaveCount(2);
-    await page.getByRole('button', { name: 'Thumbnail info: full' }).click();
+    await expect(marks.first()).toHaveCSS('opacity', '1');
+    await modes.getByRole('radio', { name: 'Hover only' }).click();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: 'Thumbnail info: hover only' })).toBeVisible();
-    await expect(marks).toHaveCount(0);
+    await page.mouse.move(0, 0);
+    await expect(marks).toHaveCount(2);
+    await expect(marks.first().locator('..')).toHaveCSS('opacity', '0');
+    await page.locator('[data-name="IMG_0001.ARW"]').hover();
+    await expect(
+      page.locator('[data-name="IMG_0001.ARW"]').getByRole('img', { name: 'Edited' }).locator('..')
+    ).toHaveCSS('opacity', '1');
   });
 });
 
