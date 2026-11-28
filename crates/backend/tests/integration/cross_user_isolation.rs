@@ -866,6 +866,49 @@ async fn album_membership_is_scoped_to_the_owner() {
 }
 
 #[tokio::test]
+async fn tag_membership_is_scoped_to_the_owner() {
+    let server = MockServer::start().await;
+    for (key, tags) in [
+        (
+            TEST_API_KEY,
+            serde_json::json!([{ "id": tag_id(), "name": "Private", "value": "Private" }]),
+        ),
+        (MEMBER_API_KEY, serde_json::json!([])),
+    ] {
+        Mock::given(method("GET"))
+            .and(path(format!("/api/assets/{}", asset_id())))
+            .and(header("x-api-key", key))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "id": asset_id(),
+                "tags": tags
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+    }
+    let (admin, member) = two_owner_apps(&server).await;
+    let request = || {
+        json_request(
+            "POST",
+            "/api/tags/membership",
+            serde_json::json!({ "ids": [asset_id()] }),
+        )
+    };
+    let asset = asset_id().to_string();
+
+    let owned =
+        body_json(expect_status(&admin, request(), StatusCode::OK, "owner tags").await).await;
+    if owned[&asset][0]["value"] != "Private" {
+        panic!("owner tags: {owned}");
+    }
+    let seen =
+        body_json(expect_status(&member, request(), StatusCode::OK, "member tags").await).await;
+    if seen[&asset] != serde_json::json!([]) {
+        panic!("member read the owner's tags: {seen}");
+    }
+}
+
+#[tokio::test]
 async fn saved_views_are_scoped_to_the_owner() {
     let server = MockServer::start().await;
     let (admin, member) = two_owner_apps(&server).await;

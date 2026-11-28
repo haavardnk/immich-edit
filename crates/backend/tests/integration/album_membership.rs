@@ -178,3 +178,36 @@ async fn album_membership_surfaces_an_immich_failure() {
     let resp = memberships(&app, json!([asset_id()])).await;
     assert!(resp.status().is_server_error(), "{}", resp.status());
 }
+
+#[tokio::test]
+async fn album_membership_answers_the_rest_when_one_lookup_fails() {
+    let server = MockServer::start().await;
+    mock_albums_with(&server, asset_id(), "Bergen", 1).await;
+    Mock::given(method("GET"))
+        .and(path("/api/albums"))
+        .and(query_param("assetId", other_asset().to_string()))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let body = memberships_ok(&app, json!([asset_id(), other_asset()])).await;
+    assert_eq!(body.as_object().unwrap().len(), 1, "{body}");
+    assert_eq!(body[asset_id().to_string()][0]["albumName"], "Bergen");
+}
+
+#[tokio::test]
+async fn album_membership_answers_no_albums_for_an_unreadable_asset() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/albums"))
+        .respond_with(ResponseTemplate::new(404))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let app = test_app(&server).await;
+
+    let body = memberships_ok(&app, json!([asset_id()])).await;
+    assert_eq!(body[asset_id().to_string()], json!([]));
+}
