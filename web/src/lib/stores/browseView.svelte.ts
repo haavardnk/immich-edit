@@ -1,10 +1,6 @@
 import { compare } from './compare.svelte';
 import { readStored, writeStored } from '#lib/utils/storage.ts';
-import {
-  isFilterSectionId,
-  type FilterPageId,
-  type FilterSectionId
-} from '#lib/browse/filterSections.ts';
+import { isFilterSectionId, type FilterSectionId } from '#lib/browse/filterSections.ts';
 import {
   dayHeaderHeight,
   defaultGridSize,
@@ -40,9 +36,11 @@ class BrowseViewStore {
   tileInfo = $state<TileInfo>('icons');
   #filtersDocked = $state(false);
   #filtersSheet = $state(false);
+  #viewDocked = $state(false);
+  #viewSheet = $state(false);
   #compact = $state(false);
   filterSections = $state<FilterSectionId[]>([]);
-  filterPage = $state<FilterPageId | null>(null);
+  filterPage = $state<FilterSectionId | null>(null);
   editorReturnLoupeId = $state<string | null>(null);
   loupeReturn: { on: string; to: string } | null = null;
   lastGridPath = $state<string | null>(null);
@@ -141,7 +139,8 @@ class BrowseViewStore {
   }
 
   setFiltersOpen(open: boolean): void {
-    if (!open) this.filterPage = null;
+    if (open) this.#closeView();
+    else this.filterPage = null;
     if (this.#compact) {
       this.#filtersSheet = open;
       return;
@@ -150,10 +149,30 @@ class BrowseViewStore {
     this.persist();
   }
 
+  get viewOpen(): boolean {
+    return this.#compact ? this.#viewSheet : layout.wide && this.#viewDocked;
+  }
+
+  setViewOpen(open: boolean): void {
+    if (!open) {
+      this.#closeView();
+      return;
+    }
+    this.setFiltersOpen(false);
+    if (this.#compact) this.#viewSheet = true;
+    else this.#viewDocked = true;
+  }
+
+  #closeView(): void {
+    this.#viewSheet = false;
+    this.#viewDocked = false;
+  }
+
   setCompact(compact: boolean): void {
     if (compact === this.#compact) return;
     this.#compact = compact;
     this.#filtersSheet = false;
+    this.#viewSheet = false;
     this.#infoSheet = false;
   }
 

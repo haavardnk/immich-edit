@@ -9,52 +9,67 @@ const ASSETS = datedAssets([
 
 test.use({ timezoneId: 'UTC' });
 
-function toggle(page: Page): Locator {
-  return page.locator('main').getByRole('button', { name: /^View & filters/ });
+function viewToggle(page: Page): Locator {
+  return page.locator('main').getByRole('button', { name: 'View', exact: true });
 }
 
-function surface(page: Page): Locator {
-  const name = 'View & filters';
-  return page.getByRole('dialog', { name }).or(page.getByRole('complementary', { name }));
+function filtersToggle(page: Page): Locator {
+  return page.locator('main').getByRole('button', { name: /^Filters/ });
 }
 
-async function openSurface(page: Page): Promise<Locator> {
-  await toggle(page).tap();
-  const panel = surface(page);
+function surface(page: Page, name: string): Locator {
+  return page
+    .getByRole('dialog', { name, exact: true })
+    .or(page.getByRole('complementary', { name, exact: true }));
+}
+
+async function openView(page: Page): Promise<Locator> {
+  await viewToggle(page).tap();
+  const panel = surface(page, 'View');
   await expect(panel).toBeVisible();
   return panel;
 }
 
-async function closeSurface(page: Page): Promise<void> {
-  await surface(page)
-    .getByRole('button', { name: /^Close (view & filters|filter panel)$/ })
+async function openFiltersSurface(page: Page): Promise<Locator> {
+  await filtersToggle(page).tap();
+  const panel = surface(page, 'Filters');
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+async function closeView(page: Page): Promise<void> {
+  await surface(page, 'View')
+    .getByRole('button', { name: /^Close view( panel)?$/ })
     .tap();
-  await expect(surface(page)).toBeHidden();
+  await expect(surface(page, 'View')).toBeHidden();
 }
 
 const DEFAULT_SIZE = /^\s*X?L$/;
 
-test.describe('view options in the filter surface', { tag: '@touch' }, () => {
-  test('the app bar has one View & filters button and Select, no separate view options', async ({
-    page
-  }) => {
+test.describe('view and filters on touch', { tag: '@touch' }, () => {
+  test('the app bar has separate View and Filters buttons beside Select', async ({ page }) => {
     await open(page, '/photos', { assets: ASSETS });
     const header = page.locator('main header').first();
 
-    await expect(header.getByRole('button', { name: 'View & filters', exact: true })).toBeVisible();
+    await expect(header.getByRole('button', { name: 'View', exact: true })).toBeVisible();
+    await expect(header.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
     await expect(header.getByRole('button', { name: 'Select photos' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'View options' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^View & filters/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Thumbnail size/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Sort:/ })).toHaveCount(0);
   });
 
-  test('the View block changes the thumbnail size and the sort', async ({ page }) => {
+  test('View changes the thumbnail size and the sort and holds no filters', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-11-05T12:00:00Z'));
     await open(page, '/photos', { assets: ASSETS });
     await expect(page.getByTestId('day-header').first()).toContainText('Saturday 31 October');
 
-    const panel = await openSurface(page);
-    await expect(panel.getByRole('button', { name: 'View', exact: true })).toHaveCount(0);
+    const panel = await openView(page);
+    await expect(viewToggle(page)).toHaveAttribute('aria-expanded', 'true');
+    await expect(panel.locator('[data-collapsible-trigger]')).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Reset all filters' })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Save view' })).toHaveCount(0);
+    await expect(panel.getByRole('radiogroup', { name: 'Thumbnail info' })).toBeVisible();
     const sortBy = panel.getByRole('radiogroup', { name: 'Sort by' });
     await expect(sortBy.getByRole('radio', { checked: true })).toHaveText('Taken');
 
@@ -70,10 +85,10 @@ test.describe('view options in the filter surface', { tag: '@touch' }, () => {
     const order = panel.getByRole('radiogroup', { name: 'Order' });
     await order.getByRole('radio', { name: 'Oldest' }).tap();
     await expect(page.getByTestId('day-header').first()).toContainText('Friday 30 October');
-    await expect(panel.getByRole('button', { name: 'Reset all filters' })).toBeDisabled();
-    await closeSurface(page);
+    await closeView(page);
+    await expect(viewToggle(page)).toBeFocused();
 
-    const again = await openSurface(page);
+    const again = await openView(page);
     await expect(
       again.getByRole('radiogroup', { name: 'Order' }).getByRole('radio', { checked: true })
     ).toHaveText('Oldest');
@@ -84,15 +99,16 @@ test.describe('view options in the filter surface', { tag: '@touch' }, () => {
     ).toHaveText('S');
   });
 
-  test('the View block sits above the filters heading', async ({ page }) => {
+  test('Filters holds only the filters with Reset and Save view in its header', async ({
+    page
+  }) => {
     await open(page, '/photos', { assets: ASSETS });
-    const panel = await openSurface(page);
-    const view = panel.getByRole('heading', { name: 'View', exact: true });
-    const filters = panel.getByRole('heading', { name: /^Filters/ });
-    await expect(view).toBeVisible();
-    const viewTop = (await view.boundingBox())?.y ?? 0;
-    const filtersTop = (await filters.boundingBox())?.y ?? 0;
-    expect(viewTop).toBeLessThan(filtersTop);
+    const panel = await openFiltersSurface(page);
+    await expect(panel.getByRole('radiogroup', { name: 'Sort by' })).toHaveCount(0);
+    await expect(panel.getByRole('radiogroup', { name: 'Thumbnail size' })).toHaveCount(0);
+    await expect(panel.getByRole('radiogroup', { name: 'Thumbnail info' })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Reset all filters' })).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'Save view' })).toBeVisible();
     await expect(panel.locator('[data-collapsible-trigger]').first()).toHaveAccessibleName(
       'Library'
     );
@@ -108,7 +124,7 @@ test.describe('view options in the filter surface', { tag: '@touch' }, () => {
   ]) {
     test(`view options stay reachable on ${path}`, async ({ page }) => {
       await open(page, path);
-      const panel = await openSurface(page);
+      const panel = await openView(page);
       await expect(panel.getByRole('radiogroup', { name: 'Sort by' })).toHaveCount(sorts ? 1 : 0);
       await expect(panel.getByRole('radiogroup', { name: 'Order' }).getByRole('radio')).toHaveText(
         order
@@ -117,6 +133,41 @@ test.describe('view options in the filter surface', { tag: '@touch' }, () => {
       await expect(panel.getByRole('radiogroup', { name: 'Thumbnail info' })).toBeVisible();
     });
   }
+});
+
+test.describe('the View sheet on a phone', { tag: ['@touch', '@phone'] }, () => {
+  test('Done closes the sheet in portrait and is gone in landscape', async ({ page }) => {
+    await open(page, '/photos', { assets: ASSETS });
+    const sheet = await openView(page);
+    const done = sheet.getByRole('button', { name: 'Done', exact: true });
+    await expect(done).toBeInViewport();
+    await done.tap();
+    await expect(sheet).toBeHidden();
+    await expect(viewToggle(page)).toBeFocused();
+
+    await page.setViewportSize({ width: 915, height: 412 });
+    const rotated = await openView(page);
+    await expect(rotated.getByRole('button', { name: 'Close view' })).toBeVisible();
+    await expect(rotated.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0);
+  });
+});
+
+test.describe('view and filters share the tablet dock', { tag: ['@touch', '@tablet'] }, () => {
+  test('opening one panel replaces the other in the dock', async ({ page }) => {
+    await open(page, '/photos', { assets: ASSETS });
+    const view = await openView(page);
+    await expect(page.getByRole('complementary', { name: 'View', exact: true })).toBeVisible();
+
+    const filters = await openFiltersSurface(page);
+    await expect(page.getByRole('complementary', { name: 'Filters', exact: true })).toBeVisible();
+    await expect(view).toBeHidden();
+    await expect(viewToggle(page)).toHaveAttribute('aria-expanded', 'false');
+
+    await viewToggle(page).tap();
+    await expect(surface(page, 'View')).toBeVisible();
+    await expect(filters).toBeHidden();
+    await expect(filtersToggle(page)).toHaveAttribute('aria-expanded', 'false');
+  });
 });
 
 test.describe('filter lists on touch', { tag: '@touch' }, () => {
@@ -129,7 +180,7 @@ test.describe('filter lists on touch', { tag: '@touch' }, () => {
       assetIds: [ASSETS[0]!.id]
     }));
     await open(page, '/photos', { assets: ASSETS, people });
-    const panel = await openSurface(page);
+    const panel = await openFiltersSurface(page);
     await panel.getByRole('button', { name: 'People', exact: true }).tap();
     const rows = panel.getByRole('group', { name: 'People' }).getByRole('checkbox');
     await expect(rows).toHaveCount(5);
@@ -138,7 +189,6 @@ test.describe('filter lists on touch', { tag: '@touch' }, () => {
     const list = panel.getByRole('region', { name: 'People' });
     await expect(list.getByRole('heading', { name: 'People' })).toBeInViewport();
     await expect(list.getByRole('checkbox')).toHaveCount(9);
-    await expect(panel.getByRole('radiogroup', { name: 'Thumbnail size' })).toHaveCount(0);
     await list.getByRole('checkbox', { name: 'Person 09' }).tap();
     await expect(page).toHaveURL(/person=person-8/);
 

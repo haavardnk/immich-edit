@@ -1,5 +1,4 @@
 import { FILTER_SECTIONS } from '#lib/browse/filterSections.ts';
-import { GRID_SIZE_OPTIONS, TILE_INFO_OPTIONS } from '#lib/browse/viewOptions.ts';
 import { browseView } from '#lib/stores/browseView.svelte.ts';
 import {
   controls,
@@ -10,7 +9,7 @@ import {
   type ControlRef
 } from '#lib/testing/layoutParity.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import FilterPanel from './FilterPanel.svelte';
+import FilterDock from './FilterDock.svelte';
 import FilterSections from './FilterSections.svelte';
 import FilterSheet from './FilterSheet.svelte';
 
@@ -21,15 +20,6 @@ vi.mock('$app/state', () => ({
 }));
 
 const button = (name: string): ControlRef => ({ role: 'button', name });
-const radio = (name: string): ControlRef => ({ role: 'radio', name });
-
-const VIEW_BLOCK = [
-  ...['Taken', 'Added', 'Newest', 'Oldest'],
-  ...GRID_SIZE_OPTIONS.map((option) => option.label),
-  ...TILE_INFO_OPTIONS.map((option) => option.label)
-]
-  .map(radio)
-  .concat(button('Icons and details, 6 icons · 2 details'));
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -60,8 +50,8 @@ describe('FilterSections layout parity', () => {
         layout('body', FilterSections, { favoriteLocked: locked }),
         layout(
           'panel',
-          FilterPanel,
-          { favoriteLocked: locked, sortBasis: 'capture', title: 'Photos' },
+          FilterDock,
+          { favoriteLocked: locked, title: 'Photos', onClose: () => {} },
           {
             exclude: [
               button('Save view'),
@@ -73,14 +63,13 @@ describe('FilterSections layout parity', () => {
         layout(
           'sheet',
           FilterSheet,
-          { favoriteLocked: locked, count: 3, sortBasis: 'capture', title: 'Photos' },
+          { favoriteLocked: locked, count: 3, title: 'Photos' },
           {
             exclude: [
               button('Save view'),
               button('Reset all filters'),
-              button('Close view & filters'),
-              button('Show 3 photos'),
-              ...VIEW_BLOCK
+              button('Close filters'),
+              button('Show 3 photos')
             ]
           }
         )
@@ -94,47 +83,20 @@ describe('FilterSections layout parity', () => {
   );
 });
 
-describe('FilterSheet view block', () => {
-  it('leads with sort, order, size and thumbnail info above the filters', async () => {
-    const destroy = renderLayout(
-      layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture', title: 'Photos' })
-    );
+describe('FilterSheet', () => {
+  it('holds only the filters, with Reset and Save view in its header', async () => {
+    const destroy = renderLayout(layout('sheet', FilterSheet, { count: 3, title: 'Photos' }));
     try {
       await settle();
-      const groups = [...document.querySelectorAll('[role="dialog"] [role="radiogroup"]')].map(
-        (group) => group.getAttribute('aria-label')
-      );
-      expect(groups.slice(0, 4)).toEqual(['Sort by', 'Order', 'Thumbnail size', 'Thumbnail info']);
+      const sheet = document.querySelector('[role="dialog"]');
+      expect(
+        document.getElementById(sheet?.getAttribute('aria-labelledby') ?? '')?.textContent?.trim()
+      ).toBe('Filters');
+      expect(sheet?.querySelectorAll('[role="radiogroup"]')).toHaveLength(0);
       expect(names()).toEqual(
-        expect.arrayContaining(['Taken', 'Newest', 'XL', 'Full', 'Reset all filters'])
+        expect.arrayContaining(['Reset all filters', 'Save view', 'Close filters', 'Show 3 photos'])
       );
-      expect(names()).not.toContain('View');
-    } finally {
-      await destroy();
-    }
-  });
-});
-
-describe('FilterSheet thumbnail info page', () => {
-  it('drills into the icons and details and back to the filters', async () => {
-    const destroy = renderLayout(
-      layout('sheet', FilterSheet, { count: 3, sortBasis: 'capture', title: 'Photos' })
-    );
-    try {
-      await settle();
-      document
-        .querySelector<HTMLButtonElement>('[aria-label="Icons and details, 6 icons · 2 details"]')
-        ?.click();
-      await settle();
-
-      expect(document.querySelector('section[aria-label="Thumbnail info"]')).not.toBeNull();
-      expect(names()).toEqual(expect.arrayContaining(['Reset thumbnail info', 'Edited', 'Lens']));
-      expect(names()).not.toContain('Library');
-
-      document.querySelector<HTMLButtonElement>('[aria-label="Back to filters"]')?.click();
-      await settle();
-      expect(document.querySelector('section[aria-label="Thumbnail info"]')).toBeNull();
-      expect(names()).toContain('Icons and details, 6 icons · 2 details');
+      expect(names()).not.toContain('Thumbnail size S');
     } finally {
       await destroy();
     }

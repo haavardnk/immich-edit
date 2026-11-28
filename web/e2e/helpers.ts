@@ -1306,9 +1306,11 @@ export function settingsPages(page: Page): Locator {
 }
 
 export async function openFilters(page: Page, ...sections: string[]): Promise<Locator> {
-  await page.getByRole('button', { name: /^(View & )?[Ff]ilters/ }).click();
-  const name = /^(View & filters|Filters)$/;
-  const panel = page.getByRole('complementary', { name }).or(page.getByRole('dialog', { name }));
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  const name = 'Filters';
+  const panel = page
+    .getByRole('complementary', { name, exact: true })
+    .or(page.getByRole('dialog', { name, exact: true }));
   for (const title of sections) await filterSection(panel, title).click();
   return panel;
 }

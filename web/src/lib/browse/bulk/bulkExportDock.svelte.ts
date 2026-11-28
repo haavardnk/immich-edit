@@ -11,6 +11,7 @@ class BulkExportDock {
   show = (): void => {
     if (jobs.open) jobs.close();
     if (browseView.filtersOpen) browseView.setFiltersOpen(false);
+    if (browseView.viewOpen) browseView.setViewOpen(false);
     this.open = true;
   };
 

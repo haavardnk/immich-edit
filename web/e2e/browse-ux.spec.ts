@@ -276,8 +276,8 @@ test('thumbnail size controls remain available on mobile', async ({ page }) => {
 
   await page.goto('/photos');
 
-  await page.getByRole('button', { name: 'View & filters', exact: true }).click();
-  const sheet = page.getByRole('dialog', { name: 'View & filters' });
+  await page.getByRole('button', { name: 'View', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'View' });
   const sizes = sheet.getByRole('radiogroup', { name: 'Thumbnail size' });
   for (const size of ['S', 'M', 'L', 'XL']) {
     await expect(sizes.getByRole('radio', { name: size, exact: true })).toBeInViewport();

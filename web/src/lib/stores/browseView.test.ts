@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayoutMode } from '#lib/device/layoutRules.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const storageKey = 'immich-edit:browseView';
 
@@ -124,6 +124,43 @@ describe('browse view persistence', () => {
     browseView.setCompact(false);
     browseView.setFiltersOpen(false);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+  });
+
+  it('opens view and filters one at a time and never persists the view', async () => {
+    const values = stubStorage({ filtersOpen: true });
+    onLayout('touch', true);
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setViewOpen(true);
+    expect(browseView.viewOpen).toBe(true);
+    expect(browseView.filtersOpen).toBe(false);
+    expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ filtersOpen: false });
+
+    browseView.filterPage = 'camera';
+    browseView.setFiltersOpen(true);
+    expect(browseView.viewOpen).toBe(false);
+    expect(browseView.filtersOpen).toBe(true);
+    expect(browseView.filterPage).toBe('camera');
+
+    browseView.setViewOpen(true);
+    expect(browseView.filterPage).toBeNull();
+    expect(Object.keys(JSON.parse(values.get(storageKey) ?? ''))).not.toContain('viewOpen');
+
+    onLayout('desktop');
+    expect(browseView.viewOpen).toBe(false);
+  });
+
+  it('keeps the compact view sheet transient', async () => {
+    stubStorage();
+    const { browseView } = await import('./browseView.svelte');
+
+    browseView.setCompact(true);
+    browseView.setViewOpen(true);
+    expect(browseView.viewOpen).toBe(true);
+
+    browseView.setCompact(false);
+    browseView.setCompact(true);
+    expect(browseView.viewOpen).toBe(false);
   });
 
   it('keeps the compact info sheet transient and the docked info panel persisted', async () => {

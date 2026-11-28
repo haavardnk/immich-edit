@@ -131,29 +131,27 @@ test('an account overlay loads on start and Reset restores the default', async (
 });
 
 test.describe('thumbnail info on touch', { tag: '@touch' }, () => {
-  test('Icons and details opens a page that changes the tiles', async ({ page }) => {
+  test('the View panel changes the tile icons inline and resets them', async ({ page }) => {
     await open(page, '/photos', { assets: [PHOTO] });
-    await page
-      .locator('main')
-      .getByRole('button', { name: /^View & filters/ })
-      .tap();
+    await page.locator('main').getByRole('button', { name: 'View', exact: true }).tap();
     const surface = page
-      .getByRole('dialog', { name: 'View & filters' })
-      .or(page.getByRole('complementary', { name: 'View & filters' }));
-    await surface.getByRole('button', { name: 'Icons and details, 6 icons · 2 details' }).tap();
+      .getByRole('dialog', { name: 'View', exact: true })
+      .or(page.getByRole('complementary', { name: 'View', exact: true }));
 
     const info = surface.getByRole('region', { name: 'Thumbnail info' });
-    await expect(info.getByRole('heading', { name: 'Thumbnail info' })).toBeInViewport();
-    await expect(info.getByRole('button', { name: 'Reset thumbnail info' })).toBeDisabled();
+    await expect(info.getByRole('heading', { name: 'Thumbnail info' })).toBeVisible();
+    const reset = info.getByRole('button', { name: 'Reset thumbnail info' });
+    await expect(reset).toBeDisabled();
     await expect(info.getByText('cycles the modes')).toHaveCount(0);
     await info.getByRole('checkbox', { name: 'File format' }).tap();
     await expect(
       tile(page, PHOTO.originalFileName).getByRole('img', { name: 'ARW file' })
     ).toHaveCount(1);
 
-    await info.getByRole('button', { name: 'Back to filters' }).tap();
+    await reset.tap();
     await expect(
-      surface.getByRole('button', { name: 'Icons and details, 7 icons · 2 details' })
-    ).toBeVisible();
+      tile(page, PHOTO.originalFileName).getByRole('img', { name: 'ARW file' })
+    ).toHaveCount(0);
+    await expect(reset).toBeDisabled();
   });
 });
