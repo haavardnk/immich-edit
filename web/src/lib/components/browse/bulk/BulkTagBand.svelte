@@ -3,11 +3,15 @@
   import { SvelteMap } from 'svelte/reactivity';
   import Chip from '#lib/components/chips/Chip.svelte';
   import { bulkActions } from '#lib/browse/bulk/bulkActions.svelte.ts';
-  import { bulkScope } from '#lib/browse/bulk/bulkScope.svelte.ts';
+  import { MEMBERSHIP_CAP, heldCounts } from '#lib/browse/bulk/heldMembership.ts';
   import { nextStage, type Stage } from '#lib/browse/bulk/pickStage.ts';
+  import { sourceId } from '#lib/browse/assetKey.ts';
   import { toTagRef, userTags } from '#lib/browse/managedTags.ts';
+  import { loadTagMembership } from '#lib/browse/tagMembership.ts';
   import { library } from '#lib/stores/library.svelte.ts';
   import { recentTags } from '#lib/stores/recentTags.svelte.ts';
+  import { selection } from '#lib/stores/selection.svelte.ts';
+  import { tagCache } from '#lib/stores/tagCache.svelte.ts';
   import { toasts } from '#lib/stores/toasts.svelte.ts';
   import { mdiTagOutline } from '@mdi/js';
   import BulkPickList, { type PickItem } from './BulkPickList.svelte';
@@ -17,31 +21,35 @@
   const tags = $derived(userTags(library.tags).sort((a, b) => a.value.localeCompare(b.value)));
   const stages = new SvelteMap<string, Stage>();
 
-  const total = $derived(bulkScope.count);
-  const counts = $derived.by(() => {
-    const held = new Map<string, number>();
-    for (const asset of bulkScope.picked) {
-      for (const tag of asset.tags) held.set(tag.id, (held.get(tag.id) ?? 0) + 1);
-    }
-    return held;
-  });
+  const sources = $derived([...new Set([...selection.selected].map(sourceId))]);
+  const total = $derived(sources.length);
+  const counts = $derived(heldCounts(sources, (id) => tagCache.get(id)));
   const items = $derived<PickItem[]>(
     tags.map((tag) => ({ id: tag.id, label: tag.value, icon: mdiTagOutline }))
   );
   const recent = $derived(recentTags.tags.filter((tag) => tags.some((t) => t.id === tag.id)));
 
   function holding(id: string): number {
-    return counts.get(id) ?? 0;
+    return counts?.get(id) ?? 0;
   }
 
   onMount(() => {
     library.ensureTags().catch((e: unknown) => toasts.fail('Failed to load tags', e));
   });
 
+  $effect(() => {
+    if (sources.length <= MEMBERSHIP_CAP) void loadTagMembership(sources);
+  });
+
   function toggle(id: string): void {
     const next = nextStage(holding(id), total, stages.get(id));
     if (next) stages.set(id, next);
     else stages.delete(id);
+  }
+
+  function toggleAdd(id: string): void {
+    if (stages.get(id) === 'add') stages.delete(id);
+    else stages.set(id, 'add');
   }
 
   function refs(stage: Stage) {
@@ -60,7 +68,7 @@
     <div class="section-label px-3 pt-3 pb-1 text-dark/65 touch:px-4">Recent</div>
     <div class="flex flex-wrap gap-2 px-3 pb-2 touch:px-4">
       {#each recent as tag (tag.id)}
-        <Chip pressed={stages.get(tag.id) === 'add'} onPressedChange={() => toggle(tag.id)}>
+        <Chip pressed={stages.get(tag.id) === 'add'} onPressedChange={() => toggleAdd(tag.id)}>
           {tag.value}
         </Chip>
       {/each}
