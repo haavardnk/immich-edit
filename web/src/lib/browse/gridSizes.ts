@@ -2,8 +2,6 @@ import type { LayoutMode } from '#lib/device/layoutRules.ts';
 
 export type GridSize = 'sm' | 'md' | 'lg' | 'xl';
 
-export type GridLayout = { mode: LayoutMode; wide: boolean };
-
 export type RowLayout = { mode: LayoutMode; phone: boolean };
 
 type GridDevice = 'desktop' | 'tablet' | 'phone';
@@ -19,7 +17,7 @@ export const GRID_SIZE_LABELS: Readonly<Record<GridSize, string>> = {
 
 const ROW_HEIGHTS: Readonly<Record<GridDevice, Readonly<Record<GridSize, number>>>> = {
   desktop: { sm: 110, md: 150, lg: 220, xl: 320 },
-  tablet: { sm: 56, md: 80, lg: 112, xl: 160 },
+  tablet: { sm: 90, md: 140, lg: 190, xl: 260 },
   phone: { sm: 72, md: 100, lg: 140, xl: 220 }
 };
 
@@ -52,9 +50,8 @@ export function gridRowTolerance(phone: boolean): number {
   return phone ? PHONE_ROW_TOLERANCE : ROW_TOLERANCE;
 }
 
-export function defaultGridSize({ mode, wide }: GridLayout): GridSize {
-  if (mode === 'desktop') return 'md';
-  return wide ? 'xl' : 'lg';
+export function defaultGridSize(mode: LayoutMode): GridSize {
+  return mode === 'desktop' ? 'md' : 'lg';
 }
 
 export function steppedGridSize(size: GridSize, delta: number): GridSize {

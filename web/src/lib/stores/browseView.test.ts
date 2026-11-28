@@ -179,9 +179,9 @@ describe('browse view persistence', () => {
 describe('grid size per layout', () => {
   it.each([
     ['desktop', false, false, 'md', 150],
-    ['touch', false, false, 'lg', 112],
+    ['touch', false, false, 'lg', 190],
     ['touch', false, true, 'lg', 140],
-    ['touch', true, false, 'xl', 160]
+    ['touch', true, false, 'lg', 190]
   ] as const)(
     'defaults on %s (wide %s, phone %s) to %s at %i px',
     async (mode, wide, phone, size, height) => {
@@ -201,13 +201,13 @@ describe('grid size per layout', () => {
 
     browseView.setTileInfo('full');
     expect(JSON.parse(values.get(storageKey) ?? '')).not.toHaveProperty('gridSizeChoice');
-    onLayout('touch', true);
-    expect(browseView.gridSize).toBe('xl');
+    onLayout('desktop');
+    expect(browseView.gridSize).toBe('md');
 
     browseView.setGridSize('sm');
-    onLayout('desktop');
+    onLayout('touch', true);
     expect(browseView.gridSize).toBe('sm');
-    expect(browseView.rowHeight).toBe(110);
+    expect(browseView.rowHeight).toBe(90);
     expect(JSON.parse(values.get(storageKey) ?? '')).toMatchObject({ gridSizeChoice: 'sm' });
   });
 
@@ -216,8 +216,8 @@ describe('grid size per layout', () => {
     onLayout('touch', true);
     const { browseView } = await import('./browseView.svelte');
 
-    expect(browseView.gridSize).toBe('xl');
-    expect(browseView.rowHeight).toBe(160);
+    expect(browseView.gridSize).toBe('lg');
+    expect(browseView.rowHeight).toBe(190);
 
     browseView.setTileInfo('full');
     expect(JSON.parse(values.get(storageKey) ?? '')).not.toHaveProperty('gridSize');
@@ -229,6 +229,6 @@ describe('grid size per layout', () => {
     const { browseView } = await import('./browseView.svelte');
 
     expect(browseView.gridSize).toBe('md');
-    expect(browseView.rowHeight).toBe(80);
+    expect(browseView.rowHeight).toBe(140);
   });
 });
