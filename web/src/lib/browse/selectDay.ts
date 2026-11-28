@@ -9,21 +9,31 @@ export type DayPager = {
   requestPrevious: () => Promise<boolean>;
 };
 
-export type DayPick = {
+export type DayFeed = {
   pager: DayPager;
   groups: () => readonly DayGroup[];
+  indexOf: (id: string) => number;
+};
+
+export type DayPick = DayFeed & {
   ids: (start: number, end: number) => string[];
   isSelected: (id: string) => boolean;
   apply: (ids: string[], on: boolean) => void;
 };
 
+function dayOf(groups: readonly DayGroup[], index: number): number {
+  if (index < 0) return -1;
+  return groups.findIndex((group) => group.start <= index && index < group.end);
+}
+
 export function daySpan(
   groups: readonly DayGroup[],
-  fromKey: string,
-  toKey: string
+  indexOf: (id: string) => number,
+  fromId: string,
+  toId: string
 ): DaySpan | null {
-  const from = groups.findIndex((group) => group.key === fromKey);
-  const to = groups.findIndex((group) => group.key === toKey);
+  const from = dayOf(groups, indexOf(fromId));
+  const to = dayOf(groups, indexOf(toId));
   if (from < 0 || to < 0) return null;
   const first = Math.min(from, to);
   const last = Math.max(from, to);
@@ -44,34 +54,29 @@ export function dayAction(
 }
 
 export async function loadDaySpan(
-  pager: DayPager,
-  groups: () => readonly DayGroup[],
-  fromKey: string,
-  toKey: string
+  { pager, groups, indexOf }: DayFeed,
+  fromId: string,
+  toId: string
 ): Promise<DaySpan | null> {
   for (;;) {
     const list = groups();
-    const span = daySpan(list, fromKey, toKey);
+    const span = daySpan(list, indexOf, fromId, toId);
     if (!span) return null;
     const before = span.first === 0 && pager.hasPrevious;
     const after = !before && span.end >= loadedCount(list) && pager.hasMore;
     if (!before && !after) return span;
     const loaded = await (before ? pager.requestPrevious() : pager.requestMore());
     if (!loaded) return null;
-    if (loadedCount(groups()) === loadedCount(list)) return daySpan(groups(), fromKey, toKey);
+    if (loadedCount(groups()) === loadedCount(list))
+      return daySpan(groups(), indexOf, fromId, toId);
   }
 }
 
-export async function pickDays(
-  pick: DayPick,
-  fromKey: string,
-  toKey: string,
-  extend: boolean
-): Promise<boolean> {
-  const span = await loadDaySpan(pick.pager, pick.groups, fromKey, toKey);
+export async function pickDays(pick: DayPick, fromId: string, toId: string): Promise<boolean> {
+  const span = await loadDaySpan(pick, fromId, toId);
   if (!span) return false;
   const ids = pick.ids(span.start, span.end);
-  const on = extend || dayAction(ids, pick.isSelected) === 'select';
+  const on = span.first !== span.last || dayAction(ids, pick.isSelected) === 'select';
   pick.apply(ids, on);
   return on;
 }

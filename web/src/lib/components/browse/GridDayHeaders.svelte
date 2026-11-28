@@ -38,10 +38,14 @@
       const day = days[header.section];
       if (!day) return [];
       const ids = items.slice(day.start, day.end).map((asset) => asset.id);
+      const first = ids[0];
+      if (!first) return [];
       return [
         {
           header,
           day,
+          first,
+          busy: picking !== null && ids.includes(picking),
           title: dayTitle(day.key, today),
           subtitle: daySubtitle(day),
           selected: ids.every((id) => selection.has(id))
@@ -50,24 +54,28 @@
     });
   });
 
-  async function selectDay(key: string, extend: boolean): Promise<void> {
+  function indexOf(id: string): number {
+    return items.findIndex((asset) => asset.id === id);
+  }
+
+  async function selectDay(id: string, extend: boolean): Promise<void> {
     if (locked || picking) return;
-    const from = extend && anchor ? anchor : key;
-    picking = key;
+    const from = extend && anchor !== null && indexOf(anchor) >= 0 ? anchor : id;
+    picking = id;
     try {
       await pickDays(
         {
           pager: browsing,
           groups: () => days,
+          indexOf,
           ids: (start, end) => items.slice(start, end).map((asset) => asset.id),
           isSelected: selection.has,
           apply: selection.setMany
         },
         from,
-        key,
-        from !== key
+        id
       );
-      anchor = key;
+      anchor = id;
     } finally {
       picking = null;
     }
@@ -87,8 +95,8 @@
       subtitle={entry.subtitle}
       selected={entry.selected}
       selectionActive={selection.selecting || locked}
-      busy={picking === entry.day.key}
-      onSelect={(extend) => void selectDay(entry.day.key, extend)}
+      busy={entry.busy}
+      onSelect={(extend) => void selectDay(entry.first, extend)}
     />
   </div>
 {/each}
