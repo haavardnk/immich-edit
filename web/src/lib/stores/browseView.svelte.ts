@@ -73,7 +73,7 @@ class BrowseViewStore {
   }
 
   get gridSize(): GridSize {
-    return this.#chosenSize ?? defaultGridSize(layout);
+    return this.#chosenSize ?? defaultGridSize(layout.mode);
   }
 
   get rowHeight(): number {

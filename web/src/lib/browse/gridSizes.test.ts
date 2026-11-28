@@ -14,7 +14,7 @@ describe('grid sizes', () => {
     const heights = (mode: 'desktop' | 'touch', phone: boolean) =>
       GRID_SIZES.map((size) => gridRowHeight(size, { mode, phone }));
     expect(heights('desktop', false)).toEqual([110, 150, 220, 320]);
-    expect(heights('touch', false)).toEqual([56, 80, 112, 160]);
+    expect(heights('touch', false)).toEqual([90, 140, 190, 260]);
     expect(heights('touch', true)).toEqual([72, 100, 140, 220]);
   });
 
@@ -23,10 +23,9 @@ describe('grid sizes', () => {
     expect(gridRowTolerance(false)).toBe(0.5);
   });
 
-  it('defaults to M on desktop, L on a phone and XL on a wide tablet', () => {
-    expect(defaultGridSize({ mode: 'desktop', wide: false })).toBe('md');
-    expect(defaultGridSize({ mode: 'touch', wide: false })).toBe('lg');
-    expect(defaultGridSize({ mode: 'touch', wide: true })).toBe('xl');
+  it('defaults to M on desktop and L on touch', () => {
+    expect(defaultGridSize('desktop')).toBe('md');
+    expect(defaultGridSize('touch')).toBe('lg');
   });
 
   it('steps within the four sizes', () => {
