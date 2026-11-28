@@ -169,6 +169,7 @@ pub fn router_with_web_dir(state: AppState, web_dir: &Path) -> Router {
             "/albums",
             get(routes::albums::list).post(routes::albums::create),
         )
+        .route("/albums/membership", post(routes::membership::albums))
         .route(
             "/albums/{id}",
             get(routes::albums::detail)

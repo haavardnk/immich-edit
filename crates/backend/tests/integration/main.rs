@@ -1,6 +1,7 @@
 mod common;
 
 mod admin;
+mod album_membership;
 mod albums;
 mod appearance;
 mod assets;
